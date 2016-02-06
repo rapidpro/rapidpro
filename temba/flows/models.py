@@ -2747,9 +2747,15 @@ class FlowRun(models.Model):
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
                               help_text=_("The FlowStart objects that started this run"))
 
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
+                                     help_text="The user which submitted this flow run")
+
     @classmethod
-    def create(cls, flow, contact_id, start=None, call=None, fields=None, created_on=None, db_insert=True):
-        args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start, call=call, fields=fields)
+    def create(cls, flow, contact_id, start=None, call=None, fields=None,
+               created_on=None, db_insert=True, submitted_by=None):
+
+        args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start,
+                    call=call, fields=fields, submitted_by=submitted_by)
 
         if created_on:
             args['created_on'] = created_on
@@ -3048,11 +3054,15 @@ class ExportFlowResultsTask(SmartModel):
         large_width = 100 * 256
 
         # merge the columns for all of our flows
+        show_submitted_by = False
         columns = []
         flows = self.flows.all()
         with SegmentProfiler("get columns"):
             for flow in flows:
                 columns += flow.get_columns()
+
+                if flow.flow_type == Flow.SURVEY:
+                    show_submitted_by = True
 
         org = None
         if flows:
@@ -3121,28 +3131,45 @@ class ExportFlowResultsTask(SmartModel):
         # then populate their header columns
         for sheet in run_sheets:
             # build up our header row
-            sheet.write(0, 0, "Contact UUID")
-            sheet.write(0, 1, "Phone")
-            sheet.write(0, 2, "Name")
-            sheet.write(0, 3, "Groups")
-            sheet.write(0, 4, "First Seen")
-            sheet.write(0, 5, "Last Seen")
 
-            sheet.col(0).width = medium_width
-            sheet.col(1).width = small_width
-            sheet.col(2).width = medium_width
-            sheet.col(3).width = medium_width
-            sheet.col(4).width = medium_width
-            sheet.col(5).width = medium_width
+            index = 0
+            if show_submitted_by:
+                sheet.write(0, index, "Surveyor")
+                sheet.col(0).width = medium_width
+                index += 1
+
+            sheet.write(0, index, "Contact UUID")
+            sheet.col(index).width = medium_width
+            index += 1
+
+            sheet.write(0, index, "Phone")
+            sheet.col(index).width = small_width
+            index += 1
+
+            sheet.write(0, index, "Name")
+            sheet.col(index).width = medium_width
+            index += 1
+
+            sheet.write(0, index, "Groups")
+            sheet.col(index).width = medium_width
+            index += 1
+
+            sheet.write(0, index, "First Seen")
+            sheet.col(index).width = medium_width
+            index += 1
+
+            sheet.write(0, index, "Last Seen")
+            sheet.col(index).width = medium_width
+            index += 1
 
             for col in range(len(columns)):
                 ruleset = columns[col]
-                sheet.write(0, 6+col*3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, 6+col*3+1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, 6+col*3+2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.col(6+col*3).width = 15 * 256
-                sheet.col(6+col*3+1).width = 15 * 256
-                sheet.col(6+col*3+2).width = 15 * 256
+                sheet.write(0, index+col*3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, index+col*3+1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, index+col*3+2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.col(index+col*3).width = 15 * 256
+                sheet.col(index+col*3+1).width = 15 * 256
+                sheet.col(index+col*3+2).width = 15 * 256
 
         run_row = 0
         merged_row = 0
@@ -3247,15 +3274,28 @@ class ExportFlowResultsTask(SmartModel):
                     group_names.sort()
                     groups = ", ".join(group_names)
 
-                    runs.write(run_row, 0, contact_uuid)
-                    runs.write(run_row, 1, contact_urn_display)
-                    runs.write(run_row, 2, run_step.contact.name)
-                    runs.write(run_row, 3, groups)
+                    padding = 0
+                    if show_submitted_by:
+                        submitted_by = ''
+                        # use the login as the submission user
+                        if run_step.run.submitted_by:
+                            submitted_by = run_step.run.submitted_by.username
 
-                    merged_runs.write(merged_row, 0, contact_uuid)
-                    merged_runs.write(merged_row, 1, contact_urn_display)
-                    merged_runs.write(merged_row, 2, run_step.contact.name)
-                    merged_runs.write(merged_row, 3, groups)
+                        runs.write(run_row, 0, submitted_by)
+                        merged_runs.write(merged_row, 0, submitted_by)
+                        padding = 1
+
+                    runs.write(run_row, padding+0, contact_uuid)
+                    runs.write(run_row, padding+1, contact_urn_display)
+                    runs.write(run_row, padding+2, run_step.contact.name)
+                    runs.write(run_row, padding+3, groups)
+
+                    merged_runs.write(merged_row, padding+0, contact_uuid)
+                    merged_runs.write(merged_row, padding+1, contact_urn_display)
+                    merged_runs.write(merged_row, padding+2, run_step.contact.name)
+                    merged_runs.write(merged_row, padding+3, groups)
+
+
 
                 if not latest or latest < run_step.arrived_on:
                     latest = run_step.arrived_on
@@ -3263,14 +3303,15 @@ class ExportFlowResultsTask(SmartModel):
                 if not merged_latest or merged_latest < run_step.arrived_on:
                     merged_latest = run_step.arrived_on
 
-                runs.write(run_row, 4, as_org_tz(earliest), date_format)
-                runs.write(run_row, 5, as_org_tz(latest), date_format)
 
-                merged_runs.write(merged_row, 4, as_org_tz(merged_earliest), date_format)
-                merged_runs.write(merged_row, 5, as_org_tz(merged_latest), date_format)
+                runs.write(run_row, padding+4, as_org_tz(earliest), date_format)
+                runs.write(run_row, padding+5, as_org_tz(latest), date_format)
+
+                merged_runs.write(merged_row, padding+4, as_org_tz(merged_earliest), date_format)
+                merged_runs.write(merged_row, padding+5, as_org_tz(merged_latest), date_format)
 
                 # write the step data
-                col = column_map.get(run_step.step_uuid, 0)
+                col = column_map.get(run_step.step_uuid, 0) + padding
                 if col:
                     category = category_map.get(run_step.rule_uuid, None)
                     if category:
