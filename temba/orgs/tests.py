@@ -66,6 +66,14 @@ class OrgTest(TembaTest):
         self.assertEqual(self.surveyor, org_users[2])
         self.assertEqual(self.user, org_users[3])
 
+    def test_get_unique_slug(self):
+        self.org.slug = 'allo'
+        self.org.save()
+
+        self.assertEqual(Org.get_unique_slug('foo'), 'foo')
+        self.assertEqual(Org.get_unique_slug('Which part?'), 'which-part')
+        self.assertEqual(Org.get_unique_slug('Allo'), 'allo-2')
+
     def test_edit(self):
         # use a manager now
         self.login(self.admin)
@@ -368,6 +376,18 @@ class OrgTest(TembaTest):
         # now 2 new invitations are created and sent
         self.assertEquals(3, Invitation.objects.all().count())
         self.assertEquals(4, len(mail.outbox))
+
+        response = self.client.get(manage_accounts_url)
+
+        # user ordered by email
+        self.assertEqual(response.context['org_users'][0], self.admin)
+        self.assertEqual(response.context['org_users'][1], self.editor)
+        self.assertEqual(response.context['org_users'][2], self.user)
+
+        # invites ordered by email as well
+        self.assertEqual(response.context['invites'][0].email, 'code@temba.com')
+        self.assertEqual(response.context['invites'][1].email, 'norbert@temba.com')
+        self.assertEqual(response.context['invites'][2].email, 'norkans7@gmail.com')
 
         # Update our users, making the 'user' user a surveyor
         post_data = {
