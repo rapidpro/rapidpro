@@ -696,7 +696,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
         label = self.validated_data.get('label')
         value_type = self.validated_data.get('value_type')
 
-        return ContactField.get_or_create(self.org, key, label, value_type=value_type)
+        return ContactField.get_or_create(self.org, self.user, key, label, value_type=value_type)
 
 
 class CampaignEventReadSerializer(ReadSerializer):
@@ -834,7 +834,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
         relative_to = ContactField.get_by_label(self.org, relative_to_label)
         if not relative_to:
             key = ContactField.make_key(relative_to_label)
-            relative_to = ContactField.get_or_create(self.org, key, relative_to_label)
+            relative_to = ContactField.get_or_create(self.org, self.user, key, relative_to_label)
 
         if self.instance:
             # we are being set to a flow

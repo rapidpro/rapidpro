@@ -33,7 +33,7 @@ class CampaignTest(TembaTest):
         self.voice_flow.save()
 
         # create a contact field for our planting date
-        self.planting_date = ContactField.get_or_create(self.org, 'planting_date', "Planting Date")
+        self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
@@ -507,13 +507,13 @@ class CampaignTest(TembaTest):
         self.assertEquals(9, event.scheduled.day)
 
         # let's remove our contact field
-        ContactField.hide_field(self.org, 'planting_date')
+        ContactField.hide_field(self.org, self.user, 'planting_date')
 
         # shouldn't have anything scheduled
         self.assertFalse(EventFire.objects.all())
 
         # add it back in
-        ContactField.get_or_create(self.org, 'planting_date', "planting Date")
+        ContactField.get_or_create(self.org, self.admin, 'planting_date', "planting Date")
 
         # should be back!
         event = EventFire.objects.get()

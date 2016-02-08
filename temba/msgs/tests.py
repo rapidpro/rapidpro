@@ -132,10 +132,10 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['function_completions'], json.dumps(get_function_listing()))
 
         # add some contact fields
-        field = ContactField.objects.create(org=self.org, label="Cell", key='cell')
+        field = ContactField.get_or_create(self.org, self.admin, 'cell', "Cell")
         completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Cell"))
 
-        field = ContactField.objects.create(org=self.org, label="Sector", key='sector')
+        field = ContactField.get_or_create(self.org, self.admin, 'sector', "Sector")
         completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Sector"))
 
         response = self.client.get(outbox_url)
@@ -997,9 +997,9 @@ class BroadcastTest(TembaTest):
         self.assertEquals(40, len(parts[3]))
 
     def test_substitute_variables(self):
-        ContactField.get_or_create(self.org, 'goats', "Goats", False, DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, DECIMAL)
         self.joe.set_field(self.user, 'goats', "3 ")
-        ContactField.get_or_create(self.org, 'dob', "Date of birth", False, DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, DATETIME)
         self.joe.set_field(self.user, 'dob', "28/5/1981")
 
         self.assertEquals(("Hello World", []), Msg.substitute_variables("Hello World", self.joe, dict()))
@@ -1073,7 +1073,7 @@ class BroadcastTest(TembaTest):
         self.assertEquals(("1,2,3", []), Msg.substitute_variables("@(read_digits(contact))", self.joe, dict()))
 
     def test_message_context(self):
-        ContactField.objects.create(org=self.org, label="Superhero Name", key="superhero_name")
+        ContactField.get_or_create(self.org, self.admin, "superhero_name", "Superhero Name")
 
         self.joe.send("keyword remainder-remainder", self.admin)
         self.joe.set_field(self.user, 'superhero_name', 'batman')
@@ -1092,8 +1092,8 @@ class BroadcastTest(TembaTest):
         self.assertEqual(msg_time, context['time'])
 
     def test_variables_substitution(self):
-        ContactField.get_or_create(self.org, "sector", "sector")
-        ContactField.get_or_create(self.org, "team", "team")
+        ContactField.get_or_create(self.org, self.admin, "sector", "sector")
+        ContactField.get_or_create(self.org, self.admin, "team", "team")
 
         self.joe.set_field(self.user, "sector", "Kacyiru")
         self.frank.set_field(self.user, "sector", "Remera")

@@ -1326,7 +1326,8 @@ class ContactFieldCRUDL(SmartCRUDL):
         def form_valid(self, form):
             try:
                 cleaned_data = form.cleaned_data
-                org = self.request.user.get_org()
+                user = self.request.user
+                org = user.get_org()
 
                 for key in cleaned_data:
                     if key.startswith('field_'):
@@ -1338,14 +1339,14 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                         if field == '__new_field':
                             if label:
-                                analytics.track(self.request.user.username, 'temba.contactfield_created')
+                                analytics.track(user.username, 'temba.contactfield_created')
                                 key = ContactField.make_key(label)
-                                ContactField.get_or_create(org, key, label, show_in_table=show_in_table, value_type=value_type)
+                                ContactField.get_or_create(org, user, key, label, show_in_table=show_in_table, value_type=value_type)
                         else:
                             if label:
-                                ContactField.get_or_create(org, field.key, label, show_in_table=show_in_table, value_type=value_type)
+                                ContactField.get_or_create(org, user, field.key, label, show_in_table=show_in_table, value_type=value_type)
                             else:
-                                ContactField.hide_field(org, field.key)
+                                ContactField.hide_field(org, user, field.key)
 
                 if 'HTTP_X_PJAX' not in self.request.META:
                     return HttpResponseRedirect(self.get_success_url())

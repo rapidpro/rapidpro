@@ -4582,7 +4582,7 @@ class SaveToContactAction(Action):
             if contact_field:
                 label = contact_field.label
             else:
-                ContactField.get_or_create(org, field, label)
+                ContactField.get_or_create(org, get_flow_user(), field, label)
 
         return label
 

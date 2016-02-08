@@ -113,7 +113,7 @@ class Campaign(SmartModel):
 
                 # fill our campaign with events
                 for event_spec in campaign_spec['events']:
-                    relative_to = ContactField.get_or_create(org,
+                    relative_to = ContactField.get_or_create(org, user,
                                                              key=event_spec['relative_to']['key'],
                                                              label=event_spec['relative_to']['label'])
 

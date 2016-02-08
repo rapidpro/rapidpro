@@ -50,8 +50,8 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         generate_twitter = lambda num: (TWITTER_SCHEME, "tweep_%d" % (num + 1), self.twitter)
         self.urn_generators = (generate_tel_mtn, generate_tel_tigo, generate_twitter)
 
-        self.field_nick = ContactField.get_or_create(self.org, 'nick', 'Nickname', show_in_table=True, value_type=TEXT)
-        self.field_age = ContactField.get_or_create(self.org, 'age', 'Age', show_in_table=True, value_type=DECIMAL)
+        self.field_nick = ContactField.get_or_create(self.org, self.admin, 'nick', 'Nickname', show_in_table=True, value_type=TEXT)
+        self.field_age = ContactField.get_or_create(self.org, self.admin, 'age', 'Age', show_in_table=True, value_type=DECIMAL)
 
     @classmethod
     def tearDownClass(cls):

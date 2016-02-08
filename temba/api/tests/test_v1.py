@@ -804,7 +804,7 @@ class APITest(TembaTest):
 
         # create our test flow and a contact field
         self.create_flow()
-        contact_field = ContactField.objects.create(key='gender', label="Gender", org=self.org)
+        contact_field = ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
         ruleset = RuleSet.objects.get()
 
         # invalid ruleset id
@@ -1432,7 +1432,7 @@ class APITest(TembaTest):
         self.assertIsNone(contact.get_field('real_name'))
 
         # create field and try again
-        ContactField.objects.create(org=self.org, key='real_name', label="Real Name", value_type='T')
+        ContactField.get_or_create(self.org, self.user, 'real_name', "Real Name", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         contact = Contact.objects.get()
         self.assertContains(response, "Andy", status_code=201)
@@ -1445,7 +1445,7 @@ class APITest(TembaTest):
         self.assertEquals("Andre", contact.get_field_display("real_name"))
 
         # try when contact field have same key and label
-        state = ContactField.objects.create(org=self.org, key='state', label="state", value_type='T')
+        state = ContactField.get_or_create(self.org, self.user, 'state', "state", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "IL"}))
         self.assertContains(response, "IL", status_code=201)
         contact = Contact.objects.get()
@@ -1453,7 +1453,8 @@ class APITest(TembaTest):
         self.assertEquals("Andre", contact.get_field_display("real_name"))
 
         # try when contact field is not active
-        ContactField.objects.filter(org=self.org, key='state').update(is_active=False)
+        state.is_active = False
+        state.save()
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "VA"}))
         self.assertContains(response, "Invalid", status_code=400)
         self.assertEquals("IL", Value.objects.get(contact=contact, contact_field=state).string_value)   # unchanged
@@ -1462,7 +1463,7 @@ class APITest(TembaTest):
 
         # add another contact
         jay_z = self.create_contact("Jay-Z", number="123444")
-        ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date", None, DATETIME)
         jay_z.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
 
         # try to update using URNs from two different contacts
