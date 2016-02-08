@@ -28,7 +28,8 @@ from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestVa
 from temba.triggers.models import Trigger
 from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
-from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
+from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
+from .tasks import squash_topupcredits
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -167,7 +168,7 @@ class OrgTest(TembaTest):
         with patch('stripe.Charge.retrieve') as stripe:
             stripe.return_value = ''
             response = self.client.get(reverse('orgs.topup_read', args=[TopUp.objects.filter(org=self.org).first().pk]))
-            self.assertContains(response, '1000 Credits')
+            self.assertContains(response, '1,000 Credits')
 
     def test_user_update(self):
         update_url = reverse('orgs.user_edit')
@@ -627,6 +628,15 @@ class OrgTest(TembaTest):
 
         self.assertEquals(10, welcome_topup.msgs.count())
         self.assertEquals(10, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+
+        # at this point we shouldn't have squashed any topupcredits, so should have the same number as our used
+        self.assertEqual(10, TopUpCredits.objects.all().count())
+
+        # now squash
+        squash_topupcredits()
+
+        # should only have one remaining
+        self.assertEqual(1, TopUpCredits.objects.all().count())
 
         # reduce our credits on our topup to 15
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)

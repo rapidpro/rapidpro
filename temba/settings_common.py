@@ -934,7 +934,11 @@ CELERYBEAT_SCHEDULE = {
     "squash-systemlabels": {
         'task': 'squash_systemlabels',
         'schedule': timedelta(seconds=300),
-    }
+    },
+    "squash-topupcredits": {
+        'task': 'squash_topupcredits',
+        'schedule': timedelta(seconds=300),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
