@@ -1583,7 +1583,7 @@ class FlowTest(TembaTest):
 
         test_contact = Contact.get_test_contact(self.admin)
         group = self.create_group("players", [test_contact])
-        contact_field = ContactField.get_or_create(self.org, 'custom', 'custom')
+        contact_field = ContactField.get_or_create(self.org, self.admin, 'custom', 'custom')
         contact_field_value = Value.objects.create(contact=test_contact, contact_field=contact_field, org=self.org,
                                                    string_value="hey")
 
@@ -3808,7 +3808,7 @@ class FlowsTest(FlowFileTest):
 
         # do a dry run once so that the groups and fields get created
         group = self.create_group("Campaign", [])
-        field = ContactField.get_or_create(self.org, "campaign_date", "Campaign Date")
+        field = ContactField.get_or_create(self.org, self.admin, "campaign_date", "Campaign Date")
 
         # tests that a contact is properly updated when a child flow is called
         child = self.get_flow('child')

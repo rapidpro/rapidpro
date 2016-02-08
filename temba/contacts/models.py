@@ -55,7 +55,8 @@ IMPORT_HEADERS = (('phone', TEL_SCHEME),
 
 IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
-class ContactField(models.Model):
+
+class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
     """
@@ -64,8 +65,6 @@ class ContactField(models.Model):
     label = models.CharField(verbose_name=_("Label"), max_length=36)
 
     key = models.CharField(verbose_name=_("Key"), max_length=36)
-
-    is_active = models.BooleanField(verbose_name=_("Is Active"), default=True)
 
     value_type = models.CharField(choices=VALUE_TYPE_CHOICES, max_length=1, default=TEXT, verbose_name="Field Type")
 
@@ -89,11 +88,13 @@ class ContactField(models.Model):
         return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0)
 
     @classmethod
-    def hide_field(cls, org, key):
+    def hide_field(cls, org, user, key):
         existing = ContactField.objects.filter(org=org, key=key).first()
         if existing:
             existing.is_active = False
             existing.show_in_table = False
+            existing.modified_by = user
+            existing.modified_on = timezone.now()
             existing.save()
 
             # cancel any events on this
@@ -101,7 +102,7 @@ class ContactField(models.Model):
             EventFire.update_field_events(existing)
 
     @classmethod
-    def get_or_create(cls, org, key, label=None, show_in_table=None, value_type=None):
+    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
         """
@@ -137,6 +138,8 @@ class ContactField(models.Model):
                     changed = True
 
                 if changed:
+                    field.modified_by = user
+                    field.modified_on = timezone.now()
                     field.save()
 
                     if update_events:
@@ -158,7 +161,8 @@ class ContactField(models.Model):
                     raise ValueError('Field key %s has invalid characters or is a reserved field name' % key)
 
                 field = ContactField.objects.create(org=org, key=key, label=label,
-                                                    show_in_table=show_in_table, value_type=value_type)
+                                                    show_in_table=show_in_table, value_type=value_type,
+                                                    created_by=user, modified_by=user)
 
             return field
 
@@ -172,6 +176,7 @@ class ContactField(models.Model):
 
     def __unicode__(self):
         return "%s" % self.label
+
 
 NEW_CONTACT_VARIABLE = "@new_contact"
 
@@ -338,7 +343,7 @@ class Contact(TembaModel):
         from temba.values.models import Value
 
         # make sure this field exists
-        field = ContactField.get_or_create(self.org, key, label)
+        field = ContactField.get_or_create(self.org, user, key, label)
 
         existing = None
         if value is None or value == '':
@@ -769,7 +774,7 @@ class Contact(TembaModel):
                 field_dict[key] = value
 
                 # create the contact field if it doesn't exist
-                ContactField.get_or_create(field_dict['org'], key, label, False, field['type'])
+                ContactField.get_or_create(field_dict['org'], user, key, label, False, field['type'])
                 extra_fields.append(key)
             else:
                 raise Exception('Extra field %s is a reserved field name' % key)

@@ -997,9 +997,9 @@ class BroadcastTest(TembaTest):
         self.assertEquals(40, len(parts[3]))
 
     def test_substitute_variables(self):
-        ContactField.get_or_create(self.org, 'goats', "Goats", False, DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, DECIMAL)
         self.joe.set_field(self.user, 'goats', "3 ")
-        ContactField.get_or_create(self.org, 'dob', "Date of birth", False, DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, DATETIME)
         self.joe.set_field(self.user, 'dob', "28/5/1981")
 
         self.assertEquals(("Hello World", []), Msg.substitute_variables("Hello World", self.joe, dict()))
@@ -1092,8 +1092,8 @@ class BroadcastTest(TembaTest):
         self.assertEqual(msg_time, context['time'])
 
     def test_variables_substitution(self):
-        ContactField.get_or_create(self.org, "sector", "sector")
-        ContactField.get_or_create(self.org, "team", "team")
+        ContactField.get_or_create(self.org, self.admin, "sector", "sector")
+        ContactField.get_or_create(self.org, self.admin, "team", "team")
 
         self.joe.set_field(self.user, "sector", "Kacyiru")
         self.frank.set_field(self.user, "sector", "Remera")
