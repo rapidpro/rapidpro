@@ -53,6 +53,19 @@ class OrgContextProcessorTest(TembaTest):
 
 class OrgTest(TembaTest):
 
+    def test_get_org_users(self):
+        org_users = self.org.get_org_users()
+        self.assertTrue(self.user in org_users)
+        self.assertTrue(self.surveyor in org_users)
+        self.assertTrue(self.editor in org_users)
+        self.assertTrue(self.admin in org_users)
+
+        # should be ordered by email
+        self.assertEqual(self.admin, org_users[0])
+        self.assertEqual(self.editor, org_users[1])
+        self.assertEqual(self.surveyor, org_users[2])
+        self.assertEqual(self.user, org_users[3])
+
     def test_edit(self):
         # use a manager now
         self.login(self.admin)
