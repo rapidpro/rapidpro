@@ -8,10 +8,11 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup
+from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow
 from temba.msgs.models import Label
 from temba.tests import TembaTest
+from temba.values.models import DATETIME
 from ..v2.serializers import format_datetime
 
 
@@ -233,6 +234,30 @@ class APITest(TembaTest):
         # filter by invalid group
         response = self.fetchJSON(url, 'group=invalid')
         self.assertResultsByUUID(response, [])
+
+    def test_fields(self):
+        url = reverse('api.v2.fields')
+
+        self.assertEndpointAccess(url)
+
+        ContactField.get_or_create(self.org, self.admin, 'nick_name', "Nick Name")
+        ContactField.get_or_create(self.org, self.admin, 'registered', "Registered On", value_type=DATETIME)
+        ContactField.get_or_create(self.org2, self.admin2, 'not_ours', "Something Else")
+
+        # no filtering
+        with self.assertNumQueries(8):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(response.json['results'], [
+            {'key': 'registered', 'label': "Registered On", 'value_type': "datetime"},
+            {'key': 'nick_name', 'label': "Nick Name", 'value_type': "text"}
+        ])
+
+        # filter by key
+        response = self.fetchJSON(url, 'key=nick_name')
+        self.assertEqual(response.json['results'], [{'key': 'nick_name', 'label': "Nick Name", 'value_type': "text"}])
 
     def test_messages(self):
         url = reverse('api.v2.messages')

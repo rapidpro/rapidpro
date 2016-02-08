@@ -1,11 +1,12 @@
 from __future__ import absolute_import, unicode_literals
 
 from rest_framework import serializers
-from temba.contacts.models import Contact
+from temba.contacts.models import Contact, ContactField
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
 from temba.msgs.models import Msg, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED, WIRED
 from temba.msgs.models import SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
 from temba.utils import datetime_to_json_date
+from temba.values.models import TEXT, DECIMAL, DATETIME, STATE, DISTRICT
 
 
 def format_datetime(value):
@@ -75,6 +76,27 @@ class ContactReadSerializer(ReadSerializer):
         model = Contact
         fields = ('uuid', 'name', 'language', 'urns', 'groups', 'fields', 'blocked', 'failed',
                   'created_on', 'modified_on')
+
+
+class ContactFieldReadSerializer(ReadSerializer):
+    VALUE_TYPES = {
+        TEXT: 'text',
+        DECIMAL: 'decimal',
+        DATETIME: 'datetime',
+        STATE: 'state',
+        DISTRICT: 'district',
+    }
+
+    key = serializers.ReadOnlyField()
+    label = serializers.ReadOnlyField()
+    value_type = serializers.SerializerMethodField()
+
+    def get_value_type(self, obj):
+        return self.VALUE_TYPES.get(obj.value_type)
+
+    class Meta:
+        model = ContactField
+        fields = ('key', 'label', 'value_type')
 
 
 class FlowRunReadSerializer(ReadSerializer):
