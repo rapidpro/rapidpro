@@ -333,7 +333,7 @@ class GroupsEndpoint(ListAPIMixin, BaseAPIView):
 
     * **uuid** - the UUID of the group (string), filterable as `uuid`
     * **name** - the name of the group (string)
-    * **size** - the number of contacts in the group (int)
+    * **count** - the number of contacts in the group (int)
 
     Example:
 
@@ -348,7 +348,7 @@ class GroupsEndpoint(ListAPIMixin, BaseAPIView):
                 {
                     "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
                     "name": "Reporters",
-                    "size": 315
+                    "count": 315
                 },
                 ...
             ]
