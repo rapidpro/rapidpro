@@ -168,7 +168,7 @@ class OrgTest(TembaTest):
         with patch('stripe.Charge.retrieve') as stripe:
             stripe.return_value = ''
             response = self.client.get(reverse('orgs.topup_read', args=[TopUp.objects.filter(org=self.org).first().pk]))
-            self.assertContains(response, '1,000 Credits')
+            self.assertContains(response, '1000 Credits')
 
     def test_user_update(self):
         update_url = reverse('orgs.user_edit')
