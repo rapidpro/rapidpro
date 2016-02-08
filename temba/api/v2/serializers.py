@@ -1,7 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 from rest_framework import serializers
-from temba.contacts.models import Contact, ContactField
+from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
 from temba.msgs.models import Msg, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED, WIRED
 from temba.msgs.models import SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
@@ -97,6 +97,16 @@ class ContactFieldReadSerializer(ReadSerializer):
     class Meta:
         model = ContactField
         fields = ('key', 'label', 'value_type')
+
+
+class ContactGroupReadSerializer(ReadSerializer):
+    uuid = serializers.ReadOnlyField()
+    name = serializers.ReadOnlyField()
+    count = serializers.ReadOnlyField()
+
+    class Meta:
+        model = ContactGroup
+        fields = ('uuid', 'name', 'count')
 
 
 class FlowRunReadSerializer(ReadSerializer):

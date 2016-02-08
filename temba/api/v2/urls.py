@@ -2,7 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
-from .views import api, ApiExplorerView, ContactsEndpoint, FieldsEndpoint, MessagesEndpoint, RunsEndpoint
+from .views import api, ApiExplorerView, ContactsEndpoint, FieldsEndpoint, GroupsEndpoint, MessagesEndpoint, RunsEndpoint
 
 
 urlpatterns = [
@@ -11,6 +11,7 @@ urlpatterns = [
 
     url(r'^/contacts$', ContactsEndpoint.as_view(), name='api.v2.contacts'),
     url(r'^/fields$', FieldsEndpoint.as_view(), name='api.v2.fields'),
+    url(r'^/groups$', GroupsEndpoint.as_view(), name='api.v2.groups'),
     url(r'^/messages$', MessagesEndpoint.as_view(), name='api.v2.messages'),
     url(r'^/runs$', RunsEndpoint.as_view(), name='api.v2.runs'),
 ]

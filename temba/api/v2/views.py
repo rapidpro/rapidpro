@@ -14,7 +14,8 @@ from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Msg, Label, SystemLabel, DELETED
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
-from .serializers import ContactReadSerializer, ContactFieldReadSerializer, FlowRunReadSerializer, MsgReadSerializer
+from .serializers import ContactReadSerializer, ContactFieldReadSerializer, ContactGroupReadSerializer
+from .serializers import FlowRunReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -30,6 +31,7 @@ def api(request, format=None):
 
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
+     * [/api/v2/groups](/api/v2/groups) - to list contact groups
      * [/api/v2/messages](/api/v2/messages) - to list messages
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
 
@@ -38,6 +40,7 @@ def api(request, format=None):
     return Response({
         'contacts': reverse('api.v2.contacts', request=request),
         'fields': reverse('api.v2.fields', request=request),
+        'groups': reverse('api.v2.groups', request=request),
         'messages': reverse('api.v2.messages', request=request),
         'runs': reverse('api.v2.runs', request=request),
     })
@@ -53,6 +56,8 @@ class ApiExplorerView(SmartTemplateView):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
             ContactsEndpoint.get_read_explorer(),
+            FieldsEndpoint.get_read_explorer(),
+            GroupsEndpoint.get_read_explorer(),
             MessagesEndpoint.get_read_explorer(),
             RunsEndpoint.get_read_explorer()
         ]
@@ -65,10 +70,6 @@ class CreatedOnCursorPagination(pagination.CursorPagination):
 
 class ModifiedOnCursorPagination(pagination.CursorPagination):
     ordering = '-modified_on'
-
-
-class PrimaryKeyCursorPagination(pagination.CursorPagination):
-    ordering = '-pk'
 
 
 class BaseAPIView(generics.GenericAPIView):
@@ -268,17 +269,17 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
 
 class FieldsEndpoint(ListAPIMixin, BaseAPIView):
     """
-    ## Listing Contact Fields
+    ## Listing Fields
 
     A **GET** returns the list of custom contact fields for your organization, in the order of last created.
 
-    * **key** - the unique key of this field (string) (filterable: ```key```)
+    * **key** - the unique key of this field (string), filterable as `key`
     * **label** - the display label of this field (string)
     * **value_type** - the data type of values associated with this field (string)
 
     Example:
 
-        GET /api/v1/fields.json
+        GET /api/v2/fields.json
 
     Response containing the fields for your organization:
 
@@ -298,7 +299,7 @@ class FieldsEndpoint(ListAPIMixin, BaseAPIView):
     permission = 'contacts.contactfield_api'
     model = ContactField
     serializer_class = ContactFieldReadSerializer
-    pagination_class = PrimaryKeyCursorPagination
+    pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -308,17 +309,77 @@ class FieldsEndpoint(ListAPIMixin, BaseAPIView):
         if key:
             queryset = queryset.filter(key=key)
 
-        return queryset
+        return queryset.filter(is_active=True)
 
     @classmethod
     def get_read_explorer(cls):
         return {
+            'method': "GET",
             'title': "List Fields",
             'url': reverse('api.v2.fields'),
             'slug': 'field-list',
             'request': "key=nick_name",
             'fields': [
                 {'name': "key", 'required': False, 'help': "A field key to filter by. ex: nick_name"}
+            ]
+        }
+
+
+class GroupsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    ## Listing Groups
+
+    A **GET** returns the list of contact groups for your organization, in the order of last created.
+
+    * **uuid** - the UUID of the group (string), filterable as `uuid`
+    * **name** - the name of the group (string)
+    * **size** - the number of contacts in the group (int)
+
+    Example:
+
+        GET /api/v2/groups.json
+
+    Response containing the groups for your organization:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+                {
+                    "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
+                    "name": "Reporters",
+                    "size": 315
+                },
+                ...
+            ]
+        }
+    """
+    permission = 'contacts.contactgroup_api'
+    model = ContactGroup
+    model_manager = 'user_groups'
+    serializer_class = ContactGroupReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+
+        # filter by UUID (optional)
+        uuid = params.get('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        return queryset.filter(is_active=True)
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Groups",
+            'url': reverse('api.v2.groups'),
+            'slug': 'group-list',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "A group UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
         }
 

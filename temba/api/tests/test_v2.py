@@ -16,6 +16,9 @@ from temba.values.models import DATETIME
 from ..v2.serializers import format_datetime
 
 
+NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API request
+
+
 class APITest(TembaTest):
 
     def setUp(self):
@@ -196,7 +199,7 @@ class APITest(TembaTest):
         contact1.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -245,7 +248,7 @@ class APITest(TembaTest):
         ContactField.get_or_create(self.org2, self.admin2, 'not_ours', "Something Else")
 
         # no filtering
-        with self.assertNumQueries(8):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -258,6 +261,32 @@ class APITest(TembaTest):
         # filter by key
         response = self.fetchJSON(url, 'key=nick_name')
         self.assertEqual(response.json['results'], [{'key': 'nick_name', 'label': "Nick Name", 'value_type': "text"}])
+
+    def test_groups(self):
+        url = reverse('api.v2.groups')
+
+        self.assertEndpointAccess(url)
+
+        customers = ContactGroup.get_or_create(self.org, self.admin, "Customers")
+        developers = ContactGroup.get_or_create(self.org, self.admin, "Developers")
+        spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+
+        developers.update_contacts(self.admin, [self.frank], add=True)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(response.json['results'], [
+            {'uuid': developers.uuid, 'name': "Developers", 'count': 1},
+            {'uuid': customers.uuid, 'name': "Customers", 'count': 0}
+        ])
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
+        self.assertEqual(response.json['results'], [{'uuid': customers.uuid, 'name': "Customers", 'count': 0}])
 
     def test_messages(self):
         url = reverse('api.v2.messages')
@@ -290,7 +319,7 @@ class APITest(TembaTest):
         label.toggle_label([frank_msg1, joe_msg3], add=True)
 
         # no filtering
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -329,7 +358,7 @@ class APITest(TembaTest):
             'delivered_on': None
         })
 
-        with self.assertNumQueries(13):  # filter by folder (inbox)
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):  # filter by folder (inbox)
             response = self.fetchJSON(url, 'folder=INBOX')
             self.assertResultsById(response, [frank_msg1])
 
@@ -416,7 +445,7 @@ class APITest(TembaTest):
         frank_run1.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
