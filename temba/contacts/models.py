@@ -41,9 +41,9 @@ EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
-                     (EMAIL_SCHEME, _("Email address"), 'email', 'email'),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', 'twitter'),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', 'telegram'),
+                     (EMAIL_SCHEME, _("Email address"), 'email', 'email'),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', 'external'))
 
 # schemes that we actually support
