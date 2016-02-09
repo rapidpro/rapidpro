@@ -526,12 +526,12 @@ class FlowCRUDL(SmartCRUDL):
 
                 if self.instance.flow_type == Flow.SURVEY:
                     contact_creation = forms.ChoiceField(label=_('Create a contact '),
-                                                       initial=metadata.get('contact_creation', Flow.CONTACT_PER_RUN),
+                                                       initial=metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN),
                                                        help_text=_("Whether surveyor logins should be used as the contact for each run"),
                                                        choices=((Flow.CONTACT_PER_RUN, _('For each run')),
                                                                 (Flow.CONTACT_PER_LOGIN, _('For each login'))))
 
-                    self.fields['contact_creation'] = contact_creation
+                    self.fields[Flow.CONTACT_CREATION] = contact_creation
 
                 self.fields['keyword_triggers'].initial = ','.join([t.keyword for t in flow_triggers])
 
@@ -551,7 +551,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields += ['base_language']
 
             if obj.flow_type == Flow.SURVEY:
-                fields.insert(len(fields) - 1, 'contact_creation')
+                fields.insert(len(fields) - 1, Flow.CONTACT_CREATION)
 
             return fields
 
@@ -564,8 +564,8 @@ class FlowCRUDL(SmartCRUDL):
             obj = super(FlowCRUDL.Update, self).pre_save(obj)
             metadata = obj.get_metadata_json()
 
-            if 'contact_creation' in self.form.cleaned_data:
-                metadata['contact_creation'] = self.form.cleaned_data['contact_creation']
+            if Flow.CONTACT_CREATION in self.form.cleaned_data:
+                metadata[Flow.CONTACT_CREATION] = self.form.cleaned_data[Flow.CONTACT_CREATION]
             obj.set_metadata_json(metadata)
             return obj
 

@@ -159,7 +159,7 @@ class Flow(TembaModel):
     VERSION = 'version'
 
 
-    CONCTACT_CREATION = 'contact_creation'
+    CONTACT_CREATION = 'contact_creation'
     CONTACT_PER_RUN = 'run'
     CONTACT_PER_LOGIN = 'login'
 
