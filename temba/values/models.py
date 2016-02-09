@@ -248,23 +248,23 @@ class Value(models.Model):
         else:
             values = Value.objects.filter(contact_field=contact_field)
 
-            if contact_field.value_type == TEXT:
+            if contact_field.value_type == Value.TYPE_TEXT:
                 values = values.values('string_value', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'string_value',
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type == DECIMAL:
+            elif contact_field.value_type == Value.TYPE_DECIMAL:
                 values = values.values('decimal_value', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
                                                                               formatter=format_decimal,
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type == DATETIME:
+            elif contact_field.value_type == Value.TYPE_DATETIME:
                 values = values.extra({'date_value': "date_trunc('day', datetime_value)"}).values('date_value', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'date_value',
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type in [STATE, DISTRICT]:
+            elif contact_field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT]:
                 values = values.values('location_value__osm_id', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
                                                                               return_contacts=return_contacts)
@@ -442,7 +442,7 @@ class Value(models.Model):
                 field = ContactField.get_by_label(org, segment['location'])
 
                 # make sure they are segmenting on a location type that makes sense
-                if field.value_type not in [STATE, DISTRICT]:
+                if field.value_type not in [Value.TYPE_STATE, Value.TYPE_DISTRICT]:
                     raise ValueError(_("Cannot segment on location for field that is not a State or District type"))
 
                 # make sure our org has a country for location based responses
@@ -461,12 +461,12 @@ class Value(models.Model):
                 boundaries = list(AdminBoundary.objects.filter(parent=parent).order_by('name'))
 
                 # if the field is a district field, they need to specify the parent state
-                if not parent_osm_id and field.value_type == DISTRICT:
+                if not parent_osm_id and field.value_type == Value.TYPE_DISTRICT:
                     raise ValueError(_("You must specify a parent state to segment results by district"))
 
                 # if this is a district, we can speed things up by only including those districts in our parent, build
                 # the filter for that
-                if parent and field.value_type == DISTRICT:
+                if parent and field.value_type == Value.TYPE_DISTRICT:
                     location_filters = [filters, dict(location=field.pk, boundary=[b.osm_id for b in boundaries])]
                 else:
                     location_filters = filters
