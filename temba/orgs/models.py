@@ -743,7 +743,7 @@ class Org(SmartModel):
 
     def get_org_users(self):
         org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers() | self.get_org_surveyors()
-        return org_users.distinct()
+        return org_users.distinct().order_by('email')
 
     def latest_admin(self):
         admin = self.get_org_admins().last()
