@@ -40,20 +40,20 @@ TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
-# schemes that we actually support
-URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
-                      (EMAIL_SCHEME, _("Email address")),
-                      (TWITTER_SCHEME, _("Twitter handle")),
-                      (TELEGRAM_SCHEME, _("Telegram identifier")),
-                      (EXTERNAL_SCHEME, _("External identifier")))
+URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
+                     (TWITTER_SCHEME, _("Twitter handle"), 'twitter', 'twitter'),
+                     (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', 'telegram'),
+                     (EMAIL_SCHEME, _("Email address"), 'email', 'email'),
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', 'external'))
 
-IMPORT_HEADERS = (('phone', TEL_SCHEME),
-                  ('twitter', TWITTER_SCHEME),
-                  ('telegram', TELEGRAM_SCHEME),
-                  ('email', EMAIL_SCHEME),
-                  ('external', EXTERNAL_SCHEME))
+# schemes that we actually support
+URN_SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
+
+IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
+
+URN_CONTACT_FIELD_KEY_LABEL_DICT = {c[0]: dict(key=c[3], label=unicode(c[1])) for c in URN_SCHEME_CONFIG}
 
 
 class ContactField(SmartModel):
