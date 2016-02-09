@@ -22,7 +22,7 @@ from temba.utils import analytics, format_decimal, truncate, datetime_to_str, ch
 from temba.utils.models import TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
-from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
+from temba.values.models import Value
 from urlparse import urlparse, urlunparse, ParseResult
 from uuid import uuid4
 
@@ -66,8 +66,8 @@ class ContactField(SmartModel):
 
     key = models.CharField(verbose_name=_("Key"), max_length=36)
 
-    value_type = models.CharField(choices=VALUE_TYPE_CHOICES, max_length=1, default=TEXT, verbose_name="Field Type")
-
+    value_type = models.CharField(choices=Value.TYPE_CHOICES, max_length=1, default=Value.TYPE_TEXT,
+                                  verbose_name="Field Type")
     show_in_table = models.BooleanField(verbose_name=_("Shown in Tables"), default=False)
 
     @classmethod
@@ -152,7 +152,7 @@ class ContactField(SmartModel):
                     label = regex.sub(r'([^A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
 
                 if not value_type:
-                    value_type = TEXT
+                    value_type = Value.TYPE_TEXT
 
                 if show_in_table is None:
                     show_in_table = False
@@ -172,7 +172,7 @@ class ContactField(SmartModel):
 
     @classmethod
     def get_state_field(cls, org):
-        return cls.objects.filter(is_active=True, org=org, value_type=STATE).first()
+        return cls.objects.filter(is_active=True, org=org, value_type=Value.TYPE_STATE).first()
 
     def __unicode__(self):
         return "%s" % self.label
@@ -313,9 +313,9 @@ class Contact(TembaModel):
         if value is None:
             return None
 
-        if field.value_type == DATETIME:
+        if field.value_type == Value.TYPE_DATETIME:
             return field.org.format_date(value.datetime_value)
-        elif field.value_type == DECIMAL:
+        elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
         elif value.category:
             return value.category
@@ -330,9 +330,9 @@ class Contact(TembaModel):
         if value is None:
             return None
 
-        if field.value_type == DATETIME:
+        if field.value_type == Value.TYPE_DATETIME:
             return datetime_to_str(value.datetime_value)
-        elif field.value_type == DECIMAL:
+        elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
         elif value.category:
             return value.category
@@ -355,7 +355,7 @@ class Contact(TembaModel):
             dec_value = self.org.parse_decimal(value)
             loc_value = None
 
-            if field.value_type == DISTRICT:
+            if field.value_type == Value.TYPE_DISTRICT:
                 state_field = ContactField.get_state_field(self.org)
                 if state_field:
                     state_value = self.get_field(state_field.key)

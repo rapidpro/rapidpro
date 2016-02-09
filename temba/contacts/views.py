@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import json
-import pycountry
 import regex
 import pytz
 import time
@@ -30,7 +29,7 @@ from temba.contacts.tasks import export_contacts_task
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm
-from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
+from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages
 from temba.utils.views import BaseActionForm
 from .omnibox import omnibox_query, omnibox_results_to_dict
@@ -433,7 +432,7 @@ class ContactCRUDL(SmartCRUDL):
                 if label_initial:
                     type_field_initial = label_initial.value_type
 
-                type_field = forms.ChoiceField(label=' ', choices=VALUE_TYPE_CHOICES, required=True, initial=type_field_initial)
+                type_field = forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, required=True, initial=type_field_initial)
                 type_field_name = 'column_%s_type' % header_key
 
                 fields = []
@@ -1088,7 +1087,7 @@ class ContactCRUDL(SmartCRUDL):
                     contact_field_type = contact_field.value_type
 
                     # district values are saved last to validate the states
-                    if contact_field_type == DISTRICT:
+                    if contact_field_type == Value.TYPE_DISTRICT:
                         fields_to_save_later[key] = value
                     else:
                         obj.set_field(self.request.user, key, value)
@@ -1308,14 +1307,14 @@ class ContactFieldCRUDL(SmartCRUDL):
             for contact_field in contact_fields:
                 form_field_label = _("@contact.%(key)s") % {'key' : contact_field.key }
                 added_fields.append(("show_%d" % i, forms.BooleanField(initial=contact_field.show_in_table, required=False)))
-                added_fields.append(("type_%d" % i, forms.ChoiceField(label=' ', choices=VALUE_TYPE_CHOICES, initial=contact_field.value_type, required=True)))
+                added_fields.append(("type_%d" % i, forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, initial=contact_field.value_type, required=True)))
                 added_fields.append(("label_%d" % i, forms.CharField(label=' ', max_length=36, help_text=form_field_label, initial=contact_field.label, required=False)))
                 added_fields.append(("field_%d" % i, forms.ModelChoiceField(contact_fields, widget=forms.HiddenInput(), initial=contact_field)))
                 i += 1
 
             # add a last field for the user to add one
             added_fields.append(("show_%d" % i, forms.BooleanField(label=_("show"), initial=False, required=False)))
-            added_fields.append(("type_%d" % i, forms.ChoiceField(choices=VALUE_TYPE_CHOICES, initial=TEXT, required=True)))
+            added_fields.append(("type_%d" % i, forms.ChoiceField(choices=Value.TYPE_CHOICES, initial=Value.TYPE_TEXT, required=True)))
             added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
             added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
 

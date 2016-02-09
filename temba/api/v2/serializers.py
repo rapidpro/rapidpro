@@ -1,11 +1,12 @@
 from __future__ import absolute_import, unicode_literals
 
 from rest_framework import serializers
-from temba.contacts.models import Contact
+from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
-from temba.msgs.models import Msg, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED, WIRED
-from temba.msgs.models import SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
+from temba.msgs.models import Msg, Label, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED
+from temba.msgs.models import WIRED, SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
 from temba.utils import datetime_to_json_date
+from temba.values.models import Value
 
 
 def format_datetime(value):
@@ -77,6 +78,31 @@ class ContactReadSerializer(ReadSerializer):
                   'created_on', 'modified_on')
 
 
+class ContactFieldReadSerializer(ReadSerializer):
+    VALUE_TYPES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
+
+    key = serializers.ReadOnlyField()
+    label = serializers.ReadOnlyField()
+    value_type = serializers.SerializerMethodField()
+
+    def get_value_type(self, obj):
+        return self.VALUE_TYPES.get(obj.value_type)
+
+    class Meta:
+        model = ContactField
+        fields = ('key', 'label', 'value_type')
+
+
+class ContactGroupReadSerializer(ReadSerializer):
+    uuid = serializers.ReadOnlyField()
+    name = serializers.ReadOnlyField()
+    count = serializers.ReadOnlyField()
+
+    class Meta:
+        model = ContactGroup
+        fields = ('uuid', 'name', 'count')
+
+
 class FlowRunReadSerializer(ReadSerializer):
     NODE_TYPES = {
         RULE_SET: 'ruleset',
@@ -119,6 +145,19 @@ class FlowRunReadSerializer(ReadSerializer):
         model = FlowRun
         fields = ('id', 'flow', 'contact', 'responded', 'steps',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')
+
+
+class LabelReadSerializer(ReadSerializer):
+    uuid = serializers.ReadOnlyField()
+    name = serializers.ReadOnlyField()
+    count = serializers.SerializerMethodField()
+
+    def get_count(self, obj):
+        return obj.get_visible_count()
+
+    class Meta:
+        model = Label
+        fields = ('uuid', 'name', 'count')
 
 
 class MsgReadSerializer(ReadSerializer):

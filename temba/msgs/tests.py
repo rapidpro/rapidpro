@@ -21,11 +21,12 @@ from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct, datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.values.models import DATETIME, DECIMAL
+from temba.values.models import Value
 from redis_cache import get_redis_connection
 from xlrd import open_workbook
 from .management.commands.msg_console import MessageConsole
-from temba.msgs.tasks import squash_systemlabels
+from .tasks import squash_systemlabels
+
 
 class MsgTest(TembaTest):
 
@@ -997,9 +998,9 @@ class BroadcastTest(TembaTest):
         self.assertEquals(40, len(parts[3]))
 
     def test_substitute_variables(self):
-        ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, DECIMAL)
+        ContactField.get_or_create(self.org, self.admin, 'goats', "Goats", False, Value.TYPE_DECIMAL)
         self.joe.set_field(self.user, 'goats', "3 ")
-        ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'dob', "Date of birth", False, Value.TYPE_DATETIME)
         self.joe.set_field(self.user, 'dob', "28/5/1981")
 
         self.assertEquals(("Hello World", []), Msg.substitute_variables("Hello World", self.joe, dict()))

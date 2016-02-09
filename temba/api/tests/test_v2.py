@@ -8,11 +8,15 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup
+from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow
 from temba.msgs.models import Label
 from temba.tests import TembaTest
+from temba.values.models import Value
 from ..v2.serializers import format_datetime
+
+
+NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API request
 
 
 class APITest(TembaTest):
@@ -195,7 +199,7 @@ class APITest(TembaTest):
         contact1.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(14):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -234,6 +238,83 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'group=invalid')
         self.assertResultsByUUID(response, [])
 
+    def test_fields(self):
+        url = reverse('api.v2.fields')
+
+        self.assertEndpointAccess(url)
+
+        ContactField.get_or_create(self.org, self.admin, 'nick_name', "Nick Name")
+        ContactField.get_or_create(self.org, self.admin, 'registered', "Registered On", value_type=Value.TYPE_DATETIME)
+        ContactField.get_or_create(self.org2, self.admin2, 'not_ours', "Something Else")
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(response.json['results'], [
+            {'key': 'registered', 'label': "Registered On", 'value_type': "datetime"},
+            {'key': 'nick_name', 'label': "Nick Name", 'value_type': "text"}
+        ])
+
+        # filter by key
+        response = self.fetchJSON(url, 'key=nick_name')
+        self.assertEqual(response.json['results'], [{'key': 'nick_name', 'label': "Nick Name", 'value_type': "text"}])
+
+    def test_groups(self):
+        url = reverse('api.v2.groups')
+
+        self.assertEndpointAccess(url)
+
+        customers = ContactGroup.get_or_create(self.org, self.admin, "Customers")
+        developers = ContactGroup.get_or_create(self.org, self.admin, "Developers")
+        spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+
+        developers.update_contacts(self.admin, [self.frank], add=True)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(response.json['results'], [
+            {'uuid': developers.uuid, 'name': "Developers", 'count': 1},
+            {'uuid': customers.uuid, 'name': "Customers", 'count': 0}
+        ])
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
+        self.assertEqual(response.json['results'], [{'uuid': customers.uuid, 'name': "Customers", 'count': 0}])
+
+    def test_labels(self):
+        url = reverse('api.v2.labels')
+
+        self.assertEndpointAccess(url)
+
+        important = Label.get_or_create(self.org, self.admin, "Important")
+        feedback = Label.get_or_create(self.org, self.admin, "Feedback")
+        spam = Label.get_or_create(self.org2, self.admin2, "Spam")
+
+        msg = self.create_msg(direction="I", text="Hello", contact=self.frank)
+        important.toggle_label([msg], add=True)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(response.json['results'], [
+            {'uuid': feedback.uuid, 'name': "Feedback", 'count': 0},
+            {'uuid': important.uuid, 'name': "Important", 'count': 1}
+        ])
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % feedback.uuid)
+        self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
+
     def test_messages(self):
         url = reverse('api.v2.messages')
 
@@ -265,7 +346,7 @@ class APITest(TembaTest):
         label.toggle_label([frank_msg1, joe_msg3], add=True)
 
         # no filtering
-        with self.assertNumQueries(13):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -304,7 +385,7 @@ class APITest(TembaTest):
             'delivered_on': None
         })
 
-        with self.assertNumQueries(13):  # filter by folder (inbox)
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):  # filter by folder (inbox)
             response = self.fetchJSON(url, 'folder=INBOX')
             self.assertResultsById(response, [frank_msg1])
 
@@ -391,7 +472,7 @@ class APITest(TembaTest):
         frank_run1.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(12):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)

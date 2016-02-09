@@ -24,7 +24,7 @@ from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED, VISI
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import datetime_to_json_date
-from temba.values.models import Value, DATETIME
+from temba.values.models import Value
 from ..models import APIToken
 from ..v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
 
@@ -1463,7 +1463,7 @@ class APITest(TembaTest):
 
         # add another contact
         jay_z = self.create_contact("Jay-Z", number="123444")
-        ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date", None, DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date", None, Value.TYPE_DATETIME)
         jay_z.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
 
         # try to update using URNs from two different contacts
