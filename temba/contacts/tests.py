@@ -2515,7 +2515,7 @@ class ContactTest(TembaTest):
 
     def test_date_field(self):
         # create a new date field
-        ContactField.get_or_create(self.org, self.admin, 'birth_date', label='Birth Date', value_type=TEXT)
+        ContactField.get_or_create(self.org, self.admin, 'birth_date', label='Birth Date', value_type=Value.TYPE_TEXT)
 
         # set a field on our contact
         urn = 'urn:uuid:0f73262c-0623-3f0a-8651-1855e755d2ef'
