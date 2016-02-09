@@ -28,7 +28,8 @@ from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestVa
 from temba.triggers.models import Trigger
 from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
-from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
+from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
+from .tasks import squash_topupcredits
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -52,6 +53,27 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class OrgTest(TembaTest):
+
+    def test_get_org_users(self):
+        org_users = self.org.get_org_users()
+        self.assertTrue(self.user in org_users)
+        self.assertTrue(self.surveyor in org_users)
+        self.assertTrue(self.editor in org_users)
+        self.assertTrue(self.admin in org_users)
+
+        # should be ordered by email
+        self.assertEqual(self.admin, org_users[0])
+        self.assertEqual(self.editor, org_users[1])
+        self.assertEqual(self.surveyor, org_users[2])
+        self.assertEqual(self.user, org_users[3])
+
+    def test_get_unique_slug(self):
+        self.org.slug = 'allo'
+        self.org.save()
+
+        self.assertEqual(Org.get_unique_slug('foo'), 'foo')
+        self.assertEqual(Org.get_unique_slug('Which part?'), 'which-part')
+        self.assertEqual(Org.get_unique_slug('Allo'), 'allo-2')
 
     def test_edit(self):
         # use a manager now
@@ -356,6 +378,18 @@ class OrgTest(TembaTest):
         self.assertEquals(3, Invitation.objects.all().count())
         self.assertEquals(4, len(mail.outbox))
 
+        response = self.client.get(manage_accounts_url)
+
+        # user ordered by email
+        self.assertEqual(response.context['org_users'][0], self.admin)
+        self.assertEqual(response.context['org_users'][1], self.editor)
+        self.assertEqual(response.context['org_users'][2], self.user)
+
+        # invites ordered by email as well
+        self.assertEqual(response.context['invites'][0].email, 'code@temba.com')
+        self.assertEqual(response.context['invites'][1].email, 'norbert@temba.com')
+        self.assertEqual(response.context['invites'][2].email, 'norkans7@gmail.com')
+
         # Update our users, making the 'user' user a surveyor
         post_data = {
             'administrators_%d' % self.admin.pk: 'on',
@@ -627,6 +661,15 @@ class OrgTest(TembaTest):
 
         self.assertEquals(10, welcome_topup.msgs.count())
         self.assertEquals(10, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+
+        # at this point we shouldn't have squashed any topupcredits, so should have the same number as our used
+        self.assertEqual(10, TopUpCredits.objects.all().count())
+
+        # now squash
+        squash_topupcredits()
+
+        # should only have one remaining
+        self.assertEqual(1, TopUpCredits.objects.all().count())
 
         # reduce our credits on our topup to 15
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)

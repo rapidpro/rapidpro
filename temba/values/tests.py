@@ -12,7 +12,6 @@ from temba.orgs.models import Language
 from temba.tests import FlowFileTest
 from .models import Value
 
-
 class ResultTest(FlowFileTest):
 
     def assertResult(self, result, index, category, count):

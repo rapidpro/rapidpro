@@ -2513,6 +2513,19 @@ class ContactTest(TembaTest):
         self.assertEquals('Joe', self.joe.get_field_raw('abc_1234'))
         ContactField.objects.get(key='abc_1234', label="First Name", org=self.joe.org)
 
+    def test_date_field(self):
+        # create a new date field
+        ContactField.get_or_create(self.org, self.admin, 'birth_date', label='Birth Date', value_type=TEXT)
+
+        # set a field on our contact
+        urn = 'urn:uuid:0f73262c-0623-3f0a-8651-1855e755d2ef'
+        self.joe.set_field(self.user, 'birth_date', urn)
+
+        # check that this field has been set
+        self.assertEqual(self.joe.get_field('birth_date').string_value, urn)
+        self.assertIsNone(self.joe.get_field('birth_date').decimal_value)
+        self.assertIsNone(self.joe.get_field('birth_date').datetime_value)
+
     def test_serialize_field_value(self):
         registration_field = ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date",
                                                         None, Value.TYPE_DATETIME)
