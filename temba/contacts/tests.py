@@ -3144,3 +3144,35 @@ class ContactFieldTest(TembaTest):
         self.assertEquals(response_json[2]['key'], 'key0')
         self.assertEquals(response_json[3]['label'], 'First')
         self.assertEquals(response_json[3]['key'], 'first')
+
+        with patch('temba.orgs.models.Org.get_schemes') as mock_schemes:
+            mock_schemes.return_value = []
+
+            response = self.client.get(contact_field_json_url)
+            response_json = json.loads(response.content)
+
+            self.assertEquals(len(response_json), 33)
+            self.assertEquals(response_json[0]['label'], 'Full Name')
+            self.assertEquals(response_json[0]['key'], 'name')
+            self.assertEquals(response_json[1]['label'], 'AAAA')
+            self.assertEquals(response_json[1]['key'], 'key0')
+            self.assertEquals(response_json[2]['label'], 'First')
+            self.assertEquals(response_json[2]['key'], 'first')
+
+            mock_schemes.return_value = [TWITTER_SCHEME, TELEGRAM_SCHEME]
+
+            response = self.client.get(contact_field_json_url)
+            response_json = json.loads(response.content)
+
+            self.assertEquals(len(response_json), 35)
+            self.assertEquals(response_json[0]['label'], 'Full Name')
+            self.assertEquals(response_json[0]['key'], 'name')
+            self.assertEquals(response_json[1]['label'], 'Telegram Identifier')
+            self.assertEquals(response_json[1]['key'], 'telegram')
+            self.assertEquals(response_json[2]['label'], 'Twitter Handle')
+            self.assertEquals(response_json[2]['key'], 'twitter')
+            self.assertEquals(response_json[3]['label'], 'AAAA')
+            self.assertEquals(response_json[3]['key'], 'key0')
+            self.assertEquals(response_json[4]['label'], 'First')
+            self.assertEquals(response_json[4]['key'], 'first')
+
