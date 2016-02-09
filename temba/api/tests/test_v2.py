@@ -12,7 +12,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow
 from temba.msgs.models import Label
 from temba.tests import TembaTest
-from temba.values.models import DATETIME
+from temba.values.models import Value
 from ..v2.serializers import format_datetime
 
 
@@ -244,7 +244,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         ContactField.get_or_create(self.org, self.admin, 'nick_name', "Nick Name")
-        ContactField.get_or_create(self.org, self.admin, 'registered', "Registered On", value_type=DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'registered', "Registered On", value_type=Value.TYPE_DATETIME)
         ContactField.get_or_create(self.org2, self.admin2, 'not_ours', "Something Else")
 
         # no filtering

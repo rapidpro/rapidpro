@@ -6,27 +6,26 @@ import pytz
 import time
 
 from datetime import datetime, date, timedelta
-
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.utils import timezone
 from mock import patch
+from smartmin.models import SmartImportRowError
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME, \
-    TELEGRAM_SCHEME
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, SmartImportRowError
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import Org, Language
-from temba.channels.models import Channel, TWITTER
+from temba.orgs.models import Org
+from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label, SystemLabel, Broadcast
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
-from temba.values.models import STATE, DATETIME, DISTRICT, Value, DECIMAL, TEXT
+from temba.values.models import Value
+from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME, TELEGRAM_SCHEME
+from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -1575,7 +1574,7 @@ class ContactTest(TembaTest):
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 0)
 
         # add an extra field to the org
-        ContactField.get_or_create(self.org, self.user, 'state', label="Home state", value_type=STATE)
+        ContactField.get_or_create(self.org, self.user, 'state', label="Home state", value_type=Value.TYPE_STATE)
         self.joe.set_field(self.user, 'state', " kiGali   citY ")  # should match "Kigali City"
 
         # check that the field appears on the update form
@@ -2355,14 +2354,14 @@ class ContactTest(TembaTest):
         self.assertEquals(contact1.get_urn(schemes=[EMAIL_SCHEME]).path, 'eric@example.com')
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
-        ContactField.objects.filter(key='location').update(value_type=DATETIME)
+        ContactField.objects.filter(key='location').update(value_type=Value.TYPE_DATETIME)
         contact1 = Contact.objects.all().order_by('name')[0]
 
         # Not a valid date, so should be None
         self.assertEquals(contact1.get_field_display('location'), None)
 
         # return it back to a state field
-        ContactField.objects.filter(key='location').update(value_type=STATE)
+        ContactField.objects.filter(key='location').update(value_type=Value.TYPE_STATE)
         contact1 = Contact.objects.all().order_by('name')[0]
 
         self.assertIsNone(contact1.get_field_raw('district'))  # wasn't included
@@ -2516,10 +2515,10 @@ class ContactTest(TembaTest):
 
     def test_serialize_field_value(self):
         registration_field = ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date",
-                                                        None, DATETIME)
+                                                        None, Value.TYPE_DATETIME)
 
-        weight_field = ContactField.get_or_create(self.org, self.admin, 'weight', "Weight", None, DECIMAL)
-        color_field = ContactField.get_or_create(self.org, self.admin, 'color', "Color", None, TEXT)
+        weight_field = ContactField.get_or_create(self.org, self.admin, 'weight', "Weight", None, Value.TYPE_DECIMAL)
+        color_field = ContactField.get_or_create(self.org, self.admin, 'color', "Color", None, Value.TYPE_TEXT)
 
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
@@ -2539,7 +2538,7 @@ class ContactTest(TembaTest):
         self.assertEqual(Contact.serialize_field_value(color_field, value), 'Dark')
 
     def test_set_location_fields(self):
-        district_field = ContactField.get_or_create(self.org, self.admin, 'district', 'District', None, DISTRICT)
+        district_field = ContactField.get_or_create(self.org, self.admin, 'district', 'District', None, Value.TYPE_DISTRICT)
 
         # add duplicate district in different states
         east_province = AdminBoundary.objects.create(osm_id='R005', name='East Province', level=1, parent=self.country)
@@ -2552,7 +2551,7 @@ class ContactTest(TembaTest):
         value = Value.objects.filter(contact=joe, contact_field=district_field).first()
         self.assertFalse(value.location_value)
 
-        state_field = ContactField.get_or_create(self.org, self.admin, 'state', 'State', None, STATE)
+        state_field = ContactField.get_or_create(self.org, self.admin, 'state', 'State', None, Value.TYPE_STATE)
 
         joe.set_field(self.user, 'state', 'Kigali city')
         value = Value.objects.filter(contact=joe, contact_field=state_field).first()
@@ -2850,24 +2849,24 @@ class ContactFieldTest(TembaTest):
         join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
         self.assertEqual(join_date.key, "join_date")
         self.assertEqual(join_date.label, "Join Date")
-        self.assertEqual(join_date.value_type, TEXT)
+        self.assertEqual(join_date.value_type, Value.TYPE_TEXT)
 
-        another = ContactField.get_or_create(self.org, self.admin, "another", "My Label", value_type=DECIMAL)
+        another = ContactField.get_or_create(self.org, self.admin, "another", "My Label", value_type=Value.TYPE_DECIMAL)
         self.assertEqual(another.key, "another")
         self.assertEqual(another.label, "My Label")
-        self.assertEqual(another.value_type, DECIMAL)
+        self.assertEqual(another.value_type, Value.TYPE_DECIMAL)
 
-        another = ContactField.get_or_create(self.org, self.admin, "another", "Updated Label", value_type=DATETIME)
+        another = ContactField.get_or_create(self.org, self.admin, "another", "Updated Label", value_type=Value.TYPE_DATETIME)
         self.assertEqual(another.key, "another")
         self.assertEqual(another.label, "Updated Label")
-        self.assertEqual(another.value_type, DATETIME)
+        self.assertEqual(another.value_type, Value.TYPE_DATETIME)
 
-        another = ContactField.get_or_create(self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=DATETIME)
+        another = ContactField.get_or_create(self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=Value.TYPE_DATETIME)
         self.assertTrue(another.show_in_table)
 
         for elt in Contact.RESERVED_FIELDS:
             with self.assertRaises(ValueError):
-                ContactField.get_or_create(self.org, self.admin, elt, elt, value_type=TEXT)
+                ContactField.get_or_create(self.org, self.admin, elt, elt, value_type=Value.TYPE_TEXT)
 
     def test_contact_templatetag(self):
         self.joe.set_field(self.user, 'First', 'Starter')

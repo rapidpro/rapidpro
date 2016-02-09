@@ -37,7 +37,7 @@ from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel, ChunkIterator
 from temba.utils.queues import push_task
-from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DATETIME, DECIMAL, Value
+from temba.values.models import Value
 from twilio import twiml
 from uuid import uuid4
 
@@ -2317,7 +2317,7 @@ class RuleSet(models.Model):
     finished_key = models.CharField(max_length=1, null=True, blank=True,
                                     help_text="During IVR, this is the key to indicate we are done waiting")
 
-    value_type = models.CharField(max_length=1, choices=VALUE_TYPE_CHOICES, default=TEXT,
+    value_type = models.CharField(max_length=1, choices=Value.TYPE_CHOICES, default=Value.TYPE_TEXT,
                                   help_text="The type of value this ruleset saves")
 
     ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES, null=True,
@@ -2406,15 +2406,15 @@ class RuleSet(models.Model):
 
         # no real rules? this is open ended, return
         if rule_count == 0:
-            return TEXT
+            return Value.TYPE_TEXT
 
         # if we are all of one type (excluding other) then we are that type
         if dec_rules == len(rules) - 1:
-            return DECIMAL
+            return Value.TYPE_DECIMAL
         elif dt_rules == len(rules) - 1:
-            return DATETIME
+            return Value.TYPE_DATETIME
         else:
-            return TEXT
+            return Value.TYPE_TEXT
 
     def get_voice_input(self, voice_response, action=None):
 

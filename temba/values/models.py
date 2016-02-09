@@ -5,7 +5,6 @@ import time
 from collections import defaultdict
 from django.db import models, connection
 from django.db.models import Q
-from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from redis_cache import get_redis_connection
 from temba.locations.models import AdminBoundary
@@ -13,17 +12,6 @@ from temba.orgs.models import Org
 from temba.utils import format_decimal, get_dict_from_cursor, dict_to_json, json_to_dict
 from stop_words import safe_get_stop_words
 
-TEXT = 'T'
-DECIMAL = 'N'
-DATETIME = 'D'
-STATE = 'S'
-DISTRICT = 'I'
-
-VALUE_TYPE_CHOICES = ((TEXT, "Text"),
-                      (DECIMAL, "Numeric"),
-                      (DATETIME, "Date & Time"),
-                      (STATE, "State"),
-                      (DISTRICT, "District"))
 
 VALUE_SUMMARY_CACHE_KEY = 'value_summary'
 CONTACT_KEY = 'vsd::vsc%d'
@@ -35,11 +23,23 @@ VALUE_SUMMARY_CACHE_TIME = 60 * 60 * 24 * 30
 
 
 class Value(models.Model):
-
     """
     A Value is created to store the most recent result for a step in a flow. Value will store typed
     values of the raw text that was received during the flow.
     """
+    TYPE_TEXT = 'T'
+    TYPE_DECIMAL = 'N'
+    TYPE_DATETIME = 'D'
+    TYPE_STATE = 'S'
+    TYPE_DISTRICT = 'I'
+
+    TYPE_CONFIG = ((TYPE_TEXT, _("Text"), 'text'),
+                   (TYPE_DECIMAL, _("Numeric"), 'numeric'),
+                   (TYPE_DATETIME, _("Date & Time"), 'datetime'),
+                   (TYPE_STATE, _("State"), 'state'),
+                   (TYPE_DISTRICT, _("District"), 'district'))
+
+    TYPE_CHOICES = [(c[0], c[1]) for c in TYPE_CONFIG]
 
     contact = models.ForeignKey('contacts.Contact', related_name='values')
 

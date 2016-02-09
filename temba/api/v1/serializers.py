@@ -16,7 +16,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
 from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
 from temba.utils import datetime_to_json_date
-from temba.values.models import VALUE_TYPE_CHOICES
+from temba.values.models import Value
 
 # Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
 # we may in the future.
@@ -675,7 +675,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
         return value
 
     def validate_value_type(self, value):
-        if value and value not in [t for t, label in VALUE_TYPE_CHOICES]:
+        if value and value not in [t for t, label in Value.TYPE_CHOICES]:
             raise serializers.ValidationError("Invalid field value type")
         return value
 

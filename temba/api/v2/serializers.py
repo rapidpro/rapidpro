@@ -6,7 +6,7 @@ from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
 from temba.msgs.models import Msg, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED, WIRED
 from temba.msgs.models import SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
 from temba.utils import datetime_to_json_date
-from temba.values.models import TEXT, DECIMAL, DATETIME, STATE, DISTRICT
+from temba.values.models import Value
 
 
 def format_datetime(value):
@@ -79,13 +79,7 @@ class ContactReadSerializer(ReadSerializer):
 
 
 class ContactFieldReadSerializer(ReadSerializer):
-    VALUE_TYPES = {
-        TEXT: 'text',
-        DECIMAL: 'decimal',
-        DATETIME: 'datetime',
-        STATE: 'state',
-        DISTRICT: 'district',
-    }
+    VALUE_TYPES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
 
     key = serializers.ReadOnlyField()
     label = serializers.ReadOnlyField()

@@ -27,17 +27,18 @@ from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
-from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision, STARTING, PENDING, ACTION_SET, RULE_SET
+from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision, STARTING, PENDING
 from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
-from temba.values.models import Value, STATE, DISTRICT
+from temba.values.models import Value
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
 
 logger = logging.getLogger(__name__)
+
 
 class BaseFlowForm(forms.ModelForm):
     expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
@@ -150,7 +151,7 @@ class RuleCRUDL(SmartCRUDL):
     class Choropleth(OrgPermsMixin, SmartReadView):
 
         def get_context_data(self, **kwargs):
-            from temba.values.models import Value, STATE, DISTRICT
+            from temba.values.models import Value
             from temba.locations.models import AdminBoundary
 
             context = dict()
@@ -166,8 +167,8 @@ class RuleCRUDL(SmartCRUDL):
             parent = AdminBoundary.objects.get(osm_id=parent_osm_id)
 
             # figure out our state and district contact fields
-            state_field = ContactField.objects.filter(org=org, value_type=STATE).first()
-            district_field = ContactField.objects.filter(org=org, value_type=DISTRICT).first()
+            state_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_STATE).first()
+            district_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_DISTRICT).first()
 
             # by default, segment by states
             segment = dict(location=state_field.label)
@@ -289,8 +290,8 @@ class RuleCRUDL(SmartCRUDL):
                 if request_report:
                     current_report = json.dumps(request_report.as_json())
 
-            org_supports_map = org.country and org.contactfields.filter(value_type=STATE).first() and \
-                               org.contactfields.filter(value_type=DISTRICT).first()
+            org_supports_map = org.country and org.contactfields.filter(value_type=Value.TYPE_STATE).first() and \
+                               org.contactfields.filter(value_type=Value.TYPE_DISTRICT).first()
 
             return dict(flows=json.dumps(flow_json, default=dthandler), org_supports_map=org_supports_map,
                         groups=json.dumps(groups_json), reports=json.dumps(reports_json), current_report=current_report)
