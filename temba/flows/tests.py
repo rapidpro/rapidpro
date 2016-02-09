@@ -1508,9 +1508,25 @@ class FlowTest(TembaTest):
         self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
         response = self.client.get(reverse('flows.flow_update', args=[flow3.pk]))
         self.assertEquals(response.context['form'].fields['keyword_triggers'].initial, "it,changes")
+        self.assertNotContains(response, "contact_creation")
         self.assertEquals(flow3.triggers.filter(is_archived=False).count(), 3)
         self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
         self.assertEquals(flow3.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
+
+        # make us a survey flow
+        flow3.flow_type = Flow.SURVEY
+        flow3.save()
+
+        # we should get the contact creation option
+        response = self.client.get(reverse('flows.flow_update', args=[flow3.pk]))
+        self.assertContains(response, 'contact_creation')
+
+        # set contact creation to be per login
+        del post_data['keyword_triggers']
+        post_data['contact_creation'] = Flow.CONTACT_PER_LOGIN
+        response = self.client.post(reverse('flows.flow_update', args=[flow3.pk]), post_data)
+        flow3.refresh_from_db()
+        self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.get_metadata_json().get('contact_creation'))
 
         # add some rules to first flow
         ActionSet.objects.all().delete()

@@ -466,8 +466,6 @@ class FlowCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-
-
             # create triggers for this flow only if there are keywords
             if len(self.form.cleaned_data['keyword_triggers']) > 0:
                 for keyword in self.form.cleaned_data['keyword_triggers'].split(','):
@@ -505,13 +503,19 @@ class FlowCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
+
+
+
             keyword_triggers = forms.CharField(required=False, label=_("Global keyword triggers"),
                                                help_text=_("When a user sends any of these keywords they will begin this flow"))
+
+
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Update.FlowUpdateForm, self).__init__(*args, **kwargs)
                 self.user = user
 
+                metadata = self.instance.get_metadata_json()
                 flow_triggers = Trigger.objects.filter(org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
                                                        trigger_type=Trigger.TYPE_KEYWORD).order_by('created_on')
 
@@ -520,6 +524,15 @@ class FlowCRUDL(SmartCRUDL):
                     choices = [('', 'No Preference')]
                     choices += [(lang.iso_code, lang.name) for lang in self.instance.org.languages.all().order_by('orgs', 'name')]
                     self.fields['base_language'] = forms.ChoiceField(label=_('Language'), choices=choices)
+
+                if self.instance.flow_type == Flow.SURVEY:
+                    contact_creation = forms.ChoiceField(label=_('Create a contact '),
+                                                       initial=metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN),
+                                                       help_text=_("Whether surveyor logins should be used as the contact for each run"),
+                                                       choices=((Flow.CONTACT_PER_RUN, _('For each run')),
+                                                                (Flow.CONTACT_PER_LOGIN, _('For each login'))))
+
+                    self.fields[Flow.CONTACT_CREATION] = contact_creation
 
                 self.fields['keyword_triggers'].initial = ','.join([t.keyword for t in flow_triggers])
 
@@ -533,14 +546,29 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_fields(self):
             fields = [field for field in self.fields]
-            if not self.get_object().base_language and self.org.primary_language:
+
+            obj = self.get_object()
+            if not obj.base_language and self.org.primary_language:
                 fields += ['base_language']
+
+            if obj.flow_type == Flow.SURVEY:
+                fields.insert(len(fields) - 1, Flow.CONTACT_CREATION)
+
             return fields
 
         def get_form_kwargs(self):
             kwargs = super(FlowCRUDL.Update, self).get_form_kwargs()
             kwargs['user'] = self.request.user
             return kwargs
+
+        def pre_save(self, obj):
+            obj = super(FlowCRUDL.Update, self).pre_save(obj)
+            metadata = obj.get_metadata_json()
+
+            if Flow.CONTACT_CREATION in self.form.cleaned_data:
+                metadata[Flow.CONTACT_CREATION] = self.form.cleaned_data[Flow.CONTACT_CREATION]
+            obj.set_metadata_json(metadata)
+            return obj
 
         def post_save(self, obj):
             keywords = set()
@@ -568,6 +596,7 @@ class FlowCRUDL(SmartCRUDL):
                 else:
                     Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
                                            flow=obj, created_by=user, modified_by=user)
+
 
             # run async task to update all runs
             from .tasks import update_run_expirations_task

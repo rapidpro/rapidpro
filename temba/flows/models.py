@@ -159,6 +159,11 @@ class Flow(TembaModel):
     SAVED_BY = 'saved_by'
     VERSION = 'version'
 
+
+    CONTACT_CREATION = 'contact_creation'
+    CONTACT_PER_RUN = 'run'
+    CONTACT_PER_LOGIN = 'login'
+
     SAVED_ON = 'saved_on'
     NAME = 'name'
     REVISION = 'revision'
@@ -1011,6 +1016,15 @@ class Flow(TembaModel):
         # now update with our remapped values
         self.update(flow_json)
         return self
+
+    def set_metadata_json(self, metadata):
+        self.metadata = json.dumps(metadata)
+
+    def get_metadata_json(self):
+        metadata = {}
+        if self.metadata:
+            metadata = json.loads(self.metadata)
+        return metadata
 
     def archive(self):
         self.is_archived = True
