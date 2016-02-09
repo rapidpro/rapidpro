@@ -53,7 +53,7 @@ IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
-URN_CONTACT_FIELD_KEY_LABEL_DICT = {c[0]: dict(key=c[3], label=c[1].title()) for c in URN_SCHEME_CONFIG}
+URN_CONTACT_FIELD_KEY_LABEL_DICT = {c[0]: dict(key=c[3], label=unicode(c[1])) for c in URN_SCHEME_CONFIG}
 
 
 class ContactField(SmartModel):

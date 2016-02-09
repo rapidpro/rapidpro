@@ -1280,7 +1280,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             for scheme in schemes:
                 sorted_results.insert(0, URN_CONTACT_FIELD_KEY_LABEL_DICT.get(scheme))
 
-            sorted_results.insert(0, dict(key='name', label='Full Name'))
+            sorted_results.insert(0, dict(key='name', label='Full name'))
 
             return HttpResponse(json.dumps(sorted_results), content_type='application/javascript')
 
