@@ -9,6 +9,7 @@ import requests
 import time
 import urllib2
 import xlwt
+import re
 
 from collections import OrderedDict, defaultdict
 from datetime import timedelta
@@ -2712,6 +2713,8 @@ class FlowRun(models.Model):
                          (EXIT_TYPE_INTERRUPTED, _("Interrupted")),
                          (EXIT_TYPE_EXPIRED, _("Expired")))
 
+    INVALID_EXTRA_KEY_CHARS = re.compile(r'[^a-zA-Z0-9_]')
+
     org = models.ForeignKey(Org, related_name='runs', db_index=False)
 
     flow = models.ForeignKey(Flow, related_name='runs')
@@ -2766,6 +2769,10 @@ class FlowRun(models.Model):
             return FlowRun(**args)
 
     @classmethod
+    def normalize_field_key(cls, key):
+        return FlowRun.INVALID_EXTRA_KEY_CHARS.sub('_', key)[:255]
+
+    @classmethod
     def normalize_fields(cls, fields, count=-1):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
@@ -2780,7 +2787,7 @@ class FlowRun(models.Model):
             count += 1
             field_dict = dict()
             for (k, v) in fields.items():
-                (field_dict[k[:255]], count) = FlowRun.normalize_fields(v, count)
+                (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, count)
 
                 if count >= 128:
                     break

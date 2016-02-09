@@ -2478,40 +2478,45 @@ class FlowRunTest(TembaTest):
     def test_field_normalization(self):
         fields = dict(field1="value1", field2="value2")
         (normalized, count) = FlowRun.normalize_fields(fields)
-        self.assertEquals(fields, normalized)
+        self.assertEqual(normalized, fields)
+
+        # spaces in field keys
+        fields = {'value 1': 'value1', 'value-2': 'value2'}
+        (normalized, count) = FlowRun.normalize_fields(fields)
+        self.assertEqual(normalized, dict(value_1='value1', value_2='value2'))
 
         # field text too long
         fields['field2'] = "*" * 650
         (normalized, count) = FlowRun.normalize_fields(fields)
-        self.assertEquals(640, len(normalized['field2']))
+        self.assertEqual(len(normalized['field2']), 640)
 
         # field name too long
         fields['field' + ("*" * 350)] = "short value"
         (normalized, count) = FlowRun.normalize_fields(fields)
-        self.assertTrue('field' + ("*" * 250) in normalized)
+        self.assertTrue('field' + ("_" * 250) in normalized)
 
         # too many fields
         for i in range(129):
             fields['field%d' % i] = 'value %d' % i
         (normalized, count) = FlowRun.normalize_fields(fields)
-        self.assertEquals(128, count)
-        self.assertEquals(128, len(normalized))
+        self.assertEqual(count, 128)
+        self.assertEqual(len(normalized), 128)
 
         fields = dict(numbers=["zero", "one", "two", "three"])
         (normalized, count) = FlowRun.normalize_fields(fields)
-        self.assertEquals(5, count)
-        self.assertEquals(dict(numbers={'0': "zero", '1': "one", '2': "two", '3': "three"}), normalized)
+        self.assertEqual(count, 5)
+        self.assertEqual(normalized, dict(numbers={'0': "zero", '1': "one", '2': "two", '3': "three"}))
 
         fields = dict(united_states=dict(wa="Washington", nv="Nevada"), states=50)
         (normalized, count) = FlowRun.normalize_fields(fields)
-        self.assertEquals(4, count)
-        self.assertEquals(fields, normalized)
+        self.assertEqual(count, 4)
+        self.assertEqual(normalized, fields)
 
     def test_update_fields(self):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         # set our fields from an empty state
-        new_values = dict(field1="value1", field2="value2")
+        new_values = dict(Field1="value1", field_2="value2")
         run.update_fields(new_values)
 
         self.assertEquals(run.field_dict(), new_values)
@@ -2526,6 +2531,14 @@ class FlowRunTest(TembaTest):
         new_values['field1'] = ""
 
         self.assertEquals(run.field_dict(), new_values)
+
+        # clear our fields
+        run.fields = None
+        run.save()
+
+        # set to a list instead
+        run.update_fields(["zero", "one", "two"])
+        self.assertEqual(run.field_dict(), {"0": "zero", "1": "one", "2": "two"})
 
     def test_is_completed(self):
         self.flow.start([], [self.contact])
@@ -2726,6 +2739,20 @@ class WebhookTest(TembaTest):
 
             message_context = self.flow.build_message_context(self.contact, incoming)
             self.assertEquals(dict(text="Valid", order_number="PX1002"), message_context['extra'])
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '["zero", "one", "two"]')
+            rule_step.run.fields = None
+            rule_step.run.save()
+
+            webhook.find_matching_rule(webhook_step, run, incoming)
+            (match, value) = rules.find_matching_rule(rule_step, run, incoming)
+            self.assertIsNone(match)
+            self.assertIsNone(value)
+            self.assertEquals("1001", incoming.text)
+
+            message_context = self.flow.build_message_context(self.contact, incoming)
+            self.assertEqual(message_context['extra'], {'0': 'zero', '1': 'one', '2': 'two'})
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, "asdfasdfasdf")
