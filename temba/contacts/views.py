@@ -1277,6 +1277,8 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             sorted_results = sorted(results, key=lambda k: k['label'].lower())
 
+            sorted_results.insert(0, dict(key='groups', label='Groups'))
+
             for scheme in schemes:
                 sorted_results.insert(0, URN_CONTACT_FIELD_KEY_LABEL_DICT.get(scheme))
 
