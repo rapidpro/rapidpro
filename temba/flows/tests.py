@@ -2516,7 +2516,7 @@ class FlowRunTest(TembaTest):
         run = FlowRun.create(self.flow, self.contact.pk)
 
         # set our fields from an empty state
-        new_values = dict(field1="value1", field2="value2")
+        new_values = dict(Field1="value1", field_2="value2")
         run.update_fields(new_values)
 
         self.assertEquals(run.field_dict(), new_values)
