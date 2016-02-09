@@ -288,6 +288,33 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
         self.assertEqual(response.json['results'], [{'uuid': customers.uuid, 'name': "Customers", 'count': 0}])
 
+    def test_labels(self):
+        url = reverse('api.v2.labels')
+
+        self.assertEndpointAccess(url)
+
+        important = Label.get_or_create(self.org, self.admin, "Important")
+        feedback = Label.get_or_create(self.org, self.admin, "Feedback")
+        spam = Label.get_or_create(self.org2, self.admin2, "Spam")
+
+        msg = self.create_msg(direction="I", text="Hello", contact=self.frank)
+        important.toggle_label([msg], add=True)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(response.json['results'], [
+            {'uuid': feedback.uuid, 'name': "Feedback", 'count': 0},
+            {'uuid': important.uuid, 'name': "Important", 'count': 1}
+        ])
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % feedback.uuid)
+        self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
+
     def test_messages(self):
         url = reverse('api.v2.messages')
 

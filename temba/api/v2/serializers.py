@@ -3,8 +3,8 @@ from __future__ import absolute_import, unicode_literals
 from rest_framework import serializers
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
-from temba.msgs.models import Msg, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED, WIRED
-from temba.msgs.models import SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
+from temba.msgs.models import Msg, Label, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED
+from temba.msgs.models import WIRED, SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -145,6 +145,19 @@ class FlowRunReadSerializer(ReadSerializer):
         model = FlowRun
         fields = ('id', 'flow', 'contact', 'responded', 'steps',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')
+
+
+class LabelReadSerializer(ReadSerializer):
+    uuid = serializers.ReadOnlyField()
+    name = serializers.ReadOnlyField()
+    count = serializers.SerializerMethodField()
+
+    def get_count(self, obj):
+        return obj.get_visible_count()
+
+    class Meta:
+        model = Label
+        fields = ('uuid', 'name', 'count')
 
 
 class MsgReadSerializer(ReadSerializer):
