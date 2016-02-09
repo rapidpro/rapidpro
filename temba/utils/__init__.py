@@ -107,7 +107,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         output_date = None
 
     # if we've been parsed into something Postgres can't store (offset is > 12 hours) then throw it away
-    if output_date and abs(getattr(output_date.tzinfo, '_offset', timedelta(seconds=0))).seconds > MAX_UTC_OFFSET:
+    if output_date and abs(output_date.utcoffset().total_seconds()) > MAX_UTC_OFFSET:
         output_date = None
 
     return output_date
