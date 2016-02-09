@@ -11,7 +11,6 @@ from temba.orgs.models import Language
 from temba.tests import FlowFileTest
 from temba.values.models import Value, STATE, DISTRICT, DECIMAL, TEXT, DATETIME
 
-
 class ResultTest(FlowFileTest):
 
     def assertResult(self, result, index, category, count):
