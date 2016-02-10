@@ -3011,20 +3011,20 @@ class FlowRunCount(models.Model):
 
     @classmethod
     def populate_for_flow(cls, flow):
+        # remove old ones
+        FlowRunCount.objects.filter(flow=flow).delete()
+
         # get test contacts on this org
         test_contacts = Contact.objects.filter(org=flow.org, is_test=True).values('id')
 
         # calculate our count for each exit type
         counts = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)\
-                                .values('exit_type').annotate(Count('exit_type'))
+                                .values('exit_type').annotate(count=Count('pk'))
 
         # insert updated counts for each
         for count in counts:
-            # remove old ones
-            FlowRunCount.objects.filter(flow=flow, exit_type=count['exit_type']).delete()
-
-            if count['exit_type__count'] > 0:
-                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], run_count=count['exit_type__count'])
+            if count['count'] > 0:
+                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
 
     def __unicode__(self):
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
