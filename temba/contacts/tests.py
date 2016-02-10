@@ -2801,6 +2801,9 @@ class ContactURNTest(TembaTest):
         self.assertEquals(('twitter', "jimmyjo"), ContactURN.normalize_urn('TWITTER', "jimmyJO"))
         self.assertEquals(('twitter', "billy_bob"), ContactURN.normalize_urn('twitter', " @Billy_bob "))
 
+        # email addresses
+        self.assertEqual(('mailto', "name@domain.com"), ContactURN.normalize_urn('mailto', "nAme@domAIN.cOm "))
+
     def test_validate_urn(self):
         # valid tel numbers
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", "RW"))
