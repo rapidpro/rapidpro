@@ -2623,17 +2623,7 @@ class ActionSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
 
-    def get_description(self):
-        """
-        Tries to return a slightly friendly version of the actions in this actionset.
-        """
-        description = ""
-        for action in self.get_actions():
-            description += str(action.get_description()) + "\n"
-
-        return description
-
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid, )
 
 
@@ -3456,7 +3446,7 @@ class ActionLog(models.Model):
 
         try:
             return ActionLog.objects.create(run=run, text=text, level=level)
-        except Exception:
+        except Exception:  # pragma: no cover
             return None  # it's possible our test run can be deleted out from under us
 
     @classmethod
@@ -3707,7 +3697,7 @@ class FlowStart(SmartModel):
 
             self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             import traceback
             traceback.print_exc(e)
 
@@ -3721,7 +3711,7 @@ class FlowStart(SmartModel):
             self.status = COMPLETE
             self.save(update_fields=['status'])
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
 
 
@@ -3848,9 +3838,6 @@ class Action(object):
                 actions.append(action)
         return actions
 
-    def get_description(self):
-        return str(self.__class__)
-
 
 class EmailAction(Action):
     """
@@ -3916,10 +3903,6 @@ class EmailAction(Action):
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
 
-    def get_description(self):
-        return "Email to %s with subject %s" % (", ".join(self.emails), self.subject)
-
-
 class WebhookAction(Action):
     """
     Forwards the steps in this flow to the webhook (if any)
@@ -3950,9 +3933,6 @@ class WebhookAction(Action):
 
         WebHookEvent.trigger_flow_event(value, run.flow, run, actionset_uuid, run.contact, msg, self.action)
         return []
-
-    def get_description(self):
-        return "API call to %s" % self.webhook
 
 
 class AddToGroupAction(Action):
@@ -4065,9 +4045,6 @@ class AddToGroupAction(Action):
                             ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
         return []
 
-    def get_description(self):
-        return "Added to group %s" % (", ".join([g.name for g in self.groups]))
-
 
 class DeleteFromGroupAction(AddToGroupAction):
     """
@@ -4081,10 +4058,6 @@ class DeleteFromGroupAction(AddToGroupAction):
     @classmethod
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
-
-    def get_description(self):
-        return "Removed from group %s" % ", ".join([g.name for g in self.groups])
-
 
 class AddLabelAction(Action):
     """
@@ -4170,9 +4143,6 @@ class AddLabelAction(Action):
                     label.toggle_label([msg], True)
         return []
 
-    def get_description(self):
-        return "Added label %s" % self.labels
-
 
 class SayAction(Action):
     """
@@ -4228,10 +4198,6 @@ class SayAction(Action):
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
 
-    def get_description(self):
-        return "Said %s" % self.msg
-
-
 class PlayAction(Action):
     """
     Voice action for reading some text to a user
@@ -4266,9 +4232,6 @@ class PlayAction(Action):
             # no message, possibly failed loop detection
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
-
-    def get_description(self):
-        return "Played %s" % self.url
 
 
 class ReplyAction(Action):
@@ -4305,9 +4268,6 @@ class ReplyAction(Action):
 
             return list(broadcast.get_messages())
         return []
-
-    def get_description(self):
-        return "Replied with %s" % self.msg
 
 
 class VariableContactAction(Action):
@@ -4478,10 +4438,6 @@ class TriggerFlowAction(VariableContactAction):
         log = ActionLog.create(run, log_txt)
         return log
 
-    def get_description(self):
-        return "Triggered flow %s" % self.flow
-
-
 class SetLanguageAction(Action):
     """
     Action that sets the language for a contact
@@ -4520,9 +4476,6 @@ class SetLanguageAction(Action):
         log_txt = _("Setting language to %s") % self.name
         log = ActionLog.create(run, log_txt)
         return log
-
-    def get_description(self):
-        print "Set language to %s" % self.name
 
 
 class StartFlowAction(Action):
@@ -4571,9 +4524,6 @@ class StartFlowAction(Action):
         log = ActionLog.create(run, log_txt)
 
         return log
-
-    def get_description(self):
-        return "Started flow %s" % self.flow
 
 
 class SaveToContactAction(Action):
@@ -4709,9 +4659,6 @@ class SaveToContactAction(Action):
 
         return log
 
-    def get_description(self):
-        return "Updated field %s to '%s'" % (self.field, self.value)
-
 
 class SendAction(VariableContactAction):
     """
@@ -4794,10 +4741,6 @@ class SendAction(VariableContactAction):
                      contact_count) % dict(msg=text, count=contact_count)
         log = ActionLog.create(run, log_txt)
         return log
-
-    def get_description(self):
-        return "Sent '%s' to %s" % (self.msg, ", ".join(send.name for send in (self.contacts + self.groups)))
-
 
 class Rule(object):
 
