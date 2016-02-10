@@ -2077,10 +2077,6 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, test_contact.pk)
         action.execute(run, None, None)
 
-        # check the action description
-        description = "Sent '{'base': u'Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow'}' to Eric, Other"
-        self.assertEqual(action.get_description(), description)
-
         # since we are test contact now, no new broadcasts
         self.assertEqual(Broadcast.objects.all().count(), 1)
 
@@ -3373,9 +3369,6 @@ class FlowsTest(FlowFileTest):
 
         # our start points to a ruleset
         start = ActionSet.objects.get(flow=flow, y=0)
-
-        # test our description
-        self.assertEquals("Replied with {u'base': u'Pick a number between 1-10.'}\n", start.get_description())
 
         # assert our destination
         self.assertEquals(RULE_SET, start.destination_type)
