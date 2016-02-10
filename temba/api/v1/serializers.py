@@ -2,11 +2,10 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import phonenumbers
-import pytz
 
 from django.conf import settings
-from django.db.models import Q
 from django.utils import timezone
+from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
@@ -16,22 +15,19 @@ from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
 from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
-from temba.values.models import VALUE_TYPE_CHOICES
+from temba.utils import datetime_to_json_date
+from temba.values.models import Value
 
 # Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
 # we may in the future.
 MAX_BULK_ACTION_ITEMS = 100
 
 
-def format_v1_datetime(value):
+def format_datetime(value):
     """
     Datetime fields are limited to millisecond accuracy for v1
     """
-    if not value:
-        return None
-
-    as_utc = value.astimezone(pytz.UTC)
-    return as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+    return datetime_to_json_date(value, micros=False) if value else None
 
 
 def validate_bulk_fetch(fetched, uuids):
@@ -54,7 +50,7 @@ class DateTimeField(serializers.DateTimeField):
     For backward compatibility, datetime fields are limited to millisecond accuracy
     """
     def to_representation(self, value):
-        return format_v1_datetime(value)
+        return format_datetime(value)
 
 
 class StringArrayField(serializers.ListField):
@@ -480,8 +476,8 @@ class ContactWriteSerializer(WriteSerializer):
         if data.get('group_uuids') is not None and data.get('groups') is not None:
             raise serializers.ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
 
-        if self.org.is_anon and self.instance:
-            raise serializers.ValidationError("Cannot update contacts on anonymous organizations, can only create")
+        if self.org.is_anon and self.instance and self.urn_tuples is not None:
+            raise serializers.ValidationError("Cannot update contact URNs on anonymous organizations")
 
         if self.urn_tuples is not None:
             # look up these URNs, keeping track of the contacts that are connected to them
@@ -496,7 +492,7 @@ class ContactWriteSerializer(WriteSerializer):
 
             contact_by_urns = urn_contacts.pop() if len(urn_contacts) > 0 else None
 
-            if self.instance and contact_by_urns != self.instance:
+            if self.instance and contact_by_urns and contact_by_urns != self.instance:
                 raise serializers.ValidationError(_("URNs are used by other contacts"))
         else:
             contact_by_urns = None
@@ -521,7 +517,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         if self.instance:
             if self.urn_tuples is not None:
-                self.instance.update_urns(self.urn_tuples)
+                self.instance.update_urns(self.user, self.urn_tuples)
 
             # update our name and language
             if name != self.instance.name:
@@ -544,17 +540,17 @@ class ContactWriteSerializer(WriteSerializer):
             for key, value in fields.items():
                 existing_by_key = ContactField.objects.filter(org=self.org, key__iexact=key, is_active=True).first()
                 if existing_by_key:
-                    self.instance.set_field(existing_by_key.key, value)
+                    self.instance.set_field(self.user, existing_by_key.key, value)
                     continue
 
                 # TODO as above, need to get users to stop updating via label
                 existing_by_label = ContactField.get_by_label(self.org, key)
                 if existing_by_label:
-                    self.instance.set_field(existing_by_label.key, value)
+                    self.instance.set_field(self.user, existing_by_label.key, value)
 
         # update our contact's groups
         if self.group_objs is not None:
-            self.instance.update_groups(self.group_objs)
+            self.instance.update_groups(self.user, self.group_objs)
 
         return self.instance
 
@@ -587,7 +583,7 @@ class ContactBulkActionSerializer(WriteSerializer):
 
     def validate_group(self, value):
         if value:
-            self.group_obj = ContactGroup.user_groups.filter(org=self.org, name=value, is_active=True).first()
+            self.group_obj = ContactGroup.get_user_group(self.org, value)
             if not self.group_obj:
                 raise serializers.ValidationError("No such group: %s" % value)
         return value
@@ -621,19 +617,19 @@ class ContactBulkActionSerializer(WriteSerializer):
         action = self.validated_data['action']
 
         if action == 'add':
-            self.group_obj.update_contacts(contacts, add=True)
+            self.group_obj.update_contacts(self.user, contacts, add=True)
         elif action == 'remove':
-            self.group_obj.update_contacts(contacts, add=False)
+            self.group_obj.update_contacts(self.user, contacts, add=False)
         elif action == 'expire':
             FlowRun.expire_all_for_contacts(contacts)
         else:
             for contact in contacts:
                 if action == 'block':
-                    contact.block()
+                    contact.block(self.user)
                 elif action == 'unblock':
-                    contact.unblock()
+                    contact.unblock(self.user)
                 elif action == 'delete':
-                    contact.release()
+                    contact.release(self.user)
 
     class Meta:
         fields = ('contacts', 'action', 'group', 'group_uuid')
@@ -679,7 +675,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
         return value
 
     def validate_value_type(self, value):
-        if value and value not in [t for t, label in VALUE_TYPE_CHOICES]:
+        if value and value not in [t for t, label in Value.TYPE_CHOICES]:
             raise serializers.ValidationError("Invalid field value type")
         return value
 
@@ -700,7 +696,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
         label = self.validated_data.get('label')
         value_type = self.validated_data.get('value_type')
 
-        return ContactField.get_or_create(self.org, key, label, value_type=value_type)
+        return ContactField.get_or_create(self.org, self.user, key, label, value_type=value_type)
 
 
 class CampaignEventReadSerializer(ReadSerializer):
@@ -838,7 +834,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
         relative_to = ContactField.get_by_label(self.org, relative_to_label)
         if not relative_to:
             key = ContactField.make_key(relative_to_label)
-            relative_to = ContactField.get_or_create(self.org, key, relative_to_label)
+            relative_to = ContactField.get_or_create(self.org, self.user, key, relative_to_label)
 
         if self.instance:
             # we are being set to a flow
@@ -985,7 +981,7 @@ class FlowReadSerializer(ReadSerializer):
         return obj.get_completed_runs()
 
     def get_participants(self, obj):
-        return obj.get_total_contacts()
+        return None
 
     def get_rulesets(self, obj):
         rulesets = list()
@@ -1014,7 +1010,7 @@ class FlowReadSerializer(ReadSerializer):
 
     class Meta:
         model = Flow
-        fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'participants', 'runs', 'completed_runs', 'rulesets',
+        fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'runs', 'completed_runs', 'participants', 'rulesets',
                   'created_on', 'flow')
 
 
@@ -1144,7 +1140,7 @@ class FlowRunReadSerializer(ReadSerializer):
         return steps
 
     def get_expired_on(self, obj):
-        return format_v1_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
+        return format_datetime(obj.exited_on) if obj.exit_type == FlowRun.EXIT_TYPE_EXPIRED else None
 
     class Meta:
         model = FlowRun
@@ -1158,6 +1154,7 @@ class FlowRunWriteSerializer(WriteSerializer):
     started = serializers.DateTimeField(required=True)
     completed = serializers.BooleanField(required=False)
     steps = serializers.ListField()
+    submitted_by = serializers.CharField(required=False)
 
     revision = serializers.IntegerField(required=False)  # for backwards compatibility
     version = serializers.IntegerField(required=False)  # for backwards compatibility
@@ -1166,6 +1163,15 @@ class FlowRunWriteSerializer(WriteSerializer):
         super(FlowRunWriteSerializer, self).__init__(*args, **kwargs)
         self.contact_obj = None
         self.flow_obj = None
+        self.submitted_by_obj = None
+
+    def validate_submitted_by(self, value):
+        if value:
+            user = User.objects.filter(username=value).first()
+            if user and self.org in user.get_user_orgs():
+                self.submitted_by_obj = user
+            else:
+                raise serializers.ValidationError("Invalid submitter id, user doesn't exist")
 
     def validate_flow(self, value):
         if value:
@@ -1242,12 +1248,11 @@ class FlowRunWriteSerializer(WriteSerializer):
         completed = self.validated_data.get('completed', False)
 
         # look for previous run with this contact and flow
-        run = FlowRun.objects.filter(org=self.org, contact=self.contact_obj,
+        run = FlowRun.objects.filter(org=self.org, contact=self.contact_obj, submitted_by=self.submitted_by_obj,
                                      flow=self.flow_obj, created_on=started).order_by('-modified_on').first()
 
         if not run:
-            run = FlowRun.create(self.flow_obj, self.contact_obj, created_on=started)
-            self.flow_obj.update_start_counts([self.contact_obj])
+            run = FlowRun.create(self.flow_obj, self.contact_obj.pk, created_on=started, submitted_by=self.submitted_by_obj)
 
         step_objs = []
         previous_rule = None

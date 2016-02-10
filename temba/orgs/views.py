@@ -961,7 +961,7 @@ class OrgCRUDL(SmartCRUDL):
             context['org'] = org
             context['org_users'] = self.org_users
             context['group_fields'] = self.group_fields
-            context['invites'] = Invitation.objects.filter(org=org, is_active=True)
+            context['invites'] = Invitation.objects.filter(org=org, is_active=True).order_by('email')
 
             return context
 

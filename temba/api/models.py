@@ -82,7 +82,7 @@ class ApiPermission(BasePermission):
             return True
 
 
-class SSLPermission(BasePermission): # pragma: no cover
+class SSLPermission(BasePermission):  # pragma: no cover
     def has_permission(self, request, view):
         if getattr(settings, 'SESSION_COOKIE_SECURE', False):
             return request.is_secure()
@@ -207,9 +207,9 @@ class WebHookEvent(SmartModel):
                 try:
                     response_json = json.loads(response_text)
 
-                    # only update if we got a valid JSON dictionary
-                    if not isinstance(response_json, dict):
-                        raise ValueError("Response must be a JSON dictionary, ignoring response.")
+                    # only update if we got a valid JSON dictionary or list
+                    if not isinstance(response_json, dict) and not isinstance(response_json, list):
+                        raise ValueError("Response must be a JSON dictionary or list, ignoring response.")
 
                     run.update_fields(response_json)
                     message = "Webhook called successfully."

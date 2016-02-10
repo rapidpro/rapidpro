@@ -351,6 +351,7 @@ PERMISSIONS = {
                          'import',
                          'omnibox',
                          'unblock',
+                         'update_fields'
                          ),
 
     'contacts.contactfield': ('api',
@@ -414,6 +415,7 @@ PERMISSIONS = {
                          'claim_shaqodoon',
                          'claim_smscentral',
                          'claim_start',
+                         'claim_telegram',
                          'claim_twilio',
                          'claim_twitter',
                          'claim_verboice',
@@ -554,6 +556,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_read',
         'contacts.contact_unblock',
         'contacts.contact_update',
+        'contacts.contact_update_fields',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -605,6 +608,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',
         'channels.channel_claim_start',
+        'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -676,6 +680,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_read',
         'contacts.contact_unblock',
         'contacts.contact_update',
+        'contacts.contact_update_fields',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -717,6 +722,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',
         'channels.channel_claim_start',
+        'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -916,7 +922,23 @@ CELERYBEAT_SCHEDULE = {
     "calculate-credit-caches": {
         'task': 'calculate_credit_caches',
         'schedule': timedelta(days=3),
-    }
+    },
+    "squash-flowruncounts": {
+        'task': 'squash_flowruncounts',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-channelcounts": {
+        'task': 'squash_channelcounts',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-systemlabels": {
+        'task': 'squash_systemlabels',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-topupcredits": {
+        'task': 'squash_topupcredits',
+        'schedule': timedelta(seconds=300),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -973,15 +995,21 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
-        'temba.api.authentication.APITokenAuthentication',
+        'temba.api.support.APITokenAuthentication',
     ),
+    'DEFAULT_THROTTLE_CLASSES': (
+        'temba.api.support.OrgRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'v2': '1200/hour'
+    },
     'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (
-        'temba.api.renderers.DocumentationRenderer',
+        'temba.api.support.DocumentationRenderer',
         'rest_framework.renderers.JSONRenderer',
         'rest_framework_xml.renderers.XMLRenderer',
     ),
-    'EXCEPTION_HANDLER': 'temba.api.temba_exception_handler',
+    'EXCEPTION_HANDLER': 'temba.api.support.temba_exception_handler',
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING

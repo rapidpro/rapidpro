@@ -8,6 +8,7 @@ import datetime
 import locale
 import resource
 
+from datetime import timedelta
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
@@ -20,6 +21,7 @@ from django.http import HttpResponse
 from itertools import islice, chain
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
+MAX_UTC_OFFSET = 14*60*60 # max offset postgres supports for a timezone
 
 # these are not mapped by pytz.country_timezones
 INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': 'US',
@@ -86,20 +88,29 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     try:
+        output_date = None
         if fill_time:
             date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=DEFAULT_DATE)
             if date != DEFAULT_DATE:
                 output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=timezone.now().astimezone(tz))
-                return output_date
             else:
-                return None
+                output_date = None
         else:
             default = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
-            parsed = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
-            parsed = tz.localize(parsed)  # localize in timezone
-            return parsed if parsed.year != 1 else None  # only return parsed value if year at least differs from 1CE
+            output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
+            output_date = tz.localize(output_date)  # localize in timezone
+
+            # only return date if it actually got parsed
+            if output_date.year == 1:
+                output_date = None
     except Exception:
-        return None
+        output_date = None
+
+    # if we've been parsed into something Postgres can't store (offset is > 12 hours) then throw it away
+    if output_date and abs(output_date.utcoffset().total_seconds()) > MAX_UTC_OFFSET:
+        output_date = None
+
+    return output_date
 
 
 def str_to_time(value):
@@ -122,13 +133,16 @@ def get_datetime_format(dayfirst):
     return format_date, format_time
 
 
-def datetime_to_json_date(dt):
+def datetime_to_json_date(dt, micros=False):
     """
     Formats a datetime as a string for inclusion in JSON
+    :param dt: the datetime to format
+    :param micros: whether to include microseconds
     """
     # always output as UTC / Z and always include milliseconds
     as_utc = dt.astimezone(pytz.utc)
-    return as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+    as_str = as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')
+    return (as_str if micros else as_str[:-3]) + 'Z'
 
 
 def json_date_to_datetime(date_str):
