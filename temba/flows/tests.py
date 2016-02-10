@@ -21,6 +21,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import URN_SCHEMES
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING, Call
@@ -37,7 +38,8 @@ from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest, HasStateTest, HasDistrictTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
-from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
+from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog, get_flow_user
+
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8
 
 
@@ -69,6 +71,11 @@ class FlowTest(TembaTest):
         from xlrd import open_workbook
         filename = "%s/test_orgs/%d/results_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         return open_workbook(os.path.join(settings.MEDIA_ROOT, filename), 'rb')
+
+    def test_get_flow_user(self):
+        user = get_flow_user()
+        self.assertEqual(user.pk, get_flow_user().pk)
+
 
     def test_get_unique_name(self):
         flow1 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
@@ -2070,10 +2077,6 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, test_contact.pk)
         action.execute(run, None, None)
 
-        # check the action description
-        description = "Sent '{'base': u'Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow'}' to Eric, Other"
-        self.assertEqual(action.get_description(), description)
-
         # since we are test contact now, no new broadcasts
         self.assertEqual(Broadcast.objects.all().count(), 1)
 
@@ -2179,7 +2182,7 @@ class ActionTest(TembaTest):
 
         # throw exception for other reserved words except name and first_name
         for word in Contact.RESERVED_FIELDS:
-            if word not in ['name', 'first_name']:
+            if word not in ['name', 'first_name'] + URN_SCHEMES:
                 with self.assertRaises(Exception):
                     test = SaveToContactAction.from_json(self.org, dict(type='save', label=word, value='', field=word))
                     test.value = "Jen"
@@ -2267,6 +2270,15 @@ class ActionTest(TembaTest):
         SaveToContactAction.from_json(self.org, dict(type='save', label="[_NEW_]Ecole", value='@step'))
         field = ContactField.objects.get(org=self.org, key="ecole")
         self.assertEquals("Ecole", field.label)
+
+    def test_normalize_fileds(self):
+
+        fields = []
+        for i in range(150):
+            fields.append('field %d' % i)
+
+        fields, count = FlowRun.normalize_fields(fields)
+        self.assertEqual(128, count)
 
     def test_set_language_action(self):
         action = SetLanguageAction('kli', 'Klingon')
@@ -2567,8 +2579,9 @@ class FlowRunTest(TembaTest):
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
 
 
-class FlowLabelTest(SmartminTest):
+class FlowLabelTest(FlowFileTest):
     def setUp(self):
+        super(FlowLabelTest, self).setUp()
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
         self.org.administrators.add(self.user)
@@ -2603,6 +2616,18 @@ class FlowLabelTest(SmartminTest):
         self.login(self.user)
         response = self.client.get(reverse('flows.flow_filter', args=[label.pk]))
         self.assertContains(response, "child")
+
+    def test_toggle_label(self):
+        label = FlowLabel.create_unique('toggle me', self.org)
+        flow = self.get_flow('favorites')
+
+        changed = label.toggle_label([flow], True)
+        self.assertEqual(1, len(changed))
+        self.assertEqual(label.pk, flow.labels.all().first().pk)
+
+        changed = label.toggle_label([flow], False)
+        self.assertEqual(1, len(changed))
+        self.assertIsNone(flow.labels.all().first())
 
     def test_create(self):
         create_url = reverse('flows.flowlabel_create')
@@ -2857,6 +2882,9 @@ class FlowsTest(FlowFileTest):
 
     def test_validate_flow_definition(self):
 
+        with self.assertRaises(ValueError):
+            self.get_flow('not_fully_localized')
+
         # base_language of null, but spec version 8
         with self.assertRaises(ValueError):
             self.get_flow('no_base_language_v8')
@@ -3067,6 +3095,13 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, FlowRun.objects.filter(is_active=False).count())
         self.assertEquals(6, flow.get_total_runs())
         self.assertEquals(6, active[color.uuid])
+
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
+
+        # rebuild our flow run counts
+        FlowRunCount.populate_for_flow(flow)
+
+        # same result
         self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
 
         # expire them all
@@ -3105,6 +3140,12 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
         self.assertEqual(FlowRunCount.run_count(flow), 12)
 
+        # recalculate from scratch, same
+        FlowRunCount.populate_for_flow(flow)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
+        self.assertEqual(FlowRunCount.run_count(flow), 12)
+
     def test_squash_run_counts(self):
         from temba.flows.tasks import squash_flowruncounts
 
@@ -3131,13 +3172,6 @@ class FlowsTest(FlowFileTest):
         # no-op this time
         squash_flowruncounts()
         self.assertEqual(max_id, FlowRunCount.objects.all().order_by('-id').first().id)
-
-        # assert a rebuild leads to same results
-        FlowRunCount.populate_for_flow(flow)
-
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 3)
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 3)
-        self.assertEqual(FlowRunCount.run_count(flow), 6)
 
     def test_activity(self):
 
@@ -3335,9 +3369,6 @@ class FlowsTest(FlowFileTest):
 
         # our start points to a ruleset
         start = ActionSet.objects.get(flow=flow, y=0)
-
-        # test our description
-        self.assertEquals("Replied with {u'base': u'Pick a number between 1-10.'}\n", start.get_description())
 
         # assert our destination
         self.assertEquals(RULE_SET, start.destination_type)
@@ -3808,6 +3839,10 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("I don't know that color. Try again.",
                           self.send_message(flow, "Michael Jordan", restart_participants=True))
         self.assertEquals(2, flow.runs.count())
+
+        previous_expiration = run.expires_on
+        run.update_expiration(None)
+        self.assertTrue(run.expires_on > previous_expiration)
 
     def test_parsing(self):
 
