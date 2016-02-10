@@ -3099,6 +3099,13 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, FlowRun.objects.filter(is_active=False).count())
         self.assertEquals(6, flow.get_total_runs())
         self.assertEquals(6, active[color.uuid])
+
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
+
+        # rebuild our flow run counts
+        FlowRunCount.populate_for_flow(flow)
+
+        # same result
         self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 6)
 
         # expire them all
@@ -3137,6 +3144,12 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
         self.assertEqual(FlowRunCount.run_count(flow), 12)
 
+        # recalculate from scratch, same
+        FlowRunCount.populate_for_flow(flow)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'I'), 6)
+        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 6)
+        self.assertEqual(FlowRunCount.run_count(flow), 12)
+
     def test_squash_run_counts(self):
         from temba.flows.tasks import squash_flowruncounts
 
@@ -3163,13 +3176,6 @@ class FlowsTest(FlowFileTest):
         # no-op this time
         squash_flowruncounts()
         self.assertEqual(max_id, FlowRunCount.objects.all().order_by('-id').first().id)
-
-        # assert a rebuild leads to same results
-        FlowRunCount.populate_for_flow(flow)
-
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, None), 3)
-        self.assertEqual(FlowRunCount.run_count_for_type(flow, 'E'), 3)
-        self.assertEqual(FlowRunCount.run_count(flow), 6)
 
     def test_activity(self):
 
