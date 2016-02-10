@@ -29,6 +29,7 @@ from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
+from temba.contacts.models import URN_CONTEXT_KEYS_TO_SCHEME, URN_CONTEXT_KEYS_TO_LABEL
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -4591,6 +4592,7 @@ class SaveToContactAction(Action):
 
     @classmethod
     def get_label(cls, org, field, label=None):
+
         # make sure this field exists
         if field == 'name':
             label = 'Contact Name'
@@ -4598,6 +4600,8 @@ class SaveToContactAction(Action):
             label = 'First Name'
         elif field == 'tel_e164':
             label = 'Phone Number'
+        elif field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
+            label = unicode(URN_CONTEXT_KEYS_TO_LABEL[field])
         else:
             contact_field = ContactField.objects.filter(org=org, key=field).first()
             if contact_field:
@@ -4646,28 +4650,50 @@ class SaveToContactAction(Action):
             contact.name = new_value
             contact.modified_by = user
             contact.save(update_fields=('name', 'modified_by', 'modified_on'))
+            self.logger(run, new_value)
 
         elif self.field == 'first_name':
             new_value = value[:128]
             contact.set_first_name(new_value)
             contact.modified_by = user
             contact.save(update_fields=('name', 'modified_by', 'modified_on'))
+            self.logger(run, new_value)
 
-        elif self.field == 'tel_e164':
+        elif self.field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
             new_value = value[:128]
 
-            # don't really update URNs on test contacts
-            if not contact.is_test:
-                urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
+            # add in our new urn number
+            scheme = URN_CONTEXT_KEYS_TO_SCHEME[self.field]
 
-                # add in our new phone number
-                urns += [('tel', new_value)]
-                contact.update_urns(user, urns)
+            # trim off '@' for twitter handles
+            if self.field == 'twitter':
+                if len(new_value) > 0:
+                    if new_value[0] == '@':
+                        new_value = new_value[1:]
+
+            # only valid urns get added, sorry
+            from temba.contacts.models import ContactURN
+            new_urn = None
+            if ContactURN.validate_urn(scheme, new_value, contact.org.get_country_code()):
+                new_urn = (scheme, new_value)
+            else:
+                if contact.is_test:
+                    ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
+
+            if new_urn:
+                urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
+                urns += [new_urn]
+
+                if not contact.is_test:
+                    # don't really update URNs on test contacts
+                    contact.update_urns(user, urns)
+                else:
+                    ActionLog.info(run, _('Added new connection for contact (%s:%s)' % (scheme, new_value)))
+
         else:
             new_value = value[:640]
             contact.set_field(user, self.field, new_value)
-
-        self.logger(run, new_value)
+            self.logger(run, new_value)
 
         return []
 

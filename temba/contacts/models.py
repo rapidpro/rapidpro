@@ -40,11 +40,12 @@ TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
+# Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
-                     (TWITTER_SCHEME, _("Twitter handle"), 'twitter', 'twitter'),
-                     (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', 'telegram'),
-                     (EMAIL_SCHEME, _("Email address"), 'email', 'email'),
-                     (EXTERNAL_SCHEME, _("External identifier"), 'external', 'external'))
+                     (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
+                     (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
+                     (EMAIL_SCHEME, _("Email address"), 'email',  EMAIL_SCHEME),
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
 
 # schemes that we actually support
 URN_SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
@@ -53,7 +54,10 @@ IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
-URN_CONTACT_FIELD_KEY_LABEL_DICT = {c[0]: dict(key=c[3], label=unicode(c[1])) for c in URN_SCHEME_CONFIG}
+
+URN_CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
+
+URN_CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
 
 
 class ContactField(SmartModel):
@@ -210,7 +214,7 @@ class Contact(TembaModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       'created_by', 'modified_by', 'org', UUID, 'groups', 'external'] + [c[0] for c in IMPORT_HEADERS]
+                       'created_by', 'modified_by', 'org', UUID, 'groups'] + [c[0] for c in IMPORT_HEADERS]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
