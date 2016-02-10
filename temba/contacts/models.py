@@ -1405,14 +1405,17 @@ class ContactURN(models.Model):
         Normalizes a URN scheme and path. Should be called anytime looking for a URN match.
         """
         norm_scheme = scheme.strip().lower()
-        norm_path = path.strip().lower()
+        norm_path = path.strip()
 
         if norm_scheme == TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
         elif norm_scheme == TWITTER_SCHEME:
+            norm_path = norm_path.lower()
             if norm_path[0:1] == '@':  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
+        elif norm_scheme == EMAIL_SCHEME:
+            norm_path = norm_path.lower()
 
         return norm_scheme, norm_path
 

@@ -2802,7 +2802,11 @@ class ContactURNTest(TembaTest):
         self.assertEquals(('twitter', "billy_bob"), ContactURN.normalize_urn('twitter', " @Billy_bob "))
 
         # email addresses
-        self.assertEqual(('mailto', "name@domain.com"), ContactURN.normalize_urn('mailto', "nAme@domAIN.cOm "))
+        self.assertEqual(('mailto', "name@domain.com"), ContactURN.normalize_urn('mailto', " nAme@domAIN.cOm "))
+
+        # external ids are case sensitive
+        self.assertEqual(('ext', "eXterNAL123"), ContactURN.normalize_urn('ext', " eXterNAL123 "))
+
 
     def test_validate_urn(self):
         # valid tel numbers
