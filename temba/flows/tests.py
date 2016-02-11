@@ -3659,6 +3659,34 @@ class FlowsTest(FlowFileTest):
 
         self.assertTrue('@contact.name' in actionset.get_actions()[0].groups)
 
+    def test_flow_delete(self):
+        flow = self.get_flow('favorites')
+        self.assertEquals("Good choice, I like Red too! What is your favorite beer?", self.send_message(flow, "RED"))
+
+        # try to remove the flow, not logged in, no dice
+        response = self.client.post(reverse('flows.flow_delete', args=[flow.pk]))
+        self.assertLoginRedirect(response)
+
+        # login as admin
+        self.login(self.admin)
+
+        # try again
+        response = self.client.post(reverse('flows.flow_delete', args=[flow.pk]))
+        self.assertRedirect(response, reverse('flows.flow_list'))
+
+        flow.delete()
+
+        # flow should no longer be active
+        flow.refresh_from_db()
+        self.assertFalse(flow.is_active)
+
+        # should still have a run though
+        self.assertEqual(flow.runs.count(), 1)
+
+        # just no steps or values
+        self.assertEqual(Value.objects.all().count(), 0)
+        self.assertEqual(FlowStep.objects.all().count(), 0)
+
     def test_flow_export(self):
         flow = self.get_flow('favorites')
 

@@ -39,6 +39,7 @@ from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel, ChunkIterator
 from temba.utils.queues import push_task
+from temba.utils import chunk_list
 from temba.values.models import Value
 from twilio import twiml
 from uuid import uuid4
@@ -355,7 +356,7 @@ class Flow(TembaModel):
             if flow_type != Flow.MESSAGE:
                 # check if we can find that flow by id first
                 if same_site:
-                    flow = Flow.objects.filter(org=org, id=flow_spec['metadata']['id']).first()
+                    flow = Flow.objects.filter(org=org, is_active=True, id=flow_spec['metadata']['id']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(org, name, ignore=flow)
@@ -363,7 +364,7 @@ class Flow(TembaModel):
 
                 # if it's not of our world, let's try by name
                 if not flow:
-                    flow = Flow.objects.filter(org=org, name=name).first()
+                    flow = Flow.objects.filter(org=org, is_active=True, name=name).first()
 
                 # if there isn't one already, create a new flow
                 if not flow:
@@ -383,9 +384,9 @@ class Flow(TembaModel):
                         if action['id'] in flow_id_map:
                             action['id'] = flow_id_map[action['id']]
 
-                        existing_flow = Flow.objects.filter(id=action['id'], org=org).first()
+                        existing_flow = Flow.objects.filter(id=action['id'], org=org, is_active=True).first()
                         if not existing_flow:
-                            existing_flow = Flow.objects.filter(org=org, name=action['name']).first()
+                            existing_flow = Flow.objects.filter(org=org, name=action['name'], is_active=True).first()
                             if existing_flow:
                                 action['id'] = existing_flow.pk
 
@@ -742,6 +743,45 @@ class Flow(TembaModel):
             except FlowException:
                 pass
         return changed
+
+    def release(self):
+        """
+        Releases this flow, marking it inactive. We remove all flow runs, steps and values in a background process.
+        We keep FlowRevisions and FlowStarts however.
+        """
+        from .tasks import delete_flow_results_task
+
+        self.is_active = False
+        self.save()
+
+        # delete our results in the background
+        delete_flow_results_task.delay(self.id)
+
+    def delete_results(self):
+        """
+        Removes all flow runs, values and steps for a flow.
+        """
+        # if this is a voice flow, remove any recordings we have
+        if self.flow_type == Flow.VOICE:
+            try:
+                path = 'recordings/%d/%d' % (self.org.pk, self.pk)
+                if default_storage.exists(path):
+                    default_storage.delete(path)
+            except Exception:
+                pass
+
+        # grab the ids of all our runs
+        run_ids = self.runs.all().values_list('id', flat=True)
+
+        # in chunks of 1000, remove any values or flowsteps associated with these runs
+        # we keep Runs around for auditing purposes
+        for chunk in chunk_list(run_ids, 1000):
+            Value.objects.filter(run__in=run_ids).delete()
+            FlowStep.objects.filter(run__in=run_ids).delete()
+
+        # clear all our cached stats
+        self.clear_props_cache()
+        self.clear_stats_cache()
 
     def clear_props_cache(self):
         r = get_redis_connection()
@@ -2857,9 +2897,6 @@ class FlowRun(models.Model):
         with self.flow.lock_on(FlowLock.activity):
             self.flow.remove_active_for_run_ids([self.pk])
 
-        # decrement our total flow count
-        r = get_redis_connection()
-
         # lastly delete ourselves
         self.delete()
 
@@ -3728,7 +3765,7 @@ class FlowLabel(models.Model):
         return self.get_flows().count()
 
     def get_flows(self):
-        return Flow.objects.filter(Q(labels=self) | Q(labels__parent=self)).filter(is_archived=False).distinct()
+        return Flow.objects.filter(Q(labels=self) | Q(labels__parent=self)).filter(is_active=True, is_archived=False).distinct()
 
     @classmethod
     def create_unique(cls, base, org, parent=None):

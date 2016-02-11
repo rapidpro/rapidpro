@@ -66,7 +66,7 @@ class DefaultTriggerForm(BaseTriggerForm):
     Default trigger form which only allows selection of a non-message based flow
     """
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(DefaultTriggerForm, self).__init__(user, flows,  *args, **kwargs)
 
 
@@ -111,7 +111,7 @@ class CatchAllTriggerForm(GroupBasedTriggerForm):
     For for catchall triggers
     """
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(CatchAllTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
@@ -137,7 +137,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
                               help_text=_("The first word of the message text"))
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(KeywordTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
@@ -190,7 +190,7 @@ class RegisterTriggerForm(BaseTriggerForm):
                                help_text=_("The message to send in response after they join the group (optional)"))
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
 
         super(RegisterTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
@@ -216,7 +216,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         super(ScheduleTriggerForm, self).__init__(*args, **kwargs)
         self.user = user
         self.fields['omnibox'].set_user(user)
-        self.fields['flow'].queryset = Flow.objects.filter(is_archived=False, org=self.user.get_org()).exclude(flow_type=Flow.MESSAGE)
+        self.fields['flow'].queryset = Flow.objects.filter(org=self.user.get_org(), is_active=True, is_archived=False).exclude(flow_type=Flow.MESSAGE)
 
     def clean(self):
         data = super(ScheduleTriggerForm, self).clean()
@@ -234,7 +234,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
 class InboundCallTriggerForm(GroupBasedTriggerForm):
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type=Flow.VOICE)
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type=Flow.VOICE)
         super(InboundCallTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
@@ -250,7 +250,7 @@ class FollowTriggerForm(BaseTriggerForm):
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(FollowTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),

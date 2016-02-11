@@ -254,7 +254,8 @@ class EventForm(forms.ModelForm):
         relative_to.queryset = ContactField.objects.filter(org=self.user.get_org(), is_active=True).order_by('label')
 
         flow = self.fields['flow_to_start']
-        flow.queryset = Flow.objects.filter(org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE], is_active=True, is_archived=False).order_by('name')
+        flow.queryset = Flow.objects.filter(org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE],
+                                            is_active=True, is_archived=False).order_by('name')
 
     class Meta:
         model = CampaignEvent

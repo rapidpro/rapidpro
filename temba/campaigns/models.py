@@ -126,7 +126,7 @@ class Campaign(SmartModel):
                                                                    event_spec['delivery_hour'])
                         event.update_flow_name()
                     else:
-                        flow = Flow.objects.filter(org=org, id=event_spec['flow']['id']).first()
+                        flow = Flow.objects.filter(org=org, is_active=True, id=event_spec['flow']['id']).first()
                         if flow:
                             CampaignEvent.create_flow_event(org, user, campaign, relative_to,
                                                             event_spec['offset'],
