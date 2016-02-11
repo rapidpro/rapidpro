@@ -3674,8 +3674,6 @@ class FlowsTest(FlowFileTest):
         response = self.client.post(reverse('flows.flow_delete', args=[flow.pk]))
         self.assertRedirect(response, reverse('flows.flow_list'))
 
-        flow.delete()
-
         # flow should no longer be active
         flow.refresh_from_db()
         self.assertFalse(flow.is_active)
