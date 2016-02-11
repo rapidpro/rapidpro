@@ -1258,9 +1258,8 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
       # settings for a message form
       if rulesetConfig.type == 'form_field'
         ruleset.operand = '@flow.' + flowField.id
-        ruleset.config =
-          field_index: $scope.formData.fieldIndex.id
-          field_delimiter: $scope.formData.fieldDelimiter.id
+        ruleset.config.field_index = $scope.formData.fieldIndex.id
+        ruleset.config.field_delimiter = $scope.formData.fieldDelimiter.id
 
       # update our operand if they selected a contact field explicitly
       else if ruleset.ruleset_type == 'contact_field'
