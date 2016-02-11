@@ -9,7 +9,7 @@ defaultRuleSetType = ->
   if window.ivr
     'wait_digit'
   else if window.ussd
-    'wait_ussd'
+    'wait_menu'
   else
     'wait_message'
 
@@ -1170,6 +1170,23 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
           rule.category[flow.base_language] = option.category._base
 
           rules.push(rule)
+
+    # create rules off of an USSD menu configuration
+    if ruleset.ruleset_type == 'wait_menu'
+      for item, index in ruleset.config.ussd_menu
+        if item?.category?._base
+          rule =
+            uuid: item.uuid
+            destination: item.destination
+            category: item.category
+            test:
+              type: 'eq'
+              test: item.option
+          rule.category[flow.base_language] = item.category._base
+
+          rules.push(rule)
+        else
+          ruleset.config.ussd_menu.splice index, 1
 
     # rules configured from our select widgets
     if $scope.hasRules()
