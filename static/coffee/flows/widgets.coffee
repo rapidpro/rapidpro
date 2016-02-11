@@ -3,30 +3,28 @@ app = angular.module('temba.widgets', [])
 #============================================================================
 # Displaying USSD Menu with textarea, menu inputs and char counter
 #============================================================================
-app.directive "ussd", [ "$rootScope", "$log", "Flow", ($rootScope, $log, Flow) ->
+app.directive "ussd", [ "$rootScope", "$log", "utils", ($rootScope, $log, utils) ->
   MESSAGE_LENGTH = 182
 
   link = (scope, element, attrs) ->
-    scope.menu = []
+    scope.USSD_MENU = parseInt(attrs.ussd) == 0
+    scope.USSD_RESPONSE = parseInt(attrs.ussd) == 1
 
-    scope.ruleset.config.ussdMenu = [
-      {
-        number: 1
-        label: "test1"
-        category:
-          _base: "T1"
-          _autoName: true
-      },
-      {
-        number: 2
-        label: "test2"
-        category:
-          _base: "T2"
-          _autoName: true
-      }
-    ]
+    scope.ruleset.config ?= {}
+    scope.ruleset.config.ussd_menu ?= []
+    scope.ruleset.config.ussd_text ?= ""
 
-    scope.updateCategory = (item) ->
+    # sync menu with rules
+    for [item, rule] in utils.zip(scope.ruleset.config.ussd_menu, scope.ruleset.rules)
+      # sync every rule but the "Other"
+      unless rule._config.type is "true"
+        item.destination = rule.destination
+        item.category = rule.category
+
+    updateCategory = (item) ->
+      if not item.category._autoName
+        return
+
       words = item.label.trim().split(/\b/)
       if words
         categoryName = words[0].toUpperCase()
