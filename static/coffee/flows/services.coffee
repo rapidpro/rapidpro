@@ -428,6 +428,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @rulesets = [
 
         { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', split:'message response', filter:[TEXT,SURVEY] },
+        { type: 'wait_menu', name:'Wait for USSD Menu', verbose_name: 'Wait for USSD Menu', split:'USSD Menu response', filter:USSD },
         { type: 'wait_ussd', name:'Wait for USSD Response', verbose_name: 'Wait for USSD response', split:'USSD response', filter:USSD },
 
         # voice flows only
@@ -624,7 +625,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     isPausingRuleset: (node) ->
       if not node?.actions
-        return node.ruleset_type in ['wait_ussd', 'wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
+        return node.ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
+      return false
+
+    isUssdRuleset: (node) ->
+      if not node?.actions
+        return node.ruleset_type in ['wait_menu', 'wait_ussd']
       return false
 
     # check if a potential connection would result in an invalid loop
@@ -636,7 +642,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       # break out if our target is a pausing ruleset
       node = @getNode(targetId)
-      if node and @isPausingRuleset(node)
+      if node and (@isPausingRuleset(node) or @isUssdRuleset(node))
         return false
 
       # check if we just ate our tail
@@ -646,6 +652,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       # add ourselves
       path = path.slice()
       path.push(targetId)
+
 
       # if we have rules, check each one
       if node?.rules
