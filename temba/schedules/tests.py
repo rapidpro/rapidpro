@@ -28,7 +28,7 @@ class ScheduleTest(TembaTest):
 
         if not start_date:
             # Test date is 10am on a Thursday, Jan 3rd
-            start_date = datetime(2013, 1, 3, hour=10).replace(tzinfo=pytz.utc)
+            start_date = datetime(2013, 1, 3, hour=10, minute=0).replace(tzinfo=pytz.utc)
 
         # create a our bitmask from repeat_days
         bitmask = 0
@@ -227,10 +227,10 @@ class ScheduleTest(TembaTest):
         self.org.save()
 
         tz = self.org.get_tzinfo()
-        eleven_pm_est = datetime(2013, 1, 3, hour=23, minute=0, second=0, microsecond=0).replace(tzinfo=tz)
+        eleven_fifteen_est = datetime(2013, 1, 3, hour=23, minute=15, second=0, microsecond=0).replace(tzinfo=tz)
 
-        # Test date is 10am on a Thursday, Jan 3rd
-        schedule = self.create_schedule('D', start_date=eleven_pm_est)
+        # Test date is 10:15am on a Thursday, Jan 3rd
+        schedule = self.create_schedule('D', start_date=eleven_fifteen_est)
         schedule.save()
 
         Broadcast.create(self.org, self.admin, 'Message', [], schedule=schedule)
@@ -239,7 +239,7 @@ class ScheduleTest(TembaTest):
         # when is the next fire once our first one passes
         sched_date = datetime(2013, 1, 3, hour=23, minute=30, second=0, microsecond=0).replace(tzinfo=tz)
         schedule.update_schedule(sched_date)
-        self.assertEquals('2013-01-04 23:00:00-05:00', unicode(schedule.next_fire))
+        self.assertEquals('2013-01-04 23:15:00-05:00', unicode(schedule.next_fire))
 
     def test_update_near_day_boundary(self):
 
@@ -270,7 +270,7 @@ class ScheduleTest(TembaTest):
         self.assertEquals('2050-01-04 04:00:00+00:00', unicode(sched.next_fire))
 
         # a time in the past
-        start_date = datetime(2010, 1, 3, 23, 0, 0, 0, tzinfo=tz)
+        start_date = datetime(2010, 1, 3, 23, 45, 0, 0, tzinfo=tz)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
         post_data = dict()
@@ -280,7 +280,7 @@ class ScheduleTest(TembaTest):
         self.client.post(update_url, post_data)
         sched = Schedule.objects.get(pk=sched.pk)
 
-        # next fire should fall at the same hour
-        self.assertIn('04:00:00+00:00', unicode(sched.next_fire))
+        # next fire should fall at the right hour and minute
+        self.assertIn('04:45:00+00:00', unicode(sched.next_fire))
 
 
