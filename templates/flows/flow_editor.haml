@@ -450,37 +450,51 @@
               -trans "Wait for "
               [[ruleset.label]]
 
+            .title.wait-ussd{ng-show:'ruleset.ruleset_type=="wait_menu"'}
+              -trans "Wait for USSD Menu"
+
+            .title.wait-ussd{ng-show:'ruleset.ruleset_type=="wait_ussd"'}
+              -trans "Wait for USSD Response"
+
             .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_recording"'}
-                -trans "Wait for Recording"
+              -trans "Wait for Recording"
 
             .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digit"'}
-                -trans "Wait for Menu"
+              -trans "Wait for Menu"
 
             .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digits"'}
-                -trans "Wait for Digits"
+              -trans "Wait for Digits"
 
             .title.passive.contact-field{ng-class:"{missing:getContactFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="contact_field"'}
-                -trans "Split on "
-                [[getContactFieldName(ruleset).text]]
+              -trans "Split on "
+              [[getContactFieldName(ruleset).text]]
 
             .title.passive.flow-field{ng-class:"{missing:getFlowFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="flow_field"'}
-                -trans "Split on "
-                [[getFlowFieldName(ruleset).text]]
+              -trans "Split on "
+              [[getFlowFieldName(ruleset).text]]
 
             .title.passive.form-field{ng-class:"{missing:getFlowFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="form_field"'}
-                -trans "Split on field in "
-                [[getFlowFieldName(ruleset).text]]
+              -trans "Split on field in "
+              [[getFlowFieldName(ruleset).text]]
 
             .title.passive.webhook-header{ng-show:'ruleset.ruleset_type=="webhook"'}
-                -trans "Call Webhook"
+              -trans "Call Webhook"
 
             .title.passive.expression{ng-show:'ruleset.ruleset_type=="expression"'}
-                -trans "Split by Expression"
+              -trans "Split by Expression"
 
             .remove-warning
               Remove Rules?
 
             .remove.icon-close{ ng-click: 'confirmRemoveRuleset($event, ruleset); $event.stopPropagation()' }
+
+          .ussd-flow-items-wrapper{ng-show:'ruleset.ruleset_type=="wait_menu" || ruleset.ruleset_type=="wait_ussd"', ng-click:"clickRuleset(ruleset)"}
+            .ussd-flow-text
+              [[ruleset.config.ussd_text]]
+            .ussd-flow-items
+              .ussd-flow-item{ng-repeat:'item in ruleset.config.ussd_menu'}
+                %span.ussd-label
+                  [[item.option]] [[item.label]]
 
           %table{style:'width:100%;', ruleset:"ruleset", ng-click:'clickRuleset(ruleset)'}
             %tr.rules
@@ -502,6 +516,11 @@
                 .visited{ng-show:'category._visited && category.target'}
                   .count{ng-mouseover:'showRecentMessages()', ng-mouseleave:'hideRecentMessages();'}
                     [[category._visited|number]]
+              // placeholder for USSD interrupted state
+              %td.rule{class:'interrupted', valign:'bottom', ng-show:'ruleset.ruleset_type=="wait_menu" || ruleset.ruleset_type=="wait_ussd"'}
+                .category
+                  Interrupted
+                .source
 
         .note{ng-dblclick:'$event.stopPropagation();', ng-repeat:'note in flow.metadata.notes', note:'note'}
           %a.close{ng-click:'removeNote(note);'}
