@@ -39,7 +39,7 @@ class window.AutoComplete
             data = ac.completions
 
           subQuery = ac.parseFilterQuery(query)
-          lastIdx = if subQuery then subQuery.lastIndexOf('.') else 0
+          lastIdx = if subQuery then subQuery.lastIndexOf('.') else -1
           start = subQuery.substring(0, lastIdx)
           results = ac.findCompletions(subQuery, data, start, lastIdx)
 
