@@ -109,7 +109,6 @@ app.directive "note", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
 # manage connections when actionset changes
 app.directive "actionset", [ "$timeout", "$log", "Plumb", "Flow", ($timeout, $log, Plumb, Flow) ->
 
-
   link = (scope, element, attrs) ->
 
     Plumb.updateConnection(scope.actionset)
@@ -274,9 +273,6 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
     scope.$watch (->Flow.language), ->
       scope.updateTranslationStatus(scope.ruleset, Flow.flow.base_language, Flow.language)
 
-
-
-
   return {
     restrict: "A"
     link: link
@@ -291,6 +287,7 @@ app.directive "operatorName", [ "Flow", (Flow) ->
     scope.$watch (->scope.ngModel), ->
       opConfig = Flow.getOperatorConfig(scope.ngModel.type)
       scope.verbose_name = opConfig.verbose_name
+
   return {
     template: '<span>[[verbose_name]]</span>'
     restrict: "C"
@@ -304,6 +301,8 @@ app.directive "operatorName", [ "Flow", (Flow) ->
 # turn an element into a jsplumb source
 app.directive "source", [ 'Plumb', '$log', (Plumb, $log) ->
   link = (scope, element, attrs) ->
+    if not attrs.id or not attrs.dropScope then return
+
     if window.mutable
       Plumb.makeSource(attrs.id, attrs.dropScope)
 
