@@ -95,6 +95,12 @@ app.service "utils", ->
       return false
     return true
 
+  zip: () ->
+    lengthArray = (arr.length for arr in arguments)
+    length = Math.min(lengthArray...)
+    for i in [0...length]
+      arr[i] for arr in arguments
+
 #============================================================================
 # DragHelper is all kinds of bad. This facilitates the little helper cues
 # for the user so they learn the mechanics of building a flow. We should
