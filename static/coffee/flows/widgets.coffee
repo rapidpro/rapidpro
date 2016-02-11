@@ -32,68 +32,46 @@ app.directive "ussd", [ "$rootScope", "$log", "utils", ($rootScope, $log, utils)
         if categoryName.length > 1
           item.category._base = categoryName.charAt(0) + categoryName.substr(1).toLowerCase()
 
-#    scope.countCharacters = ->
-#      sum = (items) ->
-#          items.reduce (prev, current) ->
-#            current.number ?= ""
-#            current.label ?= ""
-#            prev + current.number.length + current.label.length
-#          ,0
-#      $rootScope.characters = MESSAGE_LENGTH - scope.message.length - sum(scope.menu)
-#
-#    # update our counter every time the message changes
-#    scope.$watch (->scope.message), scope.countCharacters
-#
-#    # determine the initial message based on the current language
-#    if scope.ussd
-#      content = scope.ussd[Flow.flow.base_language].split(/\n/g)
-#      # search for first menu item
-#      for item, index in content
-#        if item.indexOf(": ") isnt -1
-#          menuIndex = index
-#          break
-#
-#      if menuIndex
-#        # build menu
-#        scope.message = content[0..menuIndex-1].join("\n")
-#        for item in content[menuIndex..]
-#          menuItem = item.split(": ")
-#          scope.menu.push
-#            number: menuItem[0]
-#            label: menuItem[1]
-#      else
-#        scope.message = scope.ussd[Flow.flow.base_language]
-#      if not scope.message
-#        scope.message = ""
-#
-#      # set new menu item number
-#      scope.$watch (->scope.menu.length), ->
-#        if scope.menu.length < 9
-#          scope.newNumber = scope.menu.length + 1
-#        else
-#          scope.newNumber = 0
-#        scope.newLabel = ""
-#
-#      isPositiveInteger = (n) ->
-#        n >>> 0 is parseFloat(n)
-#
-#    scope.addMenuItem = (number, label) ->
-#      scope.menu.push
-#        number: number
-#        label: label
-#
-#    scope.removeMenuItem = (index) ->
-#      scope.menu.splice(index, 1)
+    do insertEmpty = ->
+      menu = scope.ruleset.config.ussd_menu
+      length = menu.length
+      if length == 0 or menu[length - 1].category?._base != ""
+        scope.ruleset.config.ussd_menu.splice length, 0,
+          uuid: uuid()
+          option: if length >= 9 then 0 else length + 1
+          label: ""
+          category:
+            _autoName: true
+            _base: ""
+
+    scope.remove = (item, index) ->
+      scope.ruleset.config.ussd_menu.splice(index, 1)
+      if index == 0 or index == scope.ruleset.config.ussd_menu.length
+        insertEmpty()
+
+    scope.updateMenu = (item, index) ->
+      scope.countCharacters()
+      updateCategory(item)
+      if item.label.length == 1 and index == scope.ruleset.config.ussd_menu.length - 1
+        insertEmpty()
+
+    do scope.countCharacters = ->
+      sum = (items) ->
+        items.reduce (prev, current) ->
+          current.option ?= ""
+          current.label ?= ""
+          prev + current.option.toString().length + current.label.length + 2 # 1 for space 1 for newline char
+        ,0
+
+      textLength = scope.ruleset.config.ussd_text.length
+      textMenuLength = textLength + 1 + sum(scope.ruleset.config.ussd_menu)
+      $rootScope.characters = if scope.USSD_MENU then MESSAGE_LENGTH - textMenuLength else MESSAGE_LENGTH - textLength
 
   return {
     templateUrl: "/partials/ussd_directive"
     restrict: "A"
     link: link
-#    scope: {
-#      ussd: '='
-#      message: '='
-#      menu: '='
-#    }
+    scope: true
   }
 ]
 
