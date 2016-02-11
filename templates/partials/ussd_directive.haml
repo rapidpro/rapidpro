@@ -5,26 +5,26 @@
     Add text:
 
 .split-margin
-  %textarea{ng-model:"ruleset.config.ussdText",name:"ussd",auto-complete:"",flow:"[[flowId]]",class:"ussd-add-text"}
+  %textarea{ng-model:"ruleset.config.ussd_text",name:"ussd",auto-complete:"",flow:"[[flowId]]",ng-change:"countCharacters()",class:"ussd-add-text"}
 
-.split-header-inner
+.split-header-inner{ng-if:'USSD_MENU'}
   %p
     Add menu:
 
-%form{name:'menuForm'}
+%form{name:'menuForm', ng-if:'USSD_MENU'}
   %span
-    %div{ui-sortable:"sortableOptions",ng-model:"ruleset.config.ussdMenu"}
-      .rule{ng-repeat:"item in ruleset.config.ussdMenu"}
+    %div{ui-sortable:"sortableOptions",ng-model:"ruleset.config.ussd_menu"}
+      .rule{ng-repeat:"item in ruleset.config.ussd_menu"}
         .ng-form{name:"menuItem"}
           .icon.icon-menu
           .ordinals
-            %input{ng-model:"item.number",type:"text",class:"number",placeholder:"#"}
+            %input{ng-model:"item.option",type:"text",class:"number",placeholder:"#",number:"true",ng-change:"countCharacters()"}
           .operation.wide
-            %input{ng-model:"item.label",name:"operand",flow:"[[flowId]]",ng-required:"rule.category._base",ng-change:"updateCategory(item)",type:"text",class:"operand",uuid:"[[ruleset.uuid]]"}
+            %input{ng-model:"item.label",name:"operand",flow:"[[flowId]]",ng-required:"",ng-change:"updateMenu(item, $index)",type:"text",class:"operand",uuid:"[[ruleset.uuid]]"}
 
           .categorize
             -trans "categorize as"
-            %input{ng-model:"item.category._base",name:"category",ng-required:"rule._config.operands==0 || (rule._config.operands==1 && rule.test._base) || (rule._config.operands==2 && (rule.test.test.min || rule.test.test.max))",ng-change:"item.category._autoName = false",type:"text",class:"category"}
-          .icon.icon-close{ng-click:"remove(item)"}
-#split-on
+            %input{ng-model:"item.category._base",name:"category",ng-required:"item.label",ng-change:"item.category._autoName = false",type:"text",class:"category"}
+          .icon.icon-close{ng-click:"remove(item, $index)"}
+#split-on{ng-if:'USSD_RESPONSE'}
   -trans "If the message response..."
