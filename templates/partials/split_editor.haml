@@ -22,7 +22,8 @@
           .error.ng-hide{ng-show:"variable.$error.alphanum"}
             -trans "The response name must consist of only letters and numbers."
 
-    .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_ussd"', ussd:""}
+    .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_menu"', ussd:0}
+    .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_ussd"', ussd:1}
 
     .response{ng-if:'formData.rulesetConfig.type == "wait_message"'}><
       #split-on
