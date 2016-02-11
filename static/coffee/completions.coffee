@@ -31,9 +31,6 @@ class window.AutoComplete
         highlighter: (li, query) -> return li
 
         matcher: (flag, subtext) ->
-          if ac.parser.isInStringLiteral(subtext)
-            return null
-
           return ac.parser.expressionContext(subtext)
 
         filter: (query, data, searchKey) ->
@@ -159,6 +156,11 @@ class window.AutoComplete
   parseFilterQuery: (query) ->
     if not query
       return query
+
+    if query.match(/[(]*[^"]*["]/)
+      if @parser.isInStringLiteral(query)
+        return null;
+
     return @parser.autoCompleteContext(query) or ''
 
   parseQuery: (query) ->
