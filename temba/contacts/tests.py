@@ -2801,6 +2801,13 @@ class ContactURNTest(TembaTest):
         self.assertEquals(('twitter', "jimmyjo"), ContactURN.normalize_urn('TWITTER', "jimmyJO"))
         self.assertEquals(('twitter', "billy_bob"), ContactURN.normalize_urn('twitter', " @Billy_bob "))
 
+        # email addresses
+        self.assertEqual(('mailto', "name@domain.com"), ContactURN.normalize_urn('mailto', " nAme@domAIN.cOm "))
+
+        # external ids are case sensitive
+        self.assertEqual(('ext', "eXterNAL123"), ContactURN.normalize_urn('ext', " eXterNAL123 "))
+
+
     def test_validate_urn(self):
         # valid tel numbers
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", "RW"))
@@ -3119,67 +3126,49 @@ class ContactFieldTest(TembaTest):
 
         response_json = json.loads(response.content)
 
-        self.assertEquals(len(response_json), 35)
+        print response_json
+
+        self.assertEquals(len(response_json), 39)
         self.assertEquals(response_json[0]['label'], 'Full name')
         self.assertEquals(response_json[0]['key'], 'name')
-        self.assertEquals(response_json[1]['label'], 'Phone number')
-        self.assertEquals(response_json[1]['key'], 'tel_e164')
-        self.assertEquals(response_json[2]['label'], 'Groups')
-        self.assertEquals(response_json[2]['key'], 'groups')
-        self.assertEquals(response_json[3]['label'], 'First')
-        self.assertEquals(response_json[3]['key'], 'first')
-        self.assertEquals(response_json[4]['label'], 'label0')
-        self.assertEquals(response_json[4]['key'], 'key0')
+        self.assertEquals(response_json[1]['label'], 'External identifier')
+        self.assertEquals(response_json[1]['key'], 'ext')
+        self.assertEquals(response_json[2]['label'], 'Email address')
+        self.assertEquals(response_json[2]['key'], 'mailto')
+        self.assertEquals(response_json[3]['label'], 'Telegram identifier')
+        self.assertEquals(response_json[3]['key'], 'telegram')
+        self.assertEquals(response_json[4]['label'], 'Twitter handle')
+        self.assertEquals(response_json[4]['key'], 'twitter')
+        self.assertEquals(response_json[5]['label'], 'Phone number')
+        self.assertEquals(response_json[5]['key'], 'tel_e164')
+        self.assertEquals(response_json[6]['label'], 'Groups')
+        self.assertEquals(response_json[6]['key'], 'groups')
+        self.assertEquals(response_json[7]['label'], 'First')
+        self.assertEquals(response_json[7]['key'], 'first')
+        self.assertEquals(response_json[8]['label'], 'label0')
+        self.assertEquals(response_json[8]['key'], 'key0')
 
         ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
 
         response = self.client.get(contact_field_json_url)
         response_json = json.loads(response.content)
 
-        self.assertEquals(len(response_json), 35)
+        self.assertEquals(len(response_json), 39)
         self.assertEquals(response_json[0]['label'], 'Full name')
         self.assertEquals(response_json[0]['key'], 'name')
-        self.assertEquals(response_json[1]['label'], 'Phone number')
-        self.assertEquals(response_json[1]['key'], 'tel_e164')
-        self.assertEquals(response_json[2]['label'], 'Groups')
-        self.assertEquals(response_json[2]['key'], 'groups')
-        self.assertEquals(response_json[3]['label'], 'AAAA')
-        self.assertEquals(response_json[3]['key'], 'key0')
-        self.assertEquals(response_json[4]['label'], 'First')
-        self.assertEquals(response_json[4]['key'], 'first')
-
-        with patch('temba.orgs.models.Org.get_schemes') as mock_schemes:
-            mock_schemes.return_value = []
-
-            response = self.client.get(contact_field_json_url)
-            response_json = json.loads(response.content)
-
-            self.assertEquals(len(response_json), 34)
-            self.assertEquals(response_json[0]['label'], 'Full name')
-            self.assertEquals(response_json[0]['key'], 'name')
-            self.assertEquals(response_json[1]['label'], 'Groups')
-            self.assertEquals(response_json[1]['key'], 'groups')
-            self.assertEquals(response_json[2]['label'], 'AAAA')
-            self.assertEquals(response_json[2]['key'], 'key0')
-            self.assertEquals(response_json[3]['label'], 'First')
-            self.assertEquals(response_json[3]['key'], 'first')
-
-            mock_schemes.return_value = [TWITTER_SCHEME, TELEGRAM_SCHEME]
-
-            response = self.client.get(contact_field_json_url)
-            response_json = json.loads(response.content)
-
-            self.assertEquals(len(response_json), 36)
-            self.assertEquals(response_json[0]['label'], 'Full name')
-            self.assertEquals(response_json[0]['key'], 'name')
-            self.assertEquals(response_json[1]['label'], 'Telegram identifier')
-            self.assertEquals(response_json[1]['key'], 'telegram')
-            self.assertEquals(response_json[2]['label'], 'Twitter handle')
-            self.assertEquals(response_json[2]['key'], 'twitter')
-            self.assertEquals(response_json[3]['label'], 'Groups')
-            self.assertEquals(response_json[3]['key'], 'groups')
-            self.assertEquals(response_json[4]['label'], 'AAAA')
-            self.assertEquals(response_json[4]['key'], 'key0')
-            self.assertEquals(response_json[5]['label'], 'First')
-            self.assertEquals(response_json[5]['key'], 'first')
-
+        self.assertEquals(response_json[1]['label'], 'External identifier')
+        self.assertEquals(response_json[1]['key'], 'ext')
+        self.assertEquals(response_json[2]['label'], 'Email address')
+        self.assertEquals(response_json[2]['key'], 'mailto')
+        self.assertEquals(response_json[3]['label'], 'Telegram identifier')
+        self.assertEquals(response_json[3]['key'], 'telegram')
+        self.assertEquals(response_json[4]['label'], 'Twitter handle')
+        self.assertEquals(response_json[4]['key'], 'twitter')
+        self.assertEquals(response_json[5]['label'], 'Phone number')
+        self.assertEquals(response_json[5]['key'], 'tel_e164')
+        self.assertEquals(response_json[6]['label'], 'Groups')
+        self.assertEquals(response_json[6]['key'], 'groups')
+        self.assertEquals(response_json[7]['label'], 'AAAA')
+        self.assertEquals(response_json[7]['key'], 'key0')
+        self.assertEquals(response_json[8]['label'], 'First')
+        self.assertEquals(response_json[8]['key'], 'first')

@@ -126,7 +126,7 @@ class Campaign(SmartModel):
                                                                    event_spec['delivery_hour'])
                         event.update_flow_name()
                     else:
-                        flow = Flow.objects.filter(org=org, id=event_spec['flow']['id']).first()
+                        flow = Flow.objects.filter(org=org, is_active=True, id=event_spec['flow']['id']).first()
                         if flow:
                             CampaignEvent.create_flow_event(org, user, campaign, relative_to,
                                                             event_spec['offset'],
@@ -346,6 +346,17 @@ class CampaignEvent(SmartModel):
             pass
 
         return None
+
+    def release(self):
+        """
+        Removes this event.. also takes care of removing any event fires that were scheduled and unfired
+        """
+        # mark ourselves inactive
+        self.is_active = False
+        self.save()
+
+        # delete any pending event fires
+        EventFire.update_eventfires_for_event(self)
 
     def calculate_scheduled_fire(self, contact):
         date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)

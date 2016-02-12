@@ -560,6 +560,17 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'flow=%s' % flow1.uuid)
         self.assertResultsById(response, [frank_run2, frank_run1, joe_run2, joe_run1])
 
+        # doesn't work if flow is inactive
+        flow1.is_active = False
+        flow1.save()
+
+        response = self.fetchJSON(url, 'flow=%s' % flow1.uuid)
+        self.assertResultsById(response, [])
+
+        # restore to active
+        flow1.is_active = True
+        flow1.save()
+
         # filter by invalid flow
         response = self.fetchJSON(url, 'flow=invalid')
         self.assertResultsById(response, [])
