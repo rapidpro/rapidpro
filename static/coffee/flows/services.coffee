@@ -934,14 +934,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           # now create a version that's select2 friendly
           contactFieldSearch = []
 
-          contactFieldSearch.push
-             id: "name"
-             text: "Full Name"
-
-          contactFieldSearch.push
-             id: "tel_e164"
-             text: "Phone Numbers"
-
           for field in fields
             contactFieldSearch.push
               id: field.key

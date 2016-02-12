@@ -55,7 +55,7 @@
     <ul class="breadcrumb">
         {% for breadcrumb_name, breadcrumb_url in breadcrumblist %}
             <li>
-                <a href="{{ breadcrumb_url }}" {% if forloop.last %}class="active"{% endif %}>{% if forloop.first %}{{ brand.name }} API{% else %}{{ breadcrumb_name }}{% endif %}</a> {% if not forloop.last %}<span class="divider">&rsaquo;</span>{% endif %}
+                <a href="{{ breadcrumb_url }}" {% if forloop.last %}class="active"{% endif %}>{% if forloop.first %}{{ brand.name }} API v1{% else %}{{ breadcrumb_name }}{% endif %}</a> {% if not forloop.last %}<span class="divider">&rsaquo;</span>{% endif %}
             </li>
         {% endfor %}
 
@@ -69,7 +69,7 @@
 
     <div id="content">
         <div class="content-main">
-            <div class="page-header"><h1>{% if name == "Api" %}{{ brand.name }} API{% else %}{{ name }}{% endif %}</h1></div>
+            <div class="page-header"><h1>{% if name == "Api" %}{{ brand.name }} API v1{% else %}{{ name }}{% endif %}</h1></div>
             {{ description }}
         </div>
     </div>

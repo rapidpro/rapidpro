@@ -11,7 +11,8 @@ from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
 from temba.urls import init_analytics
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
-from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT, FIRE_EVENT
+from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
+from .models import FIRE_EVENT, SystemLabel
 from temba.utils.queues import pop_task
 import time
 
@@ -257,3 +258,12 @@ def purge_broadcasts_task():
                 broadcast.msgs.filter(purged=False).update(purged=True)
                 broadcast.purged = True
                 broadcast.save(update_fields=['purged'])
+
+@task(track_started=True, name="squash_systemlabels")
+def squash_systemlabels():
+    r = get_redis_connection()
+
+    key = 'squash_systemlabels'
+    if not r.get(key):
+        with r.lock(key, timeout=900):
+            SystemLabel.squash_counts()

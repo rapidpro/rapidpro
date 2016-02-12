@@ -9,12 +9,13 @@ from uuid import uuid4
 
 import pytz
 import regex
+from redis_cache import get_redis_connection
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import models, transaction
+from django.db import models, transaction, connection
 from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
@@ -1338,11 +1339,11 @@ class Msg(models.Model):
         self.labels.clear()
 
     @classmethod
-    def apply_action_label(cls, msgs, label, add):
+    def apply_action_label(cls, user, msgs, label, add):
         return label.toggle_label(msgs, add)
 
     @classmethod
-    def apply_action_archive(cls, msgs):
+    def apply_action_archive(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1351,7 +1352,7 @@ class Msg(models.Model):
         return changed
 
     @classmethod
-    def apply_action_restore(cls, msgs):
+    def apply_action_restore(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1360,7 +1361,7 @@ class Msg(models.Model):
         return changed
 
     @classmethod
-    def apply_action_delete(cls, msgs):
+    def apply_action_delete(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1369,7 +1370,7 @@ class Msg(models.Model):
         return changed
 
     @classmethod
-    def apply_action_resend(cls, msgs):
+    def apply_action_resend(cls, user, msgs):
         changed = []
 
         for msg in msgs:
@@ -1467,6 +1468,8 @@ class SystemLabel(models.Model):
     TYPE_SCHEDULED = 'E'
     TYPE_CALLS = 'C'
 
+    LAST_SQUASH_KEY = 'last_systemlabel_squash'
+
     TYPE_CHOICES = ((TYPE_INBOX, "Inbox"),
                     (TYPE_FLOWS, "Flows"),
                     (TYPE_ARCHIVED, "Archived"),
@@ -1481,6 +1484,33 @@ class SystemLabel(models.Model):
     label_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
 
     count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
+
+    @classmethod
+    def squash_counts(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(SystemLabel.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # get the unique systemlabel ids for all new ones
+        start = time.time()
+        squash_count = 0
+        for count in SystemLabel.objects.filter(id__gt=last_squash).order_by('org_id', 'label_type').distinct('org_id', 'label_type'):
+            print "Squashing: %d %s" % (count.org_id, count.label_type)
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_systemlabel(%s, %s);", (count.org_id, count.label_type))
+
+            squash_count += 1
+
+        # insert our new top squashed id
+        max_id = SystemLabel.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(SystemLabel.LAST_SQUASH_KEY, max_id.id)
+
+        print "Squashed system label counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
     @classmethod
     def create_all(cls, org):
@@ -1500,13 +1530,13 @@ class SystemLabel(models.Model):
         """
         # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.current_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.current_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.current_messages.filter(direction=INCOMING, visibility=ARCHIVED)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
-            qs = Msg.current_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
             qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
@@ -1781,7 +1811,7 @@ class ExportMessagesTask(SmartModel):
         date_style = XFStyle()
         date_style.num_format_str = 'DD-MM-YYYY HH:MM:SS'
 
-        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Direction', 'Text', 'Labels']
+        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels']
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
@@ -1828,6 +1858,7 @@ class ExportMessagesTask(SmartModel):
                 row = 1
 
             contact_name = msg.contact.name if msg.contact.name else ''
+            contact_uuid = msg.contact.uuid
             created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
             msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
 
@@ -1845,9 +1876,10 @@ class ExportMessagesTask(SmartModel):
             current_messages_sheet.write(row, 1, urn_path)
             current_messages_sheet.write(row, 2, urn_scheme)
             current_messages_sheet.write(row, 3, contact_name)
-            current_messages_sheet.write(row, 4, msg.get_direction_display())
-            current_messages_sheet.write(row, 5, msg.text)
-            current_messages_sheet.write(row, 6, msg_labels)
+            current_messages_sheet.write(row, 4, contact_uuid)
+            current_messages_sheet.write(row, 5, msg.get_direction_display())
+            current_messages_sheet.write(row, 6, msg.text)
+            current_messages_sheet.write(row, 7, msg_labels)
             row += 1
             processed += 1
 
