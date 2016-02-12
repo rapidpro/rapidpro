@@ -540,15 +540,14 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               if UserVoice
                 UserVoice.push(['set', 'ticket_custom_fields', {'Error': data.description}]);
 
-              modalInstance = $modal.open
-                templateUrl: "/partials/modal?v=" + version
-                controller: ModalController
-                resolve:
-                  type: -> "error"
-                  title: -> "Error Saving"
-                  body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
-                  details: -> data.description
-                  ok: -> 'Reload'
+              resolveObj =
+                type: -> "error"
+                title: -> "Error Saving"
+                body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
+                details: -> data.description
+                ok: -> 'Reload'
+
+              modalInstance = Flow.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
               modalInstance.result.then (reload) ->
                 if reload
@@ -573,14 +572,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
             $rootScope.error = null
             $rootScope.errorDelay = quietPeriod
             if data.status == 'unsaved'
-              modalInstance = $modal.open
-                templateUrl: "/partials/modal?v=" + version
-                controller: ModalController
-                resolve:
-                  type: -> "error"
-                  title: -> "Editing Conflict"
-                  body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
-                  ok: -> 'Reload'
+              resolveObj =
+                type: -> "error"
+                title: -> "Editing Conflict"
+                body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
+                ok: -> 'Reload'
+              modalInstance = Flow.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
               modalInstance.result.then (reload) ->
                 if reload
@@ -604,6 +601,13 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         , quietPeriod
 
+
+    openModal: (templateUrl, controller, resolveObj) ->
+      $modal.open
+        keyboard: false
+        templateUrl: templateUrl
+        controller: controller
+        resolve: resolveObj
 
     getNode: (uuid) ->
       for actionset in @flow.action_sets
