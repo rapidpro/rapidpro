@@ -319,6 +319,13 @@ class Trigger(SmartModel):
 
         return [each_trigger.pk for each_trigger in triggers]
 
+    def release(self):
+        """
+        Releases this Trigger, use this instead of delete
+        """
+        self.is_active = False
+        self.save()
+
     def fire(self):
         if self.is_archived or not self.is_active:
             return None

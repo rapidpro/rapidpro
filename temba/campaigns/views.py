@@ -312,10 +312,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
-            self.object.is_active = False
-            self.object.save()
-
-            EventFire.update_eventfires_for_event(self.object)
+            self.object.release()
 
             redirect_url = self.get_redirect_url()
             return HttpResponseRedirect(redirect_url)

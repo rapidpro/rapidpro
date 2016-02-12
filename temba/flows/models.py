@@ -754,6 +754,16 @@ class Flow(TembaModel):
         self.is_active = False
         self.save()
 
+        # release any campaign events that depend on this flow
+        from temba.campaigns.models import CampaignEvent
+        for event in CampaignEvent.objects.filter(flow=self, is_active=True):
+            event.release()
+
+        # release any triggers that depend on this flow
+        from temba.triggers.models import Trigger
+        for trigger in Trigger.objects.filter(flow=self, is_active=True):
+            trigger.release()
+
         # delete our results in the background
         delete_flow_results_task.delay(self.id)
 
@@ -761,15 +771,6 @@ class Flow(TembaModel):
         """
         Removes all flow runs, values and steps for a flow.
         """
-        # if this is a voice flow, remove any recordings we have
-        if self.flow_type == Flow.VOICE:
-            try:
-                path = 'recordings/%d/%d' % (self.org.pk, self.pk)
-                if default_storage.exists(path):
-                    default_storage.delete(path)
-            except Exception:
-                pass
-
         # grab the ids of all our runs
         run_ids = self.runs.all().values_list('id', flat=True)
 

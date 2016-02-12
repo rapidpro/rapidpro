@@ -347,6 +347,17 @@ class CampaignEvent(SmartModel):
 
         return None
 
+    def release(self):
+        """
+        Removes this event.. also takes care of removing any event fires that were scheduled and unfired
+        """
+        # mark ourselves inactive
+        self.is_active = False
+        self.save()
+
+        # delete any pending event fires
+        EventFire.update_eventfires_for_event(self)
+
     def calculate_scheduled_fire(self, contact):
         date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)
         return self.calculate_scheduled_fire_for_value(date_value, timezone.now())

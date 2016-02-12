@@ -3660,7 +3660,22 @@ class FlowsTest(FlowFileTest):
         self.assertTrue('@contact.name' in actionset.get_actions()[0].groups)
 
     def test_flow_delete(self):
+        from temba.campaigns.models import Campaign, CampaignEvent
         flow = self.get_flow('favorites')
+
+        # create a campaign that contains this flow
+        friends = self.create_group("Friends", [])
+        poll_date = ContactField.get_or_create(self.org, self.admin, 'poll_date', "Poll Date")
+
+        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Favorite Poll"), friends)
+        event1 = CampaignEvent.create_flow_event(self.org, self.admin, campaign, poll_date,
+                                                 offset=0, unit='D', flow=flow, delivery_hour='13')
+
+        # create a trigger that contains this flow
+        trigger = Trigger.objects.create(org=self.org, keyword='poll', flow=flow, trigger_type=Trigger.TYPE_KEYWORD,
+                                         created_by=self.admin, modified_by=self.admin)
+
+        # run the flow
         self.assertEquals("Good choice, I like Red too! What is your favorite beer?", self.send_message(flow, "RED"))
 
         # try to remove the flow, not logged in, no dice
@@ -3684,6 +3699,14 @@ class FlowsTest(FlowFileTest):
         # just no steps or values
         self.assertEqual(Value.objects.all().count(), 0)
         self.assertEqual(FlowStep.objects.all().count(), 0)
+
+        # our campaign event should no longer be active
+        event1.refresh_from_db()
+        self.assertFalse(event1.is_active)
+
+        # nor should our trigger
+        trigger.refresh_from_db()
+        self.assertFalse(trigger.is_active)
 
     def test_flow_export(self):
         flow = self.get_flow('favorites')
