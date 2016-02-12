@@ -77,7 +77,7 @@ app.controller 'RevisionController', [ '$scope', '$rootScope', '$log', '$timeout
     $rootScope.showRevisions = false
 ]
 
-app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal', '$log', '$interval', '$upload', 'Flow', 'Plumb', 'DragHelper', 'utils', ($scope, $rootScope, $timeout, $modal, $log, $interval, $upload, Flow, Plumb, DragHelper, utils) ->
+app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '$interval', '$upload', 'Flow', 'Plumb', 'DragHelper', 'utils', ($scope, $rootScope, $timeout, $log, $interval, $upload, Flow, Plumb, DragHelper, utils) ->
 
   # inject into our gear menu
   $rootScope.gearLinks = []
@@ -758,7 +758,7 @@ TranslationController = ($scope, $modalInstance, languages, translation) ->
     $modalInstance.dismiss "cancel"
 
 # The controller for sub-dialogs when editing rules
-RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, $timeout, utils, ruleset, Flow, Plumb, methods, type) ->
+RuleOptionsController = ($rootScope, $scope, $log, $modalInstance, $timeout, utils, ruleset, Flow, Plumb, methods, type) ->
 
   $scope.ruleset = utils.clone(ruleset)
   $scope.methods = methods
@@ -782,7 +782,7 @@ RuleOptionsController = ($rootScope, $scope, $modal, $log, $modalInstance, $time
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
 
-NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $log, Flow, Plumb, utils, options) ->
+NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow, Plumb, utils, options) ->
 
   # let our template know our editor type
   $scope.nodeType = options.nodeType
