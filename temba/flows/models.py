@@ -4422,7 +4422,7 @@ class TriggerFlowAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=TriggerFlowAction.TYPE, id=self.flow.pk, name=self.flow.name,
                     contacts=contact_ids, groups=group_ids, variables=variables)

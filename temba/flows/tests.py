@@ -31,7 +31,8 @@ from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
-from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, COMPLETE
+from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, COMPLETE, \
+    TriggerFlowAction
 from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET, FlowRunCount
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
@@ -2038,6 +2039,38 @@ class ActionTest(TembaTest):
         response = msg.responses.get()
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(self.contact, response.contact)
+
+    def test_trigger_flow_action(self):
+        flow = self.create_flow()
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        action = TriggerFlowAction(flow, [], [self.contact], [])
+        action.execute(run, None, None)
+
+        action_json = action.as_json()
+        action = TriggerFlowAction.from_json(self.org, action_json)
+        self.assertEqual(action.flow.pk, flow.pk)
+
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact, flow=flow))
+
+        self.other_group.update_contacts(self.user, [self.contact2], True)
+
+        action = TriggerFlowAction(flow, [self.other_group], [self.contact], [])
+        run = FlowRun.create(self.flow, self.contact.pk)
+        action.execute(run, None, None)
+
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact2, flow=flow))
+
+        # delete the group
+        self.other_group.is_active = False
+        self.other_group.save()
+
+        self.assertTrue(action.groups)
+        self.assertTrue(self.other_group.pk in [g.pk for g in action.groups])
+        # should create new group the next time the flow is read
+        updated_action = TriggerFlowAction.from_json(self.org, action.as_json())
+        self.assertTrue(updated_action.groups)
+        self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
 
     def test_send_action(self):
         msg_body = "Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow"
