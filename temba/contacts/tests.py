@@ -413,7 +413,8 @@ class ContactGroupTest(TembaTest):
 
         response = self.client.post(delete_url, dict())
         # group should have is_active = False and all its triggers
-        self.assertFalse(ContactGroup.user_groups.get(pk=group.pk).is_active)
+        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
+        self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
 
@@ -1475,7 +1476,7 @@ class ContactTest(TembaTest):
         self.assertRedirect(response, reverse('contacts.contact_list'))
 
         # make sure it is inactive
-        self.assertIsNone(ContactGroup.user_groups.get(name="New Test").first())
+        self.assertIsNone(ContactGroup.user_groups.filter(name="New Test").first())
         self.assertFalse(ContactGroup.all_groups.get(name="New Test").is_active)
 
         # remove Joe from the group
