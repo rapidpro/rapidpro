@@ -130,7 +130,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
                    dict(count=counts[ContactGroup.TYPE_FAILED], label=_("Failed"), url=reverse('contacts.contact_failed')),
                    dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
 
-        groups_qs = ContactGroup.user_groups.filter(org=org, is_active=True).select_related('org')
+        groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
         groups = [dict(pk=g.pk, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
 

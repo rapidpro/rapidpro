@@ -376,7 +376,7 @@ class CampaignTest(TembaTest):
 
         # now update the campaign
         from temba.contacts.models import ContactGroup
-        self.farmers = ContactGroup.user_groups.get(name='Farmers', is_active=True)
+        self.farmers = ContactGroup.user_groups.get(name='Farmers')
         self.login(self.admin)
         post_data = dict(name="Planting Reminders", group=self.farmers.pk)
         self.client.post(reverse('campaigns.campaign_update', args=[campaign.pk]), post_data)

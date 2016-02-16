@@ -224,7 +224,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
         # filter by group name/uuid (optional)
         group_ref = params.get('group')
         if group_ref:
-            group = ContactGroup.user_groups.filter(org=org, is_active=True).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
+            group = ContactGroup.user_groups.filter(org=org).filter(Q(uuid=group_ref) | Q(name=group_ref)).first()
             if group:
                 queryset = queryset.filter(all_groups=group)
             else:

@@ -461,7 +461,7 @@ class ContactWriteSerializer(WriteSerializer):
         if value is not None:
             self.group_objs = []
             for uuid in value:
-                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
+                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org).first()
                 if not group:
                     raise serializers.ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
 
@@ -921,7 +921,7 @@ class CampaignWriteSerializer(WriteSerializer):
 
     def validate_group_uuid(self, value):
         if value:
-            self.group_obj = ContactGroup.user_groups.filter(org=self.org, is_active=True, uuid=value).first()
+            self.group_obj = ContactGroup.user_groups.filter(org=self.org, uuid=value).first()
             if not self.group_obj:
                 raise serializers.ValidationError("No contact group with UUID %s" % value)
         return value
@@ -1306,7 +1306,7 @@ class FlowRunStartSerializer(WriteSerializer):
     def validate_groups(self, value):
         if value:
             for uuid in value:
-                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
+                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org).first()
                 if not group:
                     raise serializers.ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
                 self.group_objs.append(group)
@@ -1474,7 +1474,7 @@ class BroadcastCreateSerializer(WriteSerializer):
 
     def validate_groups(self, value):
         if value:
-            groups = list(ContactGroup.user_groups.filter(uuid__in=value, org=self.org, is_active=True))
+            groups = list(ContactGroup.user_groups.filter(uuid__in=value, org=self.org))
 
             # check for UUIDs that didn't resolve to a valid group
             validate_bulk_fetch(groups, value)

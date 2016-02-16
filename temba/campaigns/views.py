@@ -130,7 +130,7 @@ class CampaignCRUDL(SmartCRUDL):
                 super(CampaignCRUDL.Create.CampaignForm, self).__init__(*args, **kwargs)
 
                 group = self.fields['group']
-                group.queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True).order_by('name')
+                group.queryset = ContactGroup.user_groups.filter(org=self.user.get_org()).order_by('name')
                 group.user = user
 
             class Meta:

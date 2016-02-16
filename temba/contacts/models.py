@@ -1512,7 +1512,8 @@ class ContactURN(models.Model):
 
 class SystemContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED)
+        return super(SystemContactGroupManager, self).get_queryset().exclude(group_type=ContactGroup.TYPE_USER_DEFINED,
+                                                                             is_active=True)
 
 
 class UserContactGroupManager(models.Manager):
@@ -1563,11 +1564,11 @@ class ContactGroup(TembaModel):
         """
         Returns the user group with the passed in name
         """
-        return ContactGroup.user_groups.filter(name__iexact=cls.clean_name(name), org=org, is_active=True).first()
+        return ContactGroup.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
 
     @classmethod
     def get_or_create(cls, org, user, name, group_id=None):
-        existing = ContactGroup.user_groups.filter(org=org, id=group_id, is_active=True).first()
+        existing = ContactGroup.user_groups.filter(org=org, id=group_id).first()
         if not existing:
             existing = ContactGroup.get_user_group(org, name)
 
