@@ -4012,8 +4012,7 @@ class AddToGroupAction(Action):
                     group_id = -1
 
                 group = ContactGroup.get_or_create(org, org.created_by, group_name, group_id)
-                if group:
-                    groups.append(group)
+                groups.append(group)
             else:
                 if g and g[0] == '@':
                     groups.append(g)
@@ -4325,8 +4324,7 @@ class VariableContactAction(Action):
             group_name = group_data.get(VariableContactAction.NAME)
 
             group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_id)
-            if group:
-                groups.append(group)
+            groups.append(group)
 
         return groups
 
