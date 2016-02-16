@@ -2073,7 +2073,7 @@ class ActionTest(TembaTest):
 
         self.other_group.update_contacts(self.user, [self.contact2], True)
 
-        action = SendAction(dict(base=msg_body), [self.other_group], [self.contact], [])
+        action = SendAction(dict(base=msg_body), [self.other_group], [test_contact], [])
         run = FlowRun.create(self.flow, test_contact.pk)
         action.execute(run, None, None)
 
@@ -2083,6 +2083,15 @@ class ActionTest(TembaTest):
         # but we should have logged instead
         logged = "Sending &#39;Hi @contact.name (@contact.state). Mr Test (IN) is in the flow&#39; to 2 contacts"
         self.assertEqual(ActionLog.objects.all().first().text, logged)
+
+        # delete the group
+        self.other_group.is_active = False
+        self.other_group.save()
+
+        self.assertTrue(action.groups)
+        # should ignore group the next time the flow is read
+        updated_action = SendAction.from_json(self.org, action.as_json())
+        self.assertFalse(updated_action.groups)
 
     @override_settings(SEND_EMAILS=True)
     def test_email_action(self):
@@ -2380,6 +2389,16 @@ class ActionTest(TembaTest):
 
         self.assertFalse(group.contacts.filter(id=self.contact.pk))
         self.assertEqual(0, group.contacts.all().count())
+
+        action = DeleteFromGroupAction([group])
+        # delete group
+        group.is_active = False
+        group.save()
+
+        self.assertTrue(action.groups)
+        # reading the action should ignore the group
+        updated_action = DeleteFromGroupAction.from_json(self.org, action.as_json())
+        self.assertFalse(updated_action.groups)
 
     def test_add_label_action(self):
         flow = self.flow

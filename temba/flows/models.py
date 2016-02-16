@@ -4011,16 +4011,7 @@ class AddToGroupAction(Action):
                 except Exception:
                     group_id = -1
 
-                if group_id and ContactGroup.user_groups.filter(org=org, id=group_id).first():
-                    group = ContactGroup.user_groups.filter(org=org, id=group_id).first()
-                    if not group.is_active:
-                        group.is_active = True
-                        group.save(update_fields=['is_active'])
-                elif ContactGroup.get_user_group(org, group_name):
-                    group = ContactGroup.get_user_group(org, group_name)
-                else:
-                    group = ContactGroup.create(org, org.created_by, group_name)
-
+                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_id)
                 if group:
                     groups.append(group)
             else:
@@ -4038,7 +4029,8 @@ class AddToGroupAction(Action):
         groups = []
         for g in self.groups:
             if isinstance(g, ContactGroup):
-                groups.append(dict(id=g.pk, name=g.name))
+                if g.is_active:
+                    groups.append(dict(id=g.pk, name=g.name))
             else:
                 groups.append(g)
 
@@ -4333,14 +4325,9 @@ class VariableContactAction(Action):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id, is_active=True):
-                group = ContactGroup.user_groups.get(org=org, id=group_id, is_active=True)
-            elif ContactGroup.get_user_group(org, group_name):
-                group = ContactGroup.get_user_group(org, group_name)
-            else:
-                group = ContactGroup.create(org, org.get_user(), group_name)
-
-            groups.append(group)
+            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_id)
+            if group:
+                groups.append(group)
 
         return groups
 
