@@ -1575,9 +1575,6 @@ class ContactGroup(TembaModel):
         if existing:
             return existing
 
-        if name is None:
-            return
-
         return cls.create(org, user, name)
 
     @classmethod

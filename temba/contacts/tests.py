@@ -214,9 +214,6 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.assertNotEqual(group_1.name, 'Kigali')
         self.assertEqual(group_1.name, 'first')
 
-        # no name and no id should return None
-        self.assertIsNone(ContactGroup.get_or_create(self.org, self.user, None))
-
     def test_update(self):
         group = ContactGroup.create(self.org, self.user, "one")
 
