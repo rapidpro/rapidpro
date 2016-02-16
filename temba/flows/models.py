@@ -4029,8 +4029,7 @@ class AddToGroupAction(Action):
         groups = []
         for g in self.groups:
             if isinstance(g, ContactGroup):
-                if g.is_active:
-                    groups.append(dict(id=g.pk, name=g.name))
+                groups.append(dict(id=g.pk, name=g.name))
             else:
                 groups.append(g)
 
@@ -4706,7 +4705,7 @@ class SendAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
 

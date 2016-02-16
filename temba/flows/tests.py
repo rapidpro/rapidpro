@@ -2089,9 +2089,11 @@ class ActionTest(TembaTest):
         self.other_group.save()
 
         self.assertTrue(action.groups)
-        # should ignore group the next time the flow is read
+        self.assertTrue(self.other_group.pk in [g.pk for g in action.groups])
+        # should create new group the next time the flow is read
         updated_action = SendAction.from_json(self.org, action.as_json())
-        self.assertFalse(updated_action.groups)
+        self.assertTrue(updated_action.groups)
+        self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
 
     @override_settings(SEND_EMAILS=True)
     def test_email_action(self):
@@ -2396,9 +2398,11 @@ class ActionTest(TembaTest):
         group.save()
 
         self.assertTrue(action.groups)
-        # reading the action should ignore the group
+        self.assertTrue(group.pk in [g.pk for g in action.groups])
+        # reading the action should create a new group
         updated_action = DeleteFromGroupAction.from_json(self.org, action.as_json())
-        self.assertFalse(updated_action.groups)
+        self.assertTrue(updated_action.groups)
+        self.assertFalse(group.pk in [g.pk for g in updated_action.groups])
 
     def test_add_label_action(self):
         flow = self.flow
