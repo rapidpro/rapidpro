@@ -165,7 +165,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
     def testDelete(self):
         obj = self.getTestObject()
         self._do_test_view('delete', obj, post_data=dict())
-        self.assertFalse(self.getCRUDL().model.user_groups.get(pk=obj.pk).is_active)
+        self.assertIsNone(self.getCRUDL().model.user_groups.filter(pk=obj.pk).first())
+        self.assertFalse(self.getCRUDL().model.all_groups.get(pk=obj.pk).is_active)
 
     def test_create(self):
         create_url = reverse('contacts.contactgroup_create')
@@ -379,7 +380,8 @@ class ContactGroupTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.post(reverse('contacts.contactgroup_delete', args=[group.pk]), dict())
-        self.assertFalse(ContactGroup.user_groups.get(pk=group.pk).is_active)
+        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
+        self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
 
         group = ContactGroup.create(self.org, self.user, "one")
         delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
@@ -1473,7 +1475,8 @@ class ContactTest(TembaTest):
         self.assertRedirect(response, reverse('contacts.contact_list'))
 
         # make sure it is inactive
-        self.assertFalse(ContactGroup.user_groups.get(name="New Test").is_active)
+        self.assertIsNone(ContactGroup.user_groups.get(name="New Test").first())
+        self.assertFalse(ContactGroup.all_groups.get(name="New Test").is_active)
 
         # remove Joe from the group
         post_data = dict()
