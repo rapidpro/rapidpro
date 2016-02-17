@@ -703,7 +703,7 @@ class Contact(TembaModel):
                 # excel formatting that field as numeric.. try to parse it into an int instead
                 try:
                     value = str(int(float(value)))
-                except ValueError:  # pragma: no cover
+                except Exception: # pragma: no cover
                     # oh well, neither of those, stick to the plan, maybe we can make sense of it below
                     pass
 
@@ -712,6 +712,7 @@ class Contact(TembaModel):
 
                 if not is_valid:
                     raise SmartImportRowError("Invalid Phone number %s" % value)
+
                 # in the past, test contacts have ended up in exports. Don't re-import them
                 if value == OLD_TEST_CONTACT_TEL:
                     raise SmartImportRowError("Ignored test contact")
