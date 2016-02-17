@@ -1,5 +1,6 @@
 -extends 'smartmin/update.html'
 
+
 -block modal-script
   {{block.super}}
 
@@ -10,8 +11,92 @@
         containerCssClass: "select2-temba-field"
       });
 
+      $('#id-urn-scheme').select2({width:'150px', minimumResultsForSearch: -1})
+
       select2div('#id_language', '520px', 'No preference')
+      createMoveLinks();
+
     });
+
+    function createMoveLinks() {
+      $('.order-helper').remove();
+
+      // :not(:first)
+      var idx = 0;
+      var first = true;
+      $(".control-group input[id^=id_urn__]").each(function() {
+        var input = $('#' + this.id);
+        var parts = this.id.split('__');
+
+        // store a hidden value to track our order
+        $(this).after('<input class="order-helper" type=hidden name="order__' + this.name + '" value="' + idx + '"/>')
+
+        // add a link to increase the priority
+        if (!first) {
+          var link = 'javascript:moveUp("' + this.id + '");';
+          link = "<div style='float:right' title='Increase priority' class='order-helper icon-arrow-down' onclick='" + link + "'></div>"
+          $(this).parents('.control-group').prepend(link)
+        }
+
+
+        idx++;
+        first = false;
+
+
+      });
+    }
+
+    function moveUp(link) {
+      var group = $('#' + link).parents('.control-group');
+      var previous = group.prev();
+      previous.before(group);
+      createMoveLinks();
+    }
+
+
+
+-block extra-fields
+  :css
+    .icon-arrow-down {
+      -ms-transform: rotate(180deg);
+      -moz-transform: rotate(180deg);
+      -webkit-transform: rotate(180deg);
+      -o-transform: rotate(180deg);
+
+      margin-top:10px;
+      font-size:14px;
+      cursor: pointer;
+      color: #ccc;
+    }
+
+
+  //-for urn in object.get_urns
+    {{urn.scheme}}
+    %input{value:'{{urn.path}}'}
+
+
+  // Manual option to add a new URN for this contact
+  <div class="control-group {% if form.errors.new_path %}error{%endif%}">
+    %label.control-label
+      Add Connection
+    .controls
+
+
+      %select#id-urn-scheme{name:'new_scheme', float:'left'}
+        -for key, value in schemes
+          <option value='{{key}}' {% if form.data.new_scheme == key %}selected{%endif%}>{{value}}</option>
+      %input{name:'new_path', type:'text', style:'margin-left:5px;width:347px', value:'{{form.data.new_path}}'}
+
+      %p.help-block
+        Add a new way connect with this contact
+      -if form.errors.new_path
+        %p.help-block.field-errors
+          {{form.errors.new_path}}
+
+  </div>
+
+
 
 -block summary
   {{ contact }}
+

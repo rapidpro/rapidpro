@@ -19,12 +19,24 @@
         .glyph.icon-vcard
         {{contact.anon_identifier}}
 
-    -for urn in contact_sendable_urns
+    -for urn in contact_urns
       .contact-urn
         .{class:"glyph {{urn|urn_icon}}"}
         -if not user_org.is_anon
-          %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, fetchRecentMessages)"}><
-            {{urn|format_urn:user_org}}
+          -if urn.sendable
+            %a.contact-urn-path{href:"javascript:showComposeInitialized(\"u={{ urn.id }}\", null, fetchRecentMessages)"}><
+              {{urn|format_urn:user_org}}
+          -else
+            %i.contact-urn-path
+              -if urn.scheme == 'mailto'
+                %a{href:"{{urn}}"}
+                  {{urn|format_urn:user_org}}
+              -elif urn.scheme == 'twitter'
+                %a{href:'http://twitter.com/{{urn.path}}'}
+                  {{urn|format_urn:user_org}}
+              -else
+                {{urn|format_urn:user_org}}
+
         -else
           %span.contact-urn-path
             {{urn|format_urn:user_org}}
@@ -33,7 +45,14 @@
       .contact-urn
         .{class:"glyph {{urn|urn_icon}}"}
         %i.contact-urn-path
-          {{urn|format_urn:user_org}}
+          -if urn.scheme == 'mailto'
+            %a{href:"{{urn}}"}
+              {{urn|format_urn:user_org}}
+          -elif urn.scheme == 'twitter'
+            %a{href:'http://twitter.com/{{urn.path}}'}
+              {{urn|format_urn:user_org}}
+          -else
+            {{urn|format_urn:user_org}}
 
   -block contact-groups
     %div.header-margin
@@ -345,12 +364,6 @@
           display: inline-block;
           margin-right: 10px;
 
-          &:first-of-type {
-            .contact-urn-path {
-              font-weight: bold;
-            }
-          }
-
           .glyph {
             margin-right: 3px;
           }
@@ -558,6 +571,13 @@
       modal.setRedirectOnSuccess(true);
       modal.show();
     });
+
+    $(".update-contact-fields").live('click', function(){
+      var modal = new Modax('{% trans "Custom Fields" %}','{% url "contacts.contact_update_fields" object.pk %}');
+      modal.setIcon('icon-user');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
     {% endif %}
 
     {% if org_perms.msgs.broadcast_send %}
@@ -604,7 +624,7 @@
 
     {% if org_perms.msgs.broadcast_send %}
     $(".contact-send-button").on('click', function() {
-      {% if contact_sendable_urns %}
+      {% if has_sendable_urn %}
       $(".gear-menu").removeClass("open");
       showComposeInitialized("c={{object.id}}", null, fetchRecentMessages);
       {% else %}

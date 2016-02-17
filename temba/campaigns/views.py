@@ -1,24 +1,25 @@
-from uuid import uuid4
-from django.core.exceptions import ValidationError
-from django.forms import ModelForm
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.models import Group
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.contacts.models import ContactGroup, ContactField
-from temba.msgs.views import BaseActionForm
-from temba.flows.models import Flow
-from smartmin.views import *
+from __future__ import unicode_literals
 
-from .models import Campaign, CampaignEvent, EventFire, UNIT_CHOICES, HOURS
+from django import forms
+from django.core.exceptions import ValidationError
+from django.core.urlresolvers import reverse
+from django.http import HttpResponseRedirect
+from django.views.decorators.csrf import csrf_exempt
+from smartmin.views import SmartCRUDL, SmartListView, SmartUpdateView, SmartCreateView, SmartReadView, SmartDeleteView
+from temba.contacts.models import ContactGroup, ContactField
+from temba.flows.models import Flow
+from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
+from temba.utils.views import BaseActionForm
+
+from .models import Campaign, CampaignEvent, EventFire, UNIT_CHOICES
 
 
 class CampaignActionForm(BaseActionForm):
-    ALLOWED_ACTIONS = (('archive', "Archive Campaigns"),
+    allowed_actions = (('archive', "Archive Campaigns"),
                        ('restore', "Restore Campaigns"))
 
-    OBJECT_CLASS = Campaign
-    OBJECT_CLASS_MANAGER = 'objects'
-    HAS_IS_ACTIVE = True
+    model = Campaign
+    has_is_active = True
 
     class Meta:
         fields = ('action', 'objects')
@@ -40,7 +41,7 @@ class CampaignActionMixin(SmartListView):
         return self.get(request, *args, **kwargs)
 
 
-class UpdateCampaignForm(ModelForm):
+class UpdateCampaignForm(forms.ModelForm):
     group = forms.ModelChoiceField(queryset=ContactGroup.user_groups.filter(pk__lt=0),
                                    required=True, label="Group",
                                    help_text="Which group this campaign operates on")
@@ -253,7 +254,8 @@ class EventForm(forms.ModelForm):
         relative_to.queryset = ContactField.objects.filter(org=self.user.get_org(), is_active=True).order_by('label')
 
         flow = self.fields['flow_to_start']
-        flow.queryset = Flow.objects.filter(org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE], is_active=True, is_archived=False).order_by('name')
+        flow.queryset = Flow.objects.filter(org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE],
+                                            is_active=True, is_archived=False).order_by('name')
 
     class Meta:
         model = CampaignEvent
@@ -310,10 +312,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
-            self.object.is_active = False
-            self.object.save()
-
-            EventFire.update_eventfires_for_event(self.object)
+            self.object.release()
 
             redirect_url = self.get_redirect_url()
             return HttpResponseRedirect(redirect_url)

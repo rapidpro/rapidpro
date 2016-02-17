@@ -8,11 +8,12 @@ import phonenumbers
 import plivo
 import regex
 import requests
+import telegram
 
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
-from django.db import models
+from django.db import models, connection
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
@@ -60,6 +61,7 @@ VUMI = 'VM'
 ZENVIA = 'ZV'
 YO = 'YO'
 START = 'ST'
+TELEGRAM = 'TG'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -112,7 +114,8 @@ CHANNEL_SETTINGS = {
     SMSCENTRAL: dict(scheme='tel', max_length=1600),
     M3TECH: dict(scheme='tel', max_length=160),
     YO: dict(scheme='tel', max_length=1600),
-    START: dict(scheme='tel', max_length=1600)
+    START: dict(scheme='tel', max_length=1600),
+    TELEGRAM: dict(scheme='telegram', max_length=1600)
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -123,6 +126,7 @@ OUTGOING_PROXIES = settings.OUTGOING_PROXIES
 PLIVO_AUTH_ID = 'PLIVO_AUTH_ID'
 PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
 PLIVO_APP_ID = 'PLIVO_APP_ID'
+AUTH_TOKEN = 'auth_token'
 
 TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
                       "users who are not following you")  # handle no longer follows us
@@ -151,6 +155,7 @@ class Channel(TembaModel):
                     (BLACKMYNA, "Blackmyna"),
                     (SMSCENTRAL, "SMSCentral"),
                     (START, "Start Mobile"),
+                    (TELEGRAM, "Telegram"),
                     (YO, "Yo!"),
                     (M3TECH, "M3 Tech"))
 
@@ -248,6 +253,22 @@ class Channel(TembaModel):
             return phonenumbers.region_code_for_number(parsed)
         except Exception:
             return None
+
+    @classmethod
+    def add_telegram_channel(cls, org, user, auth_token):
+        """
+        Creates a new telegram channel from the passed in auth token
+        """
+        from temba.contacts.models import TELEGRAM_SCHEME
+        bot = telegram.Bot(auth_token)
+        me = bot.getMe()
+
+        channel = Channel.create(org, user, None, TELEGRAM, name=me.first_name, address=me.username,
+                                 config={AUTH_TOKEN: auth_token}, scheme=TELEGRAM_SCHEME)
+
+        bot.setWebhook("https://" + settings.TEMBA_HOST +
+                       "%s" % reverse('handlers.telegram_handler', args=[channel.uuid]))
+        return channel
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type):
@@ -532,13 +553,13 @@ class Channel(TembaModel):
         return random_string(64)
 
     def has_sending_log(self):
-        return self.channel_type != 'A'
+        return self.channel_type != ANDROID
 
     def has_configuration_page(self):
         """
         Whether or not this channel supports a configuration/settings page
         """
-        return self.channel_type not in ('T', 'A', 'TT')
+        return self.channel_type not in (TWILIO, ANDROID, TWITTER, TELEGRAM)
 
     def get_delegate_channels(self):
         if not self.org:  # detached channels can't have delegates
@@ -839,8 +860,9 @@ class Channel(TembaModel):
         self.save()
 
         # mark any messages in sending mode as failed for this channel
-        from temba.msgs.models import Msg
-        Msg.current_messages.filter(channel=self, status__in=['Q', 'P', 'E']).update(status='F')
+        from temba.msgs.models import Msg, OUTGOING, PENDING, QUEUED, ERRORED, FAILED
+        Msg.current_messages.filter(channel=self, direction=OUTGOING,
+                                    status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.channel_type == ANDROID:  # pragma: no cover
@@ -859,7 +881,7 @@ class Channel(TembaModel):
             if not org.get_schemes(CALL):
                 # archive any IVR flows
                 from temba.flows.models import Flow
-                for flow in Flow.objects.filter(org=org, flow_type=Flow.VOICE):
+                for flow in Flow.objects.filter(org=org, is_active=True, flow_type=Flow.VOICE):
                     flow.archive()
 
         # if we just lost answering capabilities, archive our inbound call trigger
@@ -1738,6 +1760,29 @@ class Channel(TembaModel):
         ChannelLog.log_success(msg, "Successfully delivered message")
 
     @classmethod
+    def send_telegram_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+        start = time.time()
+
+        auth_token = channel.config[AUTH_TOKEN]
+        send_url = 'https://api.telegram.org/bot%s/sendMessage' % auth_token
+        post_body = dict(chat_id=msg.urn_path, text=text)
+
+        try:
+            response = requests.post(send_url, post_body)
+            external_id = response.json()['result']['message_id']
+        except Exception as e:
+            raise SendException(str(e),
+                                send_url,
+                                'POST',
+                                urlencode(post_body),
+                                response.content,
+                                505)
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
+        ChannelLog.log_success(msg, "Successfully delivered message")
+
+    @classmethod
     def send_twitter_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
         from temba.contacts.models import Contact
@@ -2022,6 +2067,7 @@ class Channel(TembaModel):
                       BLACKMYNA: Channel.send_blackmyna_message,
                       SMSCENTRAL: Channel.send_smscentral_message,
                       START: Channel.send_start_message,
+                      TELEGRAM: Channel.send_telegram_message,
                       M3TECH: Channel.send_m3tech_message,
                       YO: Channel.send_yo_message}
 
@@ -2162,6 +2208,8 @@ class ChannelCount(models.Model):
     on each day. This allows for fast visualizations of activity on the channel read page as well as summaries
     of message usage over the course of time.
     """
+    LAST_SQUASH_KEY = 'last_channelcount_squash'
+
     INCOMING_MSG_TYPE = 'IM'  # Incoming message
     OUTGOING_MSG_TYPE = 'OM'  # Outgoing message
     INCOMING_IVR_TYPE = 'IV'  # Incoming IVR step
@@ -2190,6 +2238,34 @@ class ChannelCount(models.Model):
           order_by('day', 'count_type').aggregate(count_sum=Sum('count'))
 
         return 0 if not count else count['count_sum']
+
+    @classmethod
+    def squash_counts(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(ChannelCount.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # get the unique ids for all new ones
+        start = time.time()
+        squash_count = 0
+        for count in ChannelCount.objects.filter(id__gt=last_squash).order_by('channel_id', 'count_type', 'day')\
+                                                                    .distinct('channel_id', 'count_type', 'day'):
+            print "Squashing: %d %s %s" % (count.channel_id, count.count_type, count.day)
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_channelcount(%s, %s, %s);", (count.channel_id, count.count_type, count.day))
+
+            squash_count += 1
+
+        # insert our new top squashed id
+        max_id = ChannelCount.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(ChannelCount.LAST_SQUASH_KEY, max_id.id)
+
+        print "Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
     def __unicode__(self):
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)

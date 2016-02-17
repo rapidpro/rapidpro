@@ -936,20 +936,25 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
           # now create a version that's select2 friendly
           contactFieldSearch = []
-
-          contactFieldSearch.push
-             id: "name"
-             text: "Full Name"
-
-          contactFieldSearch.push
-             id: "tel_e164"
-             text: "Phone Numbers"
+          updateContactSearch = []
 
           for field in fields
-            contactFieldSearch.push
-              id: field.key
-              text: field.label
+
+            id = field.key
+            text = field.label
+
+            contactFieldSearch.push({ id: id, text: text })
+
+            if field.key == 'groups'
+              continue
+
+            if id == 'tel_e164'
+              text = 'Phone Numbers'
+
+            updateContactSearch.push({ id: id, text: text })
+
           Flow.contactFieldSearch = contactFieldSearch
+          Flow.updateContactSearch = updateContactSearch
 
         $http.get('/label/').success (labels) ->
           Flow.labels = labels

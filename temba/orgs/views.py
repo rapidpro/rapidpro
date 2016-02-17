@@ -488,7 +488,7 @@ class OrgCRUDL(SmartCRUDL):
             from temba.flows.models import Flow
             from temba.campaigns.models import Campaign
 
-            flows = set(Flow.objects.filter(id__in=self.request.REQUEST.getlist('flows'), org=self.get_object()))
+            flows = set(Flow.objects.filter(id__in=self.request.REQUEST.getlist('flows'), org=self.get_object(), is_active=True))
             campaigns = Campaign.objects.filter(id__in=self.request.REQUEST.getlist('campaigns'), org=self.get_object())
 
             # add in all the flows our campaign depends on
@@ -961,7 +961,7 @@ class OrgCRUDL(SmartCRUDL):
             context['org'] = org
             context['org_users'] = self.org_users
             context['group_fields'] = self.group_fields
-            context['invites'] = Invitation.objects.filter(org=org, is_active=True)
+            context['invites'] = Invitation.objects.filter(org=org, is_active=True).order_by('email')
 
             return context
 
