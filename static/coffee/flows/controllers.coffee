@@ -123,7 +123,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       okButton: -> okButton
       hideCancel: -> hideCancel
 
-    $scope.dialog = Flow.openModal("/partials/modal", SimpleMessageController, resolveObj)
+    $scope.dialog = utils.openModal("/partials/modal", SimpleMessageController, resolveObj)
     return $scope.dialog
 
   $scope.showRevisionHistory = ->
@@ -426,7 +426,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           to: Flow.language.iso_code
         ruleset: -> ruleset
 
-      $scope.dialog = Flow.openModal("/partials/translate_rules", TranslateRulesController, resolveObj)
+      $scope.dialog = utils.openModal("/partials/translate_rules", TranslateRulesController, resolveObj)
 
     else
 
@@ -437,7 +437,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             ruleset: ruleset
             dragSource: dragSource
           scope: $scope
-        $scope.dialog = Flow.openModal("/partials/node_editor", NodeEditorController, resolveObj)
+        $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
 
       else
         resolveObj =
@@ -446,7 +446,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             ruleset: ruleset
             dragSource: dragSource
 
-        $scope.dialog = Flow.openModal("/partials/node_editor", NodeEditorController, resolveObj)
+        $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
 
   $scope.confirmRemoveWebhook = (event, ruleset) ->
 
@@ -512,7 +512,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       resolveObj =
         actionset: -> actionset
         flowController: -> $scope
-      $scope.dialog = Flow.openModal("/partials/modal", TerminalWarningController, resolveObj)
+      $scope.dialog = utils.openModal("/partials/modal", TerminalWarningController, resolveObj)
     else
       if window.mutable
 
@@ -550,7 +550,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           type: if window.ivr then 'say' else 'reply'
           uuid: uuid()
 
-    $scope.dialog = FLow.openModal("/partials/node_editor", NodeEditorController, resolveObj)
+    $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
 
   $scope.moveActionUp = (actionset, action) ->
     Flow.moveActionUp(actionset, action)
@@ -612,7 +612,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             from: fromText
             to: action.msg[Flow.language.iso_code]
 
-        $scope.dialog = Flow.openModal("/partials/translation_modal", TranslationController, resolveObj)
+        $scope.dialog = utils.openModal("/partials/translation_modal", TranslationController, resolveObj)
 
         $scope.dialog.opened.then ->
           $('textarea').focus()
@@ -634,7 +634,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           action: action
           dragSource: dragSource
 
-      $scope.dialog = Flow.openModal("/partials/node_editor", NodeEditorController, resolveObj)
+      $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
 
   $scope.mouseMove = ($event) ->
 
@@ -924,7 +924,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         'api'
       ruleset: -> $scope.ruleset
 
-    Flow.openModal("/partials/rule_webhook", RuleOptionsController, resolveObj)
+    utils.openModal("/partials/rule_webhook", RuleOptionsController, resolveObj)
 
   $scope.remove = (rule) ->
     $scope.removed.push(rule)
@@ -998,7 +998,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       type: -> 'reply'
       ruleset: -> $scope.ruleset
 
-    Flow.openModal("/partials/split_variable", RuleOptionsController, resolveObj)
+    utils.openModal("/partials/split_variable", RuleOptionsController, resolveObj)
 
   $scope.updateCategory = (rule) ->
 

@@ -95,6 +95,13 @@ app.service "utils", ->
       return false
     return true
 
+  openModal: (templateUrl, controller, resolveObj) ->
+    $modal.open
+      keyboard: false
+      templateUrl: templateUrl
+      controller: controller
+      resolve: resolveObj
+
 #============================================================================
 # DragHelper is all kinds of bad. This facilitates the little helper cues
 # for the user so they learn the mechanics of building a flow. We should
@@ -547,7 +554,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                 details: -> data.description
                 ok: -> 'Reload'
 
-              modalInstance = Flow.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
+              modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
               modalInstance.result.then (reload) ->
                 if reload
@@ -577,7 +584,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
                 title: -> "Editing Conflict"
                 body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
                 ok: -> 'Reload'
-              modalInstance = Flow.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
+              modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
               modalInstance.result.then (reload) ->
                 if reload
@@ -601,13 +608,6 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         , quietPeriod
 
-
-    openModal: (templateUrl, controller, resolveObj) ->
-      $modal.open
-        keyboard: false
-        templateUrl: templateUrl
-        controller: controller
-        resolve: resolveObj
 
     getNode: (uuid) ->
       for actionset in @flow.action_sets
