@@ -279,6 +279,9 @@ describe 'Services:', ->
         ruleConnection = flowService.isConnectionAllowed(ussdMenu, ussdResponse)
         expect(ruleConnection).toBeTruthy()
 
+      it 'should not allow self loops', ->
+        ruleLoop = flowService.isConnectionAllowed(ussdMenu, ussdMenu)
+        expect(ruleLoop).toBeFalsy()
 
     describe 'getFieldSelection()', ->
 
