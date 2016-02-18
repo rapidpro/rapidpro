@@ -15,11 +15,12 @@ app.directive "ussd", [ "$rootScope", "$log", "utils", ($rootScope, $log, utils)
     scope.ruleset.config.ussd_text ?= ""
 
     # sync menu with rules
-    for [item, rule] in utils.zip(scope.ruleset.config.ussd_menu, scope.ruleset.rules)
-      # sync every rule but the "Other"
-      unless rule._config.type is "true"
-        item.destination = rule.destination
-        item.category = rule.category
+    if scope.USSD_MENU
+      for [item, rule] in utils.zip(scope.ruleset.config.ussd_menu, scope.ruleset.rules)
+        # sync every rule but the "Other"
+        unless rule._config.type is "true"
+          item.destination = rule.destination
+          item.category = rule.category
 
     updateCategory = (item) ->
       if not item.category._autoName
@@ -33,16 +34,17 @@ app.directive "ussd", [ "$rootScope", "$log", "utils", ($rootScope, $log, utils)
           item.category._base = categoryName.charAt(0) + categoryName.substr(1).toLowerCase()
 
     do insertEmpty = ->
-      menu = scope.ruleset.config.ussd_menu
-      length = menu.length
-      if length == 0 or menu[length - 1].category?._base != ""
-        scope.ruleset.config.ussd_menu.splice length, 0,
-          uuid: uuid()
-          option: if length >= 9 then 0 else length + 1
-          label: ""
-          category:
-            _autoName: true
-            _base: ""
+      if scope.USSD_MENU
+        menu = scope.ruleset.config.ussd_menu
+        length = menu.length
+        if length == 0 or menu[length - 1].category?._base != ""
+          scope.ruleset.config.ussd_menu.splice length, 0,
+            uuid: uuid()
+            option: if length >= 9 then 0 else length + 1
+            label: ""
+            category:
+              _autoName: true
+              _base: ""
 
     scope.remove = (item, index) ->
       scope.ruleset.config.ussd_menu.splice(index, 1)
