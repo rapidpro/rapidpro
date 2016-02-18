@@ -2985,11 +2985,31 @@ class M3TechTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
+                sms.text = "Test message"
                 mock.return_value = MockResponse(200,
                                                  """[{"Response":"0"}]""")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                self.assertEqual(mock.call_args[1]['params']['SMSType'], '0')
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                sms.text = "Test message ☺"
+                mock.return_value = MockResponse(200,
+                                                 """[{"Response":"0"}]""")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                self.assertEqual(mock.call_args[1]['params']['SMSType'], '8')
 
                 # check the status of the message is now sent
                 msg = bcast.get_messages()[0]
