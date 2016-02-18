@@ -22,10 +22,14 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.channels.models import Channel, SEND
 from temba.utils import analytics
 from temba.utils.expressions import get_function_listing
+from temba.utils.views import BaseActionForm
 from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel, VISIBLE
 
 
 def send_message_auto_complete_processor(request):
+    """
+    Adds completions for the expression auto-completion to the request context
+    """
     completions = []
     user = request.user
     org = None
@@ -34,23 +38,24 @@ def send_message_auto_complete_processor(request):
         org = request.user.get_org()
 
     if org:
-        for field in org.contactfields.filter(is_active=True):
-            completions.append(dict(name="contact.%s" % str(field.key), display=unicode(_("Contact Field: %(label)s")) % {'label':field.label}))
+        completions.append(dict(name='contact', display=unicode(_("Contact Name"))))
+        completions.append(dict(name='contact.first_name', display=unicode(_("Contact First Name"))))
+        completions.append(dict(name='contact.groups', display=unicode(_("Contact Groups"))))
+        completions.append(dict(name='contact.language', display=unicode(_("Contact Language"))))
+        completions.append(dict(name='contact.name', display=unicode(_("Contact Name"))))
+        completions.append(dict(name='contact.tel', display=unicode(_("Contact Phone"))))
+        completions.append(dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
+        completions.append(dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
 
-        completions.insert(0, dict(name='contact', display=unicode(_("Contact Name"))))
-        completions.insert(1, dict(name='contact.first_name', display=unicode(_("Contact First Name"))))
-        completions.insert(2, dict(name='contact.groups', display=unicode(_("Contact Groups"))))
-        completions.insert(3, dict(name='contact.language', display=unicode(_("Contact Language"))))
-        completions.insert(4, dict(name='contact.name', display=unicode(_("Contact Name"))))
-        completions.insert(5, dict(name='contact.tel', display=unicode(_("Contact Phone"))))
-        completions.insert(6, dict(name='contact.tel_e164', display=unicode(_("Contact Phone - E164"))))
-        completions.insert(7, dict(name='contact.uuid', display=unicode(_("Contact UUID"))))
+        completions.append(dict(name="date", display=unicode(_("Current Date and Time"))))
+        completions.append(dict(name="date.now", display=unicode(_("Current Date and Time"))))
+        completions.append(dict(name="date.today", display=unicode(_("Current Date"))))
+        completions.append(dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
+        completions.append(dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
 
-        completions.insert(8, dict(name="date", display=unicode(_("Current Date and Time"))))
-        completions.insert(9, dict(name="date.now", display=unicode(_("Current Date and Time"))))
-        completions.insert(10, dict(name="date.today", display=unicode(_("Current Date"))))
-        completions.insert(11, dict(name="date.tomorrow", display=unicode(_("Tomorrow's Date"))))
-        completions.insert(12, dict(name="date.yesterday", display=unicode(_("Yesterday's Date"))))
+        for field in org.contactfields.filter(is_active=True).order_by('label'):
+            display = unicode(_("Contact Field: %(label)s")) % {'label': field.label}
+            completions.append(dict(name="contact.%s" % str(field.key), display=display))
 
     function_completions = get_function_listing()
     return dict(completions=json.dumps(completions), function_completions=json.dumps(function_completions))
@@ -323,135 +328,18 @@ class BroadcastCRUDL(SmartCRUDL):
             return kwargs
 
 
-class BaseActionForm(forms.Form):
-    ALLOWED_ACTIONS = (('label', _("Label Messages")),
-                       ('archive', _("Archive Messages")),
-                       ('inbox', _("Move to Inbox")),
-                       ('resend', _("Resend Messages")),
-                       ('delete', _("Delete Messages")))
-
-    OBJECT_CLASS = Msg
-    LABEL_CLASS = Label
-    LABEL_CLASS_MANAGER = 'all_objects'
-    HAS_IS_ACTIVE = False
-
-    action = forms.ChoiceField(choices=ALLOWED_ACTIONS)
-    label = forms.ModelChoiceField(getattr(LABEL_CLASS, LABEL_CLASS_MANAGER).all(), required=False)
-    objects = forms.ModelMultipleChoiceField(OBJECT_CLASS.objects.all())
-    add = forms.BooleanField(required=False)
-    number = forms.BooleanField(required=False)
-
-    def __init__(self, *args, **kwargs):
-        org = kwargs['org']
-        self.user = kwargs['user']
-        del kwargs['org']
-        del kwargs['user']
-        super(BaseActionForm, self).__init__(*args, **kwargs)
-
-        self.fields['action'].choices = self.ALLOWED_ACTIONS
-        self.fields['label'].queryset = getattr(self.LABEL_CLASS, self.LABEL_CLASS_MANAGER).filter(org=org)
-
-        self.fields['objects'].queryset = self.OBJECT_CLASS.objects.filter(org=org)
-        if self.HAS_IS_ACTIVE:
-            self.fields['objects'].queryset = self.OBJECT_CLASS.objects.filter(org=org, is_active=True)
-
-    def clean(self):
-        data = self.cleaned_data
-        action = data['action']
-
-        update_perm_codename = self.OBJECT_CLASS.__name__.lower() + "_update"
-
-        update_allowed = self.user.get_org_group().permissions.filter(codename=update_perm_codename)
-        delete_allowed = self.user.get_org_group().permissions.filter(codename="msg_update")
-        resend_allowed = self.user.get_org_group().permissions.filter(codename="broadcast_send")
-
-
-        if action in ['label', 'unlabel', 'archive', 'restore', 'block', 'unblock'] and not update_allowed:
-            raise forms.ValidationError(_("Sorry you have no permission for this action."))
-
-        if action == 'delete' and not delete_allowed:
-            raise forms.ValidationError(_("Sorry you have no permission for this action."))
-
-        if action == 'resend' and not resend_allowed:
-            raise forms.ValidationError(_("Sorry you have no permission for this action."))
-
-        if action == 'label' and 'label' not in self.cleaned_data:
-            raise forms.ValidationError(_("Must specify a label"))
-
-        if action == 'unlabel' and 'label' not in self.cleaned_data:
-            raise forms.ValidationError(_("Must specify a label"))
-
-        return data
-
-    def execute(self):
-        data = self.cleaned_data
-        action = data['action']
-        objects = data['objects']
-
-        if action == 'label':
-            label = data['label']
-            add = data['add']
-
-            if not label:
-                return dict(error=_("Missing label"))
-
-            changed = self.OBJECT_CLASS.apply_action_label(objects, label, add)
-            return dict(changed=changed, added=add, label_id=label.id, label=label.name)
-
-        elif action == 'unlabel':
-            label = data['label']
-            add = data['add']
-
-            if not label:
-                return dict(error=_("Missing label"))
-
-            changed = self.OBJECT_CLASS.apply_action_label(objects, label, False)
-            return dict(changed=changed, added=add, label_id=label.id, label=label.name)
-
-        elif action == 'archive':
-            changed = self.OBJECT_CLASS.apply_action_archive(objects)
-            return dict(changed=changed)
-
-        elif action == 'block':
-            changed = self.OBJECT_CLASS.apply_action_block(objects)
-            return dict(changed=changed)
-
-        elif action == 'unblock':
-            changed = self.OBJECT_CLASS.apply_action_unblock(objects)
-            return dict(changed=changed)
-
-        elif action == 'restore':
-            changed = self.OBJECT_CLASS.apply_action_restore(objects)
-            return dict(changed=changed)
-
-        elif action == 'delete':
-            changed = self.OBJECT_CLASS.apply_action_delete(objects)
-            return dict(changed=changed)
-
-        elif action == 'resend':
-            changed = self.OBJECT_CLASS.apply_action_resend(objects)
-            return dict(changed=changed)
-
-        # should never make it here
-        else:  # pragma: no cover
-            return dict(error=_("Oops, so sorry. Something went wrong!"))
-
-        # no action means no-op
-        return dict()  # pragma: no cover
-
-
 class MsgActionForm(BaseActionForm):
-    ALLOWED_ACTIONS = (('label', _("Label Messages")),
+    allowed_actions = (('label', _("Label Messages")),
                        ('archive', _("Archive Messages")),
                        ('restore', _("Move to Inbox")),
                        ('resend', _("Resend Messages")),
                        ('delete', _("Delete Messages")))
 
-    OBJECT_CLASS = Msg
-    LABEL_CLASS = Label
-    LABEL_CLASS_MANAGER = 'label_objects'
-
-    HAS_IS_ACTIVE = False
+    model = Msg
+    model_manager = 'all_messages'
+    label_model = Label
+    label_model_manager = 'label_objects'
+    has_is_active = False
 
     class Meta:
         fields = ('action', 'label', 'objects', 'add', 'number')
@@ -473,7 +361,7 @@ class MsgActionMixin(SmartListView):
             response = form.execute()
 
             # shouldn't get in here in normal operation
-            if response and 'error' in response:  # pragma: no-cover
+            if response and 'error' in response:  # pragma: no cover
                 return HttpResponse(json.dumps(response), content_type='application/json', status=400)
 
         return self.get(request, *args, **kwargs)
@@ -878,7 +766,7 @@ class LabelCRUDL(SmartCRUDL):
 
             if self.form.cleaned_data['messages']:
                 msg_ids = [int(m) for m in self.form.cleaned_data['messages'].split(',') if m.isdigit()]
-                messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
+                messages = Msg.all_messages.filter(org=obj.org, pk__in=msg_ids)
                 if messages:
                     obj.toggle_label(messages, add=True)
 

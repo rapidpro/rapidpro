@@ -5,6 +5,7 @@ app = angular.module('temba.validation', [])
 #============================================================================
 REGEX_NUMBER = /^\-?\d+[\.\d+]*$/
 REGEX_ALPHANUM = /^[a-z\d\-_\s]+$/i
+REGEX_VARIABLE = /^[ ]*@.+$/i
 
 # simple numeric test
 app.directive "number", ->
@@ -88,7 +89,7 @@ app.directive "validateType", ->
       # evaluates numerics if the are the numeric types
       if type in ['eq', 'lt', 'gt']
         numeric = parseFloat(viewValue)
-        ctrl.$setValidity("validateType", not isNaN(numeric))
+        ctrl.$setValidity("validateType", not isNaN(numeric) or REGEX_VARIABLE.test(viewValue))
       else
         ctrl.$setValidity("validateType", true)
 

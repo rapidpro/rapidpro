@@ -115,7 +115,6 @@ class ScheduleCRUDL(SmartCRUDL):
 
                 # create our recurrence
                 if form.is_recurring():
-                    days = None
                     if 'repeat_days' in form.cleaned_data:
                         days = form.cleaned_data['repeat_days']
                     schedule.repeat_days = days

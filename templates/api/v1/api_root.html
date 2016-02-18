@@ -1,0 +1,89 @@
+{% extends "frame.html" %}
+
+{% load rest_framework static %}
+{% load smartmin %}
+
+{% block page-top %}
+{% endblock %}
+
+{% block extra-style %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static "rest_framework/css/prettify.css" %}"/>
+    <link rel="stylesheet" type="text/css" href="{% static "css/codemirror.css" %}"/>
+
+ <style>
+   .button-form {
+       float: right;
+   }
+
+   #get-form {
+       margin-left: 5px;
+   }
+
+   .form-horizontal .form-actions {
+       margin-top: 0px;
+       margin-bottom: 0px;
+       padding-top: 0px;
+       padding-bottom: 0px;
+   }
+
+   .nav.nav-tabs {
+       margin-bottom: 0px;
+   }
+
+   pre {
+       line-height: 18px;
+       font-size:  12px;
+       font-family: monospace;
+   }
+
+   .CodeMirror {
+       background: #fff;
+       border: 1px solid #eee;
+       margin-bottom: 10px;
+       height: 200px;
+   }
+
+   .str, .atv {
+       color: teal;
+   }
+ </style>
+{% endblock %}
+
+{% block content %}
+    {% block breadcrumbs %}
+    <ul class="breadcrumb">
+        {% for breadcrumb_name, breadcrumb_url in breadcrumblist %}
+            <li>
+                <a href="{{ breadcrumb_url }}" {% if forloop.last %}class="active"{% endif %}>{% if forloop.first %}{{ brand.name }} API v1{% else %}{{ breadcrumb_name }}{% endif %}</a> {% if not forloop.last %}<span class="divider">&rsaquo;</span>{% endif %}
+            </li>
+        {% endfor %}
+
+        {% if request.user.api_token %}<li class="pull-right" style="color: #666">API Token: {{ request.user.api_token }}</li>{% else %}<li class="pull-right">Log in to get your API Token</li>{% endif %}
+    </ul>
+    {% endblock %}
+
+    <!-- Content -->
+    <a class="btn btn-primary pull-right" href='{% url "api.v1.explorer" %}' style="margin-left: 10px">API Explorer</a>
+    <a class="btn btn-primary pull-right" href='{% url "api.webhook" %}'>WebHook</a>
+
+    <div id="content">
+        <div class="content-main">
+            <div class="page-header"><h1>{% if name == "Api" %}{{ brand.name }} API v1{% else %}{{ name }}{% endif %}</h1></div>
+            {{ description }}
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra-script %}
+    {{ block.super }}
+    <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+    <script src="{% static "rest_framework/js/default.js" %}"></script>
+
+    <script>
+        $(function(){
+            $("pre").has("code").addClass("prettyprint");
+            prettyPrint();
+        });
+    </script>
+{% endblock %}

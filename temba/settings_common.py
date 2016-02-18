@@ -17,16 +17,6 @@ if TESTING:
     DEBUG = False
     TEMPLATE_DEBUG = False
 
-    # if nose's failfast is used, also skip migrations
-    if '--failfast' in sys.argv:
-        class DisableMigrations(object):
-            def __contains__(self, item):
-                return True
-            
-            def __getitem__(self, item):
-                return "notmigrations"
-        MIGRATION_MODULES = DisableMigrations()
-
 ADMINS = (
     ('RapidPro', 'code@yourdomain.io'),
 )
@@ -182,9 +172,10 @@ ROOT_URLCONF = 'temba.urls'
 # other urls to add
 APP_URLS = []
 
-SITEMAP = ('public.public_index', 'public.video_list', 'public.public_blog',
-           'api', 'api.explorer', 'api.webhook', 'api.webhook_simulator',
-           'api.sms', 'api.flows', 'api.runs', 'api.calls', 'api.channels')
+SITEMAP = ('public.public_index',
+           'public.public_blog',
+           'public.video_list',
+           'api')
 
 INSTALLED_APPS = (
     'django.contrib.auth',
@@ -360,6 +351,7 @@ PERMISSIONS = {
                          'import',
                          'omnibox',
                          'unblock',
+                         'update_fields'
                          ),
 
     'contacts.contactfield': ('api',
@@ -422,6 +414,8 @@ PERMISSIONS = {
                          'claim_plivo',
                          'claim_shaqodoon',
                          'claim_smscentral',
+                         'claim_start',
+                         'claim_telegram',
                          'claim_twilio',
                          'claim_twitter',
                          'claim_verboice',
@@ -562,6 +556,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_read',
         'contacts.contact_unblock',
         'contacts.contact_update',
+        'contacts.contact_update_fields',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -612,6 +607,8 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',
+        'channels.channel_claim_start',
+        'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -683,6 +680,7 @@ GROUP_PERMISSIONS = {
         'contacts.contact_read',
         'contacts.contact_unblock',
         'contacts.contact_update',
+        'contacts.contact_update_fields',
         'contacts.contactfield.*',
         'contacts.contactgroup.*',
 
@@ -723,6 +721,8 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
         'channels.channel_claim_smscentral',
+        'channels.channel_claim_start',
+        'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -855,9 +855,10 @@ ANONYMOUS_USER_ID = -1
 BROKER_BACKEND = 'memory'
 
 #-----------------------------------------------------------------------------------
-# Django-Nose config
+# Our test runner is standard but with ability to exclude apps
 #-----------------------------------------------------------------------------------
-TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
+TEST_RUNNER = 'temba.tests.ExcludeTestRunner'
+TEST_EXCLUDE = ('smartmin',)
 
 #-----------------------------------------------------------------------------------
 # Debug Toolbar
@@ -921,7 +922,23 @@ CELERYBEAT_SCHEDULE = {
     "calculate-credit-caches": {
         'task': 'calculate_credit_caches',
         'schedule': timedelta(days=3),
-    }
+    },
+    "squash-flowruncounts": {
+        'task': 'squash_flowruncounts',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-channelcounts": {
+        'task': 'squash_channelcounts',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-systemlabels": {
+        'task': 'squash_systemlabels',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-topupcredits": {
+        'task': 'squash_topupcredits',
+        'schedule': timedelta(seconds=300),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -978,15 +995,22 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
-        'temba.api.authentication.APITokenAuthentication',
+        'temba.api.support.APITokenAuthentication',
     ),
-    'PAGINATE_BY': 250,
+    'DEFAULT_THROTTLE_CLASSES': (
+        'temba.api.support.OrgRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'v2': '1200/hour'
+    },
+    'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (
-        'temba.api.renderers.DocumentationRenderer',
+        'temba.api.support.DocumentationRenderer',
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.XMLRenderer',
+        'rest_framework_xml.renderers.XMLRenderer',
     ),
-    'EXCEPTION_HANDLER': 'temba.api.temba_exception_handler'
+    'EXCEPTION_HANDLER': 'temba.api.support.temba_exception_handler',
+    'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
 
@@ -1049,4 +1073,7 @@ SESSION_CACHE_ALIAS = "default"
 TWITTER_API_KEY = os.environ.get('TWITTER_API_KEY', 'MISSING_TWITTER_API_KEY')
 TWITTER_API_SECRET = os.environ.get('TWITTER_API_SECRET', 'MISSING_TWITTER_API_SECRET')
 
-# SEGMENT_IO_KEY = "your segment.io key here"
+SEGMENT_IO_KEY = os.environ.get('SEGMENT_IO_KEY', '')
+
+LIBRATO_USER = os.environ.get('LIBRATO_USER', '')
+LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')

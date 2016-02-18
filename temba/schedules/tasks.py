@@ -54,5 +54,5 @@ def check_schedule_task(sched_id=None):
             # this means the schedule already got fired, so perfectly ok, ignore
             pass
 
-        except:  # pragma: no cover
+        except Exception:  # pragma: no cover
             logger.error("Error running schedule: %s" % sched.pk, exc_info=True)

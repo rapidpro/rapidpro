@@ -8,7 +8,7 @@ from temba.msgs.models import Broadcast, Msg
 from temba.flows.models import FlowStatsCache
 from temba.utils.email import send_simple_email
 from redis_cache import get_redis_connection
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount
 
 
 @task(track_started=True, name='send_email_action_task')
@@ -40,7 +40,8 @@ def check_flows_task():
     if not r.get(key):
         with r.lock(key, timeout=900):
             # expire all flows that should no longer be active
-            FlowRun.do_expire_runs(FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()))
+            runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now())
+            FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
 
 
 @task(track_started=True, name='export_flow_results_task')
@@ -63,8 +64,6 @@ def start_flow_task(id):
 
 @task(track_started=True, name='start_msg_flow_batch')
 def start_msg_flow_batch_task():
-    logger = start_msg_flow_batch_task.get_logger()
-
     # pop off the next task
     task = pop_task('start_msg_flow_batch')
 
@@ -74,26 +73,26 @@ def start_msg_flow_batch_task():
 
     # instantiate all the objects we need that were serialized as JSON
     flow = Flow.objects.get(pk=task['flow'])
-    batch_contacts = list(Contact.objects.filter(pk__in=task['contacts']))
     broadcasts = [] if not task['broadcasts'] else Broadcast.objects.filter(pk__in=task['broadcasts'])
     started_flows = [] if not task['started_flows'] else task['started_flows']
-    start_msg = None if not task['start_msg'] else Msg.objects.filter(pk=task['start_msg']).first()
+    start_msg = None if not task['start_msg'] else Msg.all_messages.filter(pk=task['start_msg']).first()
     extra = task['extra']
     flow_start = None if not task['flow_start'] else FlowStart.objects.filter(pk=task['flow_start']).first()
 
     # and go do our work
-    flow.start_msg_flow_batch(batch_contacts, broadcasts=broadcasts,
+    flow.start_msg_flow_batch(task['contacts'], broadcasts=broadcasts,
                               started_flows=started_flows, start_msg=start_msg,
                               extra=extra, flow_start=flow_start)
 
 @task(track_started=True, name="check_flow_stats_accuracy_task")
 def check_flow_stats_accuracy_task(flow_id):
-    logger = start_flow_task.get_logger()
+    logger = check_flow_stats_accuracy_task.get_logger()
 
     flow = Flow.objects.get(pk=flow_id)
 
     r = get_redis_connection()
-    runs_started_cached = int(r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count)))
+    runs_started_cached = r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count))
+    runs_started_cached = 0 if runs_started_cached is None else int(runs_started_cached)
     runs_started = flow.runs.filter(contact__is_test=False).count()
 
     if runs_started != runs_started_cached:
@@ -105,5 +104,22 @@ def check_flow_stats_accuracy_task(flow_id):
 
 @task(track_started=True, name="calculate_flow_stats")
 def calculate_flow_stats_task(flow_id):
-    logger = start_flow_task.get_logger()
-    Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
+    r = get_redis_connection()
+
+    flow = Flow.objects.get(pk=flow_id)
+    runs_started_cached = r.get(flow.get_stats_cache_key(FlowStatsCache.runs_started_count))
+    runs_started_cached = 0 if runs_started_cached is None else int(runs_started_cached)
+    runs_started = flow.runs.filter(contact__is_test=False).count()
+
+    if runs_started != runs_started_cached:
+        logger = calculate_flow_stats_task.get_logger()
+        Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
+
+@task(track_started=True, name="squash_flowruncounts")
+def squash_flowruncounts():
+    r = get_redis_connection()
+
+    key = 'squash_flowruncounts'
+    if not r.get(key):
+        with r.lock(key, timeout=900):
+            FlowRunCount.squash_counts()

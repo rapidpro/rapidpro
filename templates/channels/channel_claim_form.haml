@@ -1,0 +1,15 @@
+-extends "smartmin/form.html"
+
+-block extra-style
+  :css
+    .form-horizontal input + .help-block,
+    .form-horizontal select + .help-block {
+      margin-left: 150px;
+    }
+
+    .form-horizontal input[type="checkbox"] + .help-block {
+      display: inline;
+      margin-left: 5px !important;
+      vertical-align: middle;
+    }
+
