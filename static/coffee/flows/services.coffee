@@ -5,7 +5,7 @@ version = new Date().getTime()
 quietPeriod = 500
 errorRetries = 10
 
-app.service "utils", ->
+app.service "utils", ['$modal', ($modal) ->
 
   isWindow = (obj) ->
     obj and obj.document and obj.location and obj.alert and obj.setInterval
@@ -102,6 +102,7 @@ app.service "utils", ->
       controller: controller
       resolve: resolveObj
 
+]
 #============================================================================
 # DragHelper is all kinds of bad. This facilitates the little helper cues
 # for the user so they learn the mechanics of building a flow. We should
@@ -397,7 +398,7 @@ app.factory "Revisions", ['$http', '$log', ($http, $log) ->
 
 ]
 
-app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Revisions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Revisions, DragHelper) ->
+app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', 'utils', 'Plumb', 'Revisions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, utils, Plumb, Revisions, DragHelper) ->
 
   new class Flow
 
