@@ -26,6 +26,7 @@ describe 'Controllers:', ->
       'rules_first': { id: 2, languages:[] },
       'loop_detection': { id: 3, languages:[] },
       'webhook_rule_first': { id: 4, languages:[] },
+      'ussd_example': { id: 5, languages:[] },
     }
 
     $http.whenGET('/contactfield/json/').respond([])
@@ -72,8 +73,9 @@ describe 'Controllers:', ->
 
     flowController = null
     flowService = null
+    utils = null
 
-    beforeEach inject(($controller, _Flow_) ->
+    beforeEach inject(($controller, _Flow_, _utils_) ->
 
       flowService = _Flow_
       flowController = $controller 'FlowController',
@@ -81,6 +83,7 @@ describe 'Controllers:', ->
         $rootScope: $rootScope
         $log: $log
         Flow: flowService
+      utils = _utils_
     )
 
     it 'should show warning when attempting an infinite loop', ->
@@ -322,5 +325,27 @@ describe 'Controllers:', ->
 
         # make sure 'Default' isn't added as an option
         expect(modalScope.languages.length).toEqual(1)
+
+      $timeout.flush()
+
+    it 'should have the USSD Menu synced with ruleset', ->
+
+      # load a USSD flow
+      flowService.fetch(flows.ussd_example.id)
+      flowService.contactFieldSearch = []
+      flowService.language = {iso_code:'base'}
+      $http.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # the USSD menu generates rules, these should be synced every time
+        for [item, rule] in utils.zip(modalScope.ruleset.config.ussd_menu, modalScope.ruleset.rules)
+          expect(item.uuid).toBe(rule.uuid)
+          expect(item.category.base).toBe(rule.category.base)
+          expect(item.option).toBe(rule.test._base)
+          expect(rule._config.type).toBe('eq')
 
       $timeout.flush()
