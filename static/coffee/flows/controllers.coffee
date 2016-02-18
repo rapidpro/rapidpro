@@ -619,7 +619,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     # if its the base language, don't show the from text
     if Flow.language and Flow.flow.base_language != Flow.language.iso_code
 
-      if action.type in ["send", "reply", "say", "ussd"]
+      if action.type in ["send", "reply", "say"]
 
         fromText = action.msg[Flow.flow.base_language]
 
