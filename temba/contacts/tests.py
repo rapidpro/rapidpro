@@ -1839,6 +1839,10 @@ class ContactTest(TembaTest):
         # or without a number (exception type that goes back to the user)
         self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org, created_by=self.admin))
 
+        # or invalid phone number
+        self.assertRaises(SmartImportRowError, Contact.create_instance,
+                          dict(org=self.org, created_by=self.admin, phone="+121535e0884"))
+
         contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", phone="+250788111111"))
         self.assertEqual(contact.org, self.org)
         self.assertEqual(contact.name, "Bob")
