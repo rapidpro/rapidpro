@@ -190,6 +190,12 @@ describe 'Controllers:', ->
         expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(false)
         expect(modalScope.isVisibleRulesetType(getRuleConfig('webhook'))).toBe(false)
 
+        # USSD flow
+        flowService.flow.flow_type = 'U'
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_menu'))).toBe(true)
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_ussd'))).toBe(true)
+        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(false)
+
       $timeout.flush()
 
     it 'should filter action options based on flow type', ->
