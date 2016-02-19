@@ -10,4 +10,4 @@ codebase. (sorted chronologically)
 * Rowan Seymour - [@rowanseymour](https://github.com/rowanseymour)
 * Paul Carduner - [@pcardune] (https://github.com/pcardune)
 * David Haberthur - [@habi] (https://github.com/habi)
-
+* Adam Thompson - [@adothompson] (https://github.com/adothompson)
