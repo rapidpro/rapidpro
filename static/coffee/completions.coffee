@@ -2,8 +2,6 @@ class window.AutoComplete
 
   KEY_LEFT = 37
   KEY_RIGHT = 39
-  KEY_CTRL = 17
-  KEY_META = 91
 
   constructor: (@variables=[], @functions=[]) ->
 
