@@ -259,9 +259,6 @@ class window.AutoComplete
             if view.visible()
               app.dispatch(e)
             return
-          when KEY_CTRL, KEY_META
-            return
-
           else
             app.onKeyup(e)
 
@@ -272,5 +269,4 @@ class window.AutoComplete
         if subtext.slice(-2) is '@(' and (not nextPart or nextPart.slice(0,1) is not ')')
           text = subtext + ')' + content.slice(caretPos + 1)
           $inputor.val(text)
-
-        $inputor.caret('pos', caretPos)
+          $inputor.caret('pos', caretPos)
