@@ -468,7 +468,6 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
-     * **delivered_on** - for outgoing messages, when the channel delivered the message (null if not yet sent or an incoming message) (datetime).
 
     You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`. Note that
     you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
@@ -497,7 +496,6 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
                 "sent_on": "2016-01-06T15:35:03.675716Z",
-                "delivered_on": null
             },
             ...
         }

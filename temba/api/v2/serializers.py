@@ -229,4 +229,4 @@ class MsgReadSerializer(ReadSerializer):
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
                   'direction', 'type', 'status', 'archived', 'text', 'labels',
-                  'created_on', 'sent_on', 'delivered_on')
+                  'created_on', 'sent_on')
