@@ -78,6 +78,17 @@ describe 'Matcher:', ->
     matched = matcher "@", "some texts before @(SUM(contact.age, step.value)))) "
     expect(matched).toBe(null)
 
+  it 'should match if quote is not in function', ->
+    matched = matcher "@", "Hi \"@contact.na"
+    expect(matched).toBe('contact.na')
+
+    matched = matcher "@", "Hey @(SUM(1, 2)) for \"@contact.nam"
+    expect(matched).toBe('contact.nam')
+
+    matched = matcher "@", "Hey @(SUM(1, 2)) for \"@(SUM(contact.na"
+    expect(matched).toBe('(SUM(contact.na')
+
+
 describe 'find context query', ->
 
   ac = new AutoComplete()
@@ -124,6 +135,11 @@ describe 'find context query', ->
 
   it 'should not include previous (', ->
     expect(ac.parseQuery("(contact.age")).toBe('contact.age')
+
+  it 'should not match string literal in function', ->
+    expect(ac.parseQuery("(CONCAT(\"@con")).toBe(null)
+    expect(ac.parseQuery("(\"!\" & \"@con")).toBe(null)
+
 
 describe 'Find matches:', ->
 

@@ -61,7 +61,7 @@
     %div{ng-if:'config.type == "save"'}
       .label
         -trans "Save to field"
-      %input{ng-model:"field",name:"field",text:"[[action.label]]",select-static:"[[contactFields]]",required:"",key:"[[action.field]]",type:"hidden"}
+      %input{ng-model:"field",name:"field",text:"[[action.label]]", select-static:"[[updateContactFields]]",required:"",key:"[[action.field]]",type:"hidden"}
       .help-text
         -blocktrans
           Select an existing field, or type a name to create a new field.
