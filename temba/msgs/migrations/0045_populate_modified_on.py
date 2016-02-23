@@ -3,12 +3,11 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 from django.db.models import Max, F
+from temba.msgs.models import Msg
 import locale
 
 
-def update_batch(apps, batch):
-    Msg = apps.get_model('msgs', 'Msg')
-
+def update_batch(batch):
     # iterate through, keep track of those that have sent_on, queued_on or only created_on (in that priority)
     sent_ids = list()
     queued_ids = list()
@@ -24,21 +23,18 @@ def update_batch(apps, batch):
 
     # now update modified on appropriate for each group
     if sent_ids:
-        Msg.objects.filter(id__in=sent_ids).update(modified_on=F('sent_on'))
+        Msg.all_messages.filter(id__in=sent_ids).update(modified_on=F('sent_on'))
 
     if queued_ids:
-        Msg.objects.filter(id__in=queued_ids).update(modified_on=F('queued_on'))
+        Msg.all_messages.filter(id__in=queued_ids).update(modified_on=F('queued_on'))
 
     if created_ids:
-        Msg.objects.filter(id__in=created_ids).update(modified_on=F('created_on'))
+        Msg.all_messages.filter(id__in=created_ids).update(modified_on=F('created_on'))
 
 
-def populate_modified_on(apps, schema):
-    # outgoing messages without a modified_on date but which have a sent on, should have modified set to that
-    Msg = apps.get_model('msgs', 'Msg')
-
+def populate_modified_on(msg_model):
     # get our max id
-    max_id = Msg.objects.aggregate(Max('id'))['id__max']
+    max_id = Msg.all_messages.aggregate(Max('id'))['id__max']
 
     # 10,000 messages at a time in our range
     # The belief is that this is a faster way of updating the ~190M messages currently in RapidPro
@@ -48,14 +44,19 @@ def populate_modified_on(apps, schema):
     start_id = 0
     while start_id < max_id:
         # select our batch of msgs without a modified_on
-        msgs = Msg.objects.filter(id__gt=start_id, id__lte=start_id+10000,
-                                  modified_on=None).only('id', 'created_on', 'queued_on', 'sent_on')
+        msgs = Msg.all_messages.filter(id__gt=start_id, id__lte=start_id+10000,
+                                       modified_on=None).only('id', 'created_on', 'queued_on', 'sent_on')
 
-        update_batch(apps, msgs)
+        update_batch(msgs)
         start_id += 10000
 
         print "%s of %s completed." % (locale.format("%d", start_id, grouping=True),
                                        locale.format("%d", max_id, grouping=True))
+
+
+def run_migration(apps, schema):
+    populate_modified_on()
+
 
 class Migration(migrations.Migration):
 
