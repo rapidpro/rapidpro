@@ -432,6 +432,12 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = BroadcastCreateSerializer
     cache_counts = True
 
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if user.get_org().is_suspended:
+            return Response("Sorry, your account is currently suspended. To enable sending messages, please contact support.", status=status.HTTP_400_BAD_REQUEST)
+        return super(BroadcastEndpoint, self).post(request, *args, **kwargs)
+
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
@@ -1972,6 +1978,12 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     serializer_class = FlowRunReadSerializer
     write_serializer_class = FlowRunStartSerializer
     cache_counts = True
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if user.get_org().is_suspended:
+            return Response("Sorry, your account is currently suspended. To enable sending messages, please contact support.", status=status.HTTP_400_BAD_REQUEST)
+        return super(FlowRunEndpoint, self).post(request, *args, **kwargs)
 
     def render_write_response(self, write_output, context):
         if write_output:

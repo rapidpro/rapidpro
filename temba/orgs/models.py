@@ -89,6 +89,10 @@ NEXMO_KEY = 'NEXMO_KEY'
 NEXMO_SECRET = 'NEXMO_SECRET'
 NEXMO_UUID = 'NEXMO_UUID'
 
+ORG_STATUS = 'STATUS'
+SUSPENDED = 'suspended'
+RESTORED = 'restored'
+
 ORG_LOW_CREDIT_THRESHOLD = 500
 
 ORG_CREDIT_OVER = 'O'
@@ -279,6 +283,19 @@ class Org(SmartModel):
                             **active_topup_keys)
         else:
             return 0
+
+    def set_suspended(self, suspended):
+        config = self.config_json()
+        if suspended:
+            config[ORG_STATUS] = SUSPENDED
+        else:
+            config[ORG_STATUS] = RESTORED
+
+        self.config = json.dumps(config)
+        self.save(update_fields=['config'])
+
+    def is_suspended(self):
+        return self.config_json().get(ORG_STATUS, None) == SUSPENDED
 
     @transaction.atomic
     def import_app(self, data, user, site=None):

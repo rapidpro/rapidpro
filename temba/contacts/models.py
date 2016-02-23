@@ -40,6 +40,9 @@ TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
+# how many sequential contacts on import triggers suspension
+SEQUENTIAL_CONTACTS_THRESHOLD = 25
+
 URN_SCHEMES = [TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, FACEBOOK_SCHEME,
                TELEGRAM_SCHEME, EMAIL_SCHEME, EXTERNAL_SCHEME]
 
@@ -905,6 +908,28 @@ class Contact(TembaModel):
                 num_creates += 1
 
             group.contacts.add(contact)
+
+        try:
+            # get all of our phone numbers for the imported contacts
+            paths = [int(u.path) for u in ContactURN.objects.filter(scheme=TEL_SCHEME, contact__in=[c.pk for c in contacts])]
+            paths = sorted(paths)
+
+            last_path = None
+            sequential = 0
+            for path in paths:
+                if last_path:
+                    if path - last_path == 1:
+                        sequential += 1
+                last_path = path
+                if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
+                    break
+
+            if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
+                group_org.set_suspended(True)
+
+        except Exception:
+            # if we fail to parse phone numbers for any reason just punt
+            pass
 
         import_results['creates'] = num_creates
         import_results['updates'] = len(contacts) - num_creates

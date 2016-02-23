@@ -221,6 +221,51 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse('orgs.usersettings_phone'), post_data)
         self.assertEquals(response.context['form'].errors['tel'][0], 'Invalid phone number, try again.')
 
+    def test_org_suspension(self):
+        from temba.flows.models import FlowRun
+
+        self.login(self.admin)
+        self.org.set_suspended(True)
+        self.org.refresh_from_db()
+
+        self.assertEqual(True, self.org.is_suspended())
+
+        self.assertEqual(0, Msg.all_messages.all().count())
+        self.assertEqual(0, FlowRun.objects.all().count())
+
+        # while we are suspended, we can't send broadcasts
+        send_url = reverse('msgs.broadcast_send')
+        mark = self.create_contact('Mark', number='+12065551212')
+        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%d" % mark.pk)
+        response = self.client.post(send_url, post_data, follow=True)
+        self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
+
+        # we also can't start flows
+        flow = self.create_flow()
+        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
+        self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
+
+        # or use the api to do either
+        def postAPI(url, data):
+            response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+            if response.content:
+                response.json = json.loads(response.content)
+            return response
+
+        url = reverse('api.v1.broadcasts')
+        response = postAPI(url, dict(contacts=[mark.uuid], text="You are adistant cousin to a wealthy person."))
+        self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
+
+        url = reverse('api.v1.runs')
+        response = postAPI(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
+        self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
+
+        # still no messages or runs
+        self.assertEqual(0, Msg.all_messages.all().count())
+        self.assertEqual(0, FlowRun.objects.all().count())
+
+
     def test_webhook_headers(self):
         update_url = reverse('orgs.org_webhook')
         login_url = reverse('users.user_login')
