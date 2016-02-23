@@ -32,7 +32,7 @@ def update_batch(batch):
         Msg.all_messages.filter(id__in=created_ids).update(modified_on=F('created_on'))
 
 
-def populate_modified_on(msg_model):
+def populate_modified_on():
     # get our max id
     max_id = Msg.all_messages.aggregate(Max('id'))['id__max']
 
@@ -65,5 +65,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(populate_modified_on)
+        migrations.RunPython(run_migration)
     ]
