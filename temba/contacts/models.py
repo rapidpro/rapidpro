@@ -927,7 +927,7 @@ class Contact(TembaModel):
             if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
                 group_org.set_suspended(True)
 
-        except Exception:
+        except Exception:  # pragma: no-cover
             # if we fail to parse phone numbers for any reason just punt
             pass
 

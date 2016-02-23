@@ -738,9 +738,6 @@ class OrgCRUDL(SmartCRUDL):
         link_fields = ('name', 'owner')
         title = "Organizations"
 
-        def get_paid(self, obj):
-            return "$%s" % (obj.paid / 100)
-
         def get_used(self, obj):
             if not obj.credits:
                 used_pct = 0

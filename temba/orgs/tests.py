@@ -269,6 +269,13 @@ class OrgTest(TembaTest):
         self.assertEqual(0, Msg.all_messages.all().count())
         self.assertEqual(0, FlowRun.objects.all().count())
 
+        # unsuspend our org and start a flow
+        self.org.set_suspended(False)
+        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
+        self.assertEqual(1, FlowRun.objects.all().count())
+
+
 
     def test_webhook_headers(self):
         update_url = reverse('orgs.org_webhook')
@@ -324,6 +331,11 @@ class OrgTest(TembaTest):
 
         response = self.client.get(manage_url)
         self.assertEquals(200, response.status_code)
+        self.assertNotContains(response, "(Suspended)")
+
+        self.org.set_suspended(True)
+        response = self.client.get(manage_url)
+        self.assertContains(response, "(Suspended)")
 
         # should contain our test org
         self.assertContains(response, "Temba")
@@ -341,6 +353,12 @@ class OrgTest(TembaTest):
         # change to the trial plan
         response = self.client.post(update_url, post_data)
         self.assertEquals(302, response.status_code)
+
+        # restore
+        post_data['status'] = 'restored'
+        response = self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_suspended())
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
