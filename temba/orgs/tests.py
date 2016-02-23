@@ -238,13 +238,17 @@ class OrgTest(TembaTest):
         mark = self.create_contact('Mark', number='+12065551212')
         post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%d" % mark.pk)
         response = self.client.post(send_url, post_data, follow=True)
-        self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
+
+        self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
+                          response.context['form'].errors['__all__'][0])
 
         # we also can't start flows
         flow = self.create_flow()
         post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
         response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
-        self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
+
+        self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
+                          response.context['form'].errors['__all__'][0])
 
         # or use the api to do either
         def postAPI(url, data):

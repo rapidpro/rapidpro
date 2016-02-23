@@ -434,7 +434,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        if user.get_org().is_suspended:
+        if user.get_org().is_suspended():
             return Response("Sorry, your account is currently suspended. To enable sending messages, please contact support.", status=status.HTTP_400_BAD_REQUEST)
         return super(BroadcastEndpoint, self).post(request, *args, **kwargs)
 
@@ -1981,7 +1981,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
     def post(self, request, *args, **kwargs):
         user = request.user
-        if user.get_org().is_suspended:
+        if user.get_org().is_suspended():
             return Response("Sorry, your account is currently suspended. To enable sending messages, please contact support.", status=status.HTTP_400_BAD_REQUEST)
         return super(FlowRunEndpoint, self).post(request, *args, **kwargs)
 
