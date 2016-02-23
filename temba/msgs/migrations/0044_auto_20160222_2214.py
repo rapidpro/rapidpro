@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='msg',
             name='modified_on',
-            field=models.DateTimeField(help_text='When this message was last modified', null=True, verbose_name='Modified On', blank=True),
+            field=models.DateTimeField(help_text='When this message was last modified', auto_now=True, null=True, verbose_name='Modified On', blank=True),
         ),
     ]

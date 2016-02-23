@@ -561,7 +561,7 @@ class Msg(models.Model):
     created_on = models.DateTimeField(verbose_name=_("Created On"), db_index=True,
                                       help_text=_("When this message was created"))
 
-    modified_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Modified On"),
+    modified_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Modified On"), auto_now=True,
                                        help_text=_("When this message was last modified"))
 
     sent_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Sent On"),
@@ -970,6 +970,7 @@ class Msg(models.Model):
                                     contact=self.contact,
                                     contact_urn=self.contact_urn,
                                     created_on=timezone.now(),
+                                    modified_on=timezone.now(),
                                     text=self.text,
                                     response_to=self.response_to,
                                     direction=self.direction,
@@ -1063,6 +1064,7 @@ class Msg(models.Model):
                         channel=channel,
                         text=text,
                         created_on=date,
+                        modified_on=timezone.now(),
                         queued_on=timezone.now(),
                         direction=INCOMING,
                         msg_type=msg_type,
@@ -1228,6 +1230,7 @@ class Msg(models.Model):
                         channel=channel,
                         text=text,
                         created_on=created_on,
+                        modified_on=created_on,
                         direction=OUTGOING,
                         status=status,
                         broadcast=broadcast,
