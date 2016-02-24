@@ -939,21 +939,35 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         # update our auto completion options
         $http.get('/flow/completion/?flow=' + flowId).success (data) ->
-          Flow.completions = data.message_completions
-          Flow.function_completions = data.function_completions
-          Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
+          if data.function_completions and data.message_completions
+            Flow.completions = data.message_completions
+            Flow.function_completions = data.function_completions
+            Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
 
         $http.get('/contactfield/json/').success (fields) ->
           Flow.contactFields = fields
 
           # now create a version that's select2 friendly
           contactFieldSearch = []
+          updateContactSearch = []
 
           for field in fields
-            contactFieldSearch.push
-              id: field.key
-              text: field.label
+
+            id = field.key
+            text = field.label
+
+            contactFieldSearch.push({ id: id, text: text })
+
+            if field.key == 'groups'
+              continue
+
+            if id == 'tel_e164'
+              text = 'Phone Numbers'
+
+            updateContactSearch.push({ id: id, text: text })
+
           Flow.contactFieldSearch = contactFieldSearch
+          Flow.updateContactSearch = updateContactSearch
 
         $http.get('/label/').success (labels) ->
           Flow.labels = labels

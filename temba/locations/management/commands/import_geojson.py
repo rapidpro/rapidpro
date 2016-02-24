@@ -7,7 +7,8 @@ from django.core.management.base import BaseCommand, CommandError
 from temba.locations.models import AdminBoundary, COUNTRY_LEVEL, STATE_LEVEL, DISTRICT_LEVEL
 import geojson
 
-class Command(BaseCommand): # pragma: no cover
+
+class Command(BaseCommand):  # pragma: no cover
     option_list = BaseCommand.option_list + (
         make_option('--country', '-c', dest='country', default=None,
                     help="Only process the boundary files for this country osm id."),
@@ -22,25 +23,43 @@ class Command(BaseCommand): # pragma: no cover
         # which weren't seen. (they have been removed)
         seen_osm_ids = []
 
-        # parse our filename.. they are in the format: 192787admin2_simplified.json
-        match = regex.match(r'(\w\d+)admin(\d)(_simplified)?\.json$', filename, regex.V0)
-        if not match:
-            print "Skipping '%s', doesn't match file pattern." % filename
+        # track currently processed admin boundar
+        current_boundary = None
 
-        country_osm_id = match.group(1)
-        level = int(match.group(2))
-        is_simplified = True if match.group(3) else False
+        # parse our filename.. they are in the format:
+        # 192787admin2_simplified.json
+        match = regex.match(
+            r'(\w\d+)admin(\d)(_simplified)?\.json$', filename, regex.V0)
+        level = None
+        is_simplified = None
+        if match:
+            level = int(match.group(2))
+            is_simplified = True if match.group(3) else False
+        else:
+            # else parse other filenames that are in
+            # admin_level_0_simplified.json format.
+            match = regex.match(
+                r'admin_level_(\d)(_simplified)?\.json$', filename, regex.V0)
+            if match:
+                level = int(match.group(1))
+                is_simplified = True if match.group(2) else False
+            elif not match:
+                print "Skipping '%s', doesn't match file pattern." % filename
 
         # for each of our features
         for feature in admin_json['features']:
             # what level are we?
             props = feature.properties
-            parent_osm_id = None
+            # get parent id which is set in new file format
+            parent_osm_id = props.get('parent_id')
 
-            if level == STATE_LEVEL:
-                parent_osm_id = props['is_in_country']
-            elif level == DISTRICT_LEVEL:
-                parent_osm_id = props['is_in_state']
+            # if parent_osm_id is not set and not COUNTRY_LEVEL check for old
+            # file format
+            if not parent_osm_id and level != COUNTRY_LEVEL:
+                if level == STATE_LEVEL:
+                    parent_osm_id = props['is_in_country']
+                elif level == DISTRICT_LEVEL:
+                    parent_osm_id = props['is_in_state']
 
             osm_id = props['osm_id']
             name = props.get('name_en', '')
@@ -50,9 +69,11 @@ class Command(BaseCommand): # pragma: no cover
             # try to find parent, bail if we can't
             parent = None
             if parent_osm_id and parent_osm_id != 'None':
-                parent = AdminBoundary.objects.filter(osm_id=parent_osm_id).first()
+                parent = AdminBoundary.objects.filter(
+                    osm_id=parent_osm_id).first()
                 if not parent:
-                    print("Skipping %s (%s) as parent %s not found." % (name, osm_id, parent_osm_id))
+                    print("Skipping %s (%s) as parent %s not found." %
+                          (name, osm_id, parent_osm_id))
                     continue
 
             # try to find existing admin level by osm_id
@@ -60,7 +81,8 @@ class Command(BaseCommand): # pragma: no cover
 
             # didn't find it? what about by name?
             if not boundary:
-                boundary = AdminBoundary.objects.filter(parent=parent, name__iexact=name)
+                boundary = AdminBoundary.objects.filter(
+                    parent=parent, name__iexact=name)
 
             # skip over items with no geometry
             if not feature['geometry'] or not feature['geometry']['coordinates']:
@@ -73,7 +95,8 @@ class Command(BaseCommand): # pragma: no cover
                 for polygon in feature['geometry']['coordinates']:
                     polygons.append(Polygon(*polygon))
             else:
-                raise Exception("Error importing %s, unknown geometry type '%s'" % (name, feature['geometry']['type']))
+                raise Exception("Error importing %s, unknown geometry type '%s'" % (
+                    name, feature['geometry']['type']))
 
             geometry = MultiPolygon(polygons)
 
@@ -98,11 +121,13 @@ class Command(BaseCommand): # pragma: no cover
 
         # now remove any unseen boundaries
         # TODO: how do we deal with values already assigned to a location? we should probably retry to do some
-        # matching based on the new names? (though unlikely to match if the name didn't match when trying to find the boundary)
-        if level == STATE_LEVEL:
-            AdminBoundary.objects.filter(level=level, parent__osm_id=country_osm_id).exclude(osm_id__in=seen_osm_ids).delete()
-        elif level == DISTRICT_LEVEL:
-            AdminBoundary.objects.filter(level=level, parent__parent__osm_id=country_osm_id).exclude(osm_id__in=seen_osm_ids).delete()
+        # matching based on the new names? (though unlikely to match if the
+        # name didn't match when trying to find the boundary)
+        current_boundary = AdminBoundary.objects.filter(osm_id=osm_id).first()
+        if current_boundary:
+            country = current_boundary.get_root()
+            country.get_descendants().filter(level=level).exclude(
+                osm_id__in=seen_osm_ids).delete()
 
     def handle(self, *args, **options):
         filenames = []
@@ -120,7 +145,8 @@ class Command(BaseCommand): # pragma: no cover
         if options['country']:
             prefix = '%sadmin' % options['country']
 
-        # sort our filenames, this will make sure we import 0 levels before 1 before 2
+        # sort our filenames, this will make sure we import 0 levels before 1
+        # before 2
         filenames.sort()
 
         # for each file they have given us
@@ -139,6 +165,3 @@ class Command(BaseCommand): # pragma: no cover
                 else:
                     with open(filename) as json_file:
                         self.import_file(filename, json_file)
-
-
-

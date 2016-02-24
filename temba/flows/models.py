@@ -29,6 +29,7 @@ from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
+from temba.contacts.models import URN_CONTEXT_KEYS_TO_SCHEME, URN_CONTEXT_KEYS_TO_LABEL
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -38,6 +39,7 @@ from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel, ChunkIterator
 from temba.utils.queues import push_task
+from temba.utils import chunk_list
 from temba.values.models import Value
 from twilio import twiml
 from uuid import uuid4
@@ -356,7 +358,7 @@ class Flow(TembaModel):
             if flow_type != Flow.MESSAGE:
                 # check if we can find that flow by id first
                 if same_site:
-                    flow = Flow.objects.filter(org=org, id=flow_spec['metadata']['id']).first()
+                    flow = Flow.objects.filter(org=org, is_active=True, id=flow_spec['metadata']['id']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(org, name, ignore=flow)
@@ -364,7 +366,7 @@ class Flow(TembaModel):
 
                 # if it's not of our world, let's try by name
                 if not flow:
-                    flow = Flow.objects.filter(org=org, name=name).first()
+                    flow = Flow.objects.filter(org=org, is_active=True, name=name).first()
 
                 # if there isn't one already, create a new flow
                 if not flow:
@@ -384,9 +386,9 @@ class Flow(TembaModel):
                         if action['id'] in flow_id_map:
                             action['id'] = flow_id_map[action['id']]
 
-                        existing_flow = Flow.objects.filter(id=action['id'], org=org).first()
+                        existing_flow = Flow.objects.filter(id=action['id'], org=org, is_active=True).first()
                         if not existing_flow:
-                            existing_flow = Flow.objects.filter(org=org, name=action['name']).first()
+                            existing_flow = Flow.objects.filter(org=org, name=action['name'], is_active=True).first()
                             if existing_flow:
                                 action['id'] = existing_flow.pk
 
@@ -743,6 +745,46 @@ class Flow(TembaModel):
             except FlowException:
                 pass
         return changed
+
+    def release(self):
+        """
+        Releases this flow, marking it inactive. We remove all flow runs, steps and values in a background process.
+        We keep FlowRevisions and FlowStarts however.
+        """
+        from .tasks import delete_flow_results_task
+
+        self.is_active = False
+        self.save()
+
+        # release any campaign events that depend on this flow
+        from temba.campaigns.models import CampaignEvent
+        for event in CampaignEvent.objects.filter(flow=self, is_active=True):
+            event.release()
+
+        # release any triggers that depend on this flow
+        from temba.triggers.models import Trigger
+        for trigger in Trigger.objects.filter(flow=self, is_active=True):
+            trigger.release()
+
+        # delete our results in the background
+        delete_flow_results_task.delay(self.id)
+
+    def delete_results(self):
+        """
+        Removes all flow runs, values and steps for a flow.
+        """
+        # grab the ids of all our runs
+        run_ids = self.runs.all().values_list('id', flat=True)
+
+        # in chunks of 1000, remove any values or flowsteps associated with these runs
+        # we keep Runs around for auditing purposes
+        for chunk in chunk_list(run_ids, 1000):
+            Value.objects.filter(run__in=run_ids).delete()
+            FlowStep.objects.filter(run__in=run_ids).delete()
+
+        # clear all our cached stats
+        self.clear_props_cache()
+        self.clear_stats_cache()
 
     def clear_props_cache(self):
         r = get_redis_connection()
@@ -2628,17 +2670,7 @@ class ActionSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
 
-    def get_description(self):
-        """
-        Tries to return a slightly friendly version of the actions in this actionset.
-        """
-        description = ""
-        for action in self.get_actions():
-            description += str(action.get_description()) + "\n"
-
-        return description
-
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid, )
 
 
@@ -2872,9 +2904,6 @@ class FlowRun(models.Model):
         with self.flow.lock_on(FlowLock.activity):
             self.flow.remove_active_for_run_ids([self.pk])
 
-        # decrement our total flow count
-        r = get_redis_connection()
-
         # lastly delete ourselves
         self.delete()
 
@@ -3016,20 +3045,20 @@ class FlowRunCount(models.Model):
 
     @classmethod
     def populate_for_flow(cls, flow):
+        # remove old ones
+        FlowRunCount.objects.filter(flow=flow).delete()
+
         # get test contacts on this org
         test_contacts = Contact.objects.filter(org=flow.org, is_test=True).values('id')
 
         # calculate our count for each exit type
         counts = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)\
-                                .values('exit_type').annotate(Count('exit_type'))
+                                .values('exit_type').annotate(count=Count('pk'))
 
         # insert updated counts for each
         for count in counts:
-            # remove old ones
-            FlowRunCount.objects.filter(flow=flow, exit_type=count['exit_type']).delete()
-
-            if count['exit_type__count'] > 0:
-                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], run_count=count['exit_type__count'])
+            if count['count'] > 0:
+                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
 
     def __unicode__(self):
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
@@ -3461,7 +3490,7 @@ class ActionLog(models.Model):
 
         try:
             return ActionLog.objects.create(run=run, text=text, level=level)
-        except Exception:
+        except Exception:  # pragma: no cover
             return None  # it's possible our test run can be deleted out from under us
 
     @classmethod
@@ -3712,7 +3741,7 @@ class FlowStart(SmartModel):
 
             self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             import traceback
             traceback.print_exc(e)
 
@@ -3726,7 +3755,7 @@ class FlowStart(SmartModel):
             self.status = COMPLETE
             self.save(update_fields=['status'])
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
 
 
@@ -3743,7 +3772,7 @@ class FlowLabel(models.Model):
         return self.get_flows().count()
 
     def get_flows(self):
-        return Flow.objects.filter(Q(labels=self) | Q(labels__parent=self)).filter(is_archived=False).distinct()
+        return Flow.objects.filter(Q(labels=self) | Q(labels__parent=self)).filter(is_active=True, is_archived=False).distinct()
 
     @classmethod
     def create_unique(cls, base, org, parent=None):
@@ -3853,9 +3882,6 @@ class Action(object):
                 actions.append(action)
         return actions
 
-    def get_description(self):
-        return str(self.__class__)
-
 
 class EmailAction(Action):
     """
@@ -3921,10 +3947,6 @@ class EmailAction(Action):
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
 
-    def get_description(self):
-        return "Email to %s with subject %s" % (", ".join(self.emails), self.subject)
-
-
 class WebhookAction(Action):
     """
     Forwards the steps in this flow to the webhook (if any)
@@ -3955,9 +3977,6 @@ class WebhookAction(Action):
 
         WebHookEvent.trigger_flow_event(value, run.flow, run, actionset_uuid, run.contact, msg, self.action)
         return []
-
-    def get_description(self):
-        return "API call to %s" % self.webhook
 
 
 class AddToGroupAction(Action):
@@ -4070,9 +4089,6 @@ class AddToGroupAction(Action):
                             ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
         return []
 
-    def get_description(self):
-        return "Added to group %s" % (", ".join([g.name for g in self.groups]))
-
 
 class DeleteFromGroupAction(AddToGroupAction):
     """
@@ -4086,10 +4102,6 @@ class DeleteFromGroupAction(AddToGroupAction):
     @classmethod
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
-
-    def get_description(self):
-        return "Removed from group %s" % ", ".join([g.name for g in self.groups])
-
 
 class AddLabelAction(Action):
     """
@@ -4175,9 +4187,6 @@ class AddLabelAction(Action):
                     label.toggle_label([msg], True)
         return []
 
-    def get_description(self):
-        return "Added label %s" % self.labels
-
 
 class SayAction(Action):
     """
@@ -4233,10 +4242,6 @@ class SayAction(Action):
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
 
-    def get_description(self):
-        return "Said %s" % self.msg
-
-
 class PlayAction(Action):
     """
     Voice action for reading some text to a user
@@ -4271,9 +4276,6 @@ class PlayAction(Action):
             # no message, possibly failed loop detection
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
-
-    def get_description(self):
-        return "Played %s" % self.url
 
 
 class ReplyAction(Action):
@@ -4311,8 +4313,6 @@ class ReplyAction(Action):
             return list(broadcast.get_messages())
         return []
 
-    def get_description(self):
-        return "Replied with %s" % self.msg
 
 class VariableContactAction(Action):
     """
@@ -4482,10 +4482,6 @@ class TriggerFlowAction(VariableContactAction):
         log = ActionLog.create(run, log_txt)
         return log
 
-    def get_description(self):
-        return "Triggered flow %s" % self.flow
-
-
 class SetLanguageAction(Action):
     """
     Action that sets the language for a contact
@@ -4524,9 +4520,6 @@ class SetLanguageAction(Action):
         log_txt = _("Setting language to %s") % self.name
         log = ActionLog.create(run, log_txt)
         return log
-
-    def get_description(self):
-        print "Set language to %s" % self.name
 
 
 class StartFlowAction(Action):
@@ -4576,9 +4569,6 @@ class StartFlowAction(Action):
 
         return log
 
-    def get_description(self):
-        return "Started flow %s" % self.flow
-
 
 class SaveToContactAction(Action):
     """
@@ -4596,6 +4586,7 @@ class SaveToContactAction(Action):
 
     @classmethod
     def get_label(cls, org, field, label=None):
+
         # make sure this field exists
         if field == 'name':
             label = 'Contact Name'
@@ -4603,6 +4594,8 @@ class SaveToContactAction(Action):
             label = 'First Name'
         elif field == 'tel_e164':
             label = 'Phone Number'
+        elif field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
+            label = unicode(URN_CONTEXT_KEYS_TO_LABEL[field])
         else:
             contact_field = ContactField.objects.filter(org=org, key=field).first()
             if contact_field:
@@ -4651,28 +4644,50 @@ class SaveToContactAction(Action):
             contact.name = new_value
             contact.modified_by = user
             contact.save(update_fields=('name', 'modified_by', 'modified_on'))
+            self.logger(run, new_value)
 
         elif self.field == 'first_name':
             new_value = value[:128]
             contact.set_first_name(new_value)
             contact.modified_by = user
             contact.save(update_fields=('name', 'modified_by', 'modified_on'))
+            self.logger(run, new_value)
 
-        elif self.field == 'tel_e164':
+        elif self.field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
             new_value = value[:128]
 
-            # don't really update URNs on test contacts
-            if not contact.is_test:
-                urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
+            # add in our new urn number
+            scheme = URN_CONTEXT_KEYS_TO_SCHEME[self.field]
 
-                # add in our new phone number
-                urns += [('tel', new_value)]
-                contact.update_urns(user, urns)
+            # trim off '@' for twitter handles
+            if self.field == 'twitter':
+                if len(new_value) > 0:
+                    if new_value[0] == '@':
+                        new_value = new_value[1:]
+
+            # only valid urns get added, sorry
+            from temba.contacts.models import ContactURN
+            new_urn = None
+            if ContactURN.validate_urn(scheme, new_value, contact.org.get_country_code()):
+                new_urn = (scheme, new_value)
+            else:
+                if contact.is_test:
+                    ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
+
+            if new_urn:
+                urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
+                urns += [new_urn]
+
+                if not contact.is_test:
+                    # don't really update URNs on test contacts
+                    contact.update_urns(user, urns)
+                else:
+                    ActionLog.info(run, _('Added new connection for contact (%s:%s)' % (scheme, new_value)))
+
         else:
             new_value = value[:640]
             contact.set_field(user, self.field, new_value)
-
-        self.logger(run, new_value)
+            self.logger(run, new_value)
 
         return []
 
@@ -4687,9 +4702,6 @@ class SaveToContactAction(Action):
         log = ActionLog.create(run, log_txt)
 
         return log
-
-    def get_description(self):
-        return "Updated field %s to '%s'" % (self.field, self.value)
 
 
 class SendAction(VariableContactAction):
@@ -4773,10 +4785,6 @@ class SendAction(VariableContactAction):
                      contact_count) % dict(msg=text, count=contact_count)
         log = ActionLog.create(run, log_txt)
         return log
-
-    def get_description(self):
-        return "Sent '%s' to %s" % (self.msg, ", ".join(send.name for send in (self.contacts + self.groups)))
-
 
 class Rule(object):
 

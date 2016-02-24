@@ -1056,7 +1056,7 @@ class FlowWriteSerializer(WriteSerializer):
                     raise serializers.ValidationError("Name is missing from metadata")
 
                 uuid = metadata.get('uuid', None)
-                if uuid and not Flow.objects.filter(org=self.org, uuid=uuid).exists():
+                if uuid and not Flow.objects.filter(org=self.org, is_active=True, uuid=uuid).exists():
                     raise serializers.ValidationError("No such flow with UUID: %s" % uuid)
             else:
                 raise serializers.ValidationError("Metadata field is required for version %s" % version)

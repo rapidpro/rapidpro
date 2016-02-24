@@ -814,6 +814,8 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.options = options
 
   $scope.contactFields = Flow.contactFieldSearch
+  $scope.updateContactFields = Flow.updateContactSearch
+
   $scope.actionConfigs = Flow.actions
   $scope.rulesetConfigs = Flow.rulesets
   $scope.operatorConfigs = Flow.operators

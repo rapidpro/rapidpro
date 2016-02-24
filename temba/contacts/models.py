@@ -40,11 +40,15 @@ TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
+URN_SCHEMES = [TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, FACEBOOK_SCHEME,
+               TELEGRAM_SCHEME, EMAIL_SCHEME, EXTERNAL_SCHEME]
+
+# Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
-                     (TWITTER_SCHEME, _("Twitter handle"), 'twitter', 'twitter'),
-                     (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', 'telegram'),
-                     (EMAIL_SCHEME, _("Email address"), 'email', 'email'),
-                     (EXTERNAL_SCHEME, _("External identifier"), 'external', 'external'))
+                     (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
+                     (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
+                     (EMAIL_SCHEME, _("Email address"), 'email',  EMAIL_SCHEME),
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
 
 # schemes that we actually support
 URN_SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
@@ -53,7 +57,10 @@ IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
-URN_CONTACT_FIELD_KEY_LABEL_DICT = {c[0]: dict(key=c[3], label=unicode(c[1])) for c in URN_SCHEME_CONFIG}
+
+URN_CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
+
+URN_CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
 
 
 class ContactField(SmartModel):
@@ -210,7 +217,7 @@ class Contact(TembaModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       'created_by', 'modified_by', 'org', UUID, 'groups', 'external'] + [c[0] for c in IMPORT_HEADERS]
+                       'created_by', 'modified_by', 'org', UUID, 'groups'] + [c[0] for c in IMPORT_HEADERS]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -696,7 +703,7 @@ class Contact(TembaModel):
                 # excel formatting that field as numeric.. try to parse it into an int instead
                 try:
                     value = str(int(float(value)))
-                except ValueError:  # pragma: no cover
+                except Exception: # pragma: no cover
                     # oh well, neither of those, stick to the plan, maybe we can make sense of it below
                     pass
 
@@ -705,6 +712,7 @@ class Contact(TembaModel):
 
                 if not is_valid:
                     raise SmartImportRowError("Invalid Phone number %s" % value)
+
                 # in the past, test contacts have ended up in exports. Don't re-import them
                 if value == OLD_TEST_CONTACT_TEL:
                     raise SmartImportRowError("Ignored test contact")
@@ -1410,9 +1418,12 @@ class ContactURN(models.Model):
         if norm_scheme == TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
         elif norm_scheme == TWITTER_SCHEME:
+            norm_path = norm_path.lower()
             if norm_path[0:1] == '@':  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
+        elif norm_scheme == EMAIL_SCHEME:
+            norm_path = norm_path.lower()
 
         return norm_scheme, norm_path
 

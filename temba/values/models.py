@@ -49,7 +49,7 @@ class Value(models.Model):
     ruleset = models.ForeignKey('flows.RuleSet', null=True, on_delete=models.SET_NULL,
                                 help_text="The RuleSet this value is for, if any")
 
-    run = models.ForeignKey('flows.FlowRun', null=True, on_delete=models.SET_NULL, related_name='values',
+    run = models.ForeignKey('flows.FlowRun', null=True, related_name='values', on_delete=models.SET_NULL,
                             help_text="The FlowRun this value is for, if any")
 
     rule_uuid = models.CharField(max_length=255, null=True, db_index=True,

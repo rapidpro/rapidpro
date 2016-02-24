@@ -116,7 +116,7 @@ class Trigger(SmartModel):
 
                     groups.append(group)
 
-                flow = Flow.objects.get(org=org, pk=trigger_spec['flow']['id'])
+                flow = Flow.objects.get(org=org, pk=trigger_spec['flow']['id'], is_active=True)
 
                 # see if that trigger already exists
                 trigger = Trigger.objects.filter(org=org, trigger_type=trigger_spec['trigger_type'])
@@ -318,6 +318,13 @@ class Trigger(SmartModel):
             c_last_triggered[0].save()
 
         return [each_trigger.pk for each_trigger in triggers]
+
+    def release(self):
+        """
+        Releases this Trigger, use this instead of delete
+        """
+        self.is_active = False
+        self.save()
 
     def fire(self):
         if self.is_archived or not self.is_active:

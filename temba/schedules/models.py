@@ -24,6 +24,7 @@ class Schedule(SmartModel):
 
     status = models.CharField(default='U', choices=status_choices, max_length=1)
     repeat_hour_of_day = models.IntegerField(help_text="The hour of the day", null=True)
+    repeat_minute_of_hour = models.IntegerField(help_text="The minute of the hour", null=True)
     repeat_day_of_month = models.IntegerField(null=True, help_text="The day of the month to repeat on")
     repeat_period = models.CharField(max_length=1, null=True, help_text="When this schedule repeats", choices=repeat_choices)
     repeat_days = models.IntegerField(default=0, null=True, blank=True, help_text="bit mask of days of the week")
@@ -34,7 +35,7 @@ class Schedule(SmartModel):
     def create_schedule(cls, start_date, repeat_period, user, repeat_days=None, status='S'):
         return Schedule.objects.create(repeat_period=repeat_period, repeat_days=repeat_days,
                                        created_by=user, modified_by=user, repeat_day_of_month=start_date.day,
-                                       repeat_hour_of_day=start_date.hour,
+                                       repeat_hour_of_day=start_date.hour, repeat_minute_of_hour=start_date.minute,
                                        next_fire=start_date, status=status)
 
     def reset(self):
@@ -67,17 +68,19 @@ class Schedule(SmartModel):
         """
         Get the next point in the future when our schedule should expire again
         """
+        hour = self.repeat_hour_of_day if self.repeat_hour_of_day is not None else trigger_date.hour
+        minute = self.repeat_minute_of_hour if self.repeat_minute_of_hour is not None else 0
 
-        hour_of_day = self.repeat_hour_of_day if self.repeat_hour_of_day else trigger_date.hour
-        trigger_date = trigger_date.replace(hour=hour_of_day, minute=0, second=0, microsecond=0)
+        trigger_date = trigger_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
         if self.repeat_period == "O":
             return trigger_date
+
         if self.repeat_period == "M":
             (weekday, days) = calendar.monthrange(trigger_date.year, trigger_date.month)
             day_of_month = min(days, self.repeat_day_of_month)
-            next_date = datetime(trigger_date.year, trigger_date.month,
-                                 day=day_of_month, hour=self.repeat_hour_of_day).replace(tzinfo=self.get_org_timezone())
+            next_date = datetime(trigger_date.year, trigger_date.month, day=day_of_month,
+                                 hour=hour, minute=minute, second=0, microsecond=0).replace(tzinfo=self.get_org_timezone())
             if trigger_date.day >= self.repeat_day_of_month:
                 next_date += relativedelta(months=1)
             return next_date
@@ -95,6 +98,7 @@ class Schedule(SmartModel):
                     bitmask = pow(2, day_idx + 1)
                     if bitmask & self.repeat_days == bitmask:
                         return trigger_date + timedelta(days=i + 1)
+
         if self.repeat_period == "D":
             return trigger_date + timedelta(days=1)
 
@@ -158,5 +162,6 @@ class Schedule(SmartModel):
         return days
 
     def __unicode__(self):  # pragma: no cover
-        return "[%s] %s %s %s" % (str(self.next_fire), self.repeat_period, self.repeat_day_of_month, self.repeat_hour_of_day)
+        return "[%s] %s %s %s:%s" % (str(self.next_fire), self.repeat_period, self.repeat_day_of_month,
+                                     self.repeat_hour_of_day, self.repeat_minute_of_hour)
 

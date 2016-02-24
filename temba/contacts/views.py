@@ -24,8 +24,8 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
 from temba.channels.models import RECEIVE
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES
-from temba.contacts.models import ExportContactsTask, URN_CONTACT_FIELD_KEY_LABEL_DICT
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, URN_SCHEME_CONFIG
+from temba.contacts.models import ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
@@ -1267,7 +1267,6 @@ class ContactFieldCRUDL(SmartCRUDL):
 
         def render_to_response(self, context, **response_kwargs):
             org = self.request.user.get_org()
-            schemes = org.get_schemes(RECEIVE)
 
             results = []
             for obj in context['object_list']:
@@ -1278,8 +1277,8 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             sorted_results.insert(0, dict(key='groups', label='Groups'))
 
-            for scheme in schemes:
-                sorted_results.insert(0, URN_CONTACT_FIELD_KEY_LABEL_DICT.get(scheme))
+            for config in URN_SCHEME_CONFIG:
+                sorted_results.insert(0, dict(key=config[3], label=unicode(config[1])))
 
             sorted_results.insert(0, dict(key='name', label='Full name'))
 
