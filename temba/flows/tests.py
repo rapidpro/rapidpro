@@ -1341,7 +1341,7 @@ class FlowTest(TembaTest):
         if runs:
             run = runs[0]
         else:
-            run = FlowRun.create(self.flow, self.contact)
+            run = FlowRun.create(self.flow, self.contact.id)
 
         tz = run.flow.org.get_tzinfo()
         self.org.country = self.country

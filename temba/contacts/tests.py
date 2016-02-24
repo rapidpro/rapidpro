@@ -813,7 +813,7 @@ class ContactTest(TembaTest):
             contact.set_field(self.user, 'state', "Rwanda")
             index = (i + 2) % len(locations)
             with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
-                mock_parse_location.return_value = locations_boundaries[index]
+                mock_parse_location.return_value = AdminBoundary.objects.filter(name__iexact=locations[index])
                 contact.set_field(self.user, 'home', locations[index])
 
         contact.set_field(self.user, 'isureporter', 'yes')
