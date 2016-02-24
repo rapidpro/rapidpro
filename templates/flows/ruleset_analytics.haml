@@ -78,9 +78,9 @@
             -trans "Most Active"
           .flow{ng-repeat:'flow in flows | orderBy:"-stats.contacts" | limitTo:4 '}
             .message-count{ ng-click: 'addFlowFields(flow)' }
-              [[flow.stats.contacts]]
+              [[flow.stats.runs]]
               .message-label
-                <ng-pluralize count="flow.stats.contacts" when="{'0': '{% trans "contacts" %}', 'one': '{% trans "contact" %}', 'other': '{% trans "contacts" %}' }">
+                <ng-pluralize count="flow.stats.runs" when="{'0': '{% trans "runs" %}', 'one': '{% trans "run" %}', 'other': '{% trans "runs" %}' }">
                 </ng-pluralize>
 
             .flow-name{ ng-click: 'addFlowFields(flow)' }
@@ -97,9 +97,9 @@
             -trans "Most Recent"
           .flow{ng-repeat:'flow in flows | orderBy:"-stats.created_on" | limitTo:4 ', data:'[[flow.id]]'}
             .message-count{ ng-click: 'addFlowFields(flow)' }
-              [[flow.stats.contacts]]
+              [[flow.stats.runs]]
               .message-label
-                <ng-pluralize count="flow.stats.contacts" when="{'0': '{% trans "contacts" %}', 'one': '{% trans "contact" %}', 'other': '{% trans "contacts" %}' }">
+                <ng-pluralize count="flow.stats.runs" when="{'0': '{% trans "runs" %}', 'one': '{% trans "run" %}', 'other': '{% trans "runs" %}' }">
                 </ng-pluralize>
 
             .flow-name{ ng-click: 'addFlowFields(flow)' }

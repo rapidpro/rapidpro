@@ -2,14 +2,14 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-
+from temba.sql import InstallSQL
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0041_auto_20151207_1936'),
-        ('msgs', '0037_merge'),
+        ('channels', '0029_auto_20160202_1931'),
     ]
 
     operations = [
+        InstallSQL('0030_channels')
     ]

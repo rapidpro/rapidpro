@@ -134,7 +134,7 @@
                           {{ obj.groups.all|join:", " }}
 
                         -if obj.schedule
-                          -if obj.schedule.next_fire
+                          -if obj.schedule.next_fire and not obj.is_archived
                             -trans "will start in"
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                               - if org_perms.triggers.trigger_update

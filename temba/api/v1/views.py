@@ -145,8 +145,6 @@ class AuthenticateEndpoint(SmartFormView):
 @permission_classes((SSLPermission, IsAuthenticated))
 def api(request, format=None):
     """
-    ## REST API
-
     We provide a simple REST API for you to interact with your data from outside applications.
 
     All endpoints should be accessed using HTTPS. The following endpoints are provided:
@@ -580,7 +578,8 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def get_queryset(self):
-        queryset = Msg.current_messages.filter(org=self.request.user.get_org())
+        org = self.request.user.get_org()
+        queryset = Msg.all_messages.filter(org=org, contact__is_test=False)
 
         ids = splitting_getlist(self.request, 'id')
         if ids:
@@ -1425,7 +1424,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             return Response(status=status.HTTP_404_NOT_FOUND)
         else:
             for contact in queryset:
-                contact.release()
+                contact.release(request.user)
             return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_base_queryset(self, request):
@@ -1481,7 +1480,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
         # can't prefetch a custom manager directly, so here we prefetch user groups as new attribute
         user_groups_prefetch = Prefetch('all_groups', queryset=ContactGroup.user_groups.all(), to_attr='prefetched_user_groups')
 
-        return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('-modified_on')
+        return queryset.select_related('org').prefetch_related(user_groups_prefetch).order_by('-modified_on', 'pk')
 
     def prepare_for_serialization(self, object_list):
         # initialize caches of all contact fields and URNs
@@ -2709,7 +2708,6 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
       * **labels** - the labels for this flow (string array) (filterable: ```label``` repeatable)
       * **created_on** - the datetime when this flow was created (datetime) (filterable: ```before``` and ```after```)
       * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
-      * **participants** - the number of contacts who have participated in this flow (integer)
       * **runs** - the total number of runs for this flow (integer)
       * **completed_runs** - the number of completed runs for this flow (integer)
       * **rulesets** - the rulesets on this flow, including their node UUID, ruleset type, and label
@@ -2731,7 +2729,6 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
                 "expires": 720,
                 "name": "Thrift Shop Status",
                 "labels": [ "Polls" ],
-                "participants": 1,
                 "runs": 3,
                 "completed_runs": 0,
                 "rulesets": [

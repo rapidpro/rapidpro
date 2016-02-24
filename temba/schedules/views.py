@@ -119,6 +119,7 @@ class ScheduleCRUDL(SmartCRUDL):
                         days = form.cleaned_data['repeat_days']
                     schedule.repeat_days = days
                     schedule.repeat_hour_of_day = schedule.next_fire.hour
+                    schedule.repeat_minute_of_hour = schedule.next_fire.minute
                     schedule.repeat_day_of_month = schedule.next_fire.day
                 schedule.save()
 
