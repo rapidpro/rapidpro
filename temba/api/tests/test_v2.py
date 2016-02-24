@@ -366,7 +366,7 @@ class APITest(TembaTest):
             'labels': [],
             'created_on': format_datetime(joe_msg4.created_on),
             'sent_on': format_datetime(joe_msg4.sent_on),
-            'delivered_on': None
+            'modified_on': format_datetime(joe_msg4.modified_on)
         })
         self.assertEqual(response.json['results'][5], {
             'id': frank_msg1.pk,
@@ -382,7 +382,7 @@ class APITest(TembaTest):
             'labels': [{'uuid': label.uuid, 'name': "Spam"}],
             'created_on': format_datetime(frank_msg1.created_on),
             'sent_on': None,
-            'delivered_on': None
+            'modified_on': format_datetime(frank_msg1.modified_on)
         })
 
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):  # filter by folder (inbox)
