@@ -6,6 +6,11 @@
 -block above-bar
   %a.btn.btn-primary{ style:"float:right", href:"{% url 'orgs.topup_manage' %}?org={{ org.id }}" } TopUps
 
+  -if org.is_suspended
+    %a.btn.btn-secondary.posterize{ style:"margin-right:6px; float:right", href:"{% url 'orgs.org_update' org.id %}?status=restored" } Restore
+  -else
+    %a.btn.btn-secondary.posterize{ style:"margin-right:6px; float:right", href:"{% url 'orgs.org_update' org.id %}?status=suspended" } Suspend
+
 -block post-form
   -if perms.auth.org_clear_cache
     <form class="smartmin-form form-horizontal" action="{% url 'orgs.org_clear_cache' object.id %}" method="post" enctype="multipart/form-data">
