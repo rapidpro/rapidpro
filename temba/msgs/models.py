@@ -536,6 +536,13 @@ class Msg(models.Model):
                  (FLOW, _("Flow Message")),
                  (IVR, _("IVR Message")))
 
+    MEDIA_AUDIO = 'audio'
+    MEDIA_GPS = 'geo'
+    MEDIA_IMAGE = 'image'
+    MEDIA_VIDEO = 'video'
+
+    MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
+
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
 
@@ -611,8 +618,8 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
 
-    recording_url = models.URLField(null=True, blank=True, max_length=255,
-                                    help_text=_("The url for any recording associated with this message"))
+    media = models.URLField(null=True, blank=True, max_length=255,
+                            help_text=_("The media associated with this message if any"))
 
     purged = models.BooleanField(default=False, help_text="If this message has been purged")
 
@@ -849,6 +856,7 @@ class Msg(models.Model):
         return dict(direction=self.direction,
                     text=self.text,
                     id=self.id,
+                    media=self.media,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
@@ -891,6 +899,17 @@ class Msg(models.Model):
                 parts.append(part)
 
             return parts
+
+    def get_media_path(self):
+        if self.media and ':' in self.media:
+            return self.media.split(':', 1)[1]
+
+    def get_media_type(self):
+        if self.media and ':' in self.media:
+            return self.media.split(':', 1)[0]
+
+    def is_media_type_audio(self):
+        return Msg.MEDIA_AUDIO == self.get_media_type
 
     def reply(self, text, user, trigger_send=False, message_context=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
@@ -1025,7 +1044,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, recording_url=None, msg_type=None, topup=None):
+                        status=PENDING, media=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1058,7 +1077,8 @@ class Msg(models.Model):
             topup_id = org.decrement_credit()
 
         # we limit text messages to 640 characters
-        text = text[:640]
+        if text:
+            text = text[:640]
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
@@ -1069,7 +1089,7 @@ class Msg(models.Model):
                         queued_on=timezone.now(),
                         direction=INCOMING,
                         msg_type=msg_type,
-                        recording_url=recording_url,
+                        media=media,
                         status=status)
 
         if topup_id is not None:
@@ -1136,7 +1156,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        recording_url=None, topup_id=None, msg_type=INBOX):
+                        media=None, topup_id=None, msg_type=INBOX):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1184,7 +1204,7 @@ class Msg(models.Model):
             same_msgs = Msg.current_messages.filter(contact_urn=contact_urn,
                                                     contact__is_test=False,
                                                     channel=channel,
-                                                    recording_url=recording_url,
+                                                    media=media,
                                                     text=text,
                                                     direction=OUTGOING,
                                                     created_on__gte=created_on - timedelta(minutes=10))
@@ -1237,7 +1257,7 @@ class Msg(models.Model):
                         response_to=response_to,
                         msg_type=msg_type,
                         priority=priority,
-                        recording_url=recording_url,
+                        media=media,
                         has_template_error=len(errors) > 0)
 
         if topup_id is not None:

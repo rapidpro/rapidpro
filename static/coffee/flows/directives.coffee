@@ -148,8 +148,8 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
     scope.updateTranslationStatus = (action, baseLanguage, currentLanguage) ->
 
       action._missingTranslation = false
-      # grab the appropriate translated version
 
+      # grab the appropriate translated version
       iso_code = Flow.flow.base_language
       if currentLanguage
         iso_code = currentLanguage.iso_code

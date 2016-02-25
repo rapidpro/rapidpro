@@ -114,7 +114,8 @@ class IVRTests(FlowFileTest):
         self.assertEquals(4, self.org.get_credits_used())
 
         # we should have played a recording from the contact back to them
-        self.assertTrue('FAKESID.wav' in messages[2].recording_url)
+        self.assertTrue(messages[2].media.startswith('audio:https://'))
+        self.assertTrue(messages[2].media.endswith('FAKESID.wav'))
 
         from temba.flows.models import FlowStep
         steps = FlowStep.objects.all()

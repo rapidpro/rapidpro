@@ -452,21 +452,22 @@ class Flow(TembaModel):
 
         # parse the user response
         text = user_response.get('Digits', None)
-        recording_url = user_response.get('RecordingUrl', None)
+        media_url = user_response.get('RecordingUrl', None)
         recording_id = user_response.get('RecordingSid', uuid4())
 
         # if we've been sent a recording, go grab it
-        if recording_url:
-            url = Flow.download_recording(call, recording_url, recording_id)
-            recording_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
+        if media_url:
+            url = Flow.download_recording(call, media_url, recording_id)
+            media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
-        if text or recording_url:
-            if recording_url:
-                text = recording_url
+        if text or media_url:
+            if media_url:
+                text = media_url
+
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
-                                      text, status=HANDLED, msg_type=IVR, recording_url=recording_url)
+                                      text, status=HANDLED, msg_type=IVR, media='%s:%s' % (Msg.MEDIA_AUDIO, media_url))
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -524,23 +525,23 @@ class Flow(TembaModel):
         return voice_response
 
     @classmethod
-    def download_recording(cls, call, recording_url, recording_id):
+    def download_recording(cls, call, media_url, recording_id):
         """
         Fetches the recording and stores it with the provided recording_id
         :param call: the call the recording is a part of
-        :param recording_url: the url where the recording lives
+        :param media_url: the url where the recording lives
         :param recording_id: the id we will use for the downloaded recording
         :return: the url for our downloaded recording
         """
         run = FlowRun.objects.filter(call=call).first()
 
         ivr_client = call.channel.get_ivr_client()
-        recording = requests.get(recording_url, stream=True, auth=ivr_client.auth)
+        recording = requests.get(media_url, stream=True, auth=ivr_client.auth)
         temp = NamedTemporaryFile(delete=True)
         temp.write(recording.content)
         temp.flush()
 
-        print "Fetched recording %s and saved to %s" % (recording_url, recording_id)
+        print "Fetched recording %s and saved to %s" % (media_url, recording_id)
         return default_storage.save('recordings/%d/%d/runs/%d/%s.wav' %
                                     (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
 
@@ -700,8 +701,15 @@ class Flow(TembaModel):
         if msg.id > 0:
             step.add_message(msg)
 
+        if ruleset.ruleset_type in RuleSet.TYPE_MEDIA:
+            value = msg.media
+
         step.save_rule_match(rule, value)
         ruleset.save_run_value(run, rule, value)
+
+        # output the new value if in the simulator
+        if run.contact.is_test:
+            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
@@ -2334,16 +2342,27 @@ class Flow(TembaModel):
 class RuleSet(models.Model):
 
     TYPE_WAIT_MESSAGE = 'wait_message'
+
+    # Calls
     TYPE_WAIT_RECORDING = 'wait_recording'
     TYPE_WAIT_DIGIT = 'wait_digit'
     TYPE_WAIT_DIGITS = 'wait_digits'
+
+    # Surveys
+    TYPE_WAIT_PHOTO = 'wait_photo'
+    TYPE_WAIT_VIDEO = 'wait_video'
+    TYPE_WAIT_GPS = 'wait_gps'
+
     TYPE_WEBHOOK = 'webhook'
     TYPE_FLOW_FIELD = 'flow_field'
     TYPE_FORM_FIELD = 'form_field'
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
 
-    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS)
+    TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_RECORDING)
+
+    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS,
+                 TYPE_WAIT_PHOTO, TYPE_WAIT_VIDEO, TYPE_WAIT_GPS)
 
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
@@ -2539,12 +2558,12 @@ class RuleSet(models.Model):
 
             return None, None
 
-    def save_run_value(self, run, rule, value, recording=False):
+    def save_run_value(self, run, rule, value):
         value = unicode(value)[:640]
         location_value = None
         dec_value = None
         dt_value = None
-        recording_value = None
+        media_value = None
 
         if isinstance(value, AdminBoundary):
             location_value = value
@@ -2552,22 +2571,22 @@ class RuleSet(models.Model):
             dt_value = run.flow.org.parse_date(value)
             dec_value = run.flow.org.parse_decimal(value)
 
-        if recording:
-            recording_value = value
+        # if its a media value, only store the path as the value
+        if ':' in value:
+            (media_type, media_path) = value.split(':', 1)
+            if media_type in Msg.MEDIA_TYPES:
+                media_value = value
+                value = media_path
 
         # delete any existing values for this ruleset, run and contact, we only store the latest
         Value.objects.filter(contact=run.contact, run=run, ruleset=self).delete()
 
         Value.objects.create(contact=run.contact, run=run, ruleset=self, category=rule.category, rule_uuid=rule.uuid,
                              string_value=value, decimal_value=dec_value, datetime_value=dt_value,
-                             location_value=location_value, recording_value=recording_value, org=run.flow.org)
+                             location_value=location_value, media_value=media_value, org=run.flow.org)
 
         # invalidate any cache on this ruleset
         Value.invalidate_cache(ruleset=self)
-
-        # output the new value if in the simulator
-        if run.contact.is_test:
-            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(self.label)))
 
     def get_step_type(self):
         return RULE_SET
@@ -2971,16 +2990,26 @@ class FlowRun(models.Model):
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
 
-    def create_outgoing_ivr(self, text, recording_url, response_to=None):
+    def create_outgoing_ivr(self, text, media, response_to=None):
 
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
-                                  response_to=response_to, recording_url=recording_url, status=DELIVERED, msg_type=IVR)
+                                  response_to=response_to, media=media,
+                                  status=DELIVERED, msg_type=IVR)
 
         if msg:
-            if recording_url:
-                self.voice_response.play(url=recording_url)
+
+            # make sure have audio media
+            media_type = None
+            if media:
+                (media_type, media_path) = media.split(':', 1)
+
+            # if so, play it
+            if media_type == Msg.MEDIA_AUDIO and media_path:
+                self.voice_response.play(url=media_path)
+
+            # otherwise, spit some text
             else:
                 self.voice_response.say(text)
 
@@ -4208,7 +4237,7 @@ class SayAction(Action):
 
     def execute(self, run, actionset_uuid, event, offline_on=None):
 
-        recording_url = None
+        media_url = None
         if self.recording:
 
             # localize our recording
@@ -4216,17 +4245,17 @@ class SayAction(Action):
 
             # if we have a localized recording, create the url
             if recording:
-                recording_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, recording)
+                media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, recording)
 
         # localize the text for our message, need this either way for logging
         message = run.flow.get_localized_text(self.msg, run.contact)
         (message, errors) = Msg.substitute_variables(message, run.contact, run.flow.build_message_context(run.contact, event))
 
-        msg = run.create_outgoing_ivr(message, recording_url)
+        msg = run.create_outgoing_ivr(message, media_url)
 
         if msg:
             if run.contact.is_test:
-                if recording_url:
+                if media_url:
                     ActionLog.create(run, _('Played recorded message for "%s"') % message)
                 else:
                     ActionLog.create(run, _('Read message "%s"') % message)
@@ -4258,12 +4287,12 @@ class PlayAction(Action):
 
     def execute(self, run, actionset_uuid, event, offline_on=None):
 
-        (recording_url, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
-        msg = run.create_outgoing_ivr(_('Played contact recording'), recording_url)
+        (media, errors) = Msg.substitute_variables(self.url, run.contact, run.flow.build_message_context(run.contact, event))
+        msg = run.create_outgoing_ivr(_('Played contact recording'), media)
 
         if msg:
             if run.contact.is_test:
-                log_txt = _('Played recording at "%s"') % recording_url
+                log_txt = _('Played recording at "%s"') % media_path
                 ActionLog.create(run, log_txt)
             return [msg]
         else:

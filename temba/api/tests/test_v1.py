@@ -697,7 +697,7 @@ class APITest(TembaTest):
         self.assertEqual(value.decimal_value, None)
         self.assertEqual(value.datetime_value, None)
         self.assertEqual(value.location_value, None)
-        self.assertEqual(value.recording_value, None)
+        self.assertEqual(value.media_value, None)
         self.assertEqual(value.category, 'Orange')
 
         step1_msgs = list(steps[1].messages.order_by('pk'))

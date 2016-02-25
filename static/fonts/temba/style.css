@@ -1,10 +1,10 @@
 @font-face {
     font-family: 'temba';
-    src:    url('fonts/temba.eot?p4hr5d');
-    src:    url('fonts/temba.eot?p4hr5d#iefix') format('embedded-opentype'),
-        url('fonts/temba.ttf?p4hr5d') format('truetype'),
-        url('fonts/temba.woff?p4hr5d') format('woff'),
-        url('fonts/temba.svg?p4hr5d#temba') format('svg');
+    src:    url('fonts/temba.eot?j1tlsz');
+    src:    url('fonts/temba.eot?j1tlsz#iefix') format('embedded-opentype'),
+        url('fonts/temba.ttf?j1tlsz') format('truetype'),
+        url('fonts/temba.woff?j1tlsz') format('woff'),
+        url('fonts/temba.svg?j1tlsz#temba') format('svg');
     font-weight: normal;
     font-style: normal;
 }
@@ -24,6 +24,21 @@
     -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-photo_camera:before {
+    content: "\e412";
+}
+.icon-photo:before {
+    content: "\e410";
+}
+.icon-pin_drop:before {
+    content: "\e55e";
+}
+.icon-public:before {
+    content: "\e80b";
+}
+.icon-videocam:before {
+    content: "\e06f";
+}
 .icon-language:before {
     content: "\e602";
 }

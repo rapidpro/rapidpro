@@ -6,13 +6,14 @@
 
     %td.icon
 
-      -if item.recording_url
-        .recording{onClick:'playMessage("{{item.pk}}");'}
-          %audio{id:'message-{{item.pk}}', type:"audio/wav", src:'{{item.recording_url}}'}
-          .play
-            .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
-          .stop.hide
-            .icon-nav-channels-inverted
+      -if item.media
+        if item.media|slice:'6:' == 'audio:'
+          .recording{onClick:'playMessage("{{item.pk}}");'}
+            %audio{id:'message-{{item.pk}}', type:"audio/wav", src:'{{item.media_url}}'}
+            .play
+              .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+            .stop.hide
+              .icon-nav-channels-inverted
       -else
         %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
           -with item.channellog_set.all.first as log
@@ -72,7 +73,7 @@
 
             .activity-body
               .text
-                -if message.text == message.recording_url
+                -if media_type == 'A'
                   .left-recording
                     Made a recording
                 -else
