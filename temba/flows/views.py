@@ -13,7 +13,7 @@ from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Q, Max
 from django import forms
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
@@ -1309,6 +1309,9 @@ class FlowCRUDL(SmartCRUDL):
                 # check whether there are any flow starts that are incomplete
                 if FlowStart.objects.filter(flow=self.flow).exclude(status__in=[COMPLETE, FAILED]):
                     raise ValidationError(_("This flow is already being started, please wait until that process is complete before starting more contacts."))
+
+                if self.flow.org.is_suspended():
+                    raise ValidationError(_("Sorry, your account is currently suspended. To enable sending messages, please contact support."))
 
                 return cleaned
 

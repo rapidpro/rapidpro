@@ -293,9 +293,6 @@ class Broadcast(models.Model):
     def get_messages(self):
         return self.msgs.exclude(status=RESENT)
 
-    def get_messages_by_status(self):
-        return self.get_messages().order_by('delivered_on', 'sent_on', '-status')
-
     def get_messages_substitution_complete(self):
         return self.get_messages().filter(has_template_error=False)
 
@@ -571,11 +568,11 @@ class Msg(models.Model):
     created_on = models.DateTimeField(verbose_name=_("Created On"), db_index=True,
                                       help_text=_("When this message was created"))
 
+    modified_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Modified On"), auto_now=True,
+                                       help_text=_("When this message was last modified"))
+
     sent_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Sent On"),
                                    help_text=_("When this message was sent to the endpoint"))
-
-    delivered_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Delivered On"),
-                                        help_text=_("When this message was delivered to the final recipient (for incoming messages, when the message was handled)"))
 
     queued_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Queued On"),
                                      help_text=_("When this message was queued to be sent or handled."))
@@ -708,11 +705,11 @@ class Msg(models.Model):
 
         # record our handling latency for this object
         if msg.queued_on:
-            analytics.gauge('temba.handling_latency', (msg.delivered_on - msg.queued_on).total_seconds())
+            analytics.gauge('temba.handling_latency', (msg.modified_on - msg.queued_on).total_seconds())
 
         # this is the latency from when the message was received at the channel, which may be different than
         # above if people above us are queueing (or just because clocks are out of sync)
-        analytics.gauge('temba.channel_handling_latency', (msg.delivered_on - msg.created_on).total_seconds())
+        analytics.gauge('temba.channel_handling_latency', (msg.modified_on - msg.created_on).total_seconds())
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -770,7 +767,7 @@ class Msg(models.Model):
         """
         Marks an incoming message as HANDLED
         """
-        update_fields = ['status', 'delivered_on']
+        update_fields = ['status', 'modified_on']
 
         # if flows or IVR haven't claimed this message, then it's going to the inbox
         if not msg.msg_type:
@@ -778,7 +775,7 @@ class Msg(models.Model):
             update_fields.append('msg_type')
 
         msg.status = HANDLED
-        msg.delivered_on = timezone.now()  # current time as delivery date so we can track created->delivered latency
+        msg.modified_on = timezone.now()  # current time as delivery date so we can track created->delivered latency
 
         # make sure we don't overwrite any async message changes by only saving specific fields
         msg.save(update_fields=update_fields)
@@ -942,7 +939,7 @@ class Msg(models.Model):
 
         elif keyword == 'mt_dlvd':
             self.status = DELIVERED
-            self.delivered_on = date
+            self.modified_on = timezone.now()
             handled = True
             WebHookEvent.trigger_sms_event(SMS_DELIVERED, self, date)
 
@@ -992,6 +989,7 @@ class Msg(models.Model):
                                     contact=self.contact,
                                     contact_urn=self.contact_urn,
                                     created_on=timezone.now(),
+                                    modified_on=timezone.now(),
                                     text=self.text,
                                     response_to=self.response_to,
                                     direction=self.direction,
@@ -1037,7 +1035,7 @@ class Msg(models.Model):
                     status=self.status, direction=self.direction,
                     external_id=self.external_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
-                    created_on=self.created_on, delivered_on=self.delivered_on)
+                    created_on=self.created_on, modified_on=self.modified_on)
 
     def __unicode__(self):
         return self.text
@@ -1086,6 +1084,7 @@ class Msg(models.Model):
                         channel=channel,
                         text=text,
                         created_on=date,
+                        modified_on=timezone.now(),
                         queued_on=timezone.now(),
                         direction=INCOMING,
                         msg_type=msg_type,
@@ -1251,6 +1250,7 @@ class Msg(models.Model):
                         channel=channel,
                         text=text,
                         created_on=created_on,
+                        modified_on=created_on,
                         direction=OUTGOING,
                         status=status,
                         broadcast=broadcast,
@@ -1320,10 +1320,10 @@ class Msg(models.Model):
         Update the message status to DELIVERED
         """
         self.status = DELIVERED
-        self.delivered_on = timezone.now()
+        self.modified_on = timezone.now()
         if not self.sent_on:
             self.sent_on = timezone.now()
-        self.save(update_fields=('status', 'delivered_on', 'sent_on'))
+        self.save(update_fields=('status', 'modified_on', 'sent_on'))
 
         Channel.track_status(self.channel, "Delivered")
 

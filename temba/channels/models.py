@@ -10,6 +10,7 @@ import regex
 import requests
 import telegram
 
+from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
@@ -134,6 +135,11 @@ TWITTER_FATAL_403S = ("messages to this user right now",  # handle is suspended
 YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
 YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
 YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
+
+class Encoding(Enum):
+    GSM7 = 1
+    REPLACED = 2
+    UNICODE = 3
 
 class Channel(TembaModel):
     TYPE_CHOICES = ((ANDROID, "Android"),
@@ -552,6 +558,26 @@ class Channel(TembaModel):
         """
         return random_string(64)
 
+    @classmethod
+    def determine_encoding(cls, text, replace=False):
+        """
+        Determines what type of encoding should be used for the passed in SMS text.
+        """
+        # if this is plain gsm7, then we are good to go
+        if is_gsm7(text):
+            return Encoding.GSM7, text
+
+        # if this doesn't look like GSM7 try to replace characters that are close enough
+        if replace:
+            replaced = replace_non_gsm7_accents(text)
+
+            # great, this is now GSM7, let's send that
+            if is_gsm7(replaced):
+                return Encoding.REPLACED, replaced
+
+        # otherwise, this is unicode
+        return Encoding.UNICODE, text
+
     def has_sending_log(self):
         return self.channel_type != ANDROID
 
@@ -953,27 +979,20 @@ class Channel(TembaModel):
             payload['to'] = str(parsed.national_number)
 
         # figure out if we should send encoding or do any of our own substitution
-        encoding = channel.config.get(ENCODING, DEFAULT_ENCODING)
+        desired_encoding = channel.config.get(ENCODING, DEFAULT_ENCODING)
 
-        # if this is smart encoding, figure out what encoding we will use
-        if encoding == SMART_ENCODING:
-            # if this isn't gsm7
-            if not is_gsm7(text):
-                # try to replace characters
-                replaced = replace_non_gsm7_accents(text)
-
-                # great, this is now GSM7, let's send that
-                if is_gsm7(replaced):
-                    text = replaced
-                    payload['text'] = text
-
-                # otherwise, send as unicode
-                else:
-                    payload['coding'] = '2'
-
-        # always send as unicode encoding
-        elif encoding == UNICODE_ENCODING:
+        # they want unicde, they get unicode!
+        if desired_encoding == UNICODE_ENCODING:
             payload['coding'] = '2'
+
+        # otherwise, if this is smart encoding, try to derive it
+        elif desired_encoding == SMART_ENCODING:
+            # if this is smart encoding, figure out what encoding we will use
+            encoding, text = Channel.determine_encoding(text, replace=True)
+            payload['text'] = text
+
+            if encoding == Encoding.UNICODE:
+                payload['coding'] = '2'
 
         log_payload = payload.copy()
         log_payload['password'] = 'x' * len(log_payload['password'])
@@ -1933,6 +1952,15 @@ class Channel(TembaModel):
     def send_m3tech_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
 
+        # determine our encoding
+        encoding, text = Channel.determine_encoding(text, replace=True)
+
+        # if this looks like unicode, ask m3tech to send as unicode
+        if encoding == Encoding.UNICODE:
+            sms_type = '8'
+        else:
+            sms_type = '0'
+
         url = 'https://secure.m3techservice.com/GenericServiceRestAPI/api/SendSMS'
         payload = {'AuthKey': 'm3-Tech',
                    'UserId': channel.config[USERNAME],
@@ -1941,7 +1969,7 @@ class Channel(TembaModel):
                    'MsgId': msg.id,
                    'SMS': text,
                    'MsgHeader': channel.address.lstrip('+'),
-                   'SMSType': '0',
+                   'SMSType': sms_type,
                    'HandsetPort': '0',
                    'SMSChannel': '0',
                    'Telco': '0'}

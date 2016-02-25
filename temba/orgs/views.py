@@ -734,12 +734,9 @@ class OrgCRUDL(SmartCRUDL):
     class Manage(SmartListView):
         fields = ('credits', 'used', 'name', 'owner', 'created_on')
         default_order = ('-credits', '-created_on',)
-        search_fields = ('name__icontains', 'created_by__email__iexact')
+        search_fields = ('name__icontains', 'created_by__email__iexact', 'config__icontains')
         link_fields = ('name', 'owner')
         title = "Organizations"
-
-        def get_paid(self, obj):
-            return "$%s" % (obj.paid / 100)
 
         def get_used(self, obj):
             if not obj.credits:
@@ -771,7 +768,11 @@ class OrgCRUDL(SmartCRUDL):
                    "<div class='owner-email'>%s</div>" % (url, obj.id, owner.first_name, owner.last_name, owner)
 
         def get_name(self, obj):
-            return "<div class='org-name'>%s</div><div class='org-timezone'>%s</div>" % (obj.name, obj.timezone)
+            suspended = ''
+            if obj.is_suspended():
+                suspended = '<span class="suspended">(Suspended)</span>'
+
+            return "<div class='org-name'>%s %s</div><div class='org-timezone'>%s</div>" % (suspended, obj.name, obj.timezone)
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.Manage, self).derive_queryset(**kwargs)
@@ -806,6 +807,13 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = OrgUpdateForm
         success_url = '@orgs.org_manage'
+
+        def post(self, request, *args, **kwargs):
+            if 'status' in request.REQUEST:
+                suspended = request.REQUEST.get('status', None) == 'suspended'
+                self.get_object().set_suspended(suspended)
+                return HttpResponseRedirect(self.get_success_url())
+            return super(OrgCRUDL.Update, self).post(request, *args, **kwargs)
 
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 

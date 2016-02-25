@@ -1839,6 +1839,10 @@ class ContactTest(TembaTest):
         # or without a number (exception type that goes back to the user)
         self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org, created_by=self.admin))
 
+        # or invalid phone number
+        self.assertRaises(SmartImportRowError, Contact.create_instance,
+                          dict(org=self.org, created_by=self.admin, phone="+121535e0884"))
+
         contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", phone="+250788111111"))
         self.assertEqual(contact.org, self.org)
         self.assertEqual(contact.name, "Bob")
@@ -2419,6 +2423,10 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'District should be used once')
 
+        # we shouldn't be suspended
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_suspended())
+
         # invalid import params
         with self.assertRaises(Exception):
             task = ImportTask.objects.create(
@@ -2435,6 +2443,17 @@ class ContactTest(TembaTest):
         self.assertEqual(Contact.objects.get(urns__path="+250788382382").language, 'eng')  # updated
         self.assertEqual(Contact.objects.get(urns__path="+250788383383").language, 'fre')  # created with language
         self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)   # no language
+
+    def test_import_sequential_numbers(self):
+
+        org = self.user.get_org()
+        self.assertFalse(org.is_suspended())
+
+        # importing sequential numbers should automatically suspend our org
+        self.do_import(self.user, 'sample_contacts_sequential.xls')
+        org.refresh_from_db()
+        self.assertTrue(org.is_suspended())
+
 
     def test_import_methods(self):
         user = self.user

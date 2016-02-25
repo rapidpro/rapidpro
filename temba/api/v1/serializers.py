@@ -166,7 +166,7 @@ class MsgReadSerializer(ReadSerializer):
     labels = serializers.SerializerMethodField()
     created_on = DateTimeField()
     sent_on = DateTimeField()
-    delivered_on = DateTimeField()
+    delivered_on = serializers.SerializerMethodField()
 
     def get_id(self, obj):
         return obj.pk
@@ -197,6 +197,9 @@ class MsgReadSerializer(ReadSerializer):
 
     def get_archived(self, obj):
         return obj.visibility == ARCHIVED
+
+    def get_delivered_on(self, obj):
+        return None
 
     def get_labels(self, obj):
         return [l.name for l in obj.labels.all()]
