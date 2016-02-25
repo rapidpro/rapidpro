@@ -4607,6 +4607,18 @@ class ClickatellTest(TembaTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
+                params = {'api_id': 'api1',
+                          'user': 'uname',
+                          'password': 'pword',
+                          'from': '250788123123',
+                          'concat': 3,
+                          'callback': 7,
+                          'mo': 1,
+                          'unicode': 1,
+                          'to': "250788383383",
+                          'text': "Test message"}
+                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
+                                        timeout=5)
 
                 self.clear_cache()
 
