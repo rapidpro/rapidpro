@@ -30,7 +30,6 @@ class ReadSerializer(serializers.ModelSerializer):
 class BroadcastReadSerializer(ReadSerializer):
     STATUSES = {s[0]: s[2] for s in STATUS_CONFIG}
 
-    id = serializers.ReadOnlyField()
     urns = serializers.SerializerMethodField()
     contacts = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
@@ -109,8 +108,6 @@ class ContactReadSerializer(ReadSerializer):
 class ContactFieldReadSerializer(ReadSerializer):
     VALUE_TYPES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
 
-    key = serializers.ReadOnlyField()
-    label = serializers.ReadOnlyField()
     value_type = serializers.SerializerMethodField()
 
     def get_value_type(self, obj):
@@ -122,10 +119,6 @@ class ContactFieldReadSerializer(ReadSerializer):
 
 
 class ContactGroupReadSerializer(ReadSerializer):
-    uuid = serializers.ReadOnlyField()
-    name = serializers.ReadOnlyField()
-    count = serializers.ReadOnlyField()
-
     class Meta:
         model = ContactGroup
         fields = ('uuid', 'name', 'count')
@@ -176,8 +169,6 @@ class FlowRunReadSerializer(ReadSerializer):
 
 
 class LabelReadSerializer(ReadSerializer):
-    uuid = serializers.ReadOnlyField()
-    name = serializers.ReadOnlyField()
     count = serializers.SerializerMethodField()
 
     def get_count(self, obj):
