@@ -8,9 +8,9 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactField
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN
 from temba.flows.models import Flow
-from temba.msgs.models import Label
+from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
@@ -174,6 +174,49 @@ class APITest(TembaTest):
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "Log in to use the Explorer")
+
+    def test_broadcasts(self):
+        url = reverse('api.v2.broadcasts')
+
+        self.assertEndpointAccess(url)
+
+        reporters = self.create_group("Reporters", [self.joe, self.frank])
+
+        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", [self.frank.get_urn('twitter')])
+        bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", [self.joe])
+        bcast3 = Broadcast.create(self.org, self.admin, "Hello 3", [self.frank], status='S')
+        bcast4 = Broadcast.create(self.org, self.admin, "Hello 4",
+                                  [self.frank.get_urn('twitter'), self.joe, reporters], status='F')
+        Broadcast.create(self.org2, self.admin2, "Different org...", [self.hans])
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsById(response, [bcast4, bcast3, bcast2, bcast1])
+        self.assertEqual(response.json['results'][0], {
+            'id': bcast4.pk,
+            'urns': ["twitter:franky"],
+            'contacts': [{'uuid': self.joe.uuid, 'name': self.joe.name}],
+            'groups': [{'uuid': reporters.uuid, 'name': reporters.name}],
+            'text': "Hello 4",
+            'created_on': format_datetime(bcast4.created_on),
+            'status': "failed"
+        })
+
+        # filter by id
+        response = self.fetchJSON(url, 'id=%d' % bcast3.pk)
+        self.assertResultsById(response, [bcast3])
+
+        # filter by after
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(bcast3.created_on))
+        self.assertResultsById(response, [bcast4, bcast3])
+
+        # filter by before
+        response = self.fetchJSON(url, 'before=%s' % format_datetime(bcast2.created_on))
+        self.assertResultsById(response, [bcast2, bcast1])
 
     def test_contacts(self):
         url = reverse('api.v2.contacts')

@@ -3,8 +3,7 @@ from __future__ import absolute_import, unicode_literals
 from rest_framework import serializers
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
-from temba.msgs.models import Msg, Label, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED
-from temba.msgs.models import WIRED, SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
+from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING, QUEUED
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -27,6 +26,35 @@ class ReadSerializer(serializers.ModelSerializer):
 # ============================================================
 # Serializers (A-Z)
 # ============================================================
+
+class BroadcastReadSerializer(ReadSerializer):
+    STATUSES = {s[0]: s[2] for s in STATUS_CONFIG}
+
+    id = serializers.ReadOnlyField()
+    urns = serializers.SerializerMethodField()
+    contacts = serializers.SerializerMethodField()
+    groups = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    def get_urns(self, obj):
+        if obj.org.is_anon:
+            return []
+        else:
+            return [urn.urn for urn in obj.urns.all()]
+
+    def get_contacts(self, obj):
+        return [{'uuid': c.uuid, 'name': c.name} for c in obj.contacts.all()]
+
+    def get_groups(self, obj):
+        return [{'uuid': g.uuid, 'name': g.name} for g in obj.groups.all()]
+
+    def get_status(self, obj):
+        return self.STATUSES.get(obj.status)
+
+    class Meta:
+        model = Broadcast
+        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
+
 
 class ContactReadSerializer(ReadSerializer):
     name = serializers.SerializerMethodField()
@@ -161,6 +189,7 @@ class LabelReadSerializer(ReadSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
+    STATUSES = {s[0]: s[2] for s in STATUS_CONFIG}
     DIRECTIONS = {
         INCOMING: 'in',
         OUTGOING: 'out'
@@ -169,17 +198,6 @@ class MsgReadSerializer(ReadSerializer):
         INBOX: 'inbox',
         FLOW: 'flow',
         IVR: 'ivr'
-    }
-    STATUSES = {
-        INITIALIZING: "initializing",
-        QUEUED: "queued",
-        WIRED: "wired",
-        SENT: "sent",
-        DELIVERED: "delivered",
-        HANDLED: "handled",
-        ERRORED: "errored",
-        FAILED: "failed",
-        RESENT: "resent"
     }
 
     broadcast = serializers.SerializerMethodField()
