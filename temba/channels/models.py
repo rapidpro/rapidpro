@@ -1857,7 +1857,7 @@ class Channel(TembaModel):
         encoding, text = Channel.determine_encoding(text, replace=True)
 
         # if this looks like unicode, ask m3tech to send as unicode
-        if encoding == Encoding.UNICODE or encoding == Encoding.REPLACED:
+        if encoding == Encoding.UNICODE:
             unicode_switch = 1
         else:
             unicode_switch = 0
