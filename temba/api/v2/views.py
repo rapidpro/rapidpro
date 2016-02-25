@@ -289,6 +289,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     model = Contact
     serializer_class = ContactReadSerializer
     pagination_class = ModifiedOnCursorPagination
+    throttle_scope = 'v2.contacts'
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -591,6 +592,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = MsgReadSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ('contact', 'folder', 'label', 'broadcast')
+    throttle_scope = 'v2.messages'
 
     FOLDER_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
                       'flows': SystemLabel.TYPE_FLOWS,
@@ -799,6 +801,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = FlowRunReadSerializer
     pagination_class = ModifiedOnCursorPagination
     exclusive_params = ('contact', 'flow')
+    throttle_scope = 'v2.runs'
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
