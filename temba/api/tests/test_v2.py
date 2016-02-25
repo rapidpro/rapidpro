@@ -11,6 +11,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow
 from temba.msgs.models import Label
+from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
 from ..v2.serializers import format_datetime
@@ -439,6 +440,40 @@ class APITest(TembaTest):
             response = self.fetchJSON(url, query)
             self.assertResponseError(response, None,
                                      "You may only specify one of the contact, folder, label, broadcast parameters")
+
+    def test_org(self):
+        url = reverse('api.v2.org')
+
+        self.assertEndpointAccess(url)
+
+        # fetch as JSON
+        response = self.fetchJSON(url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.json, {
+            'name': "Temba",
+            'country': "RW",
+            'languages': [],
+            'primary_language': None,
+            'timezone': "Africa/Kigali",
+            'date_style': "day_first",
+            'anon': False
+        })
+
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        fre = Language.create(self.org, self.admin, "French", 'fre')
+        self.org.primary_language = eng
+        self.org.save()
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.json, {
+            'name': "Temba",
+            'country': "RW",
+            'languages': ["eng", "fre"],
+            'primary_language': "eng",
+            'timezone': "Africa/Kigali",
+            'date_style': "day_first",
+            'anon': False
+        })
 
     def test_runs(self):
         url = reverse('api.v2.runs')

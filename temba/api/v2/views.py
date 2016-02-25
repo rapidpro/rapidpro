@@ -2,7 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
-from rest_framework import generics, mixins, pagination
+from rest_framework import generics, mixins, pagination, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -589,6 +589,56 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'before', 'required': False, 'help': "Only return messages created before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return messages created after this date, ex: 2015-01-28T18:00:00.000"}
             ]
+        }
+
+
+class OrgEndpoint(BaseAPIView):
+    """
+    ## Viewing Current Organization
+
+    A **GET** returns the details of your organization. There are no parameters.
+
+    Example:
+
+        GET /api/v2/org.json
+
+    Response containing your organization:
+
+        {
+            "name": "Nyaruka",
+            "country": "RW",
+            "languages": ["eng", "fre"],
+            "primary_language": "eng",
+            "timezone": "Africa/Kigali",
+            "date_style": "day_first",
+            "anon": false
+        }
+    """
+    permission = 'orgs.org_api'
+
+    def get(self, request, *args, **kwargs):
+        org = request.user.get_org()
+
+        data = {
+            'name': org.name,
+            'country': org.get_country_code(),
+            'languages': [l.iso_code for l in org.languages.order_by('iso_code')],
+            'primary_language': org.primary_language.iso_code if org.primary_language else None,
+            'timezone': org.timezone,
+            'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
+            'anon': org.is_anon
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "View Current Org",
+            'url': reverse('api.v2.org'),
+            'slug': 'org-read',
+            'request': ""
         }
 
 
