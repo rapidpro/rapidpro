@@ -241,6 +241,7 @@ class APITest(TembaTest):
         group.update_contacts(self.user, [contact1], add=True)  # ordering
 
         contact1.refresh_from_db()
+        self.joe.refresh_from_db()
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
@@ -281,6 +282,14 @@ class APITest(TembaTest):
         # filter by invalid group
         response = self.fetchJSON(url, 'group=invalid')
         self.assertResultsByUUID(response, [])
+
+        # filter by before
+        response = self.fetchJSON(url, 'before=%s' % format_datetime(contact4.modified_on))
+        self.assertResultsByUUID(response, [contact4, self.frank])
+
+        # filter by after
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(self.joe.modified_on))
+        self.assertResultsByUUID(response, [contact1, self.joe])
 
     def test_fields(self):
         url = reverse('api.v2.fields')
@@ -476,6 +485,14 @@ class APITest(TembaTest):
         # filter by invalid label
         response = self.fetchJSON(url, 'label=invalid')
         self.assertResultsById(response, [])
+
+        # filter by before
+        response = self.fetchJSON(url, 'before=%s' % format_datetime(frank_msg1.created_on))
+        self.assertResultsById(response, [frank_msg1, joe_msg1])
+
+        # filter by after
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(frank_msg3.created_on))
+        self.assertResultsById(response, [joe_msg4, frank_msg3])
 
         # can't filter by more than one of contact, folder, label or broadcast together
         for query in ('contact=%s&label=Spam' % self.joe.uuid, 'label=Spam&folder=inbox',
