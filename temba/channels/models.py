@@ -1861,6 +1861,7 @@ class Channel(TembaModel):
                    'concat': 3,
                    'callback': 7,
                    'mo': 1,
+                   'unicode': 1,
                    'to': msg.urn_path.lstrip('+'),
                    'text': text}
         start = time.time()
