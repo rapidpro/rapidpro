@@ -3,8 +3,8 @@ from __future__ import absolute_import, unicode_literals
 from rest_framework import serializers
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
-from temba.msgs.models import Msg, Label, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED
-from temba.msgs.models import WIRED, SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
+from temba.msgs.models import Msg, Label, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED
+from temba.msgs.models import WIRED, SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT, ARCHIVED, DELETED, VISIBLE
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -181,6 +181,11 @@ class MsgReadSerializer(ReadSerializer):
         FAILED: "failed",
         RESENT: "resent"
     }
+    VISIBILITIES = {
+        VISIBLE: "visible",
+        ARCHIVED: "archived",
+        DELETED: "deleted"
+    }
 
     broadcast = serializers.SerializerMethodField()
     contact = serializers.SerializerMethodField()
@@ -190,6 +195,7 @@ class MsgReadSerializer(ReadSerializer):
     type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
+    visibility = serializers.SerializerMethodField()
     labels = serializers.SerializerMethodField()
 
     def get_broadcast(self, obj):
@@ -222,11 +228,14 @@ class MsgReadSerializer(ReadSerializer):
     def get_archived(self, obj):
         return obj.visibility == ARCHIVED
 
+    def get_visibility(self, obj):
+        return self.VISIBILITIES.get(obj.visibility)
+
     def get_labels(self, obj):
         return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
 
     class Meta:
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
-                  'direction', 'type', 'status', 'archived', 'text', 'labels',
+                  'direction', 'type', 'status', 'archived', 'visibility', 'text', 'labels',
                   'created_on', 'sent_on', 'modified_on')

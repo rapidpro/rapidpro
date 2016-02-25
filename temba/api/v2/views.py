@@ -75,6 +75,18 @@ class ModifiedOnCursorPagination(pagination.CursorPagination):
     ordering = '-modified_on'
 
 
+class MsgCursorPagination(pagination.CursorPagination):
+    """
+    Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
+    at all incoming messages.
+    """
+    def get_ordering(self, request, queryset, view=None):
+        # if this is our incoming folder, order by modified_on
+        if request.query_params.get('folder', '').lower() == 'incoming':
+            return ['-modified_on']
+        else:
+            return ['-created_on']
+
 class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
@@ -94,6 +106,7 @@ class ListAPIMixin(mixins.ListModelMixin):
     model = None
     model_manager = 'objects'
     exclusive_params = ()
+    required_params = ()
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -111,6 +124,11 @@ class ListAPIMixin(mixins.ListModelMixin):
         # check user hasn't provided values for more than one of any exclusive params
         if sum([(1 if params.get(p) else 0) for p in self.exclusive_params]) > 1:
             raise InvalidQueryError("You may only specify one of the %s parameters" % ", ".join(self.exclusive_params))
+
+        # check that any required params are included
+        if self.required_params:
+            if sum([(1 if params.get(p) else 0) for p in self.required_params]) != 1:
+                raise InvalidQueryError("You must specify one of the %s parameters" % ", ".join(self.required_params))
 
     def get_queryset(self):
         org = self.request.user.get_org()
@@ -452,7 +470,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
     ## Listing Messages
 
-    By making a ```GET``` request you can list all the messages for your organization, filtering them as needed. Each
+    By making a ```GET``` request you can list the messages for your organization, filtering them as needed. Each
     message has the following attributes:
 
      * **id** - the id of the message (int), filterable as `id`.
@@ -463,14 +481,18 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
      * **type** - the type of the message (one of "inbox", "flow", "ivr").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
-     * **archived** - whether this message is archived (boolean).
-     * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple messages.
+     * **visibility** - the visibility of the message (one of "visible", "archived" or "deleted")
+     * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple physical messages.
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
 
-    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox` or `sent`. Note that
-    you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
+    You can also filter by `folder` where folder is one of `inbox`, `flows`, `archived`, `outbox`, `incoming` or `sent`.
+    Note that you cannot filter by more than one of `contact`, `folder`, `label` or `broadcast` at the same time.
+
+    The sort order for all folders save for `incoming` is the message creation date. For the `incoming` folder (which
+    includes all incoming messages, regardless of visibility or type) messages are sorted by last modified date. This
+    allows clients to poll for updates to message labels and visibility changes.
 
     Example:
 
@@ -491,7 +513,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "direction": "out",
                 "type": "inbox",
                 "status": "wired",
-                "archived": false,
+                "visibility": "visible",
                 "text": "How are you?",
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
@@ -503,8 +525,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     permission = 'msgs.msg_api'
     model = Msg
     serializer_class = MsgReadSerializer
-    pagination_class = CreatedOnCursorPagination
+    pagination_class = MsgCursorPagination
     exclusive_params = ('contact', 'folder', 'label', 'broadcast')
+    required_params = ('contact', 'folder', 'label', 'broadcast', 'id')
 
     FOLDER_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
                       'flows': SystemLabel.TYPE_FLOWS,
@@ -520,6 +543,8 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             sys_label = self.FOLDER_FILTERS.get(folder.lower())
             if sys_label:
                 return SystemLabel.get_queryset(org, sys_label, exclude_test_contacts=False)
+            elif folder == 'incoming':
+                return self.model.all_messages.filter(org=org, direction='I')
             else:
                 return self.model.all_messages.filter(pk=-1)
         else:
@@ -570,7 +595,13 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('labels', queryset=Label.label_objects.only('uuid', 'name')),
         )
 
-        return self.filter_before_after(queryset, 'created_on')
+        # incoming folder gets sorted by 'modified_on'
+        if self.request.query_params.get('folder', '').lower() == 'incoming':
+            return self.filter_before_after(queryset, 'modified_on')
+
+        # everything else by 'created_on'
+        else:
+            return self.filter_before_after(queryset, 'created_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -579,12 +610,12 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Messages",
             'url': reverse('api.v2.messages'),
             'slug': 'msg-list',
-            'request': "after=2014-01-01T00:00:00.000",
+            'request': "folder=incoming&after=2014-01-01T00:00:00.000",
             'fields': [
                 {'name': 'id', 'required': False, 'help': "A message ID to filter by, ex: 123456"},
                 {'name': 'broadcast', 'required': False, 'help': "A broadcast ID to filter by, ex: 12345"},
                 {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
-                {'name': 'folder', 'required': False, 'help': "A folder name to filter by, one of: inbox, flows, archived, outbox, sent"},
+                {'name': 'folder', 'required': False, 'help': "A folder name to filter by, one of: inbox, flows, archived, outbox, sent, incoming"},
                 {'name': 'label', 'required': False, 'help': "A label name or UUID to filter by, ex: Spam"},
                 {'name': 'before', 'required': False, 'help': "Only return messages created before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return messages created after this date, ex: 2015-01-28T18:00:00.000"}

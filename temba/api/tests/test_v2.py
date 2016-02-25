@@ -61,23 +61,23 @@ class APITest(TembaTest):
         response.json = json.loads(response.content)
         return response
 
-    def assertEndpointAccess(self, url):
+    def assertEndpointAccess(self, url, query=None):
         # 403 if not authenticated but can read docs
-        response = self.fetchHTML(url)
+        response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
         # same for plain user
         self.login(self.user)
-        response = self.fetchHTML(url)
+        response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
         # 403 for JSON request too
-        response = self.fetchJSON(url)
+        response = self.fetchJSON(url, query)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
         # 200 for administrator
         self.login(self.admin)
-        response = self.fetchHTML(url)
+        response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 200)
 
     def assertResultsById(self, response, expected):
@@ -315,10 +315,36 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % feedback.uuid)
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
 
+    def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
+        self.assertEqual(msg_json,
+        {
+            'id': msg.pk,
+            'broadcast': msg.broadcast,
+            'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
+            'urn': msg.contact_urn.urn,
+            'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name },
+            'direction': "in" if msg.direction == 'I' else "out",
+            'type': msg_type,
+            'status': msg_status,
+            'archived': msg.visibility == 'A',
+            'visibility': msg_visibility,
+            'text': msg.text,
+            'labels': [dict(name=l.name, uuid=l.uuid) for l in msg.labels.all()],
+            'created_on': format_datetime(msg.created_on),
+            'sent_on': format_datetime(msg.sent_on),
+            'modified_on': format_datetime(msg.modified_on)
+        })
+
     def test_messages(self):
         url = reverse('api.v2.messages')
 
-        self.assertEndpointAccess(url)
+        # make sure user rights are correct
+        self.assertEndpointAccess(url, "folder=inbox")
+
+        # make sure you have to pass in something to filter by
+        response = self.fetchJSON(url)
+        self.assertResponseError(response, None,
+                                 "You must specify one of the contact, folder, label, broadcast, id parameters")
 
         # create some messages
         joe_msg1 = self.create_msg(direction='I', msg_type='F', text="Howdy", contact=self.joe)
@@ -333,7 +359,7 @@ class APITest(TembaTest):
                                    status='S', channel=None, sent_on=timezone.now())
 
         # add a deleted message
-        self.create_msg(direction='I', msg_type='I', text="!@$!%", contact=self.frank, visibility='D')
+        deleted_msg = self.create_msg(direction='I', msg_type='I', text="!@$!%", contact=self.frank, visibility='D')
 
         # add a test contact message
         self.create_msg(direction='I', msg_type='F', text="Hello", contact=self.test_contact)
@@ -341,53 +367,33 @@ class APITest(TembaTest):
         # add message in other org
         self.create_msg(direction='I', msg_type='I', text="Guten tag!", contact=self.hans, org=self.org2)
 
-        # label some of the messages
+        # label some of the messages, this will change our modified on as well for our `incoming` view
         label = Label.get_or_create(self.org, self.admin, "Spam")
-        label.toggle_label([frank_msg1, joe_msg3], add=True)
 
-        # no filtering
+        # we do this in two calls so that we can predict ordering later
+        label.toggle_label([frank_msg1], add=True)
+        label.toggle_label([joe_msg3], add=True)
+
+        frank_msg1.refresh_from_db(fields=['modified_on'])
+        joe_msg3.refresh_from_db(fields=['modified_on'])
+
+        # filter by inbox
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
-            response = self.fetchJSON(url)
+            response = self.fetchJSON(url, 'folder=INBOX')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertResultsById(response, [joe_msg4, frank_msg3, joe_msg3, frank_msg2, joe_msg2, frank_msg1, joe_msg1])
-        self.assertEqual(response.json['results'][0], {
-            'id': joe_msg4.pk,
-            'broadcast': None,
-            'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
-            'urn': None,
-            'channel': None,
-            'direction': "out",
-            'type': "flow",
-            'status': "sent",
-            'archived': False,
-            'text': "Surveys!",
-            'labels': [],
-            'created_on': format_datetime(joe_msg4.created_on),
-            'sent_on': format_datetime(joe_msg4.sent_on),
-            'modified_on': format_datetime(joe_msg4.modified_on)
-        })
-        self.assertEqual(response.json['results'][5], {
-            'id': frank_msg1.pk,
-            'broadcast': None,
-            'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
-            'urn': "twitter:franky",
-            'channel': {'uuid': self.twitter.uuid, 'name': "Twitter Channel"},
-            'direction': "in",
-            'type': "inbox",
-            'status': "queued",
-            'archived': False,
-            'text': "Bonjour",
-            'labels': [{'uuid': label.uuid, 'name': "Spam"}],
-            'created_on': format_datetime(frank_msg1.created_on),
-            'sent_on': None,
-            'modified_on': format_datetime(frank_msg1.modified_on)
-        })
+        self.assertResultsById(response, [frank_msg1])
+        self.assertMsgEqual(response.json['results'][0], frank_msg1, msg_type='inbox', msg_status='queued', msg_visibility='visible')
 
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):  # filter by folder (inbox)
-            response = self.fetchJSON(url, 'folder=INBOX')
-            self.assertResultsById(response, [frank_msg1])
+        # filter by incoming, should get deleted messages too
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+            response = self.fetchJSON(url, 'folder=incoming')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsById(response, [joe_msg3, frank_msg1, deleted_msg, frank_msg3, joe_msg1])
+        self.assertMsgEqual(response.json['results'][0], joe_msg3, msg_type='flow', msg_status='queued', msg_visibility='visible')
 
         # filter by folder (flow)
         response = self.fetchJSON(url, 'folder=flows')
