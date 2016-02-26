@@ -76,32 +76,26 @@ BULK_THRESHOLD = 50
 
 MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
-STATUS_CHOICES = (
-    # special state for flows that is used to hold off sending the message until the flow is ready to receive a response
-    (INITIALIZING, _("Initializing")),
+# status codes used for both messages and broadcasts (single char constant, human readable, API readable)
+STATUS_CONFIG = (
+    # special state for flows used to hold off sending the message until the flow is ready to receive a response
+    (INITIALIZING, _("Initializing"), 'initializing'),
 
-    # initial state for all messages
-    (PENDING, _("Pending")),
+    (PENDING, _("Pending"), 'pending'),        # initial state for all messages
 
     # valid only for outgoing messages
-    (QUEUED, _("Queued")),
-    (WIRED, _("Wired")),  # means the message was handed off to the provider and credits were deducted for it
-    (SENT, _("Sent")),  # means we have confirmation that a message was sent
-    (DELIVERED, _("Delivered")),
+    (QUEUED, _("Queued"), 'queued'),
+    (WIRED, _("Wired"), 'wired'),              # message was handed off to the provider and credits were deducted for it
+    (SENT, _("Sent"), 'sent'),                 # we have confirmation that a message was sent
+    (DELIVERED, _("Delivered"), 'delivered'),
 
     # valid only for incoming messages
-    (HANDLED, _("Handled")),
+    (HANDLED, _("Handled"), 'handled'),
 
-    # there was an error during delivery
-    (ERRORED, _("Error Sending")),
-
-    # we gave up on sending this message
-    (FAILED, _("Failed Sending")),
-
-    # we retried this message
-    (RESENT, _("Resent message")),
+    (ERRORED, _("Error Sending"), 'errored'),  # there was an error during delivery
+    (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
+    (RESENT, _("Resent message"), 'resent'),   # we retried this message
 )
-
 
 def get_message_handlers():
     """
@@ -159,6 +153,8 @@ class Broadcast(models.Model):
     as a ContactGroup or a list of Contacts. It's nothing more than a way to tie
     messages sent from the same bundle together
     """
+    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
+
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
 
@@ -521,10 +517,14 @@ class Msg(models.Model):
     Inbound messages are much simpler. They start as PENDING and the can be picked up by Triggers
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
+    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
-    VISIBILITY_CHOICES = ((VISIBLE, _("Visible")),
-                          (ARCHIVED, _("Archived")),
-                          (DELETED, _("Deleted")))
+    # single char flag, human readable name, API readable name
+    VISIBILITY_CONFIG = (((VISIBLE, _("Visible"), 'visible'),
+                          (ARCHIVED, _("Archived"), 'archived'),
+                          (DELETED, _("Deleted")), 'deleted'))
+
+    VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
 
     DIRECTION_CHOICES = ((INCOMING, _("Incoming")),
                          (OUTGOING, _("Outgoing")))
