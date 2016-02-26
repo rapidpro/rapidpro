@@ -316,8 +316,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
-        self.assertEqual(msg_json,
-        {
+        self.assertEqual(msg_json, {
             'id': msg.pk,
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
