@@ -1315,6 +1315,19 @@ class Msg(models.Model):
         self.visibility = ARCHIVED
         self.save(update_fields=('visibility',))
 
+    @classmethod
+    def archive_all_for_contacts(cls, contacts):
+        """
+        Archives all incoming messages for the given contacts
+        """
+        msgs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, contact__in=contacts)
+        msg_ids = list(msgs.values_list('pk', flat=True))
+
+        # update modified on in small batches to avoid long table lock, and having too many non-unique values for
+        # modified_on which is the primary ordering for the API
+        for batch in chunk_list(msg_ids, 100):
+            Msg.all_messages.filter(pk__in=batch).update(visibility=ARCHIVED, modified_on=timezone.now())
+
     def restore(self):
         """
         Restores (i.e. un-archives) this message
