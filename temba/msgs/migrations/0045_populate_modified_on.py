@@ -44,7 +44,7 @@ def populate_modified_on(manager):
     while start_id < max_id:
         # select our batch of msgs without a modified_on
         msgs = manager.filter(id__gt=start_id, id__lte=start_id+10000,
-                                       modified_on=None).only('id', 'created_on', 'queued_on', 'sent_on')
+                              modified_on=None).only('id', 'created_on', 'queued_on', 'sent_on')
 
         update_batch(manager, msgs)
         start_id += 10000

@@ -7,7 +7,6 @@ from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, ARCHIVED, IN
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
-
 def format_datetime(value):
     """
     Datetime fields are formatted with microsecond accuracy for v2
@@ -181,6 +180,7 @@ class LabelReadSerializer(ReadSerializer):
 
 class MsgReadSerializer(ReadSerializer):
     STATUSES = {s[0]: s[2] for s in STATUS_CONFIG}
+    VISIBILITIES = {s[0]: s[2] for s in Msg.VISIBILITY_CONFIG}
     DIRECTIONS = {
         INCOMING: 'in',
         OUTGOING: 'out'
@@ -199,6 +199,7 @@ class MsgReadSerializer(ReadSerializer):
     type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
+    visibility = serializers.SerializerMethodField()
     labels = serializers.SerializerMethodField()
 
     def get_broadcast(self, obj):
@@ -231,11 +232,14 @@ class MsgReadSerializer(ReadSerializer):
     def get_archived(self, obj):
         return obj.visibility == ARCHIVED
 
+    def get_visibility(self, obj):
+        return self.VISIBILITIES.get(obj.visibility)
+
     def get_labels(self, obj):
         return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
 
     class Meta:
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
-                  'direction', 'type', 'status', 'archived', 'text', 'labels',
+                  'direction', 'type', 'status', 'archived', 'visibility', 'text', 'labels',
                   'created_on', 'sent_on', 'modified_on')

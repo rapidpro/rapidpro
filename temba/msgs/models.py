@@ -76,7 +76,7 @@ BULK_THRESHOLD = 50
 
 MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
-# status codes used for both messages and broadcasts
+# status codes used for both messages and broadcasts (single char constant, human readable, API readable)
 STATUS_CONFIG = (
     # special state for flows used to hold off sending the message until the flow is ready to receive a response
     (INITIALIZING, _("Initializing"), 'initializing'),
@@ -96,7 +96,6 @@ STATUS_CONFIG = (
     (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
     (RESENT, _("Resent message"), 'resent'),   # we retried this message
 )
-
 
 def get_message_handlers():
     """
@@ -520,9 +519,12 @@ class Msg(models.Model):
     """
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
-    VISIBILITY_CHOICES = ((VISIBLE, _("Visible")),
-                          (ARCHIVED, _("Archived")),
-                          (DELETED, _("Deleted")))
+    # single char flag, human readable name, API readable name
+    VISIBILITY_CONFIG = ((VISIBLE, _("Visible"), 'visible'),
+                         (ARCHIVED, _("Archived"), 'archived'),
+                         (DELETED, _("Deleted"), 'deleted'))
+
+    VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
 
     DIRECTION_CHOICES = ((INCOMING, _("Incoming")),
                          (OUTGOING, _("Outgoing")))
@@ -637,11 +639,11 @@ class Msg(models.Model):
 
                 # update them to queued
                 send_messages = Msg.current_messages.filter(id__in=msg_ids)\
-                                           .exclude(channel__channel_type=ANDROID)\
-                                           .exclude(msg_type=IVR)\
-                                           .exclude(topup=None)\
-                                           .exclude(contact__is_test=True)
-                send_messages.update(status=QUEUED, queued_on=queued_on)
+                                                    .exclude(channel__channel_type=ANDROID)\
+                                                    .exclude(msg_type=IVR)\
+                                                    .exclude(topup=None)\
+                                                    .exclude(contact__is_test=True)
+                send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
                 for msg in msgs:
@@ -668,7 +670,8 @@ class Msg(models.Model):
 
         if msg.contact.is_blocked:
             msg.visibility = ARCHIVED
-            msg.save(update_fields=['visibility'])
+            msg.modified_on = timezone.now()
+            msg.save(update_fields=['visibility', 'modified_on'])
         else:
             for handler in handlers:
                 try:
@@ -732,7 +735,7 @@ class Msg(models.Model):
         failed_broadcasts = list(failed_messages.order_by('broadcast').values('broadcast').distinct())
 
         # fail our messages
-        failed_messages.update(status='F')
+        failed_messages.update(status='F', modified_on=timezone.now())
 
         # and update all related broadcast statuses
         for broadcast in Broadcast.objects.filter(id__in=[b['broadcast'] for b in failed_broadcasts]):
@@ -766,7 +769,7 @@ class Msg(models.Model):
             update_fields.append('msg_type')
 
         msg.status = HANDLED
-        msg.modified_on = timezone.now()  # current time as delivery date so we can track created->delivered latency
+        msg.modified_on = timezone.now()
 
         # make sure we don't overwrite any async message changes by only saving specific fields
         msg.save(update_fields=update_fields)
@@ -788,12 +791,14 @@ class Msg(models.Model):
                 analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
         else:
             msg.status = ERRORED
+            msg.modified_on = timezone.now()
             msg.next_attempt = timezone.now() + timedelta(minutes=5*msg.error_count)
 
             if isinstance(msg, Msg):
-                msg.save(update_fields=('status', 'next_attempt', 'error_count'))
+                msg.save(update_fields=('status', 'modified_on', 'next_attempt', 'error_count'))
             else:
-                Msg.all_messages.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
+                Msg.all_messages.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt,
+                                                          error_count=msg.error_count, modified_on=msg.modified_on)
 
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
             pipe = r.pipeline()
@@ -958,26 +963,28 @@ class Msg(models.Model):
         """
         Resends this message by creating a clone and triggering a send of that clone
         """
+        now = timezone.now()
         topup_id = self.org.decrement_credit()  # costs 1 credit to resend message
 
         # see if we should use a new channel
         channel = self.org.get_send_channel(contact_urn=self.contact_urn)
 
         cloned = Msg.all_messages.create(org=self.org,
-                                    channel=channel,
-                                    contact=self.contact,
-                                    contact_urn=self.contact_urn,
-                                    created_on=timezone.now(),
-                                    modified_on=timezone.now(),
-                                    text=self.text,
-                                    response_to=self.response_to,
-                                    direction=self.direction,
-                                    topup_id=topup_id,
-                                    status=PENDING,
-                                    broadcast=self.broadcast)
+                                         channel=channel,
+                                         contact=self.contact,
+                                         contact_urn=self.contact_urn,
+                                         created_on=now,
+                                         modified_on=now,
+                                         text=self.text,
+                                         response_to=self.response_to,
+                                         direction=self.direction,
+                                         topup_id=topup_id,
+                                         status=PENDING,
+                                         broadcast=self.broadcast)
 
         # mark ourselves as resent
         self.status = RESENT
+        self.modified_on = now
         self.topup = None
         self.save()
 
@@ -1279,7 +1286,8 @@ class Msg(models.Model):
         Fails this message, provided it is currently not failed
         """
         self.status = FAILED
-        self.save(update_fields=('status',))
+        self.modified_on = timezone.now()
+        self.save(update_fields=('status', 'modified_on'))
 
         Channel.track_status(self.channel, "Failed")
 
@@ -1287,9 +1295,11 @@ class Msg(models.Model):
         """
         Update the message status to SENT
         """
+        now = timezone.now()
         self.status = SENT
-        self.sent_on = timezone.now()
-        self.save(update_fields=('status', 'sent_on'))
+        self.sent_on = now
+        self.modified_on = now
+        self.save(update_fields=('status', 'sent_on', 'modified_on'))
 
         Channel.track_status(self.channel, "Sent")
 
@@ -1313,7 +1323,8 @@ class Msg(models.Model):
             raise ValueError("Can only archive incoming non-test messages")
 
         self.visibility = ARCHIVED
-        self.save(update_fields=('visibility',))
+        self.modified_on = timezone.now()
+        self.save(update_fields=('visibility', 'modified_on'))
 
     @classmethod
     def archive_all_for_contacts(cls, contacts):
@@ -1336,7 +1347,9 @@ class Msg(models.Model):
             raise ValueError("Can only restore incoming non-test messages")
 
         self.visibility = VISIBLE
-        self.save(update_fields=('visibility',))
+        self.modified_on = timezone.now()
+
+        self.save(update_fields=('visibility', 'modified_on'))
 
     def release(self):
         """
@@ -1344,7 +1357,9 @@ class Msg(models.Model):
         """
         self.visibility = DELETED
         self.text = ""
-        self.save(update_fields=('visibility', 'text'))
+        self.modified_on = timezone.now()
+
+        self.save(update_fields=('visibility', 'text', 'modified_on'))
 
         # remove labels
         self.labels.clear()
@@ -1360,6 +1375,9 @@ class Msg(models.Model):
         for msg in msgs:
             msg.archive()
             changed.append(msg.pk)
+
+        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
+
         return changed
 
     @classmethod
@@ -1369,6 +1387,9 @@ class Msg(models.Model):
         for msg in msgs:
             msg.restore()
             changed.append(msg.pk)
+
+        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
+
         return changed
 
     @classmethod
@@ -1378,6 +1399,9 @@ class Msg(models.Model):
         for msg in msgs:
             msg.release()
             changed.append(msg.pk)
+
+        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
+
         return changed
 
     @classmethod
@@ -1724,6 +1748,9 @@ class Label(TembaModel):
                 if msg.labels.filter(pk=self.pk):
                     msg.labels.remove(self)
                     changed.add(msg.pk)
+
+        # update modified on all our changed msgs
+        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
 
         return changed
 
