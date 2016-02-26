@@ -75,7 +75,12 @@ class IVRCall(SmartModel):
 
 
     @classmethod
-    def create_outgoing(cls, channel, contact, flow, user, call_type=FLOW):
+    def create_outgoing(cls, channel, contact_id, flow, user, call_type=FLOW):
+        contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
+
+        if not contact:
+            raise ValueError("Invalid contact, cannot initiate call")
+
         contact_urn = contact.get_urn(TEL_SCHEME)
         if not contact_urn:
             raise ValueError("Can't call contact with no tel URN")
@@ -117,27 +122,13 @@ class IVRCall(SmartModel):
                 print "Hanging up %s for %s" % (self.external_id, self.get_status_display())
                 client.calls.hangup(self.external_id)
 
-    def do_update_call(self, qs=None):
-        client = self.channel.get_ivr_client()
-        if client:
-            try:
-                url = "http://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.pk]))
-                if qs:
-                    url = "%s?%s" % (url, qs)
-                client.calls.update(self.external_id, url=url)
-            except Exception as e: # pragma: no cover
-                import traceback
-                traceback.print_exc()
-                self.status = FAILED
-                self.save()
-
     def do_start_call(self, qs=None):
         client = self.channel.get_ivr_client()
         from temba.ivr.clients import IVRException
         if client:
             try:
                 url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.pk]))
-                if qs:
+                if qs:  # pragma: no cover
                     url = "%s?%s" % (url, qs)
 
                 tel = None

@@ -10,7 +10,7 @@ from temba.msgs.models import SEND_MSG_TASK
 from temba.utils import dict_to_struct
 from temba.utils.queues import pop_task
 from temba.utils.mage import MageClient
-from .models import Channel, Alert, ChannelLog
+from .models import Channel, Alert, ChannelLog, ChannelCount
 
 
 class MageStreamAction(Enum):
@@ -43,7 +43,9 @@ def send_msg_task():
                          'queued_on', 'next_attempt'])
 
     # send it off
-    Channel.send_message(msg)
+    r = get_redis_connection()
+    with r.lock('send_msg_%d' % msg.id, timeout=300):
+        Channel.send_message(msg)
 
 
 @task(track_started=True, name='check_channels_task')
@@ -92,3 +94,12 @@ def notify_mage_task(channel_uuid, action):
         mage.deactivate_twitter_stream(channel_uuid)
     else:
         raise ValueError('Invalid action: %s' % action)
+
+@task(track_started=True, name="squash_channelcounts")
+def squash_channelcounts():
+    r = get_redis_connection()
+
+    key = 'squash_channelcounts'
+    if not r.get(key):
+        with r.lock(key, timeout=900):
+            ChannelCount.squash_counts()

@@ -87,7 +87,7 @@ class Campaign(SmartModel):
 
                 # fall back to lookups by name
                 if not group:
-                    group = ContactGroup.user_groups.filter(name=campaign_spec['group']['name'], org=org).first()
+                    group = ContactGroup.get_user_group(org, campaign_spec['group']['name'])
 
                 if not campaign:
                     campaign = Campaign.objects.filter(org=org, name=name).first()
@@ -113,7 +113,7 @@ class Campaign(SmartModel):
 
                 # fill our campaign with events
                 for event_spec in campaign_spec['events']:
-                    relative_to = ContactField.get_or_create(org,
+                    relative_to = ContactField.get_or_create(org, user,
                                                              key=event_spec['relative_to']['key'],
                                                              label=event_spec['relative_to']['label'])
 
@@ -126,7 +126,7 @@ class Campaign(SmartModel):
                                                                    event_spec['delivery_hour'])
                         event.update_flow_name()
                     else:
-                        flow = Flow.objects.filter(org=org, id=event_spec['flow']['id']).first()
+                        flow = Flow.objects.filter(org=org, is_active=True, id=event_spec['flow']['id']).first()
                         if flow:
                             CampaignEvent.create_flow_event(org, user, campaign, relative_to,
                                                             event_spec['offset'],
@@ -138,8 +138,8 @@ class Campaign(SmartModel):
                 EventFire.update_campaign_events(campaign)
 
     @classmethod
-    def apply_action_archive(cls, campaigns):
-        campaigns.update(is_archived=True)
+    def apply_action_archive(cls, user, campaigns):
+        campaigns.update(is_archived=True, modified_by=user, modified_on=timezone.now())
 
         # update the events for each campaign
         for campaign in campaigns:
@@ -148,8 +148,8 @@ class Campaign(SmartModel):
         return [each_campaign.pk for each_campaign in campaigns]
 
     @classmethod
-    def apply_action_restore(cls, campaigns):
-        campaigns.update(is_archived=False)
+    def apply_action_restore(cls, user, campaigns):
+        campaigns.update(is_archived=False, modified_by=user, modified_on=timezone.now())
 
         # update the events for each campaign
         for campaign in campaigns:
@@ -346,6 +346,17 @@ class CampaignEvent(SmartModel):
             pass
 
         return None
+
+    def release(self):
+        """
+        Removes this event.. also takes care of removing any event fires that were scheduled and unfired
+        """
+        # mark ourselves inactive
+        self.is_active = False
+        self.save()
+
+        # delete any pending event fires
+        EventFire.update_eventfires_for_event(self)
 
     def calculate_scheduled_fire(self, contact):
         date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)

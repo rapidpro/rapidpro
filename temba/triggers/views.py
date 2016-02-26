@@ -17,13 +17,13 @@ from temba.contacts.models import ContactGroup, URN_SCHEMES_SUPPORTING_FOLLOW
 from temba.contacts.fields import OmniboxField
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
-from temba.msgs.views import BaseActionForm
 from temba.schedules.models import Schedule, repeat_choices
 from temba.schedules.views import BaseScheduleForm
 from temba.channels.models import Channel, RECEIVE, ANSWER
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
 from temba.utils import analytics
+from temba.utils.views import BaseActionForm
 from .models import Trigger
 
 
@@ -66,7 +66,7 @@ class DefaultTriggerForm(BaseTriggerForm):
     Default trigger form which only allows selection of a non-message based flow
     """
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(DefaultTriggerForm, self).__init__(user, flows,  *args, **kwargs)
 
 
@@ -111,7 +111,7 @@ class CatchAllTriggerForm(GroupBasedTriggerForm):
     For for catchall triggers
     """
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(CatchAllTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
@@ -137,7 +137,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
                               help_text=_("The first word of the message text"))
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(KeywordTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
@@ -173,10 +173,8 @@ class RegisterTriggerForm(BaseTriggerForm):
                 value = value[7:]
 
                 # we must get groups for this org only
-                groups = ContactGroup.user_groups.filter(name=value, org=self.user.get_org())
-                if groups:
-                    group = groups[0]
-                else:
+                group = ContactGroup.get_user_group(self.user.get_org(), value)
+                if not group:
                     group = ContactGroup.create(self.user.get_org(), self.user, name=value)
                 return group
 
@@ -192,7 +190,7 @@ class RegisterTriggerForm(BaseTriggerForm):
                                help_text=_("The message to send in response after they join the group (optional)"))
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
 
         super(RegisterTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
@@ -218,7 +216,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         super(ScheduleTriggerForm, self).__init__(*args, **kwargs)
         self.user = user
         self.fields['omnibox'].set_user(user)
-        self.fields['flow'].queryset = Flow.objects.filter(is_archived=False, org=self.user.get_org()).exclude(flow_type=Flow.MESSAGE)
+        self.fields['flow'].queryset = Flow.objects.filter(org=self.user.get_org(), is_active=True, is_archived=False).exclude(flow_type=Flow.MESSAGE)
 
     def clean(self):
         data = super(ScheduleTriggerForm, self).clean()
@@ -236,7 +234,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
 class InboundCallTriggerForm(GroupBasedTriggerForm):
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type=Flow.VOICE)
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type=Flow.VOICE)
         super(InboundCallTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
@@ -252,7 +250,7 @@ class FollowTriggerForm(BaseTriggerForm):
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(is_archived=False, org=user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
         super(FollowTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
@@ -263,12 +261,11 @@ class FollowTriggerForm(BaseTriggerForm):
 
 
 class TriggerActionForm(BaseActionForm):
-    ALLOWED_ACTIONS = (('archive', _("Archive Triggers")),
+    allowed_actions = (('archive', _("Archive Triggers")),
                        ('restore', _("Restore Triggers")))
 
-    OBJECT_CLASS = Trigger
-    OBJECT_CLASS_MANAGER = 'objects'
-    HAS_IS_ACTIVE = True
+    model = Trigger
+    has_is_active = True
 
     class Meta:
         fields = ('action', 'objects')
@@ -406,6 +403,7 @@ class TriggerCRUDL(SmartCRUDL):
                             days = form.cleaned_data['repeat_days']
                         schedule.repeat_days = days
                         schedule.repeat_hour_of_day = schedule.next_fire.hour
+                        schedule.repeat_minute_of_hour = schedule.next_fire.minute
                         schedule.repeat_day_of_month = schedule.next_fire.day
                     schedule.save()
 
@@ -581,6 +579,7 @@ class TriggerCRUDL(SmartCRUDL):
                         days = form.cleaned_data['repeat_days']
                     schedule.repeat_days = days
                     schedule.repeat_hour_of_day = schedule.next_fire.hour
+                    schedule.repeat_minute_of_hour = schedule.repeat_minute_of_hour
                     schedule.repeat_day_of_month = schedule.next_fire.day
                 schedule.save()
 

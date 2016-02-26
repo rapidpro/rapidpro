@@ -215,7 +215,7 @@ class TembaTest(SmartminTest):
 
         self.org2.initialize()
 
-    def create_contact(self, name=None, number=None, twitter=None, is_test=False):
+    def create_contact(self, name=None, number=None, twitter=None, urn=None, is_test=False, **kwargs):
         """
         Create a contact in the master test org
         """
@@ -224,11 +224,22 @@ class TembaTest(SmartminTest):
             urns.append((TEL_SCHEME, number))
         if twitter:
             urns.append((TWITTER_SCHEME, twitter))
+        if urn:
+            urns.append(urn)
 
         if not name and not urns:  # pragma: no cover
             raise ValueError("Need a name or URN to create a contact")
 
-        return Contact.get_or_create(self.org, self.user, name, urns=urns, is_test=is_test)
+        kwargs['name'] = name
+        kwargs['urns'] = urns
+        kwargs['is_test'] = is_test
+
+        if 'org' not in kwargs:
+            kwargs['org'] = self.org
+        if 'user' not in kwargs:
+            kwargs['user'] = self.user
+
+        return Contact.get_or_create(**kwargs)
 
     def create_group(self, name, contacts):
         group = ContactGroup.create(self.org, self.user, name)
@@ -250,8 +261,15 @@ class TembaTest(SmartminTest):
 
         return Msg.all_messages.create(**kwargs)
 
-    def create_flow(self, uuid_start=None):
-        flow = Flow.create(self.org, self.admin, "Color Flow")
+    def create_flow(self, uuid_start=None, **kwargs):
+        if 'org' not in kwargs:
+            kwargs['org'] = self.org
+        if 'user' not in kwargs:
+            kwargs['user'] = self.user
+        if 'name' not in kwargs:
+            kwargs['name'] = "Color Flow"
+
+        flow = Flow.create(**kwargs)
         flow.update(self.create_flow_definition(uuid_start))
         return Flow.objects.get(pk=flow.pk)
 

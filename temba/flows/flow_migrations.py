@@ -84,6 +84,9 @@ def migrate_to_version_6(json_flow):
     base_language = 'base'
 
     def convert_to_dict(d, key):
+        if key not in d:
+            raise ValueError("Missing '%s' in dict: %s" % (key, d))
+
         if not isinstance(d[key], dict):
             d[key] = {base_language: d[key]}
 
