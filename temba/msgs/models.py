@@ -520,9 +520,9 @@ class Msg(models.Model):
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
     # single char flag, human readable name, API readable name
-    VISIBILITY_CONFIG = (((VISIBLE, _("Visible"), 'visible'),
-                          (ARCHIVED, _("Archived"), 'archived'),
-                          (DELETED, _("Deleted")), 'deleted'))
+    VISIBILITY_CONFIG = ((VISIBLE, _("Visible"), 'visible'),
+                         (ARCHIVED, _("Archived"), 'archived'),
+                         (DELETED, _("Deleted"), 'deleted'))
 
     VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
 

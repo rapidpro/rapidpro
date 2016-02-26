@@ -491,13 +491,13 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'label=invalid')
         self.assertResultsById(response, [])
 
-        # filter by before
-        response = self.fetchJSON(url, 'before=%s' % format_datetime(frank_msg1.created_on))
-        self.assertResultsById(response, [frank_msg1, joe_msg1])
+        # filter by before (inclusive)
+        response = self.fetchJSON(url, 'folder=incoming&before=%s' % format_datetime(frank_msg1.modified_on))
+        self.assertResultsById(response, [frank_msg1, deleted_msg, frank_msg3, joe_msg1])
 
-        # filter by after
-        response = self.fetchJSON(url, 'after=%s' % format_datetime(frank_msg3.created_on))
-        self.assertResultsById(response, [joe_msg4, frank_msg3])
+        # filter by after (inclusive)
+        response = self.fetchJSON(url, 'folder=incoming&after=%s' % format_datetime(frank_msg1.modified_on))
+        self.assertResultsById(response, [joe_msg3, frank_msg1])
 
         # can't filter by more than one of contact, folder, label or broadcast together
         for query in ('contact=%s&label=Spam' % self.joe.uuid, 'label=Spam&folder=inbox',
