@@ -1369,7 +1369,11 @@ class FlowTest(TembaTest):
 
         #wrong admin level should return None if provided
         ward_tuple = HasWardTest('Kano', 'Ajingi').evaluate(run, sms, context, 'bichi')
+        js = dict(state='Kano', district='Ajingi', type='ward')
+        self.assertEquals(HasWardTest('Kano', 'Ajingi').as_json(), js)
         self.assertEquals(ward_tuple[1], None)
+
+        self.assertEquals(HasWardTest, Test.from_json(self.org, js).__class__)
 
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)
