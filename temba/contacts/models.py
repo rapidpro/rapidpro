@@ -1568,7 +1568,11 @@ class ContactGroup(TembaModel):
 
     @classmethod
     def get_or_create(cls, org, user, name, group_id=None):
-        existing = ContactGroup.user_groups.filter(org=org, id=group_id).first()
+        existing = None
+
+        if group_id is not None:
+            existing = ContactGroup.user_groups.filter(org=org, id=group_id).first()
+
         if not existing:
             existing = ContactGroup.get_user_group(org, name)
 
