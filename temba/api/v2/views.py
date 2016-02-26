@@ -2,7 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
-from rest_framework import generics, mixins, pagination
+from rest_framework import generics, mixins, pagination, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -11,11 +11,11 @@ from smartmin.views import SmartTemplateView
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
-from temba.msgs.models import Msg, Label, SystemLabel, DELETED
+from temba.msgs.models import Broadcast, Msg, Label, SystemLabel, DELETED
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
-from .serializers import ContactReadSerializer, ContactFieldReadSerializer, ContactGroupReadSerializer
-from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
+from .serializers import BroadcastReadSerializer, ContactReadSerializer, ContactFieldReadSerializer
+from .serializers import ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -29,21 +29,25 @@ def api(request, format=None):
 
     The following endpoints are provided:
 
+     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/groups](/api/v2/groups) - to list contact groups
      * [/api/v2/labels](/api/v2/labels) - to list message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
+     * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
 
     You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
     """
     return Response({
+        'broadcasts': reverse('api.v2.broadcasts', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
         'fields': reverse('api.v2.fields', request=request),
         'groups': reverse('api.v2.groups', request=request),
         'labels': reverse('api.v2.labels', request=request),
         'messages': reverse('api.v2.messages', request=request),
+        'org': reverse('api.v2.org', request=request),
         'runs': reverse('api.v2.runs', request=request),
     })
 
@@ -57,11 +61,13 @@ class ApiExplorerView(SmartTemplateView):
     def get_context_data(self, **kwargs):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
+            BroadcastEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_read_explorer(),
             LabelsEndpoint.get_read_explorer(),
             MessagesEndpoint.get_read_explorer(),
+            OrgEndpoint.get_read_explorer(),
             RunsEndpoint.get_read_explorer()
         ]
         return context
@@ -158,6 +164,86 @@ class ListAPIMixin(mixins.ListModelMixin):
 # Endpoints (A-Z)
 # ============================================================
 
+class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list message broadcasts on your account using the ```GET``` method.
+
+    ## Listing Broadcasts
+
+    Returns the message activity for your organization, listing the most recent messages first.
+
+     * **id** - the id of the broadcast (int), filterable as `id`.
+     * **urns** - the URNs that received the broadcast (array of strings)
+     * **contacts** - the contacts that received the broadcast (array of objects)
+     * **groups** - the groups that received the broadcast (array of objects)
+     * **text** - the message text (string)
+     * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
+     * **status** - the status of the broadcast (one of "initializing", "queued", "wired", "sent", "delivered", "errored", "failed", "resent").
+
+    Example:
+
+        GET /api/v2/broadcasts.json
+
+    Response is a list of recent broadcasts:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+                {
+                    "id": 123456,
+                    "urns": ["tel:+250788123123", "tel:+250788123124"],
+                    "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
+                    "groups": [],
+                    "text": "hello world",
+                    "created_on": "2013-03-02T17:28:12.123Z",
+                    "status": "queued"
+                },
+                ...
+    """
+    permission = 'msgs.broadcast_api'
+    model = Broadcast
+    serializer_class = BroadcastReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        org = self.request.user.get_org()
+
+        queryset = queryset.filter(is_active=True)
+
+        # filter by id (optional)
+        msg_id = params.get('id')
+        if msg_id:
+            queryset = queryset.filter(id=msg_id)
+
+        queryset = queryset.prefetch_related(
+            Prefetch('org', queryset=Org.objects.only('is_anon')),
+            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name')),
+            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name')),
+        )
+
+        if not org.is_anon:
+            queryset = queryset.prefetch_related(Prefetch('urns', queryset=ContactURN.objects.only('urn')))
+
+        return self.filter_before_after(queryset, 'created_on')
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List broadcasts",
+            'url': reverse('api.v2.broadcasts'),
+            'slug': 'broadcast-list',
+            'request': "",
+            'fields': [
+                {'name': 'id', 'required': False, 'help': "A broadcast ID to filter by, ex: 123456"},
+                {'name': 'before', 'required': False, 'help': "Only return broadcasts created before this date, ex: 2015-01-28T18:00:00.000"},
+                {'name': 'after', 'required': False, 'help': "Only return broadcasts created after this date, ex: 2015-01-28T18:00:00.000"}
+            ]
+        }
+
+
 class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     """
     ## Listing Contacts
@@ -203,6 +289,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     model = Contact
     serializer_class = ContactReadSerializer
     pagination_class = ModifiedOnCursorPagination
+    throttle_scope = 'v2.contacts'
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -505,6 +592,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = MsgReadSerializer
     pagination_class = CreatedOnCursorPagination
     exclusive_params = ('contact', 'folder', 'label', 'broadcast')
+    throttle_scope = 'v2.messages'
 
     FOLDER_FILTERS = {'inbox': SystemLabel.TYPE_INBOX,
                       'flows': SystemLabel.TYPE_FLOWS,
@@ -592,6 +680,56 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
+class OrgEndpoint(BaseAPIView):
+    """
+    ## Viewing Current Organization
+
+    A **GET** returns the details of your organization. There are no parameters.
+
+    Example:
+
+        GET /api/v2/org.json
+
+    Response containing your organization:
+
+        {
+            "name": "Nyaruka",
+            "country": "RW",
+            "languages": ["eng", "fre"],
+            "primary_language": "eng",
+            "timezone": "Africa/Kigali",
+            "date_style": "day_first",
+            "anon": false
+        }
+    """
+    permission = 'orgs.org_api'
+
+    def get(self, request, *args, **kwargs):
+        org = request.user.get_org()
+
+        data = {
+            'name': org.name,
+            'country': org.get_country_code(),
+            'languages': [l.iso_code for l in org.languages.order_by('iso_code')],
+            'primary_language': org.primary_language.iso_code if org.primary_language else None,
+            'timezone': org.timezone,
+            'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
+            'anon': org.is_anon
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "View Current Org",
+            'url': reverse('api.v2.org'),
+            'slug': 'org-read',
+            'request': ""
+        }
+
+
 class RunsEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to fetch flow runs. A run represents a single contact's path through a flow and is created
@@ -663,6 +801,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = FlowRunReadSerializer
     pagination_class = ModifiedOnCursorPagination
     exclusive_params = ('contact', 'flow')
+    throttle_scope = 'v2.runs'
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
