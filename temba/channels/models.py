@@ -813,12 +813,10 @@ class Channel(TembaModel):
         return last.network_type if last else None
 
     def get_unsent_messages(self):
-        # all message states that are incomplete
-        messages = self.msgs.filter(status__in=['P', 'Q'], purged=False)
-
-        # only outgoing messages on real contacts
-        messages = messages.filter(direction='O', contact__is_test=False)
-        return messages
+        # use our optimized index for our org outbox
+        from temba.msgs.models import Msg
+        return Msg.all_messages.filter(org=self.org.id, status__in=['P', 'Q'], direction='O',
+                                       visibility='V').filter(channel=self, contact__is_test=False)
 
     def is_new(self):
         # is this channel newer than an hour
