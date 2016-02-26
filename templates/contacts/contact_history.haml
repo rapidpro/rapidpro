@@ -2,14 +2,15 @@
 
 -for item in activity
 
+
   %tr.item{class:'msg_{{item.msg_type}} {% if item.created_on > recent_date%}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
 
     %td.icon
 
       -if item.media
-        if item.media|slice:'6:' == 'audio:'
+        -if item.media|slice:':6' == 'audio:'
           .recording{onClick:'playMessage("{{item.pk}}");'}
-            %audio{id:'message-{{item.pk}}', type:"audio/wav", src:'{{item.media_url}}'}
+            %audio{id:'message-{{item.pk}}', type:"audio/wav", src:'{{item.media|slice:"6:"}}'}
             .play
               .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
             .stop.hide
@@ -73,9 +74,12 @@
 
             .activity-body
               .text
-                -if media_type == 'A'
+                -if item.media and item.media|slice:':6' == 'audio:'
                   .left-recording
-                    Made a recording
+                    -if message.direction == 'O'
+                      -trans "Played a recording"
+                    -else
+                      -trans "Made a recording"
                 -else
                   {{message.text}}
 

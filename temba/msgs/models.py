@@ -906,7 +906,7 @@ class Msg(models.Model):
             return self.media.split(':', 1)[0]
 
     def is_media_type_audio(self):
-        return Msg.MEDIA_AUDIO == self.get_media_type
+        return Msg.MEDIA_AUDIO == self.get_media_type()
 
     def reply(self, text, user, trigger_send=False, message_context=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
