@@ -1696,7 +1696,8 @@ class ContactBulkActionEndpoint(BaseAPIView):
             remove - Remove the contacts from the given group
             block - Block the contacts
             unblock - Un-block the contacts
-            expire - force expiration of contacts' active flow runs
+            expire - Force expiration of contacts' active flow runs
+            archive - Archive all of the contacts' messages
             delete - Permanently delete the contacts
 
     * **group** - the name of a contact group (string, optional)
@@ -1738,7 +1739,7 @@ class ContactBulkActionEndpoint(BaseAPIView):
         spec['fields'] = [dict(name='contacts', required=True,
                                help="A JSON array of one or more strings, each a contact UUID."),
                           dict(name='action', required=True,
-                               help="One of the following strings: add, remove, block, unblock, expire, delete"),
+                               help="One of the following strings: add, remove, block, unblock, expire, archive, delete"),
                           dict(name='group', required=False,
                                help="The name of a contact group if the action is add or remove"),
                           dict(name='label_uuid', required=False,
