@@ -671,25 +671,13 @@ class Org(SmartModel):
         except Exception:
             return None
 
-    @classmethod
-    def repeat_text(cls, text, count, delimiter='__', prefix=None):
-        list = []
-        if prefix:
-            list.append(prefix)
-        while count:
-            list.append(text)
-            count -= 1
-
-        return delimiter.join(list)
-
     def generate_location_query(self, name, level, is_alias=False):
-
         if is_alias:
             query = dict(name__iexact=name, boundary__level=level)
-            query[self.repeat_text('parent', level, '__', 'boundary')] = self.country
+            query['__'.join(['boundary'] + ['parent'] * level)] = self.country
         else :
             query = dict(name__iexact=name, level=level)
-            query[self.repeat_text('parent', level, '__')] = self.country
+            query['__'.join(['parent'] * level)] = self.country
 
         return query
 
@@ -704,7 +692,7 @@ class Org(SmartModel):
         # not found by name, try looking up by alias
         if not boundary:
             if parent:
-               alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
+                alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
                                                      boundary__parent=parent)
             else:
                 query = self.generate_location_query(name, level, True)
@@ -723,26 +711,26 @@ class Org(SmartModel):
         # now look up the boundary by full name
         boundary = self.find_boundary_by_name(location_string, level, parent)
 
-        if len(boundary) == 0:
+        if not boundary:
             # try removing punctuation and try that
             bare_name = regex.sub(r"\W+", " ", location_string, flags=regex.UNICODE | regex.V0).strip()
             boundary = self.find_boundary_by_name(bare_name, level, parent)
 
         # if we didn't find it, tokenize it
-        if len(boundary) == 0:
+        if not boundary:
             words = regex.split(r"\W+", location_string.lower(), flags=regex.UNICODE | regex.V0)
             if len(words) > 1:
                 for word in words:
                     boundary = self.find_boundary_by_name(word, level, parent)
-                    if len(boundary) > 0:
+                    if not boundary:
                         break
 
-                if len(boundary) == 0:
+                if not boundary:
                     # still no boundary? try n-gram of 2
                     for i in range(0, len(words)-1):
                         bigram = " ".join(words[i:i+2])
                         boundary = self.find_boundary_by_name(bigram, level, parent)
-                        if len(boundary) > 0:
+                        if boundary:
                             break
 
         return boundary
