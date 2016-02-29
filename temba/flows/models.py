@@ -3589,6 +3589,15 @@ class FlowStep(models.Model):
             prev_step.next_uuid = node.uuid
             prev_step.save(update_fields=('left_on', 'next_uuid'))
 
+        def save_media(path, encoded):
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(media_data.decode('base64'))
+            temp.flush()
+
+            url = default_storage.save('media/%d/%d/runs/%d/%s/%s.jpg' %
+                                       (run.org.pk, run.flow.pk, run.pk, path, uuid4()), File(temp))
+            return "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
+
         # generate the messages for this step
         msgs = []
         if node.is_ruleset():
@@ -3596,9 +3605,25 @@ class FlowStep(models.Model):
             if node.is_pause():
                 # if a msg was sent to this ruleset, create it
                 if json_obj['rule']:
+
+                    media = None
+                    if 'media' in json_obj['rule']:
+                        (media_type, media_data) = json_obj['rule']['media'].split(':', 1)
+
+                        if media_type == Msg.MEDIA_GPS:
+                            media = json_obj['rule']['media']
+                            json_obj['rule']['text'] = media
+                            json_obj['rule']['value'] = media
+
+                        elif media_type == Msg.MEDIA_IMAGE:
+                            url = save_media('images', media_data)
+                            media = '%s:%s' % (media_type, url)
+                            json_obj['rule']['text'] = media
+                            json_obj['rule']['value'] = media
+
                     # if we received a message
                     incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
-                                                   msg_type=FLOW, status=HANDLED, date=arrived_on,
+                                                   media=media, msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:
                 incoming = Msg.current_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()

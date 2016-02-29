@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import base64
 import json
 import pytz
 import xml.etree.ElementTree as ET
 
 from datetime import datetime, timedelta
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from django.db import connection
@@ -550,6 +552,73 @@ class APITest(TembaTest):
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({flow.entry_uuid: 1}, {}))
+
+    def test_api_steps_media(self):
+        url = reverse('api.v1.steps')
+
+        # login as surveyor
+        self.login(self.surveyor)
+
+        flow = self.get_flow('media-survey')
+
+        rulesets = RuleSet.objects.filter(flow=flow).order_by('y')
+        ruleset_name = rulesets[0]
+        ruleset_location = rulesets[1]
+        ruleset_photo = rulesets[2]
+        ruleset_video = rulesets[3]
+
+        steve = None
+        with open("%s/test_media/steve.jpg" % settings.MEDIA_ROOT, "rb") as image_file:
+            steve = base64.b64encode(image_file.read())
+
+        data = dict(flow=flow.uuid,
+            revision=1,
+            contact=self.joe.uuid,
+            started='2015-08-25T11:09:29.088Z',
+            submitted_by=self.admin.username,
+            steps=[
+
+                # the contact name
+                dict(node=ruleset_name.uuid,
+                     arrived_on='2015-08-25T11:11:30.000Z',
+                     rule=dict(uuid=ruleset_name.get_rules()[0].uuid,
+                               value="Marshawn",
+                               category="All Responses",
+                               text="Marshawn")),
+
+                # location ruleset
+                dict(node=ruleset_location.uuid,
+                     arrived_on='2015-08-25T11:12:30.000Z',
+                     rule=dict(uuid=ruleset_location.get_rules()[0].uuid,
+                               category="All Responses",
+                               media="geo:47.7579804,-121.0821648")),
+
+                # a picture of steve in base64
+                dict(node=ruleset_photo.uuid,
+                     arrived_on='2015-08-25T11:13:30.000Z',
+                     rule=dict(uuid=ruleset_photo.get_rules()[0].uuid,
+                               category="All Responses",
+                               media="image:%s" % steve)),
+            ],
+            completed=False)
+
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
+            self.postJSON(url, data)
+
+        from temba.flows.models import FlowStep
+        run = FlowRun.objects.get(flow=flow)
+        self.assertEqual(3, FlowStep.objects.filter(run=run).count())
+
+        # check our gps coordinates showed up properly, sooouie.
+        step = FlowStep.objects.filter(step_uuid=ruleset_location.uuid).first()
+        msg = step.messages.all().first()
+        self.assertEqual('geo:47.7579804,-121.0821648', msg.text)
+        self.assertEqual('geo:47.7579804,-121.0821648', msg.media)
+
+        step = FlowStep.objects.filter(step_uuid=ruleset_photo.uuid).first()
+        msg = step.messages.all().first()
+        self.assertTrue(msg.media.startswith('image:http'))
+        self.assertTrue(msg.media.endswith('.jpg'))
 
     def test_api_steps(self):
         url = reverse('api.v1.steps')
