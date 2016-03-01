@@ -93,6 +93,7 @@ class MsgCursorPagination(pagination.CursorPagination):
         else:
             return ['-created_on']
 
+
 class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
@@ -662,8 +663,8 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
         else:
             # otherwise filter out test contact runs
-            test_contacts = Contact.objects.filter(org=org, is_test=True)
-            queryset = queryset.exclude(contact__in=test_contacts)
+            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list('pk', flat=True))
+            queryset = queryset.exclude(contact__pk__in=test_contact_ids)
 
         # filter by label name/uuid (optional)
         label_ref = params.get('label')
@@ -862,8 +863,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
         else:
             # otherwise filter out test contact runs
-            test_contacts = Contact.objects.filter(org=org, is_test=True)
-            queryset = queryset.exclude(contact__in=test_contacts)
+            test_contact_ids = list(Contact.objects.filter(org=org, is_test=True).values_list('pk', flat=True))
+            queryset = queryset.exclude(contact__pk__in=test_contact_ids)
 
         # limit to responded runs (optional)
         if str_to_bool(params.get('responded')):
