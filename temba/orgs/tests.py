@@ -29,6 +29,7 @@ from temba.triggers.models import Trigger
 from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
 from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
+from .models import WHITELISTED, SUSPENDED, RESTORED
 from .tasks import squash_topupcredits
 
 
@@ -353,10 +354,22 @@ class OrgTest(TembaTest):
         self.assertEquals(302, response.status_code)
 
         # restore
-        post_data['status'] = 'restored'
+        post_data['status'] = RESTORED
         response = self.client.post(update_url, post_data)
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_suspended())
+
+        # white list
+        post_data['status'] = WHITELISTED
+        response = self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_whitelisted())
+
+        # suspend
+        post_data['status'] = SUSPENDED
+        response = self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_suspended())
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):

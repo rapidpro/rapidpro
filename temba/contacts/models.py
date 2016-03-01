@@ -925,10 +925,8 @@ class Contact(TembaModel):
                     last_path = path
 
                     if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
+                        group_org.set_suspended()
                         break
-
-                if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
-                    group_org.set_suspended()
 
             except Exception:  # pragma: no-cover
                 # if we fail to parse phone numbers for any reason just punt

@@ -42,6 +42,7 @@ from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
+from .models import SUSPENDED, WHITELISTED, RESTORED
 
 
 def check_login(request):
@@ -840,11 +841,11 @@ class OrgCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             if 'status' in request.REQUEST:
-                if request.REQUEST.get('status', None) == 'suspended':
+                if request.REQUEST.get('status', None) == SUSPENDED:
                     self.get_object().set_suspended()
-                elif request.REQUEST.get('status', None) == 'whitelisted':
+                elif request.REQUEST.get('status', None) == WHITELISTED:
                     self.get_object().set_whitelisted()
-                elif request.REQUEST.get('status', None) == 'restored':
+                elif request.REQUEST.get('status', None) == RESTORED:
                     self.get_object().set_restored()
                 return HttpResponseRedirect(self.get_success_url())
             return super(OrgCRUDL.Update, self).post(request, *args, **kwargs)
