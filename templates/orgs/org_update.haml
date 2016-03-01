@@ -4,12 +4,10 @@
   %h1= org.name
 
 -block above-bar
-  %a.btn.btn-primary{ style:"float:right", href:"{% url 'orgs.topup_manage' %}?org={{ org.id }}" } TopUps
-
-  -if org.is_suspended
-    %a.btn.btn-secondary.posterize{ style:"margin-right:6px; float:right", href:"{% url 'orgs.org_update' org.id %}?status=restored" } Restore
-  -else
-    %a.btn.btn-secondary.posterize{ style:"margin-right:6px; float:right", href:"{% url 'orgs.org_update' org.id %}?status=suspended" } Suspend
+  .pull-right
+    -block buttons-right
+      -block gear-menu
+        -include "gear_links_include.haml"
 
 -block post-form
   -if perms.auth.org_clear_cache

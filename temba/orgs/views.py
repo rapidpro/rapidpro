@@ -806,12 +806,46 @@ class OrgCRUDL(SmartCRUDL):
                 fields = '__all__'
 
         form_class = OrgUpdateForm
-        success_url = '@orgs.org_manage'
+
+        def get_success_url(self):
+            return reverse('orgs.org_update', args=[self.get_object().pk])
+
+        def get_gear_links(self):
+            links = []
+
+            org = self.get_object()
+
+            links.append(dict(title=_('Topups'),
+                              style='btn-primary',
+                              href='%s?org=%d' % (reverse("orgs.topup_manage"), org.pk)))
+
+            if org.is_suspended():
+                links.append(dict(title=_('Restore'),
+                              style='btn-secondary',
+                              posterize=True,
+                              href='%s?status=restored' % reverse("orgs.org_update", args=[org.pk])))
+            else:
+                links.append(dict(title=_('Suspend'),
+                                  style='btn-secondary',
+                                  posterize=True,
+                                  href='%s?status=suspended' % reverse("orgs.org_update", args=[org.pk])))
+
+            if not org.is_whitelisted():
+                links.append(dict(title=_('Whitelist'),
+                                  style='btn-secondary',
+                                  posterize=True,
+                                  href='%s?status=whitelisted' % reverse("orgs.org_update", args=[org.pk])))
+
+            return links
 
         def post(self, request, *args, **kwargs):
             if 'status' in request.REQUEST:
-                suspended = request.REQUEST.get('status', None) == 'suspended'
-                self.get_object().set_suspended(suspended)
+                if request.REQUEST.get('status', None) == 'suspended':
+                    self.get_object().set_suspended()
+                elif request.REQUEST.get('status', None) == 'whitelisted':
+                    self.get_object().set_whitelisted()
+                elif request.REQUEST.get('status', None) == 'restored':
+                    self.get_object().set_restored()
                 return HttpResponseRedirect(self.get_success_url())
             return super(OrgCRUDL.Update, self).post(request, *args, **kwargs)
 

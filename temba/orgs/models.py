@@ -92,6 +92,7 @@ NEXMO_UUID = 'NEXMO_UUID'
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
 RESTORED = 'restored'
+WHITELISTED = 'whitelisted'
 
 ORG_LOW_CREDIT_THRESHOLD = 500
 
@@ -284,18 +285,27 @@ class Org(SmartModel):
         else:
             return 0
 
-    def set_suspended(self, suspended):
-        config = self.config_json()
-        if suspended:
-            config[ORG_STATUS] = SUSPENDED
-        else:
-            config[ORG_STATUS] = RESTORED
 
+    def set_status(self, status):
+        config = self.config_json()
+        config[ORG_STATUS] = status
         self.config = json.dumps(config)
         self.save(update_fields=['config'])
 
+    def set_suspended(self):
+        self.set_status(SUSPENDED)
+
+    def set_whitelisted(self):
+        self.set_status(WHITELISTED)
+
+    def set_restored(self):
+        self.set_status(RESTORED)
+
     def is_suspended(self):
         return self.config_json().get(ORG_STATUS, None) == SUSPENDED
+
+    def is_whitelisted(self):
+        return self.config_json().get(ORG_STATUS, None) == WHITELISTED
 
     @transaction.atomic
     def import_app(self, data, user, site=None):
