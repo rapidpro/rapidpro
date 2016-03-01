@@ -1556,7 +1556,7 @@ class ConsoleTest(TembaTest):
         self.create_secondary_org()
 
         # create a new console
-        self.console = MessageConsole(self.org)
+        self.console = MessageConsole(self.org, "tel:+250788123123")
 
         # a few test contacts
         self.john = self.create_contact("John Doe", "0788123123")
