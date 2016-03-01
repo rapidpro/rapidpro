@@ -1001,7 +1001,10 @@ REST_FRAMEWORK = {
         'temba.api.support.OrgRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'v2': '1200/hour'
+        'v2': '1200/hour',
+        'v2.contacts': '1200/hour',
+        'v2.messages': '1200/hour',
+        'v2.runs': '1200/hour'
     },
     'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (

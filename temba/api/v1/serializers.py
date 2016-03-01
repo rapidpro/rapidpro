@@ -559,6 +559,16 @@ class ContactWriteSerializer(WriteSerializer):
 
 
 class ContactBulkActionSerializer(WriteSerializer):
+    ADD = 'add'
+    REMOVE = 'remove'
+    BLOCK = 'block'
+    UNBLOCK = 'unblock'
+    EXPIRE = 'expire'
+    ARCHIVE = 'archive'
+    DELETE = 'delete'
+
+    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, EXPIRE, ARCHIVE, DELETE)
+
     contacts = StringArrayField(required=True)
     action = serializers.CharField(required=True)
     group = serializers.CharField(required=False)
@@ -580,7 +590,7 @@ class ContactBulkActionSerializer(WriteSerializer):
         return contacts
 
     def validate_action(self, value):
-        if value not in ('add', 'remove', 'block', 'unblock', 'expire', 'delete'):
+        if value not in self.ACTIONS:
             raise serializers.ValidationError("Invalid action name: %s" % value)
         return value
 
@@ -602,12 +612,12 @@ class ContactBulkActionSerializer(WriteSerializer):
         contacts = data['contacts']
         action = data['action']
 
-        if action in ('add', 'remove') and not self.group_obj:
+        if action in (self.ADD, self.REMOVE) and not self.group_obj:
             raise serializers.ValidationError("For action %s you should also specify group or group_uuid" % action)
-        elif action in ('block', 'unblock', 'expire', 'delete') and self.group_obj:
+        elif action in (self.BLOCK, self.UNBLOCK, self.EXPIRE, self.ARCHIVE, self.DELETE) and self.group_obj:
             raise serializers.ValidationError("For action %s you should not specify group or group_uuid" % action)
 
-        if action == 'add':
+        if action == self.ADD:
             # if adding to a group, check for blocked contacts
             blocked_uuids = {c.uuid for c in contacts if c.is_blocked}
             if blocked_uuids:
@@ -619,19 +629,21 @@ class ContactBulkActionSerializer(WriteSerializer):
         contacts = self.validated_data['contacts']
         action = self.validated_data['action']
 
-        if action == 'add':
+        if action == self.ADD:
             self.group_obj.update_contacts(self.user, contacts, add=True)
-        elif action == 'remove':
+        elif action == self.REMOVE:
             self.group_obj.update_contacts(self.user, contacts, add=False)
-        elif action == 'expire':
+        elif action == self.EXPIRE:
             FlowRun.expire_all_for_contacts(contacts)
+        elif action == self.ARCHIVE:
+            Msg.archive_all_for_contacts(contacts)
         else:
             for contact in contacts:
-                if action == 'block':
+                if action == self.BLOCK:
                     contact.block(self.user)
-                elif action == 'unblock':
+                elif action == self.UNBLOCK:
                     contact.unblock(self.user)
-                elif action == 'delete':
+                elif action == self.DELETE:
                     contact.release(self.user)
 
     class Meta:

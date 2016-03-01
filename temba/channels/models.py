@@ -813,12 +813,10 @@ class Channel(TembaModel):
         return last.network_type if last else None
 
     def get_unsent_messages(self):
-        # all message states that are incomplete
-        messages = self.msgs.filter(status__in=['P', 'Q'], purged=False)
-
-        # only outgoing messages on real contacts
-        messages = messages.filter(direction='O', contact__is_test=False)
-        return messages
+        # use our optimized index for our org outbox
+        from temba.msgs.models import Msg
+        return Msg.all_messages.filter(org=self.org.id, status__in=['P', 'Q'], direction='O',
+                                       visibility='V').filter(channel=self, contact__is_test=False)
 
     def is_new(self):
         # is this channel newer than an hour
@@ -1853,6 +1851,15 @@ class Channel(TembaModel):
         """
         from temba.msgs.models import Msg, WIRED
 
+        # determine our encoding
+        encoding, text = Channel.determine_encoding(text, replace=True)
+
+        # if this looks like unicode, ask clickatell to send as unicode
+        if encoding == Encoding.UNICODE:
+            unicode_switch = 1
+        else:
+            unicode_switch = 0
+
         url = 'https://api.clickatell.com/http/sendmsg'
         payload = {'api_id': channel.config[API_ID],
                    'user': channel.config[USERNAME],
@@ -1861,6 +1868,7 @@ class Channel(TembaModel):
                    'concat': 3,
                    'callback': 7,
                    'mo': 1,
+                   'unicode': unicode_switch,
                    'to': msg.urn_path.lstrip('+'),
                    'text': text}
         start = time.time()
