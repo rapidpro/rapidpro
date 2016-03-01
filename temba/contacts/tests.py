@@ -2454,6 +2454,11 @@ class ContactTest(TembaTest):
         org.refresh_from_db()
         self.assertTrue(org.is_suspended())
 
+        # now whitelist the account
+        self.org.set_whitelisted()
+        self.do_import(self.user, 'sample_contacts_sequential.xls')
+        org.refresh_from_db()
+        self.assertFalse(org.is_suspended())
 
     def test_import_methods(self):
         user = self.user
