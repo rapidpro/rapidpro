@@ -3589,13 +3589,16 @@ class FlowStep(models.Model):
             prev_step.next_uuid = node.uuid
             prev_step.save(update_fields=('left_on', 'next_uuid'))
 
-        def save_media(path, encoded):
+        def save_media(media_type, encoded):
+
             temp = NamedTemporaryFile(delete=True)
             temp.write(media_data.decode('base64'))
             temp.flush()
 
-            url = default_storage.save('media/%d/%d/runs/%d/%s/%s.jpg' %
-                                       (run.org.pk, run.flow.pk, run.pk, path, uuid4()), File(temp))
+            url = default_storage.save('media/%d/%d/runs/%d/%s/%s.%s' %
+                                       (run.org.pk, run.flow.pk, run.pk, media_type,
+                                        uuid4(), Msg.MEDIA_EXTS[media_type]), File(temp))
+
             return "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
 
         # generate the messages for this step
@@ -3610,13 +3613,15 @@ class FlowStep(models.Model):
                     if 'media' in json_obj['rule']:
                         (media_type, media_data) = json_obj['rule']['media'].split(':', 1)
 
+                        # special case gps, it's not a file
                         if media_type == Msg.MEDIA_GPS:
                             media = json_obj['rule']['media']
                             json_obj['rule']['text'] = media
                             json_obj['rule']['value'] = media
 
-                        elif media_type == Msg.MEDIA_IMAGE:
-                            url = save_media('images', media_data)
+                        # the other media types are base64 encoded files
+                        elif media_type in Msg.MEDIA_TYPES:
+                            url = save_media(media_type, media_data)
                             media = '%s:%s' % (media_type, url)
                             json_obj['rule']['text'] = media
                             json_obj['rule']['value'] = media

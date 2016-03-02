@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0045_populate_modified_on'),
+        ('msgs', '0046_auto_20160225_1809'),
     ]
 
     operations = [

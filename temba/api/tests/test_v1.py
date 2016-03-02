@@ -571,6 +571,11 @@ class APITest(TembaTest):
         with open("%s/test_media/steve.jpg" % settings.MEDIA_ROOT, "rb") as image_file:
             steve = base64.b64encode(image_file.read())
 
+        snow = None
+        with open("%s/test_media/snow.mp4" % settings.MEDIA_ROOT, "rb") as video_file:
+            snow = base64.b64encode(video_file.read())
+
+
         data = dict(flow=flow.uuid,
             revision=1,
             contact=self.joe.uuid,
@@ -599,6 +604,14 @@ class APITest(TembaTest):
                      rule=dict(uuid=ruleset_photo.get_rules()[0].uuid,
                                category="All Responses",
                                media="image:%s" % steve)),
+
+                # a video
+                dict(node=ruleset_video.uuid,
+                     arrived_on='2015-08-25T11:13:30.000Z',
+                     rule=dict(uuid=ruleset_video.get_rules()[0].uuid,
+                               category="All Responses",
+                               media="video:%s" % snow)),
+
             ],
             completed=False)
 
@@ -607,7 +620,7 @@ class APITest(TembaTest):
 
         from temba.flows.models import FlowStep
         run = FlowRun.objects.get(flow=flow)
-        self.assertEqual(3, FlowStep.objects.filter(run=run).count())
+        self.assertEqual(4, FlowStep.objects.filter(run=run).count())
 
         # check our gps coordinates showed up properly, sooouie.
         step = FlowStep.objects.filter(step_uuid=ruleset_location.uuid).first()
@@ -619,6 +632,11 @@ class APITest(TembaTest):
         msg = step.messages.all().first()
         self.assertTrue(msg.media.startswith('image:http'))
         self.assertTrue(msg.media.endswith('.jpg'))
+
+        step = FlowStep.objects.filter(step_uuid=ruleset_video.uuid).first()
+        msg = step.messages.all().first()
+        self.assertTrue(msg.media.startswith('video:http'))
+        self.assertTrue(msg.media.endswith('.mp4'))
 
     def test_api_steps(self):
         url = reverse('api.v1.steps')
