@@ -1426,6 +1426,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         id: field.id
         text: field.text
 
+      Flow.updateContactSearch.push
+        id: field.id
+        text: field.text
+
 
     $scope.action.type = 'save'
     $scope.action.field = field.id
