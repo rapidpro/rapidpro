@@ -1,16 +1,16 @@
 from __future__ import unicode_literals
 
-from datetime import timedelta
-from mock import patch
 import json
+
+from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+from mock import patch
 from temba.contacts.models import ContactField
 from temba.flows.models import RuleSet
 from temba.orgs.models import Language
 from temba.tests import FlowFileTest
-from temba.values.models import Value, STATE, DISTRICT, DECIMAL, TEXT, DATETIME
-
+from .models import Value
 
 class ResultTest(FlowFileTest):
 
@@ -25,7 +25,7 @@ class ResultTest(FlowFileTest):
                             self.create_contact("Contact4", '0788444444'))
 
         # create a gender field that uses strings
-        gender = ContactField.get_or_create(self.org, 'gender', label="Gender", value_type=TEXT)
+        gender = ContactField.get_or_create(self.org, self.admin, 'gender', label="Gender", value_type=Value.TYPE_TEXT)
 
         c1.set_field(self.user, 'gender', "Male")
         c2.set_field(self.user, 'gender', "Female")
@@ -40,7 +40,7 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 1, "Male", 1)
 
         # create an born field that uses decimals
-        born = ContactField.get_or_create(self.org, 'born', label="Born", value_type=DECIMAL)
+        born = ContactField.get_or_create(self.org, self.admin, 'born', label="Born", value_type=Value.TYPE_DECIMAL)
         c1.set_field(self.user, 'born', 1977)
         c2.set_field(self.user, 'born', 1990)
         c3.set_field(self.user, 'born', 1977)
@@ -54,7 +54,7 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 1, "1990", 1)
 
         # ok, state field!
-        state = ContactField.get_or_create(self.org, 'state', label="State", value_type=STATE)
+        state = ContactField.get_or_create(self.org, self.admin, 'state', label="State", value_type=Value.TYPE_STATE)
         c1.set_field(self.user, 'state', "Kigali City")
         c2.set_field(self.user, 'state', "Kigali City")
 
@@ -64,7 +64,7 @@ class ResultTest(FlowFileTest):
         self.assertEquals(3, result['unset'])
         self.assertResult(result, 0, "1708283", 2)
 
-        reg_date = ContactField.get_or_create(self.org, 'reg_date', label="Registration Date", value_type=DATETIME)
+        reg_date = ContactField.get_or_create(self.org, self.admin, 'reg_date', label="Registration Date", value_type=Value.TYPE_DATETIME)
         now = timezone.now()
 
         c1.set_field(self.user, 'reg_date', now.replace(hour=9))
@@ -112,8 +112,8 @@ class ResultTest(FlowFileTest):
 
         # create a state field:
         # assign c1 and c2 to Kigali
-        state = ContactField.get_or_create(self.org, 'state', label="State", value_type=STATE)
-        district = ContactField.get_or_create(self.org, 'district', label="District", value_type=DISTRICT)
+        state = ContactField.get_or_create(self.org, self.admin, 'state', label="State", value_type=Value.TYPE_STATE)
+        district = ContactField.get_or_create(self.org, self.admin, 'district', label="District", value_type=Value.TYPE_DISTRICT)
         self.c1.set_field(self.user, 'state', "Kigali City")
         self.c1.set_field(self.user, 'district', "Kigali")
         self.c2.set_field(self.user, 'state', "Kigali City")

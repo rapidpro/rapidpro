@@ -28,7 +28,9 @@ from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestVa
 from temba.triggers.models import Trigger
 from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
-from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS
+from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
+from .models import WHITELISTED, SUSPENDED, RESTORED
+from .tasks import squash_topupcredits
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -52,6 +54,27 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class OrgTest(TembaTest):
+
+    def test_get_org_users(self):
+        org_users = self.org.get_org_users()
+        self.assertTrue(self.user in org_users)
+        self.assertTrue(self.surveyor in org_users)
+        self.assertTrue(self.editor in org_users)
+        self.assertTrue(self.admin in org_users)
+
+        # should be ordered by email
+        self.assertEqual(self.admin, org_users[0])
+        self.assertEqual(self.editor, org_users[1])
+        self.assertEqual(self.surveyor, org_users[2])
+        self.assertEqual(self.user, org_users[3])
+
+    def test_get_unique_slug(self):
+        self.org.slug = 'allo'
+        self.org.save()
+
+        self.assertEqual(Org.get_unique_slug('foo'), 'foo')
+        self.assertEqual(Org.get_unique_slug('Which part?'), 'which-part')
+        self.assertEqual(Org.get_unique_slug('Allo'), 'allo-2')
 
     def test_edit(self):
         # use a manager now
@@ -199,6 +222,60 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse('orgs.usersettings_phone'), post_data)
         self.assertEquals(response.context['form'].errors['tel'][0], 'Invalid phone number, try again.')
 
+    def test_org_suspension(self):
+        from temba.flows.models import FlowRun
+
+        self.login(self.admin)
+        self.org.set_suspended()
+        self.org.refresh_from_db()
+
+        self.assertEqual(True, self.org.is_suspended())
+
+        self.assertEqual(0, Msg.all_messages.all().count())
+        self.assertEqual(0, FlowRun.objects.all().count())
+
+        # while we are suspended, we can't send broadcasts
+        send_url = reverse('msgs.broadcast_send')
+        mark = self.create_contact('Mark', number='+12065551212')
+        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%d" % mark.pk)
+        response = self.client.post(send_url, post_data, follow=True)
+
+        self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
+                          response.context['form'].errors['__all__'][0])
+
+        # we also can't start flows
+        flow = self.create_flow()
+        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
+
+        self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
+                          response.context['form'].errors['__all__'][0])
+
+        # or use the api to do either
+        def postAPI(url, data):
+            response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+            if response.content:
+                response.json = json.loads(response.content)
+            return response
+
+        url = reverse('api.v1.broadcasts')
+        response = postAPI(url, dict(contacts=[mark.uuid], text="You are adistant cousin to a wealthy person."))
+        self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
+
+        url = reverse('api.v1.runs')
+        response = postAPI(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
+        self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
+
+        # still no messages or runs
+        self.assertEqual(0, Msg.all_messages.all().count())
+        self.assertEqual(0, FlowRun.objects.all().count())
+
+        # unsuspend our org and start a flow
+        self.org.set_restored()
+        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
+        self.assertEqual(1, FlowRun.objects.all().count())
+
     def test_webhook_headers(self):
         update_url = reverse('orgs.org_webhook')
         login_url = reverse('users.user_login')
@@ -253,6 +330,11 @@ class OrgTest(TembaTest):
 
         response = self.client.get(manage_url)
         self.assertEquals(200, response.status_code)
+        self.assertNotContains(response, "(Suspended)")
+
+        self.org.set_suspended()
+        response = self.client.get(manage_url)
+        self.assertContains(response, "(Suspended)")
 
         # should contain our test org
         self.assertContains(response, "Temba")
@@ -270,6 +352,24 @@ class OrgTest(TembaTest):
         # change to the trial plan
         response = self.client.post(update_url, post_data)
         self.assertEquals(302, response.status_code)
+
+        # restore
+        post_data['status'] = RESTORED
+        response = self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_suspended())
+
+        # white list
+        post_data['status'] = WHITELISTED
+        response = self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_whitelisted())
+
+        # suspend
+        post_data['status'] = SUSPENDED
+        response = self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_suspended())
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
@@ -355,6 +455,18 @@ class OrgTest(TembaTest):
         # now 2 new invitations are created and sent
         self.assertEquals(3, Invitation.objects.all().count())
         self.assertEquals(4, len(mail.outbox))
+
+        response = self.client.get(manage_accounts_url)
+
+        # user ordered by email
+        self.assertEqual(response.context['org_users'][0], self.admin)
+        self.assertEqual(response.context['org_users'][1], self.editor)
+        self.assertEqual(response.context['org_users'][2], self.user)
+
+        # invites ordered by email as well
+        self.assertEqual(response.context['invites'][0].email, 'code@temba.com')
+        self.assertEqual(response.context['invites'][1].email, 'norbert@temba.com')
+        self.assertEqual(response.context['invites'][2].email, 'norkans7@gmail.com')
 
         # Update our users, making the 'user' user a surveyor
         post_data = {
@@ -627,6 +739,15 @@ class OrgTest(TembaTest):
 
         self.assertEquals(10, welcome_topup.msgs.count())
         self.assertEquals(10, TopUp.objects.get(pk=welcome_topup.pk).get_used())
+
+        # at this point we shouldn't have squashed any topupcredits, so should have the same number as our used
+        self.assertEqual(10, TopUpCredits.objects.all().count())
+
+        # now squash
+        squash_topupcredits()
+
+        # should only have one remaining
+        self.assertEqual(1, TopUpCredits.objects.all().count())
 
         # reduce our credits on our topup to 15
         TopUp.objects.filter(pk=welcome_topup.pk).update(credits=15)

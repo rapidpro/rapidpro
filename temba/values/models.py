@@ -5,7 +5,6 @@ import time
 from collections import defaultdict
 from django.db import models, connection
 from django.db.models import Q
-from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from redis_cache import get_redis_connection
 from temba.locations.models import AdminBoundary
@@ -13,17 +12,6 @@ from temba.orgs.models import Org
 from temba.utils import format_decimal, get_dict_from_cursor, dict_to_json, json_to_dict
 from stop_words import safe_get_stop_words
 
-TEXT = 'T'
-DECIMAL = 'N'
-DATETIME = 'D'
-STATE = 'S'
-DISTRICT = 'I'
-
-VALUE_TYPE_CHOICES = ((TEXT, "Text"),
-                      (DECIMAL, "Numeric"),
-                      (DATETIME, "Date & Time"),
-                      (STATE, "State"),
-                      (DISTRICT, "District"))
 
 VALUE_SUMMARY_CACHE_KEY = 'value_summary'
 CONTACT_KEY = 'vsd::vsc%d'
@@ -35,11 +23,23 @@ VALUE_SUMMARY_CACHE_TIME = 60 * 60 * 24 * 30
 
 
 class Value(models.Model):
-
     """
     A Value is created to store the most recent result for a step in a flow. Value will store typed
     values of the raw text that was received during the flow.
     """
+    TYPE_TEXT = 'T'
+    TYPE_DECIMAL = 'N'
+    TYPE_DATETIME = 'D'
+    TYPE_STATE = 'S'
+    TYPE_DISTRICT = 'I'
+
+    TYPE_CONFIG = ((TYPE_TEXT, _("Text"), 'text'),
+                   (TYPE_DECIMAL, _("Numeric"), 'numeric'),
+                   (TYPE_DATETIME, _("Date & Time"), 'datetime'),
+                   (TYPE_STATE, _("State"), 'state'),
+                   (TYPE_DISTRICT, _("District"), 'district'))
+
+    TYPE_CHOICES = [(c[0], c[1]) for c in TYPE_CONFIG]
 
     contact = models.ForeignKey('contacts.Contact', related_name='values')
 
@@ -49,7 +49,7 @@ class Value(models.Model):
     ruleset = models.ForeignKey('flows.RuleSet', null=True, on_delete=models.SET_NULL,
                                 help_text="The RuleSet this value is for, if any")
 
-    run = models.ForeignKey('flows.FlowRun', null=True, on_delete=models.SET_NULL, related_name='values',
+    run = models.ForeignKey('flows.FlowRun', null=True, related_name='values', on_delete=models.SET_NULL,
                             help_text="The FlowRun this value is for, if any")
 
     rule_uuid = models.CharField(max_length=255, null=True, db_index=True,
@@ -248,23 +248,23 @@ class Value(models.Model):
         else:
             values = Value.objects.filter(contact_field=contact_field)
 
-            if contact_field.value_type == TEXT:
+            if contact_field.value_type == Value.TYPE_TEXT:
                 values = values.values('string_value', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'string_value',
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type == DECIMAL:
+            elif contact_field.value_type == Value.TYPE_DECIMAL:
                 values = values.values('decimal_value', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
                                                                               formatter=format_decimal,
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type == DATETIME:
+            elif contact_field.value_type == Value.TYPE_DATETIME:
                 values = values.extra({'date_value': "date_trunc('day', datetime_value)"}).values('date_value', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'date_value',
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type in [STATE, DISTRICT]:
+            elif contact_field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT]:
                 values = values.values('location_value__osm_id', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
                                                                               return_contacts=return_contacts)
@@ -442,7 +442,7 @@ class Value(models.Model):
                 field = ContactField.get_by_label(org, segment['location'])
 
                 # make sure they are segmenting on a location type that makes sense
-                if field.value_type not in [STATE, DISTRICT]:
+                if field.value_type not in [Value.TYPE_STATE, Value.TYPE_DISTRICT]:
                     raise ValueError(_("Cannot segment on location for field that is not a State or District type"))
 
                 # make sure our org has a country for location based responses
@@ -461,12 +461,12 @@ class Value(models.Model):
                 boundaries = list(AdminBoundary.objects.filter(parent=parent).order_by('name'))
 
                 # if the field is a district field, they need to specify the parent state
-                if not parent_osm_id and field.value_type == DISTRICT:
+                if not parent_osm_id and field.value_type == Value.TYPE_DISTRICT:
                     raise ValueError(_("You must specify a parent state to segment results by district"))
 
                 # if this is a district, we can speed things up by only including those districts in our parent, build
                 # the filter for that
-                if parent and field.value_type == DISTRICT:
+                if parent and field.value_type == Value.TYPE_DISTRICT:
                     location_filters = [filters, dict(location=field.pk, boundary=[b.osm_id for b in boundaries])]
                 else:
                     location_filters = filters

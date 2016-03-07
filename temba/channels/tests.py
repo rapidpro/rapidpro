@@ -26,9 +26,11 @@ from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
+
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME
+from temba.ivr.models import IVRCall, PENDING, RINGING
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Broadcast, Call, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
@@ -2816,6 +2818,42 @@ class ExternalTest(TembaTest):
         self.assertEquals(302, response.status_code)
 
 
+class VerboiceTest(TembaTest):
+    def setUp(self):
+        super(VerboiceTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'US', 'VB', None, '+250788123123',
+                                      config=dict(username='test', password='sesame'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_receive(self):
+        callback_url = reverse('handlers.verboice_handler', args=['status', self.channel.uuid])
+
+        response = self.client.post(callback_url, dict())
+        self.assertEqual(response.status_code, 405)
+
+        response = self.client.get(callback_url)
+        self.assertEqual(response.status_code, 400)
+
+        response = self.client.get(callback_url + "?From=250788456456&CallStatus=ringing&CallSid=12345")
+        self.assertEqual(response.status_code, 400)
+
+        contact = self.create_contact('Bruno Mars', '+252788123123')
+
+        call = IVRCall.create_outgoing(self.channel, contact.pk, None, self.admin)
+        call.external_id = "12345"
+        call.save()
+
+        self.assertEqual(call.status, PENDING)
+
+        response = self.client.get(callback_url + "?From=250788456456&CallStatus=ringing&CallSid=12345")
+
+        self.assertEqual(response.status_code, 200)
+        call = IVRCall.objects.get(pk=call.pk)
+        self.assertEqual(call.status, RINGING)
+
+
 class YoTest(TembaTest):
     def setUp(self):
         super(YoTest, self).setUp()
@@ -3022,11 +3060,31 @@ class M3TechTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
+                sms.text = "Test message"
                 mock.return_value = MockResponse(200,
                                                  """[{"Response":"0"}]""")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                self.assertEqual(mock.call_args[1]['params']['SMSType'], '0')
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                sms.text = "Test message ☺"
+                mock.return_value = MockResponse(200,
+                                                 """[{"Response":"0"}]""")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                self.assertEqual(mock.call_args[1]['params']['SMSType'], '7')
 
                 # check the status of the message is now sent
                 msg = bcast.get_messages()[0]
@@ -3456,6 +3514,29 @@ class VumiTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
         self.trey = self.create_contact("Trey Anastasio", "250788382382")
+
+    def test_receive(self):
+        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
+
+        response = self.client.get(callback_url)
+        self.assertEqual(response.status_code, 405)
+
+        response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        data = dict(timestamp="2014-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="Hello from Vumi")
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        sms = Msg.all_messages.get()
+        self.assertEquals(INCOMING, sms.direction)
+        self.assertEquals(self.org, sms.org)
+        self.assertEquals(self.channel, sms.channel)
+        self.assertEquals("Hello from Vumi", sms.text)
+        self.assertEquals('123456', sms.external_id)
 
     def test_delivery_reports(self):
 
@@ -4719,6 +4800,7 @@ class ClickatellTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
+                sms.text = "Test message"
                 mock.return_value = MockResponse(200, "000")
 
                 # manually send it off
@@ -4728,6 +4810,44 @@ class ClickatellTest(TembaTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
+                params = {'api_id': 'api1',
+                          'user': 'uname',
+                          'password': 'pword',
+                          'from': '250788123123',
+                          'concat': 3,
+                          'callback': 7,
+                          'mo': 1,
+                          'unicode': 0,
+                          'to': "250788383383",
+                          'text': "Test message"}
+                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
+                                        timeout=5)
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                sms.text = "Test message ☺"
+                mock.return_value = MockResponse(200, "000")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                params = {'api_id': 'api1',
+                          'user': 'uname',
+                          'password': 'pword',
+                          'from': '250788123123',
+                          'concat': 3,
+                          'callback': 7,
+                          'mo': 1,
+                          'unicode': 1,
+                          'to': "250788383383",
+                          'text': "Test message ☺"}
+                mock.assert_called_with('https://api.clickatell.com/http/sendmsg', params=params, headers=TEMBA_HEADERS,
+                                        timeout=5)
 
                 self.clear_cache()
 

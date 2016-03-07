@@ -1,7 +1,8 @@
-from .models import CreditAlert, Invitation, Org
+from .models import CreditAlert, Invitation, Org, TopUpCredits
 from djcelery_transactions import task
 from django.utils import timezone
 from datetime import timedelta
+from redis_cache import get_redis_connection
 import time
 
 
@@ -36,3 +37,14 @@ def calculate_credit_caches():
         start = time.time()
         org._calculate_credit_caches()
         print " -- recalculated credits for %s in %0.2f seconds" % (org.name, time.time() - start)
+
+
+@task(track_started=True, name="squash_topupcredits")
+def squash_topupcredits():
+    r = get_redis_connection()
+
+    key = 'squash_topupcredits'
+    if not r.get(key):
+        with r.lock(key, timeout=900):
+            TopUpCredits.squash_credits()
+

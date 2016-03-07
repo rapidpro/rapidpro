@@ -12,5 +12,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        InstallSQL('0001_msgs')
+        InstallSQL('0042_msgs')
     ]

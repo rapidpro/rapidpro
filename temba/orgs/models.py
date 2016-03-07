@@ -5,6 +5,7 @@ import json
 import logging
 import random
 import traceback
+import time
 from datetime import datetime, timedelta
 from decimal import Decimal
 from urlparse import urlparse
@@ -17,7 +18,7 @@ import regex
 import stripe
 from dateutil.relativedelta import relativedelta
 from django.core.urlresolvers import reverse
-from django.db import models, transaction
+from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
 from django.utils import timezone
 from django.conf import settings
@@ -87,6 +88,11 @@ ACCOUNT_TOKEN = 'ACCOUNT_TOKEN'
 NEXMO_KEY = 'NEXMO_KEY'
 NEXMO_SECRET = 'NEXMO_SECRET'
 NEXMO_UUID = 'NEXMO_UUID'
+
+ORG_STATUS = 'STATUS'
+SUSPENDED = 'suspended'
+RESTORED = 'restored'
+WHITELISTED = 'whitelisted'
 
 ORG_LOW_CREDIT_THRESHOLD = 500
 
@@ -278,6 +284,28 @@ class Org(SmartModel):
                             **active_topup_keys)
         else:
             return 0
+
+
+    def set_status(self, status):
+        config = self.config_json()
+        config[ORG_STATUS] = status
+        self.config = json.dumps(config)
+        self.save(update_fields=['config'])
+
+    def set_suspended(self):
+        self.set_status(SUSPENDED)
+
+    def set_whitelisted(self):
+        self.set_status(WHITELISTED)
+
+    def set_restored(self):
+        self.set_status(RESTORED)
+
+    def is_suspended(self):
+        return self.config_json().get(ORG_STATUS, None) == SUSPENDED
+
+    def is_whitelisted(self):
+        return self.config_json().get(ORG_STATUS, None) == WHITELISTED
 
     @transaction.atomic
     def import_app(self, data, user, site=None):
@@ -742,7 +770,7 @@ class Org(SmartModel):
 
     def get_org_users(self):
         org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers() | self.get_org_surveyors()
-        return org_users.distinct()
+        return org_users.distinct().order_by('email')
 
     def latest_admin(self):
         admin = self.get_org_admins().last()
@@ -1662,6 +1690,35 @@ class TopUpCredits(models.Model):
     topup = models.ForeignKey(TopUp,
                               help_text=_("The topup these credits are being used against"))
     used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
+
+    LAST_SQUASH_KEY = 'last_topupcredits_squash'
+
+    @classmethod
+    def squash_credits(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(TopUpCredits.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # get the unique flow ids for all new ones
+        start = time.time()
+        squash_count = 0
+        for credits in TopUpCredits.objects.filter(id__gt=last_squash).order_by('topup_id').distinct('topup_id'):
+            print "Squashing: %d" % credits.topup_id
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_topupcredits(%s);", (credits.topup_id,))
+
+            squash_count += 1
+
+        # insert our new top squashed id
+        max_id = TopUpCredits.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(TopUpCredits.LAST_SQUASH_KEY, max_id.id)
+
+        print "Squashed topupcredits for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
 
 class CreditAlert(SmartModel):

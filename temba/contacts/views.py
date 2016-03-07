@@ -1,7 +1,6 @@
 from __future__ import unicode_literals
 
 import json
-import pycountry
 import regex
 import pytz
 import time
@@ -24,13 +23,14 @@ from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES
+from temba.channels.models import RECEIVE
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, URN_SCHEME_CONFIG
 from temba.contacts.models import ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm
-from temba.values.models import VALUE_TYPE_CHOICES, TEXT, DISTRICT
+from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages
 from temba.utils.views import BaseActionForm
 from .omnibox import omnibox_query, omnibox_results_to_dict
@@ -433,7 +433,7 @@ class ContactCRUDL(SmartCRUDL):
                 if label_initial:
                     type_field_initial = label_initial.value_type
 
-                type_field = forms.ChoiceField(label=' ', choices=VALUE_TYPE_CHOICES, required=True, initial=type_field_initial)
+                type_field = forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, required=True, initial=type_field_initial)
                 type_field_name = 'column_%s_type' % header_key
 
                 fields = []
@@ -1088,7 +1088,7 @@ class ContactCRUDL(SmartCRUDL):
                     contact_field_type = contact_field.value_type
 
                     # district values are saved last to validate the states
-                    if contact_field_type == DISTRICT:
+                    if contact_field_type == Value.TYPE_DISTRICT:
                         fields_to_save_later[key] = value
                     else:
                         obj.set_field(self.request.user, key, value)
@@ -1266,12 +1266,22 @@ class ContactFieldCRUDL(SmartCRUDL):
             return qs
 
         def render_to_response(self, context, **response_kwargs):
+            org = self.request.user.get_org()
+
             results = []
             for obj in context['object_list']:
                 result = dict(id=obj.pk, key=obj.key, label=obj.label)
                 results.append(result)
 
             sorted_results = sorted(results, key=lambda k: k['label'].lower())
+
+            sorted_results.insert(0, dict(key='groups', label='Groups'))
+
+            for config in URN_SCHEME_CONFIG:
+                sorted_results.insert(0, dict(key=config[3], label=unicode(config[1])))
+
+            sorted_results.insert(0, dict(key='name', label='Full name'))
+
             return HttpResponse(json.dumps(sorted_results), content_type='application/javascript')
 
     class Managefields(ModalMixin, OrgPermsMixin, SmartFormView):
@@ -1308,14 +1318,14 @@ class ContactFieldCRUDL(SmartCRUDL):
             for contact_field in contact_fields:
                 form_field_label = _("@contact.%(key)s") % {'key' : contact_field.key }
                 added_fields.append(("show_%d" % i, forms.BooleanField(initial=contact_field.show_in_table, required=False)))
-                added_fields.append(("type_%d" % i, forms.ChoiceField(label=' ', choices=VALUE_TYPE_CHOICES, initial=contact_field.value_type, required=True)))
+                added_fields.append(("type_%d" % i, forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, initial=contact_field.value_type, required=True)))
                 added_fields.append(("label_%d" % i, forms.CharField(label=' ', max_length=36, help_text=form_field_label, initial=contact_field.label, required=False)))
                 added_fields.append(("field_%d" % i, forms.ModelChoiceField(contact_fields, widget=forms.HiddenInput(), initial=contact_field)))
                 i += 1
 
             # add a last field for the user to add one
             added_fields.append(("show_%d" % i, forms.BooleanField(label=_("show"), initial=False, required=False)))
-            added_fields.append(("type_%d" % i, forms.ChoiceField(choices=VALUE_TYPE_CHOICES, initial=TEXT, required=True)))
+            added_fields.append(("type_%d" % i, forms.ChoiceField(choices=Value.TYPE_CHOICES, initial=Value.TYPE_TEXT, required=True)))
             added_fields.append(("label_%d" % i, forms.CharField(max_length=36, required=False)))
             added_fields.append(("field_%d" % i, forms.CharField(widget=forms.HiddenInput(), initial="__new_field")))
 
@@ -1326,7 +1336,8 @@ class ContactFieldCRUDL(SmartCRUDL):
         def form_valid(self, form):
             try:
                 cleaned_data = form.cleaned_data
-                org = self.request.user.get_org()
+                user = self.request.user
+                org = user.get_org()
 
                 for key in cleaned_data:
                     if key.startswith('field_'):
@@ -1338,14 +1349,14 @@ class ContactFieldCRUDL(SmartCRUDL):
 
                         if field == '__new_field':
                             if label:
-                                analytics.track(self.request.user.username, 'temba.contactfield_created')
+                                analytics.track(user.username, 'temba.contactfield_created')
                                 key = ContactField.make_key(label)
-                                ContactField.get_or_create(org, key, label, show_in_table=show_in_table, value_type=value_type)
+                                ContactField.get_or_create(org, user, key, label, show_in_table=show_in_table, value_type=value_type)
                         else:
                             if label:
-                                ContactField.get_or_create(org, field.key, label, show_in_table=show_in_table, value_type=value_type)
+                                ContactField.get_or_create(org, user, field.key, label, show_in_table=show_in_table, value_type=value_type)
                             else:
-                                ContactField.hide_field(org, field.key)
+                                ContactField.hide_field(org, user, field.key)
 
                 if 'HTTP_X_PJAX' not in self.request.META:
                     return HttpResponseRedirect(self.get_success_url())

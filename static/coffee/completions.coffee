@@ -31,9 +31,6 @@ class window.AutoComplete
         highlighter: (li, query) -> return li
 
         matcher: (flag, subtext) ->
-          if ac.parser.isInStringLiteral(subtext)
-            return null
-
           return ac.parser.expressionContext(subtext)
 
         filter: (query, data, searchKey) ->
@@ -42,7 +39,7 @@ class window.AutoComplete
             data = ac.completions
 
           subQuery = ac.parseFilterQuery(query)
-          lastIdx = subQuery.lastIndexOf('.')
+          lastIdx = if subQuery then subQuery.lastIndexOf('.') else -1
           start = subQuery.substring(0, lastIdx)
           results = ac.findCompletions(subQuery, data, start, lastIdx)
 
@@ -159,6 +156,11 @@ class window.AutoComplete
   parseFilterQuery: (query) ->
     if not query
       return query
+
+    if query.match(/[(]*[^"]*["]/)
+      if @parser.isInStringLiteral(query)
+        return null;
+
     return @parser.autoCompleteContext(query) or ''
 
   parseQuery: (query) ->
@@ -178,7 +180,6 @@ class window.AutoComplete
     justFirstResult = false
 
     if query[0] == '#'
-      console.log(query)
       query = query.slice(1)
       justFirstResult = true
 
@@ -262,8 +263,8 @@ class window.AutoComplete
         content = $inputor.val()
         caretPos = $inputor.caret 'pos'
         subtext = content.slice(0, caretPos)
-        if subtext.slice(-2) is '@('
+        nextPart = content.slice(caretPos)
+        if subtext.slice(-2) is '@(' and (not nextPart or nextPart.slice(0,1) is not ')')
           text = subtext + ')' + content.slice(caretPos + 1)
           $inputor.val(text)
-
-        $inputor.caret('pos', caretPos)
+          $inputor.caret('pos', caretPos)

@@ -2,13 +2,14 @@ from __future__ import unicode_literals
 
 import ply.lex as lex
 import pytz
+
 from datetime import timedelta
 from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from ply import yacc
 from temba.utils import str_to_datetime
-from temba.values.models import TEXT, DECIMAL, DATETIME, STATE, DISTRICT
+from temba.values.models import Value
 
 # Originally based on this DSL for Django ORM: http://www.matthieuamiguet.ch/blog/my-djangocon-eu-slides-are-online
 # Changed to produce querysets rather than Q queries, as Q queries that reference different objects can't be properly
@@ -99,6 +100,7 @@ def contact_search_simple(org, query, base_queryset):
 
     return base_queryset.filter(q).distinct()
 
+
 def contact_search_complex(org, query, base_queryset):
     """
     Performs a complex query based search, e.g. 'name = "Bob" AND age > 18'
@@ -111,6 +113,7 @@ def contact_search_complex(org, query, base_queryset):
 
     # combining results from multiple joins can lead to duplicates
     return search_parser.parse(query, lexer=search_lexer).distinct()
+
 
 def generate_queryset(lexer, identifier, comparator, value):
     """
@@ -137,13 +140,13 @@ def generate_queryset(lexer, identifier, comparator, value):
         except ObjectDoesNotExist:
             raise SearchException("Unrecognized contact field identifier %s" % identifier)
 
-        if field.value_type == TEXT:
+        if field.value_type == Value.TYPE_TEXT:
             q = generate_text_field_comparison(field, comparator, value)
-        elif field.value_type == DECIMAL:
+        elif field.value_type == Value.TYPE_DECIMAL:
             q = generate_decimal_field_comparison(field, comparator, value)
-        elif field.value_type == DATETIME:
+        elif field.value_type == Value.TYPE_DATETIME:
             q = generate_datetime_field_comparison(field, comparator, value, lexer.org)
-        elif field.value_type == STATE or field.value_type == DISTRICT:
+        elif field.value_type == Value.TYPE_STATE or field.value_type == Value.TYPE_DISTRICT:
             q = generate_location_field_comparison(field, comparator, value)
         else:
             raise SearchException("Unrecognized contact field type '%s'" % field.value_type)

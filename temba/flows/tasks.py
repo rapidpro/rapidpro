@@ -64,8 +64,6 @@ def start_flow_task(id):
 
 @task(track_started=True, name='start_msg_flow_batch')
 def start_msg_flow_batch_task():
-    logger = start_msg_flow_batch_task.get_logger()
-
     # pop off the next task
     task = pop_task('start_msg_flow_batch')
 
@@ -74,7 +72,10 @@ def start_msg_flow_batch_task():
         return
 
     # instantiate all the objects we need that were serialized as JSON
-    flow = Flow.objects.get(pk=task['flow'])
+    flow = Flow.objects.filter(pk=task['flow'], is_active=True).first()
+    if not flow:
+        return
+
     broadcasts = [] if not task['broadcasts'] else Broadcast.objects.filter(pk__in=task['broadcasts'])
     started_flows = [] if not task['started_flows'] else task['started_flows']
     start_msg = None if not task['start_msg'] else Msg.all_messages.filter(pk=task['start_msg']).first()
@@ -88,7 +89,7 @@ def start_msg_flow_batch_task():
 
 @task(track_started=True, name="check_flow_stats_accuracy_task")
 def check_flow_stats_accuracy_task(flow_id):
-    logger = start_flow_task.get_logger()
+    logger = check_flow_stats_accuracy_task.get_logger()
 
     flow = Flow.objects.get(pk=flow_id)
 
@@ -114,7 +115,7 @@ def calculate_flow_stats_task(flow_id):
     runs_started = flow.runs.filter(contact__is_test=False).count()
 
     if runs_started != runs_started_cached:
-        logger = start_flow_task.get_logger()
+        logger = calculate_flow_stats_task.get_logger()
         Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
 
 @task(track_started=True, name="squash_flowruncounts")
@@ -125,3 +126,8 @@ def squash_flowruncounts():
     if not r.get(key):
         with r.lock(key, timeout=900):
             FlowRunCount.squash_counts()
+
+@task(track_started=True, name="delete_flow_results_task")
+def delete_flow_results_task(flow_id):
+    flow = Flow.objects.get(id=flow_id)
+    flow.delete_results()

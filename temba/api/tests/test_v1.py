@@ -24,7 +24,7 @@ from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED, VISI
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import datetime_to_json_date
-from temba.values.models import Value, DATETIME
+from temba.values.models import Value
 from ..models import APIToken
 from ..v1.serializers import StringDictField, StringArrayField, PhoneArrayField, ChannelField, DateTimeField
 
@@ -551,8 +551,6 @@ class APITest(TembaTest):
         # check flow activity
         self.assertEqual(flow.get_activity(), ({flow.entry_uuid: 1}, {}))
 
-
-
     def test_api_steps(self):
         url = reverse('api.v1.steps')
 
@@ -585,6 +583,7 @@ class APITest(TembaTest):
         data = dict(flow=flow.uuid,
                     revision=2,
                     contact=self.joe.uuid,
+                    submitted_by=self.admin.username,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
                         dict(node='00000000-00000000-00000000-00000001',
@@ -637,6 +636,7 @@ class APITest(TembaTest):
                     revision=2,
                     contact=self.joe.uuid,
                     started='2015-08-25T11:09:29.088Z',
+                    submitted_by=self.admin.username,
                     steps=[
                         dict(node='00000000-00000000-00000000-00000005',
                              arrived_on='2015-08-25T11:11:30.088Z',
@@ -662,6 +662,8 @@ class APITest(TembaTest):
 
         # run should be complete now
         run = FlowRun.objects.get()
+
+        self.assertEqual(run.submitted_by, self.admin)
         self.assertEqual(run.modified_on, datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC))
         self.assertEqual(run.is_active, False)
         self.assertEqual(run.is_completed(), True)
@@ -751,6 +753,7 @@ class APITest(TembaTest):
                     ],
                     completed=True)
 
+
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
 
             # this version doesn't have our node
@@ -770,6 +773,9 @@ class APITest(TembaTest):
             response = self.postJSON(url, data)
             self.assertEquals(201, response.status_code)
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
+
+            # submitted_by is optional
+            self.assertEqual(FlowRun.objects.filter(submitted_by=None).count(), 1)
 
             # test with old name
             del data['revision']
@@ -798,7 +804,7 @@ class APITest(TembaTest):
 
         # create our test flow and a contact field
         self.create_flow()
-        contact_field = ContactField.objects.create(key='gender', label="Gender", org=self.org)
+        contact_field = ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
         ruleset = RuleSet.objects.get()
 
         # invalid ruleset id
@@ -1426,7 +1432,7 @@ class APITest(TembaTest):
         self.assertIsNone(contact.get_field('real_name'))
 
         # create field and try again
-        ContactField.objects.create(org=self.org, key='real_name', label="Real Name", value_type='T')
+        ContactField.get_or_create(self.org, self.user, 'real_name', "Real Name", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         contact = Contact.objects.get()
         self.assertContains(response, "Andy", status_code=201)
@@ -1439,7 +1445,7 @@ class APITest(TembaTest):
         self.assertEquals("Andre", contact.get_field_display("real_name"))
 
         # try when contact field have same key and label
-        state = ContactField.objects.create(org=self.org, key='state', label="state", value_type='T')
+        state = ContactField.get_or_create(self.org, self.user, 'state', "state", value_type='T')
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "IL"}))
         self.assertContains(response, "IL", status_code=201)
         contact = Contact.objects.get()
@@ -1447,7 +1453,8 @@ class APITest(TembaTest):
         self.assertEquals("Andre", contact.get_field_display("real_name"))
 
         # try when contact field is not active
-        ContactField.objects.filter(org=self.org, key='state').update(is_active=False)
+        state.is_active = False
+        state.save()
         response = self.postJSON(url, dict(phone='+250788123456', fields={"state": "VA"}))
         self.assertContains(response, "Invalid", status_code=400)
         self.assertEquals("IL", Value.objects.get(contact=contact, contact_field=state).string_value)   # unchanged
@@ -1456,7 +1463,7 @@ class APITest(TembaTest):
 
         # add another contact
         jay_z = self.create_contact("Jay-Z", number="123444")
-        ContactField.get_or_create(self.org, 'registration_date', "Registration Date", None, DATETIME)
+        ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date", None, Value.TYPE_DATETIME)
         jay_z.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
 
         # try to update using URNs from two different contacts
@@ -1803,6 +1810,11 @@ class APITest(TembaTest):
         flow.start([], [contact1, contact2, contact3])
         runs = FlowRun.objects.filter(flow=flow)
 
+        self.create_msg(direction='I', contact=contact1, text="Hello")
+        self.create_msg(direction='I', contact=contact2, text="Hello")
+        self.create_msg(direction='I', contact=contact3, text="Hello")
+        self.create_msg(direction='I', contact=contact4, text="Hello")
+
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
         response = self.postJSON(url, dict(contacts=[unicode(x) for x in range(101)],
                                            action='add', group="Testers"))
@@ -1886,11 +1898,19 @@ class APITest(TembaTest):
         self.assertFalse(FlowRun.objects.filter(contact__in=[contact1, contact2], is_active=True).exists())
         self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True).exists())
 
+        # archive all messages for contacts 1 and 2
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='archive'))
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Msg.all_messages.filter(contact__in=[contact1, contact2], direction='I', visibility='V').exists())
+        self.assertTrue(Msg.all_messages.filter(contact=contact3, direction='I', visibility='V').exists())
+
         # delete contacts 1 and 2
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='delete'))
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact5})
         self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4, test_contact})
+        self.assertFalse(Msg.all_messages.filter(contact__in=[contact1, contact2]).exclude(visibility='D').exists())
+        self.assertTrue(Msg.all_messages.filter(contact=contact3).exclude(visibility='D').exists())
 
         # try to provide a group for a non-group action
         response = self.postJSON(url, dict(contacts=[contact3.uuid], action='block', group='Testers'))

@@ -432,6 +432,12 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     write_serializer_class = BroadcastCreateSerializer
     cache_counts = True
 
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if user.get_org().is_suspended():
+            return Response("Sorry, your account is currently suspended. To enable sending messages, please contact support.", status=status.HTTP_400_BAD_REQUEST)
+        return super(BroadcastEndpoint, self).post(request, *args, **kwargs)
+
     def get_queryset(self):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True).order_by('-created_on')
 
@@ -522,7 +528,6 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
       * **text** - the text of the message received, note this is the logical view, this message may have been received as multiple text messages (string)
       * **created_on** - the datetime when this message was either received by the channel or created (datetime) (filterable: ```before``` and ```after```)
       * **sent_on** - for outgoing messages, the datetime when the channel sent the message (null if not yet sent or an incoming message) (datetime)
-      * **delivered_on** - for outgoing messages, the datetime when the channel delivered the message (null if not yet sent or an incoming message) (datetime)
       * **flow** - the flow this message is associated with (only filterable as ```flow``` repeatable)
       * **status** - the status of this message, a string one of: (filterable: ```status``` repeatable)
 
@@ -1691,7 +1696,8 @@ class ContactBulkActionEndpoint(BaseAPIView):
             remove - Remove the contacts from the given group
             block - Block the contacts
             unblock - Un-block the contacts
-            expire - force expiration of contacts' active flow runs
+            expire - Force expiration of contacts' active flow runs
+            archive - Archive all of the contacts' messages
             delete - Permanently delete the contacts
 
     * **group** - the name of a contact group (string, optional)
@@ -1733,7 +1739,7 @@ class ContactBulkActionEndpoint(BaseAPIView):
         spec['fields'] = [dict(name='contacts', required=True,
                                help="A JSON array of one or more strings, each a contact UUID."),
                           dict(name='action', required=True,
-                               help="One of the following strings: add, remove, block, unblock, expire, delete"),
+                               help="One of the following strings: add, remove, block, unblock, expire, archive, delete"),
                           dict(name='group', required=False,
                                help="The name of a contact group if the action is add or remove"),
                           dict(name='label_uuid', required=False,
@@ -1972,6 +1978,12 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     serializer_class = FlowRunReadSerializer
     write_serializer_class = FlowRunStartSerializer
     cache_counts = True
+
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if user.get_org().is_suspended():
+            return Response("Sorry, your account is currently suspended. To enable sending messages, please contact support.", status=status.HTTP_400_BAD_REQUEST)
+        return super(FlowRunEndpoint, self).post(request, *args, **kwargs)
 
     def render_write_response(self, write_output, context):
         if write_output:
@@ -2500,9 +2512,7 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
         if not org.country:
             return []
 
-        queryset = self.model.objects.filter(Q(pk=org.country.pk) |
-                                             Q(parent=org.country) |
-                                             Q(parent__parent=org.country)).order_by('level', 'name')
+        queryset = org.country.get_descendants(include_self=True).order_by('level', 'name')
         return queryset.select_related('parent')
 
     def get_serializer_class(self):

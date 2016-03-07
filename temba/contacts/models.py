@@ -22,7 +22,7 @@ from temba.utils import analytics, format_decimal, truncate, datetime_to_str, ch
 from temba.utils.models import TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
-from temba.values.models import Value, VALUE_TYPE_CHOICES, TEXT, DECIMAL, DATETIME, DISTRICT, STATE
+from temba.values.models import Value
 from urlparse import urlparse, urlunparse, ParseResult
 from uuid import uuid4
 
@@ -40,22 +40,33 @@ TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
-# schemes that we actually support
-URN_SCHEME_CHOICES = ((TEL_SCHEME, _("Phone number")),
-                      (EMAIL_SCHEME, _("Email address")),
-                      (TWITTER_SCHEME, _("Twitter handle")),
-                      (TELEGRAM_SCHEME, _("Telegram identifier")),
-                      (EXTERNAL_SCHEME, _("External identifier")))
+# how many sequential contacts on import triggers suspension
+SEQUENTIAL_CONTACTS_THRESHOLD = 250
 
-IMPORT_HEADERS = (('phone', TEL_SCHEME),
-                  ('twitter', TWITTER_SCHEME),
-                  ('telegram', TELEGRAM_SCHEME),
-                  ('email', EMAIL_SCHEME),
-                  ('external', EXTERNAL_SCHEME))
+URN_SCHEMES = [TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, FACEBOOK_SCHEME,
+               TELEGRAM_SCHEME, EMAIL_SCHEME, EXTERNAL_SCHEME]
+
+# Scheme, Label, Export/Import Header, Context Key
+URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
+                     (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
+                     (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
+                     (EMAIL_SCHEME, _("Email address"), 'email',  EMAIL_SCHEME),
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
+
+# schemes that we actually support
+URN_SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
+
+IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
-class ContactField(models.Model):
+
+URN_CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
+
+URN_CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
+
+
+class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
     """
@@ -65,10 +76,8 @@ class ContactField(models.Model):
 
     key = models.CharField(verbose_name=_("Key"), max_length=36)
 
-    is_active = models.BooleanField(verbose_name=_("Is Active"), default=True)
-
-    value_type = models.CharField(choices=VALUE_TYPE_CHOICES, max_length=1, default=TEXT, verbose_name="Field Type")
-
+    value_type = models.CharField(choices=Value.TYPE_CHOICES, max_length=1, default=Value.TYPE_TEXT,
+                                  verbose_name="Field Type")
     show_in_table = models.BooleanField(verbose_name=_("Shown in Tables"), default=False)
 
     @classmethod
@@ -89,11 +98,13 @@ class ContactField(models.Model):
         return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0)
 
     @classmethod
-    def hide_field(cls, org, key):
+    def hide_field(cls, org, user, key):
         existing = ContactField.objects.filter(org=org, key=key).first()
         if existing:
             existing.is_active = False
             existing.show_in_table = False
+            existing.modified_by = user
+            existing.modified_on = timezone.now()
             existing.save()
 
             # cancel any events on this
@@ -101,7 +112,7 @@ class ContactField(models.Model):
             EventFire.update_field_events(existing)
 
     @classmethod
-    def get_or_create(cls, org, key, label=None, show_in_table=None, value_type=None):
+    def get_or_create(cls, org, user, key, label=None, show_in_table=None, value_type=None):
         """
         Gets the existing contact field or creates a new field if it doesn't exist
         """
@@ -137,6 +148,8 @@ class ContactField(models.Model):
                     changed = True
 
                 if changed:
+                    field.modified_by = user
+                    field.modified_on = timezone.now()
                     field.save()
 
                     if update_events:
@@ -149,7 +162,7 @@ class ContactField(models.Model):
                     label = regex.sub(r'([^A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
 
                 if not value_type:
-                    value_type = TEXT
+                    value_type = Value.TYPE_TEXT
 
                 if show_in_table is None:
                     show_in_table = False
@@ -158,7 +171,8 @@ class ContactField(models.Model):
                     raise ValueError('Field key %s has invalid characters or is a reserved field name' % key)
 
                 field = ContactField.objects.create(org=org, key=key, label=label,
-                                                    show_in_table=show_in_table, value_type=value_type)
+                                                    show_in_table=show_in_table, value_type=value_type,
+                                                    created_by=user, modified_by=user)
 
             return field
 
@@ -168,10 +182,11 @@ class ContactField(models.Model):
 
     @classmethod
     def get_state_field(cls, org):
-        return cls.objects.filter(is_active=True, org=org, value_type=STATE).first()
+        return cls.objects.filter(is_active=True, org=org, value_type=Value.TYPE_STATE).first()
 
     def __unicode__(self):
         return "%s" % self.label
+
 
 NEW_CONTACT_VARIABLE = "@new_contact"
 
@@ -205,7 +220,7 @@ class Contact(TembaModel):
 
     # reserved contact fields
     RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       'created_by', 'modified_by', 'org', UUID, 'groups', 'external'] + [c[0] for c in URN_SCHEME_CHOICES]
+                       'created_by', 'modified_by', 'org', UUID, 'groups'] + [c[0] for c in IMPORT_HEADERS]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
@@ -308,9 +323,9 @@ class Contact(TembaModel):
         if value is None:
             return None
 
-        if field.value_type == DATETIME:
+        if field.value_type == Value.TYPE_DATETIME:
             return field.org.format_date(value.datetime_value)
-        elif field.value_type == DECIMAL:
+        elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
         elif value.category:
             return value.category
@@ -325,9 +340,9 @@ class Contact(TembaModel):
         if value is None:
             return None
 
-        if field.value_type == DATETIME:
+        if field.value_type == Value.TYPE_DATETIME:
             return datetime_to_str(value.datetime_value)
-        elif field.value_type == DECIMAL:
+        elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
         elif value.category:
             return value.category
@@ -338,7 +353,7 @@ class Contact(TembaModel):
         from temba.values.models import Value
 
         # make sure this field exists
-        field = ContactField.get_or_create(self.org, key, label)
+        field = ContactField.get_or_create(self.org, user, key, label)
 
         existing = None
         if value is None or value == '':
@@ -350,7 +365,7 @@ class Contact(TembaModel):
             dec_value = self.org.parse_decimal(value)
             loc_value = None
 
-            if field.value_type == DISTRICT:
+            if field.value_type == Value.TYPE_DISTRICT:
                 state_field = ContactField.get_state_field(self.org)
                 if state_field:
                     state_value = self.get_field(state_field.key)
@@ -691,7 +706,7 @@ class Contact(TembaModel):
                 # excel formatting that field as numeric.. try to parse it into an int instead
                 try:
                     value = str(int(float(value)))
-                except ValueError:  # pragma: no cover
+                except Exception: # pragma: no cover
                     # oh well, neither of those, stick to the plan, maybe we can make sense of it below
                     pass
 
@@ -700,6 +715,7 @@ class Contact(TembaModel):
 
                 if not is_valid:
                     raise SmartImportRowError("Invalid Phone number %s" % value)
+
                 # in the past, test contacts have ended up in exports. Don't re-import them
                 if value == OLD_TEST_CONTACT_TEL:
                     raise SmartImportRowError("Ignored test contact")
@@ -769,7 +785,7 @@ class Contact(TembaModel):
                 field_dict[key] = value
 
                 # create the contact field if it doesn't exist
-                ContactField.get_or_create(field_dict['org'], key, label, False, field['type'])
+                ContactField.get_or_create(field_dict['org'], user, key, label, False, field['type'])
                 extra_fields.append(key)
             else:
                 raise Exception('Extra field %s is a reserved field name' % key)
@@ -892,6 +908,29 @@ class Contact(TembaModel):
                 num_creates += 1
 
             group.contacts.add(contact)
+
+        # if we aren't whitelisted, check for sequential phone numbers
+        if not group_org.is_whitelisted():
+            try:
+                # get all of our phone numbers for the imported contacts
+                paths = [int(u.path) for u in ContactURN.objects.filter(scheme=TEL_SCHEME, contact__in=[c.pk for c in contacts])]
+                paths = sorted(paths)
+
+                last_path = None
+                sequential = 0
+                for path in paths:
+                    if last_path:
+                        if path - last_path == 1:
+                            sequential += 1
+                    last_path = path
+
+                    if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
+                        group_org.set_suspended()
+                        break
+
+            except Exception:  # pragma: no-cover
+                # if we fail to parse phone numbers for any reason just punt
+                pass
 
         import_results['creates'] = num_creates
         import_results['updates'] = len(contacts) - num_creates
@@ -1405,9 +1444,12 @@ class ContactURN(models.Model):
         if norm_scheme == TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
         elif norm_scheme == TWITTER_SCHEME:
+            norm_path = norm_path.lower()
             if norm_path[0:1] == '@':  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
+        elif norm_scheme == EMAIL_SCHEME:
+            norm_path = norm_path.lower()
 
         return norm_scheme, norm_path
 

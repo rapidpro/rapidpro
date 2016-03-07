@@ -6,27 +6,26 @@ import pytz
 import time
 
 from datetime import datetime, date, timedelta
-
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.utils import timezone
 from mock import patch
+from smartmin.models import SmartImportRowError
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME, \
-    TELEGRAM_SCHEME
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, SmartImportRowError
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import Org, Language
-from temba.channels.models import Channel, TWITTER
+from temba.orgs.models import Org
+from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label, SystemLabel, Broadcast
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
-from temba.values.models import STATE, DATETIME, DISTRICT, Value, DECIMAL, TEXT
+from temba.values.models import Value
+from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME, TELEGRAM_SCHEME
+from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -45,8 +44,8 @@ class ContactCRUDLTest(_CRUDLTest):
         self.user.set_org(self.org)
         self.org.initialize()
 
-        ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
-        ContactField.get_or_create(self.org, 'home', "Home", value_type='S')
+        ContactField.get_or_create(self.org, self.user, 'age', "Age", value_type='N')
+        ContactField.get_or_create(self.org, self.user, 'home', "Home", value_type='S')
 
     def getCreatePostData(self):
         return dict(name="Joe Brady", urn__tel__0="+250785551212")
@@ -348,8 +347,8 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
 
     def test_update_query(self):
-        age = ContactField.get_or_create(self.org, 'age')
-        gender = ContactField.get_or_create(self.org, 'gender')
+        age = ContactField.get_or_create(self.org, self.admin, 'age')
+        gender = ContactField.get_or_create(self.org, self.admin, 'gender')
         group = ContactGroup.create(self.org, self.admin, "Group 1")
 
         group.update_query('(age < 18 and gender = "male") or (age > 18 and gender = "female")')
@@ -432,7 +431,7 @@ class ContactTest(TembaTest):
         from temba.campaigns.models import Campaign, CampaignEvent, EventFire
         self.farmers = self.create_group("Farmers", [self.joe])
         self.reminder_flow = self.create_flow()
-        self.planting_date = ContactField.get_or_create(self.org, 'planting_date', "Planting Date")
+        self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
         self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         # create af flow event
@@ -739,8 +738,8 @@ class ContactTest(TembaTest):
             self.assertEqual("Billy Nophone", self.billy.__unicode__())
 
     def test_bulk_cache_initialize(self):
-        ContactField.get_or_create(self.org, 'age', "Age", value_type='N', show_in_table=True)
-        ContactField.get_or_create(self.org, 'nick', "Nickname", value_type='T', show_in_table=False)
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N', show_in_table=True)
+        ContactField.get_or_create(self.org, self.admin, 'nick', "Nickname", value_type='T', show_in_table=False)
 
         self.joe.set_field(self.user, 'age', 32)
         self.joe.set_field(self.user, 'nick', 'Joey')
@@ -782,12 +781,12 @@ class ContactTest(TembaTest):
         # block the default contacts, these should be ignored in our searches
         Contact.objects.all().update(is_active=False, is_blocked=True)
 
-        ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
-        ContactField.get_or_create(self.org, 'join_date', "Join Date", value_type='D')
-        ContactField.get_or_create(self.org, 'home', "Home District", value_type='I')
-        state_field = ContactField.get_or_create(self.org, 'state', "Home State", value_type='S')
-        ContactField.get_or_create(self.org, 'isureporter', "Is UReporter", value_type='T')
-        ContactField.get_or_create(self.org, 'hasbirth', "Has Birth", value_type='T')
+        ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
+        ContactField.get_or_create(self.org, self.admin, 'join_date', "Join Date", value_type='D')
+        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
+        state_field = ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
+        ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
 
         africa = AdminBoundary.objects.create(osm_id='R001', name='Africa', level=0)
         rwanda = AdminBoundary.objects.create(osm_id='R002', name='Rwanda', level=1, parent=africa)
@@ -1575,7 +1574,7 @@ class ContactTest(TembaTest):
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 0)
 
         # add an extra field to the org
-        ContactField.objects.create(org=self.org, key='state', label="Home state", value_type=STATE)
+        ContactField.get_or_create(self.org, self.user, 'state', label="Home state", value_type=Value.TYPE_STATE)
         self.joe.set_field(self.user, 'state', " kiGali   citY ")  # should match "Kigali City"
 
         # check that the field appears on the update form
@@ -1689,8 +1688,8 @@ class ContactTest(TembaTest):
                                       new_scheme="mailto", new_path="malformed"))
 
         # update our contact with some locations
-        ContactField.get_or_create(self.org, 'state', "Home State", value_type='S')
-        ContactField.get_or_create(self.org, 'home', "Home District", value_type='I')
+        ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
 
         self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
                          dict(__field__state='eastern province', __field__home='rwamagana'))
@@ -1824,6 +1823,8 @@ class ContactTest(TembaTest):
                                                                          'professional status', 'joined', 'vehicle',
                                                                          'shoes'])
 
+            self.assertFalse('email' in Contact.get_org_import_file_headers(csv_file, self.org))
+
         with open('%s/test_imports/sample_contacts_with_extra_fields_and_empty_headers.xls' % settings.MEDIA_ROOT,
                   'rb') as open_file:
             csv_file = ContentFile(open_file.read())
@@ -1837,6 +1838,10 @@ class ContactTest(TembaTest):
 
         # or without a number (exception type that goes back to the user)
         self.assertRaises(SmartImportRowError, Contact.create_instance, dict(org=self.org, created_by=self.admin))
+
+        # or invalid phone number
+        self.assertRaises(SmartImportRowError, Contact.create_instance,
+                          dict(org=self.org, created_by=self.admin, phone="+121535e0884"))
 
         contact = Contact.create_instance(dict(org=self.org, created_by=self.admin, name="Bob", phone="+250788111111"))
         self.assertEqual(contact.org, self.org)
@@ -2297,8 +2302,8 @@ class ContactTest(TembaTest):
         self.assertEquals(ContactGroup.user_groups.all().count(), 0)
 
         # existing field
-        ContactField.get_or_create(self.org, 'ride_or_drive', 'Vehicle')
-        ContactField.get_or_create(self.org, 'wears', 'Shoes')  # has trailing spaces on excel files as " Shoes  "
+        ContactField.get_or_create(self.org, self.admin, 'ride_or_drive', 'Vehicle')
+        ContactField.get_or_create(self.org, self.admin, 'wears', 'Shoes')  # has trailing spaces on excel files as " Shoes  "
 
         # import spreadsheet with extra columns
         response = self.assertContactImport('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT,
@@ -2350,16 +2355,17 @@ class ContactTest(TembaTest):
 
         self.assertEquals(contact1.get_urn(schemes=[TWITTER_SCHEME]).path, 'ewok')
         self.assertEquals(contact1.get_urn(schemes=[EXTERNAL_SCHEME]).path, 'abc-1111')
+        self.assertEquals(contact1.get_urn(schemes=[EMAIL_SCHEME]).path, 'eric@example.com')
 
         # if we change the field type for 'location' to 'datetime' we shouldn't get a category
-        ContactField.objects.filter(key='location').update(value_type=DATETIME)
+        ContactField.objects.filter(key='location').update(value_type=Value.TYPE_DATETIME)
         contact1 = Contact.objects.all().order_by('name')[0]
 
         # Not a valid date, so should be None
         self.assertEquals(contact1.get_field_display('location'), None)
 
         # return it back to a state field
-        ContactField.objects.filter(key='location').update(value_type=STATE)
+        ContactField.objects.filter(key='location').update(value_type=Value.TYPE_STATE)
         contact1 = Contact.objects.all().order_by('name')[0]
 
         self.assertIsNone(contact1.get_field_raw('district'))  # wasn't included
@@ -2417,6 +2423,10 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'District should be used once')
 
+        # we shouldn't be suspended
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_suspended())
+
         # invalid import params
         with self.assertRaises(Exception):
             task = ImportTask.objects.create(
@@ -2433,6 +2443,22 @@ class ContactTest(TembaTest):
         self.assertEqual(Contact.objects.get(urns__path="+250788382382").language, 'eng')  # updated
         self.assertEqual(Contact.objects.get(urns__path="+250788383383").language, 'fre')  # created with language
         self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)   # no language
+
+    def test_import_sequential_numbers(self):
+
+        org = self.user.get_org()
+        self.assertFalse(org.is_suspended())
+
+        # importing sequential numbers should automatically suspend our org
+        self.do_import(self.user, 'sample_contacts_sequential.xls')
+        org.refresh_from_db()
+        self.assertTrue(org.is_suspended())
+
+        # now whitelist the account
+        self.org.set_whitelisted()
+        self.do_import(self.user, 'sample_contacts_sequential.xls')
+        org.refresh_from_db()
+        self.assertFalse(org.is_suspended())
 
     def test_import_methods(self):
         user = self.user
@@ -2461,7 +2487,7 @@ class ContactTest(TembaTest):
         field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson') 
         field_dict['yourmom'] = 'face'
         field_dict['nick name'] = 'bob'
-        field_dict = Contact.prepare_fields(field_dict, import_params)
+        field_dict = Contact.prepare_fields(field_dict, import_params, user=user)
         self.assertNotIn('yourmom', field_dict)
         self.assertNotIn('nick name', field_dict)
         self.assertEquals(field_dict['nick_name'], 'bob')
@@ -2511,12 +2537,25 @@ class ContactTest(TembaTest):
         self.assertEquals('Joe', self.joe.get_field_raw('abc_1234'))
         ContactField.objects.get(key='abc_1234', label="First Name", org=self.joe.org)
 
-    def test_serialize_field_value(self):
-        registration_field = ContactField.get_or_create(self.org, 'registration_date', "Registration Date",
-                                                        None, DATETIME)
+    def test_date_field(self):
+        # create a new date field
+        ContactField.get_or_create(self.org, self.admin, 'birth_date', label='Birth Date', value_type=Value.TYPE_TEXT)
 
-        weight_field = ContactField.get_or_create(self.org, 'weight', "Weight", None, DECIMAL)
-        color_field = ContactField.get_or_create(self.org, 'color', "Color", None, TEXT)
+        # set a field on our contact
+        urn = 'urn:uuid:0f73262c-0623-3f0a-8651-1855e755d2ef'
+        self.joe.set_field(self.user, 'birth_date', urn)
+
+        # check that this field has been set
+        self.assertEqual(self.joe.get_field('birth_date').string_value, urn)
+        self.assertIsNone(self.joe.get_field('birth_date').decimal_value)
+        self.assertIsNone(self.joe.get_field('birth_date').datetime_value)
+
+    def test_serialize_field_value(self):
+        registration_field = ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date",
+                                                        None, Value.TYPE_DATETIME)
+
+        weight_field = ContactField.get_or_create(self.org, self.admin, 'weight', "Weight", None, Value.TYPE_DECIMAL)
+        color_field = ContactField.get_or_create(self.org, self.admin, 'color', "Color", None, Value.TYPE_TEXT)
 
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
@@ -2536,7 +2575,7 @@ class ContactTest(TembaTest):
         self.assertEqual(Contact.serialize_field_value(color_field, value), 'Dark')
 
     def test_set_location_fields(self):
-        district_field = ContactField.get_or_create(self.org, 'district', 'District', None, DISTRICT)
+        district_field = ContactField.get_or_create(self.org, self.admin, 'district', 'District', None, Value.TYPE_DISTRICT)
 
         # add duplicate district in different states
         east_province = AdminBoundary.objects.create(osm_id='R005', name='East Province', level=1, parent=self.country)
@@ -2549,7 +2588,7 @@ class ContactTest(TembaTest):
         value = Value.objects.filter(contact=joe, contact_field=district_field).first()
         self.assertFalse(value.location_value)
 
-        state_field = ContactField.get_or_create(self.org, 'state', 'State', None, STATE)
+        state_field = ContactField.get_or_create(self.org, self.admin, 'state', 'State', None, Value.TYPE_STATE)
 
         joe.set_field(self.user, 'state', 'Kigali city')
         value = Value.objects.filter(contact=joe, contact_field=state_field).first()
@@ -2651,9 +2690,9 @@ class ContactTest(TembaTest):
         # run all tests as 2/Jan/2014 03:04 AFT
         tz = pytz.timezone('Asia/Kabul')
         with patch.object(timezone, 'now', return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):
-            age_field = ContactField.get_or_create(self.org, 'age', "Age", value_type='N')
-            gender_field = ContactField.get_or_create(self.org, 'gender', "Gender", value_type='T')
-            joined_field = ContactField.get_or_create(self.org, 'joined', "Join Date", value_type='D')
+            age_field = ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
+            gender_field = ContactField.get_or_create(self.org, self.admin, 'gender', "Gender", value_type='T')
+            joined_field = ContactField.get_or_create(self.org, self.admin, 'joined', "Join Date", value_type='D')
 
             # create groups based on name or URN (checks that contacts are added correctly on contact create)
             joes_group = create_dynamic_group("People called Joe", 'name has joe')
@@ -2786,6 +2825,13 @@ class ContactURNTest(TembaTest):
         self.assertEquals(('twitter', "jimmyjo"), ContactURN.normalize_urn('TWITTER', "jimmyJO"))
         self.assertEquals(('twitter', "billy_bob"), ContactURN.normalize_urn('twitter', " @Billy_bob "))
 
+        # email addresses
+        self.assertEqual(('mailto', "name@domain.com"), ContactURN.normalize_urn('mailto', " nAme@domAIN.cOm "))
+
+        # external ids are case sensitive
+        self.assertEqual(('ext', "eXterNAL123"), ContactURN.normalize_urn('ext', " eXterNAL123 "))
+
+
     def test_validate_urn(self):
         # valid tel numbers
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", "RW"))
@@ -2839,32 +2885,32 @@ class ContactFieldTest(TembaTest):
         self.joe = self.create_contact(name="Joe Blow", number="123")
         self.frank = self.create_contact(name="Frank Smith", number="1234")
 
-        self.contactfield_1 = ContactField.get_or_create(self.org, "first", "First")
-        self.contactfield_2 = ContactField.get_or_create(self.org, "second", "Second")
-        self.contactfield_3 = ContactField.get_or_create(self.org, "third", "Third")
+        self.contactfield_1 = ContactField.get_or_create(self.org, self.admin, "first", "First")
+        self.contactfield_2 = ContactField.get_or_create(self.org, self.admin, "second", "Second")
+        self.contactfield_3 = ContactField.get_or_create(self.org, self.admin, "third", "Third")
 
     def test_get_or_create(self):
-        join_date = ContactField.get_or_create(self.org, "join_date")
+        join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
         self.assertEqual(join_date.key, "join_date")
         self.assertEqual(join_date.label, "Join Date")
-        self.assertEqual(join_date.value_type, TEXT)
+        self.assertEqual(join_date.value_type, Value.TYPE_TEXT)
 
-        another = ContactField.get_or_create(self.org, "another", "My Label", value_type=DECIMAL)
+        another = ContactField.get_or_create(self.org, self.admin, "another", "My Label", value_type=Value.TYPE_DECIMAL)
         self.assertEqual(another.key, "another")
         self.assertEqual(another.label, "My Label")
-        self.assertEqual(another.value_type, DECIMAL)
+        self.assertEqual(another.value_type, Value.TYPE_DECIMAL)
 
-        another = ContactField.get_or_create(self.org, "another", "Updated Label", value_type=DATETIME)
+        another = ContactField.get_or_create(self.org, self.admin, "another", "Updated Label", value_type=Value.TYPE_DATETIME)
         self.assertEqual(another.key, "another")
         self.assertEqual(another.label, "Updated Label")
-        self.assertEqual(another.value_type, DATETIME)
+        self.assertEqual(another.value_type, Value.TYPE_DATETIME)
 
-        another = ContactField.get_or_create(self.org, "another", "Updated Label", show_in_table=True, value_type=DATETIME)
+        another = ContactField.get_or_create(self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=Value.TYPE_DATETIME)
         self.assertTrue(another.show_in_table)
 
         for elt in Contact.RESERVED_FIELDS:
             with self.assertRaises(ValueError):
-                ContactField.get_or_create(self.org, elt, elt, value_type=TEXT)
+                ContactField.get_or_create(self.org, self.admin, elt, elt, value_type=Value.TYPE_TEXT)
 
     def test_contact_templatetag(self):
         self.joe.set_field(self.user, 'First', 'Starter')
@@ -3086,8 +3132,8 @@ class ContactFieldTest(TembaTest):
         for i in range(30):
             key = 'key%d' % i
             label = 'label%d' % i
-            ContactField.get_or_create(self.org, key, label)
-            ContactField.get_or_create(self.org2, key, label)
+            ContactField.get_or_create(self.org, self.admin, key, label)
+            ContactField.get_or_create(self.org2, self.admin, key, label)
 
         self.assertEquals(Org.objects.all().count(), 2)
 
@@ -3104,19 +3150,49 @@ class ContactFieldTest(TembaTest):
 
         response_json = json.loads(response.content)
 
-        self.assertEquals(len(response_json), 32)
-        self.assertEquals(response_json[0]['label'], 'First')
-        self.assertEquals(response_json[0]['key'], 'first')
-        self.assertEquals(response_json[1]['label'], 'label0')
-        self.assertEquals(response_json[1]['key'], 'key0')
+        print response_json
+
+        self.assertEquals(len(response_json), 39)
+        self.assertEquals(response_json[0]['label'], 'Full name')
+        self.assertEquals(response_json[0]['key'], 'name')
+        self.assertEquals(response_json[1]['label'], 'External identifier')
+        self.assertEquals(response_json[1]['key'], 'ext')
+        self.assertEquals(response_json[2]['label'], 'Email address')
+        self.assertEquals(response_json[2]['key'], 'mailto')
+        self.assertEquals(response_json[3]['label'], 'Telegram identifier')
+        self.assertEquals(response_json[3]['key'], 'telegram')
+        self.assertEquals(response_json[4]['label'], 'Twitter handle')
+        self.assertEquals(response_json[4]['key'], 'twitter')
+        self.assertEquals(response_json[5]['label'], 'Phone number')
+        self.assertEquals(response_json[5]['key'], 'tel_e164')
+        self.assertEquals(response_json[6]['label'], 'Groups')
+        self.assertEquals(response_json[6]['key'], 'groups')
+        self.assertEquals(response_json[7]['label'], 'First')
+        self.assertEquals(response_json[7]['key'], 'first')
+        self.assertEquals(response_json[8]['label'], 'label0')
+        self.assertEquals(response_json[8]['key'], 'key0')
 
         ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
 
         response = self.client.get(contact_field_json_url)
         response_json = json.loads(response.content)
 
-        self.assertEquals(len(response_json), 32)
-        self.assertEquals(response_json[0]['label'], 'AAAA')
-        self.assertEquals(response_json[0]['key'], 'key0')
-        self.assertEquals(response_json[1]['label'], 'First')
-        self.assertEquals(response_json[1]['key'], 'first')
+        self.assertEquals(len(response_json), 39)
+        self.assertEquals(response_json[0]['label'], 'Full name')
+        self.assertEquals(response_json[0]['key'], 'name')
+        self.assertEquals(response_json[1]['label'], 'External identifier')
+        self.assertEquals(response_json[1]['key'], 'ext')
+        self.assertEquals(response_json[2]['label'], 'Email address')
+        self.assertEquals(response_json[2]['key'], 'mailto')
+        self.assertEquals(response_json[3]['label'], 'Telegram identifier')
+        self.assertEquals(response_json[3]['key'], 'telegram')
+        self.assertEquals(response_json[4]['label'], 'Twitter handle')
+        self.assertEquals(response_json[4]['key'], 'twitter')
+        self.assertEquals(response_json[5]['label'], 'Phone number')
+        self.assertEquals(response_json[5]['key'], 'tel_e164')
+        self.assertEquals(response_json[6]['label'], 'Groups')
+        self.assertEquals(response_json[6]['key'], 'groups')
+        self.assertEquals(response_json[7]['label'], 'AAAA')
+        self.assertEquals(response_json[7]['key'], 'key0')
+        self.assertEquals(response_json[8]['label'], 'First')
+        self.assertEquals(response_json[8]['key'], 'first')
