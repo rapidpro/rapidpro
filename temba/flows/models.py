@@ -4009,7 +4009,7 @@ class AddToGroupAction(Action):
                 try:
                     group_id = int(group_id)
                 except Exception:
-                    group_id = -1
+                    group_id = None
 
                 group = ContactGroup.get_or_create(org, org.created_by, group_name, group_id)
                 groups.append(group)
