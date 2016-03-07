@@ -3009,7 +3009,7 @@ class M3TechTest(TembaTest):
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
 
-                self.assertEqual(mock.call_args[1]['params']['SMSType'], '8')
+                self.assertEqual(mock.call_args[1]['params']['SMSType'], '7')
 
                 # check the status of the message is now sent
                 msg = bcast.get_messages()[0]

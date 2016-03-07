@@ -1965,7 +1965,7 @@ class Channel(TembaModel):
 
         # if this looks like unicode, ask m3tech to send as unicode
         if encoding == Encoding.UNICODE:
-            sms_type = '8'
+            sms_type = '7'
         else:
             sms_type = '0'
 
