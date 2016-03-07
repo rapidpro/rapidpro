@@ -577,7 +577,7 @@ class Msg(models.Model):
                               help_text=_("The current status for this message"))
 
     response_to = models.ForeignKey('Msg', null=True, blank=True, related_name='responses',
-                                    verbose_name=_("Response To"),
+                                    verbose_name=_("Response To"), db_index=False,
                                     help_text=_("The message that this message is in reply to"))
 
     labels = models.ManyToManyField('Label', related_name='msgs', verbose_name=_("Labels"),
