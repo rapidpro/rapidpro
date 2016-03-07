@@ -38,14 +38,14 @@ class CampaignTest(TembaTest):
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
     def test_get_unique_name(self):
-        flow1 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        self.assertEqual(flow1.name, "Reminders")
+        campaign1 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(campaign1.name, "Reminders")
 
-        flow2 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        self.assertEqual(flow2.name, "Reminders 2")
+        campaign2 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(campaign2.name, "Reminders 2")
 
-        flow3 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        self.assertEqual(flow3.name, "Reminders 3")
+        campaign3 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(campaign3.name, "Reminders 3")
 
         self.create_secondary_org()
         self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org

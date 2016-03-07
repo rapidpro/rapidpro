@@ -568,7 +568,8 @@ class Msg(models.Model):
                                    help_text=_("When this message was sent to the endpoint"))
 
     delivered_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Delivered On"),
-                                        help_text=_("When this message was delivered to the final recipient (for incoming messages, when the message was handled)"))
+                                        help_text=_("When this message was delivered to the final recipient (for "
+                                                    "incoming messages, when the message was handled)"))
 
     queued_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Queued On"),
                                      help_text=_("When this message was queued to be sent or handled."))

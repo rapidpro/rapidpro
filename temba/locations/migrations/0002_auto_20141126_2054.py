@@ -15,13 +15,15 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='boundaryalias',
             name='org',
-            field=models.ForeignKey(help_text=b'The org that owns this alias', to='orgs.Org'),
+            field=models.ForeignKey(
+                help_text=b'The org that owns this alias', to='orgs.Org'),
             preserve_default=True,
         ),
         migrations.AddField(
             model_name='adminboundary',
             name='parent',
-            field=models.ForeignKey(related_name=b'children', to='locations.AdminBoundary', help_text=b'The parent to this political boundary if any', null=True),
+            field=models.ForeignKey(related_name=b'children', to='locations.AdminBoundary',
+                                    help_text=b'The parent to this political boundary if any', null=True),
             preserve_default=True,
         ),
     ]

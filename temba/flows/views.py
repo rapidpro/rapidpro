@@ -480,15 +480,11 @@ class FlowCRUDL(SmartCRUDL):
         default_template = 'smartmin/delete_confirm.html'
         success_message = _("Your flow has been removed.")
 
-        def pre_delete(self, object):
-            # remove our ivr recordings if we have any
-            if object.flow_type == 'V':
-                try:
-                    path = 'recordings/%d/%d' % (object.org.pk, object.pk)
-                    if default_storage.exists(path):
-                        default_storage.delete(path)
-                except Exception:
-                    pass
+        def post(self, request, *args, **kwargs):
+            self.get_object().release()
+            redirect_url = self.get_redirect_url()
+
+            return HttpResponseRedirect(redirect_url)
 
     class Copy(OrgObjPermsMixin, SmartUpdateView):
         fields = []
@@ -623,7 +619,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(FlowCRUDL.BaseList, self).get_context_data(**kwargs)
-            context['org_has_flows'] = Flow.objects.filter(org=self.request.user.get_org()).count()
+            context['org_has_flows'] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count()
             context['folders']= self.get_folders()
             context['labels']= self.get_flow_labels()
             context['request_url'] = self.request.path
@@ -1428,7 +1424,7 @@ class FlowLabelCRUDL(SmartCRUDL):
             if self.form.cleaned_data['flows']:
                 flow_ids = [ int(_) for _ in self.form.cleaned_data['flows'].split(',') if _.isdigit() ]
 
-            flows = Flow.objects.filter(org=obj.org, pk__in=flow_ids)
+            flows = Flow.objects.filter(org=obj.org, is_active=True, pk__in=flow_ids)
 
             if flows:
                 obj.toggle_label(flows, add=True)
