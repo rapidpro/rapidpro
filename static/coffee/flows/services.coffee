@@ -461,6 +461,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type:'phone', name: 'Has a phone', verbose_name:'has a phone number', operands: 0, voice:true }
         { type:'state', name: 'Has a state', verbose_name:'has a state', operands: 0 }
         { type:'district', name: 'Has a district', verbose_name:'has a district', operands: 1, auto_complete: true, placeholder:'@flow.state' }
+        { type:'ward', name: 'Has a ward', verbose_name:'has a ward', operands: 2, operand_required: false,  auto_complete: true, }
         { type:'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true }
         { type:'true', name: 'Other', verbose_name:'contains anything', operands: 0 }
       ]

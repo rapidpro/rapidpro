@@ -813,7 +813,7 @@ class ContactTest(TembaTest):
             contact.set_field(self.user, 'state', "Rwanda")
             index = (i + 2) % len(locations)
             with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
-                mock_parse_location.return_value = locations_boundaries[index]
+                mock_parse_location.return_value = AdminBoundary.objects.filter(name__iexact=locations[index])
                 contact.set_field(self.user, 'home', locations[index])
 
         contact.set_field(self.user, 'isureporter', 'yes')
@@ -2580,6 +2580,24 @@ class ContactTest(TembaTest):
         self.assertTrue(value.location_value)
         self.assertEquals(value.location_value.name, "Remera")
         self.assertEquals(value.location_value.parent, kigali)
+
+    def test_set_location_ward_fields(self):
+
+        state = AdminBoundary.objects.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
+        district = AdminBoundary.objects.create(osm_id='3710307', name='Bichi', level=2, parent=state)
+        ward = AdminBoundary.objects.create(osm_id='3710377', name='Bichi', level=3, parent=district)
+        user1 = self.create_user("mcren")
+
+        ContactField.get_or_create(self.org, user1, 'state', 'State', None, Value.TYPE_STATE)
+        ContactField.get_or_create(self.org, user1, 'district', 'District', None, Value.TYPE_DISTRICT)
+        ward_field = ContactField.get_or_create(self.org, user1, 'ward', 'Ward', None, Value.TYPE_WARD)
+
+        jemila = self.create_contact(name="Jemila Alley", number="123", twitter="fulani_p")
+        jemila.set_field(user1, 'state', 'kano')
+        jemila.set_field(user1, 'district', 'bichi')
+        jemila.set_field(user1, 'ward', 'bichi')
+        value = Value.objects.filter(contact=jemila, contact_field=ward_field).first()
+        self.assertEquals(value.location_value, ward)
 
     def test_message_context(self):
         message_context = self.joe.build_message_context()
