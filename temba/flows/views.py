@@ -169,11 +169,13 @@ class RuleCRUDL(SmartCRUDL):
             # figure out our state and district contact fields
             state_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_STATE).first()
             district_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_DISTRICT).first()
-
+            ward_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_WARD).first()
             # by default, segment by states
             segment = dict(location=state_field.label)
             if parent.level == 1:
                 segment = dict(location=district_field.label, parent=parent.osm_id)
+            if parent.level == 2:
+                segment = dict(location=ward_field.label, parent=parent.osm_id)
 
             results = Value.get_value_summary(ruleset=ruleset, filters=filters, segment=segment)
 

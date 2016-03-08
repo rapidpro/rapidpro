@@ -939,7 +939,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   # rules = []
   toRemove = []
   for rule in $scope.ruleset.rules
-
     if not rule.category
       toRemove.push(rule)
       continue
@@ -1055,6 +1054,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     else if op == "number"
       categoryName = "numeric"
+    else if op == "ward"
+      categoryName = "ward"
     else if op == "district"
       categoryName = "district"
     else if op == "state"

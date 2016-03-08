@@ -23,6 +23,7 @@ from temba.utils.models import TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
+from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from urlparse import urlparse, urlunparse, ParseResult
 from uuid import uuid4
 
@@ -181,8 +182,8 @@ class ContactField(SmartModel):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
 
     @classmethod
-    def get_state_field(cls, org):
-        return cls.objects.filter(is_active=True, org=org, value_type=Value.TYPE_STATE).first()
+    def get_location_field(cls, org, type):
+        return cls.objects.filter(is_active=True, org=org, value_type=type).first()
 
     def __unicode__(self):
         return "%s" % self.label
@@ -365,14 +366,25 @@ class Contact(TembaModel):
             dec_value = self.org.parse_decimal(value)
             loc_value = None
 
-            if field.value_type == Value.TYPE_DISTRICT:
-                state_field = ContactField.get_state_field(self.org)
+            if field.value_type == Value.TYPE_WARD:
+                district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
+                district_value = self.get_field(district_field.key)
+                if district_value:
+                    loc_value = self.org.parse_location(value, WARD_LEVEL, district_value.location_value)
+
+            elif field.value_type == Value.TYPE_DISTRICT:
+                state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                 if state_field:
                     state_value = self.get_field(state_field.key)
                     if state_value:
-                        loc_value = self.org.parse_location(value, 2, state_value.location_value)
+                        loc_value = self.org.parse_location(value, DISTRICT_LEVEL, state_value.location_value)
             else:
-                loc_value = self.org.parse_location(value, 1)
+                loc_value = self.org.parse_location(value, STATE_LEVEL)
+
+            if loc_value is not None and len(loc_value) > 0:
+                loc_value = loc_value.first()
+            else:
+                loc_value = None
 
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
