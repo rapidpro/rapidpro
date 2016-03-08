@@ -4009,20 +4009,10 @@ class AddToGroupAction(Action):
                 try:
                     group_id = int(group_id)
                 except Exception:
-                    group_id = -1
+                    group_id = None
 
-                if group_id and ContactGroup.user_groups.filter(org=org, id=group_id).first():
-                    group = ContactGroup.user_groups.filter(org=org, id=group_id).first()
-                    if not group.is_active:
-                        group.is_active = True
-                        group.save(update_fields=['is_active'])
-                elif ContactGroup.get_user_group(org, group_name):
-                    group = ContactGroup.get_user_group(org, group_name)
-                else:
-                    group = ContactGroup.create(org, org.created_by, group_name)
-
-                if group:
-                    groups.append(group)
+                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_id)
+                groups.append(group)
             else:
                 if g and g[0] == '@':
                     groups.append(g)
@@ -4333,13 +4323,7 @@ class VariableContactAction(Action):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id, is_active=True):
-                group = ContactGroup.user_groups.get(org=org, id=group_id, is_active=True)
-            elif ContactGroup.get_user_group(org, group_name):
-                group = ContactGroup.get_user_group(org, group_name)
-            else:
-                group = ContactGroup.create(org, org.get_user(), group_name)
-
+            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_id)
             groups.append(group)
 
         return groups
@@ -4436,7 +4420,7 @@ class TriggerFlowAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=TriggerFlowAction.TYPE, id=self.flow.pk, name=self.flow.name,
                     contacts=contact_ids, groups=group_ids, variables=variables)
@@ -4719,7 +4703,7 @@ class SendAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
 

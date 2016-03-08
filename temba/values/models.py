@@ -414,7 +414,7 @@ class Value(models.Model):
             elif 'groups' in segment:
                 for group_id in segment['groups']:
                     # load our group
-                    group = ContactGroup.user_groups.get(is_active=True, org=org, pk=group_id)
+                    group = ContactGroup.user_groups.get(org=org, pk=group_id)
 
                     category_filter = list(filters)
                     category_filter.append(dict(groups=[group_id]))

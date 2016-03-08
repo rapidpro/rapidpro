@@ -274,7 +274,7 @@ class RuleCRUDL(SmartCRUDL):
             if current_flow and len(current_flow['rules']) > 0:
                 flow_json.append(current_flow)
 
-            groups = ContactGroup.user_groups.filter(is_active=True, org=org).order_by('name')
+            groups = ContactGroup.user_groups.filter(org=org).order_by('name')
             groups_json = []
             for group in groups:
                 if group.get_member_count() > 0:
