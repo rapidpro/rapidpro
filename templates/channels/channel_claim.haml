@@ -199,6 +199,27 @@
                 -blocktrans
                   Instantly add a dedicated phone number in the area code of your choice.
 
+
+      .claim-row.twilio-messaging-service-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+
+
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twilio_messaging_service' %}"}
+              .claim-glyph.icon-channel-twilio
+              %p.claim-text
+                -trans "Twilio Messaging Service"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  You can connect a messaging service from your Twilio account to benefit from <a href="https://www.twilio.com/copilot">Twilio Copilot features</a></br>
+
     -if not user_org.is_connected_to_nexmo
       .claim-row.nexmo-channel{class:"{% if recommended_channel == 'nexmo' %}recommended{% endif %}"}
         .recommendation.hide
