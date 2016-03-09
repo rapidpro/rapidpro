@@ -9,7 +9,7 @@
 #-----------------------------------------------------------------------------------
 
 # import our default settings
-from settings_common import *
+from settings_common import *  # noqa
 import logging
 
 #-----------------------------------------------------------------------------------
