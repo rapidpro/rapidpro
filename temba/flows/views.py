@@ -1069,8 +1069,7 @@ class FlowCRUDL(SmartCRUDL):
                     rows.append([date,
                                  dict(category=phone, contact=run['contact__pk']),
                                  dict(category=name),
-                                 dict(contact=run['contact__pk'], category=run['count'])]
-                                + cols)
+                                 dict(contact=run['contact__pk'], category=run['count'])] + cols)
 
                 return build_json_response(dict(iTotalRecords=total, iTotalDisplayRecords=total, sEcho=self.request.REQUEST.get('sEcho', 0), aaData=rows))
             else:

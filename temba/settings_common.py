@@ -1,4 +1,8 @@
-import sys, os
+from __future__ import unicode_literals
+
+import os
+import sys
+
 from hamlpy import templatize
 
 #-----------------------------------------------------------------------------------
