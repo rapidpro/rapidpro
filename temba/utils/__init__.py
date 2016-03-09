@@ -8,7 +8,6 @@ import datetime
 import locale
 import resource
 
-from datetime import timedelta
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
@@ -450,8 +449,8 @@ def timezone_to_country_code(tz):
     timezone_country = INITIAL_TIMEZONE_COUNTRY
     for countrycode in country_timezones:
         timezones = country_timezones[countrycode]
-        for timezone in timezones:
-            timezone_country[timezone] = countrycode
+        for zone in timezones:
+            timezone_country[zone] = countrycode
 
     return timezone_country.get(tz, '')
 

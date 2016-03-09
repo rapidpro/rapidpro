@@ -1973,15 +1973,10 @@ class ChannelCRUDL(SmartCRUDL):
             return country_code in TWILIO_SUPPORTED_COUNTRY_CODES
 
         def claim_number(self, user, phone_number, country):
-             analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
+            analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
 
-             # add this channel
-             channel = Channel.add_twilio_channel(user.get_org(),
-                                                  user,
-                                                  phone_number,
-                                                  country)
-
-             return channel
+            # add this channel
+            return Channel.add_twilio_channel(user.get_org(), user, phone_number, country)
 
     class ClaimNexmo(BaseClaimNumber):
         class ClaimNexmoForm(forms.Form):

@@ -49,7 +49,7 @@ class OmniboxWidget(forms.TextInput):
     def get_json(self, value):
 
         if 'user' not in self.__dict__:  # pragma: no cover
-            raise ValidationError(_("Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__"))
+            raise ValueError("Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__")
 
         objects = OmniboxWidget.get_objects_spec(value, self.user)
 
@@ -76,5 +76,5 @@ class OmniboxField(forms.Field):
 
     def to_python(self, value):
         if 'user' not in self.__dict__:  # pragma: no cover
-            raise ValidationError(_("Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__"))
+            raise ValueError("Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__")
         return OmniboxWidget.get_objects_spec(value, self.user)

@@ -1,19 +1,12 @@
 from __future__ import unicode_literals
 
-from datetime import datetime, timedelta
-from django.utils import timezone
-from dateutil.relativedelta import relativedelta
-from django.db import models
-from smartmin.models import SmartModel
 import calendar
 
-repeat_choices = (('O', 'Never'),
-                  ('D', 'Daily'),
-                  ('W', 'Weekly'),
-                  ('M', 'Monthly'),)
-
-status_choices = (('U', 'Unscheduled'),
-                  ('S', 'Scheduled'))
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+from django.db import models
+from django.utils import timezone
+from smartmin.models import SmartModel
 
 
 class Schedule(SmartModel):
@@ -21,12 +14,19 @@ class Schedule(SmartModel):
     Describes a point in the future to execute some action. These are used to schedule Broadcasts
     as a single event or with a specified interval for recurrence.
     """
+    REPEAT_CHOICES = (('O', 'Never'),
+                      ('D', 'Daily'),
+                      ('W', 'Weekly'),
+                      ('M', 'Monthly'),)
 
-    status = models.CharField(default='U', choices=status_choices, max_length=1)
+    STATUS_CHOICES = (('U', 'Unscheduled'),
+                      ('S', 'Scheduled'))
+
+    status = models.CharField(default='U', choices=STATUS_CHOICES, max_length=1)
     repeat_hour_of_day = models.IntegerField(help_text="The hour of the day", null=True)
     repeat_minute_of_hour = models.IntegerField(help_text="The minute of the hour", null=True)
     repeat_day_of_month = models.IntegerField(null=True, help_text="The day of the month to repeat on")
-    repeat_period = models.CharField(max_length=1, null=True, help_text="When this schedule repeats", choices=repeat_choices)
+    repeat_period = models.CharField(max_length=1, null=True, help_text="When this schedule repeats", choices=REPEAT_CHOICES)
     repeat_days = models.IntegerField(default=0, null=True, blank=True, help_text="bit mask of days of the week")
     last_fire = models.DateTimeField(null=True, blank=True, default=None, help_text="When this schedule last fired")
     next_fire = models.DateTimeField(null=True, blank=True, default=None, help_text="When this schedule fires next")
@@ -157,8 +157,8 @@ class Schedule(SmartModel):
             bitmask_number = bin(self.repeat_days)
             for i in range(7):
                 power = bin(pow(2, i+1))
-                if bin(int(bitmask_number, 2)&int(power, 2)) == power:
-                    days.append(str(int(power,2)))
+                if bin(int(bitmask_number, 2) & int(power, 2)) == power:
+                    days.append(str(int(power, 2)))
         return days
 
     def __unicode__(self):  # pragma: no cover
