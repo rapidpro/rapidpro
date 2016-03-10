@@ -382,7 +382,7 @@ class Contact(TembaModel):
                 loc_value = self.org.parse_location(value, STATE_LEVEL)
 
             if loc_value is not None and len(loc_value) > 0:
-                loc_value = loc_value.first()
+                loc_value = loc_value[0]
             else:
                 loc_value = None
 
