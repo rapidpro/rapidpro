@@ -5151,7 +5151,7 @@ class HasStateTest(Test):
 
         state = org.parse_location(text, STATE_LEVEL)
         if state:
-            return 1, state.first()
+            return 1, state[0]
 
         return 0, None
 
@@ -5182,14 +5182,14 @@ class HasDistrictTest(Test):
 
         parent = org.parse_location(state, STATE_LEVEL)
         if parent:
-            district = org.parse_location(text, DISTRICT_LEVEL, parent.first())
+            district = org.parse_location(text, DISTRICT_LEVEL, parent[0])
             if district:
-                return 1, district.first()
+                return 1, district[0]
         district = org.parse_location(text, DISTRICT_LEVEL)
 
-        #parse location when state contrain is not provide or available
+        # parse location when state contraint is not provided or available
         if (errors or not state) and len(district) == 1:
-            return 1, district.first()
+            return 1, district[0]
 
         return 0, None
 
@@ -5224,14 +5224,14 @@ class HasWardTest(Test):
             state = org.parse_location(state_name, STATE_LEVEL)
             district = org.parse_location(district_name, DISTRICT_LEVEL, state.first())
             if district:
-                ward = org.parse_location(text, WARD_LEVEL, district.first())
+                ward = org.parse_location(text, WARD_LEVEL, district[0])
                 if ward:
-                    return 1, ward.first()
+                    return 1, ward[0]
 
-        #parse location when state contrain is not provide or available
+        # parse location when district contraint is not provided or available
         ward = org.parse_location(text, WARD_LEVEL)
         if len(ward) == 1 and district is None:
-            return 1, ward.first()
+            return 1, ward[0]
 
         return 0, None
 

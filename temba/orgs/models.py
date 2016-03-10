@@ -709,6 +709,11 @@ class Org(SmartModel):
         return query
 
     def find_boundary_by_name(self, name, level, parent):
+        """
+        Finds the boundary with the passed in name or alias on this organization at the stated level.
+
+        @returns Iterable of matching boundaries
+        """
         # first check if we have a direct name match
         if parent:
             boundary = parent.children.filter(name__iexact=name, level=level)
@@ -720,20 +725,26 @@ class Org(SmartModel):
         if not boundary:
             if parent:
                 alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
-                                                     boundary__parent=parent)
+                                                     boundary__parent=parent).first()
             else:
                 query = self.generate_location_query(name, level, True)
-                alias = BoundaryAlias.objects.filter(**query)
+                alias = BoundaryAlias.objects.filter(**query).first()
 
             if alias:
-                boundary = alias.boundary
+                boundary = [alias.boundary]
 
         return boundary
 
     def parse_location(self, location_string, level, parent=None):
+        """
+        Attempts to parse the passed in location string at the passed in level. This does various tokenizing
+        of the string to try to find the best possible match.
+
+        @returns Iterable of matching boundaries
+        """
         # no country? bail
         if not self.country or not isinstance(location_string, basestring):
-            return None
+            return []
 
         # now look up the boundary by full name
         boundary = self.find_boundary_by_name(location_string, level, parent)
