@@ -9,7 +9,7 @@ from .models import get_stripe_credentials, UNREAD_INBOX_MSGS, UNREAD_FLOW_MSGS
 class GroupPermWrapper(object):
     def __init__(self, group):
         self.group = group
-        self.empty = defaultdict(False)
+        self.empty = defaultdict(lambda: False)
 
         self.apps = dict()
         if self.group:
@@ -18,7 +18,7 @@ class GroupPermWrapper(object):
                 app_perms = self.apps.get(app_name, None)
 
                 if not app_perms:
-                    app_perms = defaultdict(False)
+                    app_perms = defaultdict(lambda: False)
                     self.apps[app_name] = app_perms
 
                 app_perms[perm.codename] = True
