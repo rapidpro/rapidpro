@@ -2288,8 +2288,8 @@ class ChannelCount(models.Model):
 
     @classmethod
     def get_day_count(cls, channel, count_type, day):
-        count = ChannelCount.objects.filter(channel=channel, count_type=count_type, day=day).\
-          order_by('day', 'count_type').aggregate(count_sum=Sum('count'))
+        count = ChannelCount.objects.filter(channel=channel, count_type=count_type, day=day)
+        count = count.order_by('day', 'count_type').aggregate(count_sum=Sum('count'))
 
         return 0 if not count else count['count_sum']
 

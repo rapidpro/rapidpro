@@ -1383,15 +1383,13 @@ class ChannelTest(TembaTest):
 
                         mock_plivo_get_number.return_value = (400, MockResponse(400, json.dumps(dict())))
 
-
-
-                        mock_plivo_buy_phone_number.return_value = (201, MockResponse(201,
-                                                                        json.dumps({'status': 'fulfilled',
-                                                                                    'message': 'created',
-                                                                                    'numbers': [{'status': 'Success',
-                                                                                                 'number': '27816855210'
-                                                                                              }],
-                                                                                    'api_id': '4334c747-9e83-11e5-9147-22000acb8094'})))
+                        response_body = json.dumps({
+                            'status': 'fulfilled',
+                            'message': 'created',
+                            'numbers': [{'status': 'Success', 'number': '27816855210'}],
+                            'api_id': '4334c747-9e83-11e5-9147-22000acb8094'
+                        })
+                        mock_plivo_buy_phone_number.return_value = (201, MockResponse(201, response_body))
 
                         # claim it the US number
                         session = self.client.session

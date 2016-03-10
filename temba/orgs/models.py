@@ -3,20 +3,18 @@ from __future__ import unicode_literals
 import calendar
 import json
 import logging
-import random
-import traceback
-import time
-from datetime import datetime, timedelta
-from decimal import Decimal
-from urlparse import urlparse
-from uuid import uuid4
-
 import os
 import pycountry
 import pytz
+import random
 import regex
 import stripe
+import traceback
+import time
+
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from decimal import Decimal
 from django.core.urlresolvers import reverse
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
@@ -36,6 +34,8 @@ from temba.utils import analytics, str_to_datetime, get_datetime_format, datetim
 from temba.utils import timezone_to_country_code
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from twilio.rest import TwilioRestClient
+from urlparse import urlparse
+from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
@@ -1813,6 +1813,4 @@ class CreditAlert(SmartModel):
             elif org_low_credits:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
             elif org_credits_expiring > 0:
-               CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
-
-
+                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)

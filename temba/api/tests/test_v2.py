@@ -605,7 +605,7 @@ class APITest(TembaTest):
                     'value': None,
                     'category': None,
                     'type': 'ruleset'
-                 }
+                }
             ],
             'created_on': format_datetime(frank_run2.created_on),
             'modified_on': format_datetime(frank_run2.modified_on),
