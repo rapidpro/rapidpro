@@ -1748,9 +1748,9 @@ class ChannelTest(TembaTest):
 
         # the case the status must be be reported
         post_data = dict(cmds=[
-                # device details status
-                dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="20", net="UMTS", retry=[], pending=[])])
-
+            # device details status
+            dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="20", net="UMTS", retry=[], pending=[])
+        ])
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
@@ -1763,8 +1763,9 @@ class ChannelTest(TembaTest):
 
         # the case the status must be be reported but already notification sent
         post_data = dict(cmds=[
-                # device details status
-                dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])])
+            # device details status
+            dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
+        ])
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
@@ -1777,8 +1778,9 @@ class ChannelTest(TembaTest):
 
         # Let plug the channel to charger
         post_data = dict(cmds=[
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])])
+            # device details status
+            dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
+        ])
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
@@ -1795,8 +1797,9 @@ class ChannelTest(TembaTest):
         # the case the status is in unknown state
 
         post_data = dict(cmds=[
-                # device details status
-                dict(cmd="status", p_sts="UNK", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])])
+            # device details status
+            dict(cmd="status", p_sts="UNK", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
+        ])
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
@@ -1809,9 +1812,9 @@ class ChannelTest(TembaTest):
 
         # Let plug the channel to charger to end this unknown power status
         post_data = dict(cmds=[
-
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])])
+            # device details status
+            dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
+        ])
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
@@ -1827,9 +1830,9 @@ class ChannelTest(TembaTest):
 
         # the case the status is in not charging state
         post_data = dict(cmds=[
-
-                # device details status
-                dict(cmd="status", p_sts="NOT", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])])
+            # device details status
+            dict(cmd="status", p_sts="NOT", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
+        ])
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
@@ -1842,9 +1845,9 @@ class ChannelTest(TembaTest):
 
         # Let plug the channel to charger to end this unknown power status
         post_data = dict(cmds=[
-
-                # device details status
-                dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])])
+            # device details status
+            dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="15", net="UMTS", pending=[], retry=[])
+        ])
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
@@ -1872,7 +1875,8 @@ class ChannelTest(TembaTest):
         post_data = dict(cmds=[
             dict(cmd="mo_sms", phone="2505551212", msg="First message", p_id="1", ts=date),
             dict(cmd="mo_sms", phone="2505551212", msg="First message", p_id="2", ts=date),
-            dict(cmd="mo_sms", phone="2505551212", msg="A second message", p_id="3", ts=date)])
+            dict(cmd="mo_sms", phone="2505551212", msg="A second message", p_id="3", ts=date)
+        ])
 
         response = self.sync(self.tel_channel, post_data)
         self.assertEquals(200, response.status_code)
@@ -4498,8 +4502,9 @@ class TwilioMessagingServiceTest(TembaTest):
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature(
-                'https://' + settings.TEMBA_HOST + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
-                post_data)
+            'https://' + settings.TEMBA_HOST + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
+            post_data
+        )
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(201, response.status_code)
