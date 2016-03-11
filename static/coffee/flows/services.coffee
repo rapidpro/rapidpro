@@ -636,12 +636,13 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     # check if a potential connection would result in an invalid loop
     detectLoop: (nodeId, targetId, path=[]) ->
 
+      node = @getNode(targetId)
+
       # can't go back on ourselves
-      if nodeId == targetId
+      if nodeId == targetId and not @isUssdRuleset(node)
         throw new Error('Loop detected: ' + nodeId)
 
       # break out if our target is a pausing ruleset
-      node = @getNode(targetId)
       if node and (@isPausingRuleset(node) or @isUssdRuleset(node))
         return false
 
