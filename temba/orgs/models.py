@@ -3,20 +3,18 @@ from __future__ import unicode_literals
 import calendar
 import json
 import logging
-import random
-import traceback
-import time
-from datetime import datetime, timedelta
-from decimal import Decimal
-from urlparse import urlparse
-from uuid import uuid4
-
 import os
 import pycountry
 import pytz
+import random
 import regex
 import stripe
+import traceback
+import time
+
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from decimal import Decimal
 from django.core.urlresolvers import reverse
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
@@ -36,6 +34,8 @@ from temba.utils import analytics, str_to_datetime, get_datetime_format, datetim
 from temba.utils import timezone_to_country_code
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from twilio.rest import TwilioRestClient
+from urlparse import urlparse
+from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
@@ -987,9 +987,8 @@ class Org(SmartModel):
                                     self._calculate_credits_used)
 
     def _calculate_credits_used(self):
-        used_credits_sum = TopUpCredits.objects.filter(topup__org=self,
-                                                       topup__is_active=True)\
-                                                .aggregate(Sum('used')).get('used__sum')
+        used_credits_sum = TopUpCredits.objects.filter(topup__org=self, topup__is_active=True)
+        used_credits_sum = used_credits_sum.aggregate(Sum('used')).get('used__sum')
         used_credits_sum = used_credits_sum if used_credits_sum else 0
 
         unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None, purged=False).count()
@@ -1816,6 +1815,4 @@ class CreditAlert(SmartModel):
             elif org_low_credits:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
             elif org_credits_expiring > 0:
-               CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
-
-
+                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)

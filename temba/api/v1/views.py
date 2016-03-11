@@ -1839,8 +1839,7 @@ class FlowResultsEndpoint(BaseAPIView):
         spec['fields'] = [dict(name='flow', required=False,
                                help="One or more flow ids to filter by.  ex: 234235,230420"),
                           dict(name='ruleset', required=False,
-                               help="One or more rulesets to filter by.  ex: 12412,12451"),
-                         ]
+                               help="One or more rulesets to filter by.  ex: 12412,12451")]
         return spec
 
 
