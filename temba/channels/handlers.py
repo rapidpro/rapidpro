@@ -1025,7 +1025,7 @@ class KannelHandler(View):
             if not all(k in request.REQUEST for k in ['message', 'sender', 'ts', 'id']):
                 return HttpResponse("Missing one of 'message', 'sender', 'id' or 'ts' in request parameters.", status=400)
 
-            # dates come in the format "2014-04-18 03:54:20.570618" GMT
+            # dates come in the format of a timestamp
             sms_date = datetime.utcfromtimestamp(int(request.REQUEST['ts']))
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
@@ -1362,3 +1362,80 @@ class StartHandler(View):
         # Start expects an XML response
         xml_response = """<answer type="async"><state>Accepted</state></answer>"""
         return HttpResponse(xml_response)
+
+
+class ChikkaHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(ChikkaHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
+        from temba.channels.models import CHIKKA
+
+        request_uuid = kwargs['uuid']
+        action = request.REQUEST['message_type'].lower()
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=CHIKKA).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Error, channel not found for id: %s" % request_uuid, status=400)
+
+        # if this is the status of an outgoing message
+        if action == 'outgoing':
+            if not all(k in request.REQUEST for k in ['message_id', 'status']):
+                return HttpResponse("Error, missing one of 'message_id' or 'status' in request parameters.", status=400)
+
+            sms_id = self.request.REQUEST['message_id']
+
+            # look up the message
+            sms = Msg.current_messages.filter(channel=channel, id=sms_id).select_related('channel')
+            if not sms:
+                return HttpResponse("Error, message with external id of '%s' not found" % sms_id, status=400)
+
+            # possible status codes Chikka will send us
+            status_choices = {'SENT': SENT, 'FAILED': FAILED}
+
+            # check our status
+            status_code = self.request.REQUEST['status']
+            status = status_choices.get(status_code, None)
+
+            # we don't recognize this status code
+            if not status:
+                return HttpResponse("Error, unrecognized status: '%s', ignoring message." % status_code, status=400)
+
+            # only update to SENT status if still in WIRED state
+            if status == SENT:
+                for sms_obj in sms.filter(status__in=[PENDING, QUEUED, WIRED]):
+                    sms_obj.status_sent()
+            elif status == FAILED:
+                for sms_obj in sms:
+                    sms_obj.fail()
+
+            return HttpResponse("Accepted. SMS Status Updated")
+
+        # this is a new incoming message
+        elif action == 'incoming':
+            if not all(k in request.REQUEST for k in ['mobile_number', 'request_id', 'message', 'timestamp']):
+                return HttpResponse("Error, missing one of 'mobile_number', 'request_id', "
+                                    "'message' or 'timestamp' in request parameters.", status=400)
+
+            # dates come as timestamps
+            sms_date = datetime.utcfromtimestamp(int(request.REQUEST['timestamp']))
+            gmt_date = pytz.timezone('GMT').localize(sms_date)
+
+            sms = Msg.create_incoming(channel,
+                                      (TEL_SCHEME, request.REQUEST['mobile_number']),
+                                      request.REQUEST['message'],
+                                      date=gmt_date)
+
+            # save our request id in case of replies
+            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['request_id'])
+            return HttpResponse("Accepted: %d" % sms.id)
+
+        else:
+            return HttpResponse("Error, unknown message type", status=400)

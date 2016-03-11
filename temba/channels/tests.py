@@ -42,7 +42,7 @@ from twilio import TwilioException, TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
-from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog
+from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS, ALERT_DISCONNECTED, ALERT_SMS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
@@ -2249,6 +2249,36 @@ class ChannelAlertTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.africas_talking_handler', args=['callback', channel.uuid]))
         self.assertContains(response, reverse('handlers.africas_talking_handler', args=['delivery', channel.uuid]))
+
+    def test_claim_chikka(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_chikka'))
+        self.assertEquals(200, response.status_code)
+        post_data = response.context['form'].initial
+
+        post_data['number'] = '5259'
+        post_data['username'] = 'chikka'
+        post_data['password'] = 'password'
+
+        response = self.client.post(reverse('channels.channel_claim_chikka'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals('chikka', channel.config_json()[USERNAME])
+        self.assertEquals('password', channel.config_json()[PASSWORD])
+        self.assertEquals('5259', channel.address)
+        self.assertEquals('PH', channel.country)
+        self.assertEquals(CHIKKA, channel.channel_type)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('handlers.chikka_handler', args=[channel.uuid]))
 
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
@@ -5545,3 +5575,148 @@ class StartMobileTest(TembaTest):
 
         finally:
             settings.SEND_MESSAGES = False
+
+
+class ChikkaTest(TembaTest):
+
+    def setUp(self):
+        super(ChikkaTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'PH', CHIKKA, None, '920920',
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+        config = {USERNAME: 'username', PASSWORD: 'password'}
+        self.channel.config = json.dumps(config)
+        self.channel.save()
+
+    def test_status(self):
+        # try with an invalid channel uuid
+        data = dict(message_type='outgoing', message_id=1001, status='FAILED')
+        response = self.client.post(reverse('handlers.chikka_handler', args=['not-real-uuid']), data)
+        self.assertEquals(400, response.status_code)
+
+        # ok, try with a valid uuid, but invalid message id 1001, should return 400 as well
+        response = self.client.post(reverse('handlers.chikka_handler', args=[self.channel.uuid]), data)
+        self.assertEquals(400, response.status_code)
+
+        # ok, lets create an outgoing message to update
+        joe = self.create_contact("Joe Biden", "+63911231234")
+        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        sms = broadcast.get_messages()[0]
+        data['message_id'] = sms.id
+
+        # valid id, invalid status, 400
+        data['status'] = 'INVALID'
+        response = self.client.post(reverse('handlers.chikka_handler', args=[self.channel.uuid]), data)
+        self.assertEquals(400, response.status_code)
+
+        def assertStatus(sms, status, assert_status):
+            sms.status = WIRED
+            sms.save()
+
+            data['status'] = status
+            response = self.client.post(reverse('handlers.chikka_handler', args=[self.channel.uuid]), data)
+            self.assertEquals(200, response.status_code)
+            updated_sms = Msg.all_messages.get(pk=sms.id)
+            self.assertEquals(assert_status, updated_sms.status)
+
+        assertStatus(sms, 'FAILED', FAILED)
+        assertStatus(sms, 'SENT', SENT)
+
+    def test_receive(self):
+        timestamp = int(time.time())
+        data = dict(message_type='incoming', mobile_number='63911231234', request_id='4004',
+                    message='Hello World!', timestamp=timestamp)
+        callback_url = reverse('handlers.chikka_handler', args=[self.channel.uuid])
+        response = self.client.post(callback_url, data)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        sms = Msg.all_messages.get()
+        self.assertEquals("+63911231234", sms.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, sms.direction)
+        self.assertEquals(self.org, sms.org)
+        self.assertEquals(self.channel, sms.channel)
+        self.assertEquals("Hello World!", sms.text)
+        self.assertEquals('4004', sms.external_id)
+
+    def test_send(self):
+        joe = self.create_contact("Joe", '+63911231234')
+
+        # incoming message for a reply test
+        incoming = Msg.create_incoming(self.channel, ('tel', '+63911231234'), "incoming message")
+        incoming.external_id = '4004'
+        incoming.save()
+
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, "Success", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # check we were called as a send
+                self.assertEqual(mock.call_args[1]['data']['message_type'], 'SEND')
+                self.clear_cache()
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, "Success", method='POST')
+
+                sms.response_to = incoming
+                sms.save()
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                # assert that we were called as a reply
+                self.assertEqual(mock.call_args[1]['data']['message_type'], 'REPLY')
+                self.assertEqual(mock.call_args[1]['data']['request_id'], '4004')
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                mock.side_effect = Exception("Couldn't reach server")
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                mock.side_effect = Exception("Couldn't reach server")
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # should also have an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+        finally:
+            settings.SEND_MESSAGES = False
+

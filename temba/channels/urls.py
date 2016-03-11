@@ -4,10 +4,9 @@ from django.conf.urls import url, include
 from .handlers import TwilioHandler, VerboiceHandler, AfricasTalkingHandler, ZenviaHandler, M3TechHandler
 from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
-from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, TelegramHandler
+from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, TelegramHandler, ChikkaHandler
 from .handlers import TwilioMessagingServiceHandler
 from .views import ChannelCRUDL, ChannelLogCRUDL
-
 
 urlpatterns = [
     url(r'^channels/', include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
@@ -34,7 +33,8 @@ urlpatterns = [
         url(r'^/m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$', M3TechHandler.as_view(), name='handlers.m3tech_handler'),
         url(r'^/yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$', YoHandler.as_view(), name='handlers.yo_handler'),
         url(r'^/mage/(?P<action>handle_message|follow_notification)$', MageHandler.as_view(), name='handlers.mage_handler'),
-        url(r'^/telegram/(?P<uuid>[a-z0-9\-]+)/?$', TelegramHandler.as_view(), name='handlers.telegram_handler')
+        url(r'^/telegram/(?P<uuid>[a-z0-9\-]+)/?$', TelegramHandler.as_view(), name='handlers.telegram_handler'),
+        url(r'^/chikka/(?P<uuid>[a-z0-9\-]+)/?$', ChikkaHandler.as_view(), name='handlers.chikka_handler'),
     ])),
 
     # for backwards compatibility these channel handlers are exposed at /api/v1 as well

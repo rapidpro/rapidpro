@@ -1019,7 +1019,7 @@ class Msg(models.Model):
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction,
-                    external_id=self.external_id,
+                    external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)
 

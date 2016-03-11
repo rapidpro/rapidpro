@@ -64,6 +64,7 @@ YO = 'YO'
 START = 'ST'
 TWILIO_MESSAGING_SERVICE = 'TMS'
 TELEGRAM = 'TG'
+CHIKKA = 'CK'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -96,29 +97,30 @@ SEND_BATCH_SIZE = 100
 
 # various hard coded settings for the channel types
 CHANNEL_SETTINGS = {
-    ANDROID: dict(scheme='tel', max_length=-1),
-    TWILIO: dict(scheme='tel', max_length=1600),
     AFRICAS_TALKING: dict(scheme='tel', max_length=160),
-    ZENVIA: dict(scheme='tel', max_length=150),
+    ANDROID: dict(scheme='tel', max_length=-1),
+    BLACKMYNA: dict(scheme='tel', max_length=1600),
+    CHIKKA: dict(scheme='tel', max_length=160),
+    CLICKATELL: dict(scheme='tel', max_length=420),
     EXTERNAL: dict(max_length=160),
-    NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
+    HIGH_CONNECTION: dict(scheme='tel', max_length=320),
+    HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),
+    KANNEL: dict(scheme='tel', max_length=1600),
+    M3TECH: dict(scheme='tel', max_length=160),
+    NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
+    PLIVO: dict(scheme='tel', max_length=1600),
+    SHAQODOON: dict(scheme='tel', max_length=1600),
+    SMSCENTRAL: dict(scheme='tel', max_length=1600),
+    START: dict(scheme='tel', max_length=1600),
+    TELEGRAM: dict(scheme='telegram', max_length=1600),
+    TWILIO: dict(scheme='tel', max_length=1600),
+    TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
+    TWITTER: dict(scheme='twitter', max_length=10000),
     VERBOICE: dict(scheme='tel', max_length=1600),
     VUMI: dict(scheme='tel', max_length=1600),
-    KANNEL: dict(scheme='tel', max_length=1600),
-    HUB9: dict(scheme='tel', max_length=1600),
-    TWITTER: dict(scheme='twitter', max_length=10000),
-    SHAQODOON: dict(scheme='tel', max_length=1600),
-    CLICKATELL: dict(scheme='tel', max_length=420),
-    PLIVO: dict(scheme='tel', max_length=1600),
-    HIGH_CONNECTION: dict(scheme='tel', max_length=320),
-    BLACKMYNA: dict(scheme='tel', max_length=1600),
-    SMSCENTRAL: dict(scheme='tel', max_length=1600),
-    M3TECH: dict(scheme='tel', max_length=160),
     YO: dict(scheme='tel', max_length=1600),
-    START: dict(scheme='tel', max_length=1600),
-    TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
-    TELEGRAM: dict(scheme='telegram', max_length=1600)
+    ZENVIA: dict(scheme='tel', max_length=150),
 }
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
@@ -1144,6 +1146,63 @@ class Channel(TembaModel):
                                response_status=response.status_code)
 
     @classmethod
+    def send_chikka_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+        payload = {
+            'message_type': 'SEND',
+            'mobile_number': msg.urn_path.lstrip('+'),
+            'shortcode': channel.address,
+            'message_id': msg.id,
+            'message': msg.text,
+            'request_cost': 'FREE',
+            'client_id': channel.config[USERNAME],
+            'secret_key': channel.config[PASSWORD]
+        }
+
+        # if this is a response to a user SMS, then we need to set this as a reply
+        if msg.response_to_id:
+            response_to = Msg.all_messages.filter(id=msg.response_to_id).first()
+            if response_to:
+                payload['message_type'] = 'REPLY'
+                payload['request_id'] = response_to.external_id
+
+        # build our send URL
+        url = 'https://post.chikka.com/smsapi/request'
+        log_payload = payload.copy()
+        log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
+
+        start = time.time()
+
+        try:
+            response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
+
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=log_payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=log_payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=log_payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
     def send_high_connection_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
         payload = {
@@ -2104,6 +2163,7 @@ class Channel(TembaModel):
         type_settings = CHANNEL_SETTINGS[channel.channel_type]
 
         send_funcs = {AFRICAS_TALKING: Channel.send_africas_talking_message,
+                      CHIKKA: Channel.send_chikka_message,
                       EXTERNAL: Channel.send_external_message,
                       HUB9: Channel.send_hub9_message,
                       INFOBIP: Channel.send_infobip_message,
