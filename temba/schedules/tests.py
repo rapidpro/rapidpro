@@ -136,12 +136,12 @@ class ScheduleTest(TembaTest):
 
         # update our message
         post_data = dict(message="An updated scheduled message", omnibox="c-%d" % joe.pk)
-        self.client.post(reverse('msgs.broadcast_update', args=[broadcast.pk]),  post_data)
+        self.client.post(reverse('msgs.broadcast_update', args=[broadcast.pk]), post_data)
         self.assertEquals("An updated scheduled message", Broadcast.objects.get(pk=broadcast.pk).text)
 
         # update the schedule
         post_data = dict(repeat_period='W', repeat_days=6, start='later', start_datetime_value=1)
-        response = self.client.post(reverse('schedules.schedule_update', args=[broadcast.schedule.pk]),  post_data)
+        response = self.client.post(reverse('schedules.schedule_update', args=[broadcast.schedule.pk]), post_data)
 
         #broadcast = Broadcast.objects.get(pk=broadcast.pk)
         #self.assertTrue(broadcast.schedule.has_pending_fire())

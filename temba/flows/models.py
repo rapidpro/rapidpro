@@ -1090,7 +1090,7 @@ class Flow(TembaModel):
         self.save(update_fields=['name', 'flow_type'])
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
+        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
         self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language='base'))
 
     def steps(self):
@@ -3074,7 +3074,7 @@ class ExportFlowResultsTask(SmartModel):
 
     task_id = models.CharField(null=True, max_length=64)
 
-    is_finished = models.BooleanField(default=False,  help_text=_("Whether this export is complete"))
+    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is complete"))
 
     uuid = models.CharField(max_length=36, null=True,
                             help_text=_("The uuid used to name the resulting export file"))

@@ -30,7 +30,7 @@ class Report(SmartModel):
                                        help_text=_("Whether this report is currently published"))
 
     @classmethod
-    def create_report(cls, org, user,  json_dict):
+    def create_report(cls, org, user, json_dict):
         title = json_dict.get(Report.TITLE)
         description = json_dict.get(Report.DESCRIPTION)
         config = json_dict.get(Report.CONFIG)
