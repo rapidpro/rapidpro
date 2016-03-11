@@ -494,7 +494,7 @@
             .ussd-flow-items
               .ussd-flow-item{ng-repeat:'item in ruleset.config.ussd_menu'}
                 %span.ussd-label{ng-show:'ruleset.ruleset_type=="wait_menu"'}
-                  [[item.option]]: [[item.label]]
+                  <strong>[[item.option]]</strong>: [[item.label]]
 
           %table{style:'width:100%;', ruleset:"ruleset", ng-click:'clickRuleset(ruleset)'}
             %tr.rules
