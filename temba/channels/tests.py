@@ -5722,4 +5722,3 @@ class ChikkaTest(TembaTest):
 
         finally:
             settings.SEND_MESSAGES = False
-

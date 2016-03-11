@@ -1,17 +1,15 @@
 from __future__ import unicode_literals
 
-from datetime import datetime, timedelta
-from django.utils import timezone
 import json
-import time
-from django.core.urlresolvers import reverse
-from django.contrib.auth.models import User, Group
-from .models import Schedule
-from dateutil.relativedelta import relativedelta
-from temba.msgs.models import Broadcast
-from temba.orgs.models import Org
-from temba.tests import TembaTest
 import pytz
+import time
+
+from datetime import datetime, timedelta
+from django.core.urlresolvers import reverse
+from django.utils import timezone
+from temba.msgs.models import Broadcast
+from temba.tests import TembaTest
+from .models import Schedule
 
 MONDAY = 0     # 2
 TUESDAY = 1    # 4
@@ -282,5 +280,3 @@ class ScheduleTest(TembaTest):
 
         # next fire should fall at the right hour and minute
         self.assertIn('04:45:00+00:00', unicode(sched.next_fire))
-
-

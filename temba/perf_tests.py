@@ -423,4 +423,3 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             for i in range(10000):
                 ChannelLog.log_success(msg, "Sent Message", method="GET", url="http://foo",
                                        request="GET http://foo", response="Ok", response_status="201")
-

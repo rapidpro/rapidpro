@@ -1,8 +1,12 @@
+from __future__ import unicode_literals
+
+import json
+
 from django.db import models
+from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.orgs.models import Org
-from django.utils.translation import ugettext_lazy as _
-import json
+
 
 class Report(SmartModel):
     TITLE = 'title'
@@ -55,5 +59,3 @@ class Report(SmartModel):
 
     class Meta:
         unique_together = (('org', 'title'),)
-
-    
