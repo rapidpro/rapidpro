@@ -1425,7 +1425,7 @@ class ChikkaHandler(View):
                                     "'message' or 'timestamp' in request parameters.", status=400)
 
             # dates come as timestamps
-            sms_date = datetime.utcfromtimestamp(int(request.REQUEST['timestamp']))
+            sms_date = datetime.utcfromtimestamp(float(request.REQUEST['timestamp']))
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
             sms = Msg.create_incoming(channel,
