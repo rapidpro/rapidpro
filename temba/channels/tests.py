@@ -12,7 +12,7 @@ import time
 import urllib2
 import uuid
 
-from datetime import timedelta
+from datetime import timedelta, date
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core import mail
@@ -5628,9 +5628,8 @@ class ChikkaTest(TembaTest):
         assertStatus(sms, 'SENT', SENT)
 
     def test_receive(self):
-        timestamp = int(time.time())
-        data = dict(message_type='incoming', mobile_number='63911231234', request_id='4004',
-                    message='Hello World!', timestamp=timestamp)
+        data = dict(message_type='incoming', mobile_number='639178020779', request_id='4004',
+                    message='Hello World!', timestamp='1457670059.69')
         callback_url = reverse('handlers.chikka_handler', args=[self.channel.uuid])
         response = self.client.post(callback_url, data)
 
@@ -5638,12 +5637,13 @@ class ChikkaTest(TembaTest):
 
         # load our message
         sms = Msg.all_messages.get()
-        self.assertEquals("+63911231234", sms.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals("+639178020779", sms.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, sms.direction)
         self.assertEquals(self.org, sms.org)
         self.assertEquals(self.channel, sms.channel)
         self.assertEquals("Hello World!", sms.text)
         self.assertEquals('4004', sms.external_id)
+        self.assertEquals(sms.created_on.date(), date(day=11, month=3, year=2016))
 
     def test_send(self):
         joe = self.create_contact("Joe", '+63911231234')
