@@ -626,6 +626,10 @@ class Flow(TembaModel):
                 if user_input or not should_pause:
                     result = Flow.handle_ruleset(destination, step, run, msg)
                     add_to_path(path, destination.uuid)
+                elif destination.is_ussd():
+                    action = UssdAction.from_ruleset(destination)
+                    msg = Msg(org=run.org, contact_id=run.contact_id, text='', id=0)
+                    action.execute(run, msg)
 
                 # if we used this input, then mark our user input as used
                 if should_pause:
@@ -1652,7 +1656,7 @@ class Flow(TembaModel):
                     Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
 
                 # if we didn't get an incoming message, see if we need to evaluate it passively
-                elif not entry_rules.is_pause():
+                elif not entry_rules.is_pause() or entry_rules.is_ussd():
                     # create an empty placeholder message
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                     Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact)
@@ -2349,6 +2353,8 @@ class RuleSet(models.Model):
 
     TYPE_WAIT = (TYPE_WAIT_USSD_MENU, TYPE_WAIT_USSD, TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS)
 
+    TYPE_USSD = (TYPE_WAIT_USSD_MENU, TYPE_WAIT_USSD)
+
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
                     (TYPE_WAIT_USSD_MENU, "Wait for USSD menu"),
                     (TYPE_WAIT_USSD, "Wait for USSD message"),
@@ -2492,6 +2498,9 @@ class RuleSet(models.Model):
 
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
+
+    def is_ussd(self):
+        return self.ruleset_type in RuleSet.TYPE_USSD
 
     def find_matching_rule(self, step, run, msg):
 
@@ -4303,6 +4312,60 @@ class ReplyAction(Action):
             if offline_on:
                 return [Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
                                             created_on=offline_on, response_to=msg)]
+
+            context = run.flow.build_message_context(run.contact, msg)
+            if msg:
+                broadcast = msg.reply(text, user, trigger_send=False, message_context=context)
+            else:
+                broadcast = run.contact.send(text, user, trigger_send=False, message_context=context)
+
+            return list(broadcast.get_messages())
+        return []
+
+
+class UssdAction(Action):
+    """
+    USSD action to send outgoing USSD messages
+
+    Note: now it mimics the functionality of ReplyAction to use with the simulator, once the USSD channel is implemented
+    this is to be changed
+    """
+    TYPE = 'ussd'
+    MESSAGE = 'ussd_text'
+    MENU = 'ussd_menu'
+    TYPE_WAIT_USSD_MENU = 'wait_menu'
+    TYPE_WAIT_USSD = 'wait_ussd'
+
+    def __init__(self, msg=None):
+        self.msg = msg
+
+    @classmethod
+    def from_ruleset(cls, rule):
+        obj = json.loads(rule.config)
+        msg = obj.get(UssdAction.MESSAGE, '')
+
+        if rule.ruleset_type == UssdAction.TYPE_WAIT_USSD_MENU:
+            if msg:
+                msg += '\n'
+
+            msg = UssdAction.build_menu(msg, obj)
+
+        return UssdAction(msg=msg)
+
+    @classmethod
+    def build_menu(cls, msg, obj):
+        for menu in obj[UssdAction.MENU]:
+            msg += ": ".join((str(menu['option']), str(menu['label']), )) + '\n'
+
+        if msg.endswith('\n'):
+            msg = msg[:-2]
+
+        return msg
+
+    def execute(self, run, msg):
+        if self.msg:
+            user = get_flow_user()
+            text = run.flow.get_localized_text(self.msg, run.contact)
 
             context = run.flow.build_message_context(run.contact, msg)
             if msg:
