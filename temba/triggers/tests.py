@@ -516,7 +516,7 @@ class TriggerTest(TembaTest):
         post_data = dict(flow=flow.pk)
 
         response = self.client.post(trigger_url, post_data)
-        trigger =  Trigger.objects.all().order_by('-pk')[0]
+        trigger = Trigger.objects.all().order_by('-pk')[0]
 
         self.assertEquals(trigger.trigger_type, Trigger.TYPE_MISSED_CALL)
         self.assertEquals(trigger.flow.pk, flow.pk)
