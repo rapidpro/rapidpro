@@ -38,9 +38,10 @@ from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH,
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
-from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN, CHIKKA
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
+                      CHIKKA: "icon-channel-external",
                       EXTERNAL: "icon-channel-external",
                       KANNEL: "icon-channel-kannel",
                       NEXMO: "icon-channel-nexmo",
@@ -514,12 +515,12 @@ class UpdateTwitterForm(UpdateChannelForm):
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
-               'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
+               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
-               'claim_twilio_messaging_service')
+               'claim_twilio_messaging_service', 'claim_zenvia')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1212,6 +1213,28 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimM3tech(ClaimAuthenticatedExternal):
         title = _("Connect M3 Tech")
         channel_type = M3TECH
+
+    class ClaimChikka(ClaimAuthenticatedExternal):
+        class ChikkaForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
+                                     help_text=_("The short code you are connecting."))
+            username = forms.CharField(label=_("Client Id"),
+                                       help_text=_("The Client Id found on your Chikka API credentials page"))
+            password = forms.CharField(label=_("Secret Key"),
+                                       help_text=_("The Secret Key found on your Chikka API credentials page"))
+
+        title = _("Connect Chikka")
+        channel_type = CHIKKA
+        readonly = ('country', )
+        form_class = ChikkaForm
+
+        def get_country(self, obj):
+            return "Indonesia"
+
+        def get_submitted_country(self, data):
+            return 'PH'
 
     class ClaimTelegram(OrgPermsMixin, SmartFormView):
         class TelegramForm(forms.Form):

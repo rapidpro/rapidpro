@@ -1340,6 +1340,9 @@ class Org(SmartModel):
         elif countrycode == 'UG':
             recommended = 'yo'
 
+        elif countrycode == 'PH':
+            recommended = 'chikka'
+
         return recommended
 
     def increment_unread_msg_count(self, type):
