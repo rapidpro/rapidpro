@@ -13,7 +13,7 @@ from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Q, Max
 from django import forms
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
@@ -169,11 +169,13 @@ class RuleCRUDL(SmartCRUDL):
             # figure out our state and district contact fields
             state_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_STATE).first()
             district_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_DISTRICT).first()
-
+            ward_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_WARD).first()
             # by default, segment by states
             segment = dict(location=state_field.label)
             if parent.level == 1:
                 segment = dict(location=district_field.label, parent=parent.osm_id)
+            if parent.level == 2:
+                segment = dict(location=ward_field.label, parent=parent.osm_id)
 
             results = Value.get_value_summary(ruleset=ruleset, filters=filters, segment=segment)
 
@@ -272,7 +274,7 @@ class RuleCRUDL(SmartCRUDL):
             if current_flow and len(current_flow['rules']) > 0:
                 flow_json.append(current_flow)
 
-            groups = ContactGroup.user_groups.filter(is_active=True, org=org).order_by('name')
+            groups = ContactGroup.user_groups.filter(org=org).order_by('name')
             groups_json = []
             for group in groups:
                 if group.get_member_count() > 0:
@@ -1067,8 +1069,7 @@ class FlowCRUDL(SmartCRUDL):
                     rows.append([date,
                                  dict(category=phone, contact=run['contact__pk']),
                                  dict(category=name),
-                                 dict(contact=run['contact__pk'], category=run['count'])]
-                                + cols)
+                                 dict(contact=run['contact__pk'], category=run['count'])] + cols)
 
                 return build_json_response(dict(iTotalRecords=total, iTotalDisplayRecords=total, sEcho=self.request.REQUEST.get('sEcho', 0), aaData=rows))
             else:
@@ -1289,6 +1290,9 @@ class FlowCRUDL(SmartCRUDL):
                 # check whether there are any flow starts that are incomplete
                 if FlowStart.objects.filter(flow=self.flow).exclude(status__in=[COMPLETE, FAILED]):
                     raise ValidationError(_("This flow is already being started, please wait until that process is complete before starting more contacts."))
+
+                if self.flow.org.is_suspended():
+                    raise ValidationError(_("Sorry, your account is currently suspended. To enable sending messages, please contact support."))
 
                 return cleaned
 

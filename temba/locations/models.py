@@ -10,6 +10,7 @@ from mptt.models import MPTTModel, TreeForeignKey
 COUNTRY_LEVEL = 0
 STATE_LEVEL = 1
 DISTRICT_LEVEL = 2
+WARD_LEVEL = 3
 
 
 class AdminBoundary(MPTTModel, models.Model):

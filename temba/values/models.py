@@ -32,12 +32,14 @@ class Value(models.Model):
     TYPE_DATETIME = 'D'
     TYPE_STATE = 'S'
     TYPE_DISTRICT = 'I'
+    TYPE_WARD = 'W'
 
     TYPE_CONFIG = ((TYPE_TEXT, _("Text"), 'text'),
                    (TYPE_DECIMAL, _("Numeric"), 'numeric'),
                    (TYPE_DATETIME, _("Date & Time"), 'datetime'),
                    (TYPE_STATE, _("State"), 'state'),
-                   (TYPE_DISTRICT, _("District"), 'district'))
+                   (TYPE_DISTRICT, _("District"), 'district'),
+                   (TYPE_WARD, _("Ward"), 'ward'))
 
     TYPE_CHOICES = [(c[0], c[1]) for c in TYPE_CONFIG]
 
@@ -264,7 +266,7 @@ class Value(models.Model):
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'date_value',
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT]:
+            elif contact_field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
                 values = values.values('location_value__osm_id', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
                                                                               return_contacts=return_contacts)
@@ -412,7 +414,7 @@ class Value(models.Model):
             elif 'groups' in segment:
                 for group_id in segment['groups']:
                     # load our group
-                    group = ContactGroup.user_groups.get(is_active=True, org=org, pk=group_id)
+                    group = ContactGroup.user_groups.get(org=org, pk=group_id)
 
                     category_filter = list(filters)
                     category_filter.append(dict(groups=[group_id]))
@@ -442,7 +444,7 @@ class Value(models.Model):
                 field = ContactField.get_by_label(org, segment['location'])
 
                 # make sure they are segmenting on a location type that makes sense
-                if field.value_type not in [Value.TYPE_STATE, Value.TYPE_DISTRICT]:
+                if field.value_type not in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
                     raise ValueError(_("Cannot segment on location for field that is not a State or District type"))
 
                 # make sure our org has a country for location based responses
@@ -464,9 +466,12 @@ class Value(models.Model):
                 if not parent_osm_id and field.value_type == Value.TYPE_DISTRICT:
                     raise ValueError(_("You must specify a parent state to segment results by district"))
 
+                if not parent_osm_id and field.value_type == Value.TYPE_WARD:
+                    raise ValueError(_("You must specify a parent state to segment results by ward"))
+
                 # if this is a district, we can speed things up by only including those districts in our parent, build
                 # the filter for that
-                if parent and field.value_type == Value.TYPE_DISTRICT:
+                if parent and field.value_type in [Value.TYPE_DISTRICT, Value.TYPE_WARD]:
                     location_filters = [filters, dict(location=field.pk, boundary=[b.osm_id for b in boundaries])]
                 else:
                     location_filters = filters

@@ -260,7 +260,7 @@ class @Modal
     @ele = $('#modal-template').clone()
     @ele.data('object', @)
     @ele.attr('id', 'active-modal')
-    @keyboard = true
+    @keyboard = false
     modalClose = @ele.find('.close')
     modalClose.on('click', -> modal.dismiss())
 
