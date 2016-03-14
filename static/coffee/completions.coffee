@@ -267,5 +267,4 @@ class window.AutoComplete
         if subtext.slice(-2) is '@(' and (not nextPart or nextPart.slice(0,1) is not ')')
           text = subtext + ')' + content.slice(caretPos + 1)
           $inputor.val(text)
-
-        $inputor.caret('pos', caretPos)
+          $inputor.caret('pos', caretPos)

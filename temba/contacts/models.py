@@ -41,6 +41,9 @@ TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
+# how many sequential contacts on import triggers suspension
+SEQUENTIAL_CONTACTS_THRESHOLD = 250
+
 URN_SCHEMES = [TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, FACEBOOK_SCHEME,
                TELEGRAM_SCHEME, EMAIL_SCHEME, EXTERNAL_SCHEME]
 
@@ -379,7 +382,7 @@ class Contact(TembaModel):
                 loc_value = self.org.parse_location(value, STATE_LEVEL)
 
             if loc_value is not None and len(loc_value) > 0:
-                loc_value = loc_value.first()
+                loc_value = loc_value[0]
             else:
                 loc_value = None
 
@@ -918,6 +921,29 @@ class Contact(TembaModel):
 
             group.contacts.add(contact)
 
+        # if we aren't whitelisted, check for sequential phone numbers
+        if not group_org.is_whitelisted():
+            try:
+                # get all of our phone numbers for the imported contacts
+                paths = [int(u.path) for u in ContactURN.objects.filter(scheme=TEL_SCHEME, contact__in=[c.pk for c in contacts])]
+                paths = sorted(paths)
+
+                last_path = None
+                sequential = 0
+                for path in paths:
+                    if last_path:
+                        if path - last_path == 1:
+                            sequential += 1
+                    last_path = path
+
+                    if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
+                        group_org.set_suspended()
+                        break
+
+            except Exception:  # pragma: no-cover
+                # if we fail to parse phone numbers for any reason just punt
+                pass
+
         import_results['creates'] = num_creates
         import_results['updates'] = len(contacts) - num_creates
         task.import_results = json.dumps(import_results)
@@ -1087,7 +1113,7 @@ class Contact(TembaModel):
         # add all URNs
         for scheme, label in URN_SCHEME_CHOICES:
             urn_value = self.get_urn_display(scheme=scheme, org=org)
-            contact_dict[scheme] = urn_value if not urn_value is None else ''
+            contact_dict[scheme] = urn_value if urn_value is not None else ''
 
         # get all the values for this contact
         contact_values = {v.contact_field.key: v for v in Value.objects.filter(contact=self).exclude(contact_field=None).select_related('contact_field')}
@@ -1095,7 +1121,7 @@ class Contact(TembaModel):
         # add all fields
         for field in ContactField.objects.filter(org_id=self.org_id).select_related('org'):
             field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
-            contact_dict[field.key] = field_value if not field_value is None else ''
+            contact_dict[field.key] = field_value if field_value is not None else ''
 
         return contact_dict
 
@@ -1530,7 +1556,8 @@ class SystemContactGroupManager(models.Manager):
 
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super(UserContactGroupManager, self).get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED)
+        return super(UserContactGroupManager, self).get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED,
+                                                                          is_active=True)
 
 
 class ContactGroup(TembaModel):
@@ -1576,15 +1603,22 @@ class ContactGroup(TembaModel):
         """
         Returns the user group with the passed in name
         """
-        return ContactGroup.user_groups.filter(name__iexact=cls.clean_name(name), org=org, is_active=True).first()
+        return ContactGroup.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
 
     @classmethod
-    def get_or_create(cls, org, user, name):
-        existing = ContactGroup.get_user_group(org, name)
+    def get_or_create(cls, org, user, name, group_id=None):
+        existing = None
+
+        if group_id is not None:
+            existing = ContactGroup.user_groups.filter(org=org, id=group_id).first()
+
+        if not existing:
+            existing = ContactGroup.get_user_group(org, name)
+
         if existing:
             return existing
-        else:
-            return cls.create(org, user, name)
+
+        return cls.create(org, user, name)
 
     @classmethod
     def create(cls, org, user, name, task=None, query=None):

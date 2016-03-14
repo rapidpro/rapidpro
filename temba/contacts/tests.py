@@ -165,7 +165,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
     def testDelete(self):
         obj = self.getTestObject()
         self._do_test_view('delete', obj, post_data=dict())
-        self.assertFalse(self.getCRUDL().model.user_groups.get(pk=obj.pk).is_active)
+        self.assertIsNone(self.getCRUDL().model.user_groups.filter(pk=obj.pk).first())
+        self.assertFalse(self.getCRUDL().model.all_groups.get(pk=obj.pk).is_active)
 
     def test_create(self):
         create_url = reverse('contacts.contactgroup_create')
@@ -205,6 +206,13 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         # direct calls are the same thing
         existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
         self.assertEquals('first', existing_group.name)
+
+        # try existing group by Id shoudl not modify the existing group
+        group_1 = ContactGroup.get_or_create(self.org, self.user, "Kigali", existing_group.pk)
+        self.assertEqual(group_1.pk, existing_group.pk)
+        self.assertEqual(group_1.name, existing_group.name)
+        self.assertNotEqual(group_1.name, 'Kigali')
+        self.assertEqual(group_1.name, 'first')
 
     def test_update(self):
         group = ContactGroup.create(self.org, self.user, "one")
@@ -369,7 +377,8 @@ class ContactGroupTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.post(reverse('contacts.contactgroup_delete', args=[group.pk]), dict())
-        self.assertFalse(ContactGroup.user_groups.get(pk=group.pk).is_active)
+        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
+        self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
 
         group = ContactGroup.create(self.org, self.user, "one")
         delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
@@ -401,7 +410,8 @@ class ContactGroupTest(TembaTest):
 
         response = self.client.post(delete_url, dict())
         # group should have is_active = False and all its triggers
-        self.assertFalse(ContactGroup.user_groups.get(pk=group.pk).is_active)
+        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
+        self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
 
@@ -1463,7 +1473,8 @@ class ContactTest(TembaTest):
         self.assertRedirect(response, reverse('contacts.contact_list'))
 
         # make sure it is inactive
-        self.assertFalse(ContactGroup.user_groups.get(name="New Test").is_active)
+        self.assertIsNone(ContactGroup.user_groups.filter(name="New Test").first())
+        self.assertFalse(ContactGroup.all_groups.get(name="New Test").is_active)
 
         # remove Joe from the group
         post_data = dict()
@@ -2423,6 +2434,10 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'District should be used once')
 
+        # we shouldn't be suspended
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_suspended())
+
         # invalid import params
         with self.assertRaises(Exception):
             task = ImportTask.objects.create(
@@ -2439,6 +2454,22 @@ class ContactTest(TembaTest):
         self.assertEqual(Contact.objects.get(urns__path="+250788382382").language, 'eng')  # updated
         self.assertEqual(Contact.objects.get(urns__path="+250788383383").language, 'fre')  # created with language
         self.assertEqual(Contact.objects.get(urns__path="+250788383385").language, None)   # no language
+
+    def test_import_sequential_numbers(self):
+
+        org = self.user.get_org()
+        self.assertFalse(org.is_suspended())
+
+        # importing sequential numbers should automatically suspend our org
+        self.do_import(self.user, 'sample_contacts_sequential.xls')
+        org.refresh_from_db()
+        self.assertTrue(org.is_suspended())
+
+        # now whitelist the account
+        self.org.set_whitelisted()
+        self.do_import(self.user, 'sample_contacts_sequential.xls')
+        org.refresh_from_db()
+        self.assertFalse(org.is_suspended())
 
     def test_import_methods(self):
         user = self.user

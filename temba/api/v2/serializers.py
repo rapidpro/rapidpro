@@ -3,11 +3,9 @@ from __future__ import absolute_import, unicode_literals
 from rest_framework import serializers
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
-from temba.msgs.models import Msg, Label, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, INITIALIZING, PENDING, QUEUED
-from temba.msgs.models import WIRED, SENT, DELIVERED, HANDLED, ERRORED, FAILED, RESENT
+from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING, QUEUED
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
-
 
 def format_datetime(value):
     """
@@ -27,6 +25,34 @@ class ReadSerializer(serializers.ModelSerializer):
 # ============================================================
 # Serializers (A-Z)
 # ============================================================
+
+class BroadcastReadSerializer(ReadSerializer):
+    STATUSES = {s[0]: s[2] for s in STATUS_CONFIG}
+
+    urns = serializers.SerializerMethodField()
+    contacts = serializers.SerializerMethodField()
+    groups = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+
+    def get_urns(self, obj):
+        if obj.org.is_anon:
+            return []
+        else:
+            return [urn.urn for urn in obj.urns.all()]
+
+    def get_contacts(self, obj):
+        return [{'uuid': c.uuid, 'name': c.name} for c in obj.contacts.all()]
+
+    def get_groups(self, obj):
+        return [{'uuid': g.uuid, 'name': g.name} for g in obj.groups.all()]
+
+    def get_status(self, obj):
+        return self.STATUSES.get(obj.status)
+
+    class Meta:
+        model = Broadcast
+        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
+
 
 class ContactReadSerializer(ReadSerializer):
     name = serializers.SerializerMethodField()
@@ -81,8 +107,6 @@ class ContactReadSerializer(ReadSerializer):
 class ContactFieldReadSerializer(ReadSerializer):
     VALUE_TYPES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
 
-    key = serializers.ReadOnlyField()
-    label = serializers.ReadOnlyField()
     value_type = serializers.SerializerMethodField()
 
     def get_value_type(self, obj):
@@ -94,10 +118,6 @@ class ContactFieldReadSerializer(ReadSerializer):
 
 
 class ContactGroupReadSerializer(ReadSerializer):
-    uuid = serializers.ReadOnlyField()
-    name = serializers.ReadOnlyField()
-    count = serializers.ReadOnlyField()
-
     class Meta:
         model = ContactGroup
         fields = ('uuid', 'name', 'count')
@@ -148,8 +168,6 @@ class FlowRunReadSerializer(ReadSerializer):
 
 
 class LabelReadSerializer(ReadSerializer):
-    uuid = serializers.ReadOnlyField()
-    name = serializers.ReadOnlyField()
     count = serializers.SerializerMethodField()
 
     def get_count(self, obj):
@@ -161,6 +179,8 @@ class LabelReadSerializer(ReadSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
+    STATUSES = {s[0]: s[2] for s in STATUS_CONFIG}
+    VISIBILITIES = {s[0]: s[2] for s in Msg.VISIBILITY_CONFIG}
     DIRECTIONS = {
         INCOMING: 'in',
         OUTGOING: 'out'
@@ -169,17 +189,6 @@ class MsgReadSerializer(ReadSerializer):
         INBOX: 'inbox',
         FLOW: 'flow',
         IVR: 'ivr'
-    }
-    STATUSES = {
-        INITIALIZING: "initializing",
-        QUEUED: "queued",
-        WIRED: "wired",
-        SENT: "sent",
-        DELIVERED: "delivered",
-        HANDLED: "handled",
-        ERRORED: "errored",
-        FAILED: "failed",
-        RESENT: "resent"
     }
 
     broadcast = serializers.SerializerMethodField()
@@ -190,6 +199,7 @@ class MsgReadSerializer(ReadSerializer):
     type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
+    visibility = serializers.SerializerMethodField()
     labels = serializers.SerializerMethodField()
 
     def get_broadcast(self, obj):
@@ -222,11 +232,14 @@ class MsgReadSerializer(ReadSerializer):
     def get_archived(self, obj):
         return obj.visibility == ARCHIVED
 
+    def get_visibility(self, obj):
+        return self.VISIBILITIES.get(obj.visibility)
+
     def get_labels(self, obj):
         return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
 
     class Meta:
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
-                  'direction', 'type', 'status', 'archived', 'text', 'labels',
-                  'created_on', 'sent_on', 'delivered_on')
+                  'direction', 'type', 'status', 'archived', 'visibility', 'text', 'labels',
+                  'created_on', 'sent_on', 'modified_on')

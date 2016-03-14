@@ -17,7 +17,7 @@ from temba.contacts.models import ContactGroup, URN_SCHEMES_SUPPORTING_FOLLOW
 from temba.contacts.fields import OmniboxField
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
-from temba.schedules.models import Schedule, repeat_choices
+from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
 from temba.channels.models import Channel, RECEIVE, ANSWER
 from temba.flows.models import Flow
@@ -204,7 +204,7 @@ class RegisterTriggerForm(BaseTriggerForm):
 
 
 class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
-    repeat_period = forms.ChoiceField(choices=repeat_choices, label="Repeat")
+    repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label="Repeat")
     repeat_days = forms.IntegerField(required=False)
     start = forms.CharField(max_length=16)
     start_datetime_value = forms.IntegerField(required=False)

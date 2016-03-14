@@ -3,20 +3,18 @@ from __future__ import unicode_literals
 import calendar
 import json
 import logging
-import random
-import traceback
-import time
-from datetime import datetime, timedelta
-from decimal import Decimal
-from urlparse import urlparse
-from uuid import uuid4
-
 import os
 import pycountry
 import pytz
+import random
 import regex
 import stripe
+import traceback
+import time
+
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from decimal import Decimal
 from django.core.urlresolvers import reverse
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
@@ -36,6 +34,8 @@ from temba.utils import analytics, str_to_datetime, get_datetime_format, datetim
 from temba.utils import timezone_to_country_code
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from twilio.rest import TwilioRestClient
+from urlparse import urlparse
+from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
@@ -88,6 +88,11 @@ ACCOUNT_TOKEN = 'ACCOUNT_TOKEN'
 NEXMO_KEY = 'NEXMO_KEY'
 NEXMO_SECRET = 'NEXMO_SECRET'
 NEXMO_UUID = 'NEXMO_UUID'
+
+ORG_STATUS = 'STATUS'
+SUSPENDED = 'suspended'
+RESTORED = 'restored'
+WHITELISTED = 'whitelisted'
 
 ORG_LOW_CREDIT_THRESHOLD = 500
 
@@ -279,6 +284,28 @@ class Org(SmartModel):
                             **active_topup_keys)
         else:
             return 0
+
+
+    def set_status(self, status):
+        config = self.config_json()
+        config[ORG_STATUS] = status
+        self.config = json.dumps(config)
+        self.save(update_fields=['config'])
+
+    def set_suspended(self):
+        self.set_status(SUSPENDED)
+
+    def set_whitelisted(self):
+        self.set_status(WHITELISTED)
+
+    def set_restored(self):
+        self.set_status(RESTORED)
+
+    def is_suspended(self):
+        return self.config_json().get(ORG_STATUS, None) == SUSPENDED
+
+    def is_whitelisted(self):
+        return self.config_json().get(ORG_STATUS, None) == WHITELISTED
 
     @transaction.atomic
     def import_app(self, data, user, site=None):
@@ -682,6 +709,11 @@ class Org(SmartModel):
         return query
 
     def find_boundary_by_name(self, name, level, parent):
+        """
+        Finds the boundary with the passed in name or alias on this organization at the stated level.
+
+        @returns Iterable of matching boundaries
+        """
         # first check if we have a direct name match
         if parent:
             boundary = parent.children.filter(name__iexact=name, level=level)
@@ -693,20 +725,26 @@ class Org(SmartModel):
         if not boundary:
             if parent:
                 alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
-                                                     boundary__parent=parent)
+                                                     boundary__parent=parent).first()
             else:
                 query = self.generate_location_query(name, level, True)
-                alias = BoundaryAlias.objects.filter(**query)
+                alias = BoundaryAlias.objects.filter(**query).first()
 
             if alias:
-                boundary = alias.boundary
+                boundary = [alias.boundary]
 
         return boundary
 
     def parse_location(self, location_string, level, parent=None):
+        """
+        Attempts to parse the passed in location string at the passed in level. This does various tokenizing
+        of the string to try to find the best possible match.
+
+        @returns Iterable of matching boundaries
+        """
         # no country? bail
         if not self.country or not isinstance(location_string, basestring):
-            return None
+            return []
 
         # now look up the boundary by full name
         boundary = self.find_boundary_by_name(location_string, level, parent)
@@ -949,9 +987,8 @@ class Org(SmartModel):
                                     self._calculate_credits_used)
 
     def _calculate_credits_used(self):
-        used_credits_sum = TopUpCredits.objects.filter(topup__org=self,
-                                                       topup__is_active=True)\
-                                                .aggregate(Sum('used')).get('used__sum')
+        used_credits_sum = TopUpCredits.objects.filter(topup__org=self, topup__is_active=True)
+        used_credits_sum = used_credits_sum.aggregate(Sum('used')).get('used__sum')
         used_credits_sum = used_credits_sum if used_credits_sum else 0
 
         unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None, purged=False).count()
@@ -1301,6 +1338,9 @@ class Org(SmartModel):
 
         elif countrycode == 'UG':
             recommended = 'yo'
+
+        elif countrycode == 'PH':
+            recommended = 'chikka'
 
         return recommended
 
@@ -1775,6 +1815,4 @@ class CreditAlert(SmartModel):
             elif org_low_credits:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
             elif org_credits_expiring > 0:
-               CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
-
-
+                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)

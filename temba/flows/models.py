@@ -4009,20 +4009,10 @@ class AddToGroupAction(Action):
                 try:
                     group_id = int(group_id)
                 except Exception:
-                    group_id = -1
+                    group_id = None
 
-                if group_id and ContactGroup.user_groups.filter(org=org, id=group_id).first():
-                    group = ContactGroup.user_groups.filter(org=org, id=group_id).first()
-                    if not group.is_active:
-                        group.is_active = True
-                        group.save(update_fields=['is_active'])
-                elif ContactGroup.get_user_group(org, group_name):
-                    group = ContactGroup.get_user_group(org, group_name)
-                else:
-                    group = ContactGroup.create(org, org.created_by, group_name)
-
-                if group:
-                    groups.append(group)
+                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_id)
+                groups.append(group)
             else:
                 if g and g[0] == '@':
                     groups.append(g)
@@ -4333,13 +4323,7 @@ class VariableContactAction(Action):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id, is_active=True):
-                group = ContactGroup.user_groups.get(org=org, id=group_id, is_active=True)
-            elif ContactGroup.get_user_group(org, group_name):
-                group = ContactGroup.get_user_group(org, group_name)
-            else:
-                group = ContactGroup.create(org, org.get_user(), group_name)
-
+            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_id)
             groups.append(group)
 
         return groups
@@ -4436,7 +4420,7 @@ class TriggerFlowAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=TriggerFlowAction.TYPE, id=self.flow.pk, name=self.flow.name,
                     contacts=contact_ids, groups=group_ids, variables=variables)
@@ -4719,7 +4703,7 @@ class SendAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
 
@@ -5167,7 +5151,7 @@ class HasStateTest(Test):
 
         state = org.parse_location(text, STATE_LEVEL)
         if state:
-            return 1, state.first()
+            return 1, state[0]
 
         return 0, None
 
@@ -5198,14 +5182,14 @@ class HasDistrictTest(Test):
 
         parent = org.parse_location(state, STATE_LEVEL)
         if parent:
-            district = org.parse_location(text, DISTRICT_LEVEL, parent.first())
+            district = org.parse_location(text, DISTRICT_LEVEL, parent[0])
             if district:
-                return 1, district.first()
+                return 1, district[0]
         district = org.parse_location(text, DISTRICT_LEVEL)
 
-        #parse location when state contrain is not provide or available
+        # parse location when state contraint is not provided or available
         if (errors or not state) and len(district) == 1:
-            return 1, district.first()
+            return 1, district[0]
 
         return 0, None
 
@@ -5240,14 +5224,14 @@ class HasWardTest(Test):
             state = org.parse_location(state_name, STATE_LEVEL)
             district = org.parse_location(district_name, DISTRICT_LEVEL, state.first())
             if district:
-                ward = org.parse_location(text, WARD_LEVEL, district.first())
+                ward = org.parse_location(text, WARD_LEVEL, district[0])
                 if ward:
-                    return 1, ward.first()
+                    return 1, ward[0]
 
-        #parse location when state contrain is not provide or available
+        # parse location when district contraint is not provided or available
         ward = org.parse_location(text, WARD_LEVEL)
         if len(ward) == 1 and district is None:
-            return 1, ward.first()
+            return 1, ward[0]
 
         return 0, None
 

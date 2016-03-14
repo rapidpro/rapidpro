@@ -33,7 +33,7 @@ class OmniboxWidget(forms.TextInput):
                 urn = contact.urn_objects[urn_tuple]
                 urn_ids.append(urn.pk)
 
-        groups = ContactGroup.user_groups.filter(id__in=group_ids, org=org, is_active=True)
+        groups = ContactGroup.user_groups.filter(id__in=group_ids, org=org)
         contacts = Contact.objects.filter(id__in=contact_ids, org=org, is_active=True)
         urns = ContactURN.objects.filter(id__in=urn_ids, org=org)
 
@@ -49,7 +49,7 @@ class OmniboxWidget(forms.TextInput):
     def get_json(self, value):
 
         if 'user' not in self.__dict__:  # pragma: no cover
-            raise ValidationError(_("Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__"))
+            raise ValueError("Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__")
 
         objects = OmniboxWidget.get_objects_spec(value, self.user)
 
@@ -76,5 +76,5 @@ class OmniboxField(forms.Field):
 
     def to_python(self, value):
         if 'user' not in self.__dict__:  # pragma: no cover
-            raise ValidationError(_("Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__"))
+            raise ValueError("Omnibox requires a user, make sure you set one using field.set_user(user) in your form.__init__")
         return OmniboxWidget.get_objects_spec(value, self.user)

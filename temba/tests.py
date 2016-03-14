@@ -1,21 +1,18 @@
 from __future__ import absolute_import, unicode_literals
 
+import inspect
 import json
-from itertools import izip
-
 import os
+import re
 import redis
 import shutil
 import string
 import time
-import re
 
 from datetime import datetime
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
-from django.db import DEFAULT_DB_ALIAS
-from django.db.models import Manager
 from django.db import connection
 from django.test import LiveServerTestCase
 from django.test.runner import DiscoverRunner
@@ -32,7 +29,6 @@ from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
 from xlrd import xldate_as_tuple
 from xlrd.sheet import XL_CELL_DATE
-import inspect
 
 
 class ExcludeTestRunner(DiscoverRunner):
@@ -354,6 +350,8 @@ class TembaTest(SmartminTest):
         """
         Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
         """
+        self.assertEqual(len(values), sheet.ncols, msg="Expecting %d columns, found %d" % (len(values), sheet.ncols))
+
         actual_values = []
         expected_values = []
         for c in range(0, len(values)):

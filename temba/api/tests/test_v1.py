@@ -1810,6 +1810,11 @@ class APITest(TembaTest):
         flow.start([], [contact1, contact2, contact3])
         runs = FlowRun.objects.filter(flow=flow)
 
+        self.create_msg(direction='I', contact=contact1, text="Hello")
+        self.create_msg(direction='I', contact=contact2, text="Hello")
+        self.create_msg(direction='I', contact=contact3, text="Hello")
+        self.create_msg(direction='I', contact=contact4, text="Hello")
+
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
         response = self.postJSON(url, dict(contacts=[unicode(x) for x in range(101)],
                                            action='add', group="Testers"))
@@ -1893,11 +1898,19 @@ class APITest(TembaTest):
         self.assertFalse(FlowRun.objects.filter(contact__in=[contact1, contact2], is_active=True).exists())
         self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True).exists())
 
+        # archive all messages for contacts 1 and 2
+        response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='archive'))
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Msg.all_messages.filter(contact__in=[contact1, contact2], direction='I', visibility='V').exists())
+        self.assertTrue(Msg.all_messages.filter(contact=contact3, direction='I', visibility='V').exists())
+
         # delete contacts 1 and 2
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='delete'))
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact5})
         self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4, test_contact})
+        self.assertFalse(Msg.all_messages.filter(contact__in=[contact1, contact2]).exclude(visibility='D').exists())
+        self.assertTrue(Msg.all_messages.filter(contact=contact3).exclude(visibility='D').exists())
 
         # try to provide a group for a non-group action
         response = self.postJSON(url, dict(contacts=[contact3.uuid], action='block', group='Testers'))
