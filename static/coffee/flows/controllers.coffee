@@ -343,7 +343,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
               uuid: uuid()
             ]
 
-          $scope.clickRuleset(ruleset, source[0])
+          $scope.clickRuleset(ruleset, connection.sourceId)
           createdNewNode = true
 
       # TODO: temporarily let ghost stay on screen with connector until dialog is closed
@@ -370,7 +370,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     # add some css to our source so we can style during moves
     $(connection.sourceId).parent().addClass('reconnecting')
 
-    scope = jsPlumb.getSourceScope(connection.sourceId)
+    scope = if window.ussd then 'rules' else jsPlumb.getSourceScope(connection.sourceId)
     $rootScope.ghost = $('.ghost.' + scope)
     $timeout ->
       $rootScope.ghost.show()
@@ -392,6 +392,28 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       ]
 
     @clickAction(actionset, actionset.actions[0])
+
+  $scope.createFirstUssd = ->
+
+    category = {}
+    category[Flow.flow.base_language] = "All Responses"
+
+    ruleset =
+      x: 100
+      y: 0
+      uuid: uuid()
+      label: "Response " + (Flow.flow.rule_sets.length + 1)
+      webhook_action: null,
+      ruleset_type: defaultRuleSetType(),
+      rules: [
+        test:
+          test: "true"
+          type: "true"
+        category: category
+        uuid: uuid()
+      ]
+
+    @clickRuleset(ruleset)
 
   # filter for translation menu
   $scope.notBaseLanguageFilter = (lang) ->

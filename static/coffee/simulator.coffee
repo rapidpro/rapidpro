@@ -3,6 +3,7 @@ moving_sim = false
 level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
 
 window.updateSimulator = (data) ->
+  ussd = if window.ussd then "ussd" else ""
 
   $(".simulator-body").html ""
   i = 0
@@ -14,7 +15,7 @@ window.updateSimulator = (data) ->
     level = (if msg.level? then level_classes[msg.level] else "")
     direction = (if (msg.direction is "O") then "from" else "to")
 
-    $(".simulator-body").append "<div class=\"" + model + " " + level + " " + direction + "\">" + msg.text + "</div>"
+    $(".simulator-body").append "<div class=\"" + model + " " + level + " " + direction + " " + ussd + "\">" + msg.text + "</div>"
     i++
   $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
   $("#simulator textarea").val ""
@@ -212,6 +213,14 @@ window.hangup = ->
   $(".simulator-body").html ""
   $.post(getSimulateURL(), JSON.stringify({ hangup:true })).done (data) ->
 
+appendMessage = (newMessage, ussd=false) ->
+  ussd = if ussd then "ussd " else ""
+  imsgDiv = '<div class=\"imsg ' + ussd + 'to post-message\"></div>'
+  $(imsgDiv).text(newMessage).appendTo(".simulator-body")
+  $("#simulator textarea").val ""
+  $(".simulator-loading").css "display", "block"
+  # $(".simulator-body").css "height", $(".simulator-body").height() - 25
+  $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
 
 #-------------------------------------
 # Event bindings
@@ -224,12 +233,10 @@ $("#simulator .send-message").on "click", ->
   processForm newMessage
 
   # add the progress gif
-  if newMessage and newMessage.length <= 160
-    $("<div class=\"imsg to post-message\"></div>").text(newMessage).appendTo(".simulator-body")
-    $("#simulator textarea").val ""
-    $(".simulator-loading").css "display", "block"
-    # $(".simulator-body").css "height", $(".simulator-body").height() - 25
-    $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
+  if window.ussd and newMessage.length <= 182
+    appendMessage newMessage, true
+  else if newMessage.length <= 160
+    appendMessage newMessage
 
 # send new message on key press (enter)
 $("#simulator textarea").keypress (event) ->
@@ -239,12 +246,11 @@ $("#simulator textarea").keypress (event) ->
     processForm newMessage
 
     # add the progress gif
-    if newMessage and newMessage.length <= 160
-      $("<div class=\"imsg to post-message\"></div>").text(newMessage).appendTo(".simulator-body")
-      $("#simulator textarea").val ""
-      $(".simulator-loading").css "display", "block"
-      # $(".simulator-body").css "height", $(".simulator-body").height() - 25
-      $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
+    if newMessage
+      if window.ussd and newMessage.length <= 182
+        appendMessage newMessage, true
+      else if newMessage.length <= 160
+        appendMessage newMessage
 
 $("#show-simulator").hover ->
   if not moving_sim

@@ -248,14 +248,24 @@
                 It's a good idea to start your call off by saying something first. You'll probably want to
                 introduce yourself and ask them a question. Just type the message for now, you'll be able to
                 add a voice recording of your message later.
+            -elif flow.flow_type == 'U'
+              -blocktrans
+                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow
+                with by sending a USSD message. This message will be sent to anybody right after they join the flow.
+                This is your chance to send a single message or menu.
             -else
               -blocktrans
                 We recommend starting your flow by sending a message. This message will be sent to anybody right
                 after they join the flow. This is your chance to send a single message or ask them a question.
 
             .button
-              %a.btn.btn-primary{ng-click:'createFirstAction()'}
-                Create Message
+              -if flow.flow_type == 'U'
+                %a.btn.btn-primary{ng-click:'createFirstUssd()'}
+                  Create USSD Message
+              -else
+                %a.btn.btn-primary{ng-click:'createFirstAction()'}
+                  Create Message
+
 
 
           .option.hide
@@ -494,7 +504,7 @@
             .ussd-flow-items
               .ussd-flow-item{ng-repeat:'item in ruleset.config.ussd_menu'}
                 %span.ussd-label{ng-show:'ruleset.ruleset_type=="wait_menu"'}
-                  [[item.option]]: [[item.label]]
+                  <strong>[[item.option]]</strong>: [[item.label]]
 
           %table{style:'width:100%;', ruleset:"ruleset", ng-click:'clickRuleset(ruleset)'}
             %tr.rules
@@ -517,7 +527,7 @@
                   .count{ng-mouseover:'showRecentMessages()', ng-mouseleave:'hideRecentMessages();'}
                     [[category._visited|number]]
               // placeholder for USSD interrupted state
-              %td.rule{class:'interrupted', valign:'bottom', ng-show:'ruleset.ruleset_type=="wait_menu" || ruleset.ruleset_type=="wait_ussd"'}
+              //%td.rule{class:'interrupted', valign:'bottom', ng-show:'ruleset.ruleset_type=="wait_menu" || ruleset.ruleset_type=="wait_ussd"'}
                 .category
                   Interrupted
                 .source
