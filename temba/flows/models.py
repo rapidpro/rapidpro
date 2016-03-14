@@ -626,10 +626,11 @@ class Flow(TembaModel):
                 if user_input or not should_pause:
                     result = Flow.handle_ruleset(destination, step, run, msg)
                     add_to_path(path, destination.uuid)
+                # USSD ruleset has extra functionality to send out messages. When the to be handled destination doesn't
+                # receive an incoming message that's when we want to send out an outgoing msg through USSD
                 elif destination.is_ussd():
                     action = UssdAction.from_ruleset(destination)
-                    msg = Msg(org=run.org, contact_id=run.contact_id, text='', id=0)
-                    action.execute(run, msg)
+                    action.execute(run, destination.uuid, msg)
 
                 # if we used this input, then mark our user input as used
                 if should_pause:
@@ -4323,7 +4324,7 @@ class ReplyAction(Action):
         return []
 
 
-class UssdAction(Action):
+class UssdAction(ReplyAction):
     """
     USSD action to send outgoing USSD messages
 
@@ -4335,9 +4336,6 @@ class UssdAction(Action):
     MENU = 'ussd_menu'
     TYPE_WAIT_USSD_MENU = 'wait_menu'
     TYPE_WAIT_USSD = 'wait_ussd'
-
-    def __init__(self, msg=None):
-        self.msg = msg
 
     @classmethod
     def from_ruleset(cls, rule):
@@ -4358,23 +4356,9 @@ class UssdAction(Action):
             msg += ": ".join((str(menu['option']), str(menu['label']), )) + '\n'
 
         if msg.endswith('\n'):
-            msg = msg[:-2]
+            msg = msg[:-1]
 
         return msg
-
-    def execute(self, run, msg):
-        if self.msg:
-            user = get_flow_user()
-            text = run.flow.get_localized_text(self.msg, run.contact)
-
-            context = run.flow.build_message_context(run.contact, msg)
-            if msg:
-                broadcast = msg.reply(text, user, trigger_send=False, message_context=context)
-            else:
-                broadcast = run.contact.send(text, user, trigger_send=False, message_context=context)
-
-            return list(broadcast.get_messages())
-        return []
 
 
 class VariableContactAction(Action):
