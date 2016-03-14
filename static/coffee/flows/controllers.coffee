@@ -396,6 +396,28 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
 
     @clickAction(actionset, actionset.actions[0])
 
+  $scope.createFirstUssd = ->
+
+    category = {}
+    category[Flow.flow.base_language] = "All Responses"
+
+    ruleset =
+      x: 100
+      y: 0
+      uuid: uuid()
+      label: "Response " + (Flow.flow.rule_sets.length + 1)
+      webhook_action: null,
+      ruleset_type: defaultRuleSetType(),
+      rules: [
+        test:
+          test: "true"
+          type: "true"
+        category: category
+        uuid: uuid()
+      ]
+
+    @clickRuleset(ruleset)
+
   # filter for translation menu
   $scope.notBaseLanguageFilter = (lang) ->
     return lang.iso_code != $scope.flow.base_language
