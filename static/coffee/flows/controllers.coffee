@@ -346,7 +346,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
               uuid: uuid()
             ]
 
-          $scope.clickRuleset(ruleset, source[0])
+          $scope.clickRuleset(ruleset, connection.sourceId)
           createdNewNode = true
 
       # TODO: temporarily let ghost stay on screen with connector until dialog is closed
