@@ -226,8 +226,8 @@ class ScheduleTest(TembaTest):
         self.org.timezone = 'US/Eastern'
         self.org.save()
 
-        tz = self.org.get_tzinfo()
-        eleven_fifteen_est = datetime(2013, 1, 3, hour=23, minute=15, second=0, microsecond=0).replace(tzinfo=tz)
+        tz = pytz.timezone(self.org.timezone)
+        eleven_fifteen_est = tz.localize(datetime(2013, 1, 3, hour=23, minute=15, second=0, microsecond=0))
 
         # Test date is 10:15am on a Thursday, Jan 3rd
         schedule = self.create_schedule('D', start_date=eleven_fifteen_est)
@@ -237,7 +237,8 @@ class ScheduleTest(TembaTest):
         schedule = Schedule.objects.get(pk=schedule.pk)
 
         # when is the next fire once our first one passes
-        sched_date = datetime(2013, 1, 3, hour=23, minute=30, second=0, microsecond=0).replace(tzinfo=tz)
+        sched_date = tz.localize(datetime(2013, 1, 3, hour=23, minute=30, second=0, microsecond=0))
+
         schedule.update_schedule(sched_date)
         self.assertEquals('2013-01-04 23:15:00-05:00', unicode(schedule.next_fire))
 
@@ -245,7 +246,7 @@ class ScheduleTest(TembaTest):
 
         self.org.timezone = 'US/Eastern'
         self.org.save()
-        tz = self.org.get_tzinfo()
+        tz = pytz.timezone(self.org.timezone)
 
         sched = self.create_schedule('D')
         Broadcast.create(self.org, self.admin, 'Message', [], schedule=sched)
@@ -256,7 +257,8 @@ class ScheduleTest(TembaTest):
         self.login(self.admin)
 
         # way off into the future
-        start_date = datetime(2050, 1, 3, 23, 0, 0, 0, tzinfo=tz)
+        start_date = datetime(2050, 1, 3, 23, 0, 0, 0)
+        start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
         post_data = dict()
@@ -270,7 +272,8 @@ class ScheduleTest(TembaTest):
         self.assertEquals('2050-01-04 04:00:00+00:00', unicode(sched.next_fire))
 
         # a time in the past
-        start_date = datetime(2010, 1, 3, 23, 45, 0, 0, tzinfo=tz)
+        start_date = datetime(2010, 1, 3, 23, 45, 0, 0)
+        start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
         post_data = dict()

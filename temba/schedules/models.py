@@ -80,7 +80,8 @@ class Schedule(SmartModel):
             (weekday, days) = calendar.monthrange(trigger_date.year, trigger_date.month)
             day_of_month = min(days, self.repeat_day_of_month)
             next_date = datetime(trigger_date.year, trigger_date.month, day=day_of_month,
-                                 hour=hour, minute=minute, second=0, microsecond=0).replace(tzinfo=self.get_org_timezone())
+                                 hour=hour, minute=minute, second=0, microsecond=0)
+            next_date = self.get_org_timezone().localize(next_date)
             if trigger_date.day >= self.repeat_day_of_month:
                 next_date += relativedelta(months=1)
             return next_date
