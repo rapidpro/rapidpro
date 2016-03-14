@@ -3,6 +3,7 @@ moving_sim = false
 level_classes = {"I": "iinfo", "W": "iwarn", "E": "ierror"}
 
 window.updateSimulator = (data) ->
+  ussd = if window.ussd then "ussd" else ""
 
   $(".simulator-body").html ""
   i = 0
@@ -14,7 +15,7 @@ window.updateSimulator = (data) ->
     level = (if msg.level? then level_classes[msg.level] else "")
     direction = (if (msg.direction is "O") then "from" else "to")
 
-    $(".simulator-body").append "<div class=\"" + model + " " + level + " " + direction + "\">" + msg.text + "</div>"
+    $(".simulator-body").append "<div class=\"" + model + " " + level + " " + direction + " " + ussd + "\">" + msg.text + "</div>"
     i++
   $(".simulator-body").scrollTop $(".simulator-body")[0].scrollHeight
   $("#simulator textarea").val ""
