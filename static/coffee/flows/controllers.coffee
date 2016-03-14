@@ -373,7 +373,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$modal',
     # add some css to our source so we can style during moves
     $(connection.sourceId).parent().addClass('reconnecting')
 
-    scope = jsPlumb.getSourceScope(connection.sourceId)
+    scope = if window.ussd then 'rules' else jsPlumb.getSourceScope(connection.sourceId)
     $rootScope.ghost = $('.ghost.' + scope)
     $timeout ->
       $rootScope.ghost.show()
