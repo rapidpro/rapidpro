@@ -2799,6 +2799,26 @@ class ExternalTest(TembaTest):
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals('Beast Mode!', msg.text)
 
+    def test_send_replacement(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+        sms = bcast.get_messages()[0]
+
+        self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send&text={{text}}&to={{to_no_plus}}',
+                                          SEND_METHOD: 'GET'})
+        self.channel.save()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, "Sent")
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                self.assertEqual(mock.call_args[0][0], 'http://foo.com/send&text=Test+message&to=250788383383')
+
+        finally:
+            settings.SEND_MESSAGES = False
+
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
         bcast = joe.send("Test message", self.admin, trigger_send=False)

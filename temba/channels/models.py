@@ -1099,7 +1099,9 @@ class Channel(TembaModel):
             'id': str(msg.id),
             'text': text,
             'to': msg.urn_path,
+            'to_no_plus': msg.urn_path.lstrip('+'),
             'from': channel.address,
+            'from_no_plus': msg.urn_path.lstrip('+'),
             'channel': str(channel.id)
         }
 
