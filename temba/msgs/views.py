@@ -5,6 +5,7 @@ import json
 from datetime import date, timedelta
 from django import forms
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.contrib import messages
 from django.db import IntegrityError
@@ -68,6 +69,7 @@ class SendMessageForm(Form):
 
     def __init__(self, user, *args, **kwargs):
         super(SendMessageForm, self).__init__(*args, **kwargs)
+        self.user = user
         self.fields['omnibox'].set_user(user)
 
     def is_valid(self):
@@ -78,6 +80,11 @@ class SendMessageForm(Form):
                 return False
         return valid
 
+    def clean(self):
+        cleaned = super(SendMessageForm, self).clean()
+        if self.user.get_org().is_suspended():
+            raise ValidationError(_("Sorry, your account is currently suspended. To enable sending messages, please contact support."))
+        return cleaned
 
 class MsgListView(OrgPermsMixin, SmartListView):
     """
@@ -248,7 +255,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # can this org send to any URN schemes?
             if not org.get_schemes(SEND):
-                return HttpResponseBadRequest("You must add a phone number before sending messages")
+                return HttpResponseBadRequest(_("You must add a phone number before sending messages"))
 
             return response
 

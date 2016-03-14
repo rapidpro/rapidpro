@@ -1,4 +1,8 @@
-import sys, os
+from __future__ import unicode_literals
+
+import os
+import sys
+
 from hamlpy import templatize
 
 #-----------------------------------------------------------------------------------
@@ -403,6 +407,7 @@ PERMISSIONS = {
                          'claim_africas_talking',
                          'claim_android',
                          'claim_blackmyna',
+                         'claim_chikka',
                          'claim_clickatell',
                          'claim_external',
                          'claim_high_connection',
@@ -417,6 +422,7 @@ PERMISSIONS = {
                          'claim_start',
                          'claim_telegram',
                          'claim_twilio',
+                         'claim_twilio_messaging_service',
                          'claim_twitter',
                          'claim_verboice',
                          'claim_vumi',
@@ -597,6 +603,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_africas_talking',
         'channels.channel_claim_android',
         'channels.channel_claim_blackmyna',
+        'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
         'channels.channel_claim_high_connection',
@@ -610,6 +617,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_start',
         'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
+        'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_vumi',
@@ -711,6 +719,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_africas_talking',
         'channels.channel_claim_android',
         'channels.channel_claim_blackmyna',
+        'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
         'channels.channel_claim_high_connection',
@@ -724,6 +733,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_start',
         'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
+        'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_vumi',
@@ -1001,7 +1011,10 @@ REST_FRAMEWORK = {
         'temba.api.support.OrgRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'v2': '1200/hour'
+        'v2': '2500/hour',
+        'v2.contacts': '2500/hour',
+        'v2.messages': '2500/hour',
+        'v2.runs': '2500/hour'
     },
     'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (

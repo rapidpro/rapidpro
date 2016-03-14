@@ -234,10 +234,10 @@ literals = '()'
 # treat reserved words specially
 # http://www.dabeaz.com/ply/ply.html#ply_nn4
 reserved = {
-   'or': 'BINOP',
-   'and': 'BINOP',
-   'has': 'COMPARATOR',
-   'is': 'COMPARATOR',
+    'or': 'BINOP',
+    'and': 'BINOP',
+    'has': 'COMPARATOR',
+    'is': 'COMPARATOR',
 }
 
 t_ignore = ' \t'  # ignore tabs and spaces

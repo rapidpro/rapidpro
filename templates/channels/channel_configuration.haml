@@ -232,6 +232,25 @@
     %code
       https://{{ domain }}{% url 'handlers.blackmyna_handler' 'status' object.uuid %}
 
+  -elif object.channel_type == 'TMS'
+    %h4
+      -blocktrans
+        To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your Messaging Service Inbound Settings.
+
+    %hr
+
+    %h4
+      -trans "Request URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by Twilio when new messages are received by your Messaging Service.
+
+    %code
+      https://{{ domain }}{% url 'handlers.twilio_messaging_service_handler' 'receive' object.uuid %}
+
+    %hr
+
   -elif object.channel_type == 'SC'
     %h4
       -blocktrans
@@ -508,6 +527,27 @@
 
     %code
       https://{{ domain }}{% url 'handlers.yo_handler' 'received' object.uuid %}
+
+  -elif object.channel_type == 'CK'
+    %h4
+      -blocktrans
+        To finish configuring your Chikka connection you need to set the following URLs in your Chikka account API settings.
+
+    %hr
+
+    %h4
+      -trans "Notification Receiver URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.chikka_handler' object.uuid %}
+
+    %hr
+
+    %h4
+      -trans "Message Receiver URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.chikka_handler' object.uuid %}
 
   -elif object.channel_type == 'EX'
     %h4

@@ -30,7 +30,7 @@ from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.contacts.models import URN_CONTEXT_KEYS_TO_SCHEME, URN_CONTEXT_KEYS_TO_LABEL
-from temba.locations.models import AdminBoundary
+from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils.email import send_template_email, is_valid_address
@@ -4015,20 +4015,10 @@ class AddToGroupAction(Action):
                 try:
                     group_id = int(group_id)
                 except Exception:
-                    group_id = -1
+                    group_id = None
 
-                if group_id and ContactGroup.user_groups.filter(org=org, id=group_id).first():
-                    group = ContactGroup.user_groups.filter(org=org, id=group_id).first()
-                    if not group.is_active:
-                        group.is_active = True
-                        group.save(update_fields=['is_active'])
-                elif ContactGroup.get_user_group(org, group_name):
-                    group = ContactGroup.get_user_group(org, group_name)
-                else:
-                    group = ContactGroup.create(org, org.created_by, group_name)
-
-                if group:
-                    groups.append(group)
+                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_id)
+                groups.append(group)
             else:
                 if g and g[0] == '@':
                     groups.append(g)
@@ -4339,13 +4329,7 @@ class VariableContactAction(Action):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id, is_active=True):
-                group = ContactGroup.user_groups.get(org=org, id=group_id, is_active=True)
-            elif ContactGroup.get_user_group(org, group_name):
-                group = ContactGroup.get_user_group(org, group_name)
-            else:
-                group = ContactGroup.create(org, org.get_user(), group_name)
-
+            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_id)
             groups.append(group)
 
         return groups
@@ -4442,7 +4426,7 @@ class TriggerFlowAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=TriggerFlowAction.TYPE, id=self.flow.pk, name=self.flow.name,
                     contacts=contact_ids, groups=group_ids, variables=variables)
@@ -4725,7 +4709,7 @@ class SendAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
 
@@ -4876,6 +4860,7 @@ class Test(object):
                 DateBeforeTest.TYPE: DateBeforeTest,
                 PhoneTest.TYPE: PhoneTest,
                 RegexTest.TYPE: RegexTest,
+                HasWardTest.TYPE: HasWardTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest
@@ -5170,9 +5155,9 @@ class HasStateTest(Test):
         if not org.country:
             return 0, None
 
-        state = org.parse_location(text, 1)
+        state = org.parse_location(text, STATE_LEVEL)
         if state:
-            return 1, state
+            return 1, state[0]
 
         return 0, None
 
@@ -5181,7 +5166,7 @@ class HasDistrictTest(Test):
     TYPE = 'district'
     TEST = 'test'
 
-    def __init__(self, state):
+    def __init__(self, state=None):
         self.state = state
 
     @classmethod
@@ -5201,11 +5186,58 @@ class HasDistrictTest(Test):
         # evaluate our district in case it has a replacement variable
         state, errors = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
 
-        parent = org.parse_location(state, 1)
+        parent = org.parse_location(state, STATE_LEVEL)
         if parent:
-            district = org.parse_location(text, 2, parent)
+            district = org.parse_location(text, DISTRICT_LEVEL, parent[0])
             if district:
-                return 1, district
+                return 1, district[0]
+        district = org.parse_location(text, DISTRICT_LEVEL)
+
+        # parse location when state contraint is not provided or available
+        if (errors or not state) and len(district) == 1:
+            return 1, district[0]
+
+        return 0, None
+
+
+class HasWardTest(Test):
+    TYPE = 'ward'
+    STATE = 'state'
+    DISTRICT = 'district'
+
+    def __init__(self, state=None, district=None):
+        self.state = state
+        self.district = district
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.STATE], json[cls.DISTRICT])
+
+    def as_json(self):
+        return dict(type=self.TYPE, state=self.state, district=self.district)
+
+    def evaluate(self, run, sms, context, text):
+        # if they removed their country since adding the rule
+        org = run.flow.org
+        if not org.country:
+            return 0, None
+        district = None
+
+        # evaluate our district in case it has a replacement variable
+        district_name, missing_district = Msg.substitute_variables(self.district, sms.contact, context, org=run.flow.org)
+        state_name, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
+        if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
+            state = org.parse_location(state_name, STATE_LEVEL)
+            district = org.parse_location(district_name, DISTRICT_LEVEL, state.first())
+            if district:
+                ward = org.parse_location(text, WARD_LEVEL, district[0])
+                if ward:
+                    return 1, ward[0]
+
+        # parse location when district contraint is not provided or available
+        ward = org.parse_location(text, WARD_LEVEL)
+        if len(ward) == 1 and district is None:
+            return 1, ward[0]
 
         return 0, None
 

@@ -39,8 +39,8 @@ def send_msg_task():
     if not task:
         return
 
-    msg = dict_to_struct('MockMsg', task, datetime_fields=['delivered_on', 'sent_on', 'created_on',
-                         'queued_on', 'next_attempt'])
+    msg = dict_to_struct('MockMsg', task,
+                         datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on', 'next_attempt'])
 
     # send it off
     r = get_redis_connection()

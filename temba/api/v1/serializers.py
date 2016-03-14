@@ -166,7 +166,7 @@ class MsgReadSerializer(ReadSerializer):
     labels = serializers.SerializerMethodField()
     created_on = DateTimeField()
     sent_on = DateTimeField()
-    delivered_on = DateTimeField()
+    delivered_on = serializers.SerializerMethodField()
 
     def get_id(self, obj):
         return obj.pk
@@ -197,6 +197,9 @@ class MsgReadSerializer(ReadSerializer):
 
     def get_archived(self, obj):
         return obj.visibility == ARCHIVED
+
+    def get_delivered_on(self, obj):
+        return None
 
     def get_labels(self, obj):
         return [l.name for l in obj.labels.all()]
@@ -461,7 +464,7 @@ class ContactWriteSerializer(WriteSerializer):
         if value is not None:
             self.group_objs = []
             for uuid in value:
-                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
+                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org).first()
                 if not group:
                     raise serializers.ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
 
@@ -556,6 +559,16 @@ class ContactWriteSerializer(WriteSerializer):
 
 
 class ContactBulkActionSerializer(WriteSerializer):
+    ADD = 'add'
+    REMOVE = 'remove'
+    BLOCK = 'block'
+    UNBLOCK = 'unblock'
+    EXPIRE = 'expire'
+    ARCHIVE = 'archive'
+    DELETE = 'delete'
+
+    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, EXPIRE, ARCHIVE, DELETE)
+
     contacts = StringArrayField(required=True)
     action = serializers.CharField(required=True)
     group = serializers.CharField(required=False)
@@ -577,7 +590,7 @@ class ContactBulkActionSerializer(WriteSerializer):
         return contacts
 
     def validate_action(self, value):
-        if value not in ('add', 'remove', 'block', 'unblock', 'expire', 'delete'):
+        if value not in self.ACTIONS:
             raise serializers.ValidationError("Invalid action name: %s" % value)
         return value
 
@@ -599,12 +612,12 @@ class ContactBulkActionSerializer(WriteSerializer):
         contacts = data['contacts']
         action = data['action']
 
-        if action in ('add', 'remove') and not self.group_obj:
+        if action in (self.ADD, self.REMOVE) and not self.group_obj:
             raise serializers.ValidationError("For action %s you should also specify group or group_uuid" % action)
-        elif action in ('block', 'unblock', 'expire', 'delete') and self.group_obj:
+        elif action in (self.BLOCK, self.UNBLOCK, self.EXPIRE, self.ARCHIVE, self.DELETE) and self.group_obj:
             raise serializers.ValidationError("For action %s you should not specify group or group_uuid" % action)
 
-        if action == 'add':
+        if action == self.ADD:
             # if adding to a group, check for blocked contacts
             blocked_uuids = {c.uuid for c in contacts if c.is_blocked}
             if blocked_uuids:
@@ -616,19 +629,21 @@ class ContactBulkActionSerializer(WriteSerializer):
         contacts = self.validated_data['contacts']
         action = self.validated_data['action']
 
-        if action == 'add':
+        if action == self.ADD:
             self.group_obj.update_contacts(self.user, contacts, add=True)
-        elif action == 'remove':
+        elif action == self.REMOVE:
             self.group_obj.update_contacts(self.user, contacts, add=False)
-        elif action == 'expire':
+        elif action == self.EXPIRE:
             FlowRun.expire_all_for_contacts(contacts)
+        elif action == self.ARCHIVE:
+            Msg.archive_all_for_contacts(contacts)
         else:
             for contact in contacts:
-                if action == 'block':
+                if action == self.BLOCK:
                     contact.block(self.user)
-                elif action == 'unblock':
+                elif action == self.UNBLOCK:
                     contact.unblock(self.user)
-                elif action == 'delete':
+                elif action == self.DELETE:
                     contact.release(self.user)
 
     class Meta:
@@ -921,7 +936,7 @@ class CampaignWriteSerializer(WriteSerializer):
 
     def validate_group_uuid(self, value):
         if value:
-            self.group_obj = ContactGroup.user_groups.filter(org=self.org, is_active=True, uuid=value).first()
+            self.group_obj = ContactGroup.user_groups.filter(org=self.org, uuid=value).first()
             if not self.group_obj:
                 raise serializers.ValidationError("No contact group with UUID %s" % value)
         return value
@@ -1306,7 +1321,7 @@ class FlowRunStartSerializer(WriteSerializer):
     def validate_groups(self, value):
         if value:
             for uuid in value:
-                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org, is_active=True).first()
+                group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org).first()
                 if not group:
                     raise serializers.ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
                 self.group_objs.append(group)
@@ -1474,7 +1489,7 @@ class BroadcastCreateSerializer(WriteSerializer):
 
     def validate_groups(self, value):
         if value:
-            groups = list(ContactGroup.user_groups.filter(uuid__in=value, org=self.org, is_active=True))
+            groups = list(ContactGroup.user_groups.filter(uuid__in=value, org=self.org))
 
             # check for UUIDs that didn't resolve to a valid group
             validate_bulk_fetch(groups, value)

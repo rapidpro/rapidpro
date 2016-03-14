@@ -31,6 +31,10 @@
           }
         }
 
+        .suspended {
+          color: @flat-mutedred;
+        }
+
         .table td {
           vertical-align:middle
         }
@@ -94,6 +98,9 @@
         All
     -else
       %a{class:'quick', href:'?search='} All
+    |&nbsp;
+    %a{class:'quick', href:'?search="STATUS": "suspended"'}><
+      Suspended
 
     -for s in searches
       |
