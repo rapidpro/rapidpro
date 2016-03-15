@@ -1,4 +1,7 @@
+from __future__ import unicode_literals
+
 import csv
+
 from django.core.files.temp import NamedTemporaryFile
 from xlwt import Workbook
 
@@ -29,7 +32,6 @@ class TableExporter(object):
         if self.is_csv:
             self.writer = csv.writer(self.file, quoting=csv.QUOTE_ALL)
             self.writer.writerow([s.encode('utf-8') for s in columns])
-
 
         # otherwise, just open a workbook, initializing the first sheet
         else:
@@ -75,6 +77,3 @@ class TableExporter(object):
 
         self.file.flush()
         return self.file
-
-
-

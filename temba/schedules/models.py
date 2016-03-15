@@ -164,4 +164,3 @@ class Schedule(SmartModel):
     def __unicode__(self):  # pragma: no cover
         return "[%s] %s %s %s:%s" % (str(self.next_fire), self.repeat_period, self.repeat_day_of_month,
                                      self.repeat_hour_of_day, self.repeat_minute_of_hour)
-

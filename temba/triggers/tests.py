@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 from __future__ import unicode_literals
 
 import time
@@ -12,7 +11,7 @@ from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import Flow, ActionSet, FlowRun
 from temba.schedules.models import Schedule
 from temba.msgs.models import Msg, INCOMING, Call
-from temba.channels.models import SEND, CALL, ANSWER, RECEIVE
+from temba.channels.models import CALL, ANSWER
 from temba.tests import TembaTest
 from .models import Trigger
 from temba.triggers.views import DefaultTriggerForm, RegisterTriggerForm
@@ -517,7 +516,7 @@ class TriggerTest(TembaTest):
         post_data = dict(flow=flow.pk)
 
         response = self.client.post(trigger_url, post_data)
-        trigger =  Trigger.objects.all().order_by('-pk')[0]
+        trigger = Trigger.objects.all().order_by('-pk')[0]
 
         self.assertEquals(trigger.trigger_type, Trigger.TYPE_MISSED_CALL)
         self.assertEquals(trigger.flow.pk, flow.pk)
@@ -835,4 +834,3 @@ class TriggerTest(TembaTest):
 
         # incoming4 should not be handled
         self.assertFalse(Trigger.find_and_handle(incoming4))
-

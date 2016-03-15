@@ -1490,7 +1490,7 @@ class Channel(TembaModel):
         response = None
         while not response:
             try:
-                (message_id, response) = client.send_message(channel.address,  msg.urn_path, text)
+                (message_id, response) = client.send_message(channel.address, msg.urn_path, text)
             except SendException as e:
                 match = regex.match(r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*', e.response)
 
