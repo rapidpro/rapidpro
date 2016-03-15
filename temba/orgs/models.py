@@ -674,9 +674,7 @@ class Org(SmartModel):
         return self.date_format == DAYFIRST
 
     def get_tzinfo(self):
-        # we have to build the timezone based on an actual date
-        # see: https://bugs.launchpad.net/pytz/+bug/1319939
-        return timezone.now().astimezone(pytz.timezone(self.timezone)).tzinfo
+        return pytz.timezone(self.timezone)
 
     def format_date(self, datetime, show_time=True):
         """
