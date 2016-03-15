@@ -17,6 +17,8 @@ from django.db import connection
 from django.test import LiveServerTestCase
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
+from HTMLParser import HTMLParser
+from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
@@ -431,10 +433,6 @@ class FlowFileTest(TembaTest):
 
         finally:
             Contact.set_simulation(False)
-
-
-from selenium.webdriver.firefox.webdriver import WebDriver
-from HTMLParser import HTMLParser
 
 
 class MLStripper(HTMLParser):  # pragma: no cover
