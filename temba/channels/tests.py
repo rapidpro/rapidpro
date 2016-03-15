@@ -4543,7 +4543,7 @@ class TwilioMessagingServiceTest(TembaTest):
         twilio_url = reverse('handlers.twilio_messaging_service_handler', args=['receive', self.channel.uuid])
 
         try:
-            response = self.client.post(twilio_url, post_data)
+            self.client.post(twilio_url, post_data)
             self.fail("Invalid signature, should have failed")
         except ValidationError as e:
             pass
@@ -4552,7 +4552,7 @@ class TwilioMessagingServiceTest(TembaTest):
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature(
-            'https://' + settings.TEMBA_HOST + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
+            'https://' + settings.HOSTNAME + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
             post_data
         )
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
