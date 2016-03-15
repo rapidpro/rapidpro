@@ -918,20 +918,20 @@ class VumiHandler(View):
                 if sms:
                     delivery_status = body.get('delivery_status', 'success')
                     if delivery_status == 'failed':
-
+                        # Vumi and M-Tech disagree on what 'failed' means in a DLR, so for now, ignore these
+                        # cases.
+                        #
                         # we can get multiple reports from vumi if they multi-part the message for us
-                        if sms.status in (WIRED, DELIVERED):
-                            print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
-                            Msg.mark_error(get_redis_connection(), channel, sms)
+                        #if sms.status in (WIRED, DELIVERED):
+                        #    print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
+                        #    Msg.mark_error(get_redis_connection(), channel, sms)
+                        pass
                     else:
 
                         # we should only mark it as delivered if it's in a wired state, we want to hold on to our
                         # delivery failures if any part of the message comes back as failed
                         if sms.status == WIRED:
                             sms.status_delivered()
-
-            # disabled for performance reasons
-            # sms.first().broadcast.update()
 
             return HttpResponse("SMS Status Updated")
 
