@@ -1,8 +1,13 @@
 from __future__ import unicode_literals
 
+import djcelery
+import iptools
 import os
 import sys
 
+from celery.schedules import crontab
+from datetime import timedelta
+from django.utils.translation import ugettext_lazy as _
 from hamlpy import templatize
 
 #-----------------------------------------------------------------------------------
@@ -285,7 +290,6 @@ LOGGING = {
 #-----------------------------------------------------------------------------------
 # Branding Configuration
 #-----------------------------------------------------------------------------------
-from django.utils.translation import ugettext_lazy as _
 BRANDING = {
     'rapidpro.io': {
         'slug': 'rapidpro',
@@ -873,7 +877,6 @@ TEST_EXCLUDE = ('smartmin',)
 #-----------------------------------------------------------------------------------
 # Debug Toolbar
 #-----------------------------------------------------------------------------------
-import iptools
 INTERNAL_IPS = iptools.IpRangeList(
     '127.0.0.1',
     '192.168.0.10',
@@ -888,10 +891,6 @@ DEBUG_TOOLBAR_CONFIG = {
 #-----------------------------------------------------------------------------------
 # Crontab Settings ..
 #-----------------------------------------------------------------------------------
-
-from datetime import timedelta
-from celery.schedules import crontab
-
 CELERYBEAT_SCHEDULE = {
     "retry-webhook-events": {
         'task': 'retry_events_task',
@@ -961,7 +960,6 @@ CELERY_TASK_MAP = {
 #-----------------------------------------------------------------------------------
 # Async tasks with django-celery
 #-----------------------------------------------------------------------------------
-import djcelery
 djcelery.setup_loader()
 
 REDIS_HOST = 'localhost'
