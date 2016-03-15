@@ -1131,7 +1131,7 @@ class Org(SmartModel):
 
     def add_credits(self, bundle, token, user):
         # look up our bundle
-        if not bundle in BUNDLE_MAP:
+        if bundle not in BUNDLE_MAP:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
 
         bundle = BUNDLE_MAP[bundle]

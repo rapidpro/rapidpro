@@ -1596,7 +1596,7 @@ class Flow(TembaModel):
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.current_messages.filter(broadcast=broadcast, created_on=created_on):
-                    if not msg.contact_id in message_map:
+                    if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:
                         message_map[msg.contact_id].append(msg)
@@ -2243,12 +2243,12 @@ class Flow(TembaModel):
 
             # now work through all our objects once more, making sure all uuids map appropriately
             for existing in existing_actionsets.values():
-                if not existing.uuid in seen:
+                if existing.uuid not in seen:
                     del existing_actionsets[existing.uuid]
                     existing.delete()
 
             for existing in existing_rulesets.values():
-                if not existing.uuid in seen:
+                if existing.uuid not in seen:
                     # clean up any values on this ruleset
                     Value.objects.filter(ruleset=existing, org=self.org).delete()
 
@@ -2257,7 +2257,7 @@ class Flow(TembaModel):
 
             # make sure all destinations are present though
             for destination in destinations:
-                if not destination in existing_rulesets and not destination in existing_actionsets:
+                if destination not in existing_rulesets and destination not in existing_actionsets:
                     raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
 
             entry = json_dict.get('entry', None)
@@ -4826,6 +4826,7 @@ class Rule(object):
 
         return rules
 
+
 class Test(object):
     TYPE = 'type'
     __test_mapping = None
@@ -4861,10 +4862,10 @@ class Test(object):
             }
 
         type = json_dict.get(cls.TYPE, None)
-        if not type: # pragma: no cover
+        if not type:  # pragma: no cover
             raise FlowException("Test definition missing 'type' field: %s", json_dict)
 
-        if not type in cls.__test_mapping: # pragma: no cover
+        if type not in cls.__test_mapping:  # pragma: no cover
             raise FlowException("Unknown type: '%s' in definition: %s" % (type, json_dict))
 
         return cls.__test_mapping[type].from_json(org, json_dict)
@@ -4877,7 +4878,7 @@ class Test(object):
 
         return tests
 
-    def evaluate(self, run, sms, context, text): # pragma: no cover
+    def evaluate(self, run, sms, context, text):  # pragma: no cover
         """
         Where the work happens, subclasses need to be able to evalute their Test
         according to their definition given the passed in message. Tests do not have
