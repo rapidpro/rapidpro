@@ -430,7 +430,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       actionset._lastActionMissingTranslation = false
       if Flow.language
         if Flow.language.iso_code != Flow.flow.base_language
-          if lastAction.msg and lastAction.type in ['reply', 'send', 'send', 'say'] and not lastAction.msg[Flow.language.iso_code]
+          if lastAction.msg and lastAction.type in ['reply', 'send', 'say'] and not lastAction.msg[Flow.language.iso_code]
               actionset._lastActionMissingTranslation = true
     return actionset._lastActionMissingTranslation
 
