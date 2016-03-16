@@ -342,6 +342,6 @@ class Trigger(SmartModel):
             self.trigger_count += 1
             self.save()
 
-            return self.flow.start(groups, contacts, restart_participants=True) 
+            return self.flow.start(groups, contacts, restart_participants=True)
 
         return False

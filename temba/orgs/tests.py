@@ -1017,7 +1017,7 @@ class OrgTest(TembaTest):
                                                               disconnect='false',
                                                               name='DO NOT CHANGE ME'), follow=True)
                     # name shouldn't change
-                    org.refresh_from_db() 
+                    org.refresh_from_db()
                     self.assertEquals(org.name, "Temba")
 
                     # now disconnect our twilio connection
