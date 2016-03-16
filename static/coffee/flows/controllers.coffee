@@ -456,6 +456,14 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           from: Flow.flow.base_language
           to: Flow.language.iso_code
         ruleset: -> ruleset
+        translation: ->
+          {}
+
+      # USSD ruleset needs more translation
+      if Flow.flow.flow_type == 'U'
+        resolveObj.translation = ->
+          from: ruleset.config.ussd_message[Flow.flow.base_language]
+          to: ruleset.config.ussd_message[Flow.language.iso_code]
 
       $scope.dialog = utils.openModal("/partials/translate_rules", TranslateRulesController, resolveObj)
 
