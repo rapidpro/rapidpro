@@ -740,7 +740,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 ]
 
 # translating rules
-TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, ruleset) ->
+TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, ruleset, translation) ->
 
   # clone our ruleset
   ruleset = utils.clone(ruleset)
@@ -763,6 +763,12 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
   $scope.languages = languages
   $scope.language = Flow.language
 
+  # USSD stuff
+  if Flow.flow.flow_type == 'U'
+    $scope.translation = translation
+    if ruleset.ruleset_type == 'wait_menu'
+      $scope.ussd_menu = ruleset.config.ussd_menu
+
   $scope.ok = ->
 
     for rule in ruleset.rules
@@ -778,6 +784,9 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
             rule.test.test[Flow.language.iso_code] = rule._translation.test.to
           else
             delete rule.test.test[Flow.language.iso_code]
+
+    # USSD translation save
+    ruleset.config.ussd_message[Flow.language.iso_code] = $scope.translation.to
 
     Flow.replaceRuleset(ruleset)
     $modalInstance.close ""
