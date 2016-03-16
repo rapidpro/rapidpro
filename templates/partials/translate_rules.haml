@@ -6,20 +6,31 @@
         %button{data-dimiss:"modal",type:"button",class:"pull-right close",aria-hidden:"true"}
         %h3
           .icon
-          %span{id:"modal-title"}><
+          %span{id:"modal-title"}
             -trans "[[language.name]] Translation"
       .modal-body
+        %div{ng-if:'ruleset.ruleset_type == "wait_menu" || ruleset.ruleset_type == "wait_ussd"', style:'padding:20px'}
+          .translate-text.translate-from{ng-show:"translation.from"}
+            [[translation.from]]
+          %label
+            %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
         %p
           -trans "Translate rules and category names to [[language.name]]"
         .rule{ng-repeat:'rule in ruleset.rules'}
-          .operator-name{ng-model:"rule.test"}
-          .translate{ng-show:"rule._translation.test.from.length"}
+          %span{ng-hide:'ussd_menu'}
+            .operator-name{ng-model:"rule.test"}
+            .translate{ng-show:"rule._translation.test.from.length"}
+              .translate-from
+                [[rule._translation.test.from]]
+              %input{ng-model:"rule._translation.test.to",auto-complete:"",type:"text",class:"translate-to"}
+            .translate-static{ng-hide:'rule._translation.test.from.length'}
+              %span{ng-show:'rule.test.test != "true"'}
+                [[rule.test.test]]
+
+          .translate{ng-show:'ussd_menu'}
             .translate-from
-              [[rule._translation.test.from]]
+              [[ussd_menu[$index].label]]
             %input{ng-model:"rule._translation.test.to",auto-complete:"",type:"text",class:"translate-to"}
-          .translate-static{ng-hide:'rule._translation.test.from.length'}
-            %span{ng-show:'rule.test.test != "true"'}
-              [[rule.test.test]]
           .categorize-as
             -trans "refer to as"
           .translate
