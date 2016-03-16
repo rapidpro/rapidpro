@@ -829,7 +829,8 @@ class ContactTest(TembaTest):
         contact.set_field(self.user, 'isureporter', 'yes')
         contact.set_field(self.user, 'hasbirth', 'no')
 
-        q = lambda query: Contact.search(self.org, query)[0].count()
+        def q(query):
+            return Contact.search(self.org, query)[0].count()
 
         # non-complex queries
         self.assertEquals(23, q('trey'))
@@ -2817,10 +2818,11 @@ class ContactTest(TembaTest):
 
 class ContactURNTest(TembaTest):
     def setUp(self):
-        TembaTest.setUp(self)
+        super(ContactURNTest, self).setUp()
 
     def test_parse_urn(self):
-        urn_tuple = lambda p: (p.scheme, p.path)
+        def urn_tuple(p):
+            return p.scheme, p.path
 
         self.assertEquals(('tel', '+1234'), urn_tuple(ContactURN.parse_urn('tel:+1234')))
         self.assertEquals(('twitter', 'billy_bob'), urn_tuple(ContactURN.parse_urn('twitter:billy_bob')))
