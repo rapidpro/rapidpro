@@ -3,7 +3,7 @@ app = angular.module('temba.widgets', [])
 #============================================================================
 # Displaying USSD Menu with textarea, menu inputs and char counter
 #============================================================================
-app.directive "ussd", [ "$rootScope", "$log", "utils", ($rootScope, $log, utils) ->
+app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log, Flow, utils) ->
   MESSAGE_LENGTH = 182
 
   link = (scope, element, attrs) ->
@@ -13,6 +13,10 @@ app.directive "ussd", [ "$rootScope", "$log", "utils", ($rootScope, $log, utils)
     scope.ruleset.config ?= {}
     scope.ruleset.config.ussd_menu ?= []
     scope.ruleset.config.ussd_text ?= ""
+    scope.ruleset.config.ussd_message ?= {}
+    scope.ruleset.config.ussd_message[Flow.flow.base_language] ?= ""
+
+    scope.ruleset.config.ussd_text = scope.ruleset.config.ussd_message[Flow.flow.base_language]
 
     # sync menu with rules
     if scope.USSD_MENU
