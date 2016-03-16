@@ -412,6 +412,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
         category: category
         uuid: uuid()
       ]
+      config: {}
 
     @clickRuleset(ruleset)
 

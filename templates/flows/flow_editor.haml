@@ -499,7 +499,7 @@
             .remove.icon-close{ ng-click: 'confirmRemoveRuleset($event, ruleset); $event.stopPropagation()' }
 
           .ussd-flow-items-wrapper{ng-show:'ruleset.ruleset_type=="wait_menu" || ruleset.ruleset_type=="wait_ussd"', ng-click:"clickRuleset(ruleset)"}
-            .ussd-flow-text
+            .ussd-flow-text{ng-class:'{ missing: ruleset.config._missingTranslation }'}
               [[ruleset.config._ussd_translation]]
             .ussd-flow-items
               .ussd-flow-item{ng-repeat:'item in ruleset.config.ussd_menu'}
