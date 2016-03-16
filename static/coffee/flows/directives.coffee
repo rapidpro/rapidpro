@@ -263,6 +263,15 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
           else
             category._translation = category.name
 
+      # USSD translations
+      if Flow.flow.flow_type == 'U'
+        ruleset.config._ussd_translation = ruleset.config.ussd_message[iso_code]
+        if ruleset.config._ussd_translation is undefined
+          ruleset.config._ussd_translation = ruleset.config.ussd_message[baseLanguage]
+          ruleset.config._missingTranslation = true
+        else
+          ruleset.config._missingTranslation = false
+
       Flow.updateTranslationStats()
       Plumb.repaint(element)
 
