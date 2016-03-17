@@ -2644,7 +2644,18 @@ class ContactTest(TembaTest):
         # add him to a group
         self.create_group("Reporters", [self.joe])
 
+        # create a few contact fields, one active, one not
+        ContactField.get_or_create(self.org, self.admin, 'team')
+        fav_color = ContactField.get_or_create(self.org, self.admin, 'color')
+
         self.joe = Contact.objects.get(pk=self.joe.pk)
+        self.joe.set_field(self.admin, 'color', "Blue")
+        self.joe.set_field(self.admin, 'team', "SeaHawks")
+
+        # make color inactivate
+        fav_color.is_active = False
+        fav_color.save()
+
         message_context = self.joe.build_message_context()
 
         self.assertEquals("Joe", message_context['first_name'])
@@ -2652,6 +2663,9 @@ class ContactTest(TembaTest):
         self.assertEquals("Joe Blow", message_context['__default__'])
         self.assertEquals("123", message_context['tel'])
         self.assertEquals("Reporters", message_context['groups'])
+
+        self.assertEqual("SeaHawks", message_context['team'])
+        self.assertFalse('color' in message_context)
 
     def test_urn_priority(self):
         bob = self.create_contact("Bob")

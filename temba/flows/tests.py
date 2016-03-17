@@ -2366,15 +2366,6 @@ class ActionTest(TembaTest):
         field = ContactField.objects.get(org=self.org, key="ecole")
         self.assertEquals("Ecole", field.label)
 
-    def test_normalize_fileds(self):
-
-        fields = []
-        for i in range(150):
-            fields.append('field %d' % i)
-
-        fields, count = FlowRun.normalize_fields(fields)
-        self.assertEqual(128, count)
-
     def test_set_language_action(self):
         action = SetLanguageAction('kli', 'Klingon')
 
@@ -2636,6 +2627,11 @@ class FlowRunTest(TembaTest):
         (normalized, count) = FlowRun.normalize_fields(fields)
         self.assertEqual(count, 128)
         self.assertEqual(len(normalized), 128)
+
+        # can manually keep more values
+        (normalized, count) = FlowRun.normalize_fields(fields, 200)
+        self.assertEqual(count, 132)
+        self.assertEqual(len(normalized), 132)
 
         fields = dict(numbers=["zero", "one", "two", "three"])
         (normalized, count) = FlowRun.normalize_fields(fields)
