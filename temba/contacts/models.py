@@ -1224,7 +1224,7 @@ class Contact(TembaModel):
                 priority -= 1
 
         # detach any existing URNs that weren't included
-        urn_ids = [urn.pk for urn in (urns_created + urns_attached + urns_retained)]
+        urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
         urns_detached_qs = ContactURN.objects.filter(contact=self).exclude(pk__in=urn_ids)
         urns_detached_qs.update(contact=None)
         urns_detached = list(urns_detached_qs)
@@ -1233,7 +1233,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[(urn.scheme, urn.path) for urn in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[(u.scheme, u.path) for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):

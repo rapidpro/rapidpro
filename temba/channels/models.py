@@ -791,9 +791,9 @@ class Channel(TembaModel):
         # ignore really recent unsent messages
         messages = messages.exclude(created_on__gt=timezone.now() - timedelta(hours=1))
         
-        # if there is one message successfully sent ignore also all message created before it was sent 
+        # if there is one message successfully sent ignore also all message created before it was sent
         if latest_sent_message:
-            messages = messages.exclude(created_on__lt=latest_sent_message.sent_on)        
+            messages = messages.exclude(created_on__lt=latest_sent_message.sent_on)
         
         return messages
 
@@ -2682,7 +2682,7 @@ class Alert(SmartModel):
         if self.alert_type == ALERT_POWER:
             if resolved:
                 subject = "Your Android phone is now charging"
-                template = 'channels/email/power_charging_alert'                
+                template = 'channels/email/power_charging_alert'
             else:
                 subject = "Your Android phone battery is low"
                 template = 'channels/email/power_alert'

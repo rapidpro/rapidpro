@@ -247,9 +247,10 @@ class RuleCRUDL(SmartCRUDL):
         title = "Analytics"
 
         def get_context_data(self, **kwargs):
-            org = self.request.user.get_org()
-            dthandler = lambda obj: obj.isoformat() if isinstance(obj, datetime) else obj
+            def dthandler(obj):
+                return obj.isoformat() if isinstance(obj, datetime) else obj
 
+            org = self.request.user.get_org()
             rules = RuleSet.objects.filter(flow__is_active=True, flow__org=org).exclude(label=None).order_by('flow__created_on', 'y').select_related('flow')
             current_flow = None
             flow_json = []

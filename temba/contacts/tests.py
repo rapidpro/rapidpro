@@ -829,7 +829,8 @@ class ContactTest(TembaTest):
         contact.set_field(self.user, 'isureporter', 'yes')
         contact.set_field(self.user, 'hasbirth', 'no')
 
-        q = lambda query: Contact.search(self.org, query)[0].count()
+        def q(query):
+            return Contact.search(self.org, query)[0].count()
 
         # non-complex queries
         self.assertEquals(23, q('trey'))
@@ -2477,7 +2478,7 @@ class ContactTest(TembaTest):
         c2 = self.create_contact(name=None, number='0788382382')
         self.assertEquals(c1.pk, c2.pk)
         
-        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson') 
+        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
         c1 = Contact.create_instance(field_dict)
 
         field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
@@ -2495,7 +2496,7 @@ class ContactTest(TembaTest):
         import_params = dict(org_id=self.org.id, timezone=timezone.UTC, extra_fields=[
             dict(key='nick_name', header='nick name', label='Nickname', type='T')
         ])
-        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson') 
+        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
         field_dict['yourmom'] = 'face'
         field_dict['nick name'] = 'bob'
         field_dict = Contact.prepare_fields(field_dict, import_params, user=user)
@@ -2817,10 +2818,11 @@ class ContactTest(TembaTest):
 
 class ContactURNTest(TembaTest):
     def setUp(self):
-        TembaTest.setUp(self)
+        super(ContactURNTest, self).setUp()
 
     def test_parse_urn(self):
-        urn_tuple = lambda p: (p.scheme, p.path)
+        def urn_tuple(p):
+            return p.scheme, p.path
 
         self.assertEquals(('tel', '+1234'), urn_tuple(ContactURN.parse_urn('tel:+1234')))
         self.assertEquals(('twitter', 'billy_bob'), urn_tuple(ContactURN.parse_urn('twitter:billy_bob')))

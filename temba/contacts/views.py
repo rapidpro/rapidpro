@@ -301,7 +301,7 @@ class UpdateContactForm(ContactForm):
                 lang = languages.get_language_name(self.instance.language)
                 choices += [(self.instance.language, _("%s (Missing)") % lang)]
 
-        choices += [(lang.iso_code, lang.name) for lang in self.instance.org.languages.all().order_by('orgs', 'name')]
+        choices += [(l.iso_code, l.name) for l in self.instance.org.languages.all().order_by('orgs', 'name')]
 
         self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'), initial=self.instance.language, choices=choices)
 

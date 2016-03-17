@@ -766,7 +766,7 @@ class TriggerTest(TembaTest):
 
         # create trigger for specific contact group
         group = self.create_group("first", [self.contact2])
-        trigger = Trigger.objects.create(org=self.org, keyword='where', flow=flow, 
+        trigger = Trigger.objects.create(org=self.org, keyword='where', flow=flow,
                                          created_by=self.admin, modified_by=self.admin)
         trigger.groups.add(group)
 
