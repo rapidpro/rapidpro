@@ -1546,7 +1546,8 @@ class Flow(TembaModel):
         # these fields are the initial state for our flow run
         run_fields = None
         if extra:
-            (normalized_fields, count) = FlowRun.normalize_fields(extra)
+            # we keep 1024 values in @extra for new flow runs because we might be passing the state
+            (normalized_fields, count) = FlowRun.normalize_fields(extra, 1024)
             run_fields = json.dumps(normalized_fields)
 
         # create all our flow runs for this set of contacts at once
@@ -2819,7 +2820,7 @@ class FlowRun(models.Model):
         return FlowRun.INVALID_EXTRA_KEY_CHARS.sub('_', key)[:255]
 
     @classmethod
-    def normalize_fields(cls, fields, count=-1):
+    def normalize_fields(cls, fields, max_values=128, count=-1):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
@@ -2833,9 +2834,9 @@ class FlowRun(models.Model):
             count += 1
             field_dict = dict()
             for (k, v) in fields.items():
-                (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, count)
+                (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, max_values, count)
 
-                if count >= 128:
+                if count >= max_values:
                     break
 
             return field_dict, count
@@ -2844,9 +2845,9 @@ class FlowRun(models.Model):
             count += 1
             list_dict = dict()
             for (i, v) in enumerate(fields):
-                (list_dict[str(i)], count) = FlowRun.normalize_fields(v, count)
+                (list_dict[str(i)], count) = FlowRun.normalize_fields(v, max_values, count)
 
-                if count >= 128:
+                if count >= max_values:
                     break
 
             return list_dict, count
@@ -2952,9 +2953,9 @@ class FlowRun(models.Model):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
         cls.bulk_exit(contact_runs, FlowRun.EXIT_TYPE_EXPIRED)
 
-    def update_fields(self, field_map):
+    def update_fields(self, field_map, max_values=128):
         # validate our field
-        (field_map, count) = FlowRun.normalize_fields(field_map)
+        (field_map, count) = FlowRun.normalize_fields(field_map, max_values)
 
         if not self.fields:
             self.fields = json.dumps(field_map)
