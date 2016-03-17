@@ -2025,6 +2025,8 @@ class ContactTest(TembaTest):
         self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
 
         with AnonymousOrg(self.org):
+            self.login(self.editor)
+
             with patch('temba.orgs.models.Org.lock_on') as mock_lock:
                 # import contact with uuid will force update if existing contact for the uuid
                 self.assertContactImport('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT,
@@ -2051,6 +2053,19 @@ class ContactTest(TembaTest):
             # new urn ignored for eric
             self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
             self.assertEqual(list(michael.get_urns().values_list('path', flat=True)), ['+250788383396'])
+
+        # now log in as an admin, admins can import into anonymous imports
+        self.login(self.admin)
+
+        with AnonymousOrg(self.org):
+            self.assertContactImport('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT,
+                                     dict(records=4, errors=0, error_messages=[], creates=1, updates=3))
+
+            Contact.objects.all().delete()
+            ContactGroup.user_groups.all().delete()
+
+            self.assertContactImport('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT,
+                                     dict(records=3, errors=0, error_messages=[], creates=3, updates=0))
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()

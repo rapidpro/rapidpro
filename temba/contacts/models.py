@@ -687,6 +687,7 @@ class Contact(TembaModel):
 
         org = field_dict.pop('org')
         user = field_dict.pop('created_by')
+        is_admin = org.administrators.filter(id=user.id).first()
         uuid = field_dict.pop('uuid', None)
 
         country = org.get_country_code()
@@ -695,11 +696,10 @@ class Contact(TembaModel):
         possible_urn_headers = [scheme[0] for scheme in IMPORT_HEADERS]
 
         # prevent urns update on anon org
-        if uuid and org.is_anon:
+        if uuid and org.is_anon and not is_admin:
             possible_urn_headers = []
 
         for urn_header in possible_urn_headers:
-
             value = None
             if urn_header in field_dict:
                 value = field_dict[urn_header]
@@ -733,8 +733,9 @@ class Contact(TembaModel):
                     raise SmartImportRowError("Ignored test contact")
 
             search_contact = Contact.from_urn(org, urn_scheme, value, country)
-            # if this is an anonymous org
-            if org.is_anon and search_contact:
+
+            # if this is an anonymous org, don't allow updating
+            if org.is_anon and search_contact and not is_admin:
                 raise SmartImportRowError("Other existing contact on anonymous organization")
 
             urns.append((urn_scheme, value))
