@@ -687,7 +687,7 @@ class Contact(TembaModel):
 
         org = field_dict.pop('org')
         user = field_dict.pop('created_by')
-        is_admin = org.administrators.filter(id=user.id).first()
+        is_admin = org.administrators.filter(id=user.id).exists()
         uuid = field_dict.pop('uuid', None)
 
         country = org.get_country_code()
