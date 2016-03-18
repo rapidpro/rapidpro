@@ -30,7 +30,7 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
       if not item.category._autoName
         return
 
-      words = item.label.trim().split(/\b/)
+      words = item.label[Flow.flow.base_language].trim().split(/\b/)
       if words
         categoryName = words[0].toUpperCase()
         item.category._base = categoryName
@@ -45,7 +45,7 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
           scope.ruleset.config.ussd_menu.splice length, 0,
             uuid: uuid()
             option: if length >= 9 then 0 else length + 1
-            label: ""
+            label: {}
             category:
               _autoName: true
               _base: ""
@@ -58,15 +58,15 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
     scope.updateMenu = (item, index) ->
       scope.countCharacters()
       updateCategory(item)
-      if item.label.length == 1 and index == scope.ruleset.config.ussd_menu.length - 1
+      if item.label[Flow.flow.base_language].length == 1 and index == scope.ruleset.config.ussd_menu.length - 1
         insertEmpty()
 
     do scope.countCharacters = ->
       sum = (items) ->
         items.reduce (prev, current) ->
           current.option ?= ""
-          current.label ?= ""
-          prev + current.option.toString().length + current.label.length + 2 # 1 for space 1 for newline char
+          current.label[Flow.flow.base_language] ?= ""
+          prev + current.option.toString().length + current.label[Flow.flow.base_language].length + 2 # 1 for space 1 for newline char
         ,0
 
       textLength = scope.ruleset.config.ussd_text.length
