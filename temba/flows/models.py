@@ -3680,8 +3680,7 @@ class FlowStep(models.Model):
 
         # if message is from contact, mark run as responded
         if not self.run.responded and msg.direction == INCOMING:
-            self.run.responded = True
-            self.run.save(update_fields=('responded',))
+            FlowRun.objects.filter(id=self.run, responded=False).update(responded=True)
 
     def get_step(self):
         """
