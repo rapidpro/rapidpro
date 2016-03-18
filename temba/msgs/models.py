@@ -1853,12 +1853,14 @@ class ExportMessagesTask(SmartModel):
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
+        tz = self.org.get_tzinfo()
+
         if self.start_date:
-            start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
+            start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
             all_messages = all_messages.filter(created_on__gte=start_date)
 
         if self.end_date:
-            end_date = datetime.combine(self.end_date, datetime.max.time()).replace(tzinfo=self.org.get_tzinfo())
+            end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
             all_messages = all_messages.filter(created_on__lte=end_date)
 
         if self.groups.all():

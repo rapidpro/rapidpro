@@ -168,7 +168,7 @@ class TwilioMessagingServiceHandler(View):
         from temba.msgs.models import Msg
 
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
-        url = "https://" + settings.TEMBA_HOST + "%s" % request.get_full_path()
+        url = "https://" + settings.HOSTNAME + "%s" % request.get_full_path()
 
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
@@ -216,7 +216,7 @@ class AfricasTalkingHandler(View):
 
         # this is a callback for a message we sent
         if action == 'delivery':
-            if not 'status' in request.POST or not 'id' in request.POST:
+            if 'status' not in request.POST or 'id' not in request.POST:
                 return HttpResponse("Missing status or id parameters", status=400)
 
             status = request.POST['status']
@@ -240,7 +240,7 @@ class AfricasTalkingHandler(View):
 
         # this is a new incoming message
         elif action == 'callback':
-            if not 'from' in request.POST or not 'text' in request.POST:
+            if 'from' not in request.POST or 'text' not in request.POST:
                 return HttpResponse("Missing from or text parameters", status=400)
 
             sms = Msg.create_incoming(channel, (TEL_SCHEME, request.POST['from']), request.POST['text'])
@@ -275,7 +275,7 @@ class ZenviaHandler(View):
 
         # this is a callback for a message we sent
         if action == 'status':
-            if not 'status' in request.REQUEST or not 'id' in request.REQUEST:
+            if 'status' not in request.REQUEST or 'id' not in request.REQUEST:
                 return HttpResponse("Missing parameters, requires 'status' and 'id'", status=400)
 
             status = int(request.REQUEST['status'])
@@ -303,7 +303,7 @@ class ZenviaHandler(View):
         elif action == 'receive':
             import pytz
 
-            if not 'date' in request.REQUEST or not 'from' in request.REQUEST or not 'msg' in request.REQUEST:
+            if 'date' not in request.REQUEST or 'from' not in request.REQUEST or 'msg' not in request.REQUEST:
                 return HttpResponse("Missing parameters, requires 'from', 'date' and 'msg'", status=400)
 
             # dates come in the format 31/07/2013 14:45:00
@@ -352,7 +352,7 @@ class ExternalHandler(View):
 
         # this is a callback for a message we sent
         if action == 'delivered' or action == 'failed' or action == 'sent':
-            if not 'id' in request.REQUEST:
+            if 'id' not in request.REQUEST:
                 return HttpResponse("Missing 'id' parameter, invalid call.", status=400)
 
             sms_pk = request.REQUEST['id']
@@ -430,7 +430,7 @@ class TelegramHandler(View):
         body = json.loads(request.body)
 
         # skip if there is no message block (could be a sticker or voice)
-        if not 'text' in body['message']:
+        if 'text' not in body['message']:
             return HttpResponse("No message text, ignored.")
 
         # look up the contact
@@ -459,6 +459,7 @@ class TelegramHandler(View):
                                   date=msg_date)
 
         return HttpResponse("SMS Accepted: %d" % sms.id)
+
 
 class InfobipHandler(View):
 
@@ -895,7 +896,7 @@ class VumiHandler(View):
 
         # this is a callback for a message we sent
         if action == 'event':
-            if not 'event_type' in body and not 'user_message_id' in body:
+            if 'event_type' not in body and 'user_message_id' not in body:
                 return HttpResponse("Missing event_type or user_message_id, ignoring message", status=400)
 
             external_id = body['user_message_id']
@@ -907,7 +908,7 @@ class VumiHandler(View):
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % external_id, status=404)
 
-            if not status in ['ack', 'delivery_report']:
+            if status not in ('ack', 'delivery_report'):
                 return HttpResponse("Unknown status '%s', ignoring", status=200)
 
             # only update to SENT status if still in WIRED state
@@ -918,11 +919,14 @@ class VumiHandler(View):
                 if sms:
                     delivery_status = body.get('delivery_status', 'success')
                     if delivery_status == 'failed':
-
+                        # Vumi and M-Tech disagree on what 'failed' means in a DLR, so for now, ignore these
+                        # cases.
+                        #
                         # we can get multiple reports from vumi if they multi-part the message for us
-                        if sms.status in (WIRED, DELIVERED):
-                            print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
-                            Msg.mark_error(get_redis_connection(), channel, sms)
+                        #if sms.status in (WIRED, DELIVERED):
+                        #    print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
+                        #    Msg.mark_error(get_redis_connection(), channel, sms)
+                        pass
                     else:
 
                         # we should only mark it as delivered if it's in a wired state, we want to hold on to our
@@ -930,14 +934,11 @@ class VumiHandler(View):
                         if sms.status == WIRED:
                             sms.status_delivered()
 
-            # disabled for performance reasons
-            # sms.first().broadcast.update()
-
             return HttpResponse("SMS Status Updated")
 
         # this is a new incoming message
         elif action == 'receive':
-            if not 'timestamp' in body or not 'from_addr' in body or not 'content' in body or not 'message_id' in body:
+            if 'timestamp' not in body or 'from_addr' not in body or 'content' not in body or 'message_id' not in body:
                 return HttpResponse("Missing one of timestamp, from_addr, content or message_id, ignoring message", status=400)
 
             # dates come in the format "2014-04-18 03:54:20.570618" GMT
@@ -955,6 +956,7 @@ class VumiHandler(View):
 
         else:
             return HttpResponse("Not handled", status=400)
+
 
 class KannelHandler(View):
 
@@ -1187,7 +1189,7 @@ class PlivoHandler(View):
         if action == 'status':
             plivo_channel_address = request.REQUEST['From']
 
-            if not 'Status' in request.REQUEST:
+            if 'Status' not in request.REQUEST:
                 return HttpResponse("Missing 'Status' in request parameters.", status=400)
 
             if not channel:
@@ -1245,7 +1247,7 @@ class PlivoHandler(View):
             return HttpResponse("Status Updated")
 
         elif action == 'receive':
-            if not 'Text' in request.REQUEST:
+            if 'Text' not in request.REQUEST:
                 return HttpResponse("Missing 'Text' in request parameters.", status=400)
 
             plivo_channel_address = request.REQUEST['To']

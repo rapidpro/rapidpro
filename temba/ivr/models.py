@@ -73,7 +73,6 @@ class IVRCall(SmartModel):
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this call in seconds")
 
-
     @classmethod
     def create_outgoing(cls, channel, contact_id, flow, user, call_type=FLOW):
         contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
@@ -163,8 +162,6 @@ class IVRCall(SmartModel):
                 if self.contact.is_test:
                     run = FlowRun.objects.filter(call=self)
                     ActionLog.create(run[0], "Call ended.")
-
-
 
     def update_status(self, status, duration):
         """

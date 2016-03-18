@@ -369,7 +369,6 @@ class QueueTest(TembaTest):
         push_task(self.org, None, 'test', args[1])
         push_task(self.org, None, 'test', args[0], HIGH_PRIORITY)
 
-
         push_task(self.org2, None, 'test', args[4])
         push_task(self.org2, None, 'test', args[3], HIGH_PRIORITY)
         push_task(self.org2, None, 'test', args[5], LOW_PRIORITY)
@@ -462,11 +461,11 @@ class ExpressionsTest(TembaTest):
         self.assertEquals(('Hello "World"', []),
                           evaluate_template('@( "Hello ""World""" )', self.context))  # string with escaping
         self.assertEquals(("Hello World", []),
-                          evaluate_template('@( "Hello" & " " & "World" )',  self.context))  # string concatenation
+                          evaluate_template('@( "Hello" & " " & "World" )', self.context))  # string concatenation
         self.assertEquals(('("', []),
-                          evaluate_template('@("(" & """")',  self.context))  # string literals containing delimiters
+                          evaluate_template('@("(" & """")', self.context))  # string literals containing delimiters
         self.assertEquals(('Joe Blow and Joe Blow', []),
-                          evaluate_template('@contact and @(contact)',  self.context))  # old and new style
+                          evaluate_template('@contact and @(contact)', self.context))  # old and new style
         self.assertEquals(("Joe Blow language is set to 'eng'", []),
                           evaluate_template("@contact language is set to '@contact.language'", self.context))  # language
 
@@ -476,9 +475,9 @@ class ExpressionsTest(TembaTest):
         self.assertEquals(("one اثنين ثلاثة four", []),
                           evaluate_template("one @flow.arabic four", self.context))  # LTR var, RTL value, LTR text
         self.assertEquals(("واحد اثنين ثلاثة أربعة", []),
-                          evaluate_template("واحد @flow.arabic أربعة",  self.context))  # LTR var, RTL value, RTL text
+                          evaluate_template("واحد @flow.arabic أربعة", self.context))  # LTR var, RTL value, RTL text
         self.assertEquals(("واحد two three أربعة", []),
-                          evaluate_template("واحد @flow.english أربعة",  self.context))  # LTR var, LTR value, RTL text
+                          evaluate_template("واحد @flow.english أربعة", self.context))  # LTR var, LTR value, RTL text
 
         # test decimal arithmetic
         self.assertEquals(("Result: 7", []),
@@ -671,8 +670,6 @@ class ExpressionsTest(TembaTest):
                                                                 dict(optional=False,
                                                                      name='divisor',
                                                                      vararg=False)])))
-
-
 
     def test_percentage(self):
         self.assertEquals(0, percentage(0, 100))

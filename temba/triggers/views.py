@@ -67,7 +67,7 @@ class DefaultTriggerForm(BaseTriggerForm):
     """
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
-        super(DefaultTriggerForm, self).__init__(user, flows,  *args, **kwargs)
+        super(DefaultTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
 
 class GroupBasedTriggerForm(BaseTriggerForm):
@@ -599,7 +599,6 @@ class TriggerCRUDL(SmartCRUDL):
                 trigger.contacts.add(contact)
 
             self.post_save(trigger)
-
 
             response = self.render_to_response(self.get_context_data(form=form))
             response['REDIRECT'] = self.get_success_url()

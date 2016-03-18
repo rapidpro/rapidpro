@@ -598,8 +598,8 @@ class MsgTest(TembaTest):
         self.assertEquals(sheet.nrows, 4)  # msg3 not included as it's archived
 
         self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels"])
-        self.assertExcelRow(sheet, 1, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid,  "Incoming", "hello 4", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 2, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid,  "Incoming", "hello 2", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 1, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 2, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
         self.assertExcelRow(sheet, 3, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
 
         email_args = mock_send_temba_email.call_args[0]  # all positional args

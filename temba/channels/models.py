@@ -434,7 +434,6 @@ class Channel(TembaModel):
                 role = SEND+RECEIVE
                 phone = phone_number
 
-
             else:
                 raise Exception(_("Short code not found on your Twilio Account. "
                                   "Please check you own the short code and Try again"))
@@ -791,9 +790,9 @@ class Channel(TembaModel):
         # ignore really recent unsent messages
         messages = messages.exclude(created_on__gt=timezone.now() - timedelta(hours=1))
         
-        # if there is one message successfully sent ignore also all message created before it was sent 
+        # if there is one message successfully sent ignore also all message created before it was sent
         if latest_sent_message:
-            messages = messages.exclude(created_on__lt=latest_sent_message.sent_on)        
+            messages = messages.exclude(created_on__lt=latest_sent_message.sent_on)
         
         return messages
 
@@ -1099,7 +1098,9 @@ class Channel(TembaModel):
             'id': str(msg.id),
             'text': text,
             'to': msg.urn_path,
+            'to_no_plus': msg.urn_path.lstrip('+'),
             'from': channel.address,
+            'from_no_plus': channel.address.lstrip('+'),
             'channel': str(channel.id)
         }
 
@@ -1361,7 +1362,6 @@ class Channel(TembaModel):
                                response=response.text,
                                response_status=response.status_code)
 
-
     @classmethod
     def send_smscentral_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
@@ -1490,7 +1490,7 @@ class Channel(TembaModel):
         response = None
         while not response:
             try:
-                (message_id, response) = client.send_message(channel.address,  msg.urn_path, text)
+                (message_id, response) = client.send_message(channel.address, msg.urn_path, text)
             except SendException as e:
                 match = regex.match(r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*', e.response)
 
@@ -1509,7 +1509,6 @@ class Channel(TembaModel):
                                url=response.request.url,
                                response=response.text,
                                response_status=response.status_code)
-
 
     @classmethod
     def send_yo_message(cls, channel, msg, text):
@@ -2680,7 +2679,7 @@ class Alert(SmartModel):
         if self.alert_type == ALERT_POWER:
             if resolved:
                 subject = "Your Android phone is now charging"
-                template = 'channels/email/power_charging_alert'                
+                template = 'channels/email/power_charging_alert'
             else:
                 subject = "Your Android phone battery is low"
                 template = 'channels/email/power_alert'

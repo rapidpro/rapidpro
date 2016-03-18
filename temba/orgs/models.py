@@ -285,7 +285,6 @@ class Org(SmartModel):
         else:
             return 0
 
-
     def set_status(self, status):
         config = self.config_json()
         config[ORG_STATUS] = status
@@ -674,9 +673,7 @@ class Org(SmartModel):
         return self.date_format == DAYFIRST
 
     def get_tzinfo(self):
-        # we have to build the timezone based on an actual date
-        # see: https://bugs.launchpad.net/pytz/+bug/1319939
-        return timezone.now().astimezone(pytz.timezone(self.timezone)).tzinfo
+        return pytz.timezone(self.timezone)
 
     def format_date(self, datetime, show_time=True):
         """
@@ -1131,7 +1128,7 @@ class Org(SmartModel):
 
     def add_credits(self, bundle, token, user):
         # look up our bundle
-        if not bundle in BUNDLE_MAP:
+        if bundle not in BUNDLE_MAP:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
 
         bundle = BUNDLE_MAP[bundle]

@@ -51,7 +51,7 @@ URN_SCHEMES = [TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, FACEBOOK_SCHEME,
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
-                     (EMAIL_SCHEME, _("Email address"), 'email',  EMAIL_SCHEME),
+                     (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
 
 # schemes that we actually support
@@ -687,6 +687,7 @@ class Contact(TembaModel):
 
         org = field_dict.pop('org')
         user = field_dict.pop('created_by')
+        is_admin = org.administrators.filter(id=user.id).exists()
         uuid = field_dict.pop('uuid', None)
 
         country = org.get_country_code()
@@ -695,11 +696,10 @@ class Contact(TembaModel):
         possible_urn_headers = [scheme[0] for scheme in IMPORT_HEADERS]
 
         # prevent urns update on anon org
-        if uuid and org.is_anon:
+        if uuid and org.is_anon and not is_admin:
             possible_urn_headers = []
 
         for urn_header in possible_urn_headers:
-
             value = None
             if urn_header in field_dict:
                 value = field_dict[urn_header]
@@ -733,8 +733,9 @@ class Contact(TembaModel):
                     raise SmartImportRowError("Ignored test contact")
 
             search_contact = Contact.from_urn(org, urn_scheme, value, country)
-            # if this is an anonymous org
-            if org.is_anon and search_contact:
+
+            # if this is an anonymous org, don't allow updating
+            if org.is_anon and search_contact and not is_admin:
                 raise SmartImportRowError("Other existing contact on anonymous organization")
 
             urns.append((urn_scheme, value))
@@ -1115,11 +1116,15 @@ class Contact(TembaModel):
             urn_value = self.get_urn_display(scheme=scheme, org=org)
             contact_dict[scheme] = urn_value if urn_value is not None else ''
 
-        # get all the values for this contact
-        contact_values = {v.contact_field.key: v for v in Value.objects.filter(contact=self).exclude(contact_field=None).select_related('contact_field')}
+        field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
+                                                         .exclude(contact_field__is_active=False)\
+                                                         .select_related('contact_field')
 
-        # add all fields
-        for field in ContactField.objects.filter(org_id=self.org_id).select_related('org'):
+        # get all the values for this contact
+        contact_values = {v.contact_field.key: v for v in field_values}
+
+        # add all active fields to our context
+        for field in ContactField.objects.filter(org_id=self.org_id, is_active=True).select_related('org'):
             field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
             contact_dict[field.key] = field_value if field_value is not None else ''
 
@@ -1224,7 +1229,7 @@ class Contact(TembaModel):
                 priority -= 1
 
         # detach any existing URNs that weren't included
-        urn_ids = [urn.pk for urn in (urns_created + urns_attached + urns_retained)]
+        urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
         urns_detached_qs = ContactURN.objects.filter(contact=self).exclude(pk__in=urn_ids)
         urns_detached_qs.update(contact=None)
         urns_detached = list(urns_detached_qs)
@@ -1233,7 +1238,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[(urn.scheme, urn.path) for urn in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[(u.scheme, u.path) for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):

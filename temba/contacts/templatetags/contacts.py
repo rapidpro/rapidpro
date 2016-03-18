@@ -116,4 +116,3 @@ def event_time(event):
         direction = 'before'
 
     return "%d %s %s %s" % (abs(event.offset), unit, direction, event.relative_to.label)
-

@@ -149,7 +149,7 @@ class ModalMixin(SmartFormView):
     def get_context_data(self, **kwargs):
         context = super(ModalMixin, self).get_context_data(**kwargs)
 
-        if 'HTTP_X_PJAX' in self.request.META and not 'HTTP_X_FORMAX' in self.request.META:  # pragma: no cover
+        if 'HTTP_X_PJAX' in self.request.META and 'HTTP_X_FORMAX' not in self.request.META:  # pragma: no cover
             context['base_template'] = "smartmin/modal.html"
         if 'success_url' in kwargs:  # pragma: no cover
             context['success_url'] = kwargs['success_url']
@@ -510,6 +510,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             from collections import defaultdict
+
             def connected_components(lists):
                 neighbors = defaultdict(set)
                 seen = set()
@@ -518,7 +519,7 @@ class OrgCRUDL(SmartCRUDL):
                         neighbors[item].update(each)
 
                 def component(node, neighbors=neighbors, seen=seen, see=seen.add):
-                    nodes = set([node])
+                    nodes = {node}
                     next_node = nodes.pop
                     while nodes:
                         node = next_node()
@@ -553,7 +554,6 @@ class OrgCRUDL(SmartCRUDL):
                 all_depends.append((campaign,))
 
             buckets = connected_components(all_depends)
-
 
             # sort our buckets, campaigns, flows, triggers
             bucket_list = []
@@ -730,7 +730,6 @@ class OrgCRUDL(SmartCRUDL):
 
             response['Temba-Success'] = self.get_success_url()
             return response
-
 
     class Manage(SmartListView):
         fields = ('credits', 'used', 'name', 'owner', 'created_on')

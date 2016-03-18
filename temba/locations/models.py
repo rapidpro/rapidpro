@@ -1,11 +1,13 @@
+from __future__ import unicode_literals
+
+import geojson
 import logging
+
+from django.contrib.gis.db import models
+from mptt.models import MPTTModel, TreeForeignKey
 from smartmin.models import SmartModel
 
 logger = logging.getLogger(__name__)
-
-from django.contrib.gis.db import models
-import geojson
-from mptt.models import MPTTModel, TreeForeignKey
 
 COUNTRY_LEVEL = 0
 STATE_LEVEL = 1
