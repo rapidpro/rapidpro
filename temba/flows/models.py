@@ -161,7 +161,6 @@ class Flow(TembaModel):
     SAVED_BY = 'saved_by'
     VERSION = 'version'
 
-
     CONTACT_CREATION = 'contact_creation'
     CONTACT_PER_RUN = 'run'
     CONTACT_PER_LOGIN = 'login'
@@ -173,7 +172,6 @@ class Flow(TembaModel):
     FLOW_TYPE = 'flow_type'
     ID = 'id'
     EXPIRES = 'expires'
-
 
     X = 'x'
     Y = 'y'
@@ -921,7 +919,6 @@ class Flow(TembaModel):
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
 
-
     def get_activity(self, simulation=False, check_cache=True):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
@@ -1097,7 +1094,7 @@ class Flow(TembaModel):
         self.save(update_fields=['name', 'flow_type'])
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
+        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
         self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language='base'))
 
     def steps(self):
@@ -1553,7 +1550,8 @@ class Flow(TembaModel):
         # these fields are the initial state for our flow run
         run_fields = None
         if extra:
-            (normalized_fields, count) = FlowRun.normalize_fields(extra)
+            # we keep 1024 values in @extra for new flow runs because we might be passing the state
+            (normalized_fields, count) = FlowRun.normalize_fields(extra, 1024)
             run_fields = json.dumps(normalized_fields)
 
         # create all our flow runs for this set of contacts at once
@@ -1603,7 +1601,7 @@ class Flow(TembaModel):
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.current_messages.filter(broadcast=broadcast, created_on=created_on):
-                    if not msg.contact_id in message_map:
+                    if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:
                         message_map[msg.contact_id].append(msg)
@@ -2250,12 +2248,12 @@ class Flow(TembaModel):
 
             # now work through all our objects once more, making sure all uuids map appropriately
             for existing in existing_actionsets.values():
-                if not existing.uuid in seen:
+                if existing.uuid not in seen:
                     del existing_actionsets[existing.uuid]
                     existing.delete()
 
             for existing in existing_rulesets.values():
-                if not existing.uuid in seen:
+                if existing.uuid not in seen:
                     # clean up any values on this ruleset
                     Value.objects.filter(ruleset=existing, org=self.org).delete()
 
@@ -2264,7 +2262,7 @@ class Flow(TembaModel):
 
             # make sure all destinations are present though
             for destination in destinations:
-                if not destination in existing_rulesets and not destination in existing_actionsets:
+                if destination not in existing_rulesets and destination not in existing_actionsets:
                     raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
 
             entry = json_dict.get('entry', None)
@@ -2619,7 +2617,6 @@ class RuleSet(models.Model):
             return "RuleSet: %s" % (self.uuid, )
 
 
-
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
     flow = models.ForeignKey(Flow, related_name='action_sets')
@@ -2835,7 +2832,7 @@ class FlowRun(models.Model):
         return FlowRun.INVALID_EXTRA_KEY_CHARS.sub('_', key)[:255]
 
     @classmethod
-    def normalize_fields(cls, fields, count=-1):
+    def normalize_fields(cls, fields, max_values=128, count=-1):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
@@ -2849,9 +2846,9 @@ class FlowRun(models.Model):
             count += 1
             field_dict = dict()
             for (k, v) in fields.items():
-                (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, count)
+                (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, max_values, count)
 
-                if count >= 128:
+                if count >= max_values:
                     break
 
             return field_dict, count
@@ -2860,9 +2857,9 @@ class FlowRun(models.Model):
             count += 1
             list_dict = dict()
             for (i, v) in enumerate(fields):
-                (list_dict[str(i)], count) = FlowRun.normalize_fields(v, count)
+                (list_dict[str(i)], count) = FlowRun.normalize_fields(v, max_values, count)
 
-                if count >= 128:
+                if count >= max_values:
                     break
 
             return list_dict, count
@@ -2968,9 +2965,9 @@ class FlowRun(models.Model):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
         cls.bulk_exit(contact_runs, FlowRun.EXIT_TYPE_EXPIRED)
 
-    def update_fields(self, field_map):
+    def update_fields(self, field_map, max_values=128):
         # validate our field
-        (field_map, count) = FlowRun.normalize_fields(field_map)
+        (field_map, count) = FlowRun.normalize_fields(field_map, max_values)
 
         if not self.fields:
             self.fields = json.dumps(field_map)
@@ -3073,7 +3070,6 @@ class FlowRunCount(models.Model):
     def __unicode__(self):
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
 
-
     class Meta:
         index_together = ('flow', 'exit_type')
 
@@ -3090,7 +3086,7 @@ class ExportFlowResultsTask(SmartModel):
 
     task_id = models.CharField(null=True, max_length=64)
 
-    is_finished = models.BooleanField(default=False,  help_text=_("Whether this export is complete"))
+    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is complete"))
 
     uuid = models.CharField(max_length=36, null=True,
                             help_text=_("The uuid used to name the resulting export file"))
@@ -3361,14 +3357,11 @@ class ExportFlowResultsTask(SmartModel):
                     merged_runs.write(merged_row, padding+2, run_step.contact.name)
                     merged_runs.write(merged_row, padding+3, groups)
 
-
-
                 if not latest or latest < run_step.arrived_on:
                     latest = run_step.arrived_on
 
                 if not merged_latest or merged_latest < run_step.arrived_on:
                     merged_latest = run_step.arrived_on
-
 
                 runs.write(run_row, padding+4, as_org_tz(earliest), date_format)
                 runs.write(run_row, padding+5, as_org_tz(latest), date_format)
@@ -4879,6 +4872,7 @@ class Rule(object):
 
         return rules
 
+
 class Test(object):
     TYPE = 'type'
     __test_mapping = None
@@ -4914,10 +4908,10 @@ class Test(object):
             }
 
         type = json_dict.get(cls.TYPE, None)
-        if not type: # pragma: no cover
+        if not type:  # pragma: no cover
             raise FlowException("Test definition missing 'type' field: %s", json_dict)
 
-        if not type in cls.__test_mapping: # pragma: no cover
+        if type not in cls.__test_mapping:  # pragma: no cover
             raise FlowException("Unknown type: '%s' in definition: %s" % (type, json_dict))
 
         return cls.__test_mapping[type].from_json(org, json_dict)
@@ -4930,7 +4924,7 @@ class Test(object):
 
         return tests
 
-    def evaluate(self, run, sms, context, text): # pragma: no cover
+    def evaluate(self, run, sms, context, text):  # pragma: no cover
         """
         Where the work happens, subclasses need to be able to evalute their Test
         according to their definition given the passed in message. Tests do not have

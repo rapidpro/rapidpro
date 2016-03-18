@@ -20,8 +20,12 @@
         %trans the message of the text being sent
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}</code> -
         %trans the phone number or address you have configured for this service
+      %li <code>{% templatetag openbrace %}{% templatetag openbrace %}from_no_plus{% templatetag closebrace %}{% templatetag closebrace %}</code> -
+        %trans the phone number or address you have configured for this service, with leading +'s removed
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}</code> -
-        %trans the E164 phone number, Twitter handle or external address that this message is addressed to
+        %trans the phone number or URN this message is addressed to
+      %li <code>{% templatetag openbrace %}{% templatetag openbrace %}to_no_plus{% templatetag closebrace %}{% templatetag closebrace %}</code> -
+        %trans the phone number or URN this message is addressed to, with leading +'s removed
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}id{% templatetag closebrace %}{% templatetag closebrace %}</code> -
         %trans the unique id for this message
 

@@ -78,7 +78,6 @@ class FlowTest(TembaTest):
         user = get_flow_user()
         self.assertEqual(user.pk, get_flow_user().pk)
 
-
     def test_get_unique_name(self):
         flow1 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
         self.assertEqual(flow1.name, "Sheep Poll")
@@ -565,7 +564,6 @@ class FlowTest(TembaTest):
         self.assertEqual(sheet_contacts.nrows, 3)  # header + 2 contacts
         self.assertEqual(sheet_contacts.ncols, 9)
 
-
         self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "Phone", "Name", "Groups", "First Seen", "Last Seen",
                                                 "color (Category) - Color Flow",
                                                 "color (Value) - Color Flow",
@@ -624,7 +622,6 @@ class FlowTest(TembaTest):
         run1_first = run1_rs.order_by('pk').first().arrived_on
         run1_last = run1_rs.order_by('-pk').first().arrived_on
 
-
         # no submitter for our run
         self.assertExcelRow(sheet_runs, 1, ["", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
@@ -649,7 +646,6 @@ class FlowTest(TembaTest):
         # now the Administrator should show up
         self.assertExcelRow(sheet_runs, 1, ["Administrator", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
-
 
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)
@@ -1875,7 +1871,6 @@ class FlowTest(TembaTest):
         self.assertEquals(response.context['object_list'][0].pk, self.flow.pk)
         self.assertFalse(response.context['object_list'][0].is_archived)
 
-
         # inactive list shouldn't have any flows
         response = self.client.get(flow_archived_url)
         self.assertEquals(0, len(response.context['object_list']))
@@ -2366,15 +2361,6 @@ class ActionTest(TembaTest):
         field = ContactField.objects.get(org=self.org, key="ecole")
         self.assertEquals("Ecole", field.label)
 
-    def test_normalize_fileds(self):
-
-        fields = []
-        for i in range(150):
-            fields.append('field %d' % i)
-
-        fields, count = FlowRun.normalize_fields(fields)
-        self.assertEqual(128, count)
-
     def test_set_language_action(self):
         action = SetLanguageAction('kli', 'Klingon')
 
@@ -2637,6 +2623,11 @@ class FlowRunTest(TembaTest):
         self.assertEqual(count, 128)
         self.assertEqual(len(normalized), 128)
 
+        # can manually keep more values
+        (normalized, count) = FlowRun.normalize_fields(fields, 200)
+        self.assertEqual(count, 132)
+        self.assertEqual(len(normalized), 132)
+
         fields = dict(numbers=["zero", "one", "two", "three"])
         (normalized, count) = FlowRun.normalize_fields(fields)
         self.assertEqual(count, 5)
@@ -2818,7 +2809,6 @@ class WebhookTest(TembaTest):
         (match, value) = rules.find_matching_rule(webhook_step, run, incoming)
         self.assertIsNone(match)
         self.assertIsNone(value)
-
 
         rules.operand = "@extra.text @extra.blank"
         rules.save()
@@ -4456,7 +4446,6 @@ class FlowMigrationTest(FlowFileTest):
         actionset = order_checker.action_sets.filter(y=991).first()
         self.assertEqual('Administrator', actionset.get_actions()[1].emails[0])
 
-
     def test_flow_results(self):
 
         flow = self.get_flow('favorites')
@@ -4716,4 +4705,3 @@ class FlowBatchTest(FlowFileTest):
 
         # but only one broadcast
         self.assertEquals(1, Broadcast.objects.all().count())
-

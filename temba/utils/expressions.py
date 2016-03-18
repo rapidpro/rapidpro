@@ -163,7 +163,8 @@ def replace_equals_style(text):
         return '@' + convert_equals_style(expression_body)
 
     # determines whether the given character is a word character, i.e. \w in a regex
-    is_word_char = lambda c: c and (c.isalnum() or c == '_')
+    def is_word_char(c):
+        return c and (c.isalnum() or c == '_')
 
     for pos, ch in enumerate(input_chars):
         # in order to determine if the b in a.b terminates an identifier, we have to peek two characters ahead as it

@@ -1,6 +1,7 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 import analytics as segment_analytics
+
 from django.conf import settings
 from librato_bg import Client
 
@@ -52,7 +53,7 @@ def track(user, event, properties=None, context=None):
         properties = dict()
 
     # populate value=1 in our properties if it isn't present
-    if not 'value' in properties:
+    if 'value' not in properties:
         properties['value'] = 1
 
     # call through to the real segment.io analytics

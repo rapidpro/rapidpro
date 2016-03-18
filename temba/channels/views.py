@@ -254,6 +254,7 @@ def get_commands(channel, commands, sync_event=None):
 
     return commands
 
+
 @disable_middleware
 def sync(request, channel_id):
     start = time.time()
@@ -1393,7 +1394,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
-
     class ClaimVumi(ClaimAuthenticatedExternal):
         class VumiClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
@@ -1430,7 +1430,6 @@ class ChannelCRUDL(SmartCRUDL):
             self.object.ensure_normalized_contacts()
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
 
     class ClaimClickatell(ClaimAuthenticatedExternal):
         class ClickatellForm(forms.Form):
@@ -1783,7 +1782,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                           phonenumbers.PhoneNumberFormat.INTERNATIONAL))
 
             return HttpResponse(json.dumps(numbers))
-
 
     class BaseClaimNumber(OrgPermsMixin, SmartFormView):
         class ClaimNumberForm(forms.Form):

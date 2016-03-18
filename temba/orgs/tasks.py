@@ -1,9 +1,12 @@
-from .models import CreditAlert, Invitation, Org, TopUpCredits
+from __future__ import absolute_import, unicode_literals
+
+import time
+
+from datetime import timedelta
 from djcelery_transactions import task
 from django.utils import timezone
-from datetime import timedelta
 from redis_cache import get_redis_connection
-import time
+from .models import CreditAlert, Invitation, Org, TopUpCredits
 
 
 @task(track_started=True, name='send_invitation_email_task')
@@ -47,4 +50,3 @@ def squash_topupcredits():
     if not r.get(key):
         with r.lock(key, timeout=900):
             TopUpCredits.squash_credits()
-
