@@ -636,12 +636,12 @@ class MockTwilioClient(TwilioClient):  # pragma: no cover
     def validate(self, request):
         return True
 
-    class MockShortCode():
+    class MockShortCode(object):
         def __init__(self, short_code):
             self.short_code = short_code
             self.sid = "ShortSid"
 
-    class MockShortCodes():
+    class MockShortCodes(object):
         def __init__(self, *args):
             pass
 
@@ -651,12 +651,12 @@ class MockTwilioClient(TwilioClient):  # pragma: no cover
         def update(self, sid, **kwargs):
             print "Updating short code with sid %s" % sid
 
-    class MockSMS():
+    class MockSMS(object):
         def __init__(self, *args):
             self.uri = "/SMS"
             self.short_codes = MockTwilioClient.MockShortCodes()
 
-    class MockCall():
+    class MockCall(object):
         def __init__(self, to=None, from_=None, url=None, status_callback=None):
             self.to = to
             self.from_ = from_
@@ -664,30 +664,30 @@ class MockTwilioClient(TwilioClient):  # pragma: no cover
             self.status_callback = status_callback
             self.sid = 'CallSid'
 
-    class MockApplication():
+    class MockApplication(object):
         def __init__(self, friendly_name):
             self.friendly_name = friendly_name
             self.sid = 'TwilioTestSid'
 
-    class MockPhoneNumber():
+    class MockPhoneNumber(object):
         def __init__(self, phone_number):
             self.phone_number = phone_number
             self.sid = 'PhoneNumberSid'
 
-    class MockAccount():
+    class MockAccount(object):
         def __init__(self, account_type, auth_token='AccountToken'):
             self.type = account_type
             self.auth_token = auth_token
             self.sid = 'AccountSid'
 
-    class MockAccounts():
+    class MockAccounts(object):
         def __init__(self, *args):
             pass
 
         def get(self, account_type):
             return MockTwilioClient.MockAccount(account_type)
 
-    class MockPhoneNumbers():
+    class MockPhoneNumbers(object):
         def __init__(self, *args):
             pass
 
@@ -697,13 +697,14 @@ class MockTwilioClient(TwilioClient):  # pragma: no cover
         def update(self, sid, **kwargs):
             print "Updating phone number with sid %s" % sid
 
-    class MockApplications():
+    class MockApplications(object):
         def __init__(self, *args):
             pass
+
         def list(self, friendly_name=None):
             return [MockTwilioClient.MockApplication(friendly_name)]
 
-    class MockCalls():
+    class MockCalls(object):
         def __init__(self):
             pass
 

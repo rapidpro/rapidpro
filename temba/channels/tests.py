@@ -3203,6 +3203,7 @@ class KannelTest(TembaTest):
         sms.save()
 
         data['id'] = sms.pk
+
         def assertStatus(sms, status, assert_status):
             data['status'] = status
             response = self.client.post(reverse('handlers.kannel_handler', args=['status', self.channel.uuid]), data)
