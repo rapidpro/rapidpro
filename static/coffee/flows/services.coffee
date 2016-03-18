@@ -1039,6 +1039,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               items++
               if category._missingTranslation
                 missing++
+          # ussd ruleset
+          if ruleset.ruleset_type == "wait_menu"
+            for item in ruleset.config.ussd_menu
+              items++
+              if item._missingTranslation
+                missing++
 
         # set our stats and translation status
         flow._pctTranslated = (Math.floor(((items - missing) / items) * 100))
