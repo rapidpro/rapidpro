@@ -502,9 +502,9 @@
             .ussd-flow-text{ng-class:'{ missing: ruleset.config._missingTranslation }'}
               [[ruleset.config._ussd_translation]]
             .ussd-flow-items
-              .ussd-flow-item{ng-repeat:'item in ruleset.config.ussd_menu'}
+              .ussd-flow-item{ng-repeat:'item in ruleset.config.ussd_menu',ng-class:'{ missing: item._missingTranslation }'}
                 %span.ussd-label{ng-show:'ruleset.ruleset_type=="wait_menu"'}
-                  <strong>[[item.option]]</strong>: [[item.label]]
+                  [[item.option]]: [[item._translation]]
 
           %table{style:'width:100%;', ruleset:"ruleset", ng-click:'clickRuleset(ruleset)'}
             %tr.rules

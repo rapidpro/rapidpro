@@ -27,10 +27,10 @@
               %span{ng-show:'rule.test.test != "true"'}
                 [[rule.test.test]]
 
-          .translate{ng-show:'ussd_menu'}
+          .translate{ng-show:'ussd_menu && !$last'}
             .translate-from
-              [[ussd_menu[$index].label]]
-            %input{ng-model:"rule._translation.test.to",auto-complete:"",type:"text",class:"translate-to"}
+              [[ussd_menu[$index]._translation.from]]
+            %input{ng-model:"ussd_menu[$index]._translation.to",auto-complete:"",type:"text",class:"translate-to"}
           .categorize-as
             -trans "refer to as"
           .translate
