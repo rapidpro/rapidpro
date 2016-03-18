@@ -230,7 +230,8 @@ describe 'Directives:', ->
       testItem =
         uuid: uuid()
         option: ""
-        label: ""
+        label:
+          base: ""
         category:
           _autoName: true
           _base: ""
