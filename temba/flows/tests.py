@@ -2683,12 +2683,6 @@ class FlowRunTest(TembaTest):
 
 
 class FlowLabelTest(FlowFileTest):
-    def setUp(self):
-        super(FlowLabelTest, self).setUp()
-        self.user = self.create_user("tito")
-        self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
 
     def test_label_model(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
@@ -2716,7 +2710,7 @@ class FlowLabelTest(FlowFileTest):
         self.assertEquals("dog 4", dog4.name)
 
         # view the parent label, should see the child
-        self.login(self.user)
+        self.login(self.admin)
         response = self.client.get(reverse('flows.flow_filter', args=[label.pk]))
         self.assertContains(response, "child")
 
@@ -2737,7 +2731,7 @@ class FlowLabelTest(FlowFileTest):
 
         post_data = dict(name="label_one")
 
-        self.login(self.user)
+        self.login(self.admin)
         response = self.client.post(create_url, post_data, follow=True)
         self.assertEquals(FlowLabel.objects.all().count(), 1)
         self.assertEquals(FlowLabel.objects.all()[0].parent, None)
@@ -2773,9 +2767,30 @@ class FlowLabelTest(FlowFileTest):
         response = self.client.get(delete_url)
         self.assertEquals(response.status_code, 302)
 
-        self.login(self.user)
+        self.login(self.admin)
         response = self.client.get(delete_url)
         self.assertEquals(response.status_code, 200)
+
+    def test_update(self):
+        label_one = FlowLabel.create_unique("label1", self.org)
+        update_url = reverse('flows.flowlabel_update', args=[label_one.pk])
+
+        # not logged in, no dice
+        response = self.client.get(update_url)
+        self.assertLoginRedirect(response)
+
+        # login
+        self.login(self.admin)
+        response = self.client.get(update_url)
+
+        # change our name
+        data = response.context['form'].initial
+        data['name'] = "Label One"
+        data['parent'] = ''
+        self.client.post(update_url, data)
+
+        label_one.refresh_from_db()
+        self.assertEqual(label_one.name, "Label One")
 
 
 class WebhookTest(TembaTest):
