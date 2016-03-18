@@ -554,7 +554,6 @@ class OrgCRUDL(SmartCRUDL):
 
             buckets = connected_components(all_depends)
 
-
             # sort our buckets, campaigns, flows, triggers
             bucket_list = []
             singles = []
@@ -730,7 +729,6 @@ class OrgCRUDL(SmartCRUDL):
 
             response['Temba-Success'] = self.get_success_url()
             return response
-
 
     class Manage(SmartListView):
         fields = ('credits', 'used', 'name', 'owner', 'created_on')

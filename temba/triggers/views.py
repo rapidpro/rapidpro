@@ -600,7 +600,6 @@ class TriggerCRUDL(SmartCRUDL):
 
             self.post_save(trigger)
 
-
             response = self.render_to_response(self.get_context_data(form=form))
             response['REDIRECT'] = self.get_success_url()
             return response

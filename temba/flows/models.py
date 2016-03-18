@@ -161,7 +161,6 @@ class Flow(TembaModel):
     SAVED_BY = 'saved_by'
     VERSION = 'version'
 
-
     CONTACT_CREATION = 'contact_creation'
     CONTACT_PER_RUN = 'run'
     CONTACT_PER_LOGIN = 'login'
@@ -173,7 +172,6 @@ class Flow(TembaModel):
     FLOW_TYPE = 'flow_type'
     ID = 'id'
     EXPIRES = 'expires'
-
 
     X = 'x'
     Y = 'y'
@@ -913,7 +911,6 @@ class Flow(TembaModel):
 
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
-
 
     def get_activity(self, simulation=False, check_cache=True):
         """
@@ -2604,7 +2601,6 @@ class RuleSet(models.Model):
             return "RuleSet: %s" % (self.uuid, )
 
 
-
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
     flow = models.ForeignKey(Flow, related_name='action_sets')
@@ -3058,7 +3054,6 @@ class FlowRunCount(models.Model):
     def __unicode__(self):
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
 
-
     class Meta:
         index_together = ('flow', 'exit_type')
 
@@ -3346,14 +3341,11 @@ class ExportFlowResultsTask(SmartModel):
                     merged_runs.write(merged_row, padding+2, run_step.contact.name)
                     merged_runs.write(merged_row, padding+3, groups)
 
-
-
                 if not latest or latest < run_step.arrived_on:
                     latest = run_step.arrived_on
 
                 if not merged_latest or merged_latest < run_step.arrived_on:
                     merged_latest = run_step.arrived_on
-
 
                 runs.write(run_row, padding+4, as_org_tz(earliest), date_format)
                 runs.write(run_row, padding+5, as_org_tz(latest), date_format)
