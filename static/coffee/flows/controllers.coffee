@@ -791,8 +791,16 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
           else
             delete rule.test.test[Flow.language.iso_code]
 
-    # USSD translation save
+    # USSD message translation save
     ruleset.config.ussd_message[Flow.language.iso_code] = $scope.translation.to
+
+    # USSD menu translation save
+    if ruleset.ruleset_type == 'wait_menu'
+      for item in ruleset.config.ussd_menu
+        if item._translation.to and item._translation.to.strip().length > 0
+          item.label[Flow.language.iso_code] = item._translation.to
+        else
+          delete item.label[Flow.language.iso_code]
 
     Flow.replaceRuleset(ruleset)
     $modalInstance.close ""
