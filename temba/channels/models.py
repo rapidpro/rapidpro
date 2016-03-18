@@ -434,7 +434,6 @@ class Channel(TembaModel):
                 role = SEND+RECEIVE
                 phone = phone_number
 
-
             else:
                 raise Exception(_("Short code not found on your Twilio Account. "
                                   "Please check you own the short code and Try again"))
@@ -1363,7 +1362,6 @@ class Channel(TembaModel):
                                response=response.text,
                                response_status=response.status_code)
 
-
     @classmethod
     def send_smscentral_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
@@ -1511,7 +1509,6 @@ class Channel(TembaModel):
                                url=response.request.url,
                                response=response.text,
                                response_status=response.status_code)
-
 
     @classmethod
     def send_yo_message(cls, channel, msg, text):

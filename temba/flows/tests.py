@@ -78,7 +78,6 @@ class FlowTest(TembaTest):
         user = get_flow_user()
         self.assertEqual(user.pk, get_flow_user().pk)
 
-
     def test_get_unique_name(self):
         flow1 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
         self.assertEqual(flow1.name, "Sheep Poll")
@@ -565,7 +564,6 @@ class FlowTest(TembaTest):
         self.assertEqual(sheet_contacts.nrows, 3)  # header + 2 contacts
         self.assertEqual(sheet_contacts.ncols, 9)
 
-
         self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "Phone", "Name", "Groups", "First Seen", "Last Seen",
                                                 "color (Category) - Color Flow",
                                                 "color (Value) - Color Flow",
@@ -624,7 +622,6 @@ class FlowTest(TembaTest):
         run1_first = run1_rs.order_by('pk').first().arrived_on
         run1_last = run1_rs.order_by('-pk').first().arrived_on
 
-
         # no submitter for our run
         self.assertExcelRow(sheet_runs, 1, ["", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
@@ -649,7 +646,6 @@ class FlowTest(TembaTest):
         # now the Administrator should show up
         self.assertExcelRow(sheet_runs, 1, ["Administrator", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
-
 
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)
@@ -1875,7 +1871,6 @@ class FlowTest(TembaTest):
         self.assertEquals(response.context['object_list'][0].pk, self.flow.pk)
         self.assertFalse(response.context['object_list'][0].is_archived)
 
-
         # inactive list shouldn't have any flows
         response = self.client.get(flow_archived_url)
         self.assertEquals(0, len(response.context['object_list']))
@@ -2814,7 +2809,6 @@ class WebhookTest(TembaTest):
         (match, value) = rules.find_matching_rule(webhook_step, run, incoming)
         self.assertIsNone(match)
         self.assertIsNone(value)
-
 
         rules.operand = "@extra.text @extra.blank"
         rules.save()
@@ -4451,7 +4445,6 @@ class FlowMigrationTest(FlowFileTest):
         # our test user doesn't use an email address, check for Administrator for the email
         actionset = order_checker.action_sets.filter(y=991).first()
         self.assertEqual('Administrator', actionset.get_actions()[1].emails[0])
-
 
     def test_flow_results(self):
 

@@ -86,6 +86,7 @@ class SendMessageForm(Form):
             raise ValidationError(_("Sorry, your account is currently suspended. To enable sending messages, please contact support."))
         return cleaned
 
+
 class MsgListView(OrgPermsMixin, SmartListView):
     """
     Base class for message list views with message folders and labels listed by the side
@@ -411,7 +412,6 @@ class ExportForm(Form):
 
         if start_date and start_date > date.today():
             raise forms.ValidationError(_("The Start Date should not be a date in the future."))
-
 
         if end_date and start_date and end_date <= start_date:
             raise forms.ValidationError(_("The End Date should be a date after the Start Date"))

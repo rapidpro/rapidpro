@@ -1172,7 +1172,6 @@ class ChannelTest(TembaTest):
                 # make sure it is actually connected
                 Channel.objects.get(channel_type='T', org=self.org)
 
-
         twilio_channel = self.org.channels.all().first()
         self.assertEquals('T', twilio_channel.channel_type)
 
@@ -1711,7 +1710,6 @@ class ChannelTest(TembaTest):
 
             # an incoming message from an empty contact
             dict(cmd="mo_sms", phone="", msg="This is spam", p_id="2", ts=date)])
-
 
         # now send the channel's updates
         response = self.sync(self.tel_channel, post_data)
@@ -3205,6 +3203,7 @@ class KannelTest(TembaTest):
         sms.save()
 
         data['id'] = sms.pk
+
         def assertStatus(sms, status, assert_status):
             data['status'] = status
             response = self.client.post(reverse('handlers.kannel_handler', args=['status', self.channel.uuid]), data)
@@ -5047,7 +5046,6 @@ class TelegramTest(TembaTest):
             settings.SEND_MESSAGES = False
 
 
-
 class PlivoTest(TembaTest):
 
     def setUp(self):
@@ -5135,7 +5133,6 @@ class PlivoTest(TembaTest):
                                                  json.dumps({"message": "message(s) queued",
                                                              "message_uuid": ["db3ce55a-7f1d-11e1-8ea7-1231380bc196"],
                                                              "api_id": "db342550-7f1d-11e1-8ea7-1231380bc196"}))
-
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))

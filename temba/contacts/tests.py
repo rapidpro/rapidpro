@@ -2891,7 +2891,6 @@ class ContactURNTest(TembaTest):
         # external ids are case sensitive
         self.assertEqual(('ext', "eXterNAL123"), ContactURN.normalize_urn('ext', " eXterNAL123 "))
 
-
     def test_validate_urn(self):
         # valid tel numbers
         self.assertTrue(ContactURN.validate_urn('tel', "0788383383", "RW"))

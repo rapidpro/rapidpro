@@ -369,7 +369,6 @@ class QueueTest(TembaTest):
         push_task(self.org, None, 'test', args[1])
         push_task(self.org, None, 'test', args[0], HIGH_PRIORITY)
 
-
         push_task(self.org2, None, 'test', args[4])
         push_task(self.org2, None, 'test', args[3], HIGH_PRIORITY)
         push_task(self.org2, None, 'test', args[5], LOW_PRIORITY)
@@ -671,8 +670,6 @@ class ExpressionsTest(TembaTest):
                                                                 dict(optional=False,
                                                                      name='divisor',
                                                                      vararg=False)])))
-
-
 
     def test_percentage(self):
         self.assertEquals(0, percentage(0, 100))
