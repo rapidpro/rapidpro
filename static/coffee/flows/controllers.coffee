@@ -770,6 +770,11 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
     if ruleset.ruleset_type == 'wait_menu'
       $scope.ussd_menu = ruleset.config.ussd_menu
 
+      for item in ruleset.config.ussd_menu
+        item._translation = {}
+        item._translation['from'] = item.label[Flow.flow.base_language]
+        item._translation['to'] = item.label[Flow.language.iso_code]
+
   $scope.ok = ->
 
     for rule in ruleset.rules
