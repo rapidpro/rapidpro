@@ -370,7 +370,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     # add some css to our source so we can style during moves
     $(connection.sourceId).parent().addClass('reconnecting')
 
-    scope = if window.ussd then 'rules' else jsPlumb.getSourceScope(connection.sourceId)
+    scope = if $rootScope.ussd then 'rules' else jsPlumb.getSourceScope(connection.sourceId)
     $rootScope.ghost = $('.ghost.' + scope)
     $timeout ->
       $rootScope.ghost.show()
@@ -451,7 +451,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     DragHelper.hide()
 
-    if Flow.language and Flow.flow.base_language != Flow.language.iso_code
+    if Flow.language and Flow.flow.base_language != Flow.language.iso_code and not dragSource
       resolveObj =
         languages: ->
           from: Flow.flow.base_language
