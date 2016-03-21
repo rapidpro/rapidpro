@@ -285,7 +285,6 @@ class Org(SmartModel):
         else:
             return 0
 
-
     def set_status(self, status):
         config = self.config_json()
         config[ORG_STATUS] = status

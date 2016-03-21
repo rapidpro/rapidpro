@@ -930,7 +930,6 @@ class OrgTest(TembaTest):
         with self.assertNumQueries(0):
             self.assertEquals(0, self.org.get_low_credits_threshold())
 
-
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -1026,7 +1025,6 @@ class OrgTest(TembaTest):
 
                     org.refresh_from_db()
                     self.assertFalse(org.is_connected_to_twilio())
-
 
     def test_connect_nexmo(self):
         self.login(self.admin)

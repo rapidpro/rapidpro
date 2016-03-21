@@ -109,7 +109,6 @@ class TriggerTest(TembaTest):
         self.assertEquals(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
         self.assertFalse(other_trigger.pk == Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0].pk)
 
-
         self.contact = self.create_contact('Eric', '+250788382382')
         self.contact2 = self.create_contact('Nic', '+250788383383')
         group1 = self.create_group("first", [self.contact2])
@@ -214,7 +213,6 @@ class TriggerTest(TembaTest):
 
         tommorrow = now + timedelta(days=1)
         tommorrow_stamp = time.mktime(tommorrow.timetuple())
-
 
         post_data = dict()
         post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
@@ -423,7 +421,6 @@ class TriggerTest(TembaTest):
         # the flow should be created with the primary language for the org
         self.assertEqual(flow.base_language, 'kli')
 
-
     def test_trigger_form(self):
 
         for form in (DefaultTriggerForm, RegisterTriggerForm):
@@ -445,7 +442,6 @@ class TriggerTest(TembaTest):
 
             pick.delete()
             favorites.delete()
-
 
     def test_unicode_trigger(self):
         self.login(self.admin)
