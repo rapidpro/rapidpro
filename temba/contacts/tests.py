@@ -888,6 +888,11 @@ class ContactTest(TembaTest):
         self.assertEquals(0, q('(('))
         self.assertEquals(0, q('name = "trey'))
 
+        # create contacts until our ids reach 1000 to keep from overlapping with numbers in searches below
+        contact = Contact.objects.filter(is_active=True).last()
+        while contact.id < 1000:
+            contact = self.create_contact(name="Contact %d" % (contact.id+1))
+
         # non-anon orgs can't search by id (because they never see ids)
         contact = Contact.objects.filter(is_active=True).last()
         self.assertFalse('%d' % contact.pk in contact.get_urn().path)  # check this contact's id isn't in their tel
