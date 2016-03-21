@@ -888,9 +888,10 @@ class ContactTest(TembaTest):
         self.assertEquals(0, q('(('))
         self.assertEquals(0, q('name = "trey'))
 
+        # create contact with no phone number, we'll try searching for it by id
+        contact = self.create_contact(name="Id Contact")
+
         # non-anon orgs can't search by id (because they never see ids)
-        contact = Contact.objects.filter(is_active=True).last()
-        self.assertFalse('%d' % contact.pk in contact.get_urn().path)  # check this contact's id isn't in their tel
         self.assertFalse(contact in Contact.search(self.org, '%d' % contact.pk)[0])  # others may match by id on tel
 
         with AnonymousOrg(self.org):
