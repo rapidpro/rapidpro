@@ -4362,15 +4362,42 @@ class TwilioTest(TembaTest):
         self.channel = Channel.create(self.org, self.user, 'RW', 'T', None, '+250785551212',
                                       uuid='00000000-0000-0000-0000-000000001234')
 
-    def test_receive(self):
         # twilio test credentials
-        account_sid = "ACe54dc36bfd2a3b483b7ed854b2dd40c1"
-        account_token = "0b14d47901387c03f92253a4e4449d5e"
-        application_sid = "AP6fe2069df7f9482a8031cb61dc155de2"
+        self.account_sid = "ACe54dc36bfd2a3b483b7ed854b2dd40c1"
+        self.account_token = "0b14d47901387c03f92253a4e4449d5e"
+        self.application_sid = "AP6fe2069df7f9482a8031cb61dc155de2"
 
-        self.channel.org.config = json.dumps({ACCOUNT_SID:account_sid, ACCOUNT_TOKEN:account_token, APPLICATION_SID:application_sid})
+        self.channel.org.config = json.dumps({ACCOUNT_SID:self.account_sid,
+                                              ACCOUNT_TOKEN:self.account_token,
+                                              APPLICATION_SID:self.application_sid})
         self.channel.org.save()
 
+    def test_receive_mms(self):
+        post_data = dict(To=self.channel.address, From='+250788383383', Body="Test",
+                         NumMedia='1', MediaUrl0='https://yourimage.io/IMPOSSIBLE-HASH')
+        twilio_url = reverse('handlers.twilio_handler')
+
+        client = self.org.get_twilio_client()
+        validator = RequestValidator(client.auth[1])
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        self.assertEquals(201, response.status_code)
+
+        msg = Msg.all_messages.get()
+        self.assertEquals('Test\nhttps://yourimage.io/IMPOSSIBLE-HASH', msg.text)
+
+        Msg.all_messages.all().delete()
+
+        # try with no message body
+        post_data['Body'] = ''
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        msg = Msg.all_messages.get()
+        self.assertEquals('https://yourimage.io/IMPOSSIBLE-HASH', msg.text)
+
+    def test_receive(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
         twilio_url = reverse('handlers.twilio_handler')
 
