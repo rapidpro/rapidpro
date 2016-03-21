@@ -893,7 +893,7 @@ class ContactTest(TembaTest):
         self.assertFalse('%d' % contact.pk in contact.get_urn().path)  # check this contact's id isn't in their tel
         matches = Contact.search(self.org, '%d' % contact.pk)[0]
         print '%d' % contact.pk
-        for match in matches[0]:
+        for match in matches:
             print match.id, str(match.get_urn('tel'))
         self.assertFalse(contact in Contact.search(self.org, '%d' % contact.pk)[0])  # others may match by id on tel
 
