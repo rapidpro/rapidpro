@@ -455,35 +455,38 @@
             .title.wait-video{ng-show:'ruleset.ruleset_type=="wait_video"'}
               -trans "Wait for Video"
 
+            .title.wait-audio{ng-show:'ruleset.ruleset_type=="wait_audio"'}
+              -trans "Wait for Audio"
+
             .title.wait-gps{ng-show:'ruleset.ruleset_type=="wait_gps"'}
               -trans "Wait for GPS"
 
             .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_recording"'}
-                -trans "Wait for Recording"
+              -trans "Wait for Recording"
 
             .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digit"'}
-                -trans "Wait for Menu"
+              -trans "Wait for Menu"
 
             .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digits"'}
-                -trans "Wait for Digits"
+              -trans "Wait for Digits"
 
             .title.passive.contact-field{ng-class:"{missing:getContactFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="contact_field"'}
-                -trans "Split on "
-                [[getContactFieldName(ruleset).text]]
+              -trans "Split on "
+              [[getContactFieldName(ruleset).text]]
 
             .title.passive.flow-field{ng-class:"{missing:getFlowFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="flow_field"'}
-                -trans "Split on "
-                [[getFlowFieldName(ruleset).text]]
+              -trans "Split on "
+              [[getFlowFieldName(ruleset).text]]
 
             .title.passive.form-field{ng-class:"{missing:getFlowFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="form_field"'}
-                -trans "Split on field in "
-                [[getFlowFieldName(ruleset).text]]
+              -trans "Split on field in "
+              [[getFlowFieldName(ruleset).text]]
 
             .title.passive.webhook-header{ng-show:'ruleset.ruleset_type=="webhook"'}
-                -trans "Call Webhook"
+              -trans "Call Webhook"
 
             .title.passive.expression{ng-show:'ruleset.ruleset_type=="expression"'}
-                -trans "Split by Expression"
+              -trans "Split by Expression"
 
             .remove-warning
               Remove Rules?

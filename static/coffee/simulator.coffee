@@ -21,6 +21,9 @@ window.updateSimulator = (data) ->
     else if data.ruleset.ruleset_type == 'wait_video'
       $('.simulator-footer .imessage').hide()
       $('.simulator-footer .video-button').show()
+    else if data.ruleset.ruleset_type == 'wait_audio'
+      $('.simulator-footer .imessage').hide()
+      $('.simulator-footer .audio-button').show()
     else
       $('.simulator-footer .imessage').show()
   else
@@ -44,6 +47,8 @@ window.updateSimulator = (data) ->
         media_type = 'icon-photo_camera'
       else if media_type == 'video'
         media_type = 'icon-videocam'
+      else if media_type == 'audio'
+        media_type = 'icon-mic'
 
     ele = "<div class=\"" + model + " " + level + " " + direction
     if media_type
@@ -149,6 +154,9 @@ sendPhoto = ->
 
 sendVideo = ->
   processForm({new_video: true})
+
+sendAudio = ->
+  processForm({new_audio: true})
 
 sendGPS = ->
   processForm({new_gps: true})
@@ -283,6 +291,9 @@ $('#simulator .photo-button').on 'click', ->
 
 $('#simulator .video-button').on 'click', ->
   sendVideo()
+
+$('#simulator .audio-button').on 'click', ->
+  sendAudio()
 
 # send new message to simulate
 $("#simulator .send-message").on "click", ->

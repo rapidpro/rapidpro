@@ -1212,6 +1212,8 @@ class FlowCRUDL(SmartCRUDL):
                 media = '%s:47.6089533,-122.34177' % Msg.MEDIA_GPS
             elif 'new_video' in json_dict:
                 media = '%s:%s/simulator_video.mp4' % (Msg.MEDIA_VIDEO, media_url)
+            elif 'new_audio' in json_dict:
+                media = '%s:%s/simulator_audio.m4a' % (Msg.MEDIA_AUDIO, media_url)
 
             if new_message or media:
                 try:

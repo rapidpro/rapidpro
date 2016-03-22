@@ -2351,6 +2351,7 @@ class RuleSet(models.Model):
     # Surveys
     TYPE_WAIT_PHOTO = 'wait_photo'
     TYPE_WAIT_VIDEO = 'wait_video'
+    TYPE_WAIT_AUDIO = 'wait_audio'
     TYPE_WAIT_GPS = 'wait_gps'
 
     TYPE_WEBHOOK = 'webhook'
@@ -2359,10 +2360,10 @@ class RuleSet(models.Model):
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
 
-    TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_RECORDING)
+    TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
 
     TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS,
-                 TYPE_WAIT_PHOTO, TYPE_WAIT_VIDEO, TYPE_WAIT_GPS)
+                 TYPE_WAIT_PHOTO, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_GPS)
 
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
@@ -3595,6 +3596,7 @@ class FlowStep(models.Model):
             temp.write(media_data.decode('base64'))
             temp.flush()
 
+            print Msg.MEDIA_EXTS[media_type]
             url = default_storage.save('media/%d/%d/runs/%d/%s/%s.%s' %
                                        (run.org.pk, run.flow.pk, run.pk, media_type,
                                         uuid4(), Msg.MEDIA_EXTS[media_type]), File(temp))
