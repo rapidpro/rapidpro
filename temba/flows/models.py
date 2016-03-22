@@ -4306,7 +4306,7 @@ class PlayAction(Action):
 
         if msg:
             if run.contact.is_test:
-                log_txt = _('Played recording at "%s"') % media_path
+                log_txt = _('Played recording at "%s"') % msg.media
                 ActionLog.create(run, log_txt)
             return [msg]
         else:

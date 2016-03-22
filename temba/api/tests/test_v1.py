@@ -575,7 +575,6 @@ class APITest(TembaTest):
         with open("%s/test_media/snow.mp4" % settings.MEDIA_ROOT, "rb") as video_file:
             snow = base64.b64encode(video_file.read())
 
-
         data = dict(flow=flow.uuid,
             revision=1,
             contact=self.joe.uuid,
