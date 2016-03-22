@@ -31,12 +31,14 @@ from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
-from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, COMPLETE
+from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, COMPLETE, \
+    TriggerFlowAction
 from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET, FlowRunCount
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest, HasStateTest, HasDistrictTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
+from .models import HasDistrictTest, HasWardTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog, get_flow_user
 
@@ -75,7 +77,6 @@ class FlowTest(TembaTest):
     def test_get_flow_user(self):
         user = get_flow_user()
         self.assertEqual(user.pk, get_flow_user().pk)
-
 
     def test_get_unique_name(self):
         flow1 = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Sheep Poll"), base_language='base')
@@ -563,7 +564,6 @@ class FlowTest(TembaTest):
         self.assertEqual(sheet_contacts.nrows, 3)  # header + 2 contacts
         self.assertEqual(sheet_contacts.ncols, 9)
 
-
         self.assertExcelRow(sheet_contacts, 0, ["Contact UUID", "Phone", "Name", "Groups", "First Seen", "Last Seen",
                                                 "color (Category) - Color Flow",
                                                 "color (Value) - Color Flow",
@@ -622,7 +622,6 @@ class FlowTest(TembaTest):
         run1_first = run1_rs.order_by('pk').first().arrived_on
         run1_last = run1_rs.order_by('-pk').first().arrived_on
 
-
         # no submitter for our run
         self.assertExcelRow(sheet_runs, 1, ["", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
@@ -647,7 +646,6 @@ class FlowTest(TembaTest):
         # now the Administrator should show up
         self.assertExcelRow(sheet_runs, 1, ["Administrator", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
-
 
     def test_export_results_with_no_responses(self):
         self.flow.update(self.definition)
@@ -1323,6 +1321,56 @@ class FlowTest(TembaTest):
         self.assertEquals("15", step.rule_value)
         self.assertEquals(Decimal("15"), step.rule_decimal_value)
 
+    def test_location_entry_test(self):
+
+        self.country = AdminBoundary.objects.create(osm_id='192787', name='Nigeria', level=0)
+        Kano = AdminBoundary.objects.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
+        Lagos = AdminBoundary.objects.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
+        Ajingi = AdminBoundary.objects.create(osm_id='3710308', name='Ajingi', level=2, parent=Kano)
+        Bichi = AdminBoundary.objects.create(osm_id='3710307', name='Bichi', level=2, parent=Kano)
+        Apapa = AdminBoundary.objects.create(osm_id='3718187', name='Apapa', level=2, parent=Lagos)
+        BichiWard = AdminBoundary.objects.create(osm_id='3710377', name='Bichi', level=3, parent=Bichi)
+        AdminBoundary.objects.create(osm_id='3710378', name='Ajingi', level=3, parent=Ajingi)
+        sms = self.create_msg(contact=self.contact, text="awesome text")
+        self.sms = sms
+        runs = FlowRun.objects.filter(contact=self.contact)
+        if runs:
+            run = runs[0]
+        else:
+            run = FlowRun.create(self.flow, self.contact.id)
+
+        tz = run.flow.org.get_tzinfo()
+        self.org.country = self.country
+        run.flow.org = self.org
+        context = run.flow.build_message_context(run.contact, None)
+
+        #wrong admin level should return None if provided
+        lga_tuple = HasDistrictTest('Kano').evaluate(run, sms, context, 'apapa')
+        self.assertEquals(lga_tuple[1], None)
+
+        lga_tuple = HasDistrictTest('Lagos').evaluate(run, sms, context, 'apapa')
+        self.assertEquals(lga_tuple[1], Apapa)
+
+        #get lga with out higher admin level
+        lga_tuple = HasDistrictTest().evaluate(run, sms, context, 'apapa')
+        self.assertEquals(lga_tuple[1], Apapa)
+
+        #get ward with out higher admin levels
+        ward_tuple = HasWardTest().evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], BichiWard)
+
+        #get with hierarchy proved
+        ward_tuple = HasWardTest('Kano', 'Bichi').evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], BichiWard)
+
+        #wrong admin level should return None if provided
+        ward_tuple = HasWardTest('Kano', 'Ajingi').evaluate(run, sms, context, 'bichi')
+        js = dict(state='Kano', district='Ajingi', type='ward')
+        self.assertEquals(HasWardTest('Kano', 'Ajingi').as_json(), js)
+        self.assertEquals(ward_tuple[1], None)
+
+        self.assertEquals(HasWardTest, Test.from_json(self.org, js).__class__)
+
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)
         flow = Flow.create(self.org, self.admin, "Flow")
@@ -1823,7 +1871,6 @@ class FlowTest(TembaTest):
         self.assertEquals(response.context['object_list'][0].pk, self.flow.pk)
         self.assertFalse(response.context['object_list'][0].is_archived)
 
-
         # inactive list shouldn't have any flows
         response = self.client.get(flow_archived_url)
         self.assertEquals(0, len(response.context['object_list']))
@@ -2039,6 +2086,38 @@ class ActionTest(TembaTest):
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(self.contact, response.contact)
 
+    def test_trigger_flow_action(self):
+        flow = self.create_flow()
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        action = TriggerFlowAction(flow, [], [self.contact], [])
+        action.execute(run, None, None)
+
+        action_json = action.as_json()
+        action = TriggerFlowAction.from_json(self.org, action_json)
+        self.assertEqual(action.flow.pk, flow.pk)
+
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact, flow=flow))
+
+        self.other_group.update_contacts(self.user, [self.contact2], True)
+
+        action = TriggerFlowAction(flow, [self.other_group], [self.contact], [])
+        run = FlowRun.create(self.flow, self.contact.pk)
+        action.execute(run, None, None)
+
+        self.assertTrue(FlowRun.objects.filter(contact=self.contact2, flow=flow))
+
+        # delete the group
+        self.other_group.is_active = False
+        self.other_group.save()
+
+        self.assertTrue(action.groups)
+        self.assertTrue(self.other_group.pk in [g.pk for g in action.groups])
+        # should create new group the next time the flow is read
+        updated_action = TriggerFlowAction.from_json(self.org, action.as_json())
+        self.assertTrue(updated_action.groups)
+        self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
+
     def test_send_action(self):
         msg_body = "Hi @contact.name (@contact.state). @step.contact (@step.contact.state) is in the flow"
 
@@ -2073,7 +2152,7 @@ class ActionTest(TembaTest):
 
         self.other_group.update_contacts(self.user, [self.contact2], True)
 
-        action = SendAction(dict(base=msg_body), [self.other_group], [self.contact], [])
+        action = SendAction(dict(base=msg_body), [self.other_group], [test_contact], [])
         run = FlowRun.create(self.flow, test_contact.pk)
         action.execute(run, None, None)
 
@@ -2083,6 +2162,17 @@ class ActionTest(TembaTest):
         # but we should have logged instead
         logged = "Sending &#39;Hi @contact.name (@contact.state). Mr Test (IN) is in the flow&#39; to 2 contacts"
         self.assertEqual(ActionLog.objects.all().first().text, logged)
+
+        # delete the group
+        self.other_group.is_active = False
+        self.other_group.save()
+
+        self.assertTrue(action.groups)
+        self.assertTrue(self.other_group.pk in [g.pk for g in action.groups])
+        # should create new group the next time the flow is read
+        updated_action = SendAction.from_json(self.org, action.as_json())
+        self.assertTrue(updated_action.groups)
+        self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
 
     @override_settings(SEND_EMAILS=True)
     def test_email_action(self):
@@ -2271,15 +2361,6 @@ class ActionTest(TembaTest):
         field = ContactField.objects.get(org=self.org, key="ecole")
         self.assertEquals("Ecole", field.label)
 
-    def test_normalize_fileds(self):
-
-        fields = []
-        for i in range(150):
-            fields.append('field %d' % i)
-
-        fields, count = FlowRun.normalize_fields(fields)
-        self.assertEqual(128, count)
-
     def test_set_language_action(self):
         action = SetLanguageAction('kli', 'Klingon')
 
@@ -2380,6 +2461,18 @@ class ActionTest(TembaTest):
 
         self.assertFalse(group.contacts.filter(id=self.contact.pk))
         self.assertEqual(0, group.contacts.all().count())
+
+        action = DeleteFromGroupAction([group])
+        # delete group
+        group.is_active = False
+        group.save()
+
+        self.assertTrue(action.groups)
+        self.assertTrue(group.pk in [g.pk for g in action.groups])
+        # reading the action should create a new group
+        updated_action = DeleteFromGroupAction.from_json(self.org, action.as_json())
+        self.assertTrue(updated_action.groups)
+        self.assertFalse(group.pk in [g.pk for g in updated_action.groups])
 
     def test_add_label_action(self):
         flow = self.flow
@@ -2530,6 +2623,11 @@ class FlowRunTest(TembaTest):
         self.assertEqual(count, 128)
         self.assertEqual(len(normalized), 128)
 
+        # can manually keep more values
+        (normalized, count) = FlowRun.normalize_fields(fields, 200)
+        self.assertEqual(count, 132)
+        self.assertEqual(len(normalized), 132)
+
         fields = dict(numbers=["zero", "one", "two", "three"])
         (normalized, count) = FlowRun.normalize_fields(fields)
         self.assertEqual(count, 5)
@@ -2580,12 +2678,6 @@ class FlowRunTest(TembaTest):
 
 
 class FlowLabelTest(FlowFileTest):
-    def setUp(self):
-        super(FlowLabelTest, self).setUp()
-        self.user = self.create_user("tito")
-        self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
 
     def test_label_model(self):
         # test a the creation of a unique label when we have a long word(more than 32 caracters)
@@ -2613,7 +2705,7 @@ class FlowLabelTest(FlowFileTest):
         self.assertEquals("dog 4", dog4.name)
 
         # view the parent label, should see the child
-        self.login(self.user)
+        self.login(self.admin)
         response = self.client.get(reverse('flows.flow_filter', args=[label.pk]))
         self.assertContains(response, "child")
 
@@ -2634,7 +2726,7 @@ class FlowLabelTest(FlowFileTest):
 
         post_data = dict(name="label_one")
 
-        self.login(self.user)
+        self.login(self.admin)
         response = self.client.post(create_url, post_data, follow=True)
         self.assertEquals(FlowLabel.objects.all().count(), 1)
         self.assertEquals(FlowLabel.objects.all()[0].parent, None)
@@ -2670,9 +2762,30 @@ class FlowLabelTest(FlowFileTest):
         response = self.client.get(delete_url)
         self.assertEquals(response.status_code, 302)
 
-        self.login(self.user)
+        self.login(self.admin)
         response = self.client.get(delete_url)
         self.assertEquals(response.status_code, 200)
+
+    def test_update(self):
+        label_one = FlowLabel.create_unique("label1", self.org)
+        update_url = reverse('flows.flowlabel_update', args=[label_one.pk])
+
+        # not logged in, no dice
+        response = self.client.get(update_url)
+        self.assertLoginRedirect(response)
+
+        # login
+        self.login(self.admin)
+        response = self.client.get(update_url)
+
+        # change our name
+        data = response.context['form'].initial
+        data['name'] = "Label One"
+        data['parent'] = ''
+        self.client.post(update_url, data)
+
+        label_one.refresh_from_db()
+        self.assertEqual(label_one.name, "Label One")
 
 
 class WebhookTest(TembaTest):
@@ -2711,7 +2824,6 @@ class WebhookTest(TembaTest):
         (match, value) = rules.find_matching_rule(webhook_step, run, incoming)
         self.assertIsNone(match)
         self.assertIsNone(value)
-
 
         rules.operand = "@extra.text @extra.blank"
         rules.save()
@@ -4349,7 +4461,6 @@ class FlowMigrationTest(FlowFileTest):
         actionset = order_checker.action_sets.filter(y=991).first()
         self.assertEqual('Administrator', actionset.get_actions()[1].emails[0])
 
-
     def test_flow_results(self):
 
         flow = self.get_flow('favorites')
@@ -4609,4 +4720,3 @@ class FlowBatchTest(FlowFileTest):
 
         # but only one broadcast
         self.assertEquals(1, Broadcast.objects.all().count())
-

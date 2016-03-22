@@ -23,6 +23,7 @@ from temba.utils.models import TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
+from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from urlparse import urlparse, urlunparse, ParseResult
 from uuid import uuid4
 
@@ -50,7 +51,7 @@ URN_SCHEMES = [TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, FACEBOOK_SCHEME,
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
-                     (EMAIL_SCHEME, _("Email address"), 'email',  EMAIL_SCHEME),
+                     (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
 
 # schemes that we actually support
@@ -181,8 +182,8 @@ class ContactField(SmartModel):
         return cls.objects.filter(org=org, is_active=True, label__iexact=label).first()
 
     @classmethod
-    def get_state_field(cls, org):
-        return cls.objects.filter(is_active=True, org=org, value_type=Value.TYPE_STATE).first()
+    def get_location_field(cls, org, type):
+        return cls.objects.filter(is_active=True, org=org, value_type=type).first()
 
     def __unicode__(self):
         return "%s" % self.label
@@ -365,14 +366,25 @@ class Contact(TembaModel):
             dec_value = self.org.parse_decimal(value)
             loc_value = None
 
-            if field.value_type == Value.TYPE_DISTRICT:
-                state_field = ContactField.get_state_field(self.org)
+            if field.value_type == Value.TYPE_WARD:
+                district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
+                district_value = self.get_field(district_field.key)
+                if district_value:
+                    loc_value = self.org.parse_location(value, WARD_LEVEL, district_value.location_value)
+
+            elif field.value_type == Value.TYPE_DISTRICT:
+                state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
                 if state_field:
                     state_value = self.get_field(state_field.key)
                     if state_value:
-                        loc_value = self.org.parse_location(value, 2, state_value.location_value)
+                        loc_value = self.org.parse_location(value, DISTRICT_LEVEL, state_value.location_value)
             else:
-                loc_value = self.org.parse_location(value, 1)
+                loc_value = self.org.parse_location(value, STATE_LEVEL)
+
+            if loc_value is not None and len(loc_value) > 0:
+                loc_value = loc_value[0]
+            else:
+                loc_value = None
 
             # find the existing value
             existing = Value.objects.filter(contact=self, contact_field__pk=field.id).first()
@@ -675,6 +687,7 @@ class Contact(TembaModel):
 
         org = field_dict.pop('org')
         user = field_dict.pop('created_by')
+        is_admin = org.administrators.filter(id=user.id).exists()
         uuid = field_dict.pop('uuid', None)
 
         country = org.get_country_code()
@@ -683,11 +696,10 @@ class Contact(TembaModel):
         possible_urn_headers = [scheme[0] for scheme in IMPORT_HEADERS]
 
         # prevent urns update on anon org
-        if uuid and org.is_anon:
+        if uuid and org.is_anon and not is_admin:
             possible_urn_headers = []
 
         for urn_header in possible_urn_headers:
-
             value = None
             if urn_header in field_dict:
                 value = field_dict[urn_header]
@@ -721,8 +733,9 @@ class Contact(TembaModel):
                     raise SmartImportRowError("Ignored test contact")
 
             search_contact = Contact.from_urn(org, urn_scheme, value, country)
-            # if this is an anonymous org
-            if org.is_anon and search_contact:
+
+            # if this is an anonymous org, don't allow updating
+            if org.is_anon and search_contact and not is_admin:
                 raise SmartImportRowError("Other existing contact on anonymous organization")
 
             urns.append((urn_scheme, value))
@@ -1101,15 +1114,19 @@ class Contact(TembaModel):
         # add all URNs
         for scheme, label in URN_SCHEME_CHOICES:
             urn_value = self.get_urn_display(scheme=scheme, org=org)
-            contact_dict[scheme] = urn_value if not urn_value is None else ''
+            contact_dict[scheme] = urn_value if urn_value is not None else ''
+
+        field_values = Value.objects.filter(contact=self).exclude(contact_field=None)\
+                                                         .exclude(contact_field__is_active=False)\
+                                                         .select_related('contact_field')
 
         # get all the values for this contact
-        contact_values = {v.contact_field.key: v for v in Value.objects.filter(contact=self).exclude(contact_field=None).select_related('contact_field')}
+        contact_values = {v.contact_field.key: v for v in field_values}
 
-        # add all fields
-        for field in ContactField.objects.filter(org_id=self.org_id).select_related('org'):
+        # add all active fields to our context
+        for field in ContactField.objects.filter(org_id=self.org_id, is_active=True).select_related('org'):
             field_value = Contact.get_field_display_for_value(field, contact_values.get(field.key, None))
-            contact_dict[field.key] = field_value if not field_value is None else ''
+            contact_dict[field.key] = field_value if field_value is not None else ''
 
         return contact_dict
 
@@ -1212,7 +1229,7 @@ class Contact(TembaModel):
                 priority -= 1
 
         # detach any existing URNs that weren't included
-        urn_ids = [urn.pk for urn in (urns_created + urns_attached + urns_retained)]
+        urn_ids = [u.pk for u in (urns_created + urns_attached + urns_retained)]
         urns_detached_qs = ContactURN.objects.filter(contact=self).exclude(pk__in=urn_ids)
         urns_detached_qs.update(contact=None)
         urns_detached = list(urns_detached_qs)
@@ -1221,7 +1238,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[(urn.scheme, urn.path) for urn in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[(u.scheme, u.path) for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -1544,7 +1561,8 @@ class SystemContactGroupManager(models.Manager):
 
 class UserContactGroupManager(models.Manager):
     def get_queryset(self):
-        return super(UserContactGroupManager, self).get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED)
+        return super(UserContactGroupManager, self).get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED,
+                                                                          is_active=True)
 
 
 class ContactGroup(TembaModel):
@@ -1590,15 +1608,22 @@ class ContactGroup(TembaModel):
         """
         Returns the user group with the passed in name
         """
-        return ContactGroup.user_groups.filter(name__iexact=cls.clean_name(name), org=org, is_active=True).first()
+        return ContactGroup.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
 
     @classmethod
-    def get_or_create(cls, org, user, name):
-        existing = ContactGroup.get_user_group(org, name)
+    def get_or_create(cls, org, user, name, group_id=None):
+        existing = None
+
+        if group_id is not None:
+            existing = ContactGroup.user_groups.filter(org=org, id=group_id).first()
+
+        if not existing:
+            existing = ContactGroup.get_user_group(org, name)
+
         if existing:
             return existing
-        else:
-            return cls.create(org, user, name)
+
+        return cls.create(org, user, name)
 
     @classmethod
     def create(cls, org, user, name, task=None, query=None):

@@ -165,7 +165,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
     def testDelete(self):
         obj = self.getTestObject()
         self._do_test_view('delete', obj, post_data=dict())
-        self.assertFalse(self.getCRUDL().model.user_groups.get(pk=obj.pk).is_active)
+        self.assertIsNone(self.getCRUDL().model.user_groups.filter(pk=obj.pk).first())
+        self.assertFalse(self.getCRUDL().model.all_groups.get(pk=obj.pk).is_active)
 
     def test_create(self):
         create_url = reverse('contacts.contactgroup_create')
@@ -205,6 +206,13 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         # direct calls are the same thing
         existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
         self.assertEquals('first', existing_group.name)
+
+        # try existing group by Id shoudl not modify the existing group
+        group_1 = ContactGroup.get_or_create(self.org, self.user, "Kigali", existing_group.pk)
+        self.assertEqual(group_1.pk, existing_group.pk)
+        self.assertEqual(group_1.name, existing_group.name)
+        self.assertNotEqual(group_1.name, 'Kigali')
+        self.assertEqual(group_1.name, 'first')
 
     def test_update(self):
         group = ContactGroup.create(self.org, self.user, "one")
@@ -369,7 +377,8 @@ class ContactGroupTest(TembaTest):
         self.login(self.admin)
 
         response = self.client.post(reverse('contacts.contactgroup_delete', args=[group.pk]), dict())
-        self.assertFalse(ContactGroup.user_groups.get(pk=group.pk).is_active)
+        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
+        self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
 
         group = ContactGroup.create(self.org, self.user, "one")
         delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
@@ -401,7 +410,8 @@ class ContactGroupTest(TembaTest):
 
         response = self.client.post(delete_url, dict())
         # group should have is_active = False and all its triggers
-        self.assertFalse(ContactGroup.user_groups.get(pk=group.pk).is_active)
+        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
+        self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
 
@@ -813,13 +823,14 @@ class ContactTest(TembaTest):
             contact.set_field(self.user, 'state', "Rwanda")
             index = (i + 2) % len(locations)
             with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
-                mock_parse_location.return_value = locations_boundaries[index]
+                mock_parse_location.return_value = AdminBoundary.objects.filter(name__iexact=locations[index])
                 contact.set_field(self.user, 'home', locations[index])
 
         contact.set_field(self.user, 'isureporter', 'yes')
         contact.set_field(self.user, 'hasbirth', 'no')
 
-        q = lambda query: Contact.search(self.org, query)[0].count()
+        def q(query):
+            return Contact.search(self.org, query)[0].count()
 
         # non-complex queries
         self.assertEquals(23, q('trey'))
@@ -877,9 +888,10 @@ class ContactTest(TembaTest):
         self.assertEquals(0, q('(('))
         self.assertEquals(0, q('name = "trey'))
 
+        # create contact with no phone number, we'll try searching for it by id
+        contact = self.create_contact(name="Id Contact")
+
         # non-anon orgs can't search by id (because they never see ids)
-        contact = Contact.objects.filter(is_active=True).last()
-        self.assertFalse('%d' % contact.pk in contact.get_urn().path)  # check this contact's id isn't in their tel
         self.assertFalse(contact in Contact.search(self.org, '%d' % contact.pk)[0])  # others may match by id on tel
 
         with AnonymousOrg(self.org):
@@ -1463,7 +1475,8 @@ class ContactTest(TembaTest):
         self.assertRedirect(response, reverse('contacts.contact_list'))
 
         # make sure it is inactive
-        self.assertFalse(ContactGroup.user_groups.get(name="New Test").is_active)
+        self.assertIsNone(ContactGroup.user_groups.filter(name="New Test").first())
+        self.assertFalse(ContactGroup.all_groups.get(name="New Test").is_active)
 
         # remove Joe from the group
         post_data = dict()
@@ -2014,6 +2027,8 @@ class ContactTest(TembaTest):
         self.assertEqual(list(contact2.get_urns().values_list('path', flat=True)), ['+250788383396'])
 
         with AnonymousOrg(self.org):
+            self.login(self.editor)
+
             with patch('temba.orgs.models.Org.lock_on') as mock_lock:
                 # import contact with uuid will force update if existing contact for the uuid
                 self.assertContactImport('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT,
@@ -2040,6 +2055,19 @@ class ContactTest(TembaTest):
             # new urn ignored for eric
             self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
             self.assertEqual(list(michael.get_urns().values_list('path', flat=True)), ['+250788383396'])
+
+        # now log in as an admin, admins can import into anonymous imports
+        self.login(self.admin)
+
+        with AnonymousOrg(self.org):
+            self.assertContactImport('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT,
+                                     dict(records=4, errors=0, error_messages=[], creates=1, updates=3))
+
+            Contact.objects.all().delete()
+            ContactGroup.user_groups.all().delete()
+
+            self.assertContactImport('%s/test_imports/sample_contacts.xls' % settings.MEDIA_ROOT,
+                                     dict(records=3, errors=0, error_messages=[], creates=3, updates=0))
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -2466,7 +2494,7 @@ class ContactTest(TembaTest):
         c2 = self.create_contact(name=None, number='0788382382')
         self.assertEquals(c1.pk, c2.pk)
         
-        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson') 
+        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
         c1 = Contact.create_instance(field_dict)
 
         field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
@@ -2484,7 +2512,7 @@ class ContactTest(TembaTest):
         import_params = dict(org_id=self.org.id, timezone=timezone.UTC, extra_fields=[
             dict(key='nick_name', header='nick name', label='Nickname', type='T')
         ])
-        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson') 
+        field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
         field_dict['yourmom'] = 'face'
         field_dict['nick name'] = 'bob'
         field_dict = Contact.prepare_fields(field_dict, import_params, user=user)
@@ -2601,6 +2629,24 @@ class ContactTest(TembaTest):
         self.assertEquals(value.location_value.name, "Remera")
         self.assertEquals(value.location_value.parent, kigali)
 
+    def test_set_location_ward_fields(self):
+
+        state = AdminBoundary.objects.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
+        district = AdminBoundary.objects.create(osm_id='3710307', name='Bichi', level=2, parent=state)
+        ward = AdminBoundary.objects.create(osm_id='3710377', name='Bichi', level=3, parent=district)
+        user1 = self.create_user("mcren")
+
+        ContactField.get_or_create(self.org, user1, 'state', 'State', None, Value.TYPE_STATE)
+        ContactField.get_or_create(self.org, user1, 'district', 'District', None, Value.TYPE_DISTRICT)
+        ward_field = ContactField.get_or_create(self.org, user1, 'ward', 'Ward', None, Value.TYPE_WARD)
+
+        jemila = self.create_contact(name="Jemila Alley", number="123", twitter="fulani_p")
+        jemila.set_field(user1, 'state', 'kano')
+        jemila.set_field(user1, 'district', 'bichi')
+        jemila.set_field(user1, 'ward', 'bichi')
+        value = Value.objects.filter(contact=jemila, contact_field=ward_field).first()
+        self.assertEquals(value.location_value, ward)
+
     def test_message_context(self):
         message_context = self.joe.build_message_context()
 
@@ -2615,7 +2661,18 @@ class ContactTest(TembaTest):
         # add him to a group
         self.create_group("Reporters", [self.joe])
 
+        # create a few contact fields, one active, one not
+        ContactField.get_or_create(self.org, self.admin, 'team')
+        fav_color = ContactField.get_or_create(self.org, self.admin, 'color')
+
         self.joe = Contact.objects.get(pk=self.joe.pk)
+        self.joe.set_field(self.admin, 'color', "Blue")
+        self.joe.set_field(self.admin, 'team', "SeaHawks")
+
+        # make color inactivate
+        fav_color.is_active = False
+        fav_color.save()
+
         message_context = self.joe.build_message_context()
 
         self.assertEquals("Joe", message_context['first_name'])
@@ -2623,6 +2680,9 @@ class ContactTest(TembaTest):
         self.assertEquals("Joe Blow", message_context['__default__'])
         self.assertEquals("123", message_context['tel'])
         self.assertEquals("Reporters", message_context['groups'])
+
+        self.assertEqual("SeaHawks", message_context['team'])
+        self.assertFalse('color' in message_context)
 
     def test_urn_priority(self):
         bob = self.create_contact("Bob")
@@ -2788,10 +2848,11 @@ class ContactTest(TembaTest):
 
 class ContactURNTest(TembaTest):
     def setUp(self):
-        TembaTest.setUp(self)
+        super(ContactURNTest, self).setUp()
 
     def test_parse_urn(self):
-        urn_tuple = lambda p: (p.scheme, p.path)
+        def urn_tuple(p):
+            return p.scheme, p.path
 
         self.assertEquals(('tel', '+1234'), urn_tuple(ContactURN.parse_urn('tel:+1234')))
         self.assertEquals(('twitter', 'billy_bob'), urn_tuple(ContactURN.parse_urn('twitter:billy_bob')))
@@ -2830,7 +2891,6 @@ class ContactURNTest(TembaTest):
 
         # external ids are case sensitive
         self.assertEqual(('ext', "eXterNAL123"), ContactURN.normalize_urn('ext', " eXterNAL123 "))
-
 
     def test_validate_urn(self):
         # valid tel numbers

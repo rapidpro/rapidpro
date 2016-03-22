@@ -1,10 +1,13 @@
+from __future__ import unicode_literals
+
+import importlib
+import logging
+
+from celery.signals import worker_process_init
 from django.conf.urls import patterns, include, url
 from django.contrib.auth.models import User, AnonymousUser
 from django.conf import settings
 from temba.channels.views import register, sync
-from celery.signals import worker_process_init
-
-import logging
 
 # javascript translation packages
 js_info_dict = {
@@ -38,7 +41,6 @@ if settings.DEBUG:
 
 
 # import any additional urls
-import importlib
 for app in settings.APP_URLS:
     importlib.import_module(app)
 

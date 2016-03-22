@@ -840,7 +840,6 @@ class APITest(TembaTest):
                     ],
                     completed=True)
 
-
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
 
             # this version doesn't have our node

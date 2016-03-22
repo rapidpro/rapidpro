@@ -1,25 +1,24 @@
 from __future__ import absolute_import, unicode_literals
 
+import inspect
 import json
-from itertools import izip
-
 import os
+import re
 import redis
 import shutil
 import string
 import time
-import re
 
 from datetime import datetime
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
-from django.db import DEFAULT_DB_ALIAS
-from django.db.models import Manager
 from django.db import connection
 from django.test import LiveServerTestCase
 from django.test.runner import DiscoverRunner
 from django.utils import timezone
+from HTMLParser import HTMLParser
+from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
@@ -32,7 +31,6 @@ from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
 from xlrd import xldate_as_tuple
 from xlrd.sheet import XL_CELL_DATE
-import inspect
 
 
 class ExcludeTestRunner(DiscoverRunner):
@@ -354,6 +352,8 @@ class TembaTest(SmartminTest):
         """
         Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
         """
+        self.assertEqual(len(values), sheet.ncols, msg="Expecting %d columns, found %d" % (len(values), sheet.ncols))
+
         actual_values = []
         expected_values = []
         for c in range(0, len(values)):
@@ -433,10 +433,6 @@ class FlowFileTest(TembaTest):
 
         finally:
             Contact.set_simulation(False)
-
-
-from selenium.webdriver.firefox.webdriver import WebDriver
-from HTMLParser import HTMLParser
 
 
 class MLStripper(HTMLParser):  # pragma: no cover
@@ -640,12 +636,12 @@ class MockTwilioClient(TwilioClient):  # pragma: no cover
     def validate(self, request):
         return True
 
-    class MockShortCode():
+    class MockShortCode(object):
         def __init__(self, short_code):
             self.short_code = short_code
             self.sid = "ShortSid"
 
-    class MockShortCodes():
+    class MockShortCodes(object):
         def __init__(self, *args):
             pass
 
@@ -655,12 +651,12 @@ class MockTwilioClient(TwilioClient):  # pragma: no cover
         def update(self, sid, **kwargs):
             print "Updating short code with sid %s" % sid
 
-    class MockSMS():
+    class MockSMS(object):
         def __init__(self, *args):
             self.uri = "/SMS"
             self.short_codes = MockTwilioClient.MockShortCodes()
 
-    class MockCall():
+    class MockCall(object):
         def __init__(self, to=None, from_=None, url=None, status_callback=None):
             self.to = to
             self.from_ = from_
@@ -668,30 +664,30 @@ class MockTwilioClient(TwilioClient):  # pragma: no cover
             self.status_callback = status_callback
             self.sid = 'CallSid'
 
-    class MockApplication():
+    class MockApplication(object):
         def __init__(self, friendly_name):
             self.friendly_name = friendly_name
             self.sid = 'TwilioTestSid'
 
-    class MockPhoneNumber():
+    class MockPhoneNumber(object):
         def __init__(self, phone_number):
             self.phone_number = phone_number
             self.sid = 'PhoneNumberSid'
 
-    class MockAccount():
+    class MockAccount(object):
         def __init__(self, account_type, auth_token='AccountToken'):
             self.type = account_type
             self.auth_token = auth_token
             self.sid = 'AccountSid'
 
-    class MockAccounts():
+    class MockAccounts(object):
         def __init__(self, *args):
             pass
 
         def get(self, account_type):
             return MockTwilioClient.MockAccount(account_type)
 
-    class MockPhoneNumbers():
+    class MockPhoneNumbers(object):
         def __init__(self, *args):
             pass
 
@@ -701,13 +697,14 @@ class MockTwilioClient(TwilioClient):  # pragma: no cover
         def update(self, sid, **kwargs):
             print "Updating phone number with sid %s" % sid
 
-    class MockApplications():
+    class MockApplications(object):
         def __init__(self, *args):
             pass
+
         def list(self, friendly_name=None):
             return [MockTwilioClient.MockApplication(friendly_name)]
 
-    class MockCalls():
+    class MockCalls(object):
         def __init__(self):
             pass
 

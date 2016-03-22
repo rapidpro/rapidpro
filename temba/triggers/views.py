@@ -17,7 +17,7 @@ from temba.contacts.models import ContactGroup, URN_SCHEMES_SUPPORTING_FOLLOW
 from temba.contacts.fields import OmniboxField
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
-from temba.schedules.models import Schedule, repeat_choices
+from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
 from temba.channels.models import Channel, RECEIVE, ANSWER
 from temba.flows.models import Flow
@@ -67,7 +67,7 @@ class DefaultTriggerForm(BaseTriggerForm):
     """
     def __init__(self, user, *args, **kwargs):
         flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
-        super(DefaultTriggerForm, self).__init__(user, flows,  *args, **kwargs)
+        super(DefaultTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
 
 class GroupBasedTriggerForm(BaseTriggerForm):
@@ -204,7 +204,7 @@ class RegisterTriggerForm(BaseTriggerForm):
 
 
 class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
-    repeat_period = forms.ChoiceField(choices=repeat_choices, label="Repeat")
+    repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label="Repeat")
     repeat_days = forms.IntegerField(required=False)
     start = forms.CharField(max_length=16)
     start_datetime_value = forms.IntegerField(required=False)
@@ -599,7 +599,6 @@ class TriggerCRUDL(SmartCRUDL):
                 trigger.contacts.add(contact)
 
             self.post_save(trigger)
-
 
             response = self.render_to_response(self.get_context_data(form=form))
             response['REDIRECT'] = self.get_success_url()

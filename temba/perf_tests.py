@@ -11,7 +11,7 @@ from temba.channels.models import Channel, ChannelLog
 from temba.flows.models import FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
 from temba.utils import dict_to_struct
-from temba.values.models import Value, TEXT, DECIMAL
+from temba.values.models import Value
 from temba.utils.profiler import SegmentProfiler
 from tests import TembaTest
 
@@ -45,13 +45,19 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter", address="billy_bob")
 
         # for generating tuples of scheme, path and channel
-        generate_tel_mtn = lambda num: (TEL_SCHEME, "+25078%07d" % (num + 1), self.tel_mtn)
-        generate_tel_tigo = lambda num: (TEL_SCHEME, "+25072%07d" % (num + 1), self.tel_tigo)
-        generate_twitter = lambda num: (TWITTER_SCHEME, "tweep_%d" % (num + 1), self.twitter)
+        def generate_tel_mtn(num):
+            return TEL_SCHEME, "+25078%07d" % (num + 1), self.tel_mtn
+
+        def generate_tel_tigo(num):
+            return TEL_SCHEME, "+25072%07d" % (num + 1), self.tel_tigo
+
+        def generate_twitter(num):
+            return TWITTER_SCHEME, "tweep_%d" % (num + 1), self.twitter
+
         self.urn_generators = (generate_tel_mtn, generate_tel_tigo, generate_twitter)
 
-        self.field_nick = ContactField.get_or_create(self.org, self.admin, 'nick', 'Nickname', show_in_table=True, value_type=TEXT)
-        self.field_age = ContactField.get_or_create(self.org, self.admin, 'age', 'Age', show_in_table=True, value_type=DECIMAL)
+        self.field_nick = ContactField.get_or_create(self.org, self.admin, 'nick', 'Nickname', show_in_table=True, value_type=Value.TYPE_TEXT)
+        self.field_age = ContactField.get_or_create(self.org, self.admin, 'age', 'Age', show_in_table=True, value_type=Value.TYPE_DECIMAL)
 
     @classmethod
     def tearDownClass(cls):
@@ -423,4 +429,3 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             for i in range(10000):
                 ChannelLog.log_success(msg, "Sent Message", method="GET", url="http://foo",
                                        request="GET http://foo", response="Ok", response_status="201")
-

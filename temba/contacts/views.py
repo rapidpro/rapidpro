@@ -130,7 +130,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
                    dict(count=counts[ContactGroup.TYPE_FAILED], label=_("Failed"), url=reverse('contacts.contact_failed')),
                    dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
 
-        groups_qs = ContactGroup.user_groups.filter(org=org, is_active=True).select_related('org')
+        groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
         groups = [dict(pk=g.pk, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
 
@@ -301,7 +301,7 @@ class UpdateContactForm(ContactForm):
                 lang = languages.get_language_name(self.instance.language)
                 choices += [(self.instance.language, _("%s (Missing)") % lang)]
 
-        choices += [(lang.iso_code, lang.name) for lang in self.instance.org.languages.all().order_by('orgs', 'name')]
+        choices += [(l.iso_code, l.name) for l in self.instance.org.languages.all().order_by('orgs', 'name')]
 
         self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'), initial=self.instance.language, choices=choices)
 
@@ -407,7 +407,6 @@ class ContactCRUDL(SmartCRUDL):
             Adds fields to the form for extra columns found in the spreadsheet. Returns a list of dictionaries
             containing the column label and the names of the fields
             """
-
             org = self.derive_org()
             column_controls = []
             for header in column_headers:
@@ -415,8 +414,6 @@ class ContactCRUDL(SmartCRUDL):
 
                 include_field = forms.BooleanField(label=' ', required=False, initial=True)
                 include_field_name = 'column_%s_include' % header_key
-                label_field = forms.CharField(label=' ', initial=header.title())
-
 
                 label_initial = ContactField.get_by_label(org, header.title())
 
@@ -424,8 +421,7 @@ class ContactCRUDL(SmartCRUDL):
                 if label_initial:
                     label_field_initial = label_initial.label
 
-                label_field = forms.CharField( initial=label_field_initial,
-                                                     required=False, label=' ')
+                label_field = forms.CharField(initial=label_field_initial, required=False, label=' ')
 
                 label_field_name = 'column_%s_label' % header_key
 
@@ -433,13 +429,15 @@ class ContactCRUDL(SmartCRUDL):
                 if label_initial:
                     type_field_initial = label_initial.value_type
 
-                type_field = forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, required=True, initial=type_field_initial)
+                type_field = forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, required=True,
+                                               initial=type_field_initial)
                 type_field_name = 'column_%s_type' % header_key
 
-                fields = []
-                fields.append((include_field_name, include_field))
-                fields.append((label_field_name, label_field))
-                fields.append((type_field_name, type_field))
+                fields = [
+                    (include_field_name, include_field),
+                    (label_field_name, label_field),
+                    (type_field_name, type_field)
+                ]
 
                 self.form.fields = OrderedDict(self.form.fields.items() + fields)
 

@@ -1,17 +1,18 @@
+from __future__ import unicode_literals
+
 import json
-from temba.contacts.models import Contact
+import os
+
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from mock import patch
-import mock
-from temba.flows.models import Flow, FAILED, FlowRun, ActionLog, FlowStep
-from temba.ivr.models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
-from temba.msgs.models import Msg
 from temba.channels.models import TWILIO, CALL, ANSWER, SEND
+from temba.contacts.models import Contact
+from temba.flows.models import Flow, FAILED, FlowRun, ActionLog, FlowStep
+from temba.msgs.models import Msg, IVR
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator
-import os
-from django.conf import settings
-from temba.msgs.models import IVR
+from .models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
 
 
 class IVRTests(FlowFileTest):
@@ -27,9 +28,9 @@ class IVRTests(FlowFileTest):
         self.admin.groups.add(Group.objects.get(name="Beta"))
         self.login(self.admin)
 
-    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
-    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
-    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_twilio_failed_auth(self):
 
         def create(self, to=None, from_=None, url=None, status_callback=None):
@@ -57,9 +58,9 @@ class IVRTests(FlowFileTest):
         self.assertEquals(log.text, 'Call ended. Could not authenticate with your Twilio account. '
                                     'Check your token and try again.')
 
-    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
-    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
-    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_recording(self):
 
         # create our ivr setup
@@ -129,9 +130,9 @@ class IVRTests(FlowFileTest):
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exaclty one step" % msg.text)
 
-    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
-    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
-    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_child_flow(self):
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
         self.org.save()
@@ -157,9 +158,9 @@ class IVRTests(FlowFileTest):
         self.assertTrue(FlowRun.objects.filter(contact=ben, flow=msg_flow).first())
         self.assertTrue(Msg.all_messages.filter(direction=OUTGOING, contact=ben, text="You said foo!").first())
 
-    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
-    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
-    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_non_blocking_rule_ivr(self):
 
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
@@ -199,9 +200,9 @@ class IVRTests(FlowFileTest):
         # now we should have an outbound message
         self.assertEquals('Hi there Eminem', Msg.all_messages.filter(direction='O', contact=eminem).first().text)
 
-    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
-    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
-    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_digit_gather(self):
 
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
@@ -225,10 +226,9 @@ class IVRTests(FlowFileTest):
         # make sure we send the finishOnKey attribute to twilio
         self.assertContains(response, 'finishOnKey="#"')
 
-
-    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
-    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
-    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_flow(self):
         # should be able to create an ivr flow
         self.assertTrue(self.org.supports_ivr())
@@ -410,9 +410,9 @@ class IVRTests(FlowFileTest):
         call.refresh_from_db()
         self.assertIsNotNone(call.get_duration())
 
-    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
-    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
-    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_rule_first_ivr_flow(self):
         # connect it and check our client is configured
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
@@ -450,9 +450,9 @@ class IVRTests(FlowFileTest):
         msg = self.create_msg(direction='I', contact=test_contact, text="message during phone call")
         self.assertFalse(Flow.find_and_handle(msg))
 
-    @mock.patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
-    @mock.patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
-    @mock.patch('twilio.util.RequestValidator', MockRequestValidator)
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_incoming_call(self):
 
         # connect it and check our client is configured

@@ -932,7 +932,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   # rules = []
   toRemove = []
   for rule in $scope.ruleset.rules
-
     if not rule.category
       toRemove.push(rule)
       continue
@@ -1048,6 +1047,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     else if op == "number"
       categoryName = "numeric"
+    else if op == "ward"
+      categoryName = "ward"
     else if op == "district"
       categoryName = "district"
     else if op == "state"
@@ -1416,6 +1417,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
       # add the new field to our list so it shows up without reloading
       Flow.contactFieldSearch.push
+        id: field.id
+        text: field.text
+
+      Flow.updateContactSearch.push
         id: field.id
         text: field.text
 

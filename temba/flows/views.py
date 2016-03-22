@@ -169,11 +169,13 @@ class RuleCRUDL(SmartCRUDL):
             # figure out our state and district contact fields
             state_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_STATE).first()
             district_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_DISTRICT).first()
-
+            ward_field = ContactField.objects.filter(org=org, value_type=Value.TYPE_WARD).first()
             # by default, segment by states
             segment = dict(location=state_field.label)
             if parent.level == 1:
                 segment = dict(location=district_field.label, parent=parent.osm_id)
+            if parent.level == 2:
+                segment = dict(location=ward_field.label, parent=parent.osm_id)
 
             results = Value.get_value_summary(ruleset=ruleset, filters=filters, segment=segment)
 
@@ -245,9 +247,10 @@ class RuleCRUDL(SmartCRUDL):
         title = "Analytics"
 
         def get_context_data(self, **kwargs):
-            org = self.request.user.get_org()
-            dthandler = lambda obj: obj.isoformat() if isinstance(obj, datetime) else obj
+            def dthandler(obj):
+                return obj.isoformat() if isinstance(obj, datetime) else obj
 
+            org = self.request.user.get_org()
             rules = RuleSet.objects.filter(flow__is_active=True, flow__org=org).exclude(label=None).order_by('flow__created_on', 'y').select_related('flow')
             current_flow = None
             flow_json = []
@@ -272,7 +275,7 @@ class RuleCRUDL(SmartCRUDL):
             if current_flow and len(current_flow['rules']) > 0:
                 flow_json.append(current_flow)
 
-            groups = ContactGroup.user_groups.filter(is_active=True, org=org).order_by('name')
+            groups = ContactGroup.user_groups.filter(org=org).order_by('name')
             groups_json = []
             for group in groups:
                 if group.get_member_count() > 0:
@@ -499,13 +502,8 @@ class FlowCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
-
-
-
             keyword_triggers = forms.CharField(required=False, label=_("Global keyword triggers"),
                                                help_text=_("When a user sends any of these keywords they will begin this flow"))
-
-
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Update.FlowUpdateForm, self).__init__(*args, **kwargs)
@@ -593,7 +591,6 @@ class FlowCRUDL(SmartCRUDL):
                     Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
                                            flow=obj, created_by=user, modified_by=user)
 
-
             # run async task to update all runs
             from .tasks import update_run_expirations_task
             update_run_expirations_task.delay(obj.pk)
@@ -635,10 +632,10 @@ class FlowCRUDL(SmartCRUDL):
         def get_folders(self):
             org = self.request.user.get_org()
 
-            folders = []
-            folders.append(dict(label="Active", url=reverse('flows.flow_list'), count=Flow.objects.filter(is_active=True, is_archived=False, flow_type=Flow.FLOW, org=org).count()))
-            folders.append(dict(label="Archived", url=reverse('flows.flow_archived'), count=Flow.objects.filter(is_active=True, is_archived=True, org=org).count()))
-            return folders
+            return [
+                dict(label="Active", url=reverse('flows.flow_list'), count=Flow.objects.filter(is_active=True, is_archived=False, flow_type=Flow.FLOW, org=org).count()),
+                dict(label="Archived", url=reverse('flows.flow_archived'), count=Flow.objects.filter(is_active=True, is_archived=True, org=org).count())
+            ]
 
     class Archived(BaseList):
         actions = ('restore',)
@@ -661,7 +658,6 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            run_id = self.request.REQUEST.get('run', None)
 
             if self.has_org_perm('flows.flow_update'):
                 links.append(dict(title=_('Edit'),
@@ -833,7 +829,6 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Export"),
                                   href=reverse('flows.flow_export', args=[self.get_object().id])))
 
-
             if self.has_org_perm('flows.flow_revisions'):
                 links.append(dict(divider=True)),
                 links.append(dict(title=_("Revision History"),
@@ -851,7 +846,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Editor(Read):
         def get_context_data(self, *args, **kwargs):
-            context = super(FlowCRUDL.Read, self).get_context_data(*args, **kwargs)
+            context = super(FlowCRUDL.Editor, self).get_context_data(*args, **kwargs)
 
             context['media_url'] = 'https://%s/' % settings.AWS_BUCKET_DOMAIN
 
@@ -1067,8 +1062,7 @@ class FlowCRUDL(SmartCRUDL):
                     rows.append([date,
                                  dict(category=phone, contact=run['contact__pk']),
                                  dict(category=name),
-                                 dict(contact=run['contact__pk'], category=run['count'])]
-                                + cols)
+                                 dict(contact=run['contact__pk'], category=run['count'])] + cols)
 
                 return build_json_response(dict(iTotalRecords=total, iTotalDisplayRecords=total, sEcho=self.request.REQUEST.get('sEcho', 0), aaData=rows))
             else:
@@ -1430,7 +1424,6 @@ class FlowLabelCRUDL(SmartCRUDL):
         form_class = FlowLabelForm
         success_message = ''
         submit_button_name = _("Create")
-
 
         def get_form_kwargs(self):
             kwargs = super(FlowLabelCRUDL.Create, self).get_form_kwargs()

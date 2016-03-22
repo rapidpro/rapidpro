@@ -585,7 +585,7 @@ class Msg(models.Model):
                               help_text=_("The current status for this message"))
 
     response_to = models.ForeignKey('Msg', null=True, blank=True, related_name='responses',
-                                    verbose_name=_("Response To"),
+                                    verbose_name=_("Response To"), db_index=False,
                                     help_text=_("The message that this message is in reply to"))
 
     labels = models.ManyToManyField('Label', related_name='msgs', verbose_name=_("Labels"),
@@ -1039,7 +1039,7 @@ class Msg(models.Model):
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction,
-                    external_id=self.external_id,
+                    external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
                     created_on=self.created_on, modified_on=self.modified_on)
 
@@ -1874,12 +1874,14 @@ class ExportMessagesTask(SmartModel):
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
+        tz = self.org.get_tzinfo()
+
         if self.start_date:
-            start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
+            start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
             all_messages = all_messages.filter(created_on__gte=start_date)
 
         if self.end_date:
-            end_date = datetime.combine(self.end_date, datetime.max.time()).replace(tzinfo=self.org.get_tzinfo())
+            end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
             all_messages = all_messages.filter(created_on__lte=end_date)
 
         if self.groups.all():

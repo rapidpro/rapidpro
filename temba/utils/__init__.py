@@ -8,7 +8,6 @@ import datetime
 import locale
 import resource
 
-from datetime import timedelta
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
@@ -247,12 +246,13 @@ def get_dict_from_cursor(cursor):
         for row in cursor.fetchall()
     ]
 
+
 class DictStruct(object):
     """
     Wraps a dictionary turning it into a structure looking object. This is useful to 'mock' dictionaries
     coming from Redis to look like normal objects
     """
-    def __init__(self, classname, entries, datetime_fields=[]):
+    def __init__(self, classname, entries, datetime_fields=()):
         self._classname = classname
         self._values = entries
 
@@ -265,17 +265,17 @@ class DictStruct(object):
         self._initialized = True
 
     def __getattr__(self, item):
-        if not item in self._values:
+        if item not in self._values:
             raise Exception("%s does not have a %s field" % (self._classname, item))
 
         return self._values[item]
 
     def __setattr__(self, item, value):
         # needed to prevent infinite loop
-        if not self.__dict__.has_key('_initialized'):
+        if '_initialized' not in self.__dict__:
             return object.__setattr__(self, item, value)
 
-        if not item in self._values:
+        if item not in self._values:
             raise Exception("%s does not have a %s field" % (self._classname, item))
 
         self._values[item] = value
@@ -450,8 +450,8 @@ def timezone_to_country_code(tz):
     timezone_country = INITIAL_TIMEZONE_COUNTRY
     for countrycode in country_timezones:
         timezones = country_timezones[countrycode]
-        for timezone in timezones:
-            timezone_country[timezone] = countrycode
+        for zone in timezones:
+            timezone_country[zone] = countrycode
 
     return timezone_country.get(tz, '')
 

@@ -34,18 +34,20 @@ from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_co
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH
+from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
-from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN, CHIKKA
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
+                      CHIKKA: "icon-channel-external",
                       EXTERNAL: "icon-channel-external",
                       KANNEL: "icon-channel-kannel",
                       NEXMO: "icon-channel-nexmo",
                       VERBOICE: "icon-channel-external",
                       TWILIO: "icon-channel-twilio",
+                      TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
                       PLIVO: "icon-channel-plivo",
                       CLICKATELL: "icon-channel-clickatell",
                       TWITTER: "icon-twitter",
@@ -251,6 +253,7 @@ def get_commands(channel, commands, sync_event=None):
     # We need a queueable model similar to messages for sending arbitrary commands to the client
 
     return commands
+
 
 @disable_middleware
 def sync(request, channel_id):
@@ -513,11 +516,12 @@ class UpdateTwitterForm(UpdateChannelForm):
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
-               'claim_android', 'claim_africas_talking', 'claim_zenvia', 'configuration', 'claim_external',
+               'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo')
+               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
+               'claim_twilio_messaging_service', 'claim_zenvia')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1211,6 +1215,28 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Connect M3 Tech")
         channel_type = M3TECH
 
+    class ClaimChikka(ClaimAuthenticatedExternal):
+        class ChikkaForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
+                                     help_text=_("The short code you are connecting."))
+            username = forms.CharField(label=_("Client Id"),
+                                       help_text=_("The Client Id found on your Chikka API credentials page"))
+            password = forms.CharField(label=_("Secret Key"),
+                                       help_text=_("The Secret Key found on your Chikka API credentials page"))
+
+        title = _("Connect Chikka")
+        channel_type = CHIKKA
+        readonly = ('country', )
+        form_class = ChikkaForm
+
+        def get_country(self, obj):
+            return "Indonesia"
+
+        def get_submitted_country(self, data):
+            return 'PH'
+
     class ClaimTelegram(OrgPermsMixin, SmartFormView):
         class TelegramForm(forms.Form):
             auth_token = forms.CharField(label=_("Authentication Token"),
@@ -1368,7 +1394,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
-
     class ClaimVumi(ClaimAuthenticatedExternal):
         class VumiClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
@@ -1405,7 +1430,6 @@ class ChannelCRUDL(SmartCRUDL):
             self.object.ensure_normalized_contacts()
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
-
 
     class ClaimClickatell(ClaimAuthenticatedExternal):
         class ClickatellForm(forms.Form):
@@ -1488,6 +1512,53 @@ class ChannelCRUDL(SmartCRUDL):
             self.object.ensure_normalized_contacts()
 
             return super(ChannelCRUDL.ClaimAfricasTalking, self).form_valid(form)
+
+    class ClaimTwilioMessagingService(OrgPermsMixin, SmartFormView):
+        class TwilioMessagingServiceForm(forms.Form):
+            country = forms.ChoiceField(choices=TWILIO_SUPPORTED_COUNTRIES)
+            messaging_service_sid = forms.CharField(label=_("Messaging Service SID"), help_text=_("The Twilio Messaging Service SID"))
+
+        title = _("Add Twilio Messaging Service Channel")
+        fields = ('country', 'messaging_service_sid')
+        form_class = TwilioMessagingServiceForm
+        success_url = "id@channels.channel_configuration"
+
+        def __init__(self, *args):
+            super(ChannelCRUDL.ClaimTwilioMessagingService, self).__init__(*args)
+            self.account = None
+            self.client = None
+            self.object = None
+
+        def pre_process(self, *args, **kwargs):
+            org = self.request.user.get_org()
+            try:
+                self.client = org.get_twilio_client()
+                if not self.client:
+                    return HttpResponseRedirect(reverse('channels.channel_claim'))
+                self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
+            except TwilioRestException:
+                return HttpResponseRedirect(reverse('channels.channel_claim'))
+
+        def get_context_data(self, **kwargs):
+            context = super(ChannelCRUDL.ClaimTwilioMessagingService, self).get_context_data(**kwargs)
+            context['account_trial'] = self.account.type.lower() == 'trial'
+            return context
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+
+            if not org: # pragma: no cover
+                raise Exception(_("No org for this user, cannot claim"))
+
+            data = form.cleaned_data
+            self.object = Channel.add_twilio_messaging_service_channel(org, self.request.user,
+                                                                       messaging_service_sid=data['messaging_service_sid'],
+                                                                       country=data['country'])
+
+            # make sure all contacts added before the channel are normalized
+            self.object.ensure_normalized_contacts()
+
+            return super(ChannelCRUDL.ClaimTwilioMessagingService, self).form_valid(form)
 
     class Configuration(OrgPermsMixin, SmartReadView):
 
@@ -1712,7 +1783,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             return HttpResponse(json.dumps(numbers))
 
-
     class BaseClaimNumber(OrgPermsMixin, SmartFormView):
         class ClaimNumberForm(forms.Form):
 
@@ -1884,6 +1954,8 @@ class ChannelCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             try:
                 self.client = org.get_twilio_client()
+                if not self.client:
+                    return HttpResponseRedirect(reverse('channels.channel_claim'))
                 self.account = self.client.accounts.get(org.config_json()[ACCOUNT_SID])
             except TwilioRestException:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
@@ -1922,15 +1994,10 @@ class ChannelCRUDL(SmartCRUDL):
             return country_code in TWILIO_SUPPORTED_COUNTRY_CODES
 
         def claim_number(self, user, phone_number, country):
-             analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
+            analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
 
-             # add this channel
-             channel = Channel.add_twilio_channel(user.get_org(),
-                                                  user,
-                                                  phone_number,
-                                                  country)
-
-             return channel
+            # add this channel
+            return Channel.add_twilio_channel(user.get_org(), user, phone_number, country)
 
     class ClaimNexmo(BaseClaimNumber):
         class ClaimNexmoForm(forms.Form):
