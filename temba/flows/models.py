@@ -3672,6 +3672,10 @@ class FlowStep(models.Model):
 
         # if message is from contact, mark run as responded
         if not self.run.responded and msg.direction == INCOMING:
+            # update our local run's responded state
+            self.run.responded = True
+
+            # and make sure the db is up to date
             FlowRun.objects.filter(id=self.run.id, responded=False).update(responded=True)
 
     def get_step(self):
