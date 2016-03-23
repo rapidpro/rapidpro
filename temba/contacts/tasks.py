@@ -25,5 +25,3 @@ def squash_contactgroupcounts():
     if not r.get(key):
         with r.lock(key, timeout=900):
             ContactGroupCount.squash_counts()
-
-
