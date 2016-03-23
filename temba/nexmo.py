@@ -127,7 +127,7 @@ def __main__():
 
     print "CH Numbers: %s" % n.search_numbers('CH', None)
 
-    #print "Buying %s: %s" % (seattle_numbers[0]['msisdn'], n.buy_number('US', seattle_numbers[0]['msisdn']))
+    # print "Buying %s: %s" % (seattle_numbers[0]['msisdn'], n.buy_number('US', seattle_numbers[0]['msisdn']))
 
     # update the MO for one of our numbers
     print "Updating Number %s: %s" % (numbers[0]['msisdn'], n.update_number('US', numbers[0]['msisdn'], 'http://rapidpro.io'))
