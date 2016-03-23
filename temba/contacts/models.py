@@ -1830,7 +1830,7 @@ class ContactGroupCount(models.Model):
 
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
-                c.execute("SELECT temba_squash_contactgroupcount(%s);", (count.flow_id,))
+                c.execute("SELECT temba_squash_contactgroupcounts(%s);", (count.group_id,))
 
             squash_count += 1
 
@@ -1856,7 +1856,7 @@ class ContactGroupCount(models.Model):
         test_contacts = Contact.objects.filter(org=group.org, is_test=True).values('id')
 
         # calculate our count for the group
-        count = group.contacts.all().exclude(contact__in=test_contacts).count()
+        count = group.contacts.all().exclude(id__in=test_contacts).count()
 
         # insert updated count, returning it
         return ContactGroupCount.objects.create(group=group, count=count)

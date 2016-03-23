@@ -25,7 +25,8 @@ from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME, TELEGRAM_SCHEME
-from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
+from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
+from .tasks import squash_contactgroupcounts
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -351,8 +352,20 @@ class ContactGroupTest(TembaTest):
         ba.unfail()
         ba.unfail()
 
+        # squash all our counts, this shouldn't affect our overall counts, but we should now only have 3
+        squash_contactgroupcounts()
+        self.assertEqual(ContactGroupCount.objects.all().count(), 3)
+
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
+
+        # rebuild just our system contact group
+        all_contacts = ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
+        ContactGroupCount.populate_for_group(all_contacts)
+
+        # assert our count is correct
+        self.assertEqual(all_contacts.get_member_count(), 3)
+        self.assertEqual(ContactGroupCount.objects.filter(group=all_contacts).count(), 1)
 
     def test_update_query(self):
         age = ContactField.get_or_create(self.org, self.admin, 'age')
