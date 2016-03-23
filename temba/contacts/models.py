@@ -1767,7 +1767,7 @@ class ContactGroup(TembaModel):
         if group_types:
             groups = groups.filter(group_type__in=group_types)
 
-        return {g.group_type: g.member_count() for g in groups}
+        return {g.group_type: g.get_member_count() for g in groups}
 
     def get_member_count(self):
         """
