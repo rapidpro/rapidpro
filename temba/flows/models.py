@@ -4322,21 +4322,24 @@ class UssdAction(ReplyAction):
 
     @classmethod
     def from_ruleset(cls, rule):
-        obj = json.loads(rule.config)
-        msg = obj.get(UssdAction.MESSAGE, '')
+        if rule and hasattr(rule, 'config') and isinstance(rule.config, basestring):
+            obj = json.loads(rule.config)
+            msg = obj.get(UssdAction.MESSAGE, '')
 
-        if rule.ruleset_type == UssdAction.TYPE_WAIT_USSD_MENU:
-            if msg:
-                msg += '\n'
+            if rule.ruleset_type == UssdAction.TYPE_WAIT_USSD_MENU:
+                if msg:
+                    msg += '\n'
 
-            msg = UssdAction.build_menu(msg, obj)
+                msg = UssdAction.build_menu(msg, obj)
 
-        return UssdAction(msg=msg)
+            return UssdAction(msg=msg)
+        else:
+            return UssdAction()
 
     @classmethod
     def build_menu(cls, msg, obj):
         for menu in obj[UssdAction.MENU]:
-            msg += ": ".join((str(menu['option']), str(menu['label']), )) + '\n'
+            msg += ": ".join((str(menu['option']), str(menu['label'].itervalues().next()), )) + '\n'
 
         if msg.endswith('\n'):
             msg = msg[:-1]

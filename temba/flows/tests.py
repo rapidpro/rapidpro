@@ -32,7 +32,7 @@ from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, COMPLETE, \
-    TriggerFlowAction
+    TriggerFlowAction, UssdAction
 from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET, FlowRunCount
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
@@ -2085,6 +2085,40 @@ class ActionTest(TembaTest):
         response = msg.responses.get()
         self.assertEquals("We love green too!", response.text)
         self.assertEquals(self.contact, response.contact)
+
+    def test_ussd_action(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        ussd_ruleset = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU)
+        ussd_ruleset.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json()])
+        ussd_ruleset.save()
+
+        # without USSD config we only get an empty UssdAction
+        action = UssdAction.from_ruleset(ussd_ruleset)
+        execution = action.execute(run, None, msg)
+
+        self.assertIsNone(action.msg)
+        self.assertEquals(execution, [])
+
+        # add config menu object
+        config = {
+            "ussd_menu": [
+                {"option": 1, "label": {"base": "Test1"}},
+                {"option": 2, "label": {"base": "Test2"}},
+            ],
+            "ussd_text": "test"
+        }
+        ussd_ruleset.config = json.dumps(config)
+        action = UssdAction.from_ruleset(ussd_ruleset)
+        execution = action.execute(run, None, msg)
+
+        self.assertIsNotNone(action.msg)
+        self.assertEquals(action.msg, u'test\n1: Test1\n2: Test2')
+        self.assertIsInstance(execution[0], Msg)
+        self.assertEquals(execution[0].text, u'test\n1: Test1\n2: Test2')
+
+        Broadcast.objects.all().delete()
 
     def test_trigger_flow_action(self):
         flow = self.create_flow()
