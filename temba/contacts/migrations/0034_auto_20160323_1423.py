@@ -12,8 +12,8 @@ class Migration(migrations.Migration):
 
     def populate_contactgroupcounts(apps, schema_editor):
         from temba.contacts.models import ContactGroup, ContactGroupCount
-        for group_id in ContactGroup.objects.all().values_list('id', flat=True):
-            group = ContactGroup.objects.get(id=group_id)
+        for group_id in ContactGroup.all_groups.all().values_list('id', flat=True):
+            group = ContactGroup.all_groups.get(id=group_id)
             count = ContactGroupCount.populate_for_group(group)
             print "%s %d" % (group.name, count.count)
 
