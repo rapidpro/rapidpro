@@ -67,7 +67,7 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(FieldEndpoint.get_write_explorer())
 
         endpoints.append(MessageEndpoint.get_read_explorer())
-        #endpoints.append(MessageEndpoint.get_write_explorer())
+        # endpoints.append(MessageEndpoint.get_write_explorer())
 
         endpoints.append(MessageBulkActionEndpoint.get_write_explorer())
 
@@ -84,7 +84,7 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(FlowRunEndpoint.get_read_explorer())
         endpoints.append(FlowRunEndpoint.get_write_explorer())
 
-        #endpoints.append(FlowResultsEndpoint.get_read_explorer())
+        # endpoints.append(FlowResultsEndpoint.get_read_explorer())
 
         endpoints.append(CampaignEndpoint.get_read_explorer())
         endpoints.append(CampaignEndpoint.get_write_explorer())

@@ -1400,7 +1400,7 @@ class Org(SmartModel):
         return self.name
 
 
-############ monkey patch User class with a few extra functions ##############
+# ===================== monkey patch User class with a few extra functions ========================
 
 def get_user_orgs(user):
     if user.is_superuser:

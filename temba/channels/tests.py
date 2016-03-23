@@ -498,7 +498,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(self.org, other_user.get_org())
 
         response = self.client.get('/', follow=True)
-        #self.assertIn('channel_type', response.context)
+        # self.assertIn('channel_type', response.context)
 
     def sync(self, channel, post_data=None, signature=None):
         if not post_data:
@@ -534,7 +534,7 @@ class ChannelTest(TembaTest):
         response = self.fetch_protected(update_url, self.user)
         self.assertEquals(200, response.status_code)
         self.assertEquals(response.request['PATH_INFO'], update_url)
-        
+
         channel = Channel.objects.get(pk=self.tel_channel.id)
         self.assertEquals(channel.name, "Test Channel")
         self.assertEquals(channel.address, "+250785551212")
@@ -3602,28 +3602,28 @@ class VumiTest(TembaTest):
 
         callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
 
-        #response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-        #self.assertEquals(200, response.status_code)
+        # response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        # self.assertEquals(200, response.status_code)
 
         # check that we've become errored
-        #sms = Msg.all_messages.get(pk=sms.pk)
-        #self.assertEquals(ERRORED, sms.status)
+        # sms = Msg.all_messages.get(pk=sms.pk)
+        # self.assertEquals(ERRORED, sms.status)
 
         # couple more failures should move to failure
-        #Msg.all_messages.filter(pk=sms.pk).update(status=WIRED)
-        #self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        # Msg.all_messages.filter(pk=sms.pk).update(status=WIRED)
+        # self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
-        #Msg.all_messages.filter(pk=sms.pk).update(status=WIRED)
-        #self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        # Msg.all_messages.filter(pk=sms.pk).update(status=WIRED)
+        # self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
-        #sms = Msg.all_messages.get(pk=sms.pk)
-        #self.assertEquals(FAILED, sms.status)
+        # sms = Msg.all_messages.get(pk=sms.pk)
+        # self.assertEquals(FAILED, sms.status)
 
         # successful deliveries shouldn't stomp on failures
-        #del data['delivery_status']
-        #self.client.post(callback_url, json.dumps(data), content_type="application/json")
-        #sms = Msg.all_messages.get(pk=sms.pk)
-        #self.assertEquals(FAILED, sms.status)
+        # del data['delivery_status']
+        # self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        # sms = Msg.all_messages.get(pk=sms.pk)
+        # self.assertEquals(FAILED, sms.status)
 
         # if we are wired we can now be successful again
         data['delivery_status'] = 'delivered'
@@ -3678,8 +3678,8 @@ class VumiTest(TembaTest):
                 # get the message again
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
-                #self.assertTrue(msg.next_attempt)
-                #self.assertFalse(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
+                # self.assertTrue(msg.next_attempt)
+                # self.assertFalse(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
 
                 self.clear_cache()
 

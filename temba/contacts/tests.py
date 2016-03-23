@@ -35,7 +35,7 @@ class ContactCRUDLTest(_CRUDLTest):
 
         self.country = AdminBoundary.objects.create(osm_id='171496', name='Rwanda', level=0)
         AdminBoundary.objects.create(osm_id='1708283', name='Kigali', level=1, parent=self.country)
-        
+
         self.crudl = ContactCRUDL
         self.user = self.create_user("tito")
         self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", country=self.country,
@@ -2373,7 +2373,7 @@ class ContactTest(TembaTest):
         self.assertEquals(Contact.objects.all().count(), 3)
         self.assertEquals(ContactGroup.user_groups.all().count(), 1)
         self.assertEquals(ContactGroup.user_groups.all()[0].name, 'Sample Contacts With Extra Fields')
-        
+
         contact1 = Contact.objects.all().order_by('name')[0]
         self.assertEquals(contact1.get_field_raw('location'), 'Rwanda')  # renamed from 'Country'
         self.assertEquals(contact1.get_field_display('location'), 'Rwanda')  # renamed from 'Country'
@@ -2493,7 +2493,7 @@ class ContactTest(TembaTest):
         c1 = self.create_contact(name=None, number='0788382382')
         c2 = self.create_contact(name=None, number='0788382382')
         self.assertEquals(c1.pk, c2.pk)
-        
+
         field_dict = dict(phone='0788123123', created_by=user, modified_by=user, org=self.org, name='LaToya Jackson')
         c1 = Contact.create_instance(field_dict)
 

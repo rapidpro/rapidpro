@@ -163,6 +163,7 @@ PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370
 # list of codes and countries sorted by country name
 ALL_COUNTRIES = sorted(((code, name) for code, name in COUNTRIES.items()), key=lambda x: x[1])
 
+
 def get_channel_icon(channel_type):
     return RELAYER_TYPE_ICONS.get(channel_type, "icon-channel-external")
 
@@ -275,9 +276,9 @@ def sync(request, channel_id):
     if not channel.secret or not channel.org:
         return HttpResponse(json.dumps(dict(cmds=[channel.build_registration_command()])), content_type='application/javascript')
 
-    #print "\n\nSECRET: '%s'" % channel.secret
-    #print "TS: %s" % request_time
-    #print "BODY: '%s'\n\n" % request.body
+    # print "\n\nSECRET: '%s'" % channel.secret
+    # print "TS: %s" % request_time
+    # print "BODY: '%s'\n\n" % request.body
 
     # check that the request isn't too old (15 mins)
     now = time.time()
@@ -321,8 +322,7 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.all_messages.filter(pk=cmd['msg_id'],
-                                                 org=channel.org)
+                        msg = Msg.all_messages.filter(pk=cmd['msg_id'], org=channel.org)
                         if msg:
                             msg = msg[0]
                             handled = msg.update(cmd)

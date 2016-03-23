@@ -260,11 +260,11 @@ class Contact(TembaModel):
     @classmethod
     def set_simulation(cls, simulation):
         cls.simulation = simulation
-        
+
     @classmethod
     def get_simulation(cls):
         return cls.simulation
-                
+
     @classmethod
     def all(cls):
         simulation = cls.get_simulation()
@@ -776,7 +776,7 @@ class Contact(TembaModel):
             contact.set_field(user, key, value)
 
         return contact
-                
+
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
         if not import_params or 'org_id' not in import_params or 'extra_fields' not in import_params:

@@ -48,11 +48,11 @@ class Schedule(SmartModel):
     def get_broadcast(self):
         if hasattr(self, 'broadcast'):
             return self.broadcast
-        
+
     def get_trigger(self):
         if hasattr(self, 'trigger'):
             return self.trigger
-        
+
     def get_org_timezone(self):
         org = None
 
