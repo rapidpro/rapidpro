@@ -534,7 +534,7 @@ class ChannelTest(TembaTest):
         response = self.fetch_protected(update_url, self.user)
         self.assertEquals(200, response.status_code)
         self.assertEquals(response.request['PATH_INFO'], update_url)
-        
+
         channel = Channel.objects.get(pk=self.tel_channel.id)
         self.assertEquals(channel.name, "Test Channel")
         self.assertEquals(channel.address, "+250785551212")

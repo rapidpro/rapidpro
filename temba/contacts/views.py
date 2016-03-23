@@ -114,7 +114,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         Order contacts by name, case insensitive
         """
         return queryset
-            
+
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
         counts = ContactGroup.get_system_group_counts(org)
@@ -464,7 +464,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_form(self, form_class):
             form = super(ContactCRUDL.Customize, self).get_form(form_class)
             form.fields.clear()
-            
+
             self.headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
             self.column_controls = self.create_column_controls(self.headers)
 

@@ -404,7 +404,7 @@ class Channel(TembaModel):
     def add_twilio_channel(cls, org, user, phone_number, country):
         client = org.get_twilio_client()
         twilio_phones = client.phone_numbers.list(phone_number=phone_number)
-        
+
         config = org.config_json()
         application_sid = config.get(APPLICATION_SID)
 
@@ -789,11 +789,11 @@ class Channel(TembaModel):
 
         # ignore really recent unsent messages
         messages = messages.exclude(created_on__gt=timezone.now() - timedelta(hours=1))
-        
+
         # if there is one message successfully sent ignore also all message created before it was sent
         if latest_sent_message:
             messages = messages.exclude(created_on__lt=latest_sent_message.sent_on)
-        
+
         return messages
 
     def get_recent_syncs(self):
@@ -2541,7 +2541,7 @@ def pre_save(sender, instance, **kwargs):
             td = (timezone.now() - last_sync_event.created_on)
             last_sync_event.lifetime = td.seconds + td.days * 24 * 3600
             last_sync_event.save()
-    
+
 
 ALERT_DISCONNECTED = 'D'
 ALERT_POWER = 'P'
