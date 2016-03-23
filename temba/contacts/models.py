@@ -1858,8 +1858,8 @@ class ContactGroupCount(models.Model):
         # calculate our count for the group
         count = group.contacts.all().exclude(contact__in=test_contacts).count()
 
-        # insert updated counts for each
-        ContactGroupCount.objects.create(group=group, count=count)
+        # insert updated count, returning it
+        return ContactGroupCount.objects.create(group=group, count=count)
 
     def __unicode__(self):
         return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)

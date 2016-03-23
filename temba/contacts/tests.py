@@ -311,7 +311,7 @@ class ContactGroupTest(TembaTest):
         # unblocking won't re-add to any groups
         self.joe.unblock(self.user)
 
-        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 1)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 1)
 
         # releasing also removes from all user groups
         self.frank.release(self.user)

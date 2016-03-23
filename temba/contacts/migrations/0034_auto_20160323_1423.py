@@ -10,6 +10,13 @@ class Migration(migrations.Migration):
         ('contacts', '0033_auto_20151116_1433'),
     ]
 
+    def populate_contactgroupcounts(apps, schema_editor):
+        from temba.contacts.models import ContactGroup, ContactGroupCount
+        for group_id in ContactGroup.objects.all().values_list('id', flat=True):
+            group = ContactGroup.objects.get(id=group_id)
+            count = ContactGroupCount.populate_for_group(group)
+            print "%s %d" % (group.name, count.count)
+
     operations = [
         migrations.CreateModel(
             name='ContactGroupCount',
@@ -30,4 +37,5 @@ class Migration(migrations.Migration):
             field=models.CharField(help_text='The Universal Resource Name as a string. ex: tel:+250788383383', max_length=255, choices=[('tel', 'Phone number'), ('twitter', 'Twitter handle'), ('telegram', 'Telegram identifier'), ('mailto', 'Email address'), ('ext', 'External identifier')]),
         ),
         InstallSQL('0034_contacts'),
+        migrations.RunPython(populate_contactgroupcounts),
     ]
