@@ -25,7 +25,8 @@ from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
 from temba.values.models import Value
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME, TELEGRAM_SCHEME
-from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
+from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
+from .tasks import squash_contactgroupcounts
 
 
 class ContactCRUDLTest(_CRUDLTest):
@@ -191,12 +192,12 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.client.post(create_url, dict(name="Joe and Frank", preselected_contacts=','.join([unicode(self.joe.pk),
                                                                                                unicode(self.frank.pk)])))
         group = ContactGroup.user_groups.get(org=self.org, name="Joe and Frank")
-        self.assertEquals(group.count, 2)
+        self.assertEquals(group.get_member_count(), 2)
 
         # now one with a query
         self.client.post(create_url, dict(name="Frank", group_query='frank'))
         group = ContactGroup.user_groups.get(org=self.org, name="Frank")
-        self.assertEquals(group.count, 1)
+        self.assertEquals(group.get_member_count(), 1)
 
         # try to create another with the same name, nothing happens
         response = self.client.post(create_url, dict(name="First"))
@@ -207,7 +208,7 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
         self.assertEquals('first', existing_group.name)
 
-        # try existing group by Id shoudl not modify the existing group
+        # try existing group by Id should not modify the existing group
         group_1 = ContactGroup.get_or_create(self.org, self.user, "Kigali", existing_group.pk)
         self.assertEqual(group_1.pk, existing_group.pk)
         self.assertEqual(group_1.name, existing_group.name)
@@ -235,13 +236,13 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         # create a dynamic group based on frank
         self.client.post(reverse('contacts.contactgroup_create'), dict(name="Frank", group_query='frank'))
         group = ContactGroup.user_groups.get(org=self.org, name='Frank')
-        self.assertEquals(1, group.count)
+        self.assertEquals(1, group.get_member_count())
 
         # now update that group to joe
         self.client.post(reverse('contacts.contactgroup_update', args=[group.pk]), dict(name='Joe', query='joe'))
         self.assertIsNone(ContactGroup.user_groups.filter(org=self.org, name='Frank').first())
         group = ContactGroup.user_groups.filter(org=self.org, name='Joe').first()
-        self.assertEquals(1, group.count)
+        self.assertEquals(1, group.get_member_count())
         self.assertIsNotNone(group.contacts.filter(name='Joe Blow').first())
 
 
@@ -278,24 +279,24 @@ class ContactGroupTest(TembaTest):
         # add contacts via the related field
         group.contacts.add(self.joe, self.frank)
 
-        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 2)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 2)
 
         # add contacts via update_contacts
         group.update_contacts(self.user, [self.mary], add=True)
 
-        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 3)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 3)
 
         # remove contacts via update_contacts
         group.update_contacts(self.user, [self.mary], add=False)
 
-        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 2)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 2)
 
         # add test contact (will add to group but won't increment count)
         test_contact = Contact.get_test_contact(self.admin)
         group.update_contacts(self.user, [test_contact], add=True)
 
         group = ContactGroup.user_groups.get(pk=group.pk)
-        self.assertEquals(group.count, 2)
+        self.assertEquals(group.get_member_count(), 2)
         self.assertEquals(set(group.contacts.all()), {self.joe, self.frank, test_contact})
 
         # blocking a contact removes them from all user groups
@@ -305,19 +306,19 @@ class ContactGroupTest(TembaTest):
             group.update_contacts(self.user, [self.joe], True)
 
         group = ContactGroup.user_groups.get(pk=group.pk)
-        self.assertEquals(group.count, 1)
+        self.assertEquals(group.get_member_count(), 1)
         self.assertEquals(set(group.contacts.all()), {self.frank, test_contact})
 
         # unblocking won't re-add to any groups
         self.joe.unblock(self.user)
 
-        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).count, 1)
+        self.assertEquals(ContactGroup.user_groups.get(pk=group.pk).get_member_count(), 1)
 
         # releasing also removes from all user groups
         self.frank.release(self.user)
 
         group = ContactGroup.user_groups.get(pk=group.pk)
-        self.assertEquals(group.count, 0)
+        self.assertEquals(group.get_member_count(), 0)
         self.assertEquals(set(group.contacts.all()), {test_contact})
 
     def test_system_group_counts(self):
@@ -351,8 +352,20 @@ class ContactGroupTest(TembaTest):
         ba.unfail()
         ba.unfail()
 
+        # squash all our counts, this shouldn't affect our overall counts, but we should now only have 3
+        squash_contactgroupcounts()
+        self.assertEqual(ContactGroupCount.objects.all().count(), 3)
+
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
+
+        # rebuild just our system contact group
+        all_contacts = ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
+        ContactGroupCount.populate_for_group(all_contacts)
+
+        # assert our count is correct
+        self.assertEqual(all_contacts.get_member_count(), 3)
+        self.assertEqual(ContactGroupCount.objects.filter(group=all_contacts).count(), 1)
 
     def test_update_query(self):
         age = ContactField.get_or_create(self.org, self.admin, 'age')

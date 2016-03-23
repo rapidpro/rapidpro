@@ -921,6 +921,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_topupcredits',
         'schedule': timedelta(seconds=300),
     },
+    "squash-contactgroupcounts": {
+        'task': 'squash_contactgroupcounts',
+        'schedule': timedelta(seconds=300),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
