@@ -530,6 +530,12 @@ class ChannelCRUDL(SmartCRUDL):
         """
         def has_permission(self, request, *args, **kwargs):
             org = self.derive_org()
+
+            # can this user break anonymity? then we are fine
+            if self.get_user().has_perm('contacts.contact_break_anon'):
+                return True
+
+            # otherwise if this org is anon, no go
             if not org or org.is_anon:
                 return False
             else:

@@ -324,6 +324,7 @@ PERMISSIONS = {
     'contacts.contact': ('api',
                          'block',
                          'blocked',
+                         'break_anon',
                          'customize',
                          'export',
                          'failed',
@@ -503,6 +504,7 @@ GROUP_PERMISSIONS = {
     "Customer Support": (
         'auth.user_list',
         'auth.user_update',
+        'contacts.contact_break_anon',
         'flows.flow_editor',
         'flows.flow_json',
         'flows.flow_read',

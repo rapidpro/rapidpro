@@ -14,7 +14,7 @@ import uuid
 
 from datetime import timedelta, date
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core import mail
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -2866,6 +2866,11 @@ class ExternalTest(TembaTest):
 
         response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
         self.assertEquals(302, response.status_code)
+
+        # change our admin to be a CS rep, see if they can see the page
+        self.admin.groups.add(Group.objects.get(name='Customer Support'))
+        response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
+        self.assertEquals(response.context['object'].description, 'Successfully delivered')
 
 
 class VerboiceTest(TembaTest):
