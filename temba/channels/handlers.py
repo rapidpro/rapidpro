@@ -1465,7 +1465,7 @@ class JasminHandler(View):
         return super(JasminHandler, self).dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
+        return HttpResponse("Must be called as a POST", status=400)
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
