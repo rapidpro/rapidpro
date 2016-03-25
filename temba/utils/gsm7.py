@@ -260,8 +260,7 @@ def encode(input_, errors='strict'):
                 if errors == 'strict':
                     raise UnicodeError("Invalid GSM character")
                 elif errors == 'replace':
-                    result.append(
-                                def_replace_encode_dict.get(c, QUESTION_MARK))
+                    result.append(def_replace_encode_dict.get(c, QUESTION_MARK))
                 elif errors == 'ignore':
                     pass
                 else:

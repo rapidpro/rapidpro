@@ -1030,7 +1030,6 @@ class Channel(TembaModel):
                                response=response.text,
                                response_status=response.status_code)
 
-
     @classmethod
     def send_kannel_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
