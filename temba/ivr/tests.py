@@ -191,10 +191,8 @@ class IVRTests(FlowFileTest):
         with patch('requests.get') as response:
             response.return_value = MockResponse(200, 'Fake Recording Bits')
             self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
-                                     dict(CallStatus='in-progress',
-                                     Digits='#',
-                                     RecordingUrl='http://api.twilio.com/ASID/Recordings/SID',
-                                     RecordingSid='FAKESID'))
+                             dict(CallStatus='in-progress', Digits='#',
+                                  RecordingUrl='http://api.twilio.com/ASID/Recordings/SID', RecordingSid='FAKESID'))
 
         # now we should have an outbound message
         self.assertEquals('Hi there Eminem', Msg.all_messages.filter(direction='O', contact=eminem).first().text)

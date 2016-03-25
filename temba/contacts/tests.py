@@ -464,8 +464,8 @@ class ContactTest(TembaTest):
 
         # and a message event
         self.message_event = CampaignEvent.create_message_event(self.org, self.admin, self.campaign,
-                                           relative_to=self.planting_date, offset=7, unit='D',
-                                           message='Sent 7 days after planting date')
+                                                                relative_to=self.planting_date, offset=7, unit='D',
+                                                                message='Sent 7 days after planting date')
 
     def test_get_or_create(self):
 
@@ -828,11 +828,11 @@ class ContactTest(TembaTest):
             number = "0788382%s" % str(i).zfill(3)
             twitter = "tweep_%d" % (i + 1)
             contact = self.create_contact(name=name, number=number, twitter=twitter)
+            join_date = datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i), date_format)
 
             # some field data so we can do some querying
             contact.set_field(self.user, 'age', '%s' % i)
-            contact.set_field(self.user, 'join_date', '%s' % datetime_to_str(date(2013, 12, 22) + timezone.timedelta(days=i),
-                                                                  date_format))
+            contact.set_field(self.user, 'join_date', '%s' % join_date)
             contact.set_field(self.user, 'state', "Rwanda")
             index = (i + 2) % len(locations)
             with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
@@ -1060,8 +1060,8 @@ class ContactTest(TembaTest):
             self.assertEquals(dict(id='c-%d' % self.voldemort.pk, text=self.voldemort.anon_identifier), response['results'][5])
 
             # can search by frank id
-            response = json.loads(self.client.get("%s?search=%d" %
-                                        (reverse("contacts.contact_omnibox"), self.frank.pk)).content)
+            response = self.client.get("%s?search=%d" % (reverse("contacts.contact_omnibox"), self.frank.pk))
+            response = json.loads(response.content)
             self.assertEquals(dict(id='c-%d' % self.frank.pk, text="Frank Smith"), response['results'][0])
             self.assertEquals(1, len(response['results']))
 
@@ -1272,8 +1272,9 @@ class ContactTest(TembaTest):
         from temba.campaigns.models import CampaignEvent
         for i in range(5):
             self.message_event = CampaignEvent.create_message_event(self.org, self.admin, self.campaign,
-                                               relative_to=self.planting_date, offset=i+10, unit='D',
-                                               message='Sent %d days after planting date' % (i+10))
+                                                                    relative_to=self.planting_date,
+                                                                    offset=i+10, unit='D',
+                                                                    message='Sent %d days after planting date' % (i+10))
 
         now = timezone.now()
         self.joe.set_field(self.user, 'planting_date', unicode(now + timedelta(days=1)))
@@ -1686,8 +1687,7 @@ class ContactTest(TembaTest):
 
         # add new urn for joe
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
-                                 dict(name='Joey', urn__tel__0="12345",
-                                      new_scheme="ext", new_path="EXT123"))
+                         dict(name='Joey', urn__tel__0="12345", new_scheme="ext", new_path="EXT123"))
 
         urn = ContactURN.objects.filter(contact=self.joe, scheme='ext').first()
         self.assertIsNotNone(urn)
@@ -1695,8 +1695,7 @@ class ContactTest(TembaTest):
 
         # now try adding one that is invalid
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
-                                 dict(name='Joey', urn__tel__0="12345",
-                                      new_scheme="mailto", new_path="malformed"))
+                         dict(name='Joey', urn__tel__0="12345", new_scheme="mailto", new_path="malformed"))
         self.assertIsNone(ContactURN.objects.filter(contact=self.joe, scheme='mailto').first())
 
         # update our language to something not on the org
@@ -1710,8 +1709,7 @@ class ContactTest(TembaTest):
 
         self.assertContains(response, 'French (Missing)')
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
-                                 dict(name='Joey', urn__tel__0="12345",
-                                      new_scheme="mailto", new_path="malformed"))
+                         dict(name='Joey', urn__tel__0="12345", new_scheme="mailto", new_path="malformed"))
 
         # update our contact with some locations
         ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
@@ -1845,18 +1843,16 @@ class ContactTest(TembaTest):
     def test_get_import_file_headers(self):
         with open('%s/test_imports/sample_contacts_with_extra_fields.xls' % settings.MEDIA_ROOT, 'rb') as open_file:
             csv_file = ContentFile(open_file.read())
-            self.assertEqual(Contact.get_org_import_file_headers(csv_file, self.org), ['country', 'district', 'zip code',
-                                                                         'professional status', 'joined', 'vehicle',
-                                                                         'shoes'])
+            headers = ['country', 'district', 'zip code', 'professional status', 'joined', 'vehicle', 'shoes']
+            self.assertEqual(Contact.get_org_import_file_headers(csv_file, self.org), headers)
 
             self.assertFalse('email' in Contact.get_org_import_file_headers(csv_file, self.org))
 
         with open('%s/test_imports/sample_contacts_with_extra_fields_and_empty_headers.xls' % settings.MEDIA_ROOT,
                   'rb') as open_file:
             csv_file = ContentFile(open_file.read())
-            self.assertEqual(Contact.get_org_import_file_headers(csv_file, self.org), ['country', 'district', 'zip code',
-                                                                         'professional status', 'joined', 'vehicle',
-                                                                         'shoes'])
+            headers = ['country', 'district', 'zip code', 'professional status', 'joined', 'vehicle', 'shoes']
+            self.assertEqual(Contact.get_org_import_file_headers(csv_file, self.org), headers)
 
     def test_create_instance(self):
         # can't import contact without a user

@@ -1404,9 +1404,11 @@ class ChannelTest(TembaTest):
 
                         # make sure it is actually connected
                         channel = Channel.objects.get(channel_type='PL', org=self.org)
-                        self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID:'auth-id',
-                                                          PLIVO_AUTH_TOKEN: 'auth-token',
-                                                          PLIVO_APP_ID: 'app-id'})
+                        self.assertEquals(channel.config_json(), {
+                            PLIVO_AUTH_ID: 'auth-id',
+                            PLIVO_AUTH_TOKEN: 'auth-token',
+                            PLIVO_APP_ID: 'app-id'
+                        })
                         self.assertEquals(channel.address, "+16062681440")
                         # no more credential in the session
                         self.assertFalse(PLIVO_AUTH_ID in self.client.session)
@@ -3525,13 +3527,12 @@ class NexmoTest(TembaTest):
                     # on the first call we simulate Nexmo telling us to wait
                     if not called:
                         return_valid.called = True
-                        return MockResponse(200,
-                            json.dumps(dict(messages=[{'status': 1,
-                                       'error-text': 'Throughput Rate Exceeded - please wait [ 250 ] and retry'}])))
+                        err_msg = "Throughput Rate Exceeded - please wait [ 250 ] and retry"
+                        return MockResponse(200, json.dumps(dict(messages=[{'status': 1, 'error-text': err_msg}])))
 
                     # on the second, all is well
                     else:
-                        return MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id':12}])),
+                        return MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id': 12}])),
                                             method='POST')
                 mock.side_effect = return_valid
 
@@ -5374,8 +5375,9 @@ class MageHandlerTest(TembaTest):
         """
         if not contact_urn:
             contact_urn = contact.get_urn(TEL_SCHEME)
-        return Msg.all_messages.create(org=self.org, text=text, direction=INCOMING, created_on=timezone.now(),
-                                  channel=self.channel, contact=contact, contact_urn=contact_urn)
+        return Msg.all_messages.create(org=self.org, text=text,
+                                       direction=INCOMING, created_on=timezone.now(),
+                                       channel=self.channel, contact=contact, contact_urn=contact_urn)
 
     def test_handle_message(self):
         url = reverse('handlers.mage_handler', args=['handle_message'])

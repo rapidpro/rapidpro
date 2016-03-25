@@ -1313,7 +1313,7 @@ class ChannelCRUDL(SmartCRUDL):
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password provided by the provider to use their API"))
             channel = forms.CharField(label=_("Channel Name"),
-                                           help_text=_("The Verboice channel that will be handling your calls"))
+                                      help_text=_("The Verboice channel that will be handling your calls"))
 
         title = _("Connect Verboice")
         channel_type = VERBOICE
@@ -1573,8 +1573,15 @@ class ChannelCRUDL(SmartCRUDL):
 
             # if this is an external channel, build an example URL
             if self.object.channel_type == EXTERNAL:
-                context['example_url'] = Channel.build_send_url(self.object.config_json()[SEND_URL],
-                          {'to': '+250788123123', 'text': "Love is patient. Love is kind", 'from': self.object.address, 'id': '1241244', 'channel': str(self.object.id)})
+                send_url = self.object.config_json()[SEND_URL]
+                example_payload = {
+                    'to': '+250788123123',
+                    'text': "Love is patient. Love is kind",
+                    'from': self.object.address,
+                    'id': '1241244',
+                    'channel': str(self.object.id)
+                }
+                context['example_url'] = Channel.build_send_url(send_url, example_payload)
 
             context['domain'] = settings.HOSTNAME
 

@@ -1,7 +1,11 @@
+from __future__ import unicode_literals
+
 import json
+
 from django.core.urlresolvers import reverse
 from temba.tests import TembaTest
 from .models import STATE_LEVEL
+
 
 class LocationTest(TembaTest):
 
@@ -79,14 +83,26 @@ class LocationTest(TembaTest):
         self.assertEquals('kig\nkigs', response_json[1]['aliases'])
 
         # test nested admin level aliases update
+        geo_data = [
+            dict(
+                osm_id=self.state2.osm_id,
+                aliases="Eastern P",
+                children=[
+                    dict(
+                        osm_id=self.district1.osm_id,
+                        aliases="Gatsibo",
+                        children=[
+                            dict(
+                                osm_id=self.ward1.osm_id,
+                                aliases="Kageyo Gat"
+                            )
+                        ]
+                    )
+                ]
+            )
+        ]
         response = self.client.post(reverse('locations.adminboundary_boundaries', args=[self.country.osm_id]),
-                                    json.dumps(
-                                        [dict(osm_id=self.state2.osm_id, aliases="Eastern P",
-                                              children=[dict(osm_id=self.district1.osm_id,
-                                                                 aliases="Gatsibo",
-                                                             children=[dict(osm_id=self.ward1.osm_id,
-                                                                 aliases="Kageyo Gat")])])]),
-                                    content_type='application/json')
+                                    json.dumps(geo_data), content_type='application/json')
 
         self.assertEquals(200, response.status_code)
 
