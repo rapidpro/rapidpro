@@ -2362,7 +2362,7 @@ class RuleSet(models.Model):
                                help_text=_("The value that rules will be run against, if None defaults to @step.value"))
 
     webhook_url = models.URLField(null=True, blank=True, max_length=255,
-                            help_text=_("The URL that will be called with the user's response before we run our rules"))
+                                  help_text=_("The URL that will be called with the user's response before we run our rules"))
 
     webhook_action = models.CharField(null=True, blank=True, max_length=8, default='POST',
                                       help_text=_('How the webhook should be executed'))
@@ -2437,7 +2437,7 @@ class RuleSet(models.Model):
             for value in Value.objects.filter(ruleset=self, category=label).order_by('rule_uuid').distinct('rule_uuid'):
                 uuid_to_category[value.rule_uuid] = label
 
-        return (ordered_categories, uuid_to_category)
+        return ordered_categories, uuid_to_category
 
     def get_value_type(self):
         """
@@ -4236,8 +4236,7 @@ class PlayAction(Action):
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return PlayAction(json_obj.get(PlayAction.UUID),
-                         json_obj.get(PlayAction.URL))
+        return PlayAction(json_obj.get(PlayAction.UUID), json_obj.get(PlayAction.URL))
 
     def as_json(self):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)

@@ -1573,8 +1573,15 @@ class ChannelCRUDL(SmartCRUDL):
 
             # if this is an external channel, build an example URL
             if self.object.channel_type == EXTERNAL:
-                context['example_url'] = Channel.build_send_url(self.object.config_json()[SEND_URL],
-                          {'to': '+250788123123', 'text': "Love is patient. Love is kind", 'from': self.object.address, 'id': '1241244', 'channel': str(self.object.id)})
+                send_url = self.object.config_json()[SEND_URL]
+                example_payload = {
+                    'to': '+250788123123',
+                    'text': "Love is patient. Love is kind",
+                    'from': self.object.address,
+                    'id': '1241244',
+                    'channel': str(self.object.id)
+                }
+                context['example_url'] = Channel.build_send_url(send_url, example_payload)
 
             context['domain'] = settings.HOSTNAME
 

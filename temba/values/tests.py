@@ -336,7 +336,7 @@ class ResultTest(FlowFileTest):
             mock.return_value = []
 
             response = self.client.get(reverse('flows.ruleset_choropleth', args=[color.pk]) +
-                                   "?_format=json&boundary=" + self.org.country.osm_id)
+                                       "?_format=json&boundary=" + self.org.country.osm_id)
 
             # response should be valid json
             response = json.loads(response.content)

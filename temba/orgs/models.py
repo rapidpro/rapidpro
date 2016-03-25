@@ -179,7 +179,7 @@ class Org(SmartModel):
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
     webhook = models.TextField(null=True, verbose_name=_("Webhook"),
-                              help_text=_("Webhook endpoint and configuration"))
+                               help_text=_("Webhook endpoint and configuration"))
 
     webhook_events = models.IntegerField(default=0, verbose_name=_("Webhook Events"),
                                          help_text=_("Which type of actions will trigger webhook events."))
@@ -194,13 +194,15 @@ class Org(SmartModel):
     config = models.TextField(null=True, verbose_name=_("Configuration"),
                               help_text=_("More Organization specific configuration"))
 
-    slug = models.SlugField(verbose_name=_("Slug"), max_length=255, null=True, blank=True, unique=True, error_messages=dict(unique=_("This slug is not available")))
+    slug = models.SlugField(verbose_name=_("Slug"), max_length=255, null=True, blank=True, unique=True,
+                            error_messages=dict(unique=_("This slug is not available")))
 
     is_anon = models.BooleanField(default=False,
                                   help_text=_("Whether this organization anonymizes the phone numbers of contacts within it"))
 
     primary_language = models.ForeignKey('orgs.Language', null=True, blank=True, related_name='orgs',
-                                         help_text=_('The primary language will be used for contacts with no language preference.'), on_delete=models.SET_NULL)
+                                         help_text=_('The primary language will be used for contacts with no language preference.'),
+                                         on_delete=models.SET_NULL)
 
     brand = models.CharField(max_length=128, default=settings.DEFAULT_BRAND, verbose_name=_("Brand"),
                              help_text=_("The brand used in emails"))

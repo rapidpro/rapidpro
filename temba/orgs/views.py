@@ -822,9 +822,9 @@ class OrgCRUDL(SmartCRUDL):
 
             if org.is_suspended():
                 links.append(dict(title=_('Restore'),
-                              style='btn-secondary',
-                              posterize=True,
-                              href='%s?status=restored' % reverse("orgs.org_update", args=[org.pk])))
+                                  style='btn-secondary',
+                                  posterize=True,
+                                  href='%s?status=restored' % reverse("orgs.org_update", args=[org.pk])))
             else:
                 links.append(dict(title=_('Suspend'),
                                   style='btn-secondary',
@@ -1579,9 +1579,11 @@ class OrgCRUDL(SmartCRUDL):
     class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class CountryForm(forms.ModelForm):
-            country = forms.ModelChoiceField(Org.get_possible_countries(), required=False,
-                                      label=_("The country used for location values. (optional)"),
-                                      help_text="State and district names will be searched against this country.")
+            country = forms.ModelChoiceField(
+                Org.get_possible_countries(), required=False,
+                label=_("The country used for location values. (optional)"),
+                help_text="State and district names will be searched against this country."
+            )
 
             class Meta:
                 model = Org
@@ -1597,8 +1599,14 @@ class OrgCRUDL(SmartCRUDL):
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class LanguagesForm(forms.ModelForm):
-            primary_lang = forms.CharField(required=False, label=_('Primary Language'), help_text=_('The primary language will be used for contacts with no language preference.'))
-            languages = forms.CharField(required=False, label=_('Additional Languages'), help_text=('Add any other languages you would like to provide translations for.'))
+            primary_lang = forms.CharField(
+                required=False, label=_('Primary Language'),
+                help_text=_('The primary language will be used for contacts with no language preference.')
+            )
+            languages = forms.CharField(
+                required=False, label=_('Additional Languages'),
+                help_text=_('Add any other languages you would like to provide translations for.')
+            )
 
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']

@@ -380,8 +380,7 @@ class Channel(TembaModel):
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
         try:
-            client.update_number(country, phone_number,
-                               'http://%s%s' % (TEMBA_HOST, mo_path))
+            client.update_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path))
 
         except Exception as e:
             # shortcodes don't seem to claim right on nexmo, move forward anyways

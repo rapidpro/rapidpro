@@ -730,7 +730,7 @@ class Msg(models.Model):
         """
         one_week_ago = timezone.now() - timedelta(days=7)
         failed_messages = Msg.current_messages.filter(created_on__lte=one_week_ago, direction=OUTGOING,
-                                             status__in=[QUEUED, PENDING, ERRORED])
+                                                      status__in=[QUEUED, PENDING, ERRORED])
 
         failed_broadcasts = list(failed_messages.order_by('broadcast').values('broadcast').distinct())
 
@@ -750,8 +750,8 @@ class Msg(models.Model):
 
         if unread_count is None:
             unread_count = Msg.current_messages.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
-                                              contact__is_test=False, created_on__gt=org.msg_last_viewed, labels=None).count()
-
+                                                       contact__is_test=False, created_on__gt=org.msg_last_viewed,
+                                                       labels=None).count()
             cache.set(key, unread_count, 900)
 
         return unread_count
@@ -1676,7 +1676,7 @@ class Label(TembaModel):
             return folder
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
-                                       created_by=user, modified_by=user)
+                                         created_by=user, modified_by=user)
 
     @classmethod
     def get_hierarchy(cls, org):

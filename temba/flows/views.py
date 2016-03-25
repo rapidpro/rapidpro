@@ -503,16 +503,21 @@ class FlowCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
-            keyword_triggers = forms.CharField(required=False, label=_("Global keyword triggers"),
-                                               help_text=_("When a user sends any of these keywords they will begin this flow"))
+            keyword_triggers = forms.CharField(
+                required=False,
+                label=_("Global keyword triggers"),
+                help_text=_("When a user sends any of these keywords they will begin this flow")
+            )
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Update.FlowUpdateForm, self).__init__(*args, **kwargs)
                 self.user = user
 
                 metadata = self.instance.get_metadata_json()
-                flow_triggers = Trigger.objects.filter(org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
-                                                       trigger_type=Trigger.TYPE_KEYWORD).order_by('created_on')
+                flow_triggers = Trigger.objects.filter(
+                    org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
+                    trigger_type=Trigger.TYPE_KEYWORD
+                ).order_by('created_on')
 
                 # if we don't have a base language let them pick one (this is immutable)
                 if not self.instance.base_language:
@@ -521,11 +526,15 @@ class FlowCRUDL(SmartCRUDL):
                     self.fields['base_language'] = forms.ChoiceField(label=_('Language'), choices=choices)
 
                 if self.instance.flow_type == Flow.SURVEY:
-                    contact_creation = forms.ChoiceField(label=_('Create a contact '),
-                                                       initial=metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN),
-                                                       help_text=_("Whether surveyor logins should be used as the contact for each run"),
-                                                       choices=((Flow.CONTACT_PER_RUN, _('For each run')),
-                                                                (Flow.CONTACT_PER_LOGIN, _('For each login'))))
+                    contact_creation = forms.ChoiceField(
+                        label=_('Create a contact '),
+                        initial=metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN),
+                        help_text=_("Whether surveyor logins should be used as the contact for each run"),
+                        choices=(
+                            (Flow.CONTACT_PER_RUN, _('For each run')),
+                            (Flow.CONTACT_PER_LOGIN, _('For each login'))
+                        )
+                    )
 
                     self.fields[Flow.CONTACT_CREATION] = contact_creation
 
