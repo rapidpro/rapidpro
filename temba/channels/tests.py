@@ -5774,3 +5774,108 @@ class ChikkaTest(TembaTest):
 
         finally:
             settings.SEND_MESSAGES = False
+
+
+class JasminTest(TembaTest):
+
+    def setUp(self):
+        super(JasminTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', 'JS', None, '1234',
+                                      config=dict(username='jasmin-user', password='jasmin-pass', send_url='http://foo/'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def tearDown(self):
+        super(JasminTest, self).tearDown()
+        settings.SEND_MESSAGES = False
+
+    def test_status(self):
+        # ok, what happens with an invalid uuid?
+        data = dict(id="-1", dlvr="0", err="0")
+        response = self.client.post(reverse('handlers.jasmin_handler', args=['status', 'not-real-uuid']), data)
+        self.assertEquals(400, response.status_code)
+
+        # ok, try with a valid uuid, but invalid message id -1
+        delivery_url = reverse('handlers.jasmin_handler', args=['status', self.channel.uuid])
+        response = self.client.post(delivery_url, data)
+        self.assertEquals(400, response.status_code)
+
+        # ok, lets create an outgoing message to update
+        joe = self.create_contact("Joe Biden", "+254788383383")
+        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        sms = broadcast.get_messages()[0]
+        sms.external_id = "jasmin-external-id"
+        sms.save()
+
+        data['id'] = sms.external_id
+
+        def assertStatus(sms, dlvrd, err, assert_status):
+            data['dlvrd'] = dlvrd
+            data['err'] = err
+            response = self.client.post(reverse('handlers.jasmin_handler', args=['status', self.channel.uuid]), data)
+            self.assertEquals(200, response.status_code)
+            sms = Msg.all_messages.get(pk=sms.id)
+            self.assertEquals(assert_status, sms.status)
+
+        assertStatus(sms, 0, 0, WIRED)
+        assertStatus(sms, 1, 0, DELIVERED)
+        assertStatus(sms, 0, 1, FAILED)
+
+    def test_receive(self):
+        from temba.utils import gsm7
+
+        data = {'to': '1234', 'from': '0788383383',
+                'coding': '0', 'content': gsm7.encode("événement")[0], 'id':'external1'}
+        callback_url = reverse('handlers.jasmin_handler', args=['receive', self.channel.uuid])
+        response = self.client.post(callback_url, data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, "ACK/Jasmin")
+
+        # load our message
+        sms = Msg.all_messages.get()
+        self.assertEquals("+250788383383", sms.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, sms.direction)
+        self.assertEquals(self.org, sms.org)
+        self.assertEquals(self.channel, sms.channel)
+        self.assertEquals("événement", sms.text)
+
+    def test_send(self):
+        from temba.utils import gsm7
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("événement", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(200, 'Success "07033084-5cfd-4812-90a4-e4d24ffb6e3d"')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message is now sent
+            msg = bcast.get_messages()[0]
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, '07033084-5cfd-4812-90a4-e4d24ffb6e3d')
+
+            # assert we were properly encoded
+            self.assertEqual(mock.call_args[1]['params']['content'], gsm7.encode('événement')[0])
+
+            self.clear_cache()
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(412, 'Error “No route found”')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message now errored
+            msg = bcast.get_messages()[0]
+            self.assertEquals(ERRORED, msg.status)
+
