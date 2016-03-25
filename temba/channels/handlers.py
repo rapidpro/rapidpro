@@ -1511,7 +1511,6 @@ class JasminHandler(View):
                                     status=400)
 
             # if we are GSM7 coded, decode it
-            import pdb; pdb.set_trace()
             content = request.POST['content']
             if request.POST['coding'] == '0':
                 content = gsm7.decode(request.POST['content'], 'replace')[0]
