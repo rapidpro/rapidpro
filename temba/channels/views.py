@@ -35,7 +35,7 @@ from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
 from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
-from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
+from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
 from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN, CHIKKA
@@ -521,7 +521,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
-               'claim_twilio_messaging_service', 'claim_zenvia')
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1194,7 +1194,8 @@ class ChannelCRUDL(SmartCRUDL):
             self.object = Channel.add_authenticated_external_channel(org, self.request.user,
                                                                      self.get_submitted_country(data),
                                                                      data['number'], data['username'],
-                                                                     data['password'], self.channel_type)
+                                                                     data['password'], self.channel_type,
+                                                                     data.get('url'))
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()
@@ -1220,6 +1221,24 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimM3tech(ClaimAuthenticatedExternal):
         title = _("Connect M3 Tech")
         channel_type = M3TECH
+
+    class ClaimJasmin(ClaimAuthenticatedExternal):
+        class JasminForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
+                                     help_text=_("The short code or phone number you are connecting."))
+            url = forms.URLField(label=_("URL"),
+                                 help_text=_("The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"))
+            username = forms.CharField(label=_("Username"),
+                                       help_text=_("The username to be used to authenticate to Jasmin"))
+            password = forms.CharField(label=_("Password"),
+                                       help_text=_("The password to be used to authenticate to Jasmin"))
+
+        title = _("Connect Jasmin")
+        channel_type = JASMIN
+        form_class = JasminForm
+        fields = ('country', 'number', 'url', 'username', 'password')
 
     class ClaimChikka(ClaimAuthenticatedExternal):
         class ChikkaForm(forms.Form):
