@@ -370,9 +370,10 @@ class Channel(TembaModel):
             try:
                 client.buy_number(country, phone_number)
             except Exception as e:
-                    raise Exception(_("There was a problem claiming that number, please check the balance on your account. " +
-                                      "Note that you can only claim numbers after adding credit to your Nexmo account.") + "\n" +
-                                      str(e))
+                raise Exception(_("There was a problem claiming that number, "
+                                  "please check the balance on your account. " +
+                                  "Note that you can only claim numbers after "
+                                  "adding credit to your Nexmo account.") + "\n" + str(e))
 
         mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
 
@@ -2120,10 +2121,11 @@ class Channel(TembaModel):
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
 
-        pending = Msg.current_messages.filter(org=org, direction=OUTGOING)\
-                             .filter(Q(status=PENDING) |
-                                     Q(status=QUEUED, queued_on__lte=hours_ago) |
-                                     Q(status=ERRORED, next_attempt__lte=now)).exclude(channel__channel_type=ANDROID)
+        pending = Msg.current_messages.filter(org=org, direction=OUTGOING)
+        pending = pending.filter(Q(status=PENDING) |
+                                 Q(status=QUEUED, queued_on__lte=hours_ago) |
+                                 Q(status=ERRORED, next_attempt__lte=now))
+        pending = pending.exclude(channel__channel_type=ANDROID)
 
         # only SMS'es that have a topup and aren't the test contact
         pending = pending.exclude(topup=None).exclude(contact__is_test=True)

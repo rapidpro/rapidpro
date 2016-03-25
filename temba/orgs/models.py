@@ -967,10 +967,9 @@ class Org(SmartModel):
         active_credits = active_credits if active_credits else 0
 
         # these are the credits that have been used in expired topups
-        expired_credits = TopUpCredits.objects.filter(topup__org=self,
-                                                      topup__is_active=True,
-                                                      topup__expires_on__lte=timezone.now())\
-                                               .aggregate(Sum('used')).get('used__sum')
+        expired_credits = TopUpCredits.objects.filter(
+            topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now()
+        ).aggregate(Sum('used')).get('used__sum')
 
         expired_credits = expired_credits if expired_credits else 0
 

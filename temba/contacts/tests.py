@@ -1686,8 +1686,7 @@ class ContactTest(TembaTest):
 
         # add new urn for joe
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
-                                 dict(name='Joey', urn__tel__0="12345",
-                                      new_scheme="ext", new_path="EXT123"))
+                         dict(name='Joey', urn__tel__0="12345", new_scheme="ext", new_path="EXT123"))
 
         urn = ContactURN.objects.filter(contact=self.joe, scheme='ext').first()
         self.assertIsNotNone(urn)
@@ -1695,8 +1694,7 @@ class ContactTest(TembaTest):
 
         # now try adding one that is invalid
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
-                                 dict(name='Joey', urn__tel__0="12345",
-                                      new_scheme="mailto", new_path="malformed"))
+                         dict(name='Joey', urn__tel__0="12345", new_scheme="mailto", new_path="malformed"))
         self.assertIsNone(ContactURN.objects.filter(contact=self.joe, scheme='mailto').first())
 
         # update our language to something not on the org
@@ -1710,8 +1708,7 @@ class ContactTest(TembaTest):
 
         self.assertContains(response, 'French (Missing)')
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]),
-                                 dict(name='Joey', urn__tel__0="12345",
-                                      new_scheme="mailto", new_path="malformed"))
+                         dict(name='Joey', urn__tel__0="12345", new_scheme="mailto", new_path="malformed"))
 
         # update our contact with some locations
         ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')

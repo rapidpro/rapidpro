@@ -1,9 +1,10 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import logging
 import plivo
 import regex
-import logging
+import six
 
 from collections import OrderedDict
 from datetime import datetime
@@ -154,8 +155,8 @@ class ModalMixin(SmartFormView):
         if 'success_url' in kwargs:  # pragma: no cover
             context['success_url'] = kwargs['success_url']
 
-        context['action_url'] = self.request.path + "?" + \
-                                "&".join(urlquote(_) + "=" + urlquote(self.request.REQUEST[_]) for _ in self.request.REQUEST.keys() if _ != '_')
+        pairs = [urlquote(k) + "=" + urlquote(v) for k, v in six.iteritems(self.request.REQUEST) if k != '_']
+        context['action_url'] = self.request.path + "?" + ("&".join(pairs))
 
         return context
 

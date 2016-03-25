@@ -293,8 +293,9 @@ class RuleCRUDL(SmartCRUDL):
                 if request_report:
                     current_report = json.dumps(request_report.as_json())
 
-            org_supports_map = org.country and org.contactfields.filter(value_type=Value.TYPE_STATE).first() and \
-                               org.contactfields.filter(value_type=Value.TYPE_DISTRICT).first()
+            state_fields = org.contactfields.filter(value_type=Value.TYPE_STATE)
+            district_fields = org.contactfields.filter(value_type=Value.TYPE_DISTRICT)
+            org_supports_map = org.country and state_fields.first() and district_fields.first()
 
             return dict(flows=json.dumps(flow_json, default=dthandler), org_supports_map=org_supports_map,
                         groups=json.dumps(groups_json), reports=json.dumps(reports_json), current_report=current_report)

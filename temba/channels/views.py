@@ -1313,7 +1313,7 @@ class ChannelCRUDL(SmartCRUDL):
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password provided by the provider to use their API"))
             channel = forms.CharField(label=_("Channel Name"),
-                                           help_text=_("The Verboice channel that will be handling your calls"))
+                                      help_text=_("The Verboice channel that will be handling your calls"))
 
         title = _("Connect Verboice")
         channel_type = VERBOICE

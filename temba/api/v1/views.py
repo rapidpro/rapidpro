@@ -1514,9 +1514,9 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
                           dict(name='group_uuids', required=False,
                                help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
                           dict(name='after', required=False,
-                                help="only contacts which have changed on this date or after.  ex: 2012-01-28T18:00:00.000"),
+                               help="only contacts which have changed on this date or after.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='before', required=False,
-                                help="only contacts which have changed on this date or before. ex: 2012-01-28T18:00:00.000")]
+                               help="only contacts which have changed on this date or before. ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
@@ -2395,13 +2395,13 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
                     request="after=2013-01-01T00:00:00.000")
 
         spec['fields'] = [dict(name='uuid', required=False,
-                                help="One or more event UUIDs to filter by. (repeatable) ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfabc"),
+                               help="One or more event UUIDs to filter by. (repeatable) ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfabc"),
                           dict(name='campaign_uuid', required=False,
-                                help="One or more campaign UUIDs to filter by. (repeatable) ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                               help="One or more campaign UUIDs to filter by. (repeatable) ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
                           dict(name='before', required=False,
-                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                               help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
-                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000")]
+                               help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000")]
         return spec
 
     @classmethod
