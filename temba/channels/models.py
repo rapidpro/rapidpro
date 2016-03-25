@@ -973,7 +973,7 @@ class Channel(TembaModel):
         from temba.utils import gsm7
 
         # build our callback dlr url, jasmin will call this when our message is sent or delivered
-        dlr_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.kannel_handler', args=['status', channel.uuid]))
+        dlr_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.jasmin_handler', args=['status', channel.uuid]))
 
         # encode to GSM7
         encoded = gsm7.encode(text, 'replace')[0]
