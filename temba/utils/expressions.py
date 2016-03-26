@@ -257,34 +257,3 @@ def convert_equals_style(expression):
         expression = '(%s)' % expression
 
     return expression
-
-
-#
-# TESTING...
-#
-def test():
-    from django.db.models import Q
-    from temba.msgs.models import Broadcast
-    from temba.flows.models import FlowVersion, CURRENT_EXPORT_VERSION
-
-    #print "Flow definitions..."
-
-    #for flow_version in FlowVersion.objects.filter(version_number=CURRENT_EXPORT_VERSION):
-    #    json_flow = flow_version.get_definition_json()
-    #    migrate_flow_definition(json_flow)
-
-    print "Broadcasts..."
-
-    migrations = []
-    for broadcast in Broadcast.objects.filter(Q(text__contains='|') | Q(text__contains='=')):
-        migrated = migrate_template(broadcast.text)
-        if migrated != broadcast.text:
-            migrations.append((broadcast.text, migrated))
-
-    import unicodecsv
-    with open('expression_migrations.csv', 'wb') as csvfile:
-        writer = unicodecsv.writer(csvfile)
-        for m in migrations:
-            writer.writerow(m)
-
-    print 'Migrated %d broadcasts' % len(migrations)

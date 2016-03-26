@@ -118,6 +118,11 @@ class ContactFieldReadSerializer(ReadSerializer):
 
 
 class ContactGroupReadSerializer(ReadSerializer):
+    count = serializers.SerializerMethodField()
+
+    def get_count(self, obj):
+        return obj.get_member_count()
+
     class Meta:
         model = ContactGroup
         fields = ('uuid', 'name', 'count')

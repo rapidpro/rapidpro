@@ -324,6 +324,7 @@ PERMISSIONS = {
     'contacts.contact': ('api',
                          'block',
                          'blocked',
+                         'break_anon',
                          'customize',
                          'export',
                          'failed',
@@ -390,6 +391,7 @@ PERMISSIONS = {
                          'claim_high_connection',
                          'claim_hub9',
                          'claim_infobip',
+                         'claim_jasmin',
                          'claim_kannel',
                          'claim_m3tech',
                          'claim_nexmo',
@@ -503,6 +505,7 @@ GROUP_PERMISSIONS = {
     "Customer Support": (
         'auth.user_list',
         'auth.user_update',
+        'contacts.contact_break_anon',
         'flows.flow_editor',
         'flows.flow_json',
         'flows.flow_read',
@@ -586,6 +589,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
+        'channels.channel_claim_jasmin',
         'channels.channel_claim_kannel',
         'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
@@ -702,6 +706,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
+        'channels.channel_claim_jasmin',
         'channels.channel_claim_kannel',
         'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
@@ -919,6 +924,10 @@ CELERYBEAT_SCHEDULE = {
     },
     "squash-topupcredits": {
         'task': 'squash_topupcredits',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-contactgroupcounts": {
+        'task': 'squash_contactgroupcounts',
         'schedule': timedelta(seconds=300),
     },
 }

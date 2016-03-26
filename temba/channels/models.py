@@ -9,6 +9,7 @@ import plivo
 import regex
 import requests
 import telegram
+import re
 
 from enum import Enum
 from datetime import timedelta
@@ -65,6 +66,7 @@ START = 'ST'
 TWILIO_MESSAGING_SERVICE = 'TMS'
 TELEGRAM = 'TG'
 CHIKKA = 'CK'
+JASMIN = 'JS'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -106,6 +108,7 @@ CHANNEL_SETTINGS = {
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),
+    JASMIN: dict(scheme='tel', max_length=1600),
     KANNEL: dict(scheme='tel', max_length=1600),
     M3TECH: dict(scheme='tel', max_length=160),
     NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
@@ -156,6 +159,7 @@ class Channel(TembaModel):
                     (VERBOICE, "Verboice"),
                     (HUB9, "Hub9"),
                     (VUMI, "Vumi"),
+                    (JASMIN, "Jasmin"),
                     (KANNEL, "Kannel"),
                     (EXTERNAL, "External"),
                     (TWITTER, "Twitter"),
@@ -282,7 +286,8 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
-    def add_authenticated_external_channel(cls, org, user, country, phone_number, username, password, channel_type):
+    def add_authenticated_external_channel(cls, org, user, country, phone_number,
+                                           username, password, channel_type, url):
         try:
             parsed = phonenumbers.parse(phone_number, None)
             phone = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
@@ -290,7 +295,7 @@ class Channel(TembaModel):
             # this is a shortcode, just use it plain
             phone = phone_number
 
-        config = dict(username=username, password=password)
+        config = dict(username=username, password=password, send_url=url)
         return Channel.create(org, user, country, channel_type, name=phone, address=phone_number, config=config)
 
     @classmethod
@@ -370,17 +375,17 @@ class Channel(TembaModel):
             try:
                 client.buy_number(country, phone_number)
             except Exception as e:
-                    raise Exception(_("There was a problem claiming that number, please check the balance on your account. " +
-                                      "Note that you can only claim numbers after adding credit to your Nexmo account.") + "\n" +
-                                      str(e))
+                raise Exception(_("There was a problem claiming that number, "
+                                  "please check the balance on your account. " +
+                                  "Note that you can only claim numbers after "
+                                  "adding credit to your Nexmo account.") + "\n" + str(e))
 
         mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
 
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
         try:
-            client.update_number(country, phone_number,
-                               'http://%s%s' % (TEMBA_HOST, mo_path))
+            client.update_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path))
 
         except Exception as e:
             # shortcodes don't seem to claim right on nexmo, move forward anyways
@@ -404,7 +409,7 @@ class Channel(TembaModel):
     def add_twilio_channel(cls, org, user, phone_number, country):
         client = org.get_twilio_client()
         twilio_phones = client.phone_numbers.list(phone_number=phone_number)
-        
+
         config = org.config_json()
         application_sid = config.get(APPLICATION_SID)
 
@@ -789,11 +794,11 @@ class Channel(TembaModel):
 
         # ignore really recent unsent messages
         messages = messages.exclude(created_on__gt=timezone.now() - timedelta(hours=1))
-        
+
         # if there is one message successfully sent ignore also all message created before it was sent
         if latest_sent_message:
             messages = messages.exclude(created_on__lt=latest_sent_message.sent_on)
-        
+
         return messages
 
     def get_recent_syncs(self):
@@ -961,6 +966,69 @@ class Channel(TembaModel):
             url = url.replace("{{%s}}" % key, quote_plus(unicode(variables[key]).encode('utf-8')))
 
         return url
+
+    @classmethod
+    def send_jasmin_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+        from temba.utils import gsm7
+
+        # build our callback dlr url, jasmin will call this when our message is sent or delivered
+        dlr_url = 'https://%s%s' % (settings.HOSTNAME, reverse('handlers.jasmin_handler', args=['status', channel.uuid]))
+
+        # encode to GSM7
+        encoded = gsm7.encode(text, 'replace')[0]
+
+        # build our payload
+        payload = dict()
+        payload['from'] = channel.address.lstrip('+')
+        payload['to'] = msg.urn_path.lstrip('+')
+        payload['username'] = channel.config[USERNAME]
+        payload['password'] = channel.config[PASSWORD]
+        payload['dlr'] = dlr_url
+        payload['dlr-level'] = '2'
+        payload['dlr-method'] = 'POST'
+        payload['coding'] = '0'
+        payload['content'] = encoded
+
+        log_payload = payload.copy()
+        log_payload['password'] = 'x' * len(log_payload['password'])
+
+        log_url = channel.config[SEND_URL] + "?" + urlencode(log_payload)
+        start = time.time()
+
+        try:
+            response = requests.get(channel.config[SEND_URL], verify=True, params=payload, timeout=15)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='GET',
+                                url=log_url,
+                                request="",
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from Jasmin" % response.status_code,
+                                method='GET',
+                                url=log_url,
+                                request="",
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # save the external id, response should be in format:
+        # Success "07033084-5cfd-4812-90a4-e4d24ffb6e3d"
+        external_id = None
+        match = re.match(r"Success \"(.*)\"", response.text)
+        if match:
+            external_id = match.group(1)
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='GET',
+                               url=log_url,
+                               response=response.text,
+                               response_status=response.status_code)
 
     @classmethod
     def send_kannel_message(cls, channel, msg, text):
@@ -2120,10 +2188,11 @@ class Channel(TembaModel):
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
 
-        pending = Msg.current_messages.filter(org=org, direction=OUTGOING)\
-                             .filter(Q(status=PENDING) |
-                                     Q(status=QUEUED, queued_on__lte=hours_ago) |
-                                     Q(status=ERRORED, next_attempt__lte=now)).exclude(channel__channel_type=ANDROID)
+        pending = Msg.current_messages.filter(org=org, direction=OUTGOING)
+        pending = pending.filter(Q(status=PENDING) |
+                                 Q(status=QUEUED, queued_on__lte=hours_ago) |
+                                 Q(status=ERRORED, next_attempt__lte=now))
+        pending = pending.exclude(channel__channel_type=ANDROID)
 
         # only SMS'es that have a topup and aren't the test contact
         pending = pending.exclude(topup=None).exclude(contact__is_test=True)
@@ -2166,6 +2235,7 @@ class Channel(TembaModel):
                       EXTERNAL: Channel.send_external_message,
                       HUB9: Channel.send_hub9_message,
                       INFOBIP: Channel.send_infobip_message,
+                      JASMIN: Channel.send_jasmin_message,
                       KANNEL: Channel.send_kannel_message,
                       NEXMO: Channel.send_nexmo_message,
                       TWILIO: Channel.send_twilio_message,
@@ -2541,7 +2611,7 @@ def pre_save(sender, instance, **kwargs):
             td = (timezone.now() - last_sync_event.created_on)
             last_sync_event.lifetime = td.seconds + td.days * 24 * 3600
             last_sync_event.save()
-    
+
 
 ALERT_DISCONNECTED = 'D'
 ALERT_POWER = 'P'

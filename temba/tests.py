@@ -464,8 +464,8 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
     @classmethod
     def tearDownClass(cls):
         pass
-        #cls.driver.quit()
-        #super(BrowserTest, cls).tearDownClass()
+        # cls.driver.quit()
+        # super(BrowserTest, cls).tearDownClass()
 
     def strip_tags(self, html):
         s = MLStripper()
@@ -528,8 +528,6 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         element = self.get_element(selector)
         if text not in (self.strip_tags(element.text) if strip_html else element.text):
             self.fail("Couldn't find '%s' in  '%s'" % (text, element.text))
-
-    #def flow_basics(self):
 
     def browser(self):
 

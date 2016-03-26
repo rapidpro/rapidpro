@@ -481,13 +481,14 @@ class MsgCRUDL(SmartCRUDL):
                 export_sms_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-                    messages.info(self.request, _("We are preparing your export. ") +
-                                                _("We will e-mail you at %s when it is ready.") % self.request.user.username)
+                    messages.info(self.request, _("We are preparing your export. We will e-mail you at %s when "
+                                                  "it is ready.") % self.request.user.username)
 
                 else:
                     export = ExportMessagesTask.objects.get(id=export.pk)
                     dl_url = reverse('assets.download', kwargs=dict(type='message_export', pk=export.pk))
-                    messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
+                    messages.info(self.request, _("Export complete, you can find it here: %s (production users "
+                                                  "will get an email)") % dl_url)
 
             try:
                 messages.success(self.request, self.derive_success_message())

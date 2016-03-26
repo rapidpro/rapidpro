@@ -117,8 +117,10 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             text = '%s %d' % (base_text, m + 1)
             contact = contacts[m % len(contacts)]
             contact_urn = contact.urn_objects.values()[0]
-            msg = Msg.all_messages.create(contact=contact, contact_urn=contact_urn, org=self.org, channel=channel, text=text,
-                                     direction=INCOMING, status=PENDING, created_on=date, queued_on=date)
+            msg = Msg.all_messages.create(contact=contact, contact_urn=contact_urn,
+                                          org=self.org, channel=channel,
+                                          text=text, direction=INCOMING, status=PENDING,
+                                          created_on=date, queued_on=date)
             messages.append(msg)
         return messages
 

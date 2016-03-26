@@ -565,40 +565,40 @@ class ExpressionsTest(TembaTest):
 
     def test_evaluate_template_compat(self):
         # test old style expressions, i.e. @ and with filters
-        self.assertEquals(("Hello World Joe Joe", []),
-                          evaluate_template_compat("Hello World @contact.first_name @contact.first_name", self.context))
-        self.assertEquals(("Hello World Joe Blow", []),
-                          evaluate_template_compat("Hello World @contact", self.context))
-        self.assertEquals(("Hello World: Well", []),
-                          evaluate_template_compat("Hello World: @flow.water_source", self.context))
-        self.assertEquals(("Hello World: ", []),
-                          evaluate_template_compat("Hello World: @flow.blank", self.context))
-        self.assertEquals(("Hello اثنين ثلاثة thanks", []),
-                          evaluate_template_compat("Hello @flow.arabic thanks", self.context))
+        self.assertEqual(("Hello World Joe Joe", []),
+                         evaluate_template_compat("Hello World @contact.first_name @contact.first_name", self.context))
+        self.assertEqual(("Hello World Joe Blow", []),
+                         evaluate_template_compat("Hello World @contact", self.context))
+        self.assertEqual(("Hello World: Well", []),
+                         evaluate_template_compat("Hello World: @flow.water_source", self.context))
+        self.assertEqual(("Hello World: ", []),
+                         evaluate_template_compat("Hello World: @flow.blank", self.context))
+        self.assertEqual(("Hello اثنين ثلاثة thanks", []),
+                         evaluate_template_compat("Hello @flow.arabic thanks", self.context))
         self.assertEqual((' %20%3D%26%D8%A8 ', []),
-                          evaluate_template_compat(' @flow.urlstuff ', self.context, True))  # url encoding enabled
-        self.assertEquals(("Hello Joe", []),
-                          evaluate_template_compat("Hello @contact.first_name|notthere", self.context))
-        self.assertEquals(("Hello joe", []),
-                          evaluate_template_compat("Hello @contact.first_name|lower_case", self.context))
-        self.assertEquals(("Hello Joe", []),
-                          evaluate_template_compat("Hello @contact.first_name|lower_case|capitalize", self.context))
-        self.assertEquals(("Hello Joe", []),
-                          evaluate_template_compat("Hello @contact|first_word", self.context))
-        self.assertEquals(("Hello Blow", []),
-                          evaluate_template_compat("Hello @contact|remove_first_word|title_case", self.context))
-        self.assertEquals(("Hello Joe Blow", []),
-                          evaluate_template_compat("Hello @contact|title_case", self.context))
-        self.assertEquals(("Hello JOE", []),
-                          evaluate_template_compat("Hello @contact.first_name|upper_case", self.context))
-        self.assertEquals(("Hello Joe from info@example.com", []),
-                          evaluate_template_compat("Hello @contact.first_name from info@example.com", self.context))
-        self.assertEquals(("Joe", []),
-                          evaluate_template_compat("@contact.first_name", self.context))
-        self.assertEquals(("foo@nicpottier.com", []),
-                          evaluate_template_compat("foo@nicpottier.com", self.context))
-        self.assertEquals(("@nicpottier is on twitter", []),
-                          evaluate_template_compat("@nicpottier is on twitter", self.context))
+                         evaluate_template_compat(' @flow.urlstuff ', self.context, True))  # url encoding enabled
+        self.assertEqual(("Hello Joe", []),
+                         evaluate_template_compat("Hello @contact.first_name|notthere", self.context))
+        self.assertEqual(("Hello joe", []),
+                         evaluate_template_compat("Hello @contact.first_name|lower_case", self.context))
+        self.assertEqual(("Hello Joe", []),
+                         evaluate_template_compat("Hello @contact.first_name|lower_case|capitalize", self.context))
+        self.assertEqual(("Hello Joe", []),
+                         evaluate_template_compat("Hello @contact|first_word", self.context))
+        self.assertEqual(("Hello Blow", []),
+                         evaluate_template_compat("Hello @contact|remove_first_word|title_case", self.context))
+        self.assertEqual(("Hello Joe Blow", []),
+                         evaluate_template_compat("Hello @contact|title_case", self.context))
+        self.assertEqual(("Hello JOE", []),
+                         evaluate_template_compat("Hello @contact.first_name|upper_case", self.context))
+        self.assertEqual(("Hello Joe from info@example.com", []),
+                         evaluate_template_compat("Hello @contact.first_name from info@example.com", self.context))
+        self.assertEqual(("Joe", []),
+                         evaluate_template_compat("@contact.first_name", self.context))
+        self.assertEqual(("foo@nicpottier.com", []),
+                         evaluate_template_compat("foo@nicpottier.com", self.context))
+        self.assertEqual(("@nicpottier is on twitter", []),
+                         evaluate_template_compat("@nicpottier is on twitter", self.context))
 
     def test_migrate_template(self):
         self.assertEqual(migrate_template("Hi @contact.name|upper_case|capitalize from @flow.chw|lower_case"),

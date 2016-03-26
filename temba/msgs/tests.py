@@ -279,7 +279,7 @@ class MsgTest(TembaTest):
         # now send the broadcast so we have messages
         broadcast2.send(trigger_send=False)
         msg4, msg3, msg2 = tuple(Msg.all_messages.filter(broadcast=broadcast2))
-        
+
         response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
@@ -483,7 +483,7 @@ class MsgTest(TembaTest):
 
     def test_flows(self):
         url = reverse('msgs.msg_flow')
-        
+
         msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "test 1", msg_type='F')
 
         # user not in org can't access

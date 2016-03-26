@@ -329,7 +329,7 @@ class APITest(TembaTest):
         developers.update_contacts(self.admin, [self.frank], add=True)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)

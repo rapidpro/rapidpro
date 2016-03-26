@@ -938,7 +938,7 @@ class VumiHandler(View):
                         # cases.
                         #
                         # we can get multiple reports from vumi if they multi-part the message for us
-                        #if sms.status in (WIRED, DELIVERED):
+                        # if sms.status in (WIRED, DELIVERED):
                         #    print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
                         #    Msg.mark_error(get_redis_connection(), channel, sms)
                         pass
@@ -1456,3 +1456,68 @@ class ChikkaHandler(View):
 
         else:
             return HttpResponse("Error, unknown message type", status=400)
+
+
+class JasminHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(JasminHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Must be called as a POST", status=400)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        from temba.channels.models import JASMIN
+        from temba.utils import gsm7
+
+        action = kwargs['action'].lower()
+        request_uuid = kwargs['uuid']
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=JASMIN).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
+
+        # Jasmin is updating the delivery status for a message
+        if action == 'status':
+            if not all(k in request.POST for k in ['id', 'dlvrd', 'err']):
+                return HttpResponse("Missing one of 'id' or 'dlvrd' or 'err' in request parameters.", status=400)
+
+            sms_id = request.POST['id']
+            dlvrd = request.POST['dlvrd']
+            err = request.POST['err']
+
+            # look up the message
+            sms = Msg.current_messages.filter(channel=channel, external_id=sms_id).select_related('channel')
+            if not sms:
+                return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
+
+            if dlvrd == '1':
+                for sms_obj in sms:
+                    sms_obj.status_delivered()
+            elif err == '1':
+                for sms_obj in sms:
+                    sms_obj.fail()
+
+            # tell Jasmin we handled this
+            return HttpResponse('ACK/Jasmin')
+
+        # this is a new incoming message
+        elif action == 'receive':
+            if not all(k in request.POST for k in ['content', 'coding', 'from', 'to', 'id']):
+                return HttpResponse("Missing one of 'content', 'coding', 'from', 'to' or 'id' in request parameters.",
+                                    status=400)
+
+            # if we are GSM7 coded, decode it
+            content = request.POST['content']
+            if request.POST['coding'] == '0':
+                content = gsm7.decode(request.POST['content'], 'replace')[0]
+
+            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.POST['from']), content)
+            Msg.all_messages.filter(pk=sms.id).update(external_id=request.POST['id'])
+            return HttpResponse('ACK/Jasmin')
+
+        else:
+            return HttpResponse("Not handled, unknown action", status=400)

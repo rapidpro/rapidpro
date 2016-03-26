@@ -8,11 +8,12 @@ import regex
 import time
 
 from django.core.files import File
-from django.db import models
-from django.db.models import Count, Max, Q
+from django.db import models, connection
+from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from guardian.utils import get_anonymous_user
+from redis_cache import get_redis_connection
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
@@ -260,11 +261,11 @@ class Contact(TembaModel):
     @classmethod
     def set_simulation(cls, simulation):
         cls.simulation = simulation
-        
+
     @classmethod
     def get_simulation(cls):
         return cls.simulation
-                
+
     @classmethod
     def all(cls):
         simulation = cls.get_simulation()
@@ -776,7 +777,7 @@ class Contact(TembaModel):
             contact.set_field(user, key, value)
 
         return contact
-                
+
     @classmethod
     def prepare_fields(cls, field_dict, import_params=None, user=None):
         if not import_params or 'org_id' not in import_params or 'extra_fields' not in import_params:
@@ -1766,13 +1767,13 @@ class ContactGroup(TembaModel):
         if group_types:
             groups = groups.filter(group_type__in=group_types)
 
-        return {g.group_type: g.count for g in groups}
+        return {g.group_type: g.get_member_count() for g in groups}
 
     def get_member_count(self):
         """
         Returns the number of active and non-test contacts in the group
         """
-        return self.count
+        return ContactGroupCount.contact_count(self)
 
     def release(self):
         """
@@ -1802,6 +1803,66 @@ class ContactGroup(TembaModel):
 
     def __unicode__(self):
         return self.name
+
+class ContactGroupCount(models.Model):
+    """
+    Maintains counts of contact groups. These are calculated via triggers on the database and squashed
+    by a reocurring task.
+    """
+    group = models.ForeignKey(ContactGroup, related_name='counts', db_index=True)
+    count = models.IntegerField(default=0)
+
+    LAST_SQUASH_KEY = 'last_contactgroupcount_squash'
+
+    @classmethod
+    def squash_counts(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(ContactGroupCount.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # get the unique group ids for all new ones
+        start = time.time()
+        squash_count = 0
+        for count in ContactGroupCount.objects.filter(id__gt=last_squash).order_by('group_id').distinct('group_id'):
+            print "Squashing: %d" % count.group_id
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_contactgroupcounts(%s);", (count.group_id,))
+
+            squash_count += 1
+
+        # insert our new top squashed id
+        max_id = ContactGroupCount.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(ContactGroupCount.LAST_SQUASH_KEY, max_id.id)
+
+        print "Squashed group counts for %d groups in %0.3fs" % (squash_count, time.time() - start)
+
+    @classmethod
+    def contact_count(cls, group):
+        count = ContactGroupCount.objects.filter(group=group)
+        count = count.aggregate(Sum('count')).get('count__sum', 0)
+        return 0 if count is None else count
+
+    @classmethod
+    def populate_for_group(cls, group):
+        # remove old ones
+        ContactGroupCount.objects.filter(group=group).delete()
+
+        # get test contacts on this org
+        test_contacts = Contact.objects.filter(org=group.org, is_test=True).values('id')
+
+        # calculate our count for the group
+        count = group.contacts.all().exclude(id__in=test_contacts).count()
+
+        # insert updated count, returning it
+        return ContactGroupCount.objects.create(group=group, count=count)
+
+    def __unicode__(self):
+        return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)
 
 
 class ExportContactsTask(SmartModel):
