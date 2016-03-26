@@ -1,8 +1,12 @@
 from __future__ import absolute_import, unicode_literals
 
+from uuid import uuid4
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
+from django.core.files.storage import default_storage
+from django.conf import settings
 from rest_framework import generics, mixins, pagination, status
+from rest_framework.parsers import MultiPartParser, FormParser, FileUploadParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -550,6 +554,39 @@ class LabelsEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': "uuid", 'required': False, 'help': "A label UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
         }
+
+
+class MediaEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to submit media to embed in flow steps
+
+    ## Creating Media
+
+    By making a ```POST``` request to the endpoint you can add a new media
+    to referrence in your flow runs.
+    """
+    from rest_framework.parsers import MultiPartParser, FormParser
+    parser_classes = (MultiPartParser, FormParser,)
+    permission = 'flows.flow_api'
+
+    def post(self, request, format=None, *args, **kwargs):
+
+        org = self.request.user.get_org()
+
+        media_file = request.data.get('media_file')
+        flow_uuid = request.data.get('flow')
+
+        if media_file:
+            ext = media_file.name.rpartition('.')[2]
+
+            location = default_storage.save('%s/%d/media/%s/%s.%s' %
+                                            (settings.STORAGE_ROOT_DIR, org.pk, flow_uuid,
+                                            uuid4(), ext), media_file)
+
+            location = 'https://%s/%s' % (settings.AWS_BUCKET_DOMAIN, location)
+            return Response(dict(location=location), status=status.HTTP_201_CREATED)
+
+        return Response(dict(), status=status.HTTP_400_BAD_REQUEST)
 
 
 class MessagesEndpoint(ListAPIMixin, BaseAPIView):

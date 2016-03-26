@@ -456,16 +456,18 @@ class Flow(TembaModel):
         # if we've been sent a recording, go grab it
         if media_url:
             url = Flow.download_recording(call, media_url, recording_id)
-            media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
+            media_url = "%s:https://%s/%s" % (Msg.MEDIA_AUDIO, settings.AWS_BUCKET_DOMAIN, url)
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
         if text or media_url:
+
+            # we don't have text for media, so lets use the media value there too
             if media_url:
                 text = media_url
 
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
-                                      text, status=HANDLED, msg_type=IVR, media='%s:%s' % (Msg.MEDIA_AUDIO, media_url))
+                                      text, status=HANDLED, msg_type=IVR, media=media_url)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -539,9 +541,11 @@ class Flow(TembaModel):
         temp.write(recording.content)
         temp.flush()
 
-        print "Fetched recording %s and saved to %s" % (media_url, recording_id)
-        return default_storage.save('recordings/%d/%d/runs/%d/%s.wav' %
-                                    (call.org.pk, run.flow.pk, run.pk, recording_id), File(temp))
+        location = default_storage.save('%s/%d/media/%s/%s.wav' %
+                                        (settings.STORAGE_ROOT_DIR, run.org.pk, run.flow.uuid, uuid4()), File(temp))
+
+        print "Fetched recording %s and saved to %s" % (media_url, location)
+        return location
 
     @classmethod
     def get_unique_name(cls, org, base_name, ignore=None):
@@ -700,7 +704,8 @@ class Flow(TembaModel):
             step.add_message(msg)
 
         if ruleset.ruleset_type in RuleSet.TYPE_MEDIA:
-            value = msg.media
+            # store the media path as the value
+            value = msg.media.split(':', 1)[1]
 
         step.save_rule_match(rule, value)
         ruleset.save_run_value(run, rule, value)
@@ -2988,26 +2993,23 @@ class FlowRun(models.Model):
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
 
-    def create_outgoing_ivr(self, text, media, response_to=None):
+    def create_outgoing_ivr(self, text, recording_url, response_to=None):
 
         # create a Msg object to track what happened
         from temba.msgs.models import DELIVERED, IVR
+
+        media = None
+        if recording_url:
+            media = '%s:%s' % (Msg.MEDIA_AUDIO, recording_url)
+
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
                                   response_to=response_to, media=media,
                                   status=DELIVERED, msg_type=IVR)
 
+        # play a recording or read some text
         if msg:
-
-            # make sure have audio media
-            media_type = None
-            if media:
-                (media_type, media_path) = media.split(':', 1)
-
-            # if so, play it
-            if media_type == Msg.MEDIA_AUDIO and media_path:
-                self.voice_response.play(url=media_path)
-
-            # otherwise, spit some text
+            if recording_url:
+                self.voice_response.play(url=recording_url)
             else:
                 self.voice_response.say(text)
 
@@ -3583,19 +3585,6 @@ class FlowStep(models.Model):
             prev_step.next_uuid = node.uuid
             prev_step.save(update_fields=('left_on', 'next_uuid'))
 
-        def save_media(media_type, encoded):
-
-            temp = NamedTemporaryFile(delete=True)
-            temp.write(media_data.decode('base64'))
-            temp.flush()
-
-            print Msg.MEDIA_EXTS[media_type]
-            url = default_storage.save('media/%d/%d/runs/%d/%s/%s.%s' %
-                                       (run.org.pk, run.flow.pk, run.pk, media_type,
-                                        uuid4(), Msg.MEDIA_EXTS[media_type]), File(temp))
-
-            return "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
-
         # generate the messages for this step
         msgs = []
         if node.is_ruleset():
@@ -3606,20 +3595,15 @@ class FlowStep(models.Model):
 
                     media = None
                     if 'media' in json_obj['rule']:
-                        (media_type, media_data) = json_obj['rule']['media'].split(':', 1)
 
-                        # special case gps, it's not a file
-                        if media_type == Msg.MEDIA_GPS:
-                            media = json_obj['rule']['media']
-                            json_obj['rule']['text'] = media
-                            json_obj['rule']['value'] = media
+                        media = json_obj['rule']['media']
+                        (media_type, url) = media.split(':', 1)
 
-                        # the other media types are base64 encoded files
-                        elif media_type in Msg.MEDIA_TYPES:
-                            url = save_media(media_type, media_data)
-                            media = '%s:%s' % (media_type, url)
-                            json_obj['rule']['text'] = media
-                            json_obj['rule']['value'] = media
+                        # store the non-typed url in the value
+                        json_obj['rule']['value'] = url
+
+                        # store the typed url in the text
+                        json_obj['rule']['text'] = media
 
                     # if we received a message
                     incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],

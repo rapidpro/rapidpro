@@ -4,6 +4,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 
 from django.core.urlresolvers import reverse
+from django.conf import settings
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
@@ -14,6 +15,7 @@ from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
+from uuid import uuid4
 from ..v2.serializers import format_datetime
 
 
@@ -539,6 +541,29 @@ class APITest(TembaTest):
             'date_style': "day_first",
             'anon': False
         })
+
+    def test_media(self):
+        url = reverse('api.v2.media') + '.json'
+
+        self.login(self.admin)
+        flow_uuid = uuid4()
+
+        def assert_media_upload(filename, extension):
+            with open(filename, 'rb') as data:
+                response = self.client.post(url, dict(media_file=data, flow=flow_uuid), HTTP_X_FORWARDED_HTTPS='https')
+                self.assertEqual(response.status_code, 201)
+                location = json.loads(response.content).get('location', None)
+                self.assertIsNotNone(location)
+                starts_with = 'https://%s/%s/%d/media/%s/' % (settings.AWS_BUCKET_DOMAIN, settings.STORAGE_ROOT_DIR,
+                                                              self.org.pk, flow_uuid)
+
+                self.assertEqual(starts_with, location[0:len(starts_with)])
+                self.assertEqual('.%s' % extension, location[-4:])
+
+        assert_media_upload('%s/test_media/steve.marten.jpg' % settings.MEDIA_ROOT, 'jpg')
+        assert_media_upload('%s/test_media/snow.mp4' % settings.MEDIA_ROOT, 'mp4')
+
+        self.clear_storage()
 
     def test_runs(self):
         url = reverse('api.v2.runs')

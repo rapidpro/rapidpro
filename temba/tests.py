@@ -173,7 +173,7 @@ class TembaTest(SmartminTest):
         """
         If a test has written files to storage, it should remove them by calling this
         """
-        shutil.rmtree('media/test_orgs', ignore_errors=True)
+        shutil.rmtree('%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
     def import_file(self, filename, site='http://rapidpro.io', substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)

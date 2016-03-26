@@ -539,7 +539,6 @@ class Msg(models.Model):
     MEDIA_VIDEO = 'video'
 
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
-    MEDIA_EXTS = {MEDIA_AUDIO:'m4a', MEDIA_IMAGE:'jpg', MEDIA_VIDEO:'mp4'}
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))

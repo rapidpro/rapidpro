@@ -299,9 +299,15 @@
             .activity-message {
 
               .activity-body {
+
+                .image-preview {
+                  max-height:60px;
+                }
+
                 .text {
                   display: inline-block;
                 }
+
                 .channel {
                   display:inline-block;
                   font-size:11px;
@@ -535,7 +541,9 @@
       clearTimeout(scheduledRefresh);
       $.get('/contact/history/{{contact.uuid}}/?r=true&rs={{recent_seconds}}', function(data){
           $('.history tr.recent').remove();
-          $('.history').prepend(data);
+          if (data.strip().length > 0) {
+            $('.history').prepend(data);
+          }
           scheduledRefresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
       });
     }

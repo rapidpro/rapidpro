@@ -3,7 +3,7 @@
 -for item in activity
 
 
-  %tr.item{class:'msg_{{item.msg_type}} {% if item.created_on > recent_date%}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
+  %tr.item{data-created:'{{item.created_on|date:"U.u"}}', class:'msg_{{item.msg_type}} {%if item.media|slice:":6" == "video:" %}video{%endif%} {% if item.created_on > recent_date%}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
 
     %td.icon
 
@@ -60,6 +60,40 @@
           %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
             {{eventfire.event|event_time}}
 
+      -elif item.media|slice:':6' == 'image:'
+        .activity-message
+          .activity-body
+            .text
+              <a href="{{item.media|slice:'6:'}}" data-featherlight="image">
+                <img class="image-preview" src="{{item.media|slice:'6:'}}">
+              </a>
+
+      -elif item.media|slice:':6' == 'video:'
+        .activity-message
+          .activity-body
+            <video id="video_{{item.id}}" height="240px" class="video-js vjs-default-skin" controls preload="auto">
+              <source src="{{item.media|slice:'6:'}}" type='video/mp4'/>
+            </video>
+            :javascript
+
+              // keep track of previously initiated players and dispose on reload if necessary
+              if (!window.players) {
+                window.players = []
+              } else {
+                active = []
+                for (idx in window.players) {
+                  var player = window.players[idx];
+                  if (player.id_ == "video_{{item.id}}") {
+                    player.dispose();
+                  } else {
+                    active.push(player);
+                  }
+                }
+                window.players = active;
+              }
+
+              // initialize and push our current video
+              window.players.push(videojs("video_{{item.id}}", {}, function(){}));
 
       -else
         -with item as message
