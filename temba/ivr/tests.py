@@ -10,7 +10,7 @@ from mock import patch
 from temba.channels.models import TWILIO, CALL, ANSWER, SEND
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FAILED, FlowRun, ActionLog, FlowStep
-from temba.msgs.models import Msg, IVR
+from temba.msgs.models import Msg, IVR, INCOMING
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator
 from .models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
 
@@ -85,10 +85,6 @@ class IVRTests(FlowFileTest):
 
         # make sure our file isn't there to start
         run = contact.runs.all().first()
-        recording_file = '%s/recordings/%d/%d/runs/%d/FAKESID.wav' % (settings.MEDIA_ROOT, flow.org.pk, flow.pk, run.pk)
-        if os.path.isfile(recording_file):
-            os.remove(recording_file)
-
         with patch('requests.get') as response:
             response.return_value = MockResponse(200, 'Fake Recording Bits')
             self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
@@ -99,7 +95,6 @@ class IVRTests(FlowFileTest):
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
-        self.assertTrue(os.path.isfile(recording_file))
         self.assertEquals(COMPLETED, call.status)
 
         # twilio will also send us a final completion message with the call duration (status of completed again)
@@ -115,8 +110,14 @@ class IVRTests(FlowFileTest):
         self.assertEquals(4, self.org.get_credits_used())
 
         # we should have played a recording from the contact back to them
-        self.assertTrue(messages[2].media.startswith('audio:https://'))
-        self.assertTrue(messages[2].media.endswith('FAKESID.wav'))
+        media_msg = messages[2]
+        self.assertTrue(media_msg.media.startswith('audio:https://'))
+        self.assertTrue(media_msg.media.endswith('.wav'))
+
+        filename = media_msg.media.rpartition('/')[2]
+        recording = '%s/%s/%s/media/%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR,
+                                              self.org.pk, flow.uuid, filename)
+        self.assertTrue(os.path.isfile(recording))
 
         from temba.flows.models import FlowStep
         steps = FlowStep.objects.all()

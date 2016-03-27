@@ -567,14 +567,6 @@ class APITest(TembaTest):
         ruleset_photo = rulesets[2]
         ruleset_video = rulesets[3]
 
-        steve = None
-        with open("%s/test_media/steve.jpg" % settings.MEDIA_ROOT, "rb") as image_file:
-            steve = base64.b64encode(image_file.read())
-
-        snow = None
-        with open("%s/test_media/snow.mp4" % settings.MEDIA_ROOT, "rb") as video_file:
-            snow = base64.b64encode(video_file.read())
-
         data = dict(flow=flow.uuid,
             revision=1,
             contact=self.joe.uuid,
@@ -602,14 +594,14 @@ class APITest(TembaTest):
                      arrived_on='2015-08-25T11:13:30.000Z',
                      rule=dict(uuid=ruleset_photo.get_rules()[0].uuid,
                                category="All Responses",
-                               media="image:%s" % steve)),
+                               media="image:http://testserver/media/steve.jpg")),
 
                 # a video
                 dict(node=ruleset_video.uuid,
                      arrived_on='2015-08-25T11:13:30.000Z',
                      rule=dict(uuid=ruleset_video.get_rules()[0].uuid,
                                category="All Responses",
-                               media="video:%s" % snow)),
+                               media="video:http://testserver/media/snow.mp4")),
 
             ],
             completed=False)
