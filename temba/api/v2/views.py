@@ -579,9 +579,8 @@ class MediaEndpoint(BaseAPIView):
         if media_file:
             ext = media_file.name.rpartition('.')[2]
 
-            location = default_storage.save('%s/%d/media/%s/%s.%s' %
-                                            (settings.STORAGE_ROOT_DIR, org.pk, flow_uuid,
-                                            uuid4(), ext), media_file)
+            location = default_storage.save('%s/%d/media/%s/%s.%s' % (settings.STORAGE_ROOT_DIR, org.pk,
+                                                                      flow_uuid, uuid4(), ext), media_file)
 
             location = 'https://%s/%s' % (settings.AWS_BUCKET_DOMAIN, location)
             return Response(dict(location=location), status=status.HTTP_201_CREATED)

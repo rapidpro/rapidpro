@@ -567,7 +567,8 @@ class APITest(TembaTest):
         ruleset_photo = rulesets[2]
         ruleset_video = rulesets[3]
 
-        data = dict(flow=flow.uuid,
+        data = dict(
+            flow=flow.uuid,
             revision=1,
             contact=self.joe.uuid,
             started='2015-08-25T11:09:29.088Z',
@@ -602,7 +603,6 @@ class APITest(TembaTest):
                      rule=dict(uuid=ruleset_video.get_rules()[0].uuid,
                                category="All Responses",
                                media="video:http://testserver/media/snow.mp4")),
-
             ],
             completed=False)
 
