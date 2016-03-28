@@ -764,8 +764,8 @@ class Org(SmartModel):
 
                 if not boundary:
                     # still no boundary? try n-gram of 2
-                    for i in range(0, len(words)-1):
-                        bigram = " ".join(words[i:i+2])
+                    for i in range(0, len(words) - 1):
+                        bigram = " ".join(words[i:i + 2])
                         boundary = self.find_boundary_by_name(bigram, level, parent)
                         if boundary:
                             break
@@ -1798,7 +1798,8 @@ class CreditAlert(SmartModel):
         from temba.msgs.models import Msg
 
         # all active orgs in the last hour
-        active_orgs = Msg.current_messages.filter(created_on__gte=timezone.now()-timedelta(hours=1)).order_by('org').distinct('org')
+        active_orgs = Msg.current_messages.filter(created_on__gte=timezone.now() - timedelta(hours=1))
+        active_orgs = active_orgs.order_by('org').distinct('org')
 
         for msg in active_orgs:
             org = msg.org

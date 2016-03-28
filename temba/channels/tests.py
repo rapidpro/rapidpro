@@ -809,7 +809,7 @@ class ChannelTest(TembaTest):
         self.assertEquals('rel', json.loads(response.content)['cmds'][0]['cmd'])
 
         # too old
-        ts = int(time.time()) - 60*16
+        ts = int(time.time()) - 60 * 16
         response = self.client.post("%s?signature=sig&ts=%d" % (reverse('sync', args=[self.tel_channel.pk]), ts), content_type='application/json')
         self.assertEquals(401, response.status_code)
         self.assertEquals(3, json.loads(response.content)['error_id'])

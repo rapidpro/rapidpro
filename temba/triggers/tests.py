@@ -147,7 +147,7 @@ class TriggerTest(TembaTest):
         self.assertNotContains(response, 'Start a flow after receiving a call')
 
         # make our channel support ivr
-        self.channel.role += CALL+ANSWER
+        self.channel.role += CALL + ANSWER
         self.channel.save()
 
         response = self.client.get(reverse('triggers.trigger_create'))
@@ -541,8 +541,8 @@ class TriggerTest(TembaTest):
             post_data = dict(flow=flow.pk)
 
             response = self.client.post(trigger_url, post_data)
-            self.assertEquals(i+2, Trigger.objects.all().count())
-            self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
+            self.assertEqual(i + 2, Trigger.objects.all().count())
+            self.assertEqual(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
 
         # even unarchiving we only have one acive trigger at a time
         triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=True)
@@ -550,7 +550,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['action'] = 'restore'
-        post_data['objects'] = [_.pk for _ in triggers]
+        post_data['objects'] = [t.pk for t in triggers]
 
         response = self.client.post(reverse("triggers.trigger_archived"), post_data)
         self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
