@@ -4031,8 +4031,8 @@ class FlowsTest(FlowFileTest):
     def test_ruleset_loops(self):
         self.import_file('ruleset_loop')
 
-        flow1=Flow.objects.all()[1]
-        flow2=Flow.objects.all()[0]
+        flow1 = Flow.objects.all()[1]
+        flow2 = Flow.objects.all()[0]
 
         # start the flow, should not get into a loop
         flow1.start([], [self.contact])

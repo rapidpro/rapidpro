@@ -439,7 +439,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(TriggerCRUDL.BaseList, self).get_context_data(**kwargs)
             context['org_has_triggers'] = Trigger.objects.filter(org=self.request.user.get_org()).count()
-            context['folders']= self.get_folders()
+            context['folders'] = self.get_folders()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
             return context
@@ -629,7 +629,7 @@ class TriggerCRUDL(SmartCRUDL):
         def pre_save(self, obj, *args, **kwargs):
             obj = super(TriggerCRUDL.InboundCall, self).pre_save(obj, *args, **kwargs)
             obj.org = self.request.user.get_org()
-            obj.trigger_type=Trigger.TYPE_INBOUND_CALL
+            obj.trigger_type = Trigger.TYPE_INBOUND_CALL
             return obj
 
         def get_form_kwargs(self):

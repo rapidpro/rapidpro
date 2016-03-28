@@ -627,8 +627,8 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(FlowCRUDL.BaseList, self).get_context_data(**kwargs)
             context['org_has_flows'] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count()
-            context['folders']= self.get_folders()
-            context['labels']= self.get_flow_labels()
+            context['folders'] = self.get_folders()
+            context['labels'] = self.get_flow_labels()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
             return context
