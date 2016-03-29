@@ -2007,12 +2007,16 @@ class ChannelAlertTest(TembaTest):
         self.assertContains(response, reverse('handlers.external_handler', args=['received', channel.uuid]))
 
         # test substitution in our url
-        self.assertEquals('http://test.com/send.php?from=5080&text=test&to=%2B250788383383',
-                          channel.build_send_url(url, { 'from':"5080", 'text':"test", 'to':"+250788383383" }))
+        self.assertEqual('http://test.com/send.php?from=5080&text=test&to=%2B250788383383',
+                         channel.build_send_url(url, {'from': "5080", 'text': "test", 'to': "+250788383383"}))
 
         # test substitution with unicode
-        self.assertEquals('http://test.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383',
-                          channel.build_send_url(url, { 'from':"5080", 'text':u"Reply “1” for good", 'to':"+250788383383" }))
+        self.assertEqual('http://test.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383',
+                         channel.build_send_url(url, {
+                             'from': "5080",
+                             'text': "Reply “1” for good",
+                             'to': "+250788383383"
+                         }))
 
     def test_clickatell(self):
         from temba.channels.models import CLICKATELL
@@ -4451,7 +4455,7 @@ class TwilioTest(TembaTest):
         post_data['SmsStatus'] = 'sent'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{ 'HTTP_X_TWILIO_SIGNATURE': signature })
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(200, response.status_code)
 
@@ -4468,7 +4472,7 @@ class TwilioTest(TembaTest):
         post_data['SmsStatus'] = 'failed'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{ 'HTTP_X_TWILIO_SIGNATURE': signature })
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(200, response.status_code)
         sms = Msg.all_messages.get()
