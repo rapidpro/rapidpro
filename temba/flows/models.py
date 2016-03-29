@@ -3813,7 +3813,10 @@ class FlowLabel(models.Model):
     class Meta:
         unique_together = ('name', 'parent', 'org')
 
+
 __flow_user = None
+
+
 def get_flow_user():
     global __flow_user
     if not __flow_user:
@@ -3936,6 +3939,7 @@ class EmailAction(Action):
             if invalid_addresses:
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
+
 
 class WebhookAction(Action):
     """
@@ -4083,6 +4087,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
 
+
 class AddLabelAction(Action):
     """
     Add a label to the incoming message
@@ -4221,6 +4226,7 @@ class SayAction(Action):
             # no message, possibly failed loop detection
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
+
 
 class PlayAction(Action):
     """
@@ -4454,6 +4460,7 @@ class TriggerFlowAction(VariableContactAction):
         log_txt = _("Added %d contact(s) to '%s' flow") % (contact_count, flow.name)
         log = ActionLog.create(run, log_txt)
         return log
+
 
 class SetLanguageAction(Action):
     """
@@ -4759,6 +4766,7 @@ class SendAction(VariableContactAction):
         log = ActionLog.create(run, log_txt)
         return log
 
+
 class Rule(object):
 
     def __init__(self, uuid, category, destination, destination_type, test):
@@ -4999,6 +5007,7 @@ class NotEmptyTest(Test):
         if text and len(text.strip()):
             return 1, text
         return 0, None
+
 
 class ContainsTest(Test):
     """

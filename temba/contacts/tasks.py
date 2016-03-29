@@ -1,9 +1,9 @@
 from __future__ import unicode_literals
-from datetime import timedelta
 
+from djcelery_transactions import task
 from redis_cache import get_redis_connection
 from .models import ExportContactsTask, ContactGroupCount
-from djcelery_transactions import task
+
 
 @task(track_started=True, name='export_contacts_task')
 def export_contacts_task(id):
@@ -13,6 +13,7 @@ def export_contacts_task(id):
     export_task = ExportContactsTask.objects.filter(pk=id).first()
     if export_task:
         export_task.start_export()
+
 
 @task(track_started=True, name='squash_contactgroupcounts')
 def squash_contactgroupcounts():

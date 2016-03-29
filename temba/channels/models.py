@@ -143,10 +143,12 @@ YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
 YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
 YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
+
 class Encoding(Enum):
     GSM7 = 1
     REPLACED = 2
     UNICODE = 3
+
 
 class Channel(TembaModel):
     TYPE_CHOICES = ((ANDROID, "Android"),
@@ -2455,6 +2457,7 @@ class ChannelCount(models.Model):
 
     class Meta:
         index_together = ['channel', 'count_type', 'day']
+
 
 class SendException(Exception):
 

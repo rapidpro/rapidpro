@@ -2029,6 +2029,7 @@ class EmailContextProcessorsTest(SmartminTest):
             # we have the domain of rapipro.io brand
             self.assertTrue('app.rapidpro.io' in sent_email.body)
 
+
 class TestStripeCredits(TembaTest):
 
     @patch('stripe.Customer.create')

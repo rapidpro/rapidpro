@@ -317,6 +317,7 @@ def msg_log_cmp(a, b):
         else:
             return 1
 
+
 class PartialTemplate(SmartTemplateView):
 
     def pre_process(self, request, *args, **kwargs):
@@ -325,6 +326,7 @@ class PartialTemplate(SmartTemplateView):
 
     def get_template_names(self):
         return "partials/%s.html" % self.template
+
 
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results',

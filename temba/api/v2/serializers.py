@@ -7,6 +7,7 @@ from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, ARCHIVED, IN
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
+
 def format_datetime(value):
     """
     Datetime fields are formatted with microsecond accuracy for v2

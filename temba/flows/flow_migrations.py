@@ -224,7 +224,9 @@ def migrate_to_version_5(json_flow):
 
     return json_flow
 
-# Helper methods for flow migrations
+
+# ================================ Helper methods for flow migrations ===================================
+
 def remove_extra_rules(json_flow, ruleset):
     """ Remove all rules but the all responses rule """
     rules = []

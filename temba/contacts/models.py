@@ -1804,6 +1804,7 @@ class ContactGroup(TembaModel):
     def __unicode__(self):
         return self.name
 
+
 class ContactGroupCount(models.Model):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
