@@ -1273,8 +1273,8 @@ class ContactTest(TembaTest):
         for i in range(5):
             self.message_event = CampaignEvent.create_message_event(self.org, self.admin, self.campaign,
                                                                     relative_to=self.planting_date,
-                                                                    offset=i+10, unit='D',
-                                                                    message='Sent %d days after planting date' % (i+10))
+                                                                    offset=i + 10, unit='D',
+                                                                    message='Sent %d days after planting date' % (i + 10))
 
         now = timezone.now()
         self.joe.set_field(self.user, 'planting_date', unicode(now + timedelta(days=1)))

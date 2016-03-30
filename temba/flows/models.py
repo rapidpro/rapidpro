@@ -118,10 +118,10 @@ def edit_distance(s1, s2): # pragma: no cover
     lenstr1 = len(s1)
     lenstr2 = len(s2)
 
-    for i in xrange(-1, lenstr1+1):
-        d[(i, -1)] = i+1
-    for j in xrange(-1, lenstr2+1):
-        d[(-1, j)] = j+1
+    for i in xrange(-1, lenstr1 + 1):
+        d[(i, -1)] = i + 1
+    for j in xrange(-1, lenstr2 + 1):
+        d[(-1, j)] = j + 1
 
     for i in xrange(0, lenstr1):
         for j in xrange(0, lenstr2):
@@ -130,14 +130,14 @@ def edit_distance(s1, s2): # pragma: no cover
             else:
                 cost = 1
             d[(i, j)] = min(
-                d[(i-1, j)] + 1,  # deletion
-                d[(i, j-1)] + 1,  # insertion
-                d[(i-1, j-1)] + cost,  # substitution
+                d[(i - 1, j)] + 1,  # deletion
+                d[(i, j - 1)] + 1,  # insertion
+                d[(i - 1, j - 1)] + cost,  # substitution
             )
-            if i > 1 and j > 1 and s1[i] == s2[j-1] and s1[i-1] == s2[j]:
-                d[(i, j)] = min(d[(i, j)], d[i-2, j-2] + cost)  # transposition
+            if i > 1 and j > 1 and s1[i] == s2[j - 1] and s1[i - 1] == s2[j]:
+                d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
 
-    return d[lenstr1-1,lenstr2-1]
+    return d[lenstr1 - 1, lenstr2 - 1]
 
 
 class Flow(TembaModel):
@@ -2821,10 +2821,10 @@ class FlowRun(models.Model):
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if isinstance(fields, (str, unicode)):
-            return fields[:640], count+1
+            return fields[:640], count + 1
 
         elif isinstance(fields, numbers.Number):
-            return fields, count+1
+            return fields, count + 1
 
         elif isinstance(fields, dict):
             count += 1
@@ -2849,7 +2849,7 @@ class FlowRun(models.Model):
             return list_dict, count
 
         else:
-            return unicode(fields), count+1
+            return unicode(fields), count + 1
 
     @classmethod
     def bulk_exit(cls, runs, exit_type, exited_on=None):
@@ -3125,7 +3125,7 @@ class ExportFlowResultsTask(SmartModel):
         # create a mapping of column id to index
         column_map = dict()
         for col in range(len(columns)):
-            column_map[columns[col].uuid] = 6+col*3
+            column_map[columns[col].uuid] = 6 + col * 3
 
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
@@ -3161,7 +3161,7 @@ class ExportFlowResultsTask(SmartModel):
         # the full sheets we need for runs
         for i in range(all_runs_count / max_rows + 1):
             total_run_sheet_count += 1
-            name = "Runs" if (i+1) <= 1 else "Runs (%d)" % (i+1)
+            name = "Runs" if (i + 1) <= 1 else "Runs (%d)" % (i + 1)
             sheet = book.add_sheet(name, cell_overwrite_ok=True)
             run_sheets.append(sheet)
 
@@ -3170,7 +3170,7 @@ class ExportFlowResultsTask(SmartModel):
         # the full sheets we need for contacts
         for i in range(contacts_count / max_rows + 1):
             total_merged_run_sheet_count += 1
-            name = "Contacts" if (i+1) <= 1 else "Contacts (%d)" % (i+1)
+            name = "Contacts" if (i + 1) <= 1 else "Contacts (%d)" % (i + 1)
             sheet = book.add_sheet(name, cell_overwrite_ok=True)
             run_sheets.append(sheet)
 
@@ -3210,12 +3210,12 @@ class ExportFlowResultsTask(SmartModel):
 
             for col in range(len(columns)):
                 ruleset = columns[col]
-                sheet.write(0, index+col*3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, index+col*3+1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, index+col*3+2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.col(index+col*3).width = 15 * 256
-                sheet.col(index+col*3+1).width = 15 * 256
-                sheet.col(index+col*3+2).width = 15 * 256
+                sheet.write(0, index + col * 3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, index + col * 3 + 1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, index + col * 3 + 2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.col(index + col * 3).width = 15 * 256
+                sheet.col(index + col * 3 + 1).width = 15 * 256
+                sheet.col(index + col * 3 + 2).width = 15 * 256
 
         run_row = 0
         merged_row = 0
@@ -3331,15 +3331,15 @@ class ExportFlowResultsTask(SmartModel):
                         merged_runs.write(merged_row, 0, submitted_by)
                         padding = 1
 
-                    runs.write(run_row, padding+0, contact_uuid)
-                    runs.write(run_row, padding+1, contact_urn_display)
-                    runs.write(run_row, padding+2, run_step.contact.name)
-                    runs.write(run_row, padding+3, groups)
+                    runs.write(run_row, padding + 0, contact_uuid)
+                    runs.write(run_row, padding + 1, contact_urn_display)
+                    runs.write(run_row, padding + 2, run_step.contact.name)
+                    runs.write(run_row, padding + 3, groups)
 
-                    merged_runs.write(merged_row, padding+0, contact_uuid)
-                    merged_runs.write(merged_row, padding+1, contact_urn_display)
-                    merged_runs.write(merged_row, padding+2, run_step.contact.name)
-                    merged_runs.write(merged_row, padding+3, groups)
+                    merged_runs.write(merged_row, padding + 0, contact_uuid)
+                    merged_runs.write(merged_row, padding + 1, contact_urn_display)
+                    merged_runs.write(merged_row, padding + 2, run_step.contact.name)
+                    merged_runs.write(merged_row, padding + 3, groups)
 
                 if not latest or latest < run_step.arrived_on:
                     latest = run_step.arrived_on
@@ -3347,11 +3347,11 @@ class ExportFlowResultsTask(SmartModel):
                 if not merged_latest or merged_latest < run_step.arrived_on:
                     merged_latest = run_step.arrived_on
 
-                runs.write(run_row, padding+4, as_org_tz(earliest), date_format)
-                runs.write(run_row, padding+5, as_org_tz(latest), date_format)
+                runs.write(run_row, padding + 4, as_org_tz(earliest), date_format)
+                runs.write(run_row, padding + 5, as_org_tz(latest), date_format)
 
-                merged_runs.write(merged_row, padding+4, as_org_tz(merged_earliest), date_format)
-                merged_runs.write(merged_row, padding+5, as_org_tz(merged_latest), date_format)
+                merged_runs.write(merged_row, padding + 4, as_org_tz(merged_earliest), date_format)
+                merged_runs.write(merged_row, padding + 5, as_org_tz(merged_latest), date_format)
 
                 # write the step data
                 col = column_map.get(run_step.step_uuid, 0) + padding
@@ -3366,13 +3366,13 @@ class ExportFlowResultsTask(SmartModel):
 
                     value = run_step.rule_value
                     if value:
-                        runs.write(run_row, col+1, value)
-                        merged_runs.write(merged_row, col+1, value)
+                        runs.write(run_row, col + 1, value)
+                        merged_runs.write(merged_row, col + 1, value)
 
                     text = run_step.get_text()
                     if text:
-                        runs.write(run_row, col+2, text)
-                        merged_runs.write(merged_row, col+2, text)
+                        runs.write(run_row, col + 2, text)
+                        merged_runs.write(merged_row, col + 2, text)
 
                 last_run = run_step.run.pk
                 last_contact = run_step.contact.pk
@@ -3391,7 +3391,7 @@ class ExportFlowResultsTask(SmartModel):
                     msg_row = 1
                     msg_sheet_index += 1
 
-                    name = "Messages" if (msg_sheet_index+1) <= 1 else "Messages (%d)" % (msg_sheet_index+1)
+                    name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
                     msgs = book.add_sheet(name)
 
                     msgs.write(0, 0, "Contact UUID")

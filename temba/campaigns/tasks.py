@@ -34,7 +34,7 @@ def check_campaigns_task(sched_id=None):
                     logger.error("Error running campaign event: %s" % fire.pk, exc_info=True)
 
 
-@task(track_started=True, name='update_event_fires_task') # pragma: no cover
+@task(track_started=True, name='update_event_fires_task')  # pragma: no cover
 def update_event_fires(event_id):
 
     # get a lock
@@ -52,13 +52,13 @@ def update_event_fires(event_id):
         except Exception as e:  # pragma: no cover
 
             # requeue our task to try again in five minutes
-            update_event_fires(event_id).delay(countdown=60*5)
+            update_event_fires(event_id).delay(countdown=60 * 5)
 
             # bubble up the exception so sentry sees it
             raise e
 
 
-@task(track_started=True, name='update_event_fires_for_campaign_task') # pragma: no cover
+@task(track_started=True, name='update_event_fires_for_campaign_task')  # pragma: no cover
 def update_event_fires_for_campaign(campaign_id):
 
     # get a lock
@@ -76,7 +76,7 @@ def update_event_fires_for_campaign(campaign_id):
         except Exception as e:  # pragma: no cover
 
             # requeue our task to try again in five minutes
-            update_event_fires_for_campaign(campaign_id).delay(countdown=60*5)
+            update_event_fires_for_campaign(campaign_id).delay(countdown=60 * 5)
 
             # bubble up the exception so sentry sees it
             raise e

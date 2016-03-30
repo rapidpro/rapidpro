@@ -157,7 +157,7 @@ class Schedule(SmartModel):
         if self.repeat_days:
             bitmask_number = bin(self.repeat_days)
             for i in range(7):
-                power = bin(pow(2, i+1))
+                power = bin(pow(2, i + 1))
                 if bin(int(bitmask_number, 2) & int(power, 2)) == power:
                     days.append(str(int(power, 2)))
         return days
