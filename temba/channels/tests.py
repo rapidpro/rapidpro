@@ -5947,12 +5947,12 @@ class MbloxTest(TembaTest):
 
     def test_receive(self):
         data = {
-           "id": "OzQ5UqIOdoY8",
-           "from": "12067799294",
-           "to": "18444651185",
-           "body": "MO",
-           "type": "mo_text",
-           "received_at": "2016-03-30T19:33:06.643Z"
+            "id": "OzQ5UqIOdoY8",
+            "from": "12067799294",
+            "to": "18444651185",
+            "body": "MO",
+            "type": "mo_text",
+            "received_at": "2016-03-30T19:33:06.643Z"
         }
         callback_url = reverse('handlers.mblox_handler', args=[self.channel.uuid])
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
