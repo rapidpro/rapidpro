@@ -1521,3 +1521,74 @@ class JasminHandler(View):
 
         else:
             return HttpResponse("Not handled, unknown action", status=400)
+
+
+class MbloxHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(MbloxHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Must be called as a POST", status=400)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        from temba.channels.models import MBLOX
+
+        request_uuid = kwargs['uuid']
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True,
+                                         channel_type=MBLOX).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
+
+        # parse our response
+        try:
+            body = json.loads(request.body)
+        except Exception as e:
+            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
+
+        if 'type' not in body:
+            return HttpResponse("Missing 'type' in request body.", status=400)
+
+        # two possible actions we care about: mo_text and recipient_deliveryreport_sms
+        if body['type'] == 'recipient_delivery_report_sms':
+            if not all(k in body for k in ['batch_id', 'status']):
+                return HttpResponse("Missing one of 'batch_id' or 'status' in request body.", status=400)
+
+            msg_id = body['batch_id']
+            status = body['status']
+
+            # look up the message
+            msgs = Msg.current_messages.filter(channel=channel, external_id=msg_id).select_related('channel')
+            if not msgs:
+                return HttpResponse("Message with external id of '%s' not found" % msg_id, status=400)
+
+            if status == 'Delivered':
+                for msg in msgs:
+                    msg.status_delivered()
+            if status == 'Dispatched':
+                for msg in msgs:
+                    msg.status_sent()
+            elif status in ['Aborted', 'Rejected', 'Failed', 'Expired']:
+                for msg in msgs:
+                    msg.fail()
+
+            # tell Mblox we've handled this
+            return HttpResponse('SMS Updated: %s' % ",".join([str(msg.id) for msg in msgs]))
+
+        # this is a new incoming message
+        elif body['type'] == 'mo_text':
+            if not all(k in body for k in ['id', 'from', 'to', 'body', 'received_at']):
+                return HttpResponse("Missing one of 'id', 'from', 'to', 'body' or 'received_at' in request body.",
+                                    status=400)
+
+            msg_date = parse_datetime(body['received_at'])
+            msg = Msg.create_incoming(channel, (TEL_SCHEME, body['from']), body['body'], date=msg_date)
+            Msg.all_messages.filter(pk=msg.id).update(external_id=body['id'])
+            return HttpResponse("SMS Accepted: %d" % msg.id)
+
+        else:
+            return HttpResponse("Not handled, unknown action", status=400)

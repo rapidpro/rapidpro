@@ -37,7 +37,7 @@ from uuid import uuid4
 from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
-from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
+from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX
 from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN, CHIKKA
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
@@ -521,7 +521,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin')
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1239,6 +1239,22 @@ class ChannelCRUDL(SmartCRUDL):
         channel_type = JASMIN
         form_class = JasminForm
         fields = ('country', 'number', 'url', 'username', 'password')
+
+    class ClaimMblox(ClaimAuthenticatedExternal):
+        class MBloxForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
+                                     help_text=_("The short code or phone number you are connecting."))
+            username = forms.CharField(label=_("Username"),
+                                       help_text=_("The username for your MBlox REST API service"))
+            password = forms.CharField(label=_("API Token"),
+                                       help_text=_("The API token for your MBlox REST API service"))
+
+        title = _("Connect MBlox")
+        channel_type = MBLOX
+        form_class = MBloxForm
+        fields = ('country', 'number', 'username', 'password')
 
     class ClaimChikka(ClaimAuthenticatedExternal):
         class ChikkaForm(forms.Form):
