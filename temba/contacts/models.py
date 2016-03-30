@@ -1950,7 +1950,7 @@ class ExportContactsTask(SmartModel):
                 batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
 
                 # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
-                contact_by_id = {c.id:c for c in batch_contacts}
+                contact_by_id = {c.id: c for c in batch_contacts}
 
                 # bulk initialize them
                 Contact.bulk_cache_initialize(self.org, batch_contacts)

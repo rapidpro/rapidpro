@@ -480,7 +480,7 @@ class ContactTest(TembaTest):
         # incoming channel with two urns
         with self.assertRaises(ValueError):
             Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=[(TEL_SCHEME, '123'),
-                                                                                                        (TEL_SCHEME ,'456')])
+                                                                                                        (TEL_SCHEME, '456')])
 
         # missing scheme
         with self.assertRaises(ValueError):
@@ -2004,7 +2004,7 @@ class ContactTest(TembaTest):
         with patch('temba.orgs.models.Org.lock_on') as mock_lock:
             # import contact with uuid will force update if existing contact for the uuid
             self.assertContactImport('%s/test_imports/sample_contacts_uuid.xls' % settings.MEDIA_ROOT,
-                                     dict(records=4, errors=0, error_messages=[],creates=2, updates=2))
+                                     dict(records=4, errors=0, error_messages=[], creates=2, updates=2))
             self.assertEquals(mock_lock.call_count, 3)
 
         self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())

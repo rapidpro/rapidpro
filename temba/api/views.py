@@ -87,7 +87,7 @@ class WebHookEventReadView(WebHookEventMixin, SmartReadView):
 
 
 class WebHookTunnelView(View):
-    http_method_names = ['post',]
+    http_method_names = ['post']
 
     def post(self, request):
         try:

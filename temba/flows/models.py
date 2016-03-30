@@ -271,7 +271,7 @@ class Flow(TembaModel):
                    dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
         if response:
-            actions += [dict(type='reply', msg={base_language:response})]
+            actions += [dict(type='reply', msg={base_language: response})]
 
         if start_flow:
             actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
