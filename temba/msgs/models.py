@@ -799,7 +799,7 @@ class Msg(models.Model):
         else:
             msg.status = ERRORED
             msg.modified_on = timezone.now()
-            msg.next_attempt = timezone.now() + timedelta(minutes=5*msg.error_count)
+            msg.next_attempt = timezone.now() + timedelta(minutes=5 * msg.error_count)
 
             if isinstance(msg, Msg):
                 msg.save(update_fields=('status', 'modified_on', 'next_attempt', 'error_count'))
@@ -810,7 +810,7 @@ class Msg(models.Model):
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
             pipe = r.pipeline()
             pipe.srem(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
-            pipe.srem((timezone.now()-timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
+            pipe.srem((timezone.now() - timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
             pipe.execute()
 
             if channel:
@@ -876,21 +876,21 @@ class Msg(models.Model):
         else:
             def next_part(text):
                 if len(text) <= max_length:
-                    return (text, None)
+                    return text, None
 
                 else:
                     # search for a space to split on, up to 140 characters in
                     index = max_length
-                    while index > max_length-20:
+                    while index > max_length - 20:
                         if text[index] == ' ':
                             break
-                        index = index - 1
+                        index -= 1
 
                     # couldn't find a good split, oh well, 160 it is
-                    if index == max_length-20:
-                        return (text[:max_length], text[max_length:])
+                    if index == max_length - 20:
+                        return text[:max_length], text[max_length:]
                     else:
-                        return (text[:index], text[index+1:])
+                        return text[:index], text[index + 1:]
 
             parts = []
             rest = text
@@ -1800,7 +1800,7 @@ class MsgIterator(object):
 
     def _setup(self):
         for i in xrange(0, len(self._ids), self.max_obj_num):
-            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i+self.max_obj_num])
+            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
                 chunk_queryset = chunk_queryset.order_by(*self._order_by)

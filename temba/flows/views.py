@@ -40,24 +40,29 @@ from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLab
 logger = logging.getLogger(__name__)
 
 
+EXPIRES_CHOICES = (
+    (0, _('Never')),
+    (5, _('After 5 minutes')),
+    (10, _('After 10 minutes')),
+    (15, _('After 15 minutes')),
+    (30, _('After 30 minutes')),
+    (60, _('After 1 hour')),
+    (60 * 3, _('After 3 hours')),
+    (60 * 6, _('After 6 hours')),
+    (60 * 12, _('After 12 hours')),
+    (60 * 24, _('After 1 day')),
+    (60 * 24 * 3, _('After 3 days')),
+    (60 * 24 * 7, _('After 1 week')),
+    (60 * 24 * 14, _('After 2 weeks')),
+    (60 * 24 * 30, _('After 30 days'))
+)
+
+
 class BaseFlowForm(forms.ModelForm):
     expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
                                               help_text=_("When inactive contacts should be removed from the flow"),
-                                              initial=str(60*24*7),
-                                              choices=((0, _('Never')),
-                                                       (5, _('After 5 minutes')),
-                                                       (10, _('After 10 minutes')),
-                                                       (15, _('After 15 minutes')),
-                                                       (30, _('After 30 minutes')),
-                                                       (60, _('After 1 hour')),
-                                                       (60*3, _('After 3 hours')),
-                                                       (60*6, _('After 6 hours')),
-                                                       (60*12, _('After 12 hours')),
-                                                       (60*24, _('After 1 day')),
-                                                       (60*24*3, _('After 3 days')),
-                                                       (60*24*7, _('After 1 week')),
-                                                       (60*24*14, _('After 2 weeks')),
-                                                       (60*24*30, _('After 30 days'))))
+                                              initial=str(60 * 24 * 7),
+                                              choices=EXPIRES_CHOICES)
 
     def clean_keyword_triggers(self):
         org = self.user.get_org()
@@ -627,8 +632,8 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(FlowCRUDL.BaseList, self).get_context_data(**kwargs)
             context['org_has_flows'] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count()
-            context['folders']= self.get_folders()
-            context['labels']= self.get_flow_labels()
+            context['folders'] = self.get_folders()
+            context['labels'] = self.get_flow_labels()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
             return context
@@ -1029,7 +1034,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 total = runs.count()
 
-                runs = runs[start:(start+show)]
+                runs = runs[start:(start + show)]
 
                 # fetch the step data for our set of contacts
                 contacts = []

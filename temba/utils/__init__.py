@@ -20,25 +20,27 @@ from django.http import HttpResponse
 from itertools import islice, chain
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
-MAX_UTC_OFFSET = 14*60*60 # max offset postgres supports for a timezone
+MAX_UTC_OFFSET = 14 * 60 * 60  # max offset postgres supports for a timezone
 
 # these are not mapped by pytz.country_timezones
-INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': 'US',
-                            'US/Alaska': 'US',
-                            'Canada/Pacific': 'CA',
-                            'US/Pacific': 'US',
-                            'Canada/Mountain': 'CA',
-                            'US/Arizona': 'US',
-                            'US/Mountain': 'US',
-                            'Canada/Central': 'CA',
-                            'US/Central': 'US',
-                            'America/Montreal': 'CA',
-                            'Canada/Eastern': 'CA',
-                            'US/Eastern': 'US',
-                            'Canada/Atlantic': 'CA',
-                            'Canada/Newfoundland': 'CA',
-                            'GMT': '',
-                            'UTC': ''}
+INITIAL_TIMEZONE_COUNTRY = {
+    'US/Hawaii': 'US',
+    'US/Alaska': 'US',
+    'Canada/Pacific': 'CA',
+    'US/Pacific': 'US',
+    'Canada/Mountain': 'CA',
+    'US/Arizona': 'US',
+    'US/Mountain': 'US',
+    'Canada/Central': 'CA',
+    'US/Central': 'US',
+    'America/Montreal': 'CA',
+    'Canada/Eastern': 'CA',
+    'US/Eastern': 'US',
+    'Canada/Atlantic': 'CA',
+    'Canada/Newfoundland': 'CA',
+    'GMT': '',
+    'UTC': ''
+}
 
 
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
@@ -166,7 +168,7 @@ def ms_to_datetime(ms):
     """
     Converts a millisecond accuracy timestamp to a datetime
     """
-    dt = datetime.datetime.utcfromtimestamp(ms/1000)
+    dt = datetime.datetime.utcfromtimestamp(ms / 1000)
     return dt.replace(microsecond=(ms % 1000) * 1000).replace(tzinfo=pytz.utc)
 
 

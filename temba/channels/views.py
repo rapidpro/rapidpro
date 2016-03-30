@@ -1351,7 +1351,7 @@ class ChannelCRUDL(SmartCRUDL):
                                                               dict(username=data['username'],
                                                                    password=data['password'],
                                                                    channel=data['channel']),
-                                                              role=CALL+ANSWER)
+                                                              role=CALL + ANSWER)
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()

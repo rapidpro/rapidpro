@@ -764,5 +764,5 @@ class TableExporterTest(TembaTest):
         self.assertEquals(cols, sheet2.row_values(0))
         self.assertEquals(values, sheet2.row_values(1))
 
-        self.assertEquals(67000+2-65536, sheet2.nrows)
+        self.assertEquals(67000 + 2 - 65536, sheet2.nrows)
         self.assertEquals(32, sheet2.ncols)

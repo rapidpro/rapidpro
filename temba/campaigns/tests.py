@@ -151,7 +151,7 @@ class CampaignTest(TembaTest):
         self.client.logout()
 
         # create a viewer
-        self.viewer= self.create_user("Viewer")
+        self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
 
