@@ -503,6 +503,23 @@
     %code
       https://{{ domain }}{% url 'handlers.jasmin_handler' 'receive' object.uuid %}
 
+  -elif object.channel_type == 'MB'
+    %h4
+      -blocktrans
+        As a last step you'll need to set the following callback URL on your Mblox account:
+
+    %hr
+
+    %h4
+      -trans "Callback URL"
+
+    %p
+      -blocktrans
+        This endpoint will be called by Mblox when new messages are received to your number and for delivery reports.
+
+    %code
+      https://{{ domain }}{% url 'handlers.mblox_handler' object.uuid %}
+
   -elif object.channel_type == 'VB'
     %h4
       -blocktrans

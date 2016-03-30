@@ -67,6 +67,7 @@ TWILIO_MESSAGING_SERVICE = 'TMS'
 TELEGRAM = 'TG'
 CHIKKA = 'CK'
 JASMIN = 'JS'
+MBLOX = 'MB'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -112,6 +113,7 @@ CHANNEL_SETTINGS = {
     KANNEL: dict(scheme='tel', max_length=1600),
     M3TECH: dict(scheme='tel', max_length=160),
     NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
+    MBLOX: dict(scheme='tel', max_length=459),
     PLIVO: dict(scheme='tel', max_length=1600),
     SHAQODOON: dict(scheme='tel', max_length=1600),
     SMSCENTRAL: dict(scheme='tel', max_length=1600),
@@ -172,7 +174,8 @@ class Channel(TembaModel):
                     (START, "Start Mobile"),
                     (TELEGRAM, "Telegram"),
                     (YO, "Yo!"),
-                    (M3TECH, "M3 Tech"))
+                    (M3TECH, "M3 Tech"),
+                    (MBLOX, "Mblox"))
 
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
@@ -1027,6 +1030,77 @@ class Channel(TembaModel):
                                description="Successfully delivered",
                                method='GET',
                                url=log_url,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
+    def send_mblox_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+
+        # build our payload
+        payload = dict()
+        payload['from'] = channel.address.lstrip('+')
+        payload['to'] = [msg.urn_path.lstrip('+')]
+        payload['body'] = text
+        payload['delivery_report'] = 'per_recipient'
+
+        request_body = json.dumps(payload)
+
+        url = 'https://api.mblox.com/xms/v1/%s/batches' % channel.config[USERNAME]
+        headers = {'Content-Type': 'application/json',
+                   'Authorization': 'Bearer %s' % channel.config[PASSWORD]}
+
+        start = time.time()
+
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=15)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=request_body,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+            raise SendException("Got non-200 response [%d] from MBlox" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=request_body,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # response in format:
+        # {
+        #  "id": "Oyi75urq5_yB",
+        #  "to": [ "593997290044" ],
+        #  "from": "18444651185",
+        #  "canceled": false,
+        #  "body": "Hello world.",
+        #  "type": "mt_text",
+        #  "created_at": "2016-03-30T17:55:03.683Z",
+        #  "modified_at": "2016-03-30T17:55:03.683Z",
+        #  "delivery_report": "none",
+        #  "expire_at": "2016-04-02T17:55:03.683Z"
+        # }
+        try:
+            response_json = response.json()
+            external_id = response_json['id']
+        except:
+            raise SendException("Unable to parse response body from MBlox",
+                                method='POST',
+                                url=url,
+                                request=request_body,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=request_body,
                                response=response.text,
                                response_status=response.status_code)
 
@@ -2231,28 +2305,29 @@ class Channel(TembaModel):
         type_settings = CHANNEL_SETTINGS[channel.channel_type]
 
         send_funcs = {AFRICAS_TALKING: Channel.send_africas_talking_message,
+                      BLACKMYNA: Channel.send_blackmyna_message,
                       CHIKKA: Channel.send_chikka_message,
+                      CLICKATELL: Channel.send_clickatell_message,
                       EXTERNAL: Channel.send_external_message,
+                      HIGH_CONNECTION: Channel.send_high_connection_message,
                       HUB9: Channel.send_hub9_message,
                       INFOBIP: Channel.send_infobip_message,
                       JASMIN: Channel.send_jasmin_message,
                       KANNEL: Channel.send_kannel_message,
+                      M3TECH: Channel.send_m3tech_message,
+                      MBLOX: Channel.send_mblox_message,
                       NEXMO: Channel.send_nexmo_message,
-                      TWILIO: Channel.send_twilio_message,
-                      TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
-                      CLICKATELL: Channel.send_clickatell_message,
-                      TWITTER: Channel.send_twitter_message,
-                      VUMI: Channel.send_vumi_message,
-                      SHAQODOON: Channel.send_shaqodoon_message,
-                      ZENVIA: Channel.send_zenvia_message,
                       PLIVO: Channel.send_plivo_message,
-                      HIGH_CONNECTION: Channel.send_high_connection_message,
-                      BLACKMYNA: Channel.send_blackmyna_message,
+                      SHAQODOON: Channel.send_shaqodoon_message,
                       SMSCENTRAL: Channel.send_smscentral_message,
                       START: Channel.send_start_message,
                       TELEGRAM: Channel.send_telegram_message,
-                      M3TECH: Channel.send_m3tech_message,
-                      YO: Channel.send_yo_message}
+                      TWILIO: Channel.send_twilio_message,
+                      TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
+                      TWITTER: Channel.send_twitter_message,
+                      VUMI: Channel.send_vumi_message,
+                      YO: Channel.send_yo_message,
+                      ZENVIA: Channel.send_zenvia_message}
 
         # Check whether we need to throttle ourselves
         # This isn't an ideal implementation, in that if there is only one Channel with tons of messages

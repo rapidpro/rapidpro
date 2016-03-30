@@ -5880,3 +5880,123 @@ class JasminTest(TembaTest):
             # check the status of the message now errored
             msg = bcast.get_messages()[0]
             self.assertEquals(ERRORED, msg.status)
+
+
+class MbloxTest(TembaTest):
+
+    def setUp(self):
+        super(MbloxTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', 'MB', None, '1234',
+                                      config=dict(username='mbox-user', password='mblox-pass'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def tearDown(self):
+        super(MbloxTest, self).tearDown()
+        settings.SEND_MESSAGES = False
+
+    def test_dlr(self):
+        # invalid uuid
+        data = dict(batch_id="-1", status="Failed", type="recipient_delivery_report_sms")
+        response = self.client.post(reverse('handlers.mblox_handler', args=['not-real-uuid']), json.dumps(data),
+                                    content_type="application/json")
+        self.assertEquals(400, response.status_code)
+
+        delivery_url = reverse('handlers.mblox_handler', args=[self.channel.uuid])
+
+        # missing batch_id param
+        data = dict(status="Failed", type="recipient_delivery_report_sms")
+        response = self.client.post(delivery_url, json.dumps(data), content_type="application/json")
+        self.assertEquals(400, response.status_code)
+
+        # missing type params
+        data = dict(status="Failed")
+        response = self.client.post(delivery_url, json.dumps(data), content_type="application/json")
+        self.assertEquals(400, response.status_code)
+
+        # valid uuid, invalid batch_id
+        data = dict(batch_id="-1", status="Failed", type="recipient_delivery_report_sms")
+        response = self.client.post(delivery_url, json.dumps(data), content_type="application/json")
+        self.assertEquals(400, response.status_code)
+
+        # create test message to update
+        joe = self.create_contact("Joe Biden", "+254788383383")
+        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = broadcast.get_messages()[0]
+        msg.external_id = "mblox-id"
+        msg.save()
+
+        data['batch_id'] = msg.external_id
+
+        def assertStatus(msg, status, assert_status):
+            Msg.all_messages.filter(id=msg.id).update(status=WIRED)
+            data['status'] = status
+            response = self.client.post(delivery_url, json.dumps(data), content_type="application/json")
+            self.assertEquals(200, response.status_code)
+            self.assertEqual(response.content, "SMS Updated: %d" % msg.id)
+            msg = Msg.all_messages.get(pk=msg.id)
+            self.assertEquals(assert_status, msg.status)
+
+        assertStatus(msg, "Delivered", DELIVERED)
+        assertStatus(msg, "Dispatched", SENT)
+        assertStatus(msg, "Aborted", FAILED)
+        assertStatus(msg, "Rejected", FAILED)
+        assertStatus(msg, "Failed", FAILED)
+        assertStatus(msg, "Expired", FAILED)
+
+    def test_receive(self):
+        data = {
+            "id": "OzQ5UqIOdoY8",
+            "from": "12067799294",
+            "to": "18444651185",
+            "body": "MO",
+            "type": "mo_text",
+            "received_at": "2016-03-30T19:33:06.643Z"
+        }
+        callback_url = reverse('handlers.mblox_handler', args=[self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.all_messages.get()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, "SMS Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertEqual(msg.contact.get_urn(TEL_SCHEME).path, "+12067799294")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "MO")
+        self.assertEqual(msg.created_on.date(), date(day=30, month=3, year=2016))
+
+    def test_send(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("MT", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "id":"OzYDlvf3SQVc" }')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message is now sent
+            msg = bcast.get_messages()[0]
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, 'OzYDlvf3SQVc')
+            self.clear_cache()
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(412, 'Error')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message now errored
+            msg = bcast.get_messages()[0]
+            self.assertEquals(ERRORED, msg.status)
