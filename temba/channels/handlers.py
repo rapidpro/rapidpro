@@ -1591,4 +1591,4 @@ class MbloxHandler(View):
             return HttpResponse("SMS Accepted: %d" % msg.id)
 
         else:
-            return HttpResponse("Not handled, unknown action", status=400)
+            return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
