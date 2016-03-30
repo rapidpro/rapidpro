@@ -70,6 +70,18 @@ def urn_icon(urn):
 
 
 @register.filter
+def osm_link(geo_url):
+    (media_type, delim, location) = geo_url.partition(':')
+    (lat, lng) = location.split(',')
+    print (lat, lng)
+    return 'http://www.openstreetmap.org/#map=17/%s/%s' % (lat, lng)
+
+@register.filter
+def location(geo_url):
+    (media_type, delim, location) = geo_url.partition(':')
+    return location
+
+@register.filter
 def activity_icon(item):
     name = type(item).__name__
     if name == 'Msg':

@@ -15,6 +15,9 @@
               .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
             .stop.hide
               .icon-nav-channels-inverted
+        -elif item.media|slice:':4' == 'geo:'
+          %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+            {{item|activity_icon}}
       -else
         %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
           -if not user_org.is_anon or perms.contacts.contact_break_anon
@@ -63,6 +66,12 @@
           %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
             {{eventfire.event|event_time}}
 
+      -elif item.media|slice:':4' == 'geo:'
+        .activity-message
+          .activity-body
+            .text
+              Location: <a href="{{item.media|osm_link}}" target="_loc">{{item.media|location}}</a>
+
       -elif item.media|slice:':6' == 'image:'
         .activity-message
           .activity-body
@@ -70,6 +79,8 @@
               <a href="{{item.media|slice:'6:'}}" data-featherlight="image">
                 <img class="image-preview" src="{{item.media|slice:'6:'}}">
               </a>
+              <br/>
+              <a href="{{item.media|slice:'6:'}}" download class='btn download'><span class='icon icon-cloud-download'></span>Download</a>
 
       -elif item.media|slice:':6' == 'video:'
         .activity-message
@@ -77,6 +88,8 @@
             <video id="video_{{item.id}}" height="240px" class="video-js vjs-default-skin" controls preload="auto">
               <source src="{{item.media|slice:'6:'}}" type='video/mp4'/>
             </video>
+
+            <a href="{{item.media|slice:'6:'}}" download class='btn download'><span class='icon icon-cloud-download'></span>Download</a>
             :javascript
 
               // keep track of previously initiated players and dispose on reload if necessary
@@ -117,6 +130,9 @@
                       -trans "Played a recording"
                     -else
                       -trans "Made a recording"
+
+                    (<a href="{{item.media|slice:'6:'}}" download>download</a>)
+
                 -else
                   {{message.text}}
 
