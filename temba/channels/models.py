@@ -46,6 +46,7 @@ AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
 BLACKMYNA = 'BM'
 CLICKATELL = 'CT'
+FACEBOOK = 'FB'
 EXTERNAL = 'EX'
 HIGH_CONNECTION = 'HX'
 HUB9 = 'H9'
@@ -106,6 +107,7 @@ CHANNEL_SETTINGS = {
     CHIKKA: dict(scheme='tel', max_length=160),
     CLICKATELL: dict(scheme='tel', max_length=420),
     EXTERNAL: dict(max_length=160),
+    FACEBOOK: dict(scheme='tel', max_length=1600),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),
@@ -145,37 +147,40 @@ YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
 YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
 YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
+
 class Encoding(Enum):
     GSM7 = 1
     REPLACED = 2
     UNICODE = 3
 
+
 class Channel(TembaModel):
-    TYPE_CHOICES = ((ANDROID, "Android"),
-                    (TWILIO, "Twilio"),
-                    (TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
-                    (AFRICAS_TALKING, "Africa's Talking"),
-                    (ZENVIA, "Zenvia"),
-                    (NEXMO, "Nexmo"),
-                    (INFOBIP, "Infobip"),
-                    (VERBOICE, "Verboice"),
+    TYPE_CHOICES = ((AFRICAS_TALKING, "Africa's Talking"),
+                    (ANDROID, "Android"),
+                    (BLACKMYNA, "Blackmyna"),
+                    (CLICKATELL, "Clickatell"),
+                    (EXTERNAL, "External"),
+                    (FACEBOOK, "Facebook"),
+                    (HIGH_CONNECTION, "High Connection"),
                     (HUB9, "Hub9"),
-                    (VUMI, "Vumi"),
+                    (INFOBIP, "Infobip"),
                     (JASMIN, "Jasmin"),
                     (KANNEL, "Kannel"),
-                    (EXTERNAL, "External"),
-                    (TWITTER, "Twitter"),
-                    (CLICKATELL, "Clickatell"),
+                    (M3TECH, "M3 Tech"),
+                    (MBLOX, "Mblox"),
+                    (NEXMO, "Nexmo"),
                     (PLIVO, "Plivo"),
                     (SHAQODOON, "Shaqodoon"),
-                    (HIGH_CONNECTION, "High Connection"),
-                    (BLACKMYNA, "Blackmyna"),
                     (SMSCENTRAL, "SMSCentral"),
                     (START, "Start Mobile"),
                     (TELEGRAM, "Telegram"),
+                    (TWILIO, "Twilio"),
+                    (TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
+                    (TWITTER, "Twitter"),
+                    (VERBOICE, "Verboice"),
+                    (VUMI, "Vumi"),
                     (YO, "Yo!"),
-                    (M3TECH, "M3 Tech"),
-                    (MBLOX, "Mblox"))
+                    (ZENVIA, "Zenvia"))
 
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))

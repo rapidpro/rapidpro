@@ -521,7 +521,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox')
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1743,6 +1743,13 @@ class ChannelCRUDL(SmartCRUDL):
             self.request.session[SESSION_TWITTER_SECRET] = auth['oauth_token_secret']
 
             context['twitter_auth_url'] = auth['auth_url']
+            return context
+
+    class ClaimFacebook(OrgPermsMixin, SmartTemplateView):
+
+        def get_context_data(self, **kwargs):
+            context = super(ChannelCRUDL.ClaimFacebook, self).get_context_data(**kwargs)
+            context['facebook_app_id'] = settings.FACEBOOK_APP_ID
             return context
 
     class List(OrgPermsMixin, SmartListView):
