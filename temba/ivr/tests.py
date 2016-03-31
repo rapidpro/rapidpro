@@ -160,6 +160,47 @@ class IVRTests(FlowFileTest):
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_ivr_call_redirect(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        # import our flows
+        self.get_flow('ivr_call_redirect')
+
+        flow_1 = Flow.objects.get(name="Call Number 1")
+        flow_2 = Flow.objects.get(name="Call Number 2")
+
+        shawn = self.create_contact('Marshawn', '+24')
+        flow_1.start(groups=[], contacts=[shawn])
+
+        # we should have one call now
+        calls = IVRCall.objects.filter(direction=OUTGOING)
+        self.assertEqual(1, calls.count())
+
+        # once the first set of actions are processed, we'll initiate a second call
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[calls[0].pk]), post_data)
+
+        calls = IVRCall.objects.filter(direction=OUTGOING).order_by('created_on')
+        self.assertEqual(2, calls.count())
+        (first_call, second_call) = calls
+
+        # our second call should have the first call as a parent
+        self.assertEqual(first_call, second_call.parent)
+
+        # completing the first call should complete the second one too
+        post_data = dict(CallSid='CallSid', CallStatus='completed', CallDuration=30)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[first_call.pk]), post_data)
+
+        first_call.refresh_from_db()
+        second_call.refresh_from_db()
+
+        self.assertEquals(COMPLETED, first_call.status)
+        self.assertEquals(COMPLETED, second_call.status)
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_non_blocking_rule_ivr(self):
 
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")

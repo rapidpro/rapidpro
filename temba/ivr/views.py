@@ -37,8 +37,15 @@ class CallHandler(View):
                     return HttpResponse("Not found", status=404)
 
         if client.validate(request):
-            call.update_status(request.POST.get('CallStatus', None),
-                               request.POST.get('CallDuration', None))
+            status = request.POST.get('CallStatus', None)
+            duration = request.POST.get('CallDuration', None)
+            call.update_status(status, duration)
+
+            # update any calls we have spawned with the same
+            for child in call.child_calls.all():
+                child.update_status(status, duration)
+                child.save()
+
             call.save()
 
             hangup = 'hangup' == request.POST.get('Digits', None)
