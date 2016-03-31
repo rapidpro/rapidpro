@@ -4330,6 +4330,15 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals('Press one, two, or three. Thanks.', definition['action_sets'][0]['actions'][0]['msg']['base'])
         self.assertEquals('/recording.mp3', definition['action_sets'][0]['actions'][0]['recording']['base'])
 
+        # now try one that doesn't have a recording set
+        voice_json = self.get_flow_json('call-me-maybe')
+        definition = voice_json.get('definition')
+        del definition['action_sets'][0]['actions'][0]['recording']
+        voice_json = migrate_to_version_5(voice_json)
+        voice_json = migrate_to_version_6(voice_json)
+        definition = voice_json.get('definition')
+        self.assertTrue('recording' not in definition['action_sets'][0]['actions'][0])
+
     def test_migrate_to_5_language(self):
 
         flow_json = self.get_flow_json('multi-language-flow')

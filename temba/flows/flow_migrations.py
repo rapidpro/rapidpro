@@ -114,7 +114,8 @@ def migrate_to_version_6(json_flow):
                 if action['type'] in [SendAction.TYPE, ReplyAction.TYPE, SayAction.TYPE]:
                     convert_to_dict(action, 'msg')
                 if action['type'] == SayAction.TYPE:
-                    convert_to_dict(action, 'recording')
+                    if 'recording' in action:
+                        convert_to_dict(action, 'recording')
     return json_flow
 
 
