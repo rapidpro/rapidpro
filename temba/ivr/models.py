@@ -50,6 +50,7 @@ class IVRCall(SmartModel):
                                    help_text="The external id for this call, our twilio id usually")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING,
                               help_text="The status of this call")
+
     channel = models.ForeignKey(Channel,
                                 help_text="The channel that made this call")
     contact = models.ForeignKey(Contact,
@@ -72,6 +73,9 @@ class IVRCall(SmartModel):
                                  help_text="What sort of call is this")
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this call in seconds")
+
+    parent = models.ForeignKey('IVRCall', verbose_name=_("Parent Call"), related_name='child_calls', null=True,
+                               help_text=_("The call that triggered this one"))
 
     @classmethod
     def create_outgoing(cls, channel, contact_id, flow, user, call_type=FLOW):

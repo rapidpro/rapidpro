@@ -1354,7 +1354,8 @@ class Flow(TembaModel):
 
         start_flow_task.delay(flow_start.pk)
 
-    def start(self, groups, contacts, restart_participants=False, started_flows=None, start_msg=None, extra=None, flow_start=None):
+    def start(self, groups, contacts, restart_participants=False, started_flows=None,
+              start_msg=None, extra=None, flow_start=None, previous_run=None):
         """
         Starts a flow for the passed in groups and contacts.
         """
@@ -1422,14 +1423,14 @@ class Flow(TembaModel):
 
         if self.flow_type == Flow.VOICE:
             return self.start_call_flow(all_contact_ids, start_msg=start_msg,
-                                        extra=extra, flow_start=flow_start)
+                                        extra=extra, flow_start=flow_start, previous_run=previous_run)
 
         else:
             return self.start_msg_flow(all_contact_ids,
                                        started_flows=started_flows,
                                        start_msg=start_msg, extra=extra, flow_start=flow_start)
 
-    def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None):
+    def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, previous_run=None):
         from temba.ivr.models import IVRCall
         runs = []
         channel = self.org.get_call_channel()
@@ -1457,8 +1458,13 @@ class Flow(TembaModel):
             run.call = call
             run.save(update_fields=['call'])
 
-            # trigger the call to start (in the background)
-            call.start_call()
+            # if we were started by other call, save that off
+            if previous_run and previous_run.call:
+                call.parent = previous_run.call
+                call.save()
+            else:
+                # trigger the call to start (in the background)
+                call.start_call()
 
             runs.append(run)
 
@@ -4527,7 +4533,14 @@ class StartFlowAction(Action):
         extra = message_context.get('extra', {})
         extra['flow'] = message_context.get('flow', {})
 
-        self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra)
+        if self.flow.flow_type == Flow.VOICE:
+            new_run = self.flow.start([], [run.contact], started_flows=started_flows,
+                                   restart_participants=True, extra=extra, previous_run=run)[0]
+            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
+            run.voice_response.redirect(url)
+        else:
+            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra)
+
         self.logger(run)
         return []
 

@@ -7,18 +7,20 @@ from temba.ivr.models import ContactURN
 
 def populate_unknown_urns(apps, schema_editor):
 
-        # fix any Calls that remain with no contact URN (because their contact doesn't have one)
-        for call in IVRCall.objects.filter(contact_urn=None):
-            # find or create an unknown contact URN for this org
-            unknown = ContactURN.objects.filter(urn='tel:unknown', org=call.org).first()
-            if not unknown:
-                unknown = ContactURN.objects.create(org=call.org,
-                                                    scheme='tel',
-                                                    path='unknown',
-                                                    urn='tel:unknown',
-                                                    priority=50)
-            call.contact_urn = unknown
-            call.save()
+    IVRCall = apps.get_model('ivr', 'IVRCall')
+
+    # fix any Calls that remain with no contact URN (because their contact doesn't have one)
+    for call in IVRCall.objects.filter(contact_urn=None):
+        # find or create an unknown contact URN for this org
+        unknown = ContactURN.objects.filter(urn='tel:unknown', org=call.org).first()
+        if not unknown:
+            unknown = ContactURN.objects.create(org=call.org,
+                                                scheme='tel',
+                                                path='unknown',
+                                                urn='tel:unknown',
+                                                priority=50)
+        call.contact_urn = unknown
+        call.save()
 
 class Migration(migrations.Migration):
 
