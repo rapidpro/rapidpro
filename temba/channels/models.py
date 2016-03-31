@@ -1053,7 +1053,7 @@ class Channel(TembaModel):
         start = time.time()
 
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=15)
+            response = requests.post(url, request_body, headers=headers, timeout=15)
         except Exception as e:
             raise SendException(unicode(e),
                                 method='POST',
