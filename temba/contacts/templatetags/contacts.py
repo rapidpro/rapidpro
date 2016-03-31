@@ -82,6 +82,16 @@ def location(geo_url):
     return location
 
 @register.filter
+def media_url(media):
+    if media:
+        return media.partition(':')[2]
+
+@register.filter
+def media_type(media):
+    if media:
+        return media.partition(':')[0]
+
+@register.filter
 def activity_icon(item):
     name = type(item).__name__
     if name == 'Msg':

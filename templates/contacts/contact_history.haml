@@ -5,136 +5,139 @@
 
   %tr.item{data-created:'{{item.created_on|date:"U.u"}}', class:'msg_{{item.msg_type}} {%if item.media|slice:":6" == "video:" %}video{%endif%} {% if item.created_on > recent_date%}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
 
-    %td.icon
+    -with media_type=item.media|media_type media_url=item.media|media_url
 
-      -if item.media
-        -if item.media|slice:':6' == 'audio:'
-          .recording{onClick:'playMessage("{{item.pk}}");'}
-            %audio{id:'message-{{item.pk}}', type:"audio/wav", src:'{{item.media|slice:"6:"}}'}
-            .play
-              .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
-            .stop.hide
-              .icon-nav-channels-inverted
-        -elif item.media|slice:':4' == 'geo:'
+      %td.icon
+
+        -if item.media
+          -if media_type == 'audio'
+            .recording{onClick:'playMessage("{{item.pk}}");'}
+              %audio{id:'message-{{item.pk}}', type:"audio/wav", src:'{{item.media|slice:"6:"}}'}
+              .play
+                .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+              .stop.hide
+                .icon-nav-channels-inverted
+          -elif media_type == 'geo'
+            %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+              .glyph.icon-location
+          -else
+            %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+              %a{href:'{{item.media|media_url}}', download:'download'}
+                .glyph.icon-cloud-download
+        -else
           %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
-            {{item|activity_icon}}
-      -else
-        %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
-          -if not user_org.is_anon or perms.contacts.contact_break_anon
-            -with item.channellog_set.all.first as log
-              -if log
-                %a{href:"{% url 'channels.channellog_read' log.pk%}"}
+            -if not user_org.is_anon or perms.contacts.contact_break_anon
+              -with item.channellog_set.all.first as log
+                -if log
+                  %a{href:"{% url 'channels.channellog_read' log.pk%}"}
+                    {{item|activity_icon}}
+                -else
                   {{item|activity_icon}}
-              -else
-                {{item|activity_icon}}
-          -else
-            {{item|activity_icon}}
+            -else
+              {{item|activity_icon}}
 
-    %td.details
-      -if item.recipient_count
-        -with item as broadcast
-          .activity-broadcast
-            .sent-to
-              .summary
-                Broadcast to {{broadcast.recipient_count|intcomma}} recipients
+      %td.details
+        -if item.recipient_count
+          -with item as broadcast
+            .activity-broadcast
+              .sent-to
+                .summary
+                  Broadcast to {{broadcast.recipient_count|intcomma}} recipients
 
-            .activity-body
-              {{broadcast.text}}
-      -elif item.call_type
-        -with item as call
-          -if call.call_type == 'mt_miss'
-            Missed call
-          -else
-            Phone call ({{call.duration|format_seconds}})
+              .activity-body
+                {{broadcast.text}}
+        -elif item.call_type
+          -with item as call
+            -if call.call_type == 'mt_miss'
+              Missed call
+            -else
+              Phone call ({{call.duration|format_seconds}})
 
-      -elif item.flow
-        -with item as run
-          .activity-run
-            .activity-body
-              .summary
+        -elif item.flow
+          -with item as run
+            .activity-run
+              .activity-body
+                .summary
 
-              Started
-              %a{href:'{% url "flows.flow_editor" run.flow.pk%}'}
-                {{run.flow.name}}
-      -elif item.fired
-        -with item as eventfire
-          %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
-            {{eventfire.event.campaign.name}}
+                Started
+                %a{href:'{% url "flows.flow_editor" run.flow.pk%}'}
+                  {{run.flow.name}}
+        -elif item.fired
+          -with item as eventfire
+            %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
+              {{eventfire.event.campaign.name}}
 
-          &nbsp;triggered
+            &nbsp;triggered
 
-          %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
-            {{eventfire.event|event_time}}
+            %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
+              {{eventfire.event|event_time}}
 
-      -elif item.media|slice:':4' == 'geo:'
-        .activity-message
-          .activity-body
-            .text
-              Location: <a href="{{item.media|osm_link}}" target="_loc">{{item.media|location}}</a>
-
-      -elif item.media|slice:':6' == 'image:'
-        .activity-message
-          .activity-body
-            .text
-              <a href="{{item.media|slice:'6:'}}" data-featherlight="image">
-                <img class="image-preview" src="{{item.media|slice:'6:'}}">
-              </a>
-              <br/>
-              <a href="{{item.media|slice:'6:'}}" download class='btn download'><span class='icon icon-cloud-download'></span>Download</a>
-
-      -elif item.media|slice:':6' == 'video:'
-        .activity-message
-          .activity-body
-            <video id="video_{{item.id}}" height="240px" class="video-js vjs-default-skin" controls preload="auto">
-              <source src="{{item.media|slice:'6:'}}" type='video/mp4'/>
-            </video>
-
-            <a href="{{item.media|slice:'6:'}}" download class='btn download'><span class='icon icon-cloud-download'></span>Download</a>
-            :javascript
-
-              // keep track of previously initiated players and dispose on reload if necessary
-              if (!window.players) {
-                window.players = []
-              } else {
-                active = []
-                for (idx in window.players) {
-                  var player = window.players[idx];
-                  if (player.id_ == "video_{{item.id}}") {
-                    player.dispose();
-                  } else {
-                    active.push(player);
-                  }
-                }
-                window.players = active;
-              }
-
-              // initialize and push our current video
-              window.players.push(videojs("video_{{item.id}}", {}, function(){}));
-
-      -else
-        -with item as message
-
+        -elif media_type == 'geo'
           .activity-message
-            -if message.direction == 'O'
-
-              -if message.broadcast.recipient_count > 1
-                .sent-to
-                  .summary
-                    Broadcast to {{message.broadcast.recipient_count|intcomma}} recipients
-
             .activity-body
               .text
-                -if item.media and item.media|slice:':6' == 'audio:'
-                  .left-recording
-                    -if message.direction == 'O'
-                      -trans "Played a recording"
-                    -else
-                      -trans "Made a recording"
+                <a href="{{item.media|osm_link}}" target="_loc">{{item.media|location}}</a>
 
-                    (<a href="{{item.media|slice:'6:'}}" download>download</a>)
+        -elif media_type == 'image'
+          .activity-message
+            .activity-body
+              .text
+                <a href="{{media_url}}" data-featherlight="image">
+                  <img class="image-preview" src="{{media_url}}">
+                </a>
 
-                -else
-                  {{message.text}}
+        -elif media_type == 'video'
+          .activity-message
+            .activity-body
+              <video id="video_{{item.id}}" height="240px" class="video-js vjs-default-skin" controls preload="auto">
+                <source src="{{media_url}}" type='video/mp4'/>
+              </video>
+
+              :javascript
+
+                // keep track of previously initiated players and dispose on reload if necessary
+                if (!window.players) {
+                  window.players = []
+                } else {
+                  active = []
+                  for (idx in window.players) {
+                    var player = window.players[idx];
+                    if (player.id_ == "video_{{item.id}}") {
+                      player.dispose();
+                    } else {
+                      active.push(player);
+                    }
+                  }
+                  window.players = active;
+                }
+
+                // initialize and push our current video
+                window.players.push(videojs("video_{{item.id}}", {}, function(){}));
+
+        -else
+          -with item as message
+
+            .activity-message
+              -if message.direction == 'O'
+
+                -if message.broadcast.recipient_count > 1
+                  .sent-to
+                    .summary
+                      Broadcast to {{message.broadcast.recipient_count|intcomma}} recipients
+
+              .activity-body
+                .text
+                  -if item.media and item.media|slice:':6' == 'audio:'
+                    .left-recording
+                      -if message.direction == 'O'
+                        -trans "Played a recording"
+                      -else
+                        -trans "Made a recording"
+
+                      (<a href="{{item.media|slice:'6:'}}" download>download</a>)
+
+                  -else
+                    {{message.text}}
 
     %td.created_on
       %span.time
