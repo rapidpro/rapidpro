@@ -198,8 +198,6 @@ class IVRTests(FlowFileTest):
         self.assertEquals(COMPLETED, first_call.status)
         self.assertEquals(COMPLETED, second_call.status)
 
-
-
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)

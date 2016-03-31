@@ -4537,7 +4537,7 @@ class StartFlowAction(Action):
 
         if self.flow.flow_type == Flow.VOICE:
             new_run = self.flow.start([], [run.contact], started_flows=started_flows,
-                                   restart_participants=True, extra=extra, parent_run=run)[0]
+                                      restart_participants=True, extra=extra, parent_run=run)[0]
             url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
             run.voice_response.redirect(url)
         else:
