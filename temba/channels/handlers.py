@@ -845,6 +845,7 @@ class NexmoHandler(View):
         else:
             return HttpResponse("Not handled", status=400)
 
+
 class VerboiceHandler(View):
 
     @disable_middleware
@@ -881,6 +882,7 @@ class VerboiceHandler(View):
                 return HttpResponse("Call Status Updated")
 
         return HttpResponse("Not handled", status=400)
+
 
 class VumiHandler(View):
 

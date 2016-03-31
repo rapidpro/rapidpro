@@ -293,7 +293,7 @@ def sync(request, channel_id):
 
     if request_signature != signature:
         return HttpResponse(status=401,
-                            content='{ "error_id": 1, "error": "Invalid signature: \'%(request)s\'", "cmds":[] }' % {'request':request_signature})
+                            content='{ "error_id": 1, "error": "Invalid signature: \'%(request)s\'", "cmds":[] }' % {'request': request_signature})
 
     # update our last seen on our channel
     channel.last_seen = timezone.now()

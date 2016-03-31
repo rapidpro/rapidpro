@@ -145,10 +145,12 @@ YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
 YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
 YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
+
 class Encoding(Enum):
     GSM7 = 1
     REPLACED = 2
     UNICODE = 3
+
 
 class Channel(TembaModel):
     TYPE_CHOICES = ((ANDROID, "Android"),
@@ -2531,6 +2533,7 @@ class ChannelCount(models.Model):
     class Meta:
         index_together = ['channel', 'count_type', 'day']
 
+
 class SendException(Exception):
 
     def __init__(self, description, url, method, request, response, response_status, fatal=False):
@@ -2688,21 +2691,20 @@ def pre_save(sender, instance, **kwargs):
             last_sync_event.save()
 
 
-ALERT_DISCONNECTED = 'D'
-ALERT_POWER = 'P'
-ALERT_SMS = 'S'
-
-
 class Alert(SmartModel):
-    ALERT_TYPES = ((ALERT_POWER, _("Power")),                 # channel has low power
-                   (ALERT_DISCONNECTED, _("Disconnected")),   # channel hasn't synced in a while
-                   (ALERT_SMS, _("SMS")))                     # channel has many unsent messages
+    TYPE_DISCONNECTED = 'D'
+    TYPE_POWER = 'P'
+    TYPE_SMS = 'S'
+
+    TYPE_CHOICES = ((TYPE_POWER, _("Power")),                 # channel has low power
+                    (TYPE_DISCONNECTED, _("Disconnected")),   # channel hasn't synced in a while
+                    (TYPE_SMS, _("SMS")))                     # channel has many unsent messages
 
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"),
                                 help_text=_("The channel that this alert is for"))
     sync_event = models.ForeignKey(SyncEvent, verbose_name=_("Sync Event"), null=True,
                                    help_text=_("The sync event that caused this alert to be sent (if any)"))
-    alert_type = models.CharField(verbose_name=_("Alert Type"), max_length=1, choices=ALERT_TYPES,
+    alert_type = models.CharField(verbose_name=_("Alert Type"), max_length=1, choices=TYPE_CHOICES,
                                   help_text=_("The type of alert the channel is sending"))
     ended_on = models.DateTimeField(verbose_name=_("Ended On"), blank=True, null=True)
 
@@ -2716,20 +2718,21 @@ class Alert(SmartModel):
             sync.power_status == STATUS_UNKNOWN or
             sync.power_status == STATUS_NOT_CHARGING) and int(sync.power_level) < 25:
 
-            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=ALERT_POWER, ended_on=None)
+            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
 
             if not alerts:
                 host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
                 new_alert = Alert.objects.create(channel=sync.channel,
                                                  host=host,
                                                  sync_event=sync,
-                                                 alert_type=ALERT_POWER,
+                                                 alert_type=cls.TYPE_POWER,
                                                  created_by=alert_user,
                                                  modified_by=alert_user)
                 new_alert.send_alert()
 
         if sync.power_status == STATUS_CHARGING or sync.power_status == STATUS_FULL:
-            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=ALERT_POWER, ended_on=None).order_by('-created_on')
+            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
+            alerts = alerts.order_by('-created_on')
 
             # end our previous alert
             if alerts and int(alerts[0].sync_event.power_level) < 25:
@@ -2747,7 +2750,7 @@ class Alert(SmartModel):
         thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
 
         # end any alerts that no longer seem valid
-        for alert in Alert.objects.filter(alert_type=ALERT_DISCONNECTED, ended_on=None):
+        for alert in Alert.objects.filter(alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
             # if we've seen the channel since this alert went out, then clear the alert
             if alert.channel.last_seen > alert.created_on:
                 alert.ended_on = alert.channel.last_seen
@@ -2756,9 +2759,9 @@ class Alert(SmartModel):
 
         for channel in Channel.objects.filter(channel_type=ANDROID, is_active=True).exclude(org=None).exclude(last_seen__gte=thirty_minutes_ago):
             # have we already sent an alert for this channel
-            if not Alert.objects.filter(channel=channel, alert_type=ALERT_DISCONNECTED, ended_on=None):
+            if not Alert.objects.filter(channel=channel, alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
                 host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                alert = Alert.objects.create(channel=channel, alert_type=ALERT_DISCONNECTED, host=host,
+                alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_DISCONNECTED, host=host,
                                              modified_by=alert_user, created_by=alert_user)
                 alert.send_alert()
 
@@ -2766,7 +2769,7 @@ class Alert(SmartModel):
         six_hours_ago = timezone.now() - timedelta(hours=6)
 
         # end any sms alerts that are open and no longer seem valid
-        for alert in Alert.objects.filter(alert_type=ALERT_SMS, ended_on=None):
+        for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None):
             # are there still queued messages?
 
             if not Msg.current_messages.filter(status__in=['Q', 'P'], channel=alert.channel, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago):
@@ -2798,7 +2801,7 @@ class Alert(SmartModel):
                 # if we haven't sent an alert in the past six ours
                 if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)):
                     host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                    alert = Alert.objects.create(channel=channel, alert_type=ALERT_SMS, host=host,
+                    alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_SMS, host=host,
                                                  modified_by=alert_user, created_by=alert_user)
                     alert.send_alert()
 
@@ -2821,7 +2824,7 @@ class Alert(SmartModel):
         if not self.channel.org:
             return
 
-        if self.alert_type == ALERT_POWER:
+        if self.alert_type == self.TYPE_POWER:
             if resolved:
                 subject = "Your Android phone is now charging"
                 template = 'channels/email/power_charging_alert'
@@ -2829,7 +2832,7 @@ class Alert(SmartModel):
                 subject = "Your Android phone battery is low"
                 template = 'channels/email/power_alert'
 
-        elif self.alert_type == ALERT_DISCONNECTED:
+        elif self.alert_type == self.TYPE_DISCONNECTED:
             if resolved:
                 subject = "Your Android phone is now connected"
                 template = 'channels/email/connected_alert'
@@ -2837,11 +2840,11 @@ class Alert(SmartModel):
                 subject = "Your Android phone is disconnected"
                 template = 'channels/email/disconnected_alert'
 
-        elif self.alert_type == ALERT_SMS:
+        elif self.alert_type == self.TYPE_SMS:
             subject = "Your %s is having trouble sending messages" % self.channel.get_channel_type_name()
             template = 'channels/email/sms_alert'
-        else: # pragma: no cover
-            raise Exception(_("Unknown alert type: %(alert)s") % {'alert':self.alert_type})
+        else:  # pragma: no cover
+            raise Exception(_("Unknown alert type: %(alert)s") % {'alert': self.alert_type})
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)

@@ -1,20 +1,18 @@
 from __future__ import unicode_literals
 
 import logging
+import time
 
 from datetime import timedelta
-from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
 from djcelery_transactions import task
 from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
-from temba.urls import init_analytics
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
+from temba.utils.queues import pop_task
 from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
 from .models import FIRE_EVENT, SystemLabel
-from temba.utils.queues import pop_task
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -258,6 +256,7 @@ def purge_broadcasts_task():
                 broadcast.msgs.filter(purged=False).update(purged=True)
                 broadcast.purged = True
                 broadcast.save(update_fields=['purged'])
+
 
 @task(track_started=True, name="squash_systemlabels")
 def squash_systemlabels():

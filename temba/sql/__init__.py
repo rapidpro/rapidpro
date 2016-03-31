@@ -1,5 +1,9 @@
+from __future__ import unicode_literals
+
 import os
+
 from django.db.migrations import RunSQL
+
 
 class InstallSQL(RunSQL):
     """

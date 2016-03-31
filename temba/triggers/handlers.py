@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from temba.msgs.handler import MessageHandler
 from .models import Trigger
 
+
 class TriggerHandler(MessageHandler):
     def __init__(self):
         super(TriggerHandler, self).__init__('triggers')

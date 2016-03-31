@@ -225,7 +225,9 @@ def migrate_to_version_5(json_flow):
 
     return json_flow
 
-# Helper methods for flow migrations
+
+# ================================ Helper methods for flow migrations ===================================
+
 def remove_extra_rules(json_flow, ruleset):
     """ Remove all rules but the all responses rule """
     rules = []
@@ -248,7 +250,7 @@ def insert_node(flow, node, _next):
         if node_to_update.get('actions', []):
             node_to_update['destination'] = uuid
         else:
-            for rule in node_to_update.get('rules',[]):
+            for rule in node_to_update.get('rules', []):
                 rule['destination'] = uuid
 
     # make sure we have a fresh uuid
