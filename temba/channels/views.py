@@ -9,6 +9,7 @@ import plivo
 import pycountry
 import pytz
 import time
+import requests
 
 from datetime import datetime, timedelta
 from django import forms
@@ -39,6 +40,7 @@ from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRA
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX
 from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN, CHIKKA
+from .models import AUTH_TOKEN, FACEBOOK
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       CHIKKA: "icon-channel-external",
@@ -1745,12 +1747,33 @@ class ChannelCRUDL(SmartCRUDL):
             context['twitter_auth_url'] = auth['auth_url']
             return context
 
-    class ClaimFacebook(OrgPermsMixin, SmartTemplateView):
+    class ClaimFacebook(OrgPermsMixin, SmartFormView):
+        class FacebookForm(forms.Form):
+            page_access_token = forms.CharField(min_length=190, required=True,
+                                                help_text=_("The Page Access Token for your Application"))
 
-        def get_context_data(self, **kwargs):
-            context = super(ChannelCRUDL.ClaimFacebook, self).get_context_data(**kwargs)
-            context['facebook_app_id'] = settings.FACEBOOK_APP_ID
-            return context
+            def clean_page_access_token(self):
+                token = self.cleaned_data['page_access_token']
+
+                # hit the FB graph, see if we can load the page attributes
+                response = requests.get('https://graph.facebook.com/v2.5/me', dict(access_token=token))
+                response_json = response.json()
+                if response.status_code != 200:
+                    default_error = _("Invalid page access token, please check it and try again.")
+                    raise ValidationError(response_json.get('error', default_error).get('message', default_error))
+
+                self.cleaned_data['page'] = response_json
+                return token
+
+        form_class = FacebookForm
+
+        def form_valid(self, form):
+            super(ChannelCRUDL.ClaimFacebook, self).form_valid(form)
+            page = form.cleaned_data['page']
+            channel = Channel.add_facebook_channel(self.request.user.get_org(), self.request.user,
+                                                   page['name'], page['id'], form.cleaned_data['page_access_token'])
+
+            return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")

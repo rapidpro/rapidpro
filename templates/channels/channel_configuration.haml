@@ -533,6 +533,26 @@
     %code
       https://{{ domain }}{% url 'handlers.verboice_handler' 'status' object.uuid %}
 
+  -elif object.channel_type == 'FB'
+    %h4
+      -blocktrans
+        To finish configuring your Facebook connection you'll need to set the following webhook URL on your application
+        page, use the verify token below when updating it. Make sure to check all boxes to subscribe to all incoming
+        Facebook events.
+
+    %hr
+
+    %h4
+      -trans "Webhook URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.facebook_handler' object.uuid %}
+
+    %h4
+      -trans "Verify Token"
+
+    %code
+      {{ channel.secret }}
 
   -elif object.channel_type == 'HX'
     %h4

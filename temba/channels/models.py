@@ -79,6 +79,7 @@ API_ID = 'api_id'
 VERIFY_SSL = 'verify_ssl'
 USE_NATIONAL = 'use_national'
 ENCODING = 'encoding'
+PAGE_NAME = 'page_name'
 
 DEFAULT_ENCODING = 'D'  # we just pass the text down to the endpoint
 SMART_ENCODING = 'S'    # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -107,7 +108,7 @@ CHANNEL_SETTINGS = {
     CHIKKA: dict(scheme='tel', max_length=160),
     CLICKATELL: dict(scheme='tel', max_length=420),
     EXTERNAL: dict(max_length=160),
-    FACEBOOK: dict(scheme='tel', max_length=1600),
+    FACEBOOK: dict(scheme='facebook', max_length=1600),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),
@@ -504,6 +505,19 @@ class Channel(TembaModel):
                               address=channel.address, role=CALL, parent=channel)
 
     @classmethod
+    def add_facebook_channel(cls, org, user, page_name, page_id, page_access_token):
+        # subscribe to messaging events
+        response = requests.post('https://graph.facebook.com/v2.5/me/subscribed_apps',
+                                 params=dict(access_token=page_access_token))
+
+        if response.status_code != 200 or not response.json()['success']:
+            raise Exception("Unable to subscribe for delivery of events: %s" % (response.content))
+
+        return Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
+                              config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
+                              secret=Channel.generate_secret())
+
+    @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
         config = dict(handle_id=long(handle_id),
                       oauth_token=oauth_token,
@@ -704,8 +718,11 @@ class Channel(TembaModel):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
-        if self.channel_type == TWITTER:
+        elif self.channel_type == TWITTER:
             return '@%s' % self.address
+
+        elif self.channel_type == FACEBOOK:
+            return "%s (%s)" % (self.config_json().get(PAGE_NAME, self.name), self.address)
 
         return self.address
 
@@ -1035,6 +1052,58 @@ class Channel(TembaModel):
                                description="Successfully delivered",
                                method='GET',
                                url=log_url,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
+    def send_facebook_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+
+        # build our payload
+        payload = dict()
+        payload['recipient'] = dict(id=msg.urn_path)
+        payload['message'] = dict(text=text)
+        payload = json.dumps(payload)
+
+        url = "https://graph.facebook.com/v2.5/me/messages"
+        params = dict(access_token=channel.config[AUTH_TOKEN])
+        headers = {'Content-Type': 'application/json'}
+        start = time.time()
+
+        try:
+            response = requests.post(url, payload, params=params, headers=headers, timeout=15)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200:
+            raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # grab our external id out, Facebook response is in format:
+        # "{"recipient_id":"997011467086879","message_id":"mid.1459532331848:2534ddacc3993a4b78"}"
+        external_id = None
+        try:
+            external_id = response.json()['message_id']
+        except Exception as e:
+            # if we can't pull out our message id, that's ok, we still sent
+            pass
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=payload,
                                response=response.text,
                                response_status=response.status_code)
 
@@ -2314,6 +2383,7 @@ class Channel(TembaModel):
                       CHIKKA: Channel.send_chikka_message,
                       CLICKATELL: Channel.send_clickatell_message,
                       EXTERNAL: Channel.send_external_message,
+                      FACEBOOK: Channel.send_facebook_message,
                       HIGH_CONNECTION: Channel.send_high_connection_message,
                       HUB9: Channel.send_hub9_message,
                       INFOBIP: Channel.send_infobip_message,
