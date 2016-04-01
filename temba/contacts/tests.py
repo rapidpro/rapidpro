@@ -1238,8 +1238,6 @@ class ContactTest(TembaTest):
         self.assertEqual('geo', media_type(media))
         self.assertEqual('47.5414799,-122.6359908', media_url(media))
 
-
-
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
 

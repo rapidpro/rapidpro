@@ -501,6 +501,12 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'folder=incoming&after=%s' % format_datetime(frank_msg1.modified_on))
         self.assertResultsById(response, [joe_msg3, frank_msg1])
 
+        # filter by broadcast
+        broadcast = Broadcast.create(self.org, self.user, "A beautiful broadcast", [self.joe, self.frank])
+        broadcast.send()
+        response = self.fetchJSON(url, 'broadcast=%s' % broadcast.pk)
+        self.assertResultsById(response, broadcast.msgs.all())
+
         # can't filter by more than one of contact, folder, label or broadcast together
         for query in ('contact=%s&label=Spam' % self.joe.uuid, 'label=Spam&folder=inbox',
                       'broadcast=12345&folder=inbox', 'broadcast=12345&label=Spam'):
@@ -562,6 +568,10 @@ class APITest(TembaTest):
 
         assert_media_upload('%s/test_media/steve.marten.jpg' % settings.MEDIA_ROOT, 'jpg')
         assert_media_upload('%s/test_media/snow.mp4' % settings.MEDIA_ROOT, 'mp4')
+
+        # missing file
+        response = self.client.post(url, dict(), HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEqual(response.status_code, 400)
 
         self.clear_storage()
 
@@ -726,6 +736,10 @@ class APITest(TembaTest):
 
         # filter by invalid before
         response = self.fetchJSON(url, 'before=longago')
+        self.assertResultsById(response, [])
+
+        # filter by invalid after
+        response = self.fetchJSON(url, 'before=%s&after=thefuture' % format_datetime(frank_run1.modified_on))
         self.assertResultsById(response, [])
 
         # can't filter by both contact and flow together
