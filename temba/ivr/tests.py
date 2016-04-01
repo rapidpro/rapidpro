@@ -201,6 +201,39 @@ class IVRTests(FlowFileTest):
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_text_trigger_ivr(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        # import our flows
+        self.get_flow('text_trigger_ivr')
+
+        msg_flow = Flow.objects.get(name="Message Flow - Parent")
+        ivr_flow = Flow.objects.get(name="IVR Flow - Child")
+
+        shawn = self.create_contact('Marshawn', '+24')
+        msg_flow.start(groups=[], contacts=[shawn])
+
+        # our message flow triggers an ivr flow
+        self.assertEqual(2, FlowRun.objects.all().count())
+        self.assertEqual(1, IVRCall.objects.filter(direction=OUTGOING).count())
+
+        # one text message
+        self.assertEqual(1, Msg.all_messages.all().count())
+
+        # now twilio calls back to initiate the triggered call
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        # still same number of runs and calls, but one more (ivr) message
+        self.assertEqual(2, FlowRun.objects.all().count())
+        self.assertEqual(1, IVRCall.objects.filter(direction=OUTGOING).count())
+        self.assertEqual(2, Msg.all_messages.all().count())
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_non_blocking_rule_ivr(self):
 
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")

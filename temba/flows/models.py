@@ -4535,13 +4535,15 @@ class StartFlowAction(Action):
         extra = message_context.get('extra', {})
         extra['flow'] = message_context.get('flow', {})
 
-        if self.flow.flow_type == Flow.VOICE:
+        # if they are both flow runs, just redirect the call
+        if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
             new_run = self.flow.start([], [run.contact], started_flows=started_flows,
                                       restart_participants=True, extra=extra, parent_run=run)[0]
             url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
             run.voice_response.redirect(url)
         else:
-            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra)
+            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
+                            extra=extra, parent_run=run)
 
         self.logger(run)
         return []
