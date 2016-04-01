@@ -1756,7 +1756,7 @@ class ChannelCRUDL(SmartCRUDL):
                 token = self.cleaned_data['page_access_token']
 
                 # hit the FB graph, see if we can load the page attributes
-                response = requests.get('https://graph.facebook.com/v2.5/me', dict(access_token=token))
+                response = requests.get('https://graph.facebook.com/v2.5/me', params=dict(access_token=token))
                 response_json = response.json()
                 if response.status_code != 200:
                     default_error = _("Invalid page access token, please check it and try again.")
