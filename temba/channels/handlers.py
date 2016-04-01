@@ -1649,12 +1649,24 @@ class FacebookHandler(View):
                         if channel_address != int(channel.address):
                             return HttpResponse("Msg does not match channel recipient id: %s" % channel.address, status=400)
 
-                        # otherwise, create the incoming message
-                        msg_date = datetime.fromtimestamp(envelope['timestamp']/1000.0).replace(tzinfo=pytz.utc)
-                        msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, str(envelope['sender']['id'])),
-                                                  envelope['message']['text'], date=msg_date)
-                        Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
-                        msgs.append(msg)
+                        content = None
+                        if 'text' in envelope['message']:
+                            content = envelope['message']['text']
+                        elif 'attachments' in envelope['message']:
+                            urls = []
+                            for attachment in envelope['message']['attachments']:
+                                if 'url' in attachment['payload']:
+                                    urls.append(attachment['payload']['url'])
+
+                            content = '\n'.join(urls)
+
+                        if content:
+                            # otherwise, create the incoming message
+                            msg_date = datetime.fromtimestamp(envelope['timestamp']/1000.0).replace(tzinfo=pytz.utc)
+                            msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, str(envelope['sender']['id'])),
+                                                      content, date=msg_date)
+                            Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
+                            msgs.append(msg)
 
                     elif 'delivery' in envelope:
                         for external_id in envelope['delivery']['mids']:
