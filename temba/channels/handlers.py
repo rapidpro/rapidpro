@@ -16,7 +16,7 @@ from django.views.generic import View
 from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE
-from temba.contacts.models import Contact, ContactURN, TEL_SCHEME, TELEGRAM_SCHEME
+from temba.contacts.models import Contact, ContactURN, TEL_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
@@ -1591,6 +1591,93 @@ class MbloxHandler(View):
             msg = Msg.create_incoming(channel, (TEL_SCHEME, body['from']), body['body'], date=msg_date)
             Msg.all_messages.filter(pk=msg.id).update(external_id=body['id'])
             return HttpResponse("SMS Accepted: %d" % msg.id)
+
+        else:
+            return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
+
+
+class FacebookHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(FacebookHandler, self).dispatch(*args, **kwargs)
+
+    def lookup_channel(self, kwargs):
+        from temba.channels.models import FACEBOOK
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
+                                         channel_type=FACEBOOK).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
+
+        return channel
+
+    def get(self, request, *args, **kwargs):
+        channel = self.lookup_channel(kwargs)
+
+        # this is a verification of a webhook
+        if request.GET.get('hub.mode') == 'subscribe':
+            # verify the token against our secret, if the same return the challenge FB sent us
+            if channel.secret == request.GET.get('hub.verify_token'):
+                return HttpResponse(request.GET.get('hub.challenge'))
+
+        else:
+            return JsonResponse(dict(error="Unknown request"), status=400)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        channel = self.lookup_channel(kwargs)
+
+        # parse our response
+        try:
+            body = json.loads(request.body)
+        except Exception as e:
+            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
+
+        if 'entry' not in body:
+            return HttpResponse("Missing entry array", status=400)
+
+        # iterate through our entries, handling them
+        for entry in body.get('entry'):
+            # this is an incoming message
+            if 'messaging' in entry:
+                msgs = []
+
+                for envelope in entry['messaging']:
+                    if 'message' in envelope:
+                        channel_address = envelope['recipient']['id']
+                        if channel_address != int(channel.address):
+                            return HttpResponse("Msg does not match channel recipient id: %s" % channel.address, status=400)
+
+                        content = None
+                        if 'text' in envelope['message']:
+                            content = envelope['message']['text']
+                        elif 'attachments' in envelope['message']:
+                            urls = []
+                            for attachment in envelope['message']['attachments']:
+                                if 'url' in attachment['payload']:
+                                    urls.append(attachment['payload']['url'])
+
+                            content = '\n'.join(urls)
+
+                        if content:
+                            # otherwise, create the incoming message
+                            msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
+                            msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, str(envelope['sender']['id'])),
+                                                      content, date=msg_date)
+                            Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
+                            msgs.append(msg)
+
+                    elif 'delivery' in envelope:
+                        for external_id in envelope['delivery']['mids']:
+                            msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
+                            if msg:
+                                msg.status_delivered()
+                                msgs.append(msg)
+
+                return HttpResponse("Msgs Updated: %s" % (",".join([str(m.id) for m in msgs])))
 
         else:
             return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
