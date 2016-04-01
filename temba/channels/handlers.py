@@ -1634,7 +1634,7 @@ class FacebookHandler(View):
         except Exception as e:
             return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
 
-        if not 'entry' in body:
+        if 'entry' not in body:
             return HttpResponse("Missing entry array", status=400)
 
         # iterate through our entries, handling them
@@ -1662,7 +1662,7 @@ class FacebookHandler(View):
 
                         if content:
                             # otherwise, create the incoming message
-                            msg_date = datetime.fromtimestamp(envelope['timestamp']/1000.0).replace(tzinfo=pytz.utc)
+                            msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
                             msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, str(envelope['sender']['id'])),
                                                       content, date=msg_date)
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
