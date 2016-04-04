@@ -3083,6 +3083,9 @@ class ExportFlowResultsTask(SmartModel):
     uuid = models.CharField(max_length=36, null=True,
                             help_text=_("The uuid used to name the resulting export file"))
 
+    config = models.TextField(null=True,
+                              help_text=_("Any configuration options for this flow export"))
+
     def start_export(self):
         """
         Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
