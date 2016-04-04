@@ -317,6 +317,7 @@ def msg_log_cmp(a, b):
         else:
             return 1
 
+
 class PartialTemplate(SmartTemplateView):
 
     def pre_process(self, request, *args, **kwargs):
@@ -325,6 +326,7 @@ class PartialTemplate(SmartTemplateView):
 
     def get_template_names(self):
         return "partials/%s.html" % self.template
+
 
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results',
@@ -1433,7 +1435,7 @@ class FlowLabelCRUDL(SmartCRUDL):
 
             flow_ids = []
             if self.form.cleaned_data['flows']:
-                flow_ids = [ int(_) for _ in self.form.cleaned_data['flows'].split(',') if _.isdigit() ]
+                flow_ids = [int(f) for f in self.form.cleaned_data['flows'].split(',') if f.isdigit()]
 
             flows = Flow.objects.filter(org=obj.org, is_active=True, pk__in=flow_ids)
 

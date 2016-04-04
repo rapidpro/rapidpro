@@ -113,7 +113,7 @@ class LeadCRUDL(SmartCRUDL):
             return super(LeadCRUDL.Create, self).dispatch(request, *args, **kwargs)
 
         def get_success_url(self):
-            return reverse('orgs.org_signup') + "?%s" % urlencode({'email':self.form.cleaned_data['email']})
+            return reverse('orgs.org_signup') + "?%s" % urlencode({'email': self.form.cleaned_data['email']})
 
         def form_invalid(self, form):
             url = reverse('public.public_index')

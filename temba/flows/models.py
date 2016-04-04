@@ -271,7 +271,7 @@ class Flow(TembaModel):
                    dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
         if response:
-            actions += [dict(type='reply', msg={base_language:response})]
+            actions += [dict(type='reply', msg={base_language: response})]
 
         if start_flow:
             actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
@@ -1354,7 +1354,8 @@ class Flow(TembaModel):
 
         start_flow_task.delay(flow_start.pk)
 
-    def start(self, groups, contacts, restart_participants=False, started_flows=None, start_msg=None, extra=None, flow_start=None):
+    def start(self, groups, contacts, restart_participants=False, started_flows=None,
+              start_msg=None, extra=None, flow_start=None, parent_run=None):
         """
         Starts a flow for the passed in groups and contacts.
         """
@@ -1422,14 +1423,14 @@ class Flow(TembaModel):
 
         if self.flow_type == Flow.VOICE:
             return self.start_call_flow(all_contact_ids, start_msg=start_msg,
-                                        extra=extra, flow_start=flow_start)
+                                        extra=extra, flow_start=flow_start, parent_run=parent_run)
 
         else:
             return self.start_msg_flow(all_contact_ids,
-                                       started_flows=started_flows,
-                                       start_msg=start_msg, extra=extra, flow_start=flow_start)
+                                       started_flows=started_flows, start_msg=start_msg,
+                                       extra=extra, flow_start=flow_start, parent_run=parent_run)
 
-    def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None):
+    def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
         from temba.ivr.models import IVRCall
         runs = []
         channel = self.org.get_call_channel()
@@ -1457,8 +1458,13 @@ class Flow(TembaModel):
             run.call = call
             run.save(update_fields=['call'])
 
-            # trigger the call to start (in the background)
-            call.start_call()
+            # if we were started by other call, save that off
+            if parent_run and parent_run.call:
+                call.parent = parent_run.call
+                call.save()
+            else:
+                # trigger the call to start (in the background)
+                call.start_call()
 
             runs.append(run)
 
@@ -1467,7 +1473,9 @@ class Flow(TembaModel):
 
         return runs
 
-    def start_msg_flow(self, all_contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None):
+    def start_msg_flow(self, all_contact_ids, started_flows=None, start_msg=None, extra=None,
+                       flow_start=None, parent_run=None):
+
         start_msg_id = start_msg.id if start_msg else None
         flow_start_id = flow_start.id if flow_start else None
 
@@ -3813,7 +3821,10 @@ class FlowLabel(models.Model):
     class Meta:
         unique_together = ('name', 'parent', 'org')
 
+
 __flow_user = None
+
+
 def get_flow_user():
     global __flow_user
     if not __flow_user:
@@ -3936,6 +3947,7 @@ class EmailAction(Action):
             if invalid_addresses:
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
+
 
 class WebhookAction(Action):
     """
@@ -4083,6 +4095,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
 
+
 class AddLabelAction(Action):
     """
     Add a label to the incoming message
@@ -4221,6 +4234,7 @@ class SayAction(Action):
             # no message, possibly failed loop detection
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
+
 
 class PlayAction(Action):
     """
@@ -4455,6 +4469,7 @@ class TriggerFlowAction(VariableContactAction):
         log = ActionLog.create(run, log_txt)
         return log
 
+
 class SetLanguageAction(Action):
     """
     Action that sets the language for a contact
@@ -4527,7 +4542,16 @@ class StartFlowAction(Action):
         extra = message_context.get('extra', {})
         extra['flow'] = message_context.get('flow', {})
 
-        self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra)
+        # if they are both flow runs, just redirect the call
+        if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
+            new_run = self.flow.start([], [run.contact], started_flows=started_flows,
+                                      restart_participants=True, extra=extra, parent_run=run)[0]
+            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
+            run.voice_response.redirect(url)
+        else:
+            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
+                            extra=extra, parent_run=run)
+
         self.logger(run)
         return []
 
@@ -4758,6 +4782,7 @@ class SendAction(VariableContactAction):
                      contact_count) % dict(msg=text, count=contact_count)
         log = ActionLog.create(run, log_txt)
         return log
+
 
 class Rule(object):
 
@@ -4999,6 +5024,7 @@ class NotEmptyTest(Test):
         if text and len(text.strip()):
             return 1, text
         return 0, None
+
 
 class ContainsTest(Test):
     """
