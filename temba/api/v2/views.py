@@ -1,6 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
-import urlparse
+from urlparse import parse_qs
 from base64 import b64decode
 
 from django.conf import settings
@@ -98,7 +98,7 @@ class CustomCursorPagination(pagination.CursorPagination):
 
         try:
             querystring = b64decode(encoded.encode('ascii')).decode('ascii')
-            tokens = urlparse.parse_qs(querystring, keep_blank_values=True)
+            tokens = parse_qs(querystring, keep_blank_values=True)
 
             offset = tokens.get('o', ['0'])[0]
             offset = _positive_int(offset, cutoff=OFFSET_CUTOFF)
