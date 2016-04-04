@@ -81,21 +81,25 @@ def osm_link(geo_url):
         (lat, lng) = coords
         return 'http://www.openstreetmap.org/#map=17/%s/%s' % (lat, lng)
 
+
 @register.filter
 def location(geo_url):
     (media_type, delim, location) = geo_url.partition(':')
     if len(location.split(',')) == 2:
         return location
 
+
 @register.filter
 def media_url(media):
     if media:
         return media.partition(':')[2]
 
+
 @register.filter
 def media_type(media):
     if media:
         return media.partition(':')[0]
+
 
 @register.filter
 def activity_icon(item):

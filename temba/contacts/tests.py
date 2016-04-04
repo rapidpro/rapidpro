@@ -1375,10 +1375,10 @@ class ContactTest(TembaTest):
         self.login(self.manager1)
 
         # create kLab group, and add joe to the group
-        kLab = self.create_group("kLab", [self.joe])
+        klab = self.create_group("kLab", [self.joe])
 
         # post to read url, joe's contact and kLab group
-        post_data = dict(contact=self.joe.id, group=kLab.id)
+        post_data = dict(contact=self.joe.id, group=klab.id)
         response = self.client.post(read_url, post_data, follow=True)
 
         # this manager cannot operate on this organization
