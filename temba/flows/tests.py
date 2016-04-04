@@ -1514,6 +1514,16 @@ class FlowTest(TembaTest):
         self.assertTrue(response.context['form'].errors)
         self.assertTrue('The keyword "unique" is already used for another flow' in response.context['form'].errors['keyword_triggers'])
 
+        # create another trigger so there are two in the way
+        trigger = Trigger.objects.create(org=self.org, keyword='this', flow=flow1,
+                               created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.post(reverse('flows.flow_create'), post_data)
+        self.assertTrue(response.context['form'].errors)
+        print response.context['form'].errors['keyword_triggers']
+        self.assertTrue('The keywords "this, unique" are already used for another flow' in response.context['form'].errors['keyword_triggers'])
+        trigger.delete()
+
         # create a new flow with keywords
         post_data = dict()
         post_data['name'] = "Flow With Good Keyword Triggers"
