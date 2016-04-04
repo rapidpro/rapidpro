@@ -143,8 +143,8 @@ class ScheduleTest(TembaTest):
         post_data = dict(repeat_period='W', repeat_days=6, start='later', start_datetime_value=1)
         response = self.client.post(reverse('schedules.schedule_update', args=[broadcast.schedule.pk]), post_data)
 
-        #broadcast = Broadcast.objects.get(pk=broadcast.pk)
-        #self.assertTrue(broadcast.schedule.has_pending_fire())
+        # broadcast = Broadcast.objects.get(pk=broadcast.pk)
+        # self.assertTrue(broadcast.schedule.has_pending_fire())
 
     def test_update(self):
         sched = self.create_schedule('W', [THURSDAY, SATURDAY])

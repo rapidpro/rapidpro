@@ -15,12 +15,15 @@
             .icon-nav-channels-inverted
       -else
         %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
-          -with item.channellog_set.all.first as log
-            -if log
-              %a{href:"{% url 'channels.channellog_read' log.pk%}"}
+          -if not user_org.is_anon or perms.contacts.contact_break_anon
+            -with item.channellog_set.all.first as log
+              -if log
+                %a{href:"{% url 'channels.channellog_read' log.pk%}"}
+                  {{item|activity_icon}}
+              -else
                 {{item|activity_icon}}
-            -else
-              {{item|activity_icon}}
+          -else
+            {{item|activity_icon}}
 
     %td.details
       -if item.recipient_count

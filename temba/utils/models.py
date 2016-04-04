@@ -34,7 +34,7 @@ class ChunkIterator(object):
 
     def _setup(self):
         for i in xrange(0, len(self._ids), self.max_obj_num):
-            chunk_queryset = self._model.objects.filter(id__in=self._ids[i:i+self.max_obj_num])
+            chunk_queryset = self._model.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
                 chunk_queryset = chunk_queryset.order_by(*self._order_by)

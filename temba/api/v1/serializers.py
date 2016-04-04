@@ -1391,11 +1391,19 @@ class FlowRunStartSerializer(WriteSerializer):
                 # treat each URN as separate contact
                 self.contact_objs.append(Contact.get_or_create(channel.org, self.user, urns=[urn]))
 
-        if self.group_objs or self.contact_objs:
-            return self.flow_obj.start(self.group_objs, self.contact_objs,
-                                       restart_participants=restart_participants, extra=extra)
-        else:
-            return []
+        try:
+            # if we only have one contact and it is a test contact, then set simulation to true so our flow starts
+            if len(self.contact_objs) == 1 and self.contact_objs[0].is_test:
+                Contact.set_simulation(True)
+
+            if self.group_objs or self.contact_objs:
+                return self.flow_obj.start(self.group_objs, self.contact_objs,
+                                           restart_participants=restart_participants, extra=extra)
+            else:
+                return []
+        finally:
+            # reset our simulation state
+            Contact.set_simulation(False)
 
 
 class BoundarySerializer(ReadSerializer):
