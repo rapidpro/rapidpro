@@ -1,9 +1,15 @@
 from __future__ import absolute_import, unicode_literals
 
+import urlparse
+from base64 import b64decode
+
+from django.conf import settings
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from rest_framework import generics, mixins, pagination, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import NotFound
+from rest_framework.pagination import Cursor
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -13,7 +19,7 @@ from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactFiel
 from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel, DELETED
 from temba.orgs.models import Org
-from temba.utils import str_to_bool, json_date_to_datetime
+from temba.utils import str_to_bool, json_date_to_datetime, positive_int
 from .serializers import BroadcastReadSerializer, ContactReadSerializer, ContactFieldReadSerializer
 from .serializers import ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
@@ -79,6 +85,37 @@ class CreatedOnCursorPagination(pagination.CursorPagination):
 
 class ModifiedOnCursorPagination(pagination.CursorPagination):
     ordering = '-modified_on'
+
+    def decode_cursor(self, request):
+        """
+        Given a request with a cursor, return a `Cursor` instance.
+        """
+        # Determine if we have a cursor, and if so then decode it.
+        encoded = request.query_params.get(self.cursor_query_param)
+        if encoded is None:
+            return None
+
+        # The offset in the cursor is used in situations where we have a
+        # nearly-unique index. (Eg millisecond precision creation timestamps)
+        # We guard against malicious users attempting to cause expensive database
+        # queries, by having a hard cap on the maximum possible size of the offset.
+        OFFSET_CUTOFF = getattr(settings, 'CURSOR_PAGINATION_OFFSET_CUTOFF', 1000)
+
+        try:
+            querystring = b64decode(encoded.encode('ascii')).decode('ascii')
+            tokens = urlparse.parse_qs(querystring, keep_blank_values=True)
+
+            offset = tokens.get('o', ['0'])[0]
+            offset = positive_int(offset, cutoff=OFFSET_CUTOFF)
+
+            reverse = tokens.get('r', ['0'])[0]
+            reverse = bool(int(reverse))
+
+            position = tokens.get('p', [None])[0]
+        except (TypeError, ValueError):
+            raise NotFound(self.invalid_cursor_message)
+
+        return Cursor(offset=offset, reverse=reverse, position=position)
 
 
 class MsgCursorPagination(pagination.CursorPagination):

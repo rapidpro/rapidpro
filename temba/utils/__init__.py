@@ -492,3 +492,16 @@ def print_max_mem_usage(msg=None):
     print "=" * 80
     print msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True)
     print "=" * 80
+
+
+def positive_int(integer_string, strict=False, cutoff=None):
+    """
+    Cast a string to a strictly positive integer.
+    """
+    ret = int(integer_string)
+    if ret < 0 or (ret == 0 and strict):
+        raise ValueError()
+    if cutoff:
+        ret = min(ret, cutoff)
+    return ret
+
