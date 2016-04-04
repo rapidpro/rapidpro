@@ -1,8 +1,11 @@
-from urllib import urlencode
-from urlparse import urljoin
-from django.utils.translation import ugettext_lazy as _
+from __future__ import unicode_literals
+
 import requests
+
+from django.utils.translation import ugettext_lazy as _
 from temba.utils.gsm7 import is_gsm7
+from urlparse import urljoin
+
 
 class NexmoClient(object):
     """

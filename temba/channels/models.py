@@ -46,6 +46,7 @@ AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
 BLACKMYNA = 'BM'
 CLICKATELL = 'CT'
+FACEBOOK = 'FB'
 EXTERNAL = 'EX'
 HIGH_CONNECTION = 'HX'
 HUB9 = 'H9'
@@ -78,6 +79,7 @@ API_ID = 'api_id'
 VERIFY_SSL = 'verify_ssl'
 USE_NATIONAL = 'use_national'
 ENCODING = 'encoding'
+PAGE_NAME = 'page_name'
 
 DEFAULT_ENCODING = 'D'  # we just pass the text down to the endpoint
 SMART_ENCODING = 'S'    # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -106,6 +108,7 @@ CHANNEL_SETTINGS = {
     CHIKKA: dict(scheme='tel', max_length=160),
     CLICKATELL: dict(scheme='tel', max_length=420),
     EXTERNAL: dict(max_length=160),
+    FACEBOOK: dict(scheme='facebook', max_length=1600),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),
@@ -145,37 +148,40 @@ YO_API_URL_1 = 'http://smgw1.yo.co.ug:9100/sendsms'
 YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
 YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
+
 class Encoding(Enum):
     GSM7 = 1
     REPLACED = 2
     UNICODE = 3
 
+
 class Channel(TembaModel):
-    TYPE_CHOICES = ((ANDROID, "Android"),
-                    (TWILIO, "Twilio"),
-                    (TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
-                    (AFRICAS_TALKING, "Africa's Talking"),
-                    (ZENVIA, "Zenvia"),
-                    (NEXMO, "Nexmo"),
-                    (INFOBIP, "Infobip"),
-                    (VERBOICE, "Verboice"),
+    TYPE_CHOICES = ((AFRICAS_TALKING, "Africa's Talking"),
+                    (ANDROID, "Android"),
+                    (BLACKMYNA, "Blackmyna"),
+                    (CLICKATELL, "Clickatell"),
+                    (EXTERNAL, "External"),
+                    (FACEBOOK, "Facebook"),
+                    (HIGH_CONNECTION, "High Connection"),
                     (HUB9, "Hub9"),
-                    (VUMI, "Vumi"),
+                    (INFOBIP, "Infobip"),
                     (JASMIN, "Jasmin"),
                     (KANNEL, "Kannel"),
-                    (EXTERNAL, "External"),
-                    (TWITTER, "Twitter"),
-                    (CLICKATELL, "Clickatell"),
+                    (M3TECH, "M3 Tech"),
+                    (MBLOX, "Mblox"),
+                    (NEXMO, "Nexmo"),
                     (PLIVO, "Plivo"),
                     (SHAQODOON, "Shaqodoon"),
-                    (HIGH_CONNECTION, "High Connection"),
-                    (BLACKMYNA, "Blackmyna"),
                     (SMSCENTRAL, "SMSCentral"),
                     (START, "Start Mobile"),
                     (TELEGRAM, "Telegram"),
+                    (TWILIO, "Twilio"),
+                    (TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
+                    (TWITTER, "Twitter"),
+                    (VERBOICE, "Verboice"),
+                    (VUMI, "Vumi"),
                     (YO, "Yo!"),
-                    (M3TECH, "M3 Tech"),
-                    (MBLOX, "Mblox"))
+                    (ZENVIA, "Zenvia"))
 
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
@@ -499,6 +505,19 @@ class Channel(TembaModel):
                               address=channel.address, role=CALL, parent=channel)
 
     @classmethod
+    def add_facebook_channel(cls, org, user, page_name, page_id, page_access_token):
+        # subscribe to messaging events
+        response = requests.post('https://graph.facebook.com/v2.5/me/subscribed_apps',
+                                 params=dict(access_token=page_access_token))
+
+        if response.status_code != 200 or not response.json()['success']:
+            raise Exception("Unable to subscribe for delivery of events: %s" % (response.content))
+
+        return Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
+                              config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
+                              secret=Channel.generate_secret())
+
+    @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
         config = dict(handle_id=long(handle_id),
                       oauth_token=oauth_token,
@@ -699,8 +718,11 @@ class Channel(TembaModel):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
-        if self.channel_type == TWITTER:
+        elif self.channel_type == TWITTER:
             return '@%s' % self.address
+
+        elif self.channel_type == FACEBOOK:
+            return "%s (%s)" % (self.config_json().get(PAGE_NAME, self.name), self.address)
 
         return self.address
 
@@ -1030,6 +1052,58 @@ class Channel(TembaModel):
                                description="Successfully delivered",
                                method='GET',
                                url=log_url,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
+    def send_facebook_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+
+        # build our payload
+        payload = dict()
+        payload['recipient'] = dict(id=msg.urn_path)
+        payload['message'] = dict(text=text)
+        payload = json.dumps(payload)
+
+        url = "https://graph.facebook.com/v2.5/me/messages"
+        params = dict(access_token=channel.config[AUTH_TOKEN])
+        headers = {'Content-Type': 'application/json'}
+        start = time.time()
+
+        try:
+            response = requests.post(url, payload, params=params, headers=headers, timeout=15)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200:
+            raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # grab our external id out, Facebook response is in format:
+        # "{"recipient_id":"997011467086879","message_id":"mid.1459532331848:2534ddacc3993a4b78"}"
+        external_id = None
+        try:
+            external_id = response.json()['message_id']
+        except Exception as e:
+            # if we can't pull out our message id, that's ok, we still sent
+            pass
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=payload,
                                response=response.text,
                                response_status=response.status_code)
 
@@ -2309,6 +2383,7 @@ class Channel(TembaModel):
                       CHIKKA: Channel.send_chikka_message,
                       CLICKATELL: Channel.send_clickatell_message,
                       EXTERNAL: Channel.send_external_message,
+                      FACEBOOK: Channel.send_facebook_message,
                       HIGH_CONNECTION: Channel.send_high_connection_message,
                       HUB9: Channel.send_hub9_message,
                       INFOBIP: Channel.send_infobip_message,
@@ -2531,6 +2606,7 @@ class ChannelCount(models.Model):
     class Meta:
         index_together = ['channel', 'count_type', 'day']
 
+
 class SendException(Exception):
 
     def __init__(self, description, url, method, request, response, response_status, fatal=False):
@@ -2688,21 +2764,20 @@ def pre_save(sender, instance, **kwargs):
             last_sync_event.save()
 
 
-ALERT_DISCONNECTED = 'D'
-ALERT_POWER = 'P'
-ALERT_SMS = 'S'
-
-
 class Alert(SmartModel):
-    ALERT_TYPES = ((ALERT_POWER, _("Power")),                 # channel has low power
-                   (ALERT_DISCONNECTED, _("Disconnected")),   # channel hasn't synced in a while
-                   (ALERT_SMS, _("SMS")))                     # channel has many unsent messages
+    TYPE_DISCONNECTED = 'D'
+    TYPE_POWER = 'P'
+    TYPE_SMS = 'S'
+
+    TYPE_CHOICES = ((TYPE_POWER, _("Power")),                 # channel has low power
+                    (TYPE_DISCONNECTED, _("Disconnected")),   # channel hasn't synced in a while
+                    (TYPE_SMS, _("SMS")))                     # channel has many unsent messages
 
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"),
                                 help_text=_("The channel that this alert is for"))
     sync_event = models.ForeignKey(SyncEvent, verbose_name=_("Sync Event"), null=True,
                                    help_text=_("The sync event that caused this alert to be sent (if any)"))
-    alert_type = models.CharField(verbose_name=_("Alert Type"), max_length=1, choices=ALERT_TYPES,
+    alert_type = models.CharField(verbose_name=_("Alert Type"), max_length=1, choices=TYPE_CHOICES,
                                   help_text=_("The type of alert the channel is sending"))
     ended_on = models.DateTimeField(verbose_name=_("Ended On"), blank=True, null=True)
 
@@ -2716,20 +2791,21 @@ class Alert(SmartModel):
             sync.power_status == STATUS_UNKNOWN or
             sync.power_status == STATUS_NOT_CHARGING) and int(sync.power_level) < 25:
 
-            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=ALERT_POWER, ended_on=None)
+            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
 
             if not alerts:
                 host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
                 new_alert = Alert.objects.create(channel=sync.channel,
                                                  host=host,
                                                  sync_event=sync,
-                                                 alert_type=ALERT_POWER,
+                                                 alert_type=cls.TYPE_POWER,
                                                  created_by=alert_user,
                                                  modified_by=alert_user)
                 new_alert.send_alert()
 
         if sync.power_status == STATUS_CHARGING or sync.power_status == STATUS_FULL:
-            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=ALERT_POWER, ended_on=None).order_by('-created_on')
+            alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
+            alerts = alerts.order_by('-created_on')
 
             # end our previous alert
             if alerts and int(alerts[0].sync_event.power_level) < 25:
@@ -2747,7 +2823,7 @@ class Alert(SmartModel):
         thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
 
         # end any alerts that no longer seem valid
-        for alert in Alert.objects.filter(alert_type=ALERT_DISCONNECTED, ended_on=None):
+        for alert in Alert.objects.filter(alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
             # if we've seen the channel since this alert went out, then clear the alert
             if alert.channel.last_seen > alert.created_on:
                 alert.ended_on = alert.channel.last_seen
@@ -2756,9 +2832,9 @@ class Alert(SmartModel):
 
         for channel in Channel.objects.filter(channel_type=ANDROID, is_active=True).exclude(org=None).exclude(last_seen__gte=thirty_minutes_ago):
             # have we already sent an alert for this channel
-            if not Alert.objects.filter(channel=channel, alert_type=ALERT_DISCONNECTED, ended_on=None):
+            if not Alert.objects.filter(channel=channel, alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
                 host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                alert = Alert.objects.create(channel=channel, alert_type=ALERT_DISCONNECTED, host=host,
+                alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_DISCONNECTED, host=host,
                                              modified_by=alert_user, created_by=alert_user)
                 alert.send_alert()
 
@@ -2766,7 +2842,7 @@ class Alert(SmartModel):
         six_hours_ago = timezone.now() - timedelta(hours=6)
 
         # end any sms alerts that are open and no longer seem valid
-        for alert in Alert.objects.filter(alert_type=ALERT_SMS, ended_on=None):
+        for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None):
             # are there still queued messages?
 
             if not Msg.current_messages.filter(status__in=['Q', 'P'], channel=alert.channel, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago):
@@ -2798,7 +2874,7 @@ class Alert(SmartModel):
                 # if we haven't sent an alert in the past six ours
                 if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)):
                     host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                    alert = Alert.objects.create(channel=channel, alert_type=ALERT_SMS, host=host,
+                    alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_SMS, host=host,
                                                  modified_by=alert_user, created_by=alert_user)
                     alert.send_alert()
 
@@ -2821,7 +2897,7 @@ class Alert(SmartModel):
         if not self.channel.org:
             return
 
-        if self.alert_type == ALERT_POWER:
+        if self.alert_type == self.TYPE_POWER:
             if resolved:
                 subject = "Your Android phone is now charging"
                 template = 'channels/email/power_charging_alert'
@@ -2829,7 +2905,7 @@ class Alert(SmartModel):
                 subject = "Your Android phone battery is low"
                 template = 'channels/email/power_alert'
 
-        elif self.alert_type == ALERT_DISCONNECTED:
+        elif self.alert_type == self.TYPE_DISCONNECTED:
             if resolved:
                 subject = "Your Android phone is now connected"
                 template = 'channels/email/connected_alert'
@@ -2837,11 +2913,11 @@ class Alert(SmartModel):
                 subject = "Your Android phone is disconnected"
                 template = 'channels/email/disconnected_alert'
 
-        elif self.alert_type == ALERT_SMS:
+        elif self.alert_type == self.TYPE_SMS:
             subject = "Your %s is having trouble sending messages" % self.channel.get_channel_type_name()
             template = 'channels/email/sms_alert'
-        else: # pragma: no cover
-            raise Exception(_("Unknown alert type: %(alert)s") % {'alert':self.alert_type})
+        else:  # pragma: no cover
+            raise Exception(_("Unknown alert type: %(alert)s") % {'alert': self.alert_type})
 
         from temba.middleware import BrandingMiddleware
         branding = BrandingMiddleware.get_branding_for_host(self.host)

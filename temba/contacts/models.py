@@ -53,6 +53,7 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
+                     (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
 
 # schemes that we actually support
@@ -1320,14 +1321,15 @@ URN_SCHEME_PRIORITIES = {TEL_SCHEME: STANDARD_PRIORITY,
 
 URN_ANON_MASK = '*' * 8  # returned instead of URN values
 
-URN_SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME, FACEBOOK_SCHEME}  # schemes that support "follow" triggers
+URN_SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
 
 URN_SCHEMES_EXPORT_FIELDS = {
     TEL_SCHEME: dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
     TWITTER_SCHEME: dict(label='Twitter', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
     EXTERNAL_SCHEME: dict(label='External', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
     EMAIL_SCHEME: dict(label='Email', key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
-    TELEGRAM_SCHEME: dict(label='Telegram', key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME)
+    TELEGRAM_SCHEME: dict(label='Telegram', key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
+    FACEBOOK_SCHEME: dict(label='Facebook', key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
 }
 
 
@@ -1804,6 +1806,7 @@ class ContactGroup(TembaModel):
     def __unicode__(self):
         return self.name
 
+
 class ContactGroupCount(models.Model):
     """
     Maintains counts of contact groups. These are calculated via triggers on the database and squashed
@@ -1949,7 +1952,7 @@ class ExportContactsTask(SmartModel):
                 batch_contacts = Contact.objects.filter(id__in=batch_ids).select_related('org')
 
                 # to maintain our sort, we need to lookup by id, create a map of our id->contact to aid in that
-                contact_by_id = {c.id:c for c in batch_contacts}
+                contact_by_id = {c.id: c for c in batch_contacts}
 
                 # bulk initialize them
                 Contact.bulk_cache_initialize(self.org, batch_contacts)

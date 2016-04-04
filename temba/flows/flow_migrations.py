@@ -114,7 +114,8 @@ def migrate_to_version_6(json_flow):
                 if action['type'] in [SendAction.TYPE, ReplyAction.TYPE, SayAction.TYPE]:
                     convert_to_dict(action, 'msg')
                 if action['type'] == SayAction.TYPE:
-                    convert_to_dict(action, 'recording')
+                    if 'recording' in action:
+                        convert_to_dict(action, 'recording')
     return json_flow
 
 
@@ -224,7 +225,9 @@ def migrate_to_version_5(json_flow):
 
     return json_flow
 
-# Helper methods for flow migrations
+
+# ================================ Helper methods for flow migrations ===================================
+
 def remove_extra_rules(json_flow, ruleset):
     """ Remove all rules but the all responses rule """
     rules = []
@@ -247,7 +250,7 @@ def insert_node(flow, node, _next):
         if node_to_update.get('actions', []):
             node_to_update['destination'] = uuid
         else:
-            for rule in node_to_update.get('rules',[]):
+            for rule in node_to_update.get('rules', []):
                 rule['destination'] = uuid
 
     # make sure we have a fresh uuid

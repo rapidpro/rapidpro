@@ -1631,6 +1631,7 @@ class ConsoleTest(TembaTest):
         self.console.default("Color")
         self.assertEchoed("What is your favorite color?")
 
+
 class BroadcastLanguageTest(TembaTest):
 
     def setUp(self):

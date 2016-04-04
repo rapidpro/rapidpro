@@ -26,7 +26,6 @@ from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME
@@ -38,12 +37,12 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
-from twilio import TwilioException, TwilioRestException
+from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
 from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA
-from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS, ALERT_DISCONNECTED, ALERT_SMS
+from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
 from .tasks import check_channels_task, squash_channelcounts
@@ -659,16 +658,16 @@ class ChannelTest(TembaTest):
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.user)
 
         self.assertEquals(len(response.context['source_stats']), len(SyncEvent.objects.values_list('power_source', flat=True).distinct()))
-        self.assertEquals('AC',response.context['source_stats'][0][0])
-        self.assertEquals(1,response.context['source_stats'][0][1])
-        self.assertEquals('BAT',response.context['source_stats'][1][0])
-        self.assertEquals(1,response.context['source_stats'][0][1])
+        self.assertEquals('AC', response.context['source_stats'][0][0])
+        self.assertEquals(1, response.context['source_stats'][0][1])
+        self.assertEquals('BAT', response.context['source_stats'][1][0])
+        self.assertEquals(1, response.context['source_stats'][0][1])
 
         self.assertEquals(len(response.context['network_stats']), len(SyncEvent.objects.values_list('network_type', flat=True).distinct()))
-        self.assertEquals('UMTS',response.context['network_stats'][0][0])
-        self.assertEquals(1,response.context['network_stats'][0][1])
-        self.assertEquals('WIFI',response.context['network_stats'][1][0])
-        self.assertEquals(1,response.context['network_stats'][1][1])
+        self.assertEquals('UMTS', response.context['network_stats'][0][0])
+        self.assertEquals(1, response.context['network_stats'][0][1])
+        self.assertEquals('WIFI', response.context['network_stats'][1][0])
+        self.assertEquals(1, response.context['network_stats'][1][1])
 
         self.assertTrue(len(response.context['latest_sync_events']) <= 5)
 
@@ -1360,7 +1359,7 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='PL', org=self.org)
-                self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID:'auth-id',
+                self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID: 'auth-id',
                                                           PLIVO_AUTH_TOKEN: 'auth-token',
                                                           PLIVO_APP_ID: 'app-id'})
                 self.assertEquals(channel.address, "+16062681435")
@@ -1927,7 +1926,7 @@ class SyncEventTest(SmartminTest):
 
     def test_sync_event_model(self):
         self.sync_event = SyncEvent.create(self.tel_channel, dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI",
-                                                                  pending=[1, 2], retry=[3, 4], cc='RW'), [1,2])
+                                                                  pending=[1, 2], retry=[3, 4], cc='RW'), [1, 2])
         self.assertEquals(SyncEvent.objects.all().count(), 1)
         self.assertEquals(self.sync_event.get_pending_messages(), [1, 2])
         self.assertEquals(self.sync_event.get_retry_messages(), [3, 4])
@@ -2007,12 +2006,16 @@ class ChannelAlertTest(TembaTest):
         self.assertContains(response, reverse('handlers.external_handler', args=['received', channel.uuid]))
 
         # test substitution in our url
-        self.assertEquals('http://test.com/send.php?from=5080&text=test&to=%2B250788383383',
-                          channel.build_send_url(url, { 'from':"5080", 'text':"test", 'to':"+250788383383" }))
+        self.assertEqual('http://test.com/send.php?from=5080&text=test&to=%2B250788383383',
+                         channel.build_send_url(url, {'from': "5080", 'text': "test", 'to': "+250788383383"}))
 
         # test substitution with unicode
-        self.assertEquals('http://test.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383',
-                          channel.build_send_url(url, { 'from':"5080", 'text':u"Reply “1” for good", 'to':"+250788383383" }))
+        self.assertEqual('http://test.com/send.php?from=5080&text=Reply+%E2%80%9C1%E2%80%9D+for+good&to=%2B250788383383',
+                         channel.build_send_url(url, {
+                             'from': "5080",
+                             'text': "Reply “1” for good",
+                             'to': "+250788383383"
+                         }))
 
     def test_clickatell(self):
         from temba.channels.models import CLICKATELL
@@ -2294,7 +2297,7 @@ class ChannelAlertTest(TembaTest):
         # should have created one alert
         alert = Alert.objects.get()
         self.assertEquals(self.channel, alert.channel)
-        self.assertEquals(ALERT_DISCONNECTED, alert.alert_type)
+        self.assertEquals(Alert.TYPE_DISCONNECTED, alert.alert_type)
         self.assertFalse(alert.ended_on)
 
         self.assertTrue(len(mail.outbox) == 1)
@@ -2435,7 +2438,7 @@ class ChannelAlertTest(TembaTest):
 
         alert = Alert.objects.get()
         self.assertEquals(self.channel, alert.channel)
-        self.assertEquals(ALERT_SMS, alert.alert_type)
+        self.assertEquals(Alert.TYPE_SMS, alert.alert_type)
         self.assertFalse(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 1)
 
@@ -2484,7 +2487,7 @@ class ChannelAlertTest(TembaTest):
         # get the alert which is not ended
         alert = Alert.objects.get(ended_on=None)
         self.assertEquals(self.channel, alert.channel)
-        self.assertEquals(ALERT_SMS, alert.alert_type)
+        self.assertEquals(Alert.TYPE_SMS, alert.alert_type)
         self.assertFalse(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
 
@@ -3223,7 +3226,12 @@ class KannelTest(TembaTest):
         assertStatus(sms, '16', FAILED)
 
     def test_receive(self):
-        data = {'sender': '0788383383', 'message': 'Hello World!', 'id':'external1', 'ts':int(calendar.timegm(time.gmtime()))}
+        data = {
+            'sender': '0788383383',
+            'message': 'Hello World!',
+            'id': 'external1',
+            'ts': int(calendar.timegm(time.gmtime()))
+        }
         callback_url = reverse('handlers.kannel_handler', args=['receive', self.channel.uuid])
         response = self.client.post(callback_url, data)
 
@@ -3926,7 +3934,7 @@ class InfobipTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(results=[{'status':0, 'messageid':12}])))
+                mock.return_value = MockResponse(200, json.dumps(dict(results=[{'status': 0, 'messageid': 12}])))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
@@ -4185,7 +4193,13 @@ class Hub9Test(TembaTest):
         # http://localhost:8000/api/v1/hub9/received/9bbffaeb-3b12-4fe1-bcaa-fd50cce2ada2/?
         # userid=testusr&password=test&original=6289881134567&sendto=6282881134567
         # &messageid=99123635&message=Test+sending+sms
-        data = {'userid': 'testusr', 'password': 'test', 'original':'6289881134560', 'sendto':'6289881134567', 'message': 'Hello World'}
+        data = {
+            'userid': 'testusr',
+            'password': 'test',
+            'original': '6289881134560',
+            'sendto': '6289881134567',
+            'message': 'Hello World'
+        }
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.hub9_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
@@ -4212,7 +4226,13 @@ class Hub9Test(TembaTest):
         self.assertEquals(404, response.status_code)
 
         # the case of 11 digits numer from hub9
-        data = {'userid': 'testusr', 'password': 'test', 'original':'62811999374', 'sendto':'6289881134567', 'message': 'Hello Jakarta'}
+        data = {
+            'userid': 'testusr',
+            'password': 'test',
+            'original': '62811999374',
+            'sendto': '6289881134567',
+            'message': 'Hello Jakarta'
+        }
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.hub9_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
@@ -4372,9 +4392,9 @@ class TwilioTest(TembaTest):
         self.account_token = "0b14d47901387c03f92253a4e4449d5e"
         self.application_sid = "AP6fe2069df7f9482a8031cb61dc155de2"
 
-        self.channel.org.config = json.dumps({ACCOUNT_SID:self.account_sid,
-                                              ACCOUNT_TOKEN:self.account_token,
-                                              APPLICATION_SID:self.application_sid})
+        self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
+                                              ACCOUNT_TOKEN: self.account_token,
+                                              APPLICATION_SID: self.application_sid})
         self.channel.org.save()
 
     def test_receive_mms(self):
@@ -4451,7 +4471,7 @@ class TwilioTest(TembaTest):
         post_data['SmsStatus'] = 'sent'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{ 'HTTP_X_TWILIO_SIGNATURE': signature })
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(200, response.status_code)
 
@@ -4468,7 +4488,7 @@ class TwilioTest(TembaTest):
         post_data['SmsStatus'] = 'failed'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
-        response = self.client.post(twilio_url, post_data, **{ 'HTTP_X_TWILIO_SIGNATURE': signature })
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(200, response.status_code)
         sms = Msg.all_messages.get()
@@ -4691,7 +4711,7 @@ class ClickatellTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive_utf16(self):
-        self.channel.org.config = json.dumps({API_ID:'12345', USERNAME:'uname', PASSWORD:'pword'})
+        self.channel.org.config = json.dumps({API_ID: '12345', USERNAME: 'uname', PASSWORD: 'pword'})
         self.channel.org.save()
 
         data = {'to': self.channel.address,
@@ -4719,7 +4739,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals('id1234', msg1.external_id)
 
     def test_receive_iso_8859_1(self):
-        self.channel.org.config = json.dumps({API_ID:'12345', USERNAME:'uname', PASSWORD:'pword'})
+        self.channel.org.config = json.dumps({API_ID: '12345', USERNAME: 'uname', PASSWORD: 'pword'})
         self.channel.org.save()
 
         data = {'to': self.channel.address,
@@ -4808,7 +4828,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals('id1234', msg1.external_id)
 
     def test_receive(self):
-        self.channel.org.config = json.dumps({API_ID:'12345', USERNAME:'uname', PASSWORD:'pword'})
+        self.channel.org.config = json.dumps({API_ID: '12345', USERNAME: 'uname', PASSWORD: 'pword'})
         self.channel.org.save()
 
         data = {'to': self.channel.address,
@@ -4838,7 +4858,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals('id1234', msg1.external_id)
 
     def test_status(self):
-        self.channel.org.config = json.dumps({API_ID:'12345', USERNAME:'uname', PASSWORD:'pword'})
+        self.channel.org.config = json.dumps({API_ID: '12345', USERNAME: 'uname', PASSWORD: 'pword'})
         self.channel.org.save()
 
         contact = self.create_contact("Joe", "+250788383383")
@@ -5086,9 +5106,9 @@ class PlivoTest(TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, 'RW', 'PL', None, '+250788123123',
-                                      config={PLIVO_AUTH_ID:'plivo-auth-id',
-                                              PLIVO_AUTH_TOKEN:'plivo-auth-token',
-                                              PLIVO_APP_ID:'plivo-app-id'},
+                                      config={PLIVO_AUTH_ID: 'plivo-auth-id',
+                                              PLIVO_AUTH_TOKEN: 'plivo-auth-token',
+                                              PLIVO_APP_ID: 'plivo-app-id'},
                                       uuid='00000000-0000-0000-0000-000000001234')
 
         self.joe = self.create_contact("Joe", "+250788383383")
@@ -5827,8 +5847,13 @@ class JasminTest(TembaTest):
     def test_receive(self):
         from temba.utils import gsm7
 
-        data = {'to': '1234', 'from': '0788383383',
-                'coding': '0', 'content': gsm7.encode("événement")[0], 'id':'external1'}
+        data = {
+            'to': '1234',
+            'from': '0788383383',
+            'coding': '0',
+            'content': gsm7.encode("événement")[0],
+            'id': 'external1'
+        }
         callback_url = reverse('handlers.jasmin_handler', args=['receive', self.channel.uuid])
         response = self.client.post(callback_url, data)
 

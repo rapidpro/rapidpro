@@ -622,7 +622,11 @@ class ExpressionsTest(TembaTest):
 
     def test_get_function_listing(self):
         listing = get_function_listing()
-        self.assertEqual(listing[0], {'signature':'ABS(number)', 'name': 'ABS', 'display': "Returns the absolute value of a number"})
+        self.assertEqual(listing[0], {
+            'signature': 'ABS(number)',
+            'name': 'ABS',
+            'display': "Returns the absolute value of a number"
+        })
 
     def test_build_function_signature(self):
         self.assertEqual('ABS()',

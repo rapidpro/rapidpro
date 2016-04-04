@@ -192,7 +192,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Update(OrgObjPermsMixin, SmartUpdateView):
         form_class = BroadcastForm
         fields = ('message', 'omnibox')
-        field_config = {'restrict':{'label':''}, 'omnibox':{'label':''}, 'message':{'label':'', 'help':''},}
+        field_config = {'restrict': {'label': ''}, 'omnibox': {'label': ''}, 'message': {'label': '', 'help': ''}}
         success_message = ''
         success_url = 'msgs.broadcast_schedule_list'
 
@@ -541,7 +541,7 @@ class MsgCRUDL(SmartCRUDL):
             context['base_template'] = 'msgs/msg_test_frame.html'
             return self.render_to_response(Context(context))
 
-        def get_form_kwargs(self ,*args, **kwargs):
+        def get_form_kwargs(self, *args, **kwargs):
             kwargs = super(MsgCRUDL.Test, self).get_form_kwargs(*args, **kwargs)
             kwargs['org'] = self.request.user.get_org()
             return kwargs

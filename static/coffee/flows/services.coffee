@@ -1219,9 +1219,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         Flow.flow.action_sets.push(actionset)
 
       if Flow.flow.action_sets.length == 1
-        $timeout ->
-          DragHelper.showSaveResponse($('#' + Flow.flow.action_sets[0].uuid + ' .source'))
-        ,0
+        if not Flow.flow.action_sets[0].destination
+          $timeout ->
+            DragHelper.showSaveResponse($('#' + Flow.flow.action_sets[0].uuid + ' .source'))
+          ,0
 
       @checkTerminal(actionset)
       @markDirty()
