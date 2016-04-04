@@ -504,4 +504,3 @@ def positive_int(integer_string, strict=False, cutoff=None):
     if cutoff:
         ret = min(ret, cutoff)
     return ret
-
