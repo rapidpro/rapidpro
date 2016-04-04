@@ -9,7 +9,7 @@ from django.db.transaction import non_atomic_requests
 from rest_framework import generics, mixins, pagination, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import NotFound
-from rest_framework.pagination import Cursor
+from rest_framework.pagination import Cursor, _positive_int
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -79,12 +79,7 @@ class ApiExplorerView(SmartTemplateView):
         return context
 
 
-class CreatedOnCursorPagination(pagination.CursorPagination):
-    ordering = '-created_on'
-
-
-class ModifiedOnCursorPagination(pagination.CursorPagination):
-    ordering = '-modified_on'
+class CustomCursorPagination(pagination.CursorPagination):
 
     def decode_cursor(self, request):
         """
@@ -106,7 +101,7 @@ class ModifiedOnCursorPagination(pagination.CursorPagination):
             tokens = urlparse.parse_qs(querystring, keep_blank_values=True)
 
             offset = tokens.get('o', ['0'])[0]
-            offset = positive_int(offset, cutoff=OFFSET_CUTOFF)
+            offset = _positive_int(offset, cutoff=OFFSET_CUTOFF)
 
             reverse = tokens.get('r', ['0'])[0]
             reverse = bool(int(reverse))
@@ -118,7 +113,15 @@ class ModifiedOnCursorPagination(pagination.CursorPagination):
         return Cursor(offset=offset, reverse=reverse, position=position)
 
 
-class MsgCursorPagination(pagination.CursorPagination):
+class CreatedOnCursorPagination(CustomCursorPagination):
+    ordering = '-created_on'
+
+
+class ModifiedOnCursorPagination(CustomCursorPagination):
+    ordering = '-modified_on'
+
+
+class MsgCursorPagination(CustomCursorPagination):
     """
     Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
     at all incoming messages.

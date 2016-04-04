@@ -27,22 +27,10 @@ from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
-from . import datetime_to_str, positive_int
+from . import datetime_to_str
 
 
 class InitTest(TembaTest):
-
-    def test_positive_int(self):
-        self.assertEqual(positive_int('5'), 5)
-        self.assertEqual(positive_int('0'), 0)
-
-        with self.assertRaises(ValueError):
-            positive_int('-5')
-        with self.assertRaises(ValueError):
-            positive_int('0', strict=True)
-
-        self.assertEqual(positive_int('5', cutoff=3), 3)
-        self.assertEqual(positive_int('5', cutoff=10), 5)
 
     def test_datetime_to_ms(self):
         d1 = datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
