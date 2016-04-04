@@ -105,7 +105,7 @@ class FlowStatsCache(Enum):
     cache_check = 6
 
 
-def edit_distance(s1, s2): # pragma: no cover
+def edit_distance(s1, s2):  # pragma: no cover
     """
     Compute the Damerau-Levenshtein distance between two given
     strings (s1 and s2)
@@ -4461,7 +4461,7 @@ class TriggerFlowAction(VariableContactAction):
                 self.logger(run, self.flow, len(unique_contacts))
 
             return []
-        else: # pragma: no cover
+        else:  # pragma: no cover
             return []
 
     def logger(self, run, flow, contact_count):
@@ -5461,7 +5461,7 @@ class SimpleNumericTest(Test):
     def as_json(self):
         return dict(type=self.TYPE, test=self.test)
 
-    def evaluate_numeric_test(self, message_numeric, test_numeric): # pragma: no cover
+    def evaluate_numeric_test(self, message_numeric, test_numeric):  # pragma: no cover
         raise FlowException("Evaluate numeric test needs to be defined by subclass")
 
     # test every word in the message against our test

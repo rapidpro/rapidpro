@@ -2016,7 +2016,7 @@ class ContactTest(TembaTest):
         self.assertEqual(michael.pk, contact2.pk)
         self.assertEquals('uuid-1111', eric.uuid)
         self.assertEquals('uuid-4444', michael.uuid)
-        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         # new urn added for eric
         self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111', '+250788382382'])
@@ -2051,7 +2051,7 @@ class ContactTest(TembaTest):
             self.assertEquals(0, Contact.objects.filter(name='Kobe').count())
             self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
             self.assertEquals('uuid-4444', Contact.objects.filter(name='Michael').first().uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             eric = Contact.objects.filter(name='Eric Newcomer').first()
             michael = Contact.objects.filter(name='Michael').first()
@@ -2059,7 +2059,7 @@ class ContactTest(TembaTest):
             self.assertEqual(michael.pk, contact2.pk)
             self.assertEquals('uuid-1111', eric.uuid)
             self.assertEquals('uuid-4444', michael.uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             # new urn ignored for eric
             self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2171,7 +2171,7 @@ class ContactTest(TembaTest):
         self.assertEqual(michael.pk, contact2.pk)
         self.assertEquals('uuid-1111', eric.uuid)
         self.assertEquals('uuid-4444', michael.uuid)
-        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         # new urn added for eric
         self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2191,7 +2191,7 @@ class ContactTest(TembaTest):
             self.assertEquals(0, Contact.objects.filter(name='Kobe').count())
             self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
             self.assertEquals('uuid-4444', Contact.objects.filter(name='Michael').first().uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             eric = Contact.objects.filter(name='Eric Newcomer').first()
             michael = Contact.objects.filter(name='Michael').first()
@@ -2199,7 +2199,7 @@ class ContactTest(TembaTest):
             self.assertEqual(michael.pk, contact2.pk)
             self.assertEquals('uuid-1111', eric.uuid)
             self.assertEquals('uuid-4444', michael.uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             # new urn ignored for eric
             self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2238,7 +2238,7 @@ class ContactTest(TembaTest):
         self.assertEqual(michael.pk, contact2.pk)
         self.assertEquals('uuid-1111', eric.uuid)
         self.assertEquals('uuid-4444', michael.uuid)
-        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         # new urn added for eric
         self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2258,7 +2258,7 @@ class ContactTest(TembaTest):
             self.assertEquals(0, Contact.objects.filter(name='Kobe').count())
             self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
             self.assertEquals('uuid-4444', Contact.objects.filter(name='Michael').first().uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             eric = Contact.objects.filter(name='Eric Newcomer').first()
             michael = Contact.objects.filter(name='Michael').first()
@@ -2266,7 +2266,7 @@ class ContactTest(TembaTest):
             self.assertEqual(michael.pk, contact2.pk)
             self.assertEquals('uuid-1111', eric.uuid)
             self.assertEquals('uuid-4444', michael.uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             # new urn ignored for eric
             self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2295,7 +2295,7 @@ class ContactTest(TembaTest):
 
         self.assertEquals(1, Contact.objects.filter(name='Bob').count())
         self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
-        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         with AnonymousOrg(self.org):
             with patch('temba.orgs.models.Org.lock_on') as mock_lock:
@@ -2308,7 +2308,7 @@ class ContactTest(TembaTest):
 
             self.assertEquals(1, Contact.objects.filter(name='Bob').count())
             self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -2398,7 +2398,7 @@ class ContactTest(TembaTest):
         ContactField.objects.filter(key='location').update(value_type=Value.TYPE_DATETIME)
         contact1 = Contact.objects.all().order_by('name')[0]
 
-        # Not a valid date, so should be None
+        # not a valid date, so should be None
         self.assertEquals(contact1.get_field_display('location'), None)
 
         # return it back to a state field

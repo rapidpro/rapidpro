@@ -35,7 +35,7 @@ class ResultTest(FlowFileTest):
         result = Value.get_value_summary(contact_field=gender)[0]
         self.assertEquals(2, len(result['categories']))
         self.assertEquals(3, result['set'])
-        self.assertEquals(2, result['unset']) # this is two as we have the default contact created by our unit tests
+        self.assertEquals(2, result['unset'])  # this is two as we have the default contact created by our unit tests
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "Female", 2)
         self.assertResult(result, 1, "Male", 1)
@@ -83,7 +83,7 @@ class ResultTest(FlowFileTest):
         result = Value.get_value_summary(contact_field=gender)[0]
         self.assertEquals(2, len(result['categories']))
         self.assertEquals(3, result['set'])
-        self.assertEquals(2, result['unset']) # this is two as we have the default contact created by our unit tests
+        self.assertEquals(2, result['unset'])  # this is two as we have the default contact created by our unit tests
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "Male", 2)
         self.assertResult(result, 1, "Female", 1)
