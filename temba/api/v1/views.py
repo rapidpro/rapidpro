@@ -725,7 +725,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                           dict(name='after', required=False,
                                help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='relayer', required=False,
-                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854") ]
+                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854")]
 
         return spec
 

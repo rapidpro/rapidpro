@@ -3868,7 +3868,7 @@ class InfobipTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_received(self):
-        data = {'receiver': '2347030767144', 'sender': '2347030767143', 'text': 'Hello World' }
+        data = {'receiver': '2347030767144', 'sender': '2347030767143', 'text': 'Hello World'}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.infobip_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
