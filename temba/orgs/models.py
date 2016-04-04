@@ -701,7 +701,7 @@ class Org(SmartModel):
         if is_alias:
             query = dict(name__iexact=name, boundary__level=level)
             query['__'.join(['boundary'] + ['parent'] * level)] = self.country
-        else :
+        else:
             query = dict(name__iexact=name, level=level)
             query['__'.join(['parent'] * level)] = self.country
 

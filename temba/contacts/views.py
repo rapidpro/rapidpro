@@ -1314,7 +1314,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             i = 1
             for contact_field in contact_fields:
-                form_field_label = _("@contact.%(key)s") % {'key' : contact_field.key }
+                form_field_label = _("@contact.%(key)s") % {'key': contact_field.key}
                 added_fields.append(("show_%d" % i, forms.BooleanField(initial=contact_field.show_in_table, required=False)))
                 added_fields.append(("type_%d" % i, forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, initial=contact_field.value_type, required=True)))
                 added_fields.append(("label_%d" % i, forms.CharField(label=' ', max_length=36, help_text=form_field_label, initial=contact_field.label, required=False)))
