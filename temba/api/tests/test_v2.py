@@ -3,13 +3,17 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 
+from datetime import datetime
+from mock import patch
+
+import pytz
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN
-from temba.flows.models import Flow
+from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
@@ -539,6 +543,81 @@ class APITest(TembaTest):
             'date_style': "day_first",
             'anon': False
         })
+
+    def test_runs_offset(self):
+        url = reverse('api.v2.runs')
+
+        self.assertEndpointAccess(url)
+
+        flow1 = self.create_flow(uuid_start=0)
+
+        for i in range(600):
+            FlowRun.create(flow1, self.joe.pk)
+
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            now = timezone.now()
+            for r in FlowRun.objects.all():
+                r.modified_on = now
+                r.save()
+
+        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=10):
+            response = self.fetchJSON(url)
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=400):
+            url = reverse('api.v2.runs')
+            response = self.fetchJSON(url)
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 200)
+            self.assertIsNone(response.json['next'])
+
+        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=5000):
+            url = reverse('api.v2.runs')
+            response = self.fetchJSON(url)
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 100)
+            self.assertIsNone(response.json['next'])
 
     def test_runs(self):
         url = reverse('api.v2.runs')
