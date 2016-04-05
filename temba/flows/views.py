@@ -902,16 +902,17 @@ class FlowCRUDL(SmartCRUDL):
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
             flows = forms.ModelMultipleChoiceField(Flow.objects.filter(id__lt=0), required=True,
-                                                   widget=forms.HiddenInput())
+                                                   widget=forms.MultipleHiddenInput())
             contact_fields = forms.ModelMultipleChoiceField(ContactField.objects.filter(id__lt=0), required=False,
-                                                            help_text=_("Which contact fields to include in the export"))
+                                                            help_text=_("Which contact fields, if any, to include "
+                                                                        "in the export"))
             responded_only = forms.BooleanField(required=False, label=_("Responded Only"), initial=True,
                                                 help_text=_("Only export results for contacts which responded"))
             include_messages = forms.BooleanField(required=False, label=_("Include Messages"),
                                                   help_text=_("Export all messages sent and received in this flow"))
-            include_steps = forms.BooleanField(required=False, label=_("Include Steps"),
-                                               help_text=_("Export every individual step of the flow, not just "
-                                                           "final values for each step"))
+            include_runs = forms.BooleanField(required=False, label=_("Include Runs"),
+                                              help_text=_("Export every run a contact has made in this flow, "
+                                                          "not just the last one"))
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.ExportResults.ExportForm, self).__init__(*args, **kwargs)
@@ -921,7 +922,6 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields['flows'].queryset = Flow.objects.filter(org=self.user.get_org(), is_active=True)
 
             def clean(self):
-                import pdb; pdb.set_trace()
                 cleaned_data = super(FlowCRUDL.ExportResults.ExportForm, self).clean()
 
                 if 'contact_fields' in cleaned_data and len(cleaned_data['contact_fields']) > 10:
@@ -931,6 +931,7 @@ class FlowCRUDL(SmartCRUDL):
 
         form_class = ExportForm
         submit_button_name = _("Export")
+        success_url = '@flows.flow_list'
 
         def get_form_kwargs(self):
             kwargs = super(FlowCRUDL.ExportResults, self).get_form_kwargs()
@@ -938,8 +939,12 @@ class FlowCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_initial(self):
-            flow_ids = self.request.GET['ids'].split(',')
-            return dict(flows=Flow.objects.filter(org=self.request.user.get_org(), is_active=True, id__in=flow_ids))
+            flow_ids = self.request.GET.get('ids', None)
+            if flow_ids:
+                return dict(flows=Flow.objects.filter(org=self.request.user.get_org(), is_active=True,
+                                                      id__in=flow_ids.split(',')))
+            else:
+                return dict()
 
         def form_valid(self, form):
             analytics.track(self.request.user.username, 'temba.flow_exported')
@@ -960,16 +965,11 @@ class FlowCRUDL(SmartCRUDL):
             else:
                 host = self.request.branding['host']
 
-                # build our configuration
-                config = dict(contact_fields=[cf.id for cf in form.cleaned_data['contact_fields']],
-                              include_steps=form.cleaned_data['include_steps'],
-                              include_messages=form.cleaned_data['include_messages'],
-                              responded_only=form.cleaned_data['responded_only'])
-
-                export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user, host=host,
-                                                              config=json.dumps(config))
-                for flow in form.cleaned_data['flows'].order_by('created_on'):
-                    export.flows.add(flow)
+                export = ExportFlowResultsTask.create(host, org, user, form.cleaned_data['flows'],
+                                                      contact_fields=form.cleaned_data['contact_fields'],
+                                                      include_runs=form.cleaned_data['include_runs'],
+                                                      include_msgs=form.cleaned_data['include_messages'],
+                                                      responded_only=form.cleaned_data['responded_only'])
                 export_flow_results_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
@@ -984,7 +984,16 @@ class FlowCRUDL(SmartCRUDL):
                                   _("Export complete, you can find it here: %s (production users will get an email)")
                                   % dl_url)
 
-            return HttpResponseRedirect(reverse('flows.flow_list'))
+            if 'HTTP_X_PJAX' not in self.request.META:
+                return HttpResponseRedirect(self.get_success_url())
+            else:  # pragma: no cover
+                response = self.render_to_response(
+                    self.get_context_data(form=form,
+                                          success_url=self.get_success_url(),
+                                          success_script=getattr(self, 'success_script', None)))
+                response['Temba-Success'] = self.get_success_url()
+                response['REDIRECT'] = self.get_success_url()
+                return response
 
     class Results(FormaxMixin, OrgObjPermsMixin, SmartReadView):
 
