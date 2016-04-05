@@ -19,7 +19,7 @@ from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactFiel
 from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel, DELETED
 from temba.orgs.models import Org
-from temba.utils import str_to_bool, json_date_to_datetime, positive_int
+from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import BroadcastReadSerializer, ContactReadSerializer, ContactFieldReadSerializer
 from .serializers import ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
