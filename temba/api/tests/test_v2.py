@@ -509,7 +509,7 @@ class APITest(TembaTest):
         broadcast = Broadcast.create(self.org, self.user, "A beautiful broadcast", [self.joe, self.frank])
         broadcast.send()
         response = self.fetchJSON(url, 'broadcast=%s' % broadcast.pk)
-        self.assertResultsById(response, broadcast.msgs.all().order_by('-pk'))
+        self.assertResultsById(response, broadcast.msgs.all().order_by('-contact__pk'))
 
         # can't filter by more than one of contact, folder, label or broadcast together
         for query in ('contact=%s&label=Spam' % self.joe.uuid, 'label=Spam&folder=inbox',
