@@ -492,7 +492,7 @@ class FlowTest(TembaTest):
     def test_export_results(self):
         # setup flow and start both contacts
         self.flow.update(self.definition)
-        contact1_run1, contact2_run1,  contact3_run1 = self.flow.start([], [self.contact, self.contact2, self.contact3])
+        contact1_run1, contact2_run1, contact3_run1 = self.flow.start([], [self.contact, self.contact2, self.contact3])
 
         # simulate two runs each for two contacts...
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
