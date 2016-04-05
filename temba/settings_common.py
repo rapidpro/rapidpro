@@ -1012,6 +1012,8 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
+CURSOR_PAGINATION_OFFSET_CUTOFF = 1000000
+
 
 # -----------------------------------------------------------------------------------
 # Aggregator settings
