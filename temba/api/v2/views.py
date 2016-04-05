@@ -21,7 +21,7 @@ from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import BroadcastReadSerializer, ContactReadSerializer, ContactFieldReadSerializer
 from .serializers import ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
-from ..support import InvalidQueryError
+from ..support import InvalidQueryError, CustomCursorPagination
 
 
 @api_view(['GET'])
@@ -77,15 +77,15 @@ class ApiExplorerView(SmartTemplateView):
         return context
 
 
-class CreatedOnCursorPagination(pagination.CursorPagination):
+class CreatedOnCursorPagination(CustomCursorPagination):
     ordering = '-created_on'
 
 
-class ModifiedOnCursorPagination(pagination.CursorPagination):
+class ModifiedOnCursorPagination(CustomCursorPagination):
     ordering = '-modified_on'
 
 
-class MsgCursorPagination(pagination.CursorPagination):
+class MsgCursorPagination(CustomCursorPagination):
     """
     Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
     at all incoming messages.

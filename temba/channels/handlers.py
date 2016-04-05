@@ -1608,13 +1608,12 @@ class FacebookHandler(View):
         # look up the channel
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
                                          channel_type=FACEBOOK).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
-
         return channel
 
     def get(self, request, *args, **kwargs):
         channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
         # this is a verification of a webhook
         if request.GET.get('hub.mode') == 'subscribe':
@@ -1629,6 +1628,8 @@ class FacebookHandler(View):
         from temba.msgs.models import Msg
 
         channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
         # parse our response
         try:
