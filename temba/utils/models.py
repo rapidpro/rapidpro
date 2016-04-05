@@ -67,8 +67,14 @@ class ChunkIterator(object):
             for obj in chunk_queryset:
                 # cache our contact field values on our contact object if we have any
                 if self._contact_fields:
+                    empty_values = set([cf.key.lower() for cf in self._contact_fields])
                     for value in cid_to_values[obj.contact_id]:
                         obj.contact.set_cached_field_value(value.contact_field.key.lower(), value)
+                        empty_values.remove(value.contact_field.key.lower())
+
+                    # set empty values for anything remaining
+                    for empty in empty_values:
+                        obj.contact.set_cached_field_value(empty, None)
 
                 yield obj
 

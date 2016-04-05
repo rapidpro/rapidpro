@@ -911,8 +911,8 @@ class FlowCRUDL(SmartCRUDL):
             include_messages = forms.BooleanField(required=False, label=_("Include Messages"),
                                                   help_text=_("Export all messages sent and received in this flow"))
             include_runs = forms.BooleanField(required=False, label=_("Include Runs"),
-                                              help_text=_("Export every run a contact has made in this flow, "
-                                                          "not just the last one"))
+                                              help_text=_("Include all runs for each contact. Leave unchecked for "
+                                                          "only their most recent runs"))
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.ExportResults.ExportForm, self).__init__(*args, **kwargs)

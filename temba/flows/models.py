@@ -3410,7 +3410,8 @@ class ExportFlowResultsTask(SmartModel):
                         field_value = unicode(field_value)
 
                         merged_runs.write(merged_row, padding + 4 + cf_padding, field_value)
-                        runs.write(run_row, padding + 4 + cf_padding, field_value)
+                        if include_runs:
+                            runs.write(run_row, padding + 4 + cf_padding, field_value)
 
                         cf_padding += 1
 
