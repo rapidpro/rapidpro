@@ -886,7 +886,7 @@ class ContactTest(TembaTest):
         self.assertEqual(q('home has k'), 60)
 
         self.assertEqual(q('home is ""'), 0)
-        self.assertEqual(q('profession is ""'), 60)
+        self.assertEqual(q('profession = ""'), 60)
 
         # contact fields beginning with 'is' or 'has'
         self.assertEqual(q('isureporter = "yes"'), 90)
@@ -902,6 +902,7 @@ class ContactTest(TembaTest):
         self.assertEqual(q('name is trey and age < 20'), 3)
         self.assertEqual(q('(home is gatsibo or home is "kigali")'), 60)
         self.assertEqual(q('(home is gatsibo or home is "kigali") and name is mike'), 15)
+        self.assertEqual(q('name is MIKE and profession = ""'), 15)
 
         # invalid queries - which revert to simple name/phone matches
         self.assertEqual(q('(('), 0)
