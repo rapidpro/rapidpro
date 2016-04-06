@@ -20,7 +20,8 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView
 from itertools import chain
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView, SmartDeleteView, SmartTemplateView
+from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartListView, SmartUpdateView
+from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
 from temba.formax import FormaxMixin
@@ -898,13 +899,54 @@ class FlowCRUDL(SmartCRUDL):
                 context['other_flow_names'] = e.flow_names
                 return super(FlowCRUDL.Export, self).render_to_response(context, **response_kwargs)
 
-    class ExportResults(OrgQuerysetMixin, OrgPermsMixin, SmartListView):
+    class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
+        class ExportForm(forms.Form):
+            flows = forms.ModelMultipleChoiceField(Flow.objects.filter(id__lt=0), required=True,
+                                                   widget=forms.MultipleHiddenInput())
+            contact_fields = forms.ModelMultipleChoiceField(ContactField.objects.filter(id__lt=0), required=False,
+                                                            help_text=_("Which contact fields, if any, to include "
+                                                                        "in the export"))
+            responded_only = forms.BooleanField(required=False, label=_("Responded Only"), initial=True,
+                                                help_text=_("Only export results for contacts which responded"))
+            include_messages = forms.BooleanField(required=False, label=_("Include Messages"),
+                                                  help_text=_("Export all messages sent and received in this flow"))
+            include_runs = forms.BooleanField(required=False, label=_("Include Runs"),
+                                              help_text=_("Include all runs for each contact. Leave unchecked for "
+                                                          "only their most recent runs"))
 
-        def derive_queryset(self, *args, **kwargs):
-            queryset = super(FlowCRUDL.ExportResults, self).derive_queryset(*args, **kwargs)
-            return queryset.filter(pk__in=self.request.REQUEST['ids'].split(','))
+            def __init__(self, user, *args, **kwargs):
+                super(FlowCRUDL.ExportResults.ExportForm, self).__init__(*args, **kwargs)
+                self.user = user
+                self.fields['contact_fields'].queryset = ContactField.objects.filter(org=self.user.get_org(),
+                                                                                     is_active=True)
+                self.fields['flows'].queryset = Flow.objects.filter(org=self.user.get_org(), is_active=True)
 
-        def render_to_response(self, context, *args, **kwargs):
+            def clean(self):
+                cleaned_data = super(FlowCRUDL.ExportResults.ExportForm, self).clean()
+
+                if 'contact_fields' in cleaned_data and len(cleaned_data['contact_fields']) > 10:
+                    raise forms.ValidationError(_("You can only include up to 10 contact fields in your export"))
+
+                return cleaned_data
+
+        form_class = ExportForm
+        submit_button_name = _("Export")
+        success_url = '@flows.flow_list'
+
+        def get_form_kwargs(self):
+            kwargs = super(FlowCRUDL.ExportResults, self).get_form_kwargs()
+            kwargs['user'] = self.request.user
+            return kwargs
+
+        def derive_initial(self):
+            flow_ids = self.request.GET.get('ids', None)
+            if flow_ids:
+                return dict(flows=Flow.objects.filter(org=self.request.user.get_org(), is_active=True,
+                                                      id__in=flow_ids.split(',')))
+            else:
+                return dict()
+
+        def form_valid(self, form):
             analytics.track(self.request.user.username, 'temba.flow_exported')
 
             user = self.request.user
@@ -922,9 +964,12 @@ class FlowCRUDL(SmartCRUDL):
                                 "for that export to complete before starting another." % existing.created_by.username))
             else:
                 host = self.request.branding['host']
-                export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user, host=host)
-                for flow in self.get_queryset().order_by('created_on'):
-                    export.flows.add(flow)
+
+                export = ExportFlowResultsTask.create(host, org, user, form.cleaned_data['flows'],
+                                                      contact_fields=form.cleaned_data['contact_fields'],
+                                                      include_runs=form.cleaned_data['include_runs'],
+                                                      include_msgs=form.cleaned_data['include_messages'],
+                                                      responded_only=form.cleaned_data['responded_only'])
                 export_flow_results_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
@@ -939,7 +984,16 @@ class FlowCRUDL(SmartCRUDL):
                                   _("Export complete, you can find it here: %s (production users will get an email)")
                                   % dl_url)
 
-            return HttpResponseRedirect(reverse('flows.flow_list'))
+            if 'HTTP_X_PJAX' not in self.request.META:
+                return HttpResponseRedirect(self.get_success_url())
+            else:  # pragma: no cover
+                response = self.render_to_response(
+                    self.get_context_data(form=form,
+                                          success_url=self.get_success_url(),
+                                          success_script=getattr(self, 'success_script', None)))
+                response['Temba-Success'] = self.get_success_url()
+                response['REDIRECT'] = self.get_success_url()
+                return response
 
     class Results(FormaxMixin, OrgObjPermsMixin, SmartReadView):
 
