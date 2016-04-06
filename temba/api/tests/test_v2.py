@@ -2,17 +2,16 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import pytz
 
 from datetime import datetime
-from mock import patch
-
-import pytz
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
+from mock import patch
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN
+from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language

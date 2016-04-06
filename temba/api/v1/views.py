@@ -6,7 +6,7 @@ import urllib
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
-from django.db.models import Q, Prefetch
+from django.db.models import Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, status, pagination

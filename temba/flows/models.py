@@ -895,7 +895,7 @@ class Flow(TembaModel):
         Checks if we have a redis cache for our flow stats, or whether they need to be updated.
         If so, triggers an async rebuild of the cache for our flow.
         """
-        from .tasks import calculate_flow_stats_task, check_flow_stats_accuracy_task
+        from .tasks import check_flow_stats_accuracy_task
 
         r = get_redis_connection()
 

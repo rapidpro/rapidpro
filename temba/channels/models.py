@@ -40,7 +40,6 @@ from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.models import TembaModel, generate_uuid
 from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
-from uuid import uuid4
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
