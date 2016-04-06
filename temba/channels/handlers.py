@@ -1671,7 +1671,7 @@ class FacebookHandler(View):
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             msgs.append(msg)
 
-                    elif 'delivery' in envelope:
+                    elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
                             msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
                             if msg:
