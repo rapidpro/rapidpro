@@ -17,7 +17,6 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
 from redis_cache import get_redis_connection
-from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME

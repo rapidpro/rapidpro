@@ -2,9 +2,7 @@ from __future__ import unicode_literals
 
 import ttag
 
-from datetime import timedelta
 from django import template
-from django.utils import timezone
 from django.utils.safestring import mark_safe
 from ttag.helpers import AsTag
 

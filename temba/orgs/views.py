@@ -38,7 +38,6 @@ from temba.orgs.models import get_stripe_credentials
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
-from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings
@@ -1396,11 +1395,16 @@ class OrgCRUDL(SmartCRUDL):
             data = self.form.cleaned_data
 
             webhook_events = 0
-            if data['mt_sms']: webhook_events = MT_SMS_EVENTS
-            if data['mo_sms']: webhook_events |= MO_SMS_EVENTS
-            if data['mt_call']: webhook_events |= MT_CALL_EVENTS
-            if data['mo_call']: webhook_events |= MO_CALL_EVENTS
-            if data['alarm']: webhook_events |= ALARM_EVENTS
+            if data['mt_sms']:
+                webhook_events = MT_SMS_EVENTS
+            if data['mo_sms']:
+                webhook_events |= MO_SMS_EVENTS
+            if data['mt_call']:
+                webhook_events |= MT_CALL_EVENTS
+            if data['mo_call']:
+                webhook_events |= MO_CALL_EVENTS
+            if data['alarm']:
+                webhook_events |= ALARM_EVENTS
 
             analytics.track(self.request.user.username, 'temba.org_configured_webhook')
 

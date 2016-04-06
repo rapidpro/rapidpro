@@ -40,7 +40,6 @@ from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.models import TembaModel, generate_uuid
 from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
-from uuid import uuid4
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
@@ -966,7 +965,8 @@ class Channel(TembaModel):
         if self.channel_type == ANDROID:
             if getattr(settings, 'GCM_API_KEY', None):
                 from .tasks import sync_channel_task
-                if not gcm_id: gcm_id = self.gcm_id
+                if not gcm_id:
+                    gcm_id = self.gcm_id
                 if gcm_id:
                     sync_channel_task.delay(gcm_id, channel_id=self.pk)
 
@@ -2754,7 +2754,8 @@ class SyncEvent(SmartModel):
 
 @receiver(pre_save, sender=SyncEvent)
 def pre_save(sender, instance, **kwargs):
-    if kwargs['raw']: return
+    if kwargs['raw']:
+        return
 
     if not instance.pk:
         last_sync_event = SyncEvent.objects.filter(channel=instance.channel).order_by('-created_on').first()
@@ -2787,9 +2788,7 @@ class Alert(SmartModel):
     def check_power_alert(cls, sync):
         alert_user = get_alert_user()
 
-        if (sync.power_status == STATUS_DISCHARGING or
-            sync.power_status == STATUS_UNKNOWN or
-            sync.power_status == STATUS_NOT_CHARGING) and int(sync.power_level) < 25:
+        if sync.power_status in (STATUS_DISCHARGING, STATUS_UNKNOWN, STATUS_NOT_CHARGING) and int(sync.power_level) < 25:
 
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
 

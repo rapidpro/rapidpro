@@ -17,6 +17,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.contacts.templatetags.contacts import contact_field
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label, SystemLabel, Broadcast
 from temba.schedules.models import Schedule
@@ -449,9 +450,7 @@ class ContactTest(TembaTest):
         self.jim.release(self.user)
 
     def create_campaign(self):
-
         # create a campaign with a future event and add joe
-        from temba.campaigns.models import Campaign, CampaignEvent, EventFire
         self.farmers = self.create_group("Farmers", [self.joe])
         self.reminder_flow = self.create_flow()
         self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
