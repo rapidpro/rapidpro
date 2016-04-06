@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 
 import json
-import regex
 import logging
+import regex
+import traceback
 
 from collections import Counter
 from datetime import datetime, timedelta
@@ -13,7 +14,7 @@ from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Q, Max
 from django import forms
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
@@ -1272,7 +1273,7 @@ class FlowCRUDL(SmartCRUDL):
                                         json_dict['new_message'],
                                         org=user.get_org())
                 except Exception as e:
-                    import traceback; traceback.print_exc(e)
+                    traceback.print_exc(e)
                     return build_json_response(dict(status="error", description="Error creating message: %s" % str(e)), status=400)
 
             messages = Msg.current_messages.filter(contact=test_contact).order_by('pk', 'created_on')
