@@ -3437,7 +3437,8 @@ class ExportFlowResultsTask(SmartModel):
                             runs.write(run_row, col, category)
                         merged_runs.write(merged_row, col, category)
                     elif run_step.rule_category:
-                        if include_runs: runs.write(run_row, col, run_step.rule_category)
+                        if include_runs:
+                            runs.write(run_row, col, run_step.rule_category)
                         merged_runs.write(merged_row, col, run_step.rule_category)
 
                     value = run_step.rule_value
