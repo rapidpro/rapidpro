@@ -1119,7 +1119,7 @@ class FlowTest(TembaTest):
         test = ContainsAnyTest(test=dict(base="كلمة لبدء"))
         # set text to "give a sample word in sentence"
         sms.text = "تعطي كلمة عينة في الجملة"
-        self.assertTest(True, "كلمة", test) # we get "word"
+        self.assertTest(True, "كلمة", test)  # we get "word"
 
         # we should not match "this start is not allowed" we wanted "to start"
         test = ContainsAnyTest(test=dict(base="لا يسمح هذه البداية"))
