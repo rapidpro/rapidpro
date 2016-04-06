@@ -494,6 +494,8 @@ class FlowTest(TembaTest):
         self.flow.update(self.definition)
         contact1_run1, contact2_run1, contact3_run1 = self.flow.start([], [self.contact, self.contact2, self.contact3])
 
+        time.sleep(1)
+
         # simulate two runs each for two contacts...
         contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="light beige")
         Flow.find_and_handle(contact1_in1)
@@ -504,7 +506,11 @@ class FlowTest(TembaTest):
         contact2_in1 = self.create_msg(direction=INCOMING, contact=self.contact2, text="green")
         Flow.find_and_handle(contact2_in1)
 
+        time.sleep(1)
+
         contact1_run2, contact2_run2 = self.flow.start([], [self.contact, self.contact2], restart_participants=True)
+
+        time.sleep(1)
 
         contact1_in3 = self.create_msg(direction=INCOMING, contact=self.contact, text=" blue ")
         Flow.find_and_handle(contact1_in3)
@@ -636,7 +642,7 @@ class FlowTest(TembaTest):
                                                 c1_run2_last, "Blue", "blue", " blue "], tz)
 
         self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", c2_run1_first,
-                                                c2_run2_last, "Other", "green", "green"], tz)
+                                                c2_run1_last, "Other", "green", "green"], tz)
 
         # test export with a contact field
         age = ContactField.get_or_create(self.org, self.admin, 'age', "Age")
@@ -662,7 +668,7 @@ class FlowTest(TembaTest):
                                                 c1_run1_first, c1_run2_last, "Blue", "blue", " blue "], tz)
 
         self.assertExcelRow(sheet_contacts, 2, [contact2_run1.contact.uuid, "+250788383383", "Nic", "", "",
-                                                c2_run1_first, c2_run2_last, "Other", "green", "green"], tz)
+                                                c2_run1_first, c2_run1_last, "Other", "green", "green"], tz)
 
         # check runs sheet...
         self.assertEqual(sheet_runs.nrows, 4)  # header + 3 runs
