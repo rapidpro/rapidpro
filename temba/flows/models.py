@@ -3181,6 +3181,9 @@ class ExportFlowResultsTask(SmartModel):
         ruleset_steps = FlowStep.objects.filter(run__flow__in=flows, step_type=RULE_SET)
         ruleset_steps = ruleset_steps.order_by('contact', 'run', 'arrived_on', 'pk')
 
+        if responded_only:
+            ruleset_steps = ruleset_steps.filter(run__responded=True)
+
         # count of unique flow runs
         with SegmentProfiler("# of runs"):
             all_runs_count = ruleset_steps.values('run').distinct().count()
