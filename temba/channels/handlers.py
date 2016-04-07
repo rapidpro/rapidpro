@@ -1620,8 +1620,7 @@ class FacebookHandler(View):
             if channel.secret == request.GET.get('hub.verify_token'):
                 return HttpResponse(request.GET.get('hub.challenge'))
 
-        else:
-            return JsonResponse(dict(error="Unknown request"), status=400)
+        return JsonResponse(dict(error="Unknown request"), status=400)
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1670,7 +1669,7 @@ class FacebookHandler(View):
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             msgs.append(msg)
 
-                    elif 'delivery' in envelope:
+                    elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
                             msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
                             if msg:
@@ -1679,5 +1678,4 @@ class FacebookHandler(View):
 
                 return HttpResponse("Msgs Updated: %s" % (",".join([str(m.id) for m in msgs])))
 
-        else:
-            return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
+        return HttpResponse("Ignored, unknown msg", status=200)

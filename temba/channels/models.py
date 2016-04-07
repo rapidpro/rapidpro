@@ -893,7 +893,7 @@ class Channel(TembaModel):
                 client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
 
             # delete Twilio SMS application
-            if self.channel_type == TWILIO:
+            elif self.channel_type == TWILIO:
                 client = self.org.get_twilio_client()
                 number_update_args = dict()
 
@@ -910,6 +910,12 @@ class Channel(TembaModel):
                         matching = client.phone_numbers.list(phone_number=self.address)
                         if matching:
                             client.phone_numbers.update(matching[0].sid, **number_update_args)
+
+            # unsubscribe from facebook events for this page
+            elif self.channel_type == FACEBOOK:
+                page_access_token = self.config_json()[AUTH_TOKEN]
+                requests.delete('https://graph.facebook.com/v2.5/me/subscribed_apps',
+                                params=dict(access_token=page_access_token))
 
         # save off our org and gcm id before nullifying
         org = self.org
