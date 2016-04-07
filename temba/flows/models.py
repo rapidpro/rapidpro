@@ -1438,12 +1438,12 @@ class Flow(TembaModel):
         if not channel or CALL not in channel.role:
             return runs
 
-        (entry_actions, entry_rules) = (None, None)
-        if self.entry_type == Flow.ACTIONS_ENTRY:
-            entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
-
-        elif self.entry_type == Flow.RULES_ENTRY:
-            entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
+        # (entry_actions, entry_rules) = (None, None)
+        # if self.entry_type == Flow.ACTIONS_ENTRY:
+        #    entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
+        #
+        # elif self.entry_type == Flow.RULES_ENTRY:
+        #    entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
         for contact_id in all_contact_ids:
             run = FlowRun.create(self, contact_id, start=flow_start)

@@ -332,7 +332,7 @@ class Value(models.Model):
         from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import TrueTest, RuleSet
 
-        start = time.time()
+        # start = time.time()
         results = []
 
         if (not ruleset and not contact_field) or (ruleset and contact_field):

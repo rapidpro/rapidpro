@@ -319,7 +319,7 @@ class MsgTest(TembaTest):
         msg1 = Msg.create_incoming(self.channel, joe_tel, "message number 1")
         msg2 = Msg.create_incoming(self.channel, joe_tel, "message number 2")
         msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
-        msg4 = Msg.create_incoming(self.channel, joe_tel, "message number 4")
+        Msg.create_incoming(self.channel, joe_tel, "message number 4")
         msg5 = Msg.create_incoming(self.channel, joe_tel, "message number 5")
         msg6 = Msg.create_incoming(self.channel, joe_tel, "message number 6")
 
@@ -350,7 +350,7 @@ class MsgTest(TembaTest):
         # let's add some labels
         folder = Label.get_or_create_folder(self.org, self.user, "folder")
         label1 = Label.get_or_create(self.org, self.user, "label1", folder)
-        label2 = Label.get_or_create(self.org, self.user, "label2", folder)
+        Label.get_or_create(self.org, self.user, "label2", folder)
         label3 = Label.get_or_create(self.org, self.user, "label3")
 
         # test labeling a messages
@@ -593,7 +593,6 @@ class MsgTest(TembaTest):
         filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
-        tz = pytz.timezone(self.org.timezone)
 
         self.assertEquals(sheet.nrows, 4)  # msg3 not included as it's archived
 
@@ -1529,7 +1528,7 @@ class CallTest(SmartminTest):
 
     def test_call_model(self):
         now = timezone.now()
-        response = Call.create_call(self.channel, "12345", now, 300, 'mt')
+        Call.create_call(self.channel, "12345", now, 300, 'mt')
 
         self.assertEquals(Call.objects.all().count(), 1)
 
@@ -1641,7 +1640,7 @@ class BroadcastLanguageTest(TembaTest):
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        fre = Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
@@ -1671,13 +1670,13 @@ class SystemLabelTest(TembaTest):
         contact1 = self.create_contact("Bob", number="0783835001")
         contact2 = self.create_contact("Jim", number="0783835002")
         msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 1")
-        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
+        Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
         call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, Call.TYPE_IN)
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
-        bcast2 = Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
-                                  schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
+        Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
+                         schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 4, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,

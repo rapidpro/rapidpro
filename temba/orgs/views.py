@@ -1100,8 +1100,6 @@ class OrgCRUDL(SmartCRUDL):
         permission = False
 
         def pre_process(self, request, *args, **kwargs):
-            secret = self.kwargs.get('secret')
-
             org = self.get_object()
             if not org:
                 messages.info(request, _("Your invitation link is invalid. Please contact your organization administrator."))

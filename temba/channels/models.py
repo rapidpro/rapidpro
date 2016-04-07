@@ -713,7 +713,7 @@ class Channel(TembaModel):
                 normalized = phonenumbers.parse(self.address, str(self.country))
                 fmt = phonenumbers.PhoneNumberFormat.E164 if e164 else phonenumbers.PhoneNumberFormat.INTERNATIONAL
                 return phonenumbers.format_number(normalized, fmt)
-            except NumberParseException as e:
+            except NumberParseException:
                 # the number may be alphanumeric in the case of short codes
                 pass
 
@@ -979,7 +979,7 @@ class Channel(TembaModel):
         try:
             gcm = GCM(settings.GCM_API_KEY)
             gcm.plaintext_request(registration_id=gcm_id, data=dict(msg='sync'))
-        except GCMNotRegisteredException as e:
+        except GCMNotRegisteredException:
             if channel:
                 # this gcm id is invalid now, clear it out
                 channel.gcm_id = None
@@ -1749,7 +1749,7 @@ class Channel(TembaModel):
             try:
                 response = requests.get(url, headers=TEMBA_HEADERS, timeout=5)
                 response_qs = urlparse.parse_qs(response.text)
-            except Exception as e:
+            except Exception:
                 failed = True
 
             if not failed and response.status_code != 200 and response.status_code != 201:
@@ -2054,15 +2054,15 @@ class Channel(TembaModel):
 
         if channel.channel_type == TWILIO_MESSAGING_SERVICE:
             messaging_service_sid = channel.config['messaging_service_sid']
-            message = client.messages.create(to=msg.urn_path,
-                                             messaging_service_sid=messaging_service_sid,
-                                             body=text,
-                                             status_callback=callback_url)
+            client.messages.create(to=msg.urn_path,
+                                   messaging_service_sid=messaging_service_sid,
+                                   body=text,
+                                   status_callback=callback_url)
         else:
-            message = client.messages.create(to=msg.urn_path,
-                                             from_=channel.address,
-                                             body=text,
-                                             status_callback=callback_url)
+            client.messages.create(to=msg.urn_path,
+                                   from_=channel.address,
+                                   body=text,
+                                   status_callback=callback_url)
 
         Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
         ChannelLog.log_success(msg, "Successfully delivered message")

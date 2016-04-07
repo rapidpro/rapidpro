@@ -300,7 +300,7 @@ class APITest(TembaTest):
                                              anon=False))
 
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        fre = Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
@@ -399,7 +399,6 @@ class APITest(TembaTest):
         flow.save()
 
         flow2 = self.create_flow()
-        flow3 = self.create_flow()
 
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
@@ -522,9 +521,8 @@ class APITest(TembaTest):
                     ],
                     completed=False)
 
-        reponse = None
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
-            response = self.postJSON(url, data)
+            self.postJSON(url, data)
 
         run = FlowRun.objects.get()
         self.assertEqual(run.flow, flow)
@@ -1531,7 +1529,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
-        actors = self.create_group('Actors', [jay_z])
+        self.create_group('Actors', [jay_z])
         response = self.fetchJSON(url, "group=Music+Artists&group=Actors")
         self.assertResultCount(response, 2)
 
@@ -1816,7 +1814,6 @@ class APITest(TembaTest):
         # start contacts in a flow
         flow = self.create_flow()
         flow.start([], [contact1, contact2, contact3])
-        runs = FlowRun.objects.filter(flow=flow)
 
         self.create_msg(direction='I', contact=contact1, text="Hello")
         self.create_msg(direction='I', contact=contact2, text="Hello")

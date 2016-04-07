@@ -1262,8 +1262,6 @@ class ContactFieldCRUDL(SmartCRUDL):
             return qs
 
         def render_to_response(self, context, **response_kwargs):
-            org = self.request.user.get_org()
-
             results = []
             for obj in context['object_list']:
                 result = dict(id=obj.pk, key=obj.key, label=obj.label)

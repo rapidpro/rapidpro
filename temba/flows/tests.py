@@ -16,7 +16,6 @@ from django.db.models import Prefetch
 from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
-from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
@@ -204,7 +203,7 @@ class FlowTest(TembaTest):
         self.flow.save(update_fields=('base_language',))
         self.assertEqual(self.flow.get_localized_text(text_translations, self.contact, "Hi"), "Hello")
 
-        eng = Language.create(self.org, self.admin, "English", 'eng')
+        Language.create(self.org, self.admin, "English", 'eng')
         esp = Language.create(self.org, self.admin, "Spanish", 'esp')
 
         # flow language now valid org language
@@ -441,9 +440,6 @@ class FlowTest(TembaTest):
 
         # finally we should have our final step which was our outgoing reply
         step = FlowStep.objects.filter(run__contact=self.contact).order_by('pk')[2]
-
-        # we should have a new step
-        orange_response = ActionSet.objects.get(uuid=uuid(2))
 
         self.assertEquals(ACTION_SET, step.step_type)
         self.assertEquals(self.contact, step.run.contact)
@@ -912,9 +908,6 @@ class FlowTest(TembaTest):
     def test_expanding(self):
         # save our original flow
         self.flow.update(self.definition)
-
-        # add actions for groups and contacts
-        definition = self.flow.as_json()
 
         # add actions for adding to a group and messaging a contact, we'll test how these expand
         action_set = ActionSet.objects.get(uuid=uuid(4))
@@ -1418,7 +1411,6 @@ class FlowTest(TembaTest):
         else:
             run = FlowRun.create(self.flow, self.contact.id)
 
-        tz = run.flow.org.get_tzinfo()
         self.org.country = self.country
         run.flow.org = self.org
         context = run.flow.build_message_context(run.contact, None)
@@ -1799,8 +1791,8 @@ class FlowTest(TembaTest):
         flow_copy = Flow.objects.get(org=self.org, name="Copy of %s" % flow.name)
         self.assertRedirect(response, reverse('flows.flow_editor', args=[flow_copy.pk]))
 
-        flow_label_1 = FlowLabel.objects.create(name="one", org=self.org, parent=None)
-        flow_label_2 = FlowLabel.objects.create(name="two", org=self.org2, parent=None)
+        FlowLabel.objects.create(name="one", org=self.org, parent=None)
+        FlowLabel.objects.create(name="two", org=self.org2, parent=None)
 
         # test update view
         response = self.client.post(reverse('flows.flow_update', args=[flow.pk]))
@@ -3068,7 +3060,6 @@ class SimulationTest(FlowFileTest):
 class FlowsTest(FlowFileTest):
 
     def clear_activity(self, flow):
-        r = get_redis_connection()
         flow.clear_stats_cache()
 
     def test_validate_flow_definition(self):
@@ -3962,7 +3953,7 @@ class FlowsTest(FlowFileTest):
 
     def test_cross_language_import(self):
         spanish = Language.create(self.org, self.admin, "Spanish", 'spa')
-        english = Language.create(self.org, self.admin, "English", 'eng')
+        Language.create(self.org, self.admin, "English", 'eng')
 
         # import our localized flow into an org with no languages
         self.import_file('multi-language-flow')

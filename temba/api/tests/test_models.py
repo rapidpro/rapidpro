@@ -124,7 +124,6 @@ class WebHookTest(TembaTest):
         self.setupChannel()
 
         with patch('requests.Session.send') as mock:
-            now = timezone.now()
             mock.return_value = MockResponse(200, "")
 
             # trigger an event
@@ -290,9 +289,6 @@ class WebHookTest(TembaTest):
             # valid json, but not our format
             bad_json = '{ "thrift_shops": ["Goodwill", "Value Village"] }'
             mock.return_value = MockResponse(200, bad_json)
-
-            next_retry_earliest = timezone.now() + timedelta(minutes=4)
-            next_retry_latest = timezone.now() + timedelta(minutes=6)
 
             WebHookEvent.trigger_sms_event(SMS_RECEIVED, sms, now)
             event = WebHookEvent.objects.get()

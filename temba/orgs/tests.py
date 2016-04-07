@@ -1200,7 +1200,8 @@ class OrgCRUDLTest(TembaTest):
         org = Org.objects.get(name="Oculus")
         self.assertEquals(100000, org.get_credits_remaining())
 
-        user = User.objects.get(username="john@carmack.com")
+        # check user exists and is admin
+        User.objects.get(username="john@carmack.com")
         self.assertTrue(org.administrators.filter(username="john@carmack.com"))
         self.assertTrue(org.administrators.filter(username="tito"))
 
@@ -1215,7 +1216,6 @@ class OrgCRUDLTest(TembaTest):
         org = Org.objects.get(name="id Software")
         self.assertEquals(100000, org.get_credits_remaining())
 
-        user = User.objects.get(username="john@carmack.com")
         self.assertTrue(org.administrators.filter(username="john@carmack.com"))
         self.assertTrue(org.administrators.filter(username="tito"))
 
@@ -1332,7 +1332,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertTrue('new_password' in response.context['form'].errors)
 
-        billg = User.objects.create(username='bill@msn.com', email='bill@msn.com')
+        User.objects.create(username='bill@msn.com', email='bill@msn.com')
 
         # dupe user
         post_data = dict(email='bill@msn.com', current_password='HelloWorld1')
