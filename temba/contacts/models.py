@@ -330,6 +330,8 @@ class Contact(TembaModel):
             return field.org.format_date(value.datetime_value)
         elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
+            return value.location_value.name
         elif value.category:
             return value.category
         else:
@@ -347,6 +349,8 @@ class Contact(TembaModel):
             return datetime_to_str(value.datetime_value)
         elif field.value_type == Value.TYPE_DECIMAL:
             return format_decimal(value.decimal_value)
+        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value.location_value:
+            return value.location_value.name
         elif value.category:
             return value.category
         else:
@@ -1083,7 +1087,7 @@ class Contact(TembaModel):
 
         # cache all field values
         values = Value.objects.filter(contact_id__in=contact_map.keys(),
-                                      contact_field_id__in=key_map.keys()).select_related('contact_field')
+                                      contact_field_id__in=key_map.keys()).select_related('contact_field', 'location_value')
         for value in values:
             contact = contact_map[value.contact_id]
             field_key = key_map[value.contact_field_id]

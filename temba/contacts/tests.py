@@ -1728,6 +1728,17 @@ class ContactTest(TembaTest):
         self.assertContains(response, 'Eastern Province')
         self.assertContains(response, 'Rwamagana')
 
+        # change the name of the Rwamagana boundary, our display should change appropriately as well
+        rwamagana = AdminBoundary.objects.get(name="Rwamagana")
+        rwamagana.update(name="Rwa-magana")
+        self.assertEqual("Rwa-magana", rwamagana.name)
+        self.assertTrue(Value.objects.filter(location_value=rwamagana, category="Rwa-magana"))
+
+        # assert our read page is correct
+        response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
+        self.assertContains(response, 'Eastern Province')
+        self.assertContains(response, 'Rwa-magana')
+
         # try to push into a dynamic group
         with self.assertRaises(ValueError):
             self.login(self.admin)
