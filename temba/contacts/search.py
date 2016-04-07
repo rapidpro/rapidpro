@@ -140,7 +140,9 @@ def generate_queryset(lexer, identifier, comparator, value):
         except ObjectDoesNotExist:
             raise SearchException("Unrecognized contact field identifier %s" % identifier)
 
-        if field.value_type == Value.TYPE_TEXT:
+        if comparator.lower() in ('=', 'is') and value == "":
+            q = generate_empty_field_test(field)
+        elif field.value_type == Value.TYPE_TEXT:
             q = generate_text_field_comparison(field, comparator, value)
         elif field.value_type == Value.TYPE_DECIMAL:
             q = generate_decimal_field_comparison(field, comparator, value)
@@ -160,6 +162,11 @@ def generate_non_field_comparison(relation, comparator, value):
         raise SearchException("Unsupported comparator %s for non-field" % comparator)
 
     return Q(**{'%s__%s' % (relation, lookup): value})
+
+
+def generate_empty_field_test(field):
+    contacts_with_field = field.org.org_contacts.filter(Q(**{'values__contact_field__key': field.key}))
+    return ~Q(**{'pk__in': contacts_with_field})
 
 
 def generate_text_field_comparison(field, comparator, value):

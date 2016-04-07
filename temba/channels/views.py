@@ -39,8 +39,7 @@ from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH,
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX
-from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN, CHIKKA
-from .models import AUTH_TOKEN, FACEBOOK
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, CHIKKA, AUTH_TOKEN
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       CHIKKA: "icon-channel-external",
@@ -72,19 +71,19 @@ TWILIO_SUPPORTED_COUNTRIES = (('AU', _("Australia")),
                               ('AT', _("Austria")),
                               ('BE', _("Belgium")),
                               ('CA', _("Canada")),
-                              ('CL', _("Chile")), #Beta
-                              ('CZ', _("Czech Republic")), #Beta
-                              ('DK', _("Denmark")), #Beta
+                              ('CL', _("Chile")),  # Beta
+                              ('CZ', _("Czech Republic")),  # Beta
+                              ('DK', _("Denmark")),  # Beta
                               ('EE', _("Estonia")),
                               ('FI', _("Finland")),
-                              ('FR', _("France")), #Beta
+                              ('FR', _("France")),  # Beta
                               ('DE', _("Germany")),
                               ('HK', _("Hong Kong")),
-                              ('HU', _("Hungary")), #Beta
+                              ('HU', _("Hungary")),  # Beta
                               ('IE', _("Ireland")),
-                              ('IL', _("Israel")), #Beta
+                              ('IL', _("Israel")),  # Beta
                               ('LT', _("Lithuania")),
-                              ('MX', _("Mexico")), #Beta
+                              ('MX', _("Mexico")),  # Beta
                               ('NO', _("Norway")),
                               ('PL', _("Poland")),
                               ('ES', _("Spain")),
@@ -993,12 +992,15 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
 
-            if not org: # pragma: no cover
+            if not org:  # pragma: no cover
                 raise Exception(_("No org for this user, cannot claim"))
 
             data = form.cleaned_data
-            self.object = Channel.add_zenvia_channel(org, self.request.user,
-                                                     phone=data['shortcode'], account=data['account'], code=data['code'])
+            self.object = Channel.add_zenvia_channel(org,
+                                                     self.request.user,
+                                                     phone=data['shortcode'],
+                                                     account=data['account'],
+                                                     code=data['code'])
 
             # make sure all contacts added before the channel are normalized
             self.object.ensure_normalized_contacts()
@@ -1542,7 +1544,7 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
 
-            if not org: # pragma: no cover
+            if not org:  # pragma: no cover
                 raise Exception(_("No org for this user, cannot claim"))
 
             data = form.cleaned_data
@@ -1590,7 +1592,7 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
 
-            if not org: # pragma: no cover
+            if not org:  # pragma: no cover
                 raise Exception(_("No org for this user, cannot claim"))
 
             data = form.cleaned_data

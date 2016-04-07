@@ -2,17 +2,16 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import pytz
 
 from datetime import datetime
-from mock import patch
-
-import pytz
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
+from mock import patch
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN
+from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
@@ -378,7 +377,7 @@ class APITest(TembaTest):
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
             'urn': msg.contact_urn.urn,
-            'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name },
+            'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name},
             'direction': "in" if msg.direction == 'I' else "out",
             'type': msg_type,
             'status': msg_status,

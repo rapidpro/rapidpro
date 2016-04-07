@@ -1,11 +1,13 @@
-from optparse import make_option
-import os
+from __future__ import unicode_literals
+
+import geojson
 import regex
+
 from zipfile import ZipFile
 from django.contrib.gis.geos import Polygon, MultiPolygon
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
+from optparse import make_option
 from temba.locations.models import AdminBoundary, COUNTRY_LEVEL, STATE_LEVEL, DISTRICT_LEVEL
-import geojson
 
 
 class Command(BaseCommand):  # pragma: no cover

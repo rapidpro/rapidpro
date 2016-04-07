@@ -106,10 +106,12 @@ class APITest(TembaTest):
         if 'results' in response.json:
             for result in response.json['results']:
                 for v in result[key]:
-                    if v == value: return
+                    if v == value:
+                        return
         else:
             for v in response.json[key]:
-                if v == value: return
+                if v == value:
+                    return
 
         self.fail("Unable to find %s:%s in %s" % (key, value, response.json))
 

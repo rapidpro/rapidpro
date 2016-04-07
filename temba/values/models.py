@@ -119,7 +119,7 @@ class Value(models.Model):
             { location: 1515, boundary: "f1551" }
             { contact_field: fieldId, values: ["UK", "RW"] }
         """
-        from temba.flows.models import RuleSet, FlowRun, FlowStep
+        from temba.flows.models import RuleSet, FlowStep
         from temba.contacts.models import Contact
 
         start = time.time()
