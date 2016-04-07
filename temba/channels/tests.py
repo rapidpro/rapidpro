@@ -28,7 +28,7 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
-from temba.contacts.models import TELEGRAM_SCHEME
+from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Broadcast, Call, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
@@ -43,7 +43,7 @@ from twython import TwythonError
 from urllib import urlencode
 from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
-from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD
+from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
 from .tasks import check_channels_task, squash_channelcounts
 
@@ -1252,6 +1252,68 @@ class ChannelTest(TembaTest):
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TMS")
         self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID"))
+
+    def test_claim_facebook(self):
+        self.login(self.admin)
+
+        # remove any existing channels
+        Channel.objects.all().delete()
+
+        claim_facebook_url = reverse('channels.channel_claim_facebook')
+        token = 'x' * 200
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(400, json.dumps(dict(error=dict(message="Failed validation"))))
+
+            # try to claim facebook, should fail because our verification of the token fails
+            response = self.client.post(claim_facebook_url, dict(page_access_token=token))
+
+            # assert we got a normal 200 and it says our token is wrong
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Failed validation")
+
+        # ok this time claim with a success
+        with patch('requests.get') as mock_get:
+            with patch('requests.post') as mock_post:
+                mock_get.return_value = MockResponse(200, json.dumps(dict(name='Temba', id=10)))
+                mock_post.return_value = MockResponse(200, json.dumps(dict(success=True)))
+
+                # try to claim facebook, should fail because our verification of the token fails
+                response = self.client.post(claim_facebook_url, dict(page_access_token=token), follow=True)
+
+                # assert our channel got created
+                channel = Channel.objects.get()
+                self.assertEqual(channel.config_json()[AUTH_TOKEN], token)
+                self.assertEqual(channel.config_json()[PAGE_NAME], 'Temba')
+                self.assertEqual(channel.address, '10')
+
+                # should be on our configuration page displaying our secret
+                self.assertContains(response, channel.secret)
+
+                # test validating our secret
+                handler_url = reverse('handlers.facebook_handler', args=['invalid'])
+                response = self.client.get(handler_url)
+                self.assertEqual(response.status_code, 400)
+
+                # test invalid token
+                handler_url = reverse('handlers.facebook_handler', args=[channel.uuid])
+                payload = {'hub.mode': 'subscribe', 'hub.verify_token': 'invalid', 'hub.challenge': 'challenge'}
+                response = self.client.get(handler_url, payload)
+                self.assertEqual(response.status_code, 400)
+
+                # test actual token
+                payload['hub.verify_token'] = channel.secret
+                response = self.client.get(handler_url, payload)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'challenge')
+
+                # release the channel
+                with patch('requests.delete') as mock_delete:
+                    mock_delete.return_value = MockResponse(200, json.dumps(dict(success=True)))
+                    channel.release()
+
+                    mock_delete.assert_called_once_with('https://graph.facebook.com/v2.5/me/subscribed_apps',
+                                                        params=dict(access_token=channel.config_json()[AUTH_TOKEN]))
 
     def test_claim_nexmo(self):
         self.login(self.admin)
@@ -6025,3 +6087,160 @@ class MbloxTest(TembaTest):
             # check the status of the message now errored
             msg = bcast.get_messages()[0]
             self.assertEquals(ERRORED, msg.status)
+
+
+class FacebookTest(TembaTest):
+
+    def setUp(self):
+        super(FacebookTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, 'FB', None, '1234',
+                                      config={AUTH_TOKEN: 'auth'},
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def tearDown(self):
+        super(FacebookTest, self).tearDown()
+        settings.SEND_MESSAGES = False
+
+    def test_dlr(self):
+        # invalid uuid
+        body = dict()
+        response = self.client.post(reverse('handlers.facebook_handler', args=['invalid']), json.dumps(body),
+                                    content_type="application/json")
+        self.assertEquals(400, response.status_code)
+
+        # invalid body
+        response = self.client.post(reverse('handlers.facebook_handler', args=[self.channel.uuid]), json.dumps(body),
+                                    content_type="application/json")
+        self.assertEquals(400, response.status_code)
+
+        # no known msgs, gracefully ignore
+        body = dict(entry=[dict()])
+        response = self.client.post(reverse('handlers.facebook_handler', args=[self.channel.uuid]), json.dumps(body),
+                                    content_type="application/json")
+        self.assertEquals(200, response.status_code)
+
+        # create test message to update
+        joe = self.create_contact("Joe Biden", urn=('facebook', '1234'))
+        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg = broadcast.get_messages()[0]
+        msg.external_id = "mblox-id"
+        msg.save()
+
+        body = dict(entry=[dict(messaging=[dict(delivery=dict(mids=[msg.external_id]))])])
+        response = self.client.post(reverse('handlers.facebook_handler', args=[self.channel.uuid]), json.dumps(body),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        msg.refresh_from_db()
+        self.assertEqual(msg.status, DELIVERED)
+
+    def test_receive(self):
+        data = """
+        {
+        "entry": [{
+          "id": 208685479508187,
+          "messaging": [{
+            "message": {
+              "text": "hello world",
+              "mid": "external_id"
+            },
+            "recipient": {
+              "id": 1234
+            },
+            "sender": {
+              "id": 5678
+            },
+            "timestamp": 1459991487970
+          }],
+          "time": 1459991487970
+        }]
+        }
+        """
+        data = json.loads(data)
+
+        callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.all_messages.get()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Msgs Updated")
+
+        # load our message
+        self.assertEqual(msg.contact.get_urn(FACEBOOK_SCHEME).path, "5678")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "hello world")
+        self.assertEqual(msg.external_id, "external_id")
+
+        Msg.all_messages.all().delete()
+
+        # rich media
+        data = """
+        {
+        "entry": [{
+          "id": 208685479508187,
+          "messaging": [{
+            "message": {
+              "attachments": [{
+                "payload": { "url": "http://mediaurl.com/img.gif" }
+              }],
+              "mid": "external_id"
+            },
+            "recipient": {
+              "id": 1234
+            },
+            "sender": {
+              "id": 5678
+            },
+            "timestamp": 1459991487970
+          }],
+          "time": 1459991487970
+        }]
+        }
+        """
+        data = json.loads(data)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.all_messages.get()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Msgs Updated")
+        self.assertEqual(msg.text, "http://mediaurl.com/img.gif")
+
+    def test_send(self):
+        joe = self.create_contact("Joe", urn=('facebook', "1234"))
+        bcast = joe.send("Facebook Msg", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"recipient_id":"1234", '
+                                                  '"message_id":"mid.external"}')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message is now sent
+            msg = bcast.get_messages()[0]
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, 'mid.external')
+            self.clear_cache()
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(412, 'Error')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message now errored
+            msg = bcast.get_messages()[0]
+            self.assertEquals(ERRORED, msg.status)
+            

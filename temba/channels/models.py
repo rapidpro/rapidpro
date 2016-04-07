@@ -918,7 +918,6 @@ class Channel(TembaModel):
                 requests.delete('https://graph.facebook.com/v2.5/me/subscribed_apps',
                                 params=dict(access_token=page_access_token))
 
-
         # save off our org and gcm id before nullifying
         org = self.org
         gcm_id = self.gcm_id
