@@ -6243,4 +6243,3 @@ class FacebookTest(TembaTest):
             # check the status of the message now errored
             msg = bcast.get_messages()[0]
             self.assertEquals(ERRORED, msg.status)
-            
