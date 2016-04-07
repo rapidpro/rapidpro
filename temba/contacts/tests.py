@@ -17,6 +17,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label, SystemLabel, Broadcast
 from temba.schedules.models import Schedule
@@ -449,9 +450,7 @@ class ContactTest(TembaTest):
         self.jim.release(self.user)
 
     def create_campaign(self):
-
         # create a campaign with a future event and add joe
-        from temba.campaigns.models import Campaign, CampaignEvent, EventFire
         self.farmers = self.create_group("Farmers", [self.joe])
         self.reminder_flow = self.create_flow()
         self.planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
@@ -808,6 +807,7 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'join_date', "Join Date", value_type='D')
         ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
         state_field = ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, self.admin, 'profession', "Profession", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
 
@@ -817,7 +817,6 @@ class ContactTest(TembaTest):
         kayonza = AdminBoundary.objects.create(osm_id='R004', name='Kayonza', level=2, parent=rwanda)
         kigali = AdminBoundary.objects.create(osm_id='R005', name='Kigali', level=2, parent=rwanda)
 
-        locations_boundaries = [gatsibo, kayonza, kigali]
         locations = ['Gatsibo', 'Kayonza', 'Kigali']
         names = ['Trey', 'Mike', 'Paige', 'Fish']
         date_format = get_datetime_format(True)[0]
@@ -839,67 +838,74 @@ class ContactTest(TembaTest):
                 mock_parse_location.return_value = AdminBoundary.objects.filter(name__iexact=locations[index])
                 contact.set_field(self.user, 'home', locations[index])
 
-        contact.set_field(self.user, 'isureporter', 'yes')
-        contact.set_field(self.user, 'hasbirth', 'no')
+            if i % 3 == 0:
+                contact.set_field(self.user, 'profession', "Farmer")  # only some contacts have any value for this
+
+            contact.set_field(self.user, 'isureporter', 'yes')
+            contact.set_field(self.user, 'hasbirth', 'no')
 
         def q(query):
             return Contact.search(self.org, query)[0].count()
 
         # non-complex queries
-        self.assertEquals(23, q('trey'))
-        self.assertEquals(23, q('MIKE'))
-        self.assertEquals(22, q('  paige  '))
-        self.assertEquals(22, q('fish'))
-        self.assertEquals(1, q('0788382011'))  # does a contains
-
-        # test prefixes with 'is' or 'has'
-        self.assertEqual(q('isureporter = "yes"'), 1)
-        self.assertEqual(q('isureporter = yes'), 1)
-        self.assertEqual(q('isureporter = no'), 0)
-
-        self.assertEqual(q('hasbirth = "no"'), 1)
-        self.assertEqual(q('hasbirth = no'), 1)
-        self.assertEqual(q('hasbirth = yes'), 0)
+        self.assertEqual(q('trey'), 23)
+        self.assertEqual(q('MIKE'), 23)
+        self.assertEqual(q('  paige  '), 22)
+        self.assertEqual(q('fish'), 22)
+        self.assertEqual(q('0788382011'), 1)  # does a contains
 
         # name as property
-        self.assertEquals(23, q('name is "trey"'))
-        self.assertEquals(23, q('name is mike'))
-        self.assertEquals(22, q('name = paige'))
-        self.assertEquals(22, q('NAME=fish'))
-        self.assertEquals(68, q('name has e'))
+        self.assertEqual(q('name is "trey"'), 23)
+        self.assertEqual(q('name is mike'), 23)
+        self.assertEqual(q('name = paige'), 22)
+        self.assertEqual(q('NAME=fish'), 22)
+        self.assertEqual(q('name has e'), 68)
 
         # URN as property
-        self.assertEquals(1, q('tel is +250788382011'))
-        self.assertEquals(1, q('tel has 0788382011'))
-        self.assertEquals(1, q('twitter = tweep_12'))
-        self.assertEquals(90, q('TWITTER has tweep'))
+        self.assertEqual(q('tel is +250788382011'), 1)
+        self.assertEqual(q('tel has 0788382011'), 1)
+        self.assertEqual(q('twitter = tweep_12'), 1)
+        self.assertEqual(q('TWITTER has tweep'), 90)
 
         # contact field as property
-        self.assertEquals(69, q('age > 30'))
-        self.assertEquals(70, q('age >= 30'))
-        self.assertEquals(10, q('age > 30 and age <= 40'))
-        self.assertEquals(10, q('AGE < 20'))
+        self.assertEqual(q('age > 30'), 69)
+        self.assertEqual(q('age >= 30'), 70)
+        self.assertEqual(q('age > 30 and age <= 40'), 10)
+        self.assertEqual(q('AGE < 20'), 10)
 
-        self.assertEquals(1, q('join_date = 1-1-14'))
-        self.assertEquals(29, q('join_date < 30/1/2014'))
-        self.assertEquals(30, q('join_date <= 30/1/2014'))
-        self.assertEquals(60, q('join_date > 30/1/2014'))
-        self.assertEquals(61, q('join_date >= 30/1/2014'))
-        self.assertEquals(0, q('join_date >= xxxx'))  # invalid date
+        self.assertEqual(q('join_date = 1-1-14'), 1)
+        self.assertEqual(q('join_date < 30/1/2014'), 29)
+        self.assertEqual(q('join_date <= 30/1/2014'), 30)
+        self.assertEqual(q('join_date > 30/1/2014'), 60)
+        self.assertEqual(q('join_date >= 30/1/2014'), 61)
+        self.assertEqual(q('join_date >= xxxx'), 0)  # invalid date
 
-        self.assertEquals(30, q('home is Kayonza'))
-        self.assertEquals(30, q('HOME is "kigali"'))
-        self.assertEquals(60, q('home has k'))
+        self.assertEqual(q('home is Kayonza'), 30)
+        self.assertEqual(q('HOME is "kigali"'), 30)
+        self.assertEqual(q('home has k'), 60)
+
+        self.assertEqual(q('home is ""'), 0)
+        self.assertEqual(q('profession = ""'), 60)
+
+        # contact fields beginning with 'is' or 'has'
+        self.assertEqual(q('isureporter = "yes"'), 90)
+        self.assertEqual(q('isureporter = yes'), 90)
+        self.assertEqual(q('isureporter = no'), 0)
+
+        self.assertEqual(q('hasbirth = "no"'), 90)
+        self.assertEqual(q('hasbirth = no'), 90)
+        self.assertEqual(q('hasbirth = yes'), 0)
 
         # boolean combinations
-        self.assertEquals(46, q('name is trey or name is mike'))
-        self.assertEquals(3, q('name is trey and age < 20'))
-        self.assertEquals(60, q('(home is gatsibo or home is "kigali")'))
-        self.assertEquals(15, q('(home is gatsibo or home is "kigali") and name is mike'))
+        self.assertEqual(q('name is trey or name is mike'), 46)
+        self.assertEqual(q('name is trey and age < 20'), 3)
+        self.assertEqual(q('(home is gatsibo or home is "kigali")'), 60)
+        self.assertEqual(q('(home is gatsibo or home is "kigali") and name is mike'), 15)
+        self.assertEqual(q('name is MIKE and profession = ""'), 15)
 
         # invalid queries - which revert to simple name/phone matches
-        self.assertEquals(0, q('(('))
-        self.assertEquals(0, q('name = "trey'))
+        self.assertEqual(q('(('), 0)
+        self.assertEqual(q('name = "trey'), 0)
 
         # create contact with no phone number, we'll try searching for it by id
         contact = self.create_contact(name="Id Contact")
@@ -909,14 +915,14 @@ class ContactTest(TembaTest):
 
         with AnonymousOrg(self.org):
             # still allow name and field searches
-            self.assertEquals(23, q('trey'))
-            self.assertEquals(23, q('name is mike'))
-            self.assertEquals(69, q('age > 30'))
+            self.assertEqual(q('trey'), 23)
+            self.assertEqual(q('name is mike'), 23)
+            self.assertEqual(q('age > 30'), 69)
 
             # don't allow matching on URNs
-            self.assertEquals(0, q('0788382011'))
-            self.assertEquals(0, q('tel is +250788382011'))
-            self.assertEquals(0, q('twitter has blow'))
+            self.assertEqual(q('0788382011'), 0)
+            self.assertEqual(q('tel is +250788382011'), 0)
+            self.assertEqual(q('twitter has blow'), 0)
 
             # anon orgs can search by id, with or without zero padding
             self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk)[0])
@@ -2033,7 +2039,7 @@ class ContactTest(TembaTest):
         self.assertEqual(michael.pk, contact2.pk)
         self.assertEquals('uuid-1111', eric.uuid)
         self.assertEquals('uuid-4444', michael.uuid)
-        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         # new urn added for eric
         self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111', '+250788382382'])
@@ -2068,7 +2074,7 @@ class ContactTest(TembaTest):
             self.assertEquals(0, Contact.objects.filter(name='Kobe').count())
             self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
             self.assertEquals('uuid-4444', Contact.objects.filter(name='Michael').first().uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             eric = Contact.objects.filter(name='Eric Newcomer').first()
             michael = Contact.objects.filter(name='Michael').first()
@@ -2076,7 +2082,7 @@ class ContactTest(TembaTest):
             self.assertEqual(michael.pk, contact2.pk)
             self.assertEquals('uuid-1111', eric.uuid)
             self.assertEquals('uuid-4444', michael.uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             # new urn ignored for eric
             self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2188,7 +2194,7 @@ class ContactTest(TembaTest):
         self.assertEqual(michael.pk, contact2.pk)
         self.assertEquals('uuid-1111', eric.uuid)
         self.assertEquals('uuid-4444', michael.uuid)
-        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         # new urn added for eric
         self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2208,7 +2214,7 @@ class ContactTest(TembaTest):
             self.assertEquals(0, Contact.objects.filter(name='Kobe').count())
             self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
             self.assertEquals('uuid-4444', Contact.objects.filter(name='Michael').first().uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             eric = Contact.objects.filter(name='Eric Newcomer').first()
             michael = Contact.objects.filter(name='Michael').first()
@@ -2216,7 +2222,7 @@ class ContactTest(TembaTest):
             self.assertEqual(michael.pk, contact2.pk)
             self.assertEquals('uuid-1111', eric.uuid)
             self.assertEquals('uuid-4444', michael.uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             # new urn ignored for eric
             self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2255,7 +2261,7 @@ class ContactTest(TembaTest):
         self.assertEqual(michael.pk, contact2.pk)
         self.assertEquals('uuid-1111', eric.uuid)
         self.assertEquals('uuid-4444', michael.uuid)
-        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         # new urn added for eric
         self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2275,7 +2281,7 @@ class ContactTest(TembaTest):
             self.assertEquals(0, Contact.objects.filter(name='Kobe').count())
             self.assertEquals('uuid-1111', Contact.objects.filter(name='Eric Newcomer').first().uuid)
             self.assertEquals('uuid-4444', Contact.objects.filter(name='Michael').first().uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             eric = Contact.objects.filter(name='Eric Newcomer').first()
             michael = Contact.objects.filter(name='Michael').first()
@@ -2283,7 +2289,7 @@ class ContactTest(TembaTest):
             self.assertEqual(michael.pk, contact2.pk)
             self.assertEquals('uuid-1111', eric.uuid)
             self.assertEquals('uuid-4444', michael.uuid)
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
             # new urn ignored for eric
             self.assertEqual(list(eric.get_urns().values_list('path', flat=True)), ['+250788111111'])
@@ -2312,7 +2318,7 @@ class ContactTest(TembaTest):
 
         self.assertEquals(1, Contact.objects.filter(name='Bob').count())
         self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
-        self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+        self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         with AnonymousOrg(self.org):
             with patch('temba.orgs.models.Org.lock_on') as mock_lock:
@@ -2325,7 +2331,7 @@ class ContactTest(TembaTest):
 
             self.assertEquals(1, Contact.objects.filter(name='Bob').count())
             self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
-            self.assertFalse(Contact.objects.filter(uuid='uuid-3333')) # previously inexistent uuid ignored
+            self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -2415,7 +2421,7 @@ class ContactTest(TembaTest):
         ContactField.objects.filter(key='location').update(value_type=Value.TYPE_DATETIME)
         contact1 = Contact.objects.all().order_by('name')[0]
 
-        # Not a valid date, so should be None
+        # not a valid date, so should be None
         self.assertEquals(contact1.get_field_display('location'), None)
 
         # return it back to a state field

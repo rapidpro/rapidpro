@@ -40,7 +40,6 @@ from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.models import TembaModel, generate_uuid
 from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
-from uuid import uuid4
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
@@ -894,7 +893,7 @@ class Channel(TembaModel):
                 client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
 
             # delete Twilio SMS application
-            if self.channel_type == TWILIO:
+            elif self.channel_type == TWILIO:
                 client = self.org.get_twilio_client()
                 number_update_args = dict()
 
@@ -911,6 +910,12 @@ class Channel(TembaModel):
                         matching = client.phone_numbers.list(phone_number=self.address)
                         if matching:
                             client.phone_numbers.update(matching[0].sid, **number_update_args)
+
+            # unsubscribe from facebook events for this page
+            elif self.channel_type == FACEBOOK:
+                page_access_token = self.config_json()[AUTH_TOKEN]
+                requests.delete('https://graph.facebook.com/v2.5/me/subscribed_apps',
+                                params=dict(access_token=page_access_token))
 
         # save off our org and gcm id before nullifying
         org = self.org
@@ -966,7 +971,8 @@ class Channel(TembaModel):
         if self.channel_type == ANDROID:
             if getattr(settings, 'GCM_API_KEY', None):
                 from .tasks import sync_channel_task
-                if not gcm_id: gcm_id = self.gcm_id
+                if not gcm_id:
+                    gcm_id = self.gcm_id
                 if gcm_id:
                     sync_channel_task.delay(gcm_id, channel_id=self.pk)
 
@@ -975,7 +981,7 @@ class Channel(TembaModel):
             raise Exception("Trigger sync called on non Android channel. [%d]" % self.pk)
 
     @classmethod
-    def sync_channel(cls, gcm_id, channel=None): # pragma: no cover
+    def sync_channel(cls, gcm_id, channel=None):  # pragma: no cover
         try:
             gcm = GCM(settings.GCM_API_KEY)
             gcm.plaintext_request(registration_id=gcm_id, data=dict(msg='sync'))
@@ -2489,7 +2495,7 @@ class Channel(TembaModel):
         url = "https://" + settings.TEMBA_HOST + "/api/v1/twilio/?action=callback&id=%d" % sms_id
         return url
 
-    def __unicode__(self): # pragma: no cover
+    def __unicode__(self):  # pragma: no cover
         if self.name:
             return self.name
         elif self.device:
@@ -2754,7 +2760,8 @@ class SyncEvent(SmartModel):
 
 @receiver(pre_save, sender=SyncEvent)
 def pre_save(sender, instance, **kwargs):
-    if kwargs['raw']: return
+    if kwargs['raw']:
+        return
 
     if not instance.pk:
         last_sync_event = SyncEvent.objects.filter(channel=instance.channel).order_by('-created_on').first()
@@ -2787,9 +2794,7 @@ class Alert(SmartModel):
     def check_power_alert(cls, sync):
         alert_user = get_alert_user()
 
-        if (sync.power_status == STATUS_DISCHARGING or
-            sync.power_status == STATUS_UNKNOWN or
-            sync.power_status == STATUS_NOT_CHARGING) and int(sync.power_level) < 25:
+        if sync.power_status in (STATUS_DISCHARGING, STATUS_UNKNOWN, STATUS_NOT_CHARGING) and int(sync.power_level) < 25:
 
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
 

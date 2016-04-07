@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import json
 
-from django.core.exceptions import ValidationError
 from django.forms import forms
 from .models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 

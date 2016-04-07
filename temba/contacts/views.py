@@ -5,7 +5,6 @@ import regex
 import pytz
 import time
 
-
 from collections import OrderedDict
 from datetime import timedelta, datetime
 from django import forms
@@ -23,17 +22,16 @@ from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
-from temba.channels.models import RECEIVE
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, URN_SCHEME_CONFIG
-from temba.contacts.models import ExportContactsTask
-from temba.contacts.tasks import export_contacts_task
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
 from temba.msgs.views import SendMessageForm
 from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages
 from temba.utils.views import BaseActionForm
+from .models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, URN_SCHEME_CONFIG
+from .models import ExportContactsTask
 from .omnibox import omnibox_query, omnibox_results_to_dict
+from .tasks import export_contacts_task
 
 
 class RemoveContactForm(forms.Form):
@@ -1314,7 +1312,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             i = 1
             for contact_field in contact_fields:
-                form_field_label = _("@contact.%(key)s") % {'key' : contact_field.key }
+                form_field_label = _("@contact.%(key)s") % {'key': contact_field.key}
                 added_fields.append(("show_%d" % i, forms.BooleanField(initial=contact_field.show_in_table, required=False)))
                 added_fields.append(("type_%d" % i, forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, initial=contact_field.value_type, required=True)))
                 added_fields.append(("label_%d" % i, forms.CharField(label=' ', max_length=36, help_text=form_field_label, initial=contact_field.label, required=False)))

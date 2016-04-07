@@ -8,9 +8,9 @@ from django.utils.translation import ugettext_lazy as _
 
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, TEL_SCHEME, ContactURN
-from temba.flows.models import Flow, FlowStep, ActionLog, FlowRun
+from temba.flows.models import Flow, ActionLog, FlowRun
 from temba.channels.models import Channel
-from temba.orgs.models import Org, TopUp
+from temba.orgs.models import Org
 
 PENDING = 'P'
 QUEUED = 'Q'

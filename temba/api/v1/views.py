@@ -6,7 +6,7 @@ import urllib
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
-from django.db.models import Q, Prefetch
+from django.db.models import Prefetch
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, status, pagination
@@ -725,7 +725,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                           dict(name='after', required=False,
                                help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='relayer', required=False,
-                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854") ]
+                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854")]
 
         return spec
 

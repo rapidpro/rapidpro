@@ -13,7 +13,6 @@ from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
-from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE
 from temba.contacts.models import Contact, ContactURN, TEL_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
@@ -219,7 +218,7 @@ class AfricasTalkingHandler(View):
         return HttpResponse("ILLEGAL METHOD", status=400)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import AFRICAS_TALKING
 
         action = kwargs['action']
@@ -276,7 +275,7 @@ class ZenviaHandler(View):
         return self.post(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import ZENVIA
 
         request.encoding = "ISO-8859-1"
@@ -350,7 +349,7 @@ class ExternalHandler(View):
         return self.post(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
 
         action = kwargs['action'].lower()
 
@@ -483,7 +482,7 @@ class InfobipHandler(View):
         return super(InfobipHandler, self).dispatch(*args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import INFOBIP
 
         action = kwargs['action'].lower()
@@ -528,7 +527,7 @@ class InfobipHandler(View):
         return HttpResponse("SMS Status Updated")
 
     def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import INFOBIP
 
         action = kwargs['action'].lower()
@@ -562,7 +561,7 @@ class Hub9Handler(View):
         return super(Hub9Handler, self).dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import HUB9
 
         channel_uuid = kwargs['uuid']
@@ -786,7 +785,7 @@ class NexmoHandler(View):
         return self.get(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import NEXMO
 
         action = kwargs['action'].lower()
@@ -894,7 +893,7 @@ class VumiHandler(View):
         return HttpResponse("Illegal method, must be POST", status=405)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, PENDING, QUEUED, WIRED, SENT, DELIVERED, FAILED, ERRORED
+        from temba.msgs.models import Msg, PENDING, QUEUED, WIRED, SENT
         from temba.channels.models import VUMI
 
         action = kwargs['action'].lower()
@@ -1342,7 +1341,7 @@ class StartHandler(View):
         return super(StartHandler, self).dispatch(*args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import START
 
         channel_uuid = kwargs['uuid']
@@ -1393,7 +1392,7 @@ class ChikkaHandler(View):
         return self.post(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
+        from temba.msgs.models import Msg, SENT, FAILED, WIRED, PENDING, QUEUED
         from temba.channels.models import CHIKKA
 
         request_uuid = kwargs['uuid']
@@ -1621,8 +1620,7 @@ class FacebookHandler(View):
             if channel.secret == request.GET.get('hub.verify_token'):
                 return HttpResponse(request.GET.get('hub.challenge'))
 
-        else:
-            return JsonResponse(dict(error="Unknown request"), status=400)
+        return JsonResponse(dict(error="Unknown request"), status=400)
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1671,7 +1669,7 @@ class FacebookHandler(View):
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             msgs.append(msg)
 
-                    elif 'delivery' in envelope:
+                    elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
                             msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
                             if msg:
@@ -1680,5 +1678,4 @@ class FacebookHandler(View):
 
                 return HttpResponse("Msgs Updated: %s" % (",".join([str(m.id) for m in msgs])))
 
-        else:
-            return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
+        return HttpResponse("Ignored, unknown msg", status=200)

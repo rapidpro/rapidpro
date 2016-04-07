@@ -297,7 +297,7 @@ class Contact(TembaModel):
             return getattr(self, cache_attr)
 
         value = Value.objects.filter(contact=self, contact_field__key__exact=key).first()
-        setattr(self, cache_attr, value)
+        self.set_cached_field_value(key, value)
         return value
 
     def get_field_raw(self, key):
@@ -414,7 +414,7 @@ class Contact(TembaModel):
                                                 location_value=loc_value, category=category)
 
         # cache
-        setattr(self, '__field__%s' % key, existing)
+        self.set_cached_field_value(key, existing)
 
         self.modified_by = user
         self.modified_on = timezone.now()
@@ -425,6 +425,9 @@ class Contact(TembaModel):
 
         # invalidate our value cache for this contact field
         Value.invalidate_cache(contact_field=field)
+
+    def set_cached_field_value(self, key, value):
+        setattr(self, '__field__%s' % key, value)
 
     def handle_update(self, attrs=(), urns=(), field=None, group=None):
         """
@@ -720,7 +723,7 @@ class Contact(TembaModel):
                 # excel formatting that field as numeric.. try to parse it into an int instead
                 try:
                     value = str(int(float(value)))
-                except Exception: # pragma: no cover
+                except Exception:  # pragma: no cover
                     # oh well, neither of those, stick to the plan, maybe we can make sense of it below
                     pass
 
@@ -1442,8 +1445,8 @@ class ContactURN(models.Model):
         elif scheme == EXTERNAL_SCHEME:
             return True
 
-        # telegram uses integer ids
-        elif scheme == TELEGRAM_SCHEME:
+        # telegram and facebook uses integer ids
+        elif scheme in [TELEGRAM_SCHEME, FACEBOOK_SCHEME]:
             try:
                 int(path)
                 return True
@@ -1469,6 +1472,8 @@ class ContactURN(models.Model):
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
         elif norm_scheme == EMAIL_SCHEME:
+            norm_path = norm_path.lower()
+        elif norm_scheme == FACEBOOK_SCHEME:
             norm_path = norm_path.lower()
 
         return norm_scheme, norm_path

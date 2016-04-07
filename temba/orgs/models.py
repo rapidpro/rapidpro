@@ -701,7 +701,7 @@ class Org(SmartModel):
         if is_alias:
             query = dict(name__iexact=name, boundary__level=level)
             query['__'.join(['boundary'] + ['parent'] * level)] = self.country
-        else :
+        else:
             query = dict(name__iexact=name, level=level)
             query['__'.join(['parent'] * level)] = self.country
 
@@ -1585,7 +1585,7 @@ class Invitation(SmartModel):
         """
         Generates a [length] characters alpha numeric secret
         """
-        letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ" # avoid things that could be mistaken ex: 'I' and '1'
+        letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
         return ''.join([random.choice(letters) for _ in range(length)])
 
     def send_invitation(self):
