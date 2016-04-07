@@ -10,7 +10,7 @@ from mock import patch
 from temba.channels.models import TWILIO, CALL, ANSWER, SEND
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FAILED, FlowRun, ActionLog, FlowStep
-from temba.msgs.models import Msg, IVR, INCOMING
+from temba.msgs.models import Msg, IVR
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator
 from .models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
 

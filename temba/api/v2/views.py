@@ -5,8 +5,8 @@ from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from django.core.files.storage import default_storage
 from django.conf import settings
-from rest_framework import generics, mixins, pagination, status
-from rest_framework.parsers import MultiPartParser, FormParser, FileUploadParser
+from rest_framework import generics, mixins, status
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -565,7 +565,6 @@ class MediaEndpoint(BaseAPIView):
     By making a ```POST``` request to the endpoint you can add a new media
     to referrence in your flow runs.
     """
-    from rest_framework.parsers import MultiPartParser, FormParser
     parser_classes = (MultiPartParser, FormParser,)
     permission = 'flows.flow_api'
 
