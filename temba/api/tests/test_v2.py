@@ -559,15 +559,17 @@ class APITest(TembaTest):
 
         self.login(self.admin)
         flow_uuid = uuid4()
+        flow_run = 54
 
         def assert_media_upload(filename, extension):
             with open(filename, 'rb') as data:
-                response = self.client.post(url, dict(media_file=data, flow=flow_uuid), HTTP_X_FORWARDED_HTTPS='https')
+                response = self.client.post(url, dict(media_file=data, flow=flow_uuid,
+                                                      run=flow_run, HTTP_X_FORWARDED_HTTPS='https'))
                 self.assertEqual(response.status_code, 201)
                 location = json.loads(response.content).get('location', None)
                 self.assertIsNotNone(location)
-                starts_with = 'https://%s/%s/%d/media/%s/' % (settings.AWS_BUCKET_DOMAIN, settings.STORAGE_ROOT_DIR,
-                                                              self.org.pk, flow_uuid)
+                starts_with = 'https://%s/%s/%d/media/%s/%s' % (settings.AWS_BUCKET_DOMAIN, settings.STORAGE_ROOT_DIR,
+                                                              self.org.pk, flow_uuid, flow_run)
 
                 self.assertEqual(starts_with, location[0:len(starts_with)])
                 self.assertEqual('.%s' % extension, location[-4:])

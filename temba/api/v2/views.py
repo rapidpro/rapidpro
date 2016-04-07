@@ -1,6 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
-from uuid import uuid4
+
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from django.core.files.storage import default_storage
@@ -18,6 +18,7 @@ from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel, DELETED
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
+from uuid import uuid4
 from .serializers import BroadcastReadSerializer, ContactReadSerializer, ContactFieldReadSerializer
 from .serializers import ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
@@ -574,13 +575,12 @@ class MediaEndpoint(BaseAPIView):
 
         media_file = request.data.get('media_file')
         flow_uuid = request.data.get('flow')
+        flow_run = request.data.get('run')
 
         if media_file:
             ext = media_file.name.rpartition('.')[2]
-
-            location = default_storage.save('%s/%d/media/%s/%s.%s' % (settings.STORAGE_ROOT_DIR, org.pk,
-                                                                      flow_uuid, uuid4(), ext), media_file)
-
+            location = default_storage.save('%s/%d/media/%s/%s_%s.%s' % (settings.STORAGE_ROOT_DIR, org.pk,
+                                                                         flow_uuid, flow_run, uuid4(), ext), media_file)
             location = 'https://%s/%s' % (settings.AWS_BUCKET_DOMAIN, location)
             return Response(dict(location=location), status=status.HTTP_201_CREATED)
 
