@@ -399,6 +399,7 @@ class APITest(TembaTest):
         flow.save()
 
         flow2 = self.create_flow()
+        self.create_flow()
 
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
