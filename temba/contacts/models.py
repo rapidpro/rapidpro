@@ -1465,8 +1465,8 @@ class ContactURN(models.Model):
         """
         Normalizes a URN scheme and path. Should be called anytime looking for a URN match.
         """
-        norm_scheme = scheme.strip().lower()
-        norm_path = path.strip()
+        norm_scheme = unicode(scheme).strip().lower()
+        norm_path = unicode(path).strip()
 
         if norm_scheme == TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
