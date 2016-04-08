@@ -200,9 +200,9 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         group = ContactGroup.user_groups.get(org=self.org, name="Frank")
         self.assertEquals(group.get_member_count(), 1)
 
-        # try to create another with the same name, nothing happens
+        # try to create another with the same name, fails
         response = self.client.post(create_url, dict(name="First"))
-        self.assertNoFormErrors(response)
+        self.assertFormError(response, 'form', 'name', "Name is used by another group")
         self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
 
         # direct calls are the same thing
