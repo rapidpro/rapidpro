@@ -200,9 +200,9 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         group = ContactGroup.user_groups.get(org=self.org, name="Frank")
         self.assertEquals(group.get_member_count(), 1)
 
-        # try to create another with the same name, nothing happens
+        # try to create another with the same name, fails
         response = self.client.post(create_url, dict(name="First"))
-        self.assertNoFormErrors(response)
+        self.assertFormError(response, 'form', 'name', "Name is used by another group")
         self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
 
         # direct calls are the same thing
@@ -240,9 +240,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.assertEquals(1, group.get_member_count())
 
         # now update that group to joe
-        self.client.post(reverse('contacts.contactgroup_update', args=[group.pk]), dict(name='Joe', query='joe'))
-        self.assertIsNone(ContactGroup.user_groups.filter(org=self.org, name='Frank').first())
-        group = ContactGroup.user_groups.filter(org=self.org, name='Joe').first()
+        self.client.post(reverse('contacts.contactgroup_update', args=[group.pk]), dict(name='Frank', query='joe'))
+        group = ContactGroup.user_groups.filter(org=self.org, name='Frank').first()
         self.assertEquals(1, group.get_member_count())
         self.assertIsNotNone(group.contacts.filter(name='Joe Blow').first())
 
@@ -1401,6 +1400,22 @@ class ContactTest(TembaTest):
 
         # with a proper code, we should see the language
         self.assertContains(response, 'French')
+
+    def test_creating_duplicates(self):
+        self.login(self.admin)
+
+        self.client.post(reverse('contacts.contactgroup_create'), dict(name="First Group"))
+
+        # assert it was created
+        ContactGroup.user_groups.get(name="First Group")
+
+        # try to create another group with the same name, but a dynamic query, should fail
+        response = self.client.post(reverse('contacts.contactgroup_create'), dict(name="First Group", group_query='firsts'))
+        self.assertFormError(response, 'form', 'name', "Name is used by another group")
+
+        # try to create another group with same name, not dynamic, same thing
+        response = self.client.post(reverse('contacts.contactgroup_create'), dict(name="First Group", group_query='firsts'))
+        self.assertFormError(response, 'form', 'name', "Name is used by another group")
 
     def test_update_and_list(self):
         from temba.msgs.tasks import check_messages_task
