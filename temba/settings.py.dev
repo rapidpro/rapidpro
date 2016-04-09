@@ -41,9 +41,9 @@ DATABASES = {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': 'temba',
         'USER': 'temba',
-        'PASSWORD': 'temba',
-        'HOST': 'localhost',
-        'PORT': '',
+        'PASSWORD': POSTGRES_PASSWORD,
+        'HOST': POSTGRES_HOST,
+        'PORT': POSTGRES_PORT,
         'ATOMIC_REQUESTS': True,
         'OPTIONS': {
         }

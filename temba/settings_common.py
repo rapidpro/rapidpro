@@ -34,6 +34,14 @@ MANAGERS = ADMINS
 POSTGIS_VERSION = (2, 1)
 
 # -----------------------------------------------------------------------------------
+# postgres
+# -----------------------------------------------------------------------------------
+
+POSTGRES_PASSWORD = os.getenv('POSTGRES_ENV_TEMBAPASSWD')
+POSTGRES_HOST = os.getenv('POSTGRES_PORT_5432_TCP_ADDR')
+POSTGRES_PORT = int(os.getenv('POSTGRES_PORT_5432_TCP_PORT'))
+
+# -----------------------------------------------------------------------------------
 # set the mail settings, override these in your settings.py
 # if your site was at http://temba.io, it might look like this:
 # -----------------------------------------------------------------------------------
@@ -950,8 +958,8 @@ CELERY_TASK_MAP = {
 # -----------------------------------------------------------------------------------
 djcelery.setup_loader()
 
-REDIS_HOST = 'localhost'
-REDIS_PORT = 6379
+REDIS_HOST = os.getenv('REDIS_PORT_6379_TCP_ADDR')
+REDIS_PORT = int(os.getenv('REDIS_PORT_6379_TCP_PORT'))
 
 # we use a redis db of 10 for testing so that we maintain caches for dev
 REDIS_DB = 10 if TESTING else 15
