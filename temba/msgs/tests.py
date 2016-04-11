@@ -14,7 +14,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
@@ -67,9 +67,13 @@ class MsgTest(TembaTest):
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
         self.assertRaises(ValueError, msg2.archive)
 
-    def assertReleaseCount(self, status, label):
-        msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Whattup Joe")
-        Msg.all_messages.filter(id=msg.id).update(status=status)
+    def assertReleaseCount(self, direction, status, visibility, msg_type, label):
+        if direction == OUTGOING:
+            msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Whattup Joe")
+        else:
+            msg = Msg.create_incoming(self.channel, ('tel', '+250788123123'), "Hey hey")
+
+        Msg.all_messages.filter(id=msg.id).update(status=status, direction=direction, visibility=visibility, msg_type=msg_type)
 
         # assert our folder count is right
         counts = SystemLabel.get_counts(self.org)
@@ -91,9 +95,15 @@ class MsgTest(TembaTest):
         self.assertEqual(counts[label], 0)
 
     def test_release_counts(self):
-        self.assertReleaseCount(SENT, SystemLabel.TYPE_SENT)
-        self.assertReleaseCount(QUEUED, SystemLabel.TYPE_OUTBOX)
-        self.assertReleaseCount(FAILED, SystemLabel.TYPE_FAILED)
+        # outgoing labels
+        self.assertReleaseCount(OUTGOING, SENT, VISIBLE, INBOX, SystemLabel.TYPE_SENT)
+        self.assertReleaseCount(OUTGOING, QUEUED, VISIBLE, INBOX,  SystemLabel.TYPE_OUTBOX)
+        self.assertReleaseCount(OUTGOING, FAILED, VISIBLE, INBOX, SystemLabel.TYPE_FAILED)
+
+        # incoming labels
+        self.assertReleaseCount(INCOMING, HANDLED, VISIBLE, INBOX, SystemLabel.TYPE_INBOX)
+        self.assertReleaseCount(INCOMING, HANDLED, ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
+        self.assertReleaseCount(INCOMING, HANDLED, VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
 
     def test_erroring(self):
         # test with real message
