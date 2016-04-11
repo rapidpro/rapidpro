@@ -67,6 +67,34 @@ class MsgTest(TembaTest):
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
         self.assertRaises(ValueError, msg2.archive)
 
+    def assertReleaseCount(self, status, label):
+        msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Whattup Joe")
+        Msg.all_messages.filter(id=msg.id).update(status=status)
+
+        # assert our folder count is right
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 1)
+
+        # recalculate, check the count again
+        SystemLabel.recalculate_counts(self.org, label)
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 1)
+
+        # release the msg, count should now be 0
+        msg.release()
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 0)
+
+        # more recalculations
+        SystemLabel.recalculate_counts(self.org, label)
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 0)
+
+    def test_release_counts(self):
+        self.assertReleaseCount(SENT, SystemLabel.TYPE_SENT)
+        self.assertReleaseCount(QUEUED, SystemLabel.TYPE_OUTBOX)
+        self.assertReleaseCount(FAILED, SystemLabel.TYPE_FAILED)
+
     def test_erroring(self):
         # test with real message
         msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Test 1")
