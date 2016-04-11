@@ -200,9 +200,9 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         group = ContactGroup.user_groups.get(org=self.org, name="Frank")
         self.assertEquals(group.get_member_count(), 1)
 
-        # try to create another with the same name, nothing happens
+        # try to create another with the same name, fails
         response = self.client.post(create_url, dict(name="First"))
-        self.assertNoFormErrors(response)
+        self.assertFormError(response, 'form', 'name', "Name is used by another group")
         self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
 
         # direct calls are the same thing
@@ -240,9 +240,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.assertEquals(1, group.get_member_count())
 
         # now update that group to joe
-        self.client.post(reverse('contacts.contactgroup_update', args=[group.pk]), dict(name='Joe', query='joe'))
-        self.assertIsNone(ContactGroup.user_groups.filter(org=self.org, name='Frank').first())
-        group = ContactGroup.user_groups.filter(org=self.org, name='Joe').first()
+        self.client.post(reverse('contacts.contactgroup_update', args=[group.pk]), dict(name='Frank', query='joe'))
+        group = ContactGroup.user_groups.filter(org=self.org, name='Frank').first()
         self.assertEquals(1, group.get_member_count())
         self.assertIsNotNone(group.contacts.filter(name='Joe Blow').first())
 
@@ -1402,6 +1401,22 @@ class ContactTest(TembaTest):
         # with a proper code, we should see the language
         self.assertContains(response, 'French')
 
+    def test_creating_duplicates(self):
+        self.login(self.admin)
+
+        self.client.post(reverse('contacts.contactgroup_create'), dict(name="First Group"))
+
+        # assert it was created
+        ContactGroup.user_groups.get(name="First Group")
+
+        # try to create another group with the same name, but a dynamic query, should fail
+        response = self.client.post(reverse('contacts.contactgroup_create'), dict(name="First Group", group_query='firsts'))
+        self.assertFormError(response, 'form', 'name', "Name is used by another group")
+
+        # try to create another group with same name, not dynamic, same thing
+        response = self.client.post(reverse('contacts.contactgroup_create'), dict(name="First Group", group_query='firsts'))
+        self.assertFormError(response, 'form', 'name', "Name is used by another group")
+
     def test_update_and_list(self):
         from temba.msgs.tasks import check_messages_task
         list_url = reverse('contacts.contact_list')
@@ -1717,7 +1732,7 @@ class ContactTest(TembaTest):
                          dict(name='Joey', urn__tel__0="12345", new_scheme="mailto", new_path="malformed"))
 
         # update our contact with some locations
-        ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
+        state = ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
         ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
 
         self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
@@ -1726,6 +1741,28 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, 'Eastern Province')
         self.assertContains(response, 'Rwamagana')
+
+        # change the name of the Rwamagana boundary, our display should change appropriately as well
+        rwamagana = AdminBoundary.objects.get(name="Rwamagana")
+        rwamagana.update(name="Rwa-magana")
+        self.assertEqual("Rwa-magana", rwamagana.name)
+        self.assertTrue(Value.objects.filter(location_value=rwamagana, category="Rwa-magana"))
+
+        # assert our read page is correct
+        response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
+        self.assertContains(response, 'Eastern Province')
+        self.assertContains(response, 'Rwa-magana')
+
+        # change our field to a text field
+        state.value_type = Value.TYPE_TEXT
+        state.save()
+        value = self.joe.get_field('state')
+        value.category = "Rwama Category"
+        value.save()
+
+        # should now be using stored category as value
+        response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
+        self.assertContains(response, 'Rwama Category')
 
         # try to push into a dynamic group
         with self.assertRaises(ValueError):
@@ -2598,17 +2635,22 @@ class ContactTest(TembaTest):
 
         weight_field = ContactField.get_or_create(self.org, self.admin, 'weight', "Weight", None, Value.TYPE_DECIMAL)
         color_field = ContactField.get_or_create(self.org, self.admin, 'color', "Color", None, Value.TYPE_TEXT)
+        state_field = ContactField.get_or_create(self.org, self.admin, 'state', "State", None, Value.TYPE_STATE)
 
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
         joe.set_field(self.user, 'weight', "75.888888")
         joe.set_field(self.user, 'color', "green")
+        joe.set_field(self.user, 'state', "kigali city")
 
         value = joe.get_field(registration_field.key)
         self.assertEqual(Contact.serialize_field_value(registration_field, value), '2014-12-31T01:04:00.000000Z')
 
         value = joe.get_field(weight_field.key)
         self.assertEqual(Contact.serialize_field_value(weight_field, value), '75.888888')
+
+        value = joe.get_field(state_field.key)
+        self.assertEqual(Contact.serialize_field_value(state_field, value), 'Kigali City')
 
         value = joe.get_field(color_field.key)
         value.category = "Dark"

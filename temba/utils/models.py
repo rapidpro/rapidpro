@@ -57,7 +57,7 @@ class ChunkIterator(object):
 
                 # fetch the contact field values
                 values = Value.objects.filter(contact_field__in=self._contact_fields, contact_id__in=contact_ids)\
-                                      .order_by('contact_id').prefetch_related('contact_field')
+                                      .order_by('contact_id').prefetch_related('contact_field', 'location_value')
 
                 # map these by contact id
                 cid_to_values = defaultdict(list)

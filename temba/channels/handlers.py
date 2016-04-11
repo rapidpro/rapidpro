@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
+import requests
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
@@ -14,7 +15,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE
+from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN
 from temba.contacts.models import Contact, ContactURN, TEL_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
@@ -1619,8 +1620,7 @@ class FacebookHandler(View):
             if channel.secret == request.GET.get('hub.verify_token'):
                 return HttpResponse(request.GET.get('hub.challenge'))
 
-        else:
-            return JsonResponse(dict(error="Unknown request"), status=400)
+        return JsonResponse(dict(error="Unknown request"), status=400)
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1661,15 +1661,42 @@ class FacebookHandler(View):
 
                             content = '\n'.join(urls)
 
+                        # if we have some content, create the msg
                         if content:
-                            # otherwise, create the incoming message
+                            # does this contact already exist?
+                            sender_id = envelope['sender']['id']
+                            contact = Contact.from_urn(channel.org, FACEBOOK_SCHEME, sender_id)
+
+                            # if not, let's go create it
+                            if not contact:
+                                name = None
+
+                                # if this isn't an anonymous org, look up their name from the Facebook API
+                                if not channel.org.is_anon:
+                                    try:
+                                        response = requests.get('https://graph.facebook.com/v2.5/' + unicode(sender_id),
+                                                                params=dict(fields='first_name,last_name',
+                                                                            access_token=channel.config_json()[AUTH_TOKEN]))
+
+                                        if response.status_code == 200:
+                                            user_stats = response.json()
+                                            name = ' '.join([user_stats.get('first_name', ''), user_stats.get('last_name', '')])
+
+                                    except Exception as e:
+                                        # something went wrong trying to look up the user's attributes, oh well, move on
+                                        import traceback
+                                        traceback.print_exc()
+
+                                contact = Contact.get_or_create(channel.org, channel.created_by, incoming_channel=channel,
+                                                                name=name, urns=[(FACEBOOK_SCHEME, sender_id)])
+
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
-                            msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, str(envelope['sender']['id'])),
-                                                      content, date=msg_date)
+                            msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, sender_id),
+                                                      content, date=msg_date, contact=contact)
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             msgs.append(msg)
 
-                    elif 'delivery' in envelope:
+                    elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
                             msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
                             if msg:
@@ -1678,5 +1705,4 @@ class FacebookHandler(View):
 
                 return HttpResponse("Msgs Updated: %s" % (",".join([str(m.id) for m in msgs])))
 
-        else:
-            return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
+        return HttpResponse("Ignored, unknown msg", status=200)
