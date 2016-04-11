@@ -160,7 +160,7 @@ class CampaignCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(CampaignCRUDL.BaseList, self).get_context_data(**kwargs)
             context['org_has_campaigns'] = Campaign.objects.filter(org=self.request.user.get_org()).count()
-            context['folders']= self.get_folders()
+            context['folders'] = self.get_folders()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
             return context

@@ -454,6 +454,7 @@ class WebHookEvent(SmartModel):
     def __unicode__(self):
         return "WebHookEvent[%s:%d] %s" % (self.event, self.pk, self.data)
 
+
 class WebHookResult(SmartModel):
     """
     Represents the result of trying to deliver an event to a web hook

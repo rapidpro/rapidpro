@@ -20,7 +20,7 @@ class MageStreamAction(Enum):
 
 
 @task(track_started=True, name='sync_channel_task')
-def sync_channel_task(gcm_id, channel_id=None):  #pragma: no cover
+def sync_channel_task(gcm_id, channel_id=None):  # pragma: no cover
     channel = Channel.objects.filter(pk=channel_id).first()
     Channel.sync_channel(gcm_id, channel)
 
@@ -94,6 +94,7 @@ def notify_mage_task(channel_uuid, action):
         mage.deactivate_twitter_stream(channel_uuid)
     else:
         raise ValueError('Invalid action: %s' % action)
+
 
 @task(track_started=True, name="squash_channelcounts")
 def squash_channelcounts():

@@ -4,7 +4,7 @@ import importlib
 import logging
 
 from celery.signals import worker_process_init
-from django.conf.urls import patterns, include, url
+from django.conf.urls import include, url
 from django.contrib.auth.models import User, AnonymousUser
 from django.conf import settings
 from temba.channels.views import register, sync
@@ -14,7 +14,7 @@ js_info_dict = {
     'packages': (),  # this is empty due to the fact that all translation are in one folder
 }
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'^', include('temba.public.urls')),
     url(r'^', include('temba.msgs.urls')),
     url(r'^', include('temba.contacts.urls')),
@@ -34,10 +34,10 @@ urlpatterns = patterns('',
     url(r'^imports/', include('smartmin.csv_imports.urls')),
     url(r'^assets/', include('temba.assets.urls')),
     url(r'^jsi18n/$', 'django.views.i18n.javascript_catalog', js_info_dict)
-)
+]
 
 if settings.DEBUG:
-    urlpatterns += patterns('', url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT, }), )
+    urlpatterns.append(url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT, }))
 
 
 # import any additional urls

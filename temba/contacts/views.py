@@ -114,7 +114,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         Order contacts by name, case insensitive
         """
         return queryset
-            
+
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
         counts = ContactGroup.get_system_group_counts(org)
@@ -464,7 +464,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_form(self, form_class):
             form = super(ContactCRUDL.Customize, self).get_form(form_class)
             form.fields.clear()
-            
+
             self.headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
             self.column_controls = self.create_column_controls(self.headers)
 
@@ -813,7 +813,7 @@ class ContactCRUDL(SmartCRUDL):
             else:
                 start_message = (page - 1) * msgs_per_page
                 end_message = page * msgs_per_page
-                text_messages = text_messages[start_message:end_message+1]
+                text_messages = text_messages[start_message:end_message + 1]
 
             # ignore our lead message past the first page
             count = len(text_messages)
@@ -828,7 +828,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # grab up to 100 messages from our first message
             if not recent_seconds:
-                text_messages = text_messages[first_message:first_message+100]
+                text_messages = text_messages[first_message:first_message + 100]
 
             activity = []
 
@@ -1293,7 +1293,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             num_fields = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True).count()
 
             contact_fields = []
-            for field_idx in range(1, num_fields+2):
+            for field_idx in range(1, num_fields + 2):
                 contact_field = dict(show='show_%d' % field_idx,
                                      type='type_%d' % field_idx,
                                      label='label_%d' % field_idx,
