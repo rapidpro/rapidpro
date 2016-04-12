@@ -4315,7 +4315,7 @@ class UssdAction(ReplyAction):
     this is to be changed
     """
     TYPE = 'ussd'
-    MESSAGE = 'ussd_text'
+    MESSAGE = 'ussd_message'
     MENU = 'ussd_menu'
     TYPE_WAIT_USSD_MENU = 'wait_menu'
     TYPE_WAIT_USSD = 'wait_ussd'
@@ -4327,22 +4327,21 @@ class UssdAction(ReplyAction):
             msg = obj.get(UssdAction.MESSAGE, '')
 
             if rule.ruleset_type == UssdAction.TYPE_WAIT_USSD_MENU:
-                if msg:
-                    msg += '\n'
-
-                msg = UssdAction.build_menu(msg, obj)
+                msg = UssdAction.add_menu_to_msg(msg, obj)
 
             return UssdAction(msg=msg)
         else:
             return UssdAction()
 
     @classmethod
-    def build_menu(cls, msg, obj):
-        for menu in obj[UssdAction.MENU]:
-            msg += ": ".join((str(menu['option']), str(menu['label'].itervalues().next()), )) + '\n'
+    def add_menu_to_msg(cls, msg, obj):
+        # start with a new line
+        msg = {language: localised_msg + '\n' for language, localised_msg in msg.iteritems()}
 
-        if msg.endswith('\n'):
-            msg = msg[:-1]
+        # add menu to the msg
+        for menu in obj[UssdAction.MENU]:
+            msg = {language: localised_msg + ": ".join((str(menu['option']), str(menu['label'][language]),)) + '\n'
+                   for language, localised_msg in msg.iteritems()}
 
         return msg
 

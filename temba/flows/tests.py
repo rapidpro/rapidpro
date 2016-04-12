@@ -2107,14 +2107,14 @@ class ActionTest(TembaTest):
                 {"option": 1, "label": {"base": "Test1"}},
                 {"option": 2, "label": {"base": "Test2"}},
             ],
-            "ussd_text": "test"
+            "ussd_message": {"base": "test"}
         }
         ussd_ruleset.config = json.dumps(config)
         action = UssdAction.from_ruleset(ussd_ruleset)
         execution = action.execute(run, None, msg)
 
         self.assertIsNotNone(action.msg)
-        self.assertEquals(action.msg, u'test\n1: Test1\n2: Test2')
+        self.assertEquals(action.msg, {u'base': u'test\n1: Test1\n2: Test2\n'})
         self.assertIsInstance(execution[0], Msg)
         self.assertEquals(execution[0].text, u'test\n1: Test1\n2: Test2')
 
