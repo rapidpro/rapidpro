@@ -14,7 +14,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
@@ -66,6 +66,44 @@ class MsgTest(TembaTest):
         # can't archive outgoing messages
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
         self.assertRaises(ValueError, msg2.archive)
+
+    def assertReleaseCount(self, direction, status, visibility, msg_type, label):
+        if direction == OUTGOING:
+            msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Whattup Joe")
+        else:
+            msg = Msg.create_incoming(self.channel, ('tel', '+250788123123'), "Hey hey")
+
+        Msg.all_messages.filter(id=msg.id).update(status=status, direction=direction, visibility=visibility, msg_type=msg_type)
+
+        # assert our folder count is right
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 1)
+
+        # recalculate, check the count again
+        SystemLabel.recalculate_counts(self.org, label)
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 1)
+
+        # release the msg, count should now be 0
+        msg.release()
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 0)
+
+        # more recalculations
+        SystemLabel.recalculate_counts(self.org, label)
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 0)
+
+    def test_release_counts(self):
+        # outgoing labels
+        self.assertReleaseCount(OUTGOING, SENT, VISIBLE, INBOX, SystemLabel.TYPE_SENT)
+        self.assertReleaseCount(OUTGOING, QUEUED, VISIBLE, INBOX, SystemLabel.TYPE_OUTBOX)
+        self.assertReleaseCount(OUTGOING, FAILED, VISIBLE, INBOX, SystemLabel.TYPE_FAILED)
+
+        # incoming labels
+        self.assertReleaseCount(INCOMING, HANDLED, VISIBLE, INBOX, SystemLabel.TYPE_INBOX)
+        self.assertReleaseCount(INCOMING, HANDLED, ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
+        self.assertReleaseCount(INCOMING, HANDLED, VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
 
     def test_erroring(self):
         # test with real message
@@ -223,6 +261,13 @@ class MsgTest(TembaTest):
         self.assertEqual(msg.text, "Yes, 3.")
         self.assertEqual(unicode(msg), "Yes, 3.")
 
+        # assert there are 3 unread msgs for this org
+        self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
+
+        # second go shouldn't hit DB
+        with self.assertNumQueries(0):
+            self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
+
         # Can't send incoming messages
         with self.assertRaises(Exception):
             msg.send()
@@ -239,8 +284,14 @@ class MsgTest(TembaTest):
         contact.save()
         ignored_msg = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "My msg should be archived")
         ignored_msg = Msg.all_messages.get(pk=ignored_msg.pk)
-        self.assertEquals(ignored_msg.visibility, ARCHIVED)
-        self.assertEquals(ignored_msg.status, HANDLED)
+        self.assertEqual(ignored_msg.visibility, ARCHIVED)
+        self.assertEqual(ignored_msg.status, HANDLED)
+
+        # hit the inbox page, that should reset our unread count
+        self.login(self.admin)
+        self.client.get(reverse('msgs.msg_inbox'))
+
+        self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
 
     def test_empty(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
