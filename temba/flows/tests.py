@@ -656,7 +656,7 @@ class FlowTest(TembaTest):
         age = ContactField.get_or_create(self.org, self.admin, 'age', "Age")
         self.contact.set_field(self.admin, 'age', 36)
 
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(52):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age])
 
