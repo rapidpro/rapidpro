@@ -157,6 +157,9 @@
 
 -block extra-less
   -compress css
+
+    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/videojs.less', media:'all'}
+
     {% lessblock %}
       :plain
 
@@ -274,6 +277,11 @@
               color: @flat-darkwhite;
               padding: 5px;
 
+              &.boost {
+                font-size:18px;
+                margin-left:-3px;
+              }
+
               &.icon-bubble-right, &.icon-bubble-check {
                 color: @color-status-green;
               }
@@ -282,13 +290,8 @@
                 color: @color-primary;
               }
 
-              &.icon-location {
+              &.icon-bubble-user, &.user {
                 color: @color-primary;
-              }
-
-              &.icon-cloud-download {
-                color: @color-primary;
-                font-size:20px;
               }
 
               &.icon-bullhorn {

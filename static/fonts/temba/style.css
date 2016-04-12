@@ -1,10 +1,10 @@
 @font-face {
     font-family: 'temba';
-    src:    url('fonts/temba.eot?j1tlsz');
-    src:    url('fonts/temba.eot?j1tlsz#iefix') format('embedded-opentype'),
-        url('fonts/temba.ttf?j1tlsz') format('truetype'),
-        url('fonts/temba.woff?j1tlsz') format('woff'),
-        url('fonts/temba.svg?j1tlsz#temba') format('svg');
+    src:    url('fonts/temba.eot?w8z02s');
+    src:    url('fonts/temba.eot?w8z02s#iefix') format('embedded-opentype'),
+        url('fonts/temba.ttf?w8z02s') format('truetype'),
+        url('fonts/temba.woff?w8z02s') format('woff'),
+        url('fonts/temba.svg?w8z02s#temba') format('svg');
     font-weight: normal;
     font-style: normal;
 }
@@ -24,6 +24,12 @@
     -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-facebook-official:before {
+    content: "\e902";
+}
+.icon-file_download:before {
+    content: "\e901";
+}
 .icon-photo_camera:before {
     content: "\e412";
 }
@@ -39,8 +45,11 @@
 .icon-videocam:before {
     content: "\e06f";
 }
-.icon-language:before {
-    content: "\e602";
+.icon-headphones:before {
+    content: "\e948";
+}
+.icon-volume-medium:before {
+    content: "\ed90";
 }
 .icon-folder:before {
     content: "\e60b";
@@ -749,5 +758,8 @@
 }
 .icon-telegram:before {
     content: "\e900";
+}
+.icon-language:before {
+    content: "\e602";
 }
 

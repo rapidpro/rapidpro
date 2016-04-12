@@ -17,13 +17,15 @@
                 .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
               .stop.hide
                 .icon-nav-channels-inverted
-          -elif media_type == 'geo'
-            %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
-              .glyph.icon-location
+
           -else
             %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
-              %a{href:'{{item.media|media_url}}', download:'download'}
-                .glyph.icon-cloud-download
+            -if media_type == 'geo'
+              .glyph.icon-location.user.boost
+            -elif media_type == 'image'
+              .glyph.icon-photo_camera.user.boost
+            -elif media_type == 'video'
+              .glyph.icon-videocam.user.user.boost
         -else
           %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
             -if not user_org.is_anon or perms.contacts.contact_break_anon
@@ -82,7 +84,7 @@
           .activity-message
             .activity-body
               .text
-                <a href="{{media_url}}" data-featherlight="image">
+                <a href="#" data-featherlight="<a class='download-link' href='{{media_url}}' download><span class='icon-file_download'></span></a><img class='image-full' src='{{media_url}}'>">
                   <img class="image-preview" src="{{media_url}}">
                 </a>
 
@@ -112,7 +114,14 @@
                 }
 
                 // initialize and push our current video
-                window.players.push(videojs("video_{{item.id}}", {}, function(){}));
+                window.players.push(videojs("video_{{item.id}}", {plugins : {
+                   vjsdownload:{
+                     beforeElement: 'playbackRateMenuButton',
+                     textControl: 'Download',
+                     name: 'downloadButton'
+                   }
+                }}, function(){
+                }));
 
         -else
           -with item as message

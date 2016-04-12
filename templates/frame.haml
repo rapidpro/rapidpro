@@ -73,6 +73,8 @@
       %script{src:"{{ STATIC_URL }}js/uuid.js"}
       %script{src:"{{ STATIC_URL }}js/featherlight.min.js"}
       %script{src:"{{ STATIC_URL }}js/video.js"}
+      %script{src:"{{ STATIC_URL }}js/videojs-vjsdownload.js"}
+
 
       -if not debug and not testing
         %script{src:"{{ STATIC_URL }}js/raven.min.js"}
@@ -85,6 +87,7 @@
       %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:'text/coffeescript'}
       %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:'text/coffeescript'}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
+
 
     -include "includes/frame_top.html"
 
@@ -111,6 +114,7 @@
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/redmond/jquery-ui-1.10.2.custom.min.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/featherlight.min.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/video-js.css", media:'all'}
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/videojs-vjsdownload.css", media:'all'}
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
