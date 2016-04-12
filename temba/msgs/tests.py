@@ -97,7 +97,7 @@ class MsgTest(TembaTest):
     def test_release_counts(self):
         # outgoing labels
         self.assertReleaseCount(OUTGOING, SENT, VISIBLE, INBOX, SystemLabel.TYPE_SENT)
-        self.assertReleaseCount(OUTGOING, QUEUED, VISIBLE, INBOX,  SystemLabel.TYPE_OUTBOX)
+        self.assertReleaseCount(OUTGOING, QUEUED, VISIBLE, INBOX, SystemLabel.TYPE_OUTBOX)
         self.assertReleaseCount(OUTGOING, FAILED, VISIBLE, INBOX, SystemLabel.TYPE_FAILED)
 
         # incoming labels
