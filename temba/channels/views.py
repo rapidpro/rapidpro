@@ -310,7 +310,6 @@ def sync(request, channel_id):
         print "==GOT SYNC"
         print json.dumps(client_updates, indent=2)
 
-        incoming_count = 0
         if 'cmds' in client_updates:
             cmds = client_updates['cmds']
 
@@ -1303,7 +1302,7 @@ class ChannelCRUDL(SmartCRUDL):
                     import telegram
                     bot = telegram.Bot(token=auth_token)
                     bot.getMe()
-                except telegram.TelegramError as e:
+                except telegram.TelegramError:
                     raise ValidationError(_("Your authentication token is invalid, please check and try again"))
 
                 return self.cleaned_data['auth_token']
@@ -2311,9 +2310,7 @@ class ChannelCRUDL(SmartCRUDL):
             return client
 
         def form_valid(self, form, *args, **kwargs):
-            org = self.request.user.get_org()
             data = form.cleaned_data
-
             client = self.get_valid_client()
 
             results_numbers = []

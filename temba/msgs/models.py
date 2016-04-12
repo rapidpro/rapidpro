@@ -1197,8 +1197,6 @@ class Msg(models.Model):
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
 
-            channel_id = channel.pk if channel else None
-
             if same_msg_count >= 10:
                 analytics.gauge('temba.msg_loop_caught')
                 return None

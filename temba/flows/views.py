@@ -31,6 +31,7 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
 from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision, STARTING, PENDING
 from temba.flows.tasks import export_flow_results_task
+from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
@@ -158,11 +159,6 @@ class RuleCRUDL(SmartCRUDL):
     class Choropleth(OrgPermsMixin, SmartReadView):
 
         def get_context_data(self, **kwargs):
-            from temba.values.models import Value
-            from temba.locations.models import AdminBoundary
-
-            context = dict()
-
             filters = json.loads(self.request.GET.get('filters', '[]'))
 
             ruleset = self.get_object()
@@ -392,11 +388,11 @@ class FlowCRUDL(SmartCRUDL):
                         FlowRevision.validate_flow_definition(revision.get_definition_json())
                         revisions.append(revision.as_json())
 
-                    except ValueError as e:
+                    except ValueError:
                         # "expected" error in the def, silently cull it
                         pass
 
-                    except Exception as e:
+                    except Exception:
                         # something else, we still cull, but report it to sentry
                         logger.exception("Error validating flow revision: %s [%d]" % (flow.uuid, revision.id))
                         pass

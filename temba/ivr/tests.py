@@ -168,7 +168,7 @@ class IVRTests(FlowFileTest):
         self.get_flow('ivr_call_redirect')
 
         flow_1 = Flow.objects.get(name="Call Number 1")
-        flow_2 = Flow.objects.get(name="Call Number 2")
+        Flow.objects.get(name="Call Number 2")
 
         shawn = self.create_contact('Marshawn', '+24')
         flow_1.start(groups=[], contacts=[shawn])
@@ -209,7 +209,7 @@ class IVRTests(FlowFileTest):
         self.get_flow('text_trigger_ivr')
 
         msg_flow = Flow.objects.get(name="Message Flow - Parent")
-        ivr_flow = Flow.objects.get(name="IVR Flow - Child")
+        Flow.objects.get(name="IVR Flow - Child")
 
         shawn = self.create_contact('Marshawn', '+24')
         msg_flow.start(groups=[], contacts=[shawn])
@@ -531,7 +531,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        flow = self.get_flow('call-me-maybe')
+        self.get_flow('call-me-maybe')
 
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',

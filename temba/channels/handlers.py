@@ -486,7 +486,6 @@ class InfobipHandler(View):
         from temba.msgs.models import Msg
         from temba.channels.models import INFOBIP
 
-        action = kwargs['action'].lower()
         channel_uuid = kwargs['uuid']
 
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=INFOBIP).exclude(org=None).first()
@@ -719,7 +718,7 @@ class BlackmynaHandler(View):
             to_number = request.REQUEST.get('to', None)
             from_number = request.REQUEST.get('from', None)
             message = request.REQUEST.get('text', None)
-            smsc = request.REQUEST.get('smsc', None)
+            # smsc = request.REQUEST.get('smsc', None)
 
             if to_number is None or from_number is None or message is None:
                 return HttpResponse("Missing to, from or text parameters", status=400)
@@ -727,7 +726,7 @@ class BlackmynaHandler(View):
             if channel.address != to_number:
                 return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
 
-            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
             return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
@@ -1360,7 +1359,7 @@ class StartHandler(View):
         # </message>
         try:
             message = ET.fromstring(request.body)
-        except ET.ParseError as e:
+        except ET.ParseError:
             message = None
 
         service = message.find('service') if message is not None else None
