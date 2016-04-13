@@ -1,3 +1,5 @@
+[![Coverage Status](https://coveralls.io/repos/github/rapidpro/rapidpro/badge.svg?branch=master)](https://coveralls.io/github/rapidpro/rapidpro?branch=master)
+
 # RapidPro     
 
 RapidPro is a hosted service for visually building interactive messaging applications.

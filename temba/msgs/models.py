@@ -1197,8 +1197,6 @@ class Msg(models.Model):
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
 
-            channel_id = channel.pk if channel else None
-
             if same_msg_count >= 10:
                 analytics.gauge('temba.msg_loop_caught')
                 return None
@@ -1599,6 +1597,30 @@ class SystemLabel(models.Model):
                 qs = qs.exclude(contact__is_test=True)
 
         return qs
+
+    @classmethod
+    def recalculate_counts(cls, org, label_types=None):
+        """
+        Recalculates the system label counts for the passed in org, updating them in our database
+        """
+        if label_types is None:
+            label_types = [cls.TYPE_INBOX, cls.TYPE_FLOWS, cls.TYPE_ARCHIVED, cls.TYPE_OUTBOX, cls.TYPE_SENT,
+                           cls.TYPE_FAILED, cls.TYPE_SCHEDULED, cls.TYPE_CALLS]
+
+        counts_by_type = {}
+
+        # for each type
+        for label_type in label_types:
+            count = cls.get_queryset(org, label_type).count()
+            counts_by_type[label_type] = count
+
+            # delete existing counts
+            cls.objects.filter(org=org, label_type=label_type).delete()
+
+            # and create our new count
+            cls.objects.create(org=org, label_type=label_type, count=count)
+
+        return counts_by_type
 
     @classmethod
     def get_counts(cls, org, label_types=None):

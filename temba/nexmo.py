@@ -121,7 +121,7 @@ class NexmoClient(object):
         try:
             self.get_balance()
             return True
-        except Exception as e:
+        except Exception:
             return False
 
 

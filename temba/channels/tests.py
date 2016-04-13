@@ -697,7 +697,7 @@ class ChannelTest(TembaTest):
             sync.save()
 
         # add a message, just sent so shouldn't be delayed
-        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250785551212'), 'delayed message', created_on=two_hours_ago)
+        Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250785551212'), 'delayed message', created_on=two_hours_ago)
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.admin)
         self.assertIn('delayed_sync_event', response.context_data.keys())
@@ -1689,7 +1689,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(0, self.org.get_credits_used())
 
         # if we sync should get one message back
-        msg1 = self.send_message(['250788382382'], "How is it going?")
+        self.send_message(['250788382382'], "How is it going?")
 
         response = self.sync(self.tel_channel)
         self.assertEquals(200, response.status_code)
@@ -2166,8 +2166,6 @@ class ChannelAlertTest(TembaTest):
         # try to claim a channel
         response = self.client.get(reverse('channels.channel_claim_shaqodoon'))
         post_data = response.context['form'].initial
-
-        url = 'http://test.com/send.php'
 
         post_data['username'] = 'uname'
         post_data['password'] = 'pword'
@@ -3710,7 +3708,7 @@ class VumiTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        reporters = self.create_group("Reporters", [joe])
+        self.create_group("Reporters", [joe])
         bcast = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing sms
@@ -4489,9 +4487,9 @@ class TwilioTest(TembaTest):
         twilio_url = reverse('handlers.twilio_handler')
 
         try:
-            response = self.client.post(twilio_url, post_data)
+            self.client.post(twilio_url, post_data)
             self.fail("Invalid signature, should have failed")
-        except ValidationError as e:
+        except ValidationError:
             pass
 
         # this time sign it appropriately, should work
@@ -4662,7 +4660,7 @@ class TwilioMessagingServiceTest(TembaTest):
         try:
             self.client.post(twilio_url, post_data)
             self.fail("Invalid signature, should have failed")
-        except ValidationError as e:
+        except ValidationError:
             pass
 
         # this time sign it appropriately, should work
@@ -6160,24 +6158,82 @@ class FacebookTest(TembaTest):
         }
         """
         data = json.loads(data)
-
         callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
-        msg = Msg.all_messages.get()
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(200, '{"first_name": "Ben","last_name": "Haggerty"}')
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Msgs Updated")
+            msg = Msg.all_messages.get()
 
-        # load our message
-        self.assertEqual(msg.contact.get_urn(FACEBOOK_SCHEME).path, "5678")
-        self.assertEqual(msg.direction, INCOMING)
-        self.assertEqual(msg.org, self.org)
-        self.assertEqual(msg.channel, self.channel)
-        self.assertEqual(msg.text, "hello world")
-        self.assertEqual(msg.external_id, "external_id")
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Msgs Updated")
 
-        Msg.all_messages.all().delete()
+            # load our message
+            self.assertEqual(msg.contact.get_urn(FACEBOOK_SCHEME).path, "5678")
+            self.assertEqual(msg.direction, INCOMING)
+            self.assertEqual(msg.org, self.org)
+            self.assertEqual(msg.channel, self.channel)
+            self.assertEqual(msg.text, "hello world")
+            self.assertEqual(msg.external_id, "external_id")
+
+            # make sure our contact's name was populated
+            self.assertEqual(msg.contact.name, 'Ben Haggerty')
+
+            Msg.all_messages.all().delete()
+            Contact.all().delete()
+
+        # simulate a failure to fetch contact data
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(400, '{"error": "Unable to look up profile data"}')
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Msgs Updated")
+
+            msg = Msg.all_messages.get()
+
+            self.assertEqual(msg.contact.get_urn(FACEBOOK_SCHEME).path, "5678")
+            self.assertIsNone(msg.contact.name)
+
+            Msg.all_messages.all().delete()
+            Contact.all().delete()
+
+        # simulate an exception
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(200, 'Invalid JSON')
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Msgs Updated")
+
+            msg = Msg.all_messages.get()
+
+            self.assertEqual(msg.contact.get_urn(FACEBOOK_SCHEME).path, "5678")
+            self.assertIsNone(msg.contact.name)
+
+            Msg.all_messages.all().delete()
+            Contact.all().delete()
+
+        # now with a anon org, shouldn't try to look things up
+        self.org.is_anon = True
+        self.org.save()
+
+        with patch('requests.get') as mock_get:
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Msgs Updated")
+
+            msg = Msg.all_messages.get()
+
+            self.assertEqual(msg.contact.get_urn(FACEBOOK_SCHEME).path, "5678")
+            self.assertIsNone(msg.contact.name)
+            self.assertEqual(mock_get.call_count, 0)
+
+            Msg.all_messages.all().delete()
+            self.org.is_anon = False
+            self.org.save()
 
         # rich media
         data = """

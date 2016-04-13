@@ -659,7 +659,7 @@ class Org(SmartModel):
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
                     return country.alpha2
-            except KeyError as ke:
+            except KeyError:
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
 
@@ -874,7 +874,7 @@ class Org(SmartModel):
 
             try:
                 self.import_app(json.loads(org_example), user)
-            except Exception as e:
+            except Exception:
                 import traceback
                 logger = logging.getLogger(__name__)
                 msg = 'Failed creating sample flows'
@@ -1123,7 +1123,7 @@ class Org(SmartModel):
             stripe.api_key = get_stripe_credentials()[1]
             customer = stripe.Customer.retrieve(self.stripe_customer)
             return customer
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
             return None
 
@@ -1136,10 +1136,6 @@ class Org(SmartModel):
 
         # adds credits to this org
         stripe.api_key = get_stripe_credentials()[1]
-
-        # our stripe customer and the card to use
-        stripe_customer = None
-        stripe_card = None
 
         # our actual customer object
         customer = self.get_stripe_customer()
@@ -1679,7 +1675,7 @@ class TopUp(SmartModel):
         try:
             stripe.api_key = get_stripe_credentials()[1]
             return stripe.Charge.retrieve(self.stripe_charge)
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
             return None
 

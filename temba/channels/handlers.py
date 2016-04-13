@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
+import requests
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
@@ -14,7 +15,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE
+from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN
 from temba.contacts.models import Contact, ContactURN, TEL_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
@@ -485,7 +486,6 @@ class InfobipHandler(View):
         from temba.msgs.models import Msg
         from temba.channels.models import INFOBIP
 
-        action = kwargs['action'].lower()
         channel_uuid = kwargs['uuid']
 
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=INFOBIP).exclude(org=None).first()
@@ -718,7 +718,7 @@ class BlackmynaHandler(View):
             to_number = request.REQUEST.get('to', None)
             from_number = request.REQUEST.get('from', None)
             message = request.REQUEST.get('text', None)
-            smsc = request.REQUEST.get('smsc', None)
+            # smsc = request.REQUEST.get('smsc', None)
 
             if to_number is None or from_number is None or message is None:
                 return HttpResponse("Missing to, from or text parameters", status=400)
@@ -726,7 +726,7 @@ class BlackmynaHandler(View):
             if channel.address != to_number:
                 return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
 
-            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
             return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
@@ -1359,7 +1359,7 @@ class StartHandler(View):
         # </message>
         try:
             message = ET.fromstring(request.body)
-        except ET.ParseError as e:
+        except ET.ParseError:
             message = None
 
         service = message.find('service') if message is not None else None
@@ -1661,11 +1661,38 @@ class FacebookHandler(View):
 
                             content = '\n'.join(urls)
 
+                        # if we have some content, create the msg
                         if content:
-                            # otherwise, create the incoming message
+                            # does this contact already exist?
+                            sender_id = envelope['sender']['id']
+                            contact = Contact.from_urn(channel.org, FACEBOOK_SCHEME, sender_id)
+
+                            # if not, let's go create it
+                            if not contact:
+                                name = None
+
+                                # if this isn't an anonymous org, look up their name from the Facebook API
+                                if not channel.org.is_anon:
+                                    try:
+                                        response = requests.get('https://graph.facebook.com/v2.5/' + unicode(sender_id),
+                                                                params=dict(fields='first_name,last_name',
+                                                                            access_token=channel.config_json()[AUTH_TOKEN]))
+
+                                        if response.status_code == 200:
+                                            user_stats = response.json()
+                                            name = ' '.join([user_stats.get('first_name', ''), user_stats.get('last_name', '')])
+
+                                    except Exception as e:
+                                        # something went wrong trying to look up the user's attributes, oh well, move on
+                                        import traceback
+                                        traceback.print_exc()
+
+                                contact = Contact.get_or_create(channel.org, channel.created_by, incoming_channel=channel,
+                                                                name=name, urns=[(FACEBOOK_SCHEME, sender_id)])
+
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
-                            msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, str(envelope['sender']['id'])),
-                                                      content, date=msg_date)
+                            msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, sender_id),
+                                                      content, date=msg_date, contact=contact)
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             msgs.append(msg)
 

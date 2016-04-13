@@ -72,12 +72,18 @@ class ContactGroupForm(forms.ModelForm):
         super(ContactGroupForm, self).__init__(*args, **kwargs)
 
     def clean_name(self):
-        data = self.cleaned_data['name'].strip()
+        name = self.cleaned_data['name'].strip()
 
-        if not ContactGroup.is_valid_name(data):
-            raise forms.ValidationError("Group name must not be blank or begin with + or -")
+        # make sure the name isn't already taken
+        existing = ContactGroup.get_user_group(self.user.get_org(), name)
+        if existing and self.instance != existing:
+            raise forms.ValidationError(_("Name is used by another group"))
 
-        return data
+        # and that the name is valid
+        if not ContactGroup.is_valid_name(name):
+            raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
+
+        return name
 
     class Meta:
         fields = '__all__'
@@ -1262,8 +1268,6 @@ class ContactFieldCRUDL(SmartCRUDL):
             return qs
 
         def render_to_response(self, context, **response_kwargs):
-            org = self.request.user.get_org()
-
             results = []
             for obj in context['object_list']:
                 result = dict(id=obj.pk, key=obj.key, label=obj.label)

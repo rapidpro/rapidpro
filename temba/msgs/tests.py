@@ -14,7 +14,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT
+from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
@@ -66,6 +66,44 @@ class MsgTest(TembaTest):
         # can't archive outgoing messages
         msg2 = Msg.create_outgoing(self.org, self.admin, self.joe, "Outgoing")
         self.assertRaises(ValueError, msg2.archive)
+
+    def assertReleaseCount(self, direction, status, visibility, msg_type, label):
+        if direction == OUTGOING:
+            msg = Msg.create_outgoing(self.org, self.admin, self.joe, "Whattup Joe")
+        else:
+            msg = Msg.create_incoming(self.channel, ('tel', '+250788123123'), "Hey hey")
+
+        Msg.all_messages.filter(id=msg.id).update(status=status, direction=direction, visibility=visibility, msg_type=msg_type)
+
+        # assert our folder count is right
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 1)
+
+        # recalculate, check the count again
+        SystemLabel.recalculate_counts(self.org, label)
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 1)
+
+        # release the msg, count should now be 0
+        msg.release()
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 0)
+
+        # more recalculations
+        SystemLabel.recalculate_counts(self.org, label)
+        counts = SystemLabel.get_counts(self.org)
+        self.assertEqual(counts[label], 0)
+
+    def test_release_counts(self):
+        # outgoing labels
+        self.assertReleaseCount(OUTGOING, SENT, VISIBLE, INBOX, SystemLabel.TYPE_SENT)
+        self.assertReleaseCount(OUTGOING, QUEUED, VISIBLE, INBOX, SystemLabel.TYPE_OUTBOX)
+        self.assertReleaseCount(OUTGOING, FAILED, VISIBLE, INBOX, SystemLabel.TYPE_FAILED)
+
+        # incoming labels
+        self.assertReleaseCount(INCOMING, HANDLED, VISIBLE, INBOX, SystemLabel.TYPE_INBOX)
+        self.assertReleaseCount(INCOMING, HANDLED, ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
+        self.assertReleaseCount(INCOMING, HANDLED, VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
 
     def test_erroring(self):
         # test with real message
@@ -223,6 +261,13 @@ class MsgTest(TembaTest):
         self.assertEqual(msg.text, "Yes, 3.")
         self.assertEqual(unicode(msg), "Yes, 3.")
 
+        # assert there are 3 unread msgs for this org
+        self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
+
+        # second go shouldn't hit DB
+        with self.assertNumQueries(0):
+            self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
+
         # Can't send incoming messages
         with self.assertRaises(Exception):
             msg.send()
@@ -239,8 +284,14 @@ class MsgTest(TembaTest):
         contact.save()
         ignored_msg = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "My msg should be archived")
         ignored_msg = Msg.all_messages.get(pk=ignored_msg.pk)
-        self.assertEquals(ignored_msg.visibility, ARCHIVED)
-        self.assertEquals(ignored_msg.status, HANDLED)
+        self.assertEqual(ignored_msg.visibility, ARCHIVED)
+        self.assertEqual(ignored_msg.status, HANDLED)
+
+        # hit the inbox page, that should reset our unread count
+        self.login(self.admin)
+        self.client.get(reverse('msgs.msg_inbox'))
+
+        self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
 
     def test_empty(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])
@@ -319,7 +370,7 @@ class MsgTest(TembaTest):
         msg1 = Msg.create_incoming(self.channel, joe_tel, "message number 1")
         msg2 = Msg.create_incoming(self.channel, joe_tel, "message number 2")
         msg3 = Msg.create_incoming(self.channel, joe_tel, "message number 3")
-        msg4 = Msg.create_incoming(self.channel, joe_tel, "message number 4")
+        Msg.create_incoming(self.channel, joe_tel, "message number 4")
         msg5 = Msg.create_incoming(self.channel, joe_tel, "message number 5")
         msg6 = Msg.create_incoming(self.channel, joe_tel, "message number 6")
 
@@ -350,7 +401,7 @@ class MsgTest(TembaTest):
         # let's add some labels
         folder = Label.get_or_create_folder(self.org, self.user, "folder")
         label1 = Label.get_or_create(self.org, self.user, "label1", folder)
-        label2 = Label.get_or_create(self.org, self.user, "label2", folder)
+        Label.get_or_create(self.org, self.user, "label2", folder)
         label3 = Label.get_or_create(self.org, self.user, "label3")
 
         # test labeling a messages
@@ -593,7 +644,6 @@ class MsgTest(TembaTest):
         filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
-        tz = pytz.timezone(self.org.timezone)
 
         self.assertEquals(sheet.nrows, 4)  # msg3 not included as it's archived
 
@@ -1529,7 +1579,7 @@ class CallTest(SmartminTest):
 
     def test_call_model(self):
         now = timezone.now()
-        response = Call.create_call(self.channel, "12345", now, 300, 'mt')
+        Call.create_call(self.channel, "12345", now, 300, 'mt')
 
         self.assertEquals(Call.objects.all().count(), 1)
 
@@ -1641,7 +1691,7 @@ class BroadcastLanguageTest(TembaTest):
     def test_multiple_language_broadcast(self):
         # set up our org to have a few different languages
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        fre = Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
@@ -1671,13 +1721,13 @@ class SystemLabelTest(TembaTest):
         contact1 = self.create_contact("Bob", number="0783835001")
         contact2 = self.create_contact("Jim", number="0783835002")
         msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 1")
-        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
+        Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
         call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, Call.TYPE_IN)
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
-        bcast2 = Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
-                                  schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
+        Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
+                         schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 4, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,
