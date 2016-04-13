@@ -1094,7 +1094,6 @@ class OrgTest(TembaTest):
             response = self.client.get(nexmo_configuration_url, follow=True)
             self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_nexmo_configuration'))
 
-
     def test_connect_plivo(self):
         self.login(self.admin)
 

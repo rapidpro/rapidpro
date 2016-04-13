@@ -27,8 +27,7 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from operator import attrgetter
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView, \
-    smart_url
+from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
 from datetime import timedelta
 from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
@@ -647,7 +646,6 @@ class OrgCRUDL(SmartCRUDL):
 
             except NexmoValidationError:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
-
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.NexmoConfiguration, self).get_context_data(**kwargs)
