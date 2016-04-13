@@ -27,14 +27,15 @@ from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from operator import attrgetter
-from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
+from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView, \
+    smart_url
 from datetime import timedelta
 from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient, NexmoValidationError
-from temba.orgs.models import get_stripe_credentials
+from temba.orgs.models import get_stripe_credentials, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
@@ -625,14 +626,43 @@ class OrgCRUDL(SmartCRUDL):
             response['Temba-Success'] = self.get_success_url()
             return response
 
-    class NexmoConfiguration(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+    class NexmoConfiguration(InferOrgMixin, OrgPermsMixin, SmartReadView):
+
+        def get(self, request, *args, **kwargs):
+            org = self.get_object()
+
+            nexmo_client = org.get_nexmo_client()
+            if not nexmo_client:
+                return HttpResponseRedirect(reverse("orgs.org_nexmo_connect"))
+
+            nexmo_uuid = org.nexmo_uuid()
+            mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
+            dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
+            try:
+                from temba.settings import TEMBA_HOST
+                nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
+                                            'http://%s%s' % (TEMBA_HOST, dl_path))
+
+                return HttpResponseRedirect(reverse("channels.channel_claim_nexmo"))
+
+            except NexmoValidationError:
+                return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
+
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.NexmoConfiguration, self).get_context_data(**kwargs)
 
+            from temba.settings import TEMBA_HOST
             org = self.get_object()
             config = org.config_json()
-            context['config'] = config
+            context['nexmo_api_key'] = config[NEXMO_KEY]
+            context['nexmo_api_secret'] = config[NEXMO_SECRET]
+
+            nexmo_uuid = config.get(NEXMO_UUID, None)
+            mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
+            dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
+            context['mo_path'] = 'https://%s%s' % (TEMBA_HOST, mo_path)
+            context['dl_path'] = 'https://%s%s' % (TEMBA_HOST, dl_path)
 
             return context
 
@@ -678,7 +708,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = NexmoConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_nexmo'
+        success_url = '@orgs.org_nexmo_configuration'
         field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
         success_message = "Nexmo Account successfully connected."
 
@@ -688,11 +718,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
 
-            success_url = self.get_success_url()
-            try:
-                org.connect_nexmo(api_key, api_secret)
-            except NexmoValidationError:
-                success_url = '@orgs.org_nexmo_configuration'
+            org.connect_nexmo(api_key, api_secret)
 
             org.save()
 

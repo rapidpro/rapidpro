@@ -363,6 +363,7 @@ PERMISSIONS = {
                  'languages',
                  'manage',
                  'manage_accounts',
+                 'nexmo_configuration',
                  'nexmo_account',
                  'nexmo_connect',
                  'plivo_connect',

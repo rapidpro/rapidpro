@@ -509,18 +509,9 @@ class Org(SmartModel):
         config.update(nexmo_config)
         self.config = json.dumps(config)
 
-        # update the mo and dl URL for our account
-        client = NexmoClient(api_key, api_secret)
-
-        mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
-        dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
-
         # clear all our channel configurations
         self.save(update_fields=['config'])
         self.clear_channel_caches()
-
-        from temba.settings import TEMBA_HOST
-        client.update_account('http://%s%s' % (TEMBA_HOST, mo_path), 'http://%s%s' % (TEMBA_HOST, dl_path))
 
     def nexmo_uuid(self):
         config = self.config_json()

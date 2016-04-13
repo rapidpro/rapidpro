@@ -21,6 +21,7 @@ from temba.middleware import BrandingMiddleware
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.flows.models import Flow, ActionSet
 from temba.msgs.models import Label, Msg, INCOMING
+from temba.nexmo import NexmoValidationError
 from temba.orgs.models import UserSettings
 from temba.utils.email import link_components
 from temba.utils import languages, dict_to_struct
@@ -1058,6 +1059,41 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.is_connected_to_nexmo())
         self.assertFalse(self.org.config_json()['NEXMO_KEY'])
         self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
+
+    def test_nexmo_configuration(self):
+        self.login(self.admin)
+
+        nexmo_configuration_url = reverse('orgs.org_nexmo_configuration')
+
+        # try nexmo not connected
+        response = self.client.get(nexmo_configuration_url)
+
+        self.assertEqual(response.status_code, 302)
+        response = self.client.get(nexmo_configuration_url, follow=True)
+
+        self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_nexmo_connect'))
+
+        self.org.connect_nexmo('key', 'secret')
+
+        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
+            # try automatic nexmo settings update
+            mock_update_account.return_value = True
+
+            response = self.client.get(nexmo_configuration_url)
+            self.assertEqual(response.status_code, 302)
+
+            response = self.client.get(nexmo_configuration_url, follow=True)
+            self.assertEqual(response.request['PATH_INFO'], reverse('channels.channel_claim_nexmo'))
+
+        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
+            mock_update_account.side_effect = [NexmoValidationError, NexmoValidationError]
+
+            response = self.client.get(nexmo_configuration_url)
+            self.assertEqual(response.status_code, 200)
+
+            response = self.client.get(nexmo_configuration_url, follow=True)
+            self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_nexmo_configuration'))
+
 
     def test_connect_plivo(self):
         self.login(self.admin)
