@@ -1,10 +1,20 @@
 from __future__ import unicode_literals
 
 import requests
+import six
 
 from django.utils.translation import ugettext_lazy as _
 from temba.utils.gsm7 import is_gsm7
 from urlparse import urljoin
+
+
+class NexmoValidationError(Exception):
+
+    def __unicode__(self):  # pragma: no cover
+        return self.message
+
+    def __str__(self):
+        return six.text_type(self.__unicode__())
 
 
 class NexmoClient(object):
@@ -24,7 +34,7 @@ class NexmoClient(object):
         if 'error-code' in json and json.get('error-code', '200') != '200':
             code = json.get('error-code')
             message = json.get('error-code-label', "No more details available.")
-            raise Exception(_("Nexmo Error # %s: %s") % (code, message))
+            raise NexmoValidationError(_("Nexmo Error # %s: %s") % (code, message))
 
         return json
 
