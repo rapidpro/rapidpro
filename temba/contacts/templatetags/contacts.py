@@ -98,7 +98,11 @@ def media_url(media):
 @register.filter
 def media_type(media):
     if media:
-        return media.partition(':')[0]
+        media_type = media.partition(':')[0]
+        if media_type == 'geo':
+            return media_type
+        else:
+            return media_type.partition('/')[0]
 
 
 @register.filter

@@ -590,24 +590,42 @@ class APITest(TembaTest):
                                category="All Responses",
                                media="geo:47.7579804,-121.0821648")),
 
-                # a picture of steve in base64
+                # a picture of steve
                 dict(node=ruleset_photo.uuid,
                      arrived_on='2015-08-25T11:13:30.000Z',
                      rule=dict(uuid=ruleset_photo.get_rules()[0].uuid,
                                category="All Responses",
-                               media="image:http://testserver/media/steve.jpg")),
+                               media="image/jpeg:http://testserver/media/steve.jpg")),
 
                 # a video
                 dict(node=ruleset_video.uuid,
                      arrived_on='2015-08-25T11:13:30.000Z',
                      rule=dict(uuid=ruleset_video.get_rules()[0].uuid,
                                category="All Responses",
-                               media="video:http://testserver/media/snow.mp4")),
+                               media="video/mp4:http://testserver/media/snow.mp4")),
             ],
             completed=False)
 
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
-            self.postJSON(url, data)
+
+            # first try posting without an encoding on the media type
+            data['steps'][3]['rule']['media'] = 'video:http://testserver/media/snow.mp4'
+            response = self.postJSON(url, data)
+            self.assertEqual(400, response.status_code)
+            error = json.loads(response.content)['non_field_errors'][0]
+            self.assertEqual("Invalid media type 'video': video:http://testserver/media/snow.mp4", error)
+
+            # now update the video to an unrecognized type
+            data['steps'][3]['rule']['media'] = 'unknown/mp4:http://testserver/media/snow.mp4'
+            response = self.postJSON(url, data)
+            self.assertEqual(400, response.status_code)
+            error = json.loads(response.content)['non_field_errors'][0]
+            self.assertEqual("Invalid media type 'unknown': unknown/mp4:http://testserver/media/snow.mp4", error)
+
+            # finally do a valid media
+            data['steps'][3]['rule']['media'] = 'video/mp4:http://testserver/media/snow.mp4'
+            response = self.postJSON(url, data)
+            self.assertEqual(201, response.status_code)
 
         from temba.flows.models import FlowStep
         run = FlowRun.objects.get(flow=flow)
@@ -616,18 +634,20 @@ class APITest(TembaTest):
         # check our gps coordinates showed up properly, sooouie.
         step = FlowStep.objects.filter(step_uuid=ruleset_location.uuid).first()
         msg = step.messages.all().first()
-        self.assertEqual('geo:47.7579804,-121.0821648', msg.text)
+        self.assertEqual('47.7579804,-121.0821648', msg.text)
         self.assertEqual('geo:47.7579804,-121.0821648', msg.media)
 
         step = FlowStep.objects.filter(step_uuid=ruleset_photo.uuid).first()
         msg = step.messages.all().first()
-        self.assertTrue(msg.media.startswith('image:http'))
+        self.assertTrue(msg.media.startswith('image/jpeg:http'))
         self.assertTrue(msg.media.endswith('.jpg'))
+        self.assertTrue(msg.is_media_type_image())
 
         step = FlowStep.objects.filter(step_uuid=ruleset_video.uuid).first()
         msg = step.messages.all().first()
-        self.assertTrue(msg.media.startswith('video:http'))
+        self.assertTrue(msg.media.startswith('video/mp4:http'))
         self.assertTrue(msg.media.endswith('.mp4'))
+        self.assertTrue(msg.is_media_type_video())
 
     def test_api_steps(self):
         url = reverse('api.v1.steps')

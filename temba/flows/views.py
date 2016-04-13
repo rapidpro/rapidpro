@@ -1273,13 +1273,13 @@ class FlowCRUDL(SmartCRUDL):
             media_url = 'http://%s%simages' % (TEMBA_HOST, STATIC_URL)
 
             if 'new_photo' in json_dict:
-                media = '%s:%s/simulator_photo.png' % (Msg.MEDIA_IMAGE, media_url)
+                media = '%s/png:%s/simulator_photo.png' % (Msg.MEDIA_IMAGE, media_url)
             elif 'new_gps' in json_dict:
                 media = '%s:47.6089533,-122.34177' % Msg.MEDIA_GPS
             elif 'new_video' in json_dict:
-                media = '%s:%s/simulator_video.mp4' % (Msg.MEDIA_VIDEO, media_url)
+                media = '%s/mp4:%s/simulator_video.mp4' % (Msg.MEDIA_VIDEO, media_url)
             elif 'new_audio' in json_dict:
-                media = '%s:%s/simulator_audio.m4a' % (Msg.MEDIA_AUDIO, media_url)
+                media = '%s/mp4:%s/simulator_audio.m4a' % (Msg.MEDIA_AUDIO, media_url)
 
             if new_message or media:
                 try:

@@ -43,12 +43,14 @@ window.updateSimulator = (data) ->
       media_type = msg.media.split(':')[0]
       if media_type == 'geo'
         media_type = 'icon-pin_drop'
-      else if media_type == 'image'
-        media_type = 'icon-photo_camera'
-      else if media_type == 'video'
-        media_type = 'icon-videocam'
-      else if media_type == 'audio'
-        media_type = 'icon-mic'
+      else
+        media_type = media_type.split('/')[0]
+        if media_type == 'image'
+          media_type = 'icon-photo_camera'
+        else if media_type == 'video'
+          media_type = 'icon-videocam'
+        else if media_type == 'audio'
+          media_type = 'icon-mic'
 
     ele = "<div class=\"" + model + " " + level + " " + direction
     if media_type

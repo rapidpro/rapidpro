@@ -534,10 +534,11 @@ class Msg(models.Model):
                  (FLOW, _("Flow Message")),
                  (IVR, _("IVR Message")))
 
-    MEDIA_AUDIO = 'audio'
+
     MEDIA_GPS = 'geo'
     MEDIA_IMAGE = 'image'
     MEDIA_VIDEO = 'video'
+    MEDIA_AUDIO = 'audio'
 
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
@@ -907,10 +908,16 @@ class Msg(models.Model):
 
     def get_media_type(self):
         if self.media and ':' in self.media:
-            return self.media.split(':', 1)[0]
+            return self.media.split(':', 1)[0].split('/', 1)[0]
 
     def is_media_type_audio(self):
         return Msg.MEDIA_AUDIO == self.get_media_type()
+
+    def is_media_type_video(self):
+        return Msg.MEDIA_VIDEO == self.get_media_type()
+
+    def is_media_type_image(self):
+        return Msg.MEDIA_IMAGE == self.get_media_type()
 
     def reply(self, text, user, trigger_send=False, message_context=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,

@@ -153,7 +153,7 @@ class TwilioHandler(View):
             # process any attached media, we will append these to our body
             media = list()
             for i in range(int(request.POST.get('NumMedia', 0))):
-                media.append(request.POST['MediaUrl%d' % i])
+                media.append((request.POST['MediaUrl%d' % i], request.POST['MediaContentType%d'] % i))
 
             if media:
                 # add a newline if there is a text message as well

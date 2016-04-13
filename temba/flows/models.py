@@ -456,7 +456,7 @@ class Flow(TembaModel):
         # if we've been sent a recording, go grab it
         if media_url:
             url = Flow.download_recording(call, media_url, recording_id)
-            media_url = "%s:https://%s/%s" % (Msg.MEDIA_AUDIO, settings.AWS_BUCKET_DOMAIN, url)
+            media_url = "%s/wav:https://%s/%s" % (Msg.MEDIA_AUDIO, settings.AWS_BUCKET_DOMAIN, url)
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
@@ -3682,11 +3682,9 @@ class FlowStep(models.Model):
                         media = json_obj['rule']['media']
                         (media_type, url) = media.split(':', 1)
 
-                        # store the non-typed url in the value
+                        # store the non-typed url in the value and text
                         json_obj['rule']['value'] = url
-
-                        # store the typed url in the text
-                        json_obj['rule']['text'] = media
+                        json_obj['rule']['text'] = url
 
                     # if we received a message
                     incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],

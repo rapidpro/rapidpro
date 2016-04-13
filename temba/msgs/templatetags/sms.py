@@ -12,9 +12,11 @@ register = template.Library()
 
 @register.filter
 def as_icon(contact_event):
+
     icon = 'icon-bubble-dots-2 green'
     direction = getattr(contact_event, 'direction', 'O')
     msg_type = getattr(contact_event, 'msg_type', 'I')
+    media_type = contact_event.get_media_type()
 
     if hasattr(contact_event, 'status'):
         status = contact_event.status
@@ -23,7 +25,9 @@ def as_icon(contact_event):
     else:
         status = None
 
-    if msg_type == 'V':
+    if media_type == 'image':
+        icon = 'icon-photo_camera primary boost'
+    elif msg_type == 'V':
         icon = 'icon-phone'
     elif direction == 'I':
         icon = 'icon-bubble-user primary'
@@ -44,6 +48,7 @@ def as_icon(contact_event):
     elif status == 'mt_miss':
         icon = 'icon-call-outgoing red'
     return mark_safe('<span class="glyph %s"></span>' % icon)
+
 
 
 class Render(AsTag):
