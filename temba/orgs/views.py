@@ -33,7 +33,7 @@ from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
-from temba.nexmo import NexmoClient
+from temba.nexmo import NexmoClient, NexmoValidationError
 from temba.orgs.models import get_stripe_credentials
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
@@ -425,8 +425,8 @@ class UserSettingsCRUDL(SmartCRUDL):
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
-               'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import',
-               'plivo_connect', 'service', 'surveyor')
+               'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect', 'export',
+               'import', 'plivo_connect', 'service', 'surveyor')
 
     model = Org
 
@@ -625,6 +625,17 @@ class OrgCRUDL(SmartCRUDL):
             response['Temba-Success'] = self.get_success_url()
             return response
 
+    class NexmoConfiguration(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.NexmoConfiguration, self).get_context_data(**kwargs)
+
+            org = self.get_object()
+            config = org.config_json()
+            context['config'] = config
+
+            return context
+
     class NexmoAccount(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         fields = ()
         submit_button_name = "Disconnect Nexmo"
@@ -676,7 +687,13 @@ class OrgCRUDL(SmartCRUDL):
             api_secret = form.cleaned_data['api_secret']
 
             org = self.get_object()
-            org.connect_nexmo(api_key, api_secret)
+
+            success_url = self.get_success_url()
+            try:
+                org.connect_nexmo(api_key, api_secret)
+            except NexmoValidationError:
+                success_url = '@orgs.org_nexmo_configuration'
+
             org.save()
 
             response = self.render_to_response(self.get_context_data(form=form,
