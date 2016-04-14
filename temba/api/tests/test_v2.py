@@ -497,7 +497,7 @@ class APITest(TembaTest):
 
         # filter by before (inclusive)
         response = self.fetchJSON(url, 'folder=incoming&before=%s' % format_datetime(frank_msg1.modified_on))
-        self.assertResultsById(response, [frank_msg1, deleted_msg, frank_msg3, joe_msg1])
+        self.assertResultsById(response, [frank_msg1, frank_msg3, deleted_msg, joe_msg1])
 
         # filter by after (inclusive)
         response = self.fetchJSON(url, 'folder=incoming&after=%s' % format_datetime(frank_msg1.modified_on))

@@ -807,7 +807,8 @@ class ContactCRUDL(SmartCRUDL):
             recent = self.request.REQUEST.get('r', False)
             context['recent_date'] = datetime.utcfromtimestamp(recent_seconds).replace(tzinfo=pytz.utc)
 
-            text_messages = Msg.all_messages.filter(contact=contact.id).exclude(visibile=Msg.VISIBILITY_DELETED).order_by('-created_on')
+            text_messages = Msg.all_messages.filter(contact=contact.id).exclude(visibility=Msg.VISIBILITY_DELETED)
+            text_messages = text_messages.order_by('-created_on')
             if recent:
                 start_time = context['recent_date']
                 text_messages = text_messages.filter(created_on__gt=start_time)
