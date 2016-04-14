@@ -1446,12 +1446,20 @@ class Flow(TembaModel):
         #    entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
         for contact_id in all_contact_ids:
+            contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
+            contact_urn = contact.get_urn(TEL_SCHEME)
+            channel = self.org.get_call_channel(contact_urn=contact_urn)
+
+            # can't reach this contact, move on
+            if not contact or not contact_urn or not channel:
+                continue
+
             run = FlowRun.create(self, contact_id, start=flow_start)
             if extra:
                 run.update_fields(extra)
 
             # create our call objects
-            call = IVRCall.create_outgoing(channel, contact_id, self, self.created_by)
+            call = IVRCall.create_outgoing(channel, contact, contact_urn, self, self.created_by)
 
             # save away our created call
             run.call = call

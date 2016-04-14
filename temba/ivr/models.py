@@ -78,16 +78,7 @@ class IVRCall(SmartModel):
                                help_text=_("The call that triggered this one"))
 
     @classmethod
-    def create_outgoing(cls, channel, contact_id, flow, user, call_type=FLOW):
-        contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
-
-        if not contact:
-            raise ValueError("Invalid contact, cannot initiate call")
-
-        contact_urn = contact.get_urn(TEL_SCHEME)
-        if not contact_urn:
-            raise ValueError("Can't call contact with no tel URN")
-
+    def create_outgoing(cls, channel, contact, contact_urn, flow, user, call_type=FLOW):
         call = IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
                                       direction=OUTGOING, org=channel.org,
                                       created_by=user, modified_by=user, call_type=call_type)

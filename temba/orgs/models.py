@@ -350,76 +350,109 @@ class Org(SmartModel):
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
-    def get_channel(self, scheme, role):
+    def get_channel(self, scheme, country_code, role):
         """
         Gets a channel for this org which supports the given scheme and role
         """
         from temba.channels.models import SEND, CALL
 
-        channel = self.channels.filter(is_active=True, scheme=scheme,
-                                       role__contains=role).order_by('-pk').first()
+        channel = self.channels.filter(is_active=True, scheme=scheme, role__contains=role).order_by('-pk')
+        if country_code:
+            channel = channel.filter(country=country_code)
+
+        channel = channel.first()
+
+        # no channel? try without country
+        if not channel and country_code:
+            channel = self.channels.filter(is_active=True, scheme=scheme,
+                                           role__contains=role).order_by('-pk').first()
 
         if channel and (role == SEND or role == CALL):
             return channel.get_delegate(role)
         else:
             return channel
 
-    def get_send_channel(self, scheme=None, contact_urn=None):
+    def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import SEND
+        from temba.contacts.models import ContactURN
 
         if not scheme and not contact_urn:
             raise ValueError("Must specify scheme or contact URN")
 
         if contact_urn:
-            scheme = contact_urn.scheme
+            if contact_urn:
+                scheme = contact_urn.scheme
 
-            # if URN has a previously used channel that is still active, use that
-            if contact_urn.channel and contact_urn.channel.is_active:
-                previous_sender = self.get_channel_delegate(contact_urn.channel, SEND)
-                if previous_sender:
-                    return previous_sender
+                # if URN has a previously used channel that is still active, use that
+                if contact_urn.channel and contact_urn.channel.is_active and role == SEND:
+                    previous_sender = self.get_channel_delegate(contact_urn.channel, role)
+                    if previous_sender:
+                        return previous_sender
 
-            if contact_urn.scheme == TEL_SCHEME:
+            if scheme == TEL_SCHEME:
+                path = contact_urn.path
+
                 # we don't have a channel for this contact yet, let's try to pick one from the same carrier
                 # we need at least one digit to overlap to infer a channel
-                contact_number = contact_urn.path.strip('+')
+                contact_number = path.strip('+')
                 prefix = 1
                 channel = None
 
-                # filter the (possibly) pre-fetched channels in Python to reduce database hits as this method is called
-                # for every message in a broadcast
-                senders = [r for r in self.channels.all() if SEND in r.role and not r.parent_id and r.is_active and r.address]
-                senders.sort(key=lambda r: r.id)
+                # try to use only a channel in the same country
+                if not country_code:
+                    country_code = ContactURN.derive_country_from_tel(path)
 
-                for r in senders:
-                    channel_number = r.address.strip('+')
+                channels = []
+                if country_code:
+                    for c in self.channels.all():
+                        if c.country == country_code:
+                            channels.append(c)
+
+                # no country specific channel, try to find any channel at all
+                if not channels:
+                    channels = [c for c in self.channels.all()]
+
+                # filter based on rule and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
+                senders = []
+                for c in channels:
+                    if c.is_active and c.address and role in c.role and not c.parent_id:
+                        senders.append(c)
+                senders.sort(key=lambda chan: chan.id)
+
+                for sender in senders:
+                    channel_number = sender.address.strip('+')
 
                     for idx in range(prefix, len(channel_number)):
                         if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
                             prefix = idx
-                            channel = r
+                            channel = sender
                         else:
                             break
 
                 if channel:
                     return self.get_channel_delegate(channel, SEND)
 
-        return self.get_channel(scheme, SEND)
+        # get any send channel without any country or URN hints
+        return self.get_channel(scheme, country_code, role)
 
-    def get_receive_channel(self, scheme):
+    def get_send_channel(self, scheme=None, contact_urn=None, country_code=None):
+        from temba.channels.models import SEND
+        return self.get_channel_for_role(SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+
+    def get_receive_channel(self, scheme, contact_urn=None, country_code=None):
         from temba.channels.models import RECEIVE
-        return self.get_channel(scheme, RECEIVE)
+        return self.get_channel_for_role(RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
-    def get_call_channel(self):
+    def get_call_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import CALL
-        return self.get_channel(TEL_SCHEME, CALL)
+        return self.get_channel_for_role(CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
-    def get_answer_channel(self):
+    def get_answer_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import ANSWER
-        return self.get_channel(TEL_SCHEME, ANSWER)
+        return self.get_channel_for_role(ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_channel_delegate(self, channel, role):
         """
@@ -447,6 +480,19 @@ class Org(SmartModel):
 
         setattr(self, cache_attr, schemes)
         return schemes
+
+    def normalize_contact_tels(self):
+        """
+        Attempts to normalize any contacts which don't have full e164 phone numbers
+        """
+        from temba.contacts.models import ContactURN, TEL_SCHEME
+
+        # do we have an org-level country code? if so, try to normalize any numbers not starting with +
+        country_code = self.get_country_code()
+        if country_code:
+            urns = ContactURN.objects.filter(org=self, scheme=TEL_SCHEME).exclude(path__startswith="+")
+            for urn in urns:
+                urn.ensure_number_normalization(country_code)
 
     def get_webhook_url(self):
         """
@@ -654,11 +700,11 @@ class Org(SmartModel):
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
 
-        # if that isn't set, there may be a TEL channel we can get it from
-        from temba.contacts.models import TEL_SCHEME
-        channel = self.get_receive_channel(TEL_SCHEME)
-        if channel:
-            return channel.country.code
+        # if that isn't set and we only have have one country set for our channels, use that
+        countries = self.channels.filter(is_active=True).exclude(country=None).order_by('country')
+        countries = countries.distinct('country').values_list('country', flat=True)
+        if countries:
+            return countries[0]
 
         return None
 

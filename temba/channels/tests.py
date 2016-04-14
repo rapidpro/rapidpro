@@ -260,7 +260,7 @@ class ChannelTest(TembaTest):
         contact2 = self.create_contact("contact2", "+250788333444")
         contact3 = self.create_contact("contact3", "+18006927753")
 
-        self.tel_channel.ensure_normalized_contacts()
+        self.org.normalize_contact_tels()
 
         norm_c1 = Contact.objects.get(pk=contact1.pk)
         norm_c2 = Contact.objects.get(pk=contact2.pk)
@@ -1046,9 +1046,18 @@ class ChannelTest(TembaTest):
         claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
 
         # try to claim it...
-        response = self.client.post(reverse('channels.channel_claim_android'),
-                                    dict(claim_code=claim_code, phone_number="0788382382"))
-        self.assertFormError(response, 'form', 'claim_code', "Sorry, you can only add numbers for the same country (RW)")
+        self.client.post(reverse('channels.channel_claim_android'),
+                                 dict(claim_code=claim_code, phone_number="12065551212"))
+
+        # should work, can have two channels in different countries
+        channel = Channel.objects.get(country='US')
+        self.assertEqual(channel.address, '+12065551212')
+
+        # yet another registration in rwanda
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM333", uuid='uuid'),
+                              dict(cmd='status', cc='RW', dev="Nexus 5")])
+        response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
+        claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
 
         # try to claim it with number taken by other Android channel
         response = self.client.post(reverse('channels.channel_claim_android'),
@@ -2961,7 +2970,7 @@ class VerboiceTest(TembaTest):
 
         contact = self.create_contact('Bruno Mars', '+252788123123')
 
-        call = IVRCall.create_outgoing(self.channel, contact.pk, None, self.admin)
+        call = IVRCall.create_outgoing(self.channel, contact, contact.get_urn(TEL_SCHEME), None, self.admin)
         call.external_id = "12345"
         call.save()
 

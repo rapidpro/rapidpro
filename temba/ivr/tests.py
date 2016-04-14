@@ -455,15 +455,6 @@ class IVRTests(FlowFileTest):
         # the next step shouldn't have any messages yet since they haven't pressed anything
         self.assertEquals(0, steps[1].messages.all().count())
 
-        # test invalid contact id
-        with self.assertRaises(ValueError):
-            IVRCall.create_outgoing(call.channel, 999, flow, self.admin)
-
-        # test no valid urn
-        with self.assertRaises(ValueError):
-            call.contact.urns.all().delete()
-            IVRCall.create_outgoing(call.channel, call.contact.pk, flow, self.admin)
-
         # try updating our status to completed for a test contact
         Contact.set_simulation(True)
         flow.start([], [test_contact])
