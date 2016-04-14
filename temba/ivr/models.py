@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from smartmin.models import SmartModel
-from temba.contacts.models import Contact, TEL_SCHEME, ContactURN
+from temba.contacts.models import Contact, ContactURN
 from temba.flows.models import Flow, ActionLog, FlowRun
 from temba.channels.models import Channel
 from temba.orgs.models import Org

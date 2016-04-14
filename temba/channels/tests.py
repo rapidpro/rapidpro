@@ -1058,8 +1058,7 @@ class ChannelTest(TembaTest):
         claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
 
         # try to claim it...
-        self.client.post(reverse('channels.channel_claim_android'),
-                                 dict(claim_code=claim_code, phone_number="12065551212"))
+        self.client.post(reverse('channels.channel_claim_android'), dict(claim_code=claim_code, phone_number="12065551212"))
 
         # should work, can have two channels in different countries
         channel = Channel.objects.get(country='US')

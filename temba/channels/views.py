@@ -1958,10 +1958,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             # try to claim the number from twilio
             try:
-                channel = self.claim_number(self.request.user,
-                                            data['phone_number'], data['country'])
-
-                # make sure all contacts added before the channel are normalized
+                self.claim_number(self.request.user, data['phone_number'], data['country'])
                 self.remove_api_credentials_from_session()
 
                 return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
