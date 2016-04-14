@@ -32,7 +32,7 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision, STARTING, PENDING
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, VISIBLE, INCOMING, OUTGOING
+from temba.msgs.models import Msg, INCOMING, OUTGOING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
@@ -364,7 +364,7 @@ class FlowCRUDL(SmartCRUDL):
             for step in recent_steps:
                 if not step.contact.is_test:
                     for msg in step.messages.all():
-                        if msg.visibility == VISIBLE and msg.direction == msg_direction_filter:
+                        if msg.visibility == Msg.VISIBILITY_VISIBLE and msg.direction == msg_direction_filter:
                             recent_messages.append(dict(sent=datetime_to_str(msg.created_on),
                                                         text=msg.text))
 

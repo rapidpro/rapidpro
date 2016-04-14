@@ -14,7 +14,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
 from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, Call, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
-from temba.msgs.models import VISIBLE, ARCHIVED, DELETED, HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
+from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Org, Language
 from temba.schedules.models import Schedule
@@ -48,18 +48,18 @@ class MsgTest(TembaTest):
         msg1.archive()
 
         msg1 = Msg.all_messages.get(pk=msg1.pk)
-        self.assertEqual(msg1.visibility, ARCHIVED)
+        self.assertEqual(msg1.visibility, Msg.VISIBILITY_ARCHIVED)
         self.assertEqual(set(msg1.labels.all()), {label})  # don't remove labels
 
         msg1.restore()
 
         msg1 = Msg.all_messages.get(pk=msg1.pk)
-        self.assertEqual(msg1.visibility, VISIBLE)
+        self.assertEqual(msg1.visibility, Msg.VISIBILITY_VISIBLE)
 
         msg1.release()
 
         msg1 = Msg.all_messages.get(pk=msg1.pk)
-        self.assertEqual(msg1.visibility, DELETED)
+        self.assertEqual(msg1.visibility, Msg.VISIBILITY_DELETED)
         self.assertEqual(set(msg1.labels.all()), set())  # do remove labels
         self.assertTrue(Label.label_objects.filter(pk=label.pk).exists())  # though don't delete the label object
 
@@ -96,14 +96,14 @@ class MsgTest(TembaTest):
 
     def test_release_counts(self):
         # outgoing labels
-        self.assertReleaseCount(OUTGOING, SENT, VISIBLE, INBOX, SystemLabel.TYPE_SENT)
-        self.assertReleaseCount(OUTGOING, QUEUED, VISIBLE, INBOX, SystemLabel.TYPE_OUTBOX)
-        self.assertReleaseCount(OUTGOING, FAILED, VISIBLE, INBOX, SystemLabel.TYPE_FAILED)
+        self.assertReleaseCount(OUTGOING, SENT, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_SENT)
+        self.assertReleaseCount(OUTGOING, QUEUED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_OUTBOX)
+        self.assertReleaseCount(OUTGOING, FAILED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_FAILED)
 
         # incoming labels
-        self.assertReleaseCount(INCOMING, HANDLED, VISIBLE, INBOX, SystemLabel.TYPE_INBOX)
-        self.assertReleaseCount(INCOMING, HANDLED, ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
-        self.assertReleaseCount(INCOMING, HANDLED, VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
+        self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, INBOX, SystemLabel.TYPE_INBOX)
+        self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
+        self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
 
     def test_erroring(self):
         # test with real message
@@ -284,7 +284,7 @@ class MsgTest(TembaTest):
         contact.save()
         ignored_msg = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "My msg should be archived")
         ignored_msg = Msg.all_messages.get(pk=ignored_msg.pk)
-        self.assertEqual(ignored_msg.visibility, ARCHIVED)
+        self.assertEqual(ignored_msg.visibility, Msg.VISIBILITY_ARCHIVED)
         self.assertEqual(ignored_msg.status, HANDLED)
 
         # hit the inbox page, that should reset our unread count
@@ -446,7 +446,7 @@ class MsgTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # now one msg is archived
-        self.assertEqual(list(Msg.all_messages.filter(visibility=ARCHIVED)), [msg1])
+        self.assertEqual(list(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), [msg1])
 
         # archiving doesn't remove labels
         msg1 = Msg.all_messages.get(pk=msg1.pk)
@@ -482,7 +482,7 @@ class MsgTest(TembaTest):
         # test restoring an archived message back to inbox
         post_data = dict(action='restore', objects=[msg1.pk])
         self.client.post(inbox_url, post_data, follow=True)
-        self.assertEquals(Msg.all_messages.filter(visibility=ARCHIVED).count(), 0)
+        self.assertEquals(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED).count(), 0)
 
         # messages from test contact are not included in the inbox
         test_contact = Contact.get_test_contact(self.admin)
@@ -516,10 +516,10 @@ class MsgTest(TembaTest):
         self.assertEqual(msg5.labels.all().count(), 0)
 
         # or archive messages
-        self.assertEqual(Msg.all_messages.get(pk=msg5.pk).visibility, VISIBLE)
+        self.assertEqual(Msg.all_messages.get(pk=msg5.pk).visibility, Msg.VISIBILITY_VISIBLE)
         post_data = dict(action='archive', objects=[msg5.pk])
         self.client.post(inbox_url, post_data, follow=True)
-        self.assertEqual(Msg.all_messages.get(pk=msg5.pk).visibility, VISIBLE)
+        self.assertEqual(Msg.all_messages.get(pk=msg5.pk).visibility, Msg.VISIBILITY_VISIBLE)
 
         # search on inbox just on the message text
         response = self.client.get("%s?search=message" % inbox_url)
@@ -626,7 +626,7 @@ class MsgTest(TembaTest):
         label.toggle_label([msg1], add=True)
 
         # archive last message
-        msg3.visibility = ARCHIVED
+        msg3.visibility = Msg.VISIBILITY_ARCHIVED
         msg3.save()
 
         # create a dummy export task so that we won't be able to export
@@ -751,8 +751,8 @@ class MsgCRUDLTest(TembaTest):
         msg1 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test1")
         msg2 = self.create_msg(direction='I', msg_type='I', contact=self.frank, text="test2")
         msg3 = self.create_msg(direction='I', msg_type='I', contact=self.billy, text="test3")
-        msg4 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test4", visibility=ARCHIVED)
-        msg5 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test5", visibility=DELETED)
+        msg4 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test4", visibility=Msg.VISIBILITY_ARCHIVED)
+        msg5 = self.create_msg(direction='I', msg_type='I', contact=self.joe, text="test5", visibility=Msg.VISIBILITY_DELETED)
         msg6 = self.create_msg(direction='I', msg_type='F', contact=self.joe, text="flow test")
 
         # apply the labels
