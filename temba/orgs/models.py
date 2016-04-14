@@ -703,7 +703,7 @@ class Org(SmartModel):
         # if that isn't set and we only have have one country set for our channels, use that
         countries = self.channels.filter(is_active=True).exclude(country=None).order_by('country')
         countries = countries.distinct('country').values_list('country', flat=True)
-        if countries:
+        if len(countries) == 1:
             return countries[0]
 
         return None
