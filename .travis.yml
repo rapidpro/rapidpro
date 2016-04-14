@@ -28,6 +28,7 @@ script:
 - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
 - coverage run manage.py test --noinput --verbosity=2
 - flake8
+- python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
 after_success:
 - coverage report -i
 - coveralls

@@ -1257,53 +1257,55 @@ class OrgCRUDLTest(TembaTest):
     def test_org_signup(self):
         signup_url = reverse('orgs.org_signup')
         response = self.client.get(signup_url)
-        self.assertEquals(200, response.status_code)
-        self.assertTrue('name' in response.context['form'].fields)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('name', response.context['form'].fields)
 
-        # firstname and lastname are required and bad email
-        post_data = dict(email="bad_email", password="HelloWorld1", name="Your Face")
+        # submit with missing fields
+        response = self.client.post(signup_url, {})
+        self.assertFormError(response, 'form', 'name', "This field is required.")
+        self.assertFormError(response, 'form', 'first_name', "This field is required.")
+        self.assertFormError(response, 'form', 'last_name', "This field is required.")
+        self.assertFormError(response, 'form', 'email', "This field is required.")
+        self.assertFormError(response, 'form', 'password', "This field is required.")
+        self.assertFormError(response, 'form', 'timezone', "This field is required.")
+
+        # submit with invalid password and email
+        post_data = dict(first_name="Eugene", last_name="Rwagasore", email="bad_email",
+                         password="badpass", name="Your Face", timezone="Africa/Kigali")
         response = self.client.post(signup_url, post_data)
-        self.assertTrue('first_name' in response.context['form'].errors)
-        self.assertTrue('last_name' in response.context['form'].errors)
-        self.assertTrue('email' in response.context['form'].errors)
+        self.assertFormError(response, 'form', 'email', "Enter a valid email address.")
+        self.assertFormError(response, 'form', 'password', "Passwords must contain at least 8 letters.")
 
-        post_data = dict(first_name="Eugene", last_name="Rwagasore", email="myal@relieves.org",
-                         password="badpass", name="Your Face")
-        response = self.client.post(signup_url, post_data)
-        self.assertTrue('password' in response.context['form'].errors)
-
-        post_data = dict(first_name="Eugene", last_name="Rwagasore", email="myal@relieves.org",
-                         password="HelloWorld1", name="Relieves World")
-        response = self.client.post(signup_url, post_data)
-        self.assertTrue('timezone' in response.context['form'].errors)
-
-        post_data = dict(first_name="Eugene", last_name="Rwagasore", email="myal@relieves.org",
+        # submit with valid data (long email)
+        post_data = dict(first_name="Eugene", last_name="Rwagasore", email="myal12345678901234567890@relieves.org",
                          password="HelloWorld1", name="Relieves World", timezone="Africa/Kigali")
         response = self.client.post(signup_url, post_data)
+        self.assertEqual(response.status_code, 302)
 
-        # should have a user
-        user = User.objects.get(username="myal@relieves.org")
+        # should have a new user
+        user = User.objects.get(username="myal12345678901234567890@relieves.org")
+        self.assertEqual(user.first_name, "Eugene")
+        self.assertEqual(user.last_name, "Rwagasore")
+        self.assertEqual(user.email, "myal12345678901234567890@relieves.org")
         self.assertTrue(user.check_password("HelloWorld1"))
+        self.assertTrue(user.api_token)  # should be able to generate an API token
 
-        # user should be able to get a token
-        self.assertTrue(user.api_token)
-
-        # should have an org
+        # should have a new org
         org = Org.objects.get(name="Relieves World")
-        self.assertTrue(org.administrators.filter(pk=user.id))
-        self.assertEquals("Relieves World", str(org))
-        self.assertEquals(org.slug, "relieves-world")
+        self.assertEqual(org.timezone, "Africa/Kigali")
+        self.assertEqual(str(org), "Relieves World")
+        self.assertEqual(org.slug, "relieves-world")
 
-        # should have 1000 credits
-        self.assertEquals(1000, org.get_credits_remaining())
-
-        # a single topup
-        topup = TopUp.objects.get(org=org)
-        self.assertEquals(1000, topup.credits)
-        self.assertEquals(0, topup.price)
-
-        # and user should be an administrator on that org
+        # of which our user is an administrator
         self.assertTrue(org.get_org_admins().filter(pk=user.pk))
+
+        # org should have 1000 credits
+        self.assertEqual(org.get_credits_remaining(), 1000)
+
+        # from a single welcome topup
+        topup = TopUp.objects.get(org=org)
+        self.assertEqual(topup.credits, 1000)
+        self.assertEqual(topup.price, 0)
 
         # fake session set_org to make the test work
         user.set_org(org)
@@ -1338,7 +1340,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertRedirect(response, reverse('users.user_login'))
 
         # log in as the user
-        self.client.login(username='myal@relieves.org', password='HelloWorld1')
+        self.client.login(username="myal12345678901234567890@relieves.org", password="HelloWorld1")
         response = self.client.get(reverse('orgs.org_home'))
 
         self.assertEquals(200, response.status_code)
