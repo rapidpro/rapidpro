@@ -11,7 +11,7 @@ from smartmin.views import SmartTemplateView
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Msg, Label, SystemLabel, DELETED
+from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import BroadcastReadSerializer, ContactReadSerializer, ContactFieldReadSerializer
@@ -637,7 +637,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             else:
                 return self.model.all_messages.filter(pk=-1)
         else:
-            return self.model.all_messages.filter(org=org).exclude(visibility=DELETED).exclude(msg_type=None)
+            return self.model.all_messages.filter(org=org).exclude(visibility=Msg.VISIBILITY_DELETED).exclude(msg_type=None)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -671,7 +671,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         if label_ref:
             label = Label.label_objects.filter(org=org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
             if label:
-                queryset = queryset.filter(labels=label)
+                queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
             else:
                 queryset = queryset.filter(pk=-1)
 
