@@ -61,6 +61,7 @@ TWILIO = 'T'
 TWITTER = 'TT'
 VERBOICE = 'VB'
 VUMI = 'VM'
+VUMIUSSD = 'VMU'
 ZENVIA = 'ZV'
 YO = 'YO'
 START = 'ST'
@@ -1629,30 +1630,20 @@ class Channel(TembaModel):
     @classmethod
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
+        from temba.channels.models import USSD_CHANNELS
         from temba.contacts.models import Contact
-        # channel.config['transport_name'] = 'mtech_ng_smpp_transport'
-        #
-        # payload = dict(message_id=msg.id,
-        #                in_reply_to=None,
-        #                session_event=None,
-        #                to_addr=msg.urn_path,
-        #                from_addr=channel.address,
-        #                content=text,
-        #                transport_name=channel.config['transport_name'],
-        #                transport_type='sms',
-        #                transport_metadata={},
-        #                helper_metadata={})
 
-        channel.config['transport_name'] = 'ussd_transport'
+        is_ussd = channel.channel_type in USSD_CHANNELS
+        channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
         payload = dict(message_id=msg.id,
                        in_reply_to=None,
-                       session_event="resume",
+                       session_event="resume" if is_ussd else None,
                        to_addr=msg.urn_path,
                        from_addr=channel.address,
                        content=text,
                        transport_name=channel.config['transport_name'],
-                       transport_type='ussd',
+                       transport_type='ussd' if is_ussd else 'sms',
                        transport_metadata={},
                        helper_metadata={})
 
@@ -1680,7 +1671,7 @@ class Channel(TembaModel):
                                 response="",
                                 response_status=503)
 
-        if response.status_code != 200 and response.status_code != 201:
+        if response.status_code not in (200, 201):
             # this is a fatal failure, don't retry
             fatal = response.status_code == 400
 
@@ -2418,6 +2409,7 @@ class Channel(TembaModel):
                       TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
                       TWITTER: Channel.send_twitter_message,
                       VUMI: Channel.send_vumi_message,
+                      VUMIUSSD: Channel.send_vumi_message,
                       YO: Channel.send_yo_message,
                       ZENVIA: Channel.send_zenvia_message}
 
