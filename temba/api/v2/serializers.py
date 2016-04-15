@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 from rest_framework import serializers
+from temba.channels.models import Channel, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING, QUEUED
@@ -53,6 +54,30 @@ class BroadcastReadSerializer(ReadSerializer):
     class Meta:
         model = Broadcast
         fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
+
+
+class ChannelReadSerializer(ReadSerializer):
+    country = serializers.SerializerMethodField()
+    device = serializers.SerializerMethodField()
+
+    def get_country(self, obj):
+        return unicode(obj.country) if obj.country else None
+
+    def get_device(self, obj):
+        if obj.channel_type != ANDROID:
+            return None
+
+        return {
+            'name': obj.device,
+            'power_level': obj.get_last_power(),
+            'power_status': obj.get_last_power_status(),
+            'power_source': obj.get_last_power_source(),
+            'network_type': obj.get_last_network_type()
+        }
+
+    class Meta:
+        model = Channel
+        fields = ('uuid', 'name', 'address', 'country', 'device', 'last_seen')
 
 
 class ContactReadSerializer(ReadSerializer):

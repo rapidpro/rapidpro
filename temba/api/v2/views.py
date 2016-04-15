@@ -14,8 +14,10 @@ from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
-from .serializers import BroadcastReadSerializer, ContactReadSerializer, ContactFieldReadSerializer
-from .serializers import ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
+from .serializers import (
+    BroadcastReadSerializer, ChannelReadSerializer, ContactReadSerializer, ContactFieldReadSerializer,
+    ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
+)
 from ..models import ApiPermission, SSLPermission
 from ..support import InvalidQueryError, CustomCursorPagination
 
@@ -30,6 +32,7 @@ def api(request, format=None):
     The following endpoints are provided:
 
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
+     * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/groups](/api/v2/groups) - to list contact groups
@@ -42,6 +45,7 @@ def api(request, format=None):
     """
     return Response({
         'broadcasts': reverse('api.v2.broadcasts', request=request),
+        'channels': reverse('api.v2.channels', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
         'fields': reverse('api.v2.fields', request=request),
         'groups': reverse('api.v2.groups', request=request),
@@ -62,6 +66,7 @@ class ApiExplorerView(SmartTemplateView):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
             BroadcastEndpoint.get_read_explorer(),
+            ChannelsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_read_explorer(),
@@ -259,6 +264,85 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'id', 'required': False, 'help': "A broadcast ID to filter by, ex: 123456"},
                 {'name': 'before', 'required': False, 'help': "Only return broadcasts created before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return broadcasts created after this date, ex: 2015-01-28T18:00:00.000"}
+            ]
+        }
+
+
+class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    ## Listing Channels
+
+    A **GET** returns the list of Android channels for your organization, in the order of last created.  Note that for
+    Android devices, all status information is as of the last time it was seen and can be null before the first sync.
+
+    * **uuid** - the unique identifier of the channel (string), filterable as `uuid`.
+    * **name** - the name of the channel (string).
+    * **address** - the address (e.g. phone number, Twitter handle) of the channel (string), filterable as `address`.
+    * **country** - which country the sim card for this channel is registered for (string, two letter country code).
+    * **device** - information about the device if this is an Android channel:
+        * **power_level** - the power level of the device (int).
+        * **power_status** - the power status, either ```STATUS_DISCHARGING``` or ```STATUS_CHARGING``` (string).
+        * **power_source** - the source of power as reported by Android (string).
+        * **network_type** - the type of network the device is connected to as reported by Android (string).
+    * **last_seen** - the datetime when this channel was last seen (datetime).
+
+    Example:
+
+        GET /api/v2/channels.json
+
+    Response containing the channels for your organization:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                "name": "Android Phone",
+                "address": "+250788123123",
+                "country": "RW",
+                "device": {
+                    "name": "Nexus 5X",
+                    "power_level": 99,
+                    "power_status": "STATUS_DISCHARGING",
+                    "power_source": "BATTERY",
+                    "network_type": "WIFI",
+                },
+                "last_seen": "2013-03-01T05:31:27"
+            }]
+        }
+
+    """
+    permission = 'channels.channel_api'
+    model = Channel
+    serializer_class = ChannelReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+
+        # filter by UUID (optional)
+        uuid = params.get('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        # filter by address (optional)
+        address = params.get('address')
+        if address:
+            queryset = queryset.filter(address=address)
+
+        return queryset.filter(is_active=True).order_by('-last_seen')
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Channels",
+            'url': reverse('api.v2.channels'),
+            'slug': 'channel-list',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "A channel UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
             ]
         }
 

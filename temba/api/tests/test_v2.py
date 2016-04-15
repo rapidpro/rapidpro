@@ -221,6 +221,37 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'before=%s' % format_datetime(bcast2.created_on))
         self.assertResultsById(response, [bcast2, bcast1])
 
+    def test_channels(self):
+        url = reverse('api.v2.channels')
+
+        self.assertEndpointAccess(url)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 2)
+        self.assertEqual(response.json['results'][1], {
+            'uuid': self.channel.uuid,
+            'name': "Test Channel",
+            'address': "+250785551212",
+            'country': "RW",
+            'device': {
+                'name': "Nexus 5X",
+                'network_type': None,
+                'power_level': -1,
+                'power_source': None,
+                'power_status': None
+            },
+            'last_seen': format_datetime(self.channel.last_seen)
+        })
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % self.twitter.uuid)
+        self.assertResultsByUUID(response, [self.twitter])
+
     def test_contacts(self):
         url = reverse('api.v2.contacts')
 

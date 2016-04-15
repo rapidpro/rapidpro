@@ -115,7 +115,7 @@ class TembaTest(SmartminTest):
 
         # a single Android channel
         self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
-                                      secret="12345", gcm_id="123")
+                                      device="Nexus 5X", secret="12345", gcm_id="123")
 
         # reset our simulation to False
         Contact.set_simulation(False)
