@@ -60,10 +60,6 @@ RESENT = 'R'
 INCOMING = 'I'
 OUTGOING = 'O'
 
-VISIBLE = 'V'
-ARCHIVED = 'A'
-DELETED = 'D'
-
 INBOX = 'I'
 FLOW = 'F'
 IVR = 'V'
@@ -520,10 +516,14 @@ class Msg(models.Model):
     """
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
+    VISIBILITY_VISIBLE = 'V'
+    VISIBILITY_ARCHIVED = 'A'
+    VISIBILITY_DELETED = 'D'
+
     # single char flag, human readable name, API readable name
-    VISIBILITY_CONFIG = ((VISIBLE, _("Visible"), 'visible'),
-                         (ARCHIVED, _("Archived"), 'archived'),
-                         (DELETED, _("Deleted"), 'deleted'))
+    VISIBILITY_CONFIG = ((VISIBILITY_VISIBLE, _("Visible"), 'visible'),
+                         (VISIBILITY_ARCHIVED, _("Archived"), 'archived'),
+                         (VISIBILITY_DELETED, _("Deleted"), 'deleted'))
 
     VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
 
@@ -591,7 +591,7 @@ class Msg(models.Model):
     labels = models.ManyToManyField('Label', related_name='msgs', verbose_name=_("Labels"),
                                     help_text=_("Any labels on this message"))
 
-    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBLE, db_index=True,
+    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE, db_index=True,
                                   verbose_name=_("Visibility"),
                                   help_text=_("The current visibility of this message, either visible, archived or deleted"))
 
@@ -677,7 +677,7 @@ class Msg(models.Model):
         handlers = get_message_handlers()
 
         if msg.contact.is_blocked:
-            msg.visibility = ARCHIVED
+            msg.visibility = Msg.VISIBILITY_ARCHIVED
             msg.modified_on = timezone.now()
             msg.save(update_fields=['visibility', 'modified_on'])
         else:
@@ -718,9 +718,9 @@ class Msg(models.Model):
         messages = Msg.all_messages.filter(org=org)
 
         if is_archived:
-            messages = messages.filter(visibility=ARCHIVED)
+            messages = messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)
         else:
-            messages = messages.filter(visibility=VISIBLE)
+            messages = messages.filter(visibility=Msg.VISIBILITY_VISIBLE)
 
         if direction:
             messages = messages.filter(direction=direction)
@@ -757,9 +757,9 @@ class Msg(models.Model):
         unread_count = cache.get(key, None)
 
         if unread_count is None:
-            unread_count = Msg.current_messages.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
-                                                       contact__is_test=False, created_on__gt=org.msg_last_viewed,
-                                                       labels=None).count()
+            unread_count = Msg.current_messages.filter(org=org, visibility=Msg.VISIBILITY_VISIBLE, direction=INCOMING,
+                                                       msg_type=INBOX, contact__is_test=False,
+                                                       created_on__gt=org.msg_last_viewed, labels=None).count()
             cache.set(key, unread_count, 900)
 
         return unread_count
@@ -1223,8 +1223,6 @@ class Msg(models.Model):
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
 
-            channel_id = channel.pk if channel else None
-
             if same_msg_count >= 10:
                 analytics.gauge('temba.msg_loop_caught')
                 return None
@@ -1349,7 +1347,7 @@ class Msg(models.Model):
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only archive incoming non-test messages")
 
-        self.visibility = ARCHIVED
+        self.visibility = Msg.VISIBILITY_ARCHIVED
         self.modified_on = timezone.now()
         self.save(update_fields=('visibility', 'modified_on'))
 
@@ -1358,13 +1356,13 @@ class Msg(models.Model):
         """
         Archives all incoming messages for the given contacts
         """
-        msgs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, contact__in=contacts)
+        msgs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, contact__in=contacts)
         msg_ids = list(msgs.values_list('pk', flat=True))
 
         # update modified on in small batches to avoid long table lock, and having too many non-unique values for
         # modified_on which is the primary ordering for the API
         for batch in chunk_list(msg_ids, 100):
-            Msg.all_messages.filter(pk__in=batch).update(visibility=ARCHIVED, modified_on=timezone.now())
+            Msg.all_messages.filter(pk__in=batch).update(visibility=Msg.VISIBILITY_ARCHIVED, modified_on=timezone.now())
 
     def restore(self):
         """
@@ -1373,7 +1371,7 @@ class Msg(models.Model):
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only restore incoming non-test messages")
 
-        self.visibility = VISIBLE
+        self.visibility = Msg.VISIBILITY_VISIBLE
         self.modified_on = timezone.now()
 
         self.save(update_fields=('visibility', 'modified_on'))
@@ -1382,7 +1380,7 @@ class Msg(models.Model):
         """
         Releases (i.e. deletes) this message
         """
-        self.visibility = DELETED
+        self.visibility = Msg.VISIBILITY_DELETED
         self.text = ""
         self.modified_on = timezone.now()
 
@@ -1598,17 +1596,17 @@ class SystemLabel(models.Model):
         """
         # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW)
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=ARCHIVED)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status=FAILED)
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
@@ -1625,6 +1623,30 @@ class SystemLabel(models.Model):
                 qs = qs.exclude(contact__is_test=True)
 
         return qs
+
+    @classmethod
+    def recalculate_counts(cls, org, label_types=None):
+        """
+        Recalculates the system label counts for the passed in org, updating them in our database
+        """
+        if label_types is None:
+            label_types = [cls.TYPE_INBOX, cls.TYPE_FLOWS, cls.TYPE_ARCHIVED, cls.TYPE_OUTBOX, cls.TYPE_SENT,
+                           cls.TYPE_FAILED, cls.TYPE_SCHEDULED, cls.TYPE_CALLS]
+
+        counts_by_type = {}
+
+        # for each type
+        for label_type in label_types:
+            count = cls.get_queryset(org, label_type).count()
+            counts_by_type[label_type] = count
+
+            # delete existing counts
+            cls.objects.filter(org=org, label_type=label_type).delete()
+
+            # and create our new count
+            cls.objects.create(org=org, label_type=label_type, count=count)
+
+        return counts_by_type
 
     @classmethod
     def get_counts(cls, org, label_types=None):

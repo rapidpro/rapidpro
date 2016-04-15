@@ -327,7 +327,7 @@ class ContactGroupTest(TembaTest):
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(counts, {ContactGroup.TYPE_ALL: 0, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
 
-        hannibal = self.create_contact("Hannibal", number="0783835001")
+        self.create_contact("Hannibal", number="0783835001")
         face = self.create_contact("Face", number="0783835002")
         ba = self.create_contact("B.A.", number="0783835003")
         murdock = self.create_contact("Murdock", number="0783835004")
@@ -805,16 +805,16 @@ class ContactTest(TembaTest):
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, self.admin, 'join_date', "Join Date", value_type='D')
         ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
-        state_field = ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
         ContactField.get_or_create(self.org, self.admin, 'profession', "Profession", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
 
         africa = AdminBoundary.objects.create(osm_id='R001', name='Africa', level=0)
         rwanda = AdminBoundary.objects.create(osm_id='R002', name='Rwanda', level=1, parent=africa)
-        gatsibo = AdminBoundary.objects.create(osm_id='R003', name='Gatsibo', level=2, parent=rwanda)
-        kayonza = AdminBoundary.objects.create(osm_id='R004', name='Kayonza', level=2, parent=rwanda)
-        kigali = AdminBoundary.objects.create(osm_id='R005', name='Kigali', level=2, parent=rwanda)
+        AdminBoundary.objects.create(osm_id='R003', name='Gatsibo', level=2, parent=rwanda)
+        AdminBoundary.objects.create(osm_id='R004', name='Kayonza', level=2, parent=rwanda)
+        AdminBoundary.objects.create(osm_id='R005', name='Kigali', level=2, parent=rwanda)
 
         locations = ['Gatsibo', 'Kayonza', 'Kigali']
         names = ['Trey', 'Mike', 'Paige', 'Fish']
@@ -1554,8 +1554,7 @@ class ContactTest(TembaTest):
         self.assertEquals(self.just_joe.contacts.all()[0].pk, self.joe.pk)
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 2)
 
-        # Now let's test the filters
-        just_joe_filter_url = reverse('contacts.contact_filter', args=[self.just_joe.pk])
+        # test filtering by group
         joe_and_frank_filter_url = reverse('contacts.contact_filter', args=[self.joe_and_frank.pk])
 
         # now test when the action with some data missing
@@ -2824,8 +2823,8 @@ class ContactTest(TembaTest):
         # run all tests as 2/Jan/2014 03:04 AFT
         tz = pytz.timezone('Asia/Kabul')
         with patch.object(timezone, 'now', return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):
-            age_field = ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
-            gender_field = ContactField.get_or_create(self.org, self.admin, 'gender', "Gender", value_type='T')
+            ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
+            ContactField.get_or_create(self.org, self.admin, 'gender', "Gender", value_type='T')
             joined_field = ContactField.get_or_create(self.org, self.admin, 'joined', "Join Date", value_type='D')
 
             # create groups based on name or URN (checks that contacts are added correctly on contact create)

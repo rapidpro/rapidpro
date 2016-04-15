@@ -327,7 +327,7 @@ class APITest(TembaTest):
 
         customers = ContactGroup.get_or_create(self.org, self.admin, "Customers")
         developers = ContactGroup.get_or_create(self.org, self.admin, "Developers")
-        spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+        ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
         developers.update_contacts(self.admin, [self.frank], add=True)
 
@@ -353,7 +353,7 @@ class APITest(TembaTest):
 
         important = Label.get_or_create(self.org, self.admin, "Important")
         feedback = Label.get_or_create(self.org, self.admin, "Feedback")
-        spam = Label.get_or_create(self.org2, self.admin2, "Spam")
+        Label.get_or_create(self.org2, self.admin2, "Spam")
 
         msg = self.create_msg(direction="I", text="Hello", contact=self.frank)
         important.toggle_label([msg], add=True)
@@ -428,11 +428,12 @@ class APITest(TembaTest):
         label = Label.get_or_create(self.org, self.admin, "Spam")
 
         # we do this in two calls so that we can predict ordering later
+        label.toggle_label([frank_msg3], add=True)
         label.toggle_label([frank_msg1], add=True)
         label.toggle_label([joe_msg3], add=True)
 
-        frank_msg1.refresh_from_db(fields=['modified_on'])
-        joe_msg3.refresh_from_db(fields=['modified_on'])
+        frank_msg1.refresh_from_db(fields=('modified_on',))
+        joe_msg3.refresh_from_db(fields=('modified_on',))
 
         # filter by inbox
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
@@ -449,7 +450,7 @@ class APITest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertResultsById(response, [joe_msg3, frank_msg1, deleted_msg, frank_msg3, joe_msg1])
+        self.assertResultsById(response, [joe_msg3, frank_msg1, frank_msg3, deleted_msg, joe_msg1])
         self.assertMsgEqual(response.json['results'][0], joe_msg3, msg_type='flow', msg_status='queued', msg_visibility='visible')
 
         # filter by folder (flow)
@@ -498,7 +499,7 @@ class APITest(TembaTest):
 
         # filter by before (inclusive)
         response = self.fetchJSON(url, 'folder=incoming&before=%s' % format_datetime(frank_msg1.modified_on))
-        self.assertResultsById(response, [frank_msg1, deleted_msg, frank_msg3, joe_msg1])
+        self.assertResultsById(response, [frank_msg1, frank_msg3, deleted_msg, joe_msg1])
 
         # filter by after (inclusive)
         response = self.fetchJSON(url, 'folder=incoming&after=%s' % format_datetime(frank_msg1.modified_on))
@@ -539,7 +540,7 @@ class APITest(TembaTest):
         })
 
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        fre = Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 

@@ -20,7 +20,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_
 from temba.channels.models import Channel, SyncEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, RULE_SET
-from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED, VISIBLE, ARCHIVED, DELETED
+from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import datetime_to_json_date
@@ -300,7 +300,7 @@ class APITest(TembaTest):
                                              anon=False))
 
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        fre = Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
@@ -399,7 +399,7 @@ class APITest(TembaTest):
         flow.save()
 
         flow2 = self.create_flow()
-        flow3 = self.create_flow()
+        self.create_flow()
 
         response = self.fetchJSON(url)
         self.assertEquals(200, response.status_code)
@@ -522,9 +522,8 @@ class APITest(TembaTest):
                     ],
                     completed=False)
 
-        reponse = None
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
-            response = self.postJSON(url, data)
+            self.postJSON(url, data)
 
         run = FlowRun.objects.get()
         self.assertEqual(run.flow, flow)
@@ -1627,7 +1626,7 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
         self.assertContains(response, "Dr Dre")
 
-        actors = self.create_group('Actors', [jay_z])
+        self.create_group('Actors', [jay_z])
         response = self.fetchJSON(url, "group=Music+Artists&group=Actors")
         self.assertResultCount(response, 2)
 
@@ -1912,7 +1911,6 @@ class APITest(TembaTest):
         # start contacts in a flow
         flow = self.create_flow()
         flow.start([], [contact1, contact2, contact3])
-        runs = FlowRun.objects.filter(flow=flow)
 
         self.create_msg(direction='I', contact=contact1, text="Hello")
         self.create_msg(direction='I', contact=contact2, text="Hello")
@@ -2256,9 +2254,9 @@ class APITest(TembaTest):
         self.assertEqual([m['id'] for m in response.json['results']], [msg5.pk, msg4.pk, msg3.pk, msg2.pk, msg1.pk])
 
         # check archived status
-        msg2.visibility = ARCHIVED
+        msg2.visibility = Msg.VISIBILITY_ARCHIVED
         msg2.save()
-        msg3.visibility = DELETED
+        msg3.visibility = Msg.VISIBILITY_DELETED
         msg3.save()
         response = self.fetchJSON(url, "")
         self.assertEqual([m['id'] for m in response.json['results']], [msg5.pk, msg4.pk, msg2.pk, msg1.pk])
@@ -2412,26 +2410,26 @@ class APITest(TembaTest):
         # archive all messages
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg3.pk, msg4.pk], action='archive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=VISIBLE)), {msg4})  # ignored as is outgoing
-        self.assertEqual(set(Msg.all_messages.filter(visibility=ARCHIVED)), {msg1, msg2, msg3})
+        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg4})  # ignored as is outgoing
+        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg1, msg2, msg3})
 
         # un-archive message 1
         response = self.postJSON(url, dict(messages=[msg1.pk], action='unarchive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=VISIBLE)), {msg1, msg4})
-        self.assertEqual(set(Msg.all_messages.filter(visibility=ARCHIVED)), {msg2, msg3})
+        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})
+        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg2, msg3})
 
         # delete messages 2 and 4
         response = self.postJSON(url, dict(messages=[msg2.pk], action='delete'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=VISIBLE)), {msg1, msg4})  # 4 ignored as is outgoing
-        self.assertEqual(set(Msg.all_messages.filter(visibility=ARCHIVED)), {msg3})
-        self.assertEqual(set(Msg.all_messages.filter(visibility=DELETED)), {msg2})
+        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})  # 4 ignored as is outgoing
+        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
+        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
 
         # can't un-archive a deleted message
         response = self.postJSON(url, dict(messages=[msg2.pk], action='unarchive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=DELETED)), {msg2})
+        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
 
         # try to provide a label for a non-labelling action
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='archive', label='Test2'))

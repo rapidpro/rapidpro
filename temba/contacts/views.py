@@ -23,7 +23,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
+from temba.msgs.models import Broadcast, Call, Msg
 from temba.msgs.views import SendMessageForm
 from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages
@@ -807,7 +807,8 @@ class ContactCRUDL(SmartCRUDL):
             recent = self.request.REQUEST.get('r', False)
             context['recent_date'] = datetime.utcfromtimestamp(recent_seconds).replace(tzinfo=pytz.utc)
 
-            text_messages = Msg.all_messages.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on')
+            text_messages = Msg.all_messages.filter(contact=contact.id).exclude(visibility=Msg.VISIBILITY_DELETED)
+            text_messages = text_messages.order_by('-created_on')
             if recent:
                 start_time = context['recent_date']
                 text_messages = text_messages.filter(created_on__gt=start_time)
@@ -1268,8 +1269,6 @@ class ContactFieldCRUDL(SmartCRUDL):
             return qs
 
         def render_to_response(self, context, **response_kwargs):
-            org = self.request.user.get_org()
-
             results = []
             for obj in context['object_list']:
                 result = dict(id=obj.pk, key=obj.key, label=obj.label)

@@ -20,10 +20,10 @@ class ResultTest(FlowFileTest):
         self.assertEquals(category, result['categories'][index]['label'])
 
     def test_field_results(self):
-        (c1, c2, c3, c4) = (self.create_contact("Contact1", '0788111111'),
-                            self.create_contact("Contact2", '0788222222'),
-                            self.create_contact("Contact3", '0788333333'),
-                            self.create_contact("Contact4", '0788444444'))
+        c1 = self.create_contact("Contact1", '0788111111')
+        c2 = self.create_contact("Contact2", '0788222222')
+        c3 = self.create_contact("Contact3", '0788333333')
+        self.create_contact("Contact4", '0788444444')
 
         # create a gender field that uses strings
         gender = ContactField.get_or_create(self.org, self.admin, 'gender', label="Gender", value_type=Value.TYPE_TEXT)
@@ -113,8 +113,9 @@ class ResultTest(FlowFileTest):
 
         # create a state field:
         # assign c1 and c2 to Kigali
-        state = ContactField.get_or_create(self.org, self.admin, 'state', label="State", value_type=Value.TYPE_STATE)
-        district = ContactField.get_or_create(self.org, self.admin, 'district', label="District", value_type=Value.TYPE_DISTRICT)
+        ContactField.get_or_create(self.org, self.admin, 'state', label="State", value_type=Value.TYPE_STATE)
+        ContactField.get_or_create(self.org, self.admin, 'district', label="District", value_type=Value.TYPE_DISTRICT)
+
         self.c1.set_field(self.user, 'state', "Kigali City")
         self.c1.set_field(self.user, 'district', "Kigali")
         self.c2.set_field(self.user, 'state', "Kigali City")
@@ -212,7 +213,7 @@ class ResultTest(FlowFileTest):
         ladies.update_contacts(self.user, [self.c2], True)
 
         # do another run for contact 1
-        run5 = self.run_color_gender_flow(self.c1, "blue", "male", "16")
+        self.run_color_gender_flow(self.c1, "blue", "male", "16")
 
         # totals should reflect the new value, not the old
         result = Value.get_value_summary(ruleset=color)[0]
@@ -230,7 +231,7 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 1, "Female", 2)
 
         # back to a full flow
-        run5 = self.run_color_gender_flow(self.c1, "blue", "male", "16")
+        self.run_color_gender_flow(self.c1, "blue", "male", "16")
 
         # ok, now segment by gender
         result = Value.get_value_summary(ruleset=color, filters=[], segment=dict(ruleset=gender.pk, categories=["Male", "Female"]))

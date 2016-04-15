@@ -13,7 +13,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
+from temba.msgs.models import Msg, Call, Broadcast, Label, INCOMING
 from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
@@ -196,7 +196,7 @@ class MsgReadSerializer(ReadSerializer):
         return 'Q' if obj.status in ['Q', 'P'] else obj.status
 
     def get_archived(self, obj):
-        return obj.visibility == ARCHIVED
+        return obj.visibility == Msg.VISIBILITY_ARCHIVED
 
     def get_delivered_on(self, obj):
         return None
@@ -252,7 +252,7 @@ class MsgBulkActionSerializer(WriteSerializer):
         action = self.validated_data['action']
 
         # fetch messages to be modified
-        msgs = Msg.current_messages.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).exclude(visibility=DELETED)
+        msgs = Msg.current_messages.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).exclude(visibility=Msg.VISIBILITY_DELETED)
         msgs = msgs.select_related('contact')
 
         if action == 'label':

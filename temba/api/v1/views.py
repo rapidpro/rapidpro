@@ -23,7 +23,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DELETED
+from temba.msgs.models import Broadcast, Msg, Call, Label
 from temba.utils import JsonResponse, json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
 from ..models import ApiPermission, SSLPermission
@@ -683,10 +683,10 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
         archived = self.request.query_params.get('archived', None)
         if archived is not None:
-            visibility = ARCHIVED if str_to_bool(archived) else VISIBLE
+            visibility = Msg.VISIBILITY_ARCHIVED if str_to_bool(archived) else Msg.VISIBILITY_VISIBLE
             queryset = queryset.filter(visibility=visibility)
         else:
-            queryset = queryset.exclude(visibility=DELETED)
+            queryset = queryset.exclude(visibility=Msg.VISIBILITY_DELETED)
 
         queryset = queryset.select_related('org', 'contact', 'contact_urn').prefetch_related('labels')
         return queryset.order_by('-created_on').distinct()

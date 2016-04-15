@@ -32,13 +32,12 @@ from temba.contacts.models import URN_CONTEXT_KEYS_TO_SCHEME, URN_CONTEXT_KEYS_T
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
-from temba.utils.email import send_template_email, is_valid_address
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
-from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
+from temba.utils.email import send_template_email, is_valid_address
 from temba.utils.models import TembaModel, ChunkIterator
+from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
-from temba.utils import chunk_list
 from temba.values.models import Value
 from twilio import twiml
 from uuid import uuid4
@@ -1427,12 +1426,12 @@ class Flow(TembaModel):
         if not channel or CALL not in channel.role:
             return runs
 
-        (entry_actions, entry_rules) = (None, None)
-        if self.entry_type == Flow.ACTIONS_ENTRY:
-            entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
-
-        elif self.entry_type == Flow.RULES_ENTRY:
-            entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
+        # (entry_actions, entry_rules) = (None, None)
+        # if self.entry_type == Flow.ACTIONS_ENTRY:
+        #    entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
+        #
+        # elif self.entry_type == Flow.RULES_ENTRY:
+        #    entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
 
         for contact_id in all_contact_ids:
             run = FlowRun.create(self, contact_id, start=flow_start)
