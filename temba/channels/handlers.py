@@ -895,21 +895,25 @@ class VumiHandler(View):
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg, PENDING, QUEUED, WIRED, SENT, DELIVERED, FAILED, ERRORED
-        from temba.channels.models import VUMI
+        from temba.channels.models import VUMI, VUMIUSSD
 
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
-
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=VUMI).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
 
         # parse our JSON
         try:
             body = json.loads(request.body)
         except Exception as e:
             return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
+
+        # determine if it's a USSD session message or a regular SMS
+        is_ussd = body['transport_type'] == 'ussd'
+        channel_type = VUMIUSSD if is_ussd else VUMI
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=channel_type).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
 
         # this is a callback for a message we sent
         if action == 'event':
