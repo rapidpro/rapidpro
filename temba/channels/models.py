@@ -127,9 +127,13 @@ CHANNEL_SETTINGS = {
     TWITTER: dict(scheme='twitter', max_length=10000),
     VERBOICE: dict(scheme='tel', max_length=1600),
     VUMI: dict(scheme='tel', max_length=1600),
+    VUMIUSSD: dict(scheme='tel', max_length=182),
     YO: dict(scheme='tel', max_length=1600),
     ZENVIA: dict(scheme='tel', max_length=150),
 }
+
+# list of all USSD channels
+USSD_CHANNELS = [VUMIUSSD]
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
