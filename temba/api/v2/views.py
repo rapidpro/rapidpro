@@ -4,6 +4,7 @@ from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from rest_framework import generics, mixins, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -20,7 +21,7 @@ from .serializers import (
     MsgReadSerializer
 )
 from ..models import ApiPermission, SSLPermission
-from ..support import InvalidQueryError, CustomCursorPagination
+from ..support import InvalidQueryError
 
 
 @api_view(['GET'])
@@ -82,25 +83,12 @@ class ApiExplorerView(SmartTemplateView):
         return context
 
 
-class CreatedOnCursorPagination(CustomCursorPagination):
-    ordering = '-created_on'
+class CreatedOnCursorPagination(CursorPagination):
+    ordering = ('-created_on', '-pk')
 
 
-class ModifiedOnCursorPagination(CustomCursorPagination):
-    ordering = '-modified_on'
-
-
-class MsgCursorPagination(CustomCursorPagination):
-    """
-    Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
-    at all incoming messages.
-    """
-    def get_ordering(self, request, queryset, view=None):
-        # if this is our incoming folder, order by modified_on
-        if request.query_params.get('folder', '').lower() == 'incoming':
-            return ['-modified_on']
-        else:
-            return ['-created_on']
+class ModifiedOnCursorPagination(CursorPagination):
+    ordering = ('-modified_on', '-pk')
 
 
 class BaseAPIView(generics.GenericAPIView):
@@ -776,10 +764,21 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
+    class Pagination(CursorPagination):
+        """
+        Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
+        at all incoming messages.
+        """
+        def get_ordering(self, request, queryset, view=None):
+            if request.query_params.get('folder', '').lower() == 'incoming':
+                return ModifiedOnCursorPagination.ordering
+            else:
+                return CreatedOnCursorPagination.ordering
+
     permission = 'msgs.msg_api'
     model = Msg
     serializer_class = MsgReadSerializer
-    pagination_class = MsgCursorPagination
+    pagination_class = Pagination
     exclusive_params = ('contact', 'folder', 'label', 'broadcast')
     required_params = ('contact', 'folder', 'label', 'broadcast', 'id')
     throttle_scope = 'v2.messages'
