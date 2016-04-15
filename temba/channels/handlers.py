@@ -920,9 +920,9 @@ class VumiHandler(View):
             status = body['event_type']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel')
+            message = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel')
 
-            if not sms:
+            if not message:
                 return HttpResponse("Message with external id of '%s' not found" % external_id, status=404)
 
             if status not in ('ack', 'delivery_report'):
@@ -930,46 +930,51 @@ class VumiHandler(View):
 
             # only update to SENT status if still in WIRED state
             if status == 'ack':
-                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=SENT)
+                message.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=SENT)
             elif status == 'delivery_report':
-                sms = sms.first()
-                if sms:
+                message = message.first()
+                if message:
                     delivery_status = body.get('delivery_status', 'success')
                     if delivery_status == 'failed':
                         # Vumi and M-Tech disagree on what 'failed' means in a DLR, so for now, ignore these
                         # cases.
                         #
                         # we can get multiple reports from vumi if they multi-part the message for us
-                        # if sms.status in (WIRED, DELIVERED):
-                        #    print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
-                        #    Msg.mark_error(get_redis_connection(), channel, sms)
+                        # if message.status in (WIRED, DELIVERED):
+                        #    print "!! [%d] marking %s message as error" % (message.pk, message.get_status_display())
+                        #    Msg.mark_error(get_redis_connection(), channel, message)
                         pass
                     else:
 
                         # we should only mark it as delivered if it's in a wired state, we want to hold on to our
                         # delivery failures if any part of the message comes back as failed
-                        if sms.status == WIRED:
-                            sms.status_delivered()
+                        if message.status == WIRED:
+                            message.status_delivered()
 
-            return HttpResponse("SMS Status Updated")
+            return HttpResponse("Message Status Updated")
 
         # this is a new incoming message
         elif action == 'receive':
-            if 'timestamp' not in body or 'from_addr' not in body or 'content' not in body or 'message_id' not in body:
+            if not any(attr in body for attr in ('timestamp', 'from_addr', 'content', 'message_id')):
                 return HttpResponse("Missing one of timestamp, from_addr, content or message_id, ignoring message", status=400)
 
             # dates come in the format "2014-04-18 03:54:20.570618" GMT
-            sms_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
-            gmt_date = pytz.timezone('GMT').localize(sms_date)
-
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, body['from_addr']),
-                                      body['content'],
-                                      date=gmt_date)
+            message_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
+            gmt_date = pytz.timezone('GMT').localize(message_date)
+            message = Msg.create_incoming(channel,
+                                          (TEL_SCHEME, body['from_addr']),
+                                          body['content'],
+                                          date=gmt_date)
 
             # use an update so there is no race with our handling
-            Msg.all_messages.filter(pk=sms.id).update(external_id=body['message_id'])
-            return HttpResponse("SMS Accepted: %d" % sms.id)
+            Msg.all_messages.filter(pk=message.id).update(external_id=body['message_id'])
+
+            # TODO: handle "session_event"
+            # session_event == "new"
+            # session_event == "close"
+            # TODO: handle "optout"
+
+            return HttpResponse("Message Accepted: %d" % message.id)
 
         else:
             return HttpResponse("Not handled", status=400)
