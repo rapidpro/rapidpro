@@ -1430,11 +1430,14 @@ class Call(SmartModel):
     TYPE_IN = 'mo_call'
     TYPE_IN_MISSED = 'mo_miss'
 
-    CALL_TYPES = ((TYPE_UNKNOWN, _("Unknown Call Type")),
-                  (TYPE_IN, _("Incoming Call")),
-                  (TYPE_IN_MISSED, _("Missed Incoming Call")),
-                  (TYPE_OUT, _("Outgoing Call")),
-                  (TYPE_OUT_MISSED, _("Missed Outgoing Call")))
+    # single char flag, human readable name, API readable name
+    TYPE_CONFIG = ((TYPE_UNKNOWN, _("Unknown Call Type"), 'unknown'),
+                   (TYPE_OUT, _("Outgoing Call"), 'out'),
+                   (TYPE_OUT_MISSED, _("Missed Outgoing Call"), 'missed-out'),
+                   (TYPE_IN, _("Incoming Call"), 'in'),
+                   (TYPE_IN_MISSED, _("Missed Incoming Call"), 'missed-in'))
+
+    TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The org this call is connected to"))
 
@@ -1446,7 +1449,7 @@ class Call(SmartModel):
     time = models.DateTimeField(verbose_name=_("Time"), help_text=_("When this call took place"))
     duration = models.IntegerField(default=0, verbose_name=_("Duration"),
                                    help_text=_("The duration of this call in seconds, if appropriate"))
-    call_type = models.CharField(max_length=16, choices=CALL_TYPES,
+    call_type = models.CharField(max_length=16, choices=TYPE_CHOICES,
                                  verbose_name=_("Call Type"), help_text=_("The type of call"))
 
     @classmethod

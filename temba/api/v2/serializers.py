@@ -4,7 +4,9 @@ from rest_framework import serializers
 from temba.channels.models import Channel, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
-from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING, QUEUED
+from temba.msgs.models import (
+    Broadcast, Msg, Label, Call, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING, QUEUED
+)
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -20,6 +22,10 @@ class ReadSerializer(serializers.ModelSerializer):
     """
     We deviate slightly from regular REST framework usage with distinct serializers for reading and writing
     """
+    @staticmethod
+    def extract_constants(config):
+        return {t[0]: t[2] for t in config}
+
     def save(self, **kwargs):  # pragma: no cover
         raise ValueError("Can't call save on a read serializer")
 
@@ -29,7 +35,7 @@ class ReadSerializer(serializers.ModelSerializer):
 # ============================================================
 
 class BroadcastReadSerializer(ReadSerializer):
-    STATUSES = {s[0]: s[2] for s in STATUS_CONFIG}
+    STATUSES = ReadSerializer.extract_constants(STATUS_CONFIG)
 
     urns = serializers.SerializerMethodField()
     contacts = serializers.SerializerMethodField()
@@ -54,6 +60,27 @@ class BroadcastReadSerializer(ReadSerializer):
     class Meta:
         model = Broadcast
         fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
+
+
+class CallReadSerializer(ReadSerializer):
+    TYPES = ReadSerializer.extract_constants(Call.TYPE_CONFIG)
+
+    type = serializers.SerializerMethodField()
+    contact = serializers.SerializerMethodField()
+    channel = serializers.SerializerMethodField()
+
+    def get_type(self, obj):
+        return self.TYPES.get(obj.call_type)
+
+    def get_contact(self, obj):
+        return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
+
+    def get_channel(self, obj):
+        return {'uuid': obj.channel.uuid, 'name': obj.channel.name}
+
+    class Meta:
+        model = Call
+        fields = ('id', 'type', 'contact', 'channel', 'time', 'duration', 'created_on')
 
 
 class ChannelReadSerializer(ReadSerializer):
@@ -131,7 +158,7 @@ class ContactReadSerializer(ReadSerializer):
 
 
 class ContactFieldReadSerializer(ReadSerializer):
-    VALUE_TYPES = {c[0]: c[2] for c in Value.TYPE_CONFIG}
+    VALUE_TYPES = ReadSerializer.extract_constants(Value.TYPE_CONFIG)
 
     value_type = serializers.SerializerMethodField()
 
@@ -210,8 +237,8 @@ class LabelReadSerializer(ReadSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
-    STATUSES = {s[0]: s[2] for s in STATUS_CONFIG}
-    VISIBILITIES = {s[0]: s[2] for s in Msg.VISIBILITY_CONFIG}
+    STATUSES = ReadSerializer.extract_constants(STATUS_CONFIG)
+    VISIBILITIES = ReadSerializer.extract_constants(Msg.VISIBILITY_CONFIG)
     DIRECTIONS = {
         INCOMING: 'in',
         OUTGOING: 'out'

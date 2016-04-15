@@ -11,12 +11,13 @@ from smartmin.views import SmartTemplateView
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
+from temba.msgs.models import Broadcast, Call, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import (
-    BroadcastReadSerializer, ChannelReadSerializer, ContactReadSerializer, ContactFieldReadSerializer,
-    ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
+    BroadcastReadSerializer, CallReadSerializer, ChannelReadSerializer, ContactReadSerializer,
+    ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer,
+    MsgReadSerializer
 )
 from ..models import ApiPermission, SSLPermission
 from ..support import InvalidQueryError, CustomCursorPagination
@@ -32,6 +33,7 @@ def api(request, format=None):
     The following endpoints are provided:
 
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
+     * [/api/v2/calls](/api/v2/calls) - to list calls
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
@@ -45,6 +47,7 @@ def api(request, format=None):
     """
     return Response({
         'broadcasts': reverse('api.v2.broadcasts', request=request),
+        'calls': reverse('api.v2.calls', request=request),
         'channels': reverse('api.v2.channels', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
         'fields': reverse('api.v2.fields', request=request),
@@ -66,6 +69,7 @@ class ApiExplorerView(SmartTemplateView):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
             BroadcastEndpoint.get_read_explorer(),
+            CallsEndpoint.get_read_explorer(),
             ChannelsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
@@ -268,6 +272,83 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
+class CallsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    Returns the incoming and outgoing calls for your organization, most recent first.
+
+     * **id** - the ID of the call (int), filterable as `id`.
+     * **type** - the type of call (one of "in", "missed-in", "out", "missed-out").
+     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
+     * **channel** - the UUID and name of the channel that handled this call (object).
+     * **created_on** - when this message was either received by the channel or created (datetime), filterable as `before` and `after`.
+     * **duration** - the duration of the call in seconds (int, 0 for missed calls)
+
+    Example:
+
+        GET /api/v2/calls.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "id": 4,
+                "type": "in"
+                "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
+                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
+                "created_on": "2013-02-27T09:06:15",
+                "duration": 606,
+            },
+            ...
+
+    """
+    permission = 'msgs.call_api'
+    model = Call
+    serializer_class = CallReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        queryset = queryset.filter(is_active=True)
+        org = self.request.user.get_org()
+
+        # filter by id (optional)
+        call_id = params.get('id')
+        if call_id:
+            queryset = queryset.filter(pk=call_id)
+
+        # filter by contact (optional)
+        contact_uuid = params.get('contact')
+        if contact_uuid:
+            contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
+            if contact:
+                queryset = queryset.filter(contact=contact)
+            else:
+                queryset = queryset.filter(pk=-1)
+
+        queryset = queryset.prefetch_related(
+            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
+            Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
+        )
+
+        return self.filter_before_after(queryset, 'created_on')
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Calls",
+            'url': reverse('api.v2.calls'),
+            'slug': 'call-list',
+            'request': "",
+            'fields': [
+                {'name': "id", 'required': False, 'help': "A call ID to filter by. ex: 12345"},
+            ]
+        }
+
+
 class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
     """
     ## Listing Channels
@@ -275,16 +356,16 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
     A **GET** returns the list of Android channels for your organization, in the order of last created.  Note that for
     Android devices, all status information is as of the last time it was seen and can be null before the first sync.
 
-    * **uuid** - the unique identifier of the channel (string), filterable as `uuid`.
-    * **name** - the name of the channel (string).
-    * **address** - the address (e.g. phone number, Twitter handle) of the channel (string), filterable as `address`.
-    * **country** - which country the sim card for this channel is registered for (string, two letter country code).
-    * **device** - information about the device if this is an Android channel:
+     * **uuid** - the unique identifier of the channel (string), filterable as `uuid`.
+     * **name** - the name of the channel (string).
+     * **address** - the address (e.g. phone number, Twitter handle) of the channel (string), filterable as `address`.
+     * **country** - which country the sim card for this channel is registered for (string, two letter country code).
+     * **device** - information about the device if this is an Android channel:
         * **power_level** - the power level of the device (int).
         * **power_status** - the power status, either ```STATUS_DISCHARGING``` or ```STATUS_CHARGING``` (string).
         * **power_source** - the source of power as reported by Android (string).
         * **network_type** - the type of network the device is connected to as reported by Android (string).
-    * **last_seen** - the datetime when this channel was last seen (datetime).
+     * **last_seen** - the datetime when this channel was last seen (datetime).
 
     Example:
 
@@ -320,6 +401,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
+        queryset = queryset.filter(is_active=True)
 
         # filter by UUID (optional)
         uuid = params.get('uuid')
@@ -331,7 +413,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
         if address:
             queryset = queryset.filter(address=address)
 
-        return queryset.filter(is_active=True).order_by('-last_seen')
+        return queryset
 
     @classmethod
     def get_read_explorer(cls):
@@ -354,14 +436,14 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
     only deleted contacts by passing the "deleted=true" parameter to your call.
 
-    * **uuid** - the unique identifier of the contact (string), filterable as `uuid`.
-    * **name** - the name of the contact (string).
-    * **language** - the preferred language of the contact (string).
-    * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
-    * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
-    * **fields** - any contact fields on this contact (dictionary).
-    * **created_on** - when this contact was created (datetime).
-    * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
+     * **uuid** - the unique identifier of the contact (string), filterable as `uuid`.
+     * **name** - the name of the contact (string).
+     * **language** - the preferred language of the contact (string).
+     * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
+     * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
+     * **fields** - any contact fields on this contact (dictionary).
+     * **created_on** - when this contact was created (datetime).
+     * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
 
     Example:
 
@@ -466,9 +548,9 @@ class FieldsEndpoint(ListAPIMixin, BaseAPIView):
 
     A **GET** returns the list of custom contact fields for your organization, in the order of last created.
 
-    * **key** - the unique key of this field (string), filterable as `key`
-    * **label** - the display label of this field (string)
-    * **value_type** - the data type of values associated with this field (string)
+     * **key** - the unique key of this field (string), filterable as `key`
+     * **label** - the display label of this field (string)
+     * **value_type** - the data type of values associated with this field (string)
 
     Example:
 
@@ -524,9 +606,9 @@ class GroupsEndpoint(ListAPIMixin, BaseAPIView):
 
     A **GET** returns the list of contact groups for your organization, in the order of last created.
 
-    * **uuid** - the UUID of the group (string), filterable as `uuid`
-    * **name** - the name of the group (string)
-    * **count** - the number of contacts in the group (int)
+     * **uuid** - the UUID of the group (string), filterable as `uuid`
+     * **name** - the name of the group (string)
+     * **count** - the number of contacts in the group (int)
 
     Example:
 
@@ -583,9 +665,9 @@ class LabelsEndpoint(ListAPIMixin, BaseAPIView):
 
     A **GET** returns the list of message labels for your organization, in the order of last created.
 
-    * **uuid** - the UUID of the label (string), filterable as `uuid`
-    * **name** - the name of the label (string)
-    * **count** - the number of messages with this label (int)
+     * **uuid** - the UUID of the label (string), filterable as `uuid`
+     * **name** - the name of the label (string)
+     * **count** - the number of messages with this label (int)
 
     Example:
 
@@ -645,11 +727,11 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     By making a ```GET``` request you can list the messages for your organization, filtering them as needed. Each
     message has the following attributes:
 
-     * **id** - the id of the message (int), filterable as `id`.
+     * **id** - the ID of the message (int), filterable as `id`.
      * **broadcast** - the id of the broadcast (int), filterable as `broadcast`.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **urn** - the URN of the sender or receiver, depending on direction (string).
-     * **channel** - the UUID of the channel that handled this message (object).
+     * **channel** - the UUID and name of the channel that handled this message (object).
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
      * **type** - the type of the message (one of "inbox", "flow", "ivr").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
@@ -856,7 +938,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
     By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
     run has the following attributes:
 
-     * **id** - the id of the run (int), filterable as `id`.
+     * **id** - the ID of the run (int), filterable as `id`.
      * **flow** - the UUID and name of the flow (object), filterable as `flow` with UUID.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
