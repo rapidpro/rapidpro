@@ -907,7 +907,7 @@ class VumiHandler(View):
             return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
 
         # determine if it's a USSD session message or a regular SMS
-        is_ussd = body['transport_type'] == 'ussd'
+        is_ussd = body.get('transport_type') == 'ussd'
         channel_type = VUMIUSSD if is_ussd else VUMI
 
         # look up the channel
