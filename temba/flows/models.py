@@ -616,19 +616,19 @@ class Flow(TembaModel):
 
             if destination.get_step_type() == RULE_SET:
                 should_pause = False
-
                 # if we are a ruleset against @step or we have a webhook we wait
                 if destination.is_pause():
                     should_pause = True
 
-                if user_input or not should_pause:
+                if triggered_start and destination.is_ussd():
+                    Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                elif user_input or not should_pause:
                     result = Flow.handle_ruleset(destination, step, run, msg)
                     add_to_path(path, destination.uuid)
-                # USSD ruleset has extra functionality to send out messages. When the to be handled destination doesn't
-                # receive an incoming message that's when we want to send out an outgoing msg through USSD
+                # USSD ruleset has extra functionality to send out messages.
+                # This is handled as a shadow step for the ruleset.
                 elif destination.is_ussd():
-                    action = UssdAction.from_ruleset(destination)
-                    action.execute(run, destination.uuid, msg)
+                    Flow.handle_ussd_ruleset_action(destination, step, run, msg)
 
                 # if we used this input, then mark our user input as used
                 if should_pause:
