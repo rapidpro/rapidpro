@@ -198,7 +198,8 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
-    purged = models.BooleanField(default=False, help_text="If the messages for this broadcast have been purged")
+    purged = models.NullBooleanField(default=False,
+                                     help_text="If the messages for this broadcast have been purged")
 
     @classmethod
     def create(cls, org, user, text, recipients, channel=None, **kwargs):
@@ -612,7 +613,8 @@ class Msg(models.Model):
     recording_url = models.URLField(null=True, blank=True, max_length=255,
                                     help_text=_("The url for any recording associated with this message"))
 
-    purged = models.BooleanField(default=False, help_text="If this message has been purged")
+    purged = models.NullBooleanField(default=False,
+                                     help_text="If this message has been purged")
 
     all_messages = models.Manager()
     current_messages = models.Manager()
