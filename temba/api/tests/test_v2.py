@@ -18,7 +18,6 @@ from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
-from uuid import uuid4
 from ..v2.serializers import format_datetime
 
 
@@ -559,8 +558,6 @@ class APITest(TembaTest):
         url = reverse('api.v2.media') + '.json'
 
         self.login(self.admin)
-        flow_uuid = uuid4()
-        flow_run = 54
 
         def assert_media_upload(filename, ext):
             with open(filename, 'rb') as data:

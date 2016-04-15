@@ -82,9 +82,6 @@ class IVRTests(FlowFileTest):
         # simulate the caller making a recording and then hanging up, first they'll give us the
         # recording (they give us a call status of completed at the same time)
         from temba.tests import MockResponse
-
-        # make sure our file isn't there to start
-        run = contact.runs.all().first()
         with patch('requests.get') as response:
             mock = MockResponse(200, 'Fake Recording Bits')
             mock.add_header('Content-Disposition', 'filename="audio0000.wav"')

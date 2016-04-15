@@ -449,7 +449,6 @@ class Flow(TembaModel):
         # parse the user response
         text = user_response.get('Digits', None)
         media_url = user_response.get('RecordingUrl', None)
-        recording_id = user_response.get('RecordingSid', uuid4())
 
         # if we've been sent a recording, go grab it
         if media_url:
