@@ -534,7 +534,6 @@ class Msg(models.Model):
                  (FLOW, _("Flow Message")),
                  (IVR, _("IVR Message")))
 
-
     MEDIA_GPS = 'geo'
     MEDIA_IMAGE = 'image'
     MEDIA_VIDEO = 'video'

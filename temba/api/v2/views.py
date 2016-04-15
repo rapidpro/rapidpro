@@ -3,8 +3,6 @@ from __future__ import absolute_import, unicode_literals
 
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
-from django.core.files.storage import default_storage
-from django.conf import settings
 from rest_framework import generics, mixins, status
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
@@ -18,7 +16,6 @@ from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel, DELETED
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
-from uuid import uuid4
 from .serializers import BroadcastReadSerializer, ContactReadSerializer, ContactFieldReadSerializer
 from .serializers import ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
@@ -559,29 +556,23 @@ class LabelsEndpoint(ListAPIMixin, BaseAPIView):
 
 class MediaEndpoint(BaseAPIView):
     """
-    This endpoint allows you to submit media to embed in flow steps
+    This endpoint allows you to submit media which can be embedded in flow steps
 
     ## Creating Media
 
-    By making a ```POST``` request to the endpoint you can add a new media
-    to referrence in your flow runs.
+    By making a ```POST``` request to the endpoint you can add a new media files
     """
     parser_classes = (MultiPartParser, FormParser,)
-    permission = 'flows.flow_api'
+    permission = 'msgs.msg_api'
 
     def post(self, request, format=None, *args, **kwargs):
 
         org = self.request.user.get_org()
+        media_file = request.data.get('media_file', None)
+        extension = request.data.get('extension', None)
 
-        media_file = request.data.get('media_file')
-        flow_uuid = request.data.get('flow')
-        flow_run = request.data.get('run')
-
-        if media_file:
-            ext = media_file.name.rpartition('.')[2]
-            location = default_storage.save('%s/%d/media/%s/%s_%s.%s' % (settings.STORAGE_ROOT_DIR, org.pk,
-                                                                         flow_uuid, flow_run, uuid4(), ext), media_file)
-            location = 'https://%s/%s' % (settings.AWS_BUCKET_DOMAIN, location)
+        if media_file and extension:
+            location = org.save_media(media_file, extension)
             return Response(dict(location=location), status=status.HTTP_201_CREATED)
 
         return Response(dict(), status=status.HTTP_400_BAD_REQUEST)

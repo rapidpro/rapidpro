@@ -151,6 +151,8 @@ class IVRCall(SmartModel):
                 client.start_call(self, to=tel, from_=self.channel.address, status_callback=url)
 
             except IVRException as e:
+                import traceback
+                traceback.print_exc()
                 self.status = FAILED
                 self.save()
                 if self.contact.is_test:

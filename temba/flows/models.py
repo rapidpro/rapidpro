@@ -5,7 +5,6 @@ import numbers
 import phonenumbers
 import pytz
 import regex
-import requests
 import time
 import urllib2
 import xlwt
@@ -455,8 +454,7 @@ class Flow(TembaModel):
 
         # if we've been sent a recording, go grab it
         if media_url:
-            url = Flow.download_recording(call, media_url, recording_id)
-            media_url = "%s/wav:https://%s/%s" % (Msg.MEDIA_AUDIO, settings.AWS_BUCKET_DOMAIN, url)
+            media_url = call.channel.get_ivr_client().download_media(media_url)
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
@@ -523,29 +521,6 @@ class Flow(TembaModel):
                 voice_response = response
 
         return voice_response
-
-    @classmethod
-    def download_recording(cls, call, media_url, recording_id):
-        """
-        Fetches the recording and stores it with the provided recording_id
-        :param call: the call the recording is a part of
-        :param media_url: the url where the recording lives
-        :param recording_id: the id we will use for the downloaded recording
-        :return: the url for our downloaded recording
-        """
-        run = FlowRun.objects.filter(call=call).first()
-
-        ivr_client = call.channel.get_ivr_client()
-        recording = requests.get(media_url, stream=True, auth=ivr_client.auth)
-        temp = NamedTemporaryFile(delete=True)
-        temp.write(recording.content)
-        temp.flush()
-
-        location = default_storage.save('%s/%d/media/%s/%s.wav' %
-                                        (settings.STORAGE_ROOT_DIR, run.org.pk, run.flow.uuid, uuid4()), File(temp))
-
-        print "Fetched recording %s and saved to %s" % (media_url, location)
-        return location
 
     @classmethod
     def get_unique_name(cls, org, base_name, ignore=None):
@@ -3008,8 +2983,9 @@ class FlowRun(models.Model):
 
         media = None
         if recording_url:
-            media = '%s:%s' % (Msg.MEDIA_AUDIO, recording_url)
+            media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
 
+        print 'Creating outgoing ivr'
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
                                   response_to=response_to, media=media,
                                   status=DELIVERED, msg_type=IVR)

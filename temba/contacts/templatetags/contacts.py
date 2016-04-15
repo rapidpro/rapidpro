@@ -96,13 +96,24 @@ def media_url(media):
 
 
 @register.filter
-def media_type(media):
+def media_content_type(media):
     if media:
-        media_type = media.partition(':')[0]
-        if media_type == 'geo':
-            return media_type
-        else:
-            return media_type.partition('/')[0]
+        return media.partition(':')[0]
+
+
+@register.filter
+def media_type(media):
+    media_type = media_content_type(media)
+    if media_type and '/' in media_type:
+        media_type = media_type.split('/')[0]
+    return media_type
+
+
+@register.filter
+def is_content_type(content_type, type):
+    if type == 'wav':
+        return content_type in ['audio/wav', 'audio/x-wav', 'audio/vnd.wav']
+    return False
 
 
 @register.filter

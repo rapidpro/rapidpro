@@ -16,7 +16,10 @@ def as_icon(contact_event):
     icon = 'icon-bubble-dots-2 green'
     direction = getattr(contact_event, 'direction', 'O')
     msg_type = getattr(contact_event, 'msg_type', 'I')
-    media_type = contact_event.get_media_type()
+    media_type = getattr(contact_event, 'media', None)
+
+    if media_type and ':' in media_type:
+        media_type = media_type.split(':', 1)[0].split('/', 1)[0]
 
     if hasattr(contact_event, 'status'):
         status = contact_event.status
@@ -48,7 +51,6 @@ def as_icon(contact_event):
     elif status == 'mt_miss':
         icon = 'icon-call-outgoing red'
     return mark_safe('<span class="glyph %s"></span>' % icon)
-
 
 
 class Render(AsTag):

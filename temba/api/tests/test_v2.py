@@ -561,18 +561,19 @@ class APITest(TembaTest):
         flow_uuid = uuid4()
         flow_run = 54
 
-        def assert_media_upload(filename, extension):
+        def assert_media_upload(filename, ext):
             with open(filename, 'rb') as data:
-                response = self.client.post(url, dict(media_file=data, flow=flow_uuid,
-                                                      run=flow_run, HTTP_X_FORWARDED_HTTPS='https'))
+
+                post_data = dict(media_file=data, extension=ext, HTTP_X_FORWARDED_HTTPS='https')
+                response = self.client.post(url, post_data)
+
                 self.assertEqual(response.status_code, 201)
                 location = json.loads(response.content).get('location', None)
                 self.assertIsNotNone(location)
-                starts_with = 'https://%s/%s/%d/media/%s/%s' % (settings.AWS_BUCKET_DOMAIN, settings.STORAGE_ROOT_DIR,
-                                                                self.org.pk, flow_uuid, flow_run)
 
+                starts_with = 'https://%s/%s/%d/media/' % (settings.AWS_BUCKET_DOMAIN, settings.STORAGE_ROOT_DIR, self.org.pk)
                 self.assertEqual(starts_with, location[0:len(starts_with)])
-                self.assertEqual('.%s' % extension, location[-4:])
+                self.assertEqual('.%s' % ext, location[-4:])
 
         assert_media_upload('%s/test_media/steve.marten.jpg' % settings.MEDIA_ROOT, 'jpg')
         assert_media_upload('%s/test_media/snow.mp4' % settings.MEDIA_ROOT, 'mp4')
@@ -580,7 +581,6 @@ class APITest(TembaTest):
         # missing file
         response = self.client.post(url, dict(), HTTP_X_FORWARDED_HTTPS='https')
         self.assertEqual(response.status_code, 400)
-
         self.clear_storage()
 
     def test_runs_offset(self):

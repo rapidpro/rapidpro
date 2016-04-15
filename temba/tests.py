@@ -584,9 +584,13 @@ class MockResponse(object):
         self.text = text
         self.content = text
         self.status_code = status_code
+        self.headers = {}
 
         # mock up a request object on our response as well
         self.request = dict_to_struct('MockRequest', dict(method=method, url=url))
+
+    def add_header(self, key, value):
+        self.headers[key] = value
 
     def json(self):
         return json.loads(self.text)
@@ -621,9 +625,10 @@ class MockRequestValidator(RequestValidator):
         return True
 
 
-class MockTwilioClient(TwilioClient):  # pragma: no cover
+class MockTwilioClient(TwilioClient):
 
-    def __init__(self, sid, token):
+    def __init__(self, sid, token, org=None):
+        self.org = org
         self.applications = MockTwilioClient.MockApplications()
         self.calls = MockTwilioClient.MockCalls()
         self.accounts = MockTwilioClient.MockAccounts()

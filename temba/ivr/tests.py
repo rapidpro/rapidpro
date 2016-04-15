@@ -86,7 +86,11 @@ class IVRTests(FlowFileTest):
         # make sure our file isn't there to start
         run = contact.runs.all().first()
         with patch('requests.get') as response:
-            response.return_value = MockResponse(200, 'Fake Recording Bits')
+            mock = MockResponse(200, 'Fake Recording Bits')
+            mock.add_header('Content-Disposition', 'filename="audio0000.wav"')
+            mock.add_header('Content-Type', 'audio/x-wav')
+            response.return_value = mock
+
             self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
                              dict(CallStatus='completed',
                                   Digits='hangup',
@@ -111,12 +115,11 @@ class IVRTests(FlowFileTest):
 
         # we should have played a recording from the contact back to them
         media_msg = messages[2]
-        self.assertTrue(media_msg.media.startswith('audio:https://'))
-        self.assertTrue(media_msg.media.endswith('.wav'))
+        self.assertTrue(media_msg.media.startswith('audio/x-wav:https://'))
 
-        filename = media_msg.media.rpartition('/')[2]
+        (host, directory, filename) = media_msg.media.rsplit('/', 2)
         recording = '%s/%s/%s/media/%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR,
-                                              self.org.pk, flow.uuid, filename)
+                                              self.org.pk, directory, filename)
         self.assertTrue(os.path.isfile(recording))
 
         from temba.flows.models import FlowStep
@@ -265,7 +268,11 @@ class IVRTests(FlowFileTest):
         # now pretend we got a recording
         from temba.tests import MockResponse
         with patch('requests.get') as response:
-            response.return_value = MockResponse(200, 'Fake Recording Bits')
+            mock = MockResponse(200, 'Fake Recording Bits')
+            mock.add_header('Content-Disposition', 'filename="audio0000.wav"')
+            mock.add_header('Content-Type', 'audio/x-wav')
+            response.return_value = mock
+
             self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
                              dict(CallStatus='in-progress', Digits='#',
                                   RecordingUrl='http://api.twilio.com/ASID/Recordings/SID', RecordingSid='FAKESID'))

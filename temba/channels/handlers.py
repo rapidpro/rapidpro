@@ -150,20 +150,14 @@ class TwilioHandler(View):
 
             body = request.POST['Body']
 
-            # process any attached media, we will append these to our body
-            media = list()
+            # process any attached media
             for i in range(int(request.POST.get('NumMedia', 0))):
-                media.append((request.POST['MediaUrl%d' % i], request.POST['MediaContentType%d'] % i))
+                media_url = client.download_media(request.POST['MediaUrl%d' % i])
+                path = media_url.partition(':')[2]
+                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), path, media=media_url)
 
-            if media:
-                # add a newline if there is a text message as well
-                if body:
-                    body += '\n'
-
-                # Add each media URL, with newlines separating them
-                body += '\n'.join(media)
-
-            Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), body)
+            if body:
+                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), body)
 
             return HttpResponse("", status=201)
 

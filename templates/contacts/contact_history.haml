@@ -2,22 +2,22 @@
 
 -for item in activity
 
-
   %tr.item{data-created:'{{item.created_on|date:"U.u"}}', class:'msg_{{item.msg_type}} {%if item.media|slice:":6" == "video:" %}video{%endif%} {% if item.created_on > recent_date%}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
-
-    -with media_type=item.media|media_type media_url=item.media|media_url
+    -with media_type=item.media|media_type media_content_type=item.media|media_content_type media_url=item.media|media_url
 
       %td.icon
-
         -if item.media
           -if media_type == 'audio'
-            .recording{onClick:'playMessage("{{item.pk}}");'}
-              %audio{id:'message-{{item.pk}}', type:"audio/wav", src:'{{item.media|slice:"6:"}}'}
-              .play
-                .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
-              .stop.hide
-                .icon-nav-channels-inverted
 
+            -if media_content_type|is_content_type:'wav'
+              .recording{onClick:'playMessage("{{item.pk}}");'}
+                %audio{id:'message-{{item.pk}}', type:"{{media_content_type}}", src:'{{media_url}}'}
+                .play
+                  .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+                .stop.hide
+                  .icon-nav-channels-inverted
+            -else
+              .icon-phone.greyed
           -else
             %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
             -if media_type == 'geo'
@@ -136,14 +136,14 @@
 
               .activity-body
                 .text
-                  -if item.media and item.media|slice:':6' == 'audio:'
+                  -if item.media and media_type == 'audio'
                     .left-recording
                       -if message.direction == 'O'
-                        -trans "Played a recording"
+                        -trans "Listend to a recording"
                       -else
-                        -trans "Made a recording"
+                        -trans "Audio recording"
 
-                      (<a href="{{item.media|slice:'6:'}}" download>download</a>)
+                      (<a href="{{media_url}}" download>download</a>)
 
                   -else
                     {{message.text}}

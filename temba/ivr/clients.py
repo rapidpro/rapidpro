@@ -1,9 +1,13 @@
 from __future__ import unicode_literals
 
 import json
+import re
 import requests
 
+
 from django.conf import settings
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, TEL_SCHEME
@@ -19,6 +23,11 @@ class IVRException(Exception):
 
 
 class TwilioClient(TwilioRestClient):
+
+    def __init__(self, account, token, org=None, **kwargs):
+        self.org = org
+        super(TwilioClient, self).__init__(account=account, token=token, **kwargs)
+
     def start_call(self, call, to, from_, status_callback):
 
         try:
@@ -42,6 +51,31 @@ class TwilioClient(TwilioRestClient):
         base_url = settings.TEMBA_HOST
         url = "https://%s%s" % (base_url, request.get_full_path())
         return validator.validate(url, request.POST, signature)
+
+    def download_media(self, media_url):
+        """
+        Fetches the recording and stores it with the provided recording_id
+        :param media_url: the url where the media lives
+        :return: the url for our downloaded media with full content type prefix
+        """
+        response = requests.get(media_url, stream=True, auth=self.auth)
+        disposition = response.headers.get('Content-Disposition', None)
+        content_type = response.headers.get('Content-Type', None)
+
+        if content_type:
+            extension = None
+
+            if disposition:
+                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                extension = filename.rpartition('.')[2]
+
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
+
+        return None
 
 
 class VerboiceClient:

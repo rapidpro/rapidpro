@@ -4459,30 +4459,53 @@ class TwilioTest(TembaTest):
                                               APPLICATION_SID: self.application_sid})
         self.channel.org.save()
 
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_receive_mms(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Test",
-                         NumMedia='1', MediaUrl0='https://yourimage.io/IMPOSSIBLE-HASH')
+                         NumMedia='1', MediaUrl0='https://yourimage.io/IMPOSSIBLE-HASH',
+                         MediaContentType0='audio/x-wav')
+
         twilio_url = reverse('handlers.twilio_handler')
 
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-        self.assertEquals(201, response.status_code)
+        with patch('requests.get') as response:
+            mock = MockResponse(200, 'Fake Recording Bits')
+            mock.add_header('Content-Disposition', 'filename="audio0000.wav"')
+            mock.add_header('Content-Type', 'audio/x-wav')
+            response.return_value = mock
+            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+            self.assertEquals(201, response.status_code)
 
-        msg = Msg.all_messages.get()
-        self.assertEquals('Test\nhttps://yourimage.io/IMPOSSIBLE-HASH', msg.text)
+        # we should have two messages, one for the text, the other for the media
+        msgs = Msg.all_messages.all().order_by('-created_on')
+        self.assertEqual(2, msgs.count())
+        self.assertEqual('Test', msgs[0].text)
+        self.assertIsNone(msgs[0].media)
+        self.assertTrue(msgs[1].media.startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msgs[1].media.endswith('.wav'))
 
         Msg.all_messages.all().delete()
 
         # try with no message body
-        post_data['Body'] = ''
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+        with patch('requests.get') as response:
+            mock = MockResponse(200, 'Fake Recording Bits')
+            mock.add_header('Content-Disposition', 'filename="audio0000.wav"')
+            mock.add_header('Content-Type', 'audio/x-wav')
+            response.return_value = mock
 
+            post_data['Body'] = ''
+            signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        # jsut a single message this time
         msg = Msg.all_messages.get()
-        self.assertEquals('https://yourimage.io/IMPOSSIBLE-HASH', msg.text)
+        self.assertTrue(msg.media.startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msg.media.endswith('.wav'))
 
     def test_receive(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
