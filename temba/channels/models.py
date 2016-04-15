@@ -1626,17 +1626,29 @@ class Channel(TembaModel):
     def send_vumi_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
         from temba.contacts.models import Contact
+        # channel.config['transport_name'] = 'mtech_ng_smpp_transport'
+        #
+        # payload = dict(message_id=msg.id,
+        #                in_reply_to=None,
+        #                session_event=None,
+        #                to_addr=msg.urn_path,
+        #                from_addr=channel.address,
+        #                content=text,
+        #                transport_name=channel.config['transport_name'],
+        #                transport_type='sms',
+        #                transport_metadata={},
+        #                helper_metadata={})
 
-        channel.config['transport_name'] = 'mtech_ng_smpp_transport'
+        channel.config['transport_name'] = 'ussd_transport'
 
         payload = dict(message_id=msg.id,
                        in_reply_to=None,
-                       session_event=None,
+                       session_event="resume",
                        to_addr=msg.urn_path,
                        from_addr=channel.address,
                        content=text,
                        transport_name=channel.config['transport_name'],
-                       transport_type='sms',
+                       transport_type='ussd',
                        transport_metadata={},
                        helper_metadata={})
 
@@ -1645,7 +1657,8 @@ class Channel(TembaModel):
         headers = dict(TEMBA_HEADERS)
         headers['content-type'] = 'application/json'
 
-        url = 'https://go.vumi.org/api/v1/go/http_api_nostream/%s/messages.json' % channel.config['conversation_key']
+        # url = 'https://go.vumi.org/api/v1/go/http_api_nostream/%s/messages.json' % channel.config['conversation_key']
+        url = 'http://localhost:8008/api/v1/go/http_api_nostream/%s/messages.json' % channel.config['conversation_key']
         start = time.time()
 
         try:
