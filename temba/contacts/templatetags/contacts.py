@@ -92,12 +92,18 @@ def location(geo_url):
 @register.filter
 def media_url(media):
     if media:
+        # TODO: remove after migration msgs.0053
+        if media.startswith('http'):
+            return media
         return media.partition(':')[2]
 
 
 @register.filter
 def media_content_type(media):
     if media:
+        # TODO: remove after migration msgs.0053
+        if media.startswith('http'):
+            return 'audio/x-wav'
         return media.partition(':')[0]
 
 

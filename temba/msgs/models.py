@@ -902,10 +902,22 @@ class Msg(models.Model):
             return parts
 
     def get_media_path(self):
-        if self.media and ':' in self.media:
-            return self.media.split(':', 1)[1]
+
+        if self.media:
+            # TODO: remove after migration msgs.0053
+            if self.media.startswith('http'):
+                return self.media
+
+            if ':' in self.media:
+                return self.media.split(':', 1)[1]
 
     def get_media_type(self):
+
+        if self.media:
+            # TODO: remove after migration msgs.0053
+            if self.media.startswith('http'):
+                return 'audio'
+
         if self.media and ':' in self.media:
             return self.media.split(':', 1)[0].split('/', 1)[0]
 
