@@ -260,7 +260,7 @@ class ChannelTest(TembaTest):
         contact2 = self.create_contact("contact2", "+250788333444")
         contact3 = self.create_contact("contact3", "+18006927753")
 
-        self.tel_channel.ensure_normalized_contacts()
+        self.org.normalize_contact_tels()
 
         norm_c1 = Contact.objects.get(pk=contact1.pk)
         norm_c2 = Contact.objects.get(pk=contact2.pk)
@@ -832,6 +832,10 @@ class ChannelTest(TembaTest):
                                                                "Sweden, United Kingdom or United States")
 
     def test_register_and_claim_android(self):
+        # remove our explicit country so it needs to be derived from channels
+        self.org.country = None
+        self.org.save()
+
         Channel.objects.all().delete()
 
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
@@ -1021,14 +1025,14 @@ class ChannelTest(TembaTest):
 
         # re-register device with country as US
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM222", uuid='uuid'),
-                              dict(cmd='status', cc='US', dev="Nexus 5")])
+                              dict(cmd='status', cc='US', dev="Nexus 5X")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
         # channel country and device updated
         android2.refresh_from_db()
         self.assertEqual(android2.country, 'US')
-        self.assertEqual(android2.device, "Nexus 5")
+        self.assertEqual(android2.device, "Nexus 5X")
         self.assertEqual(android2.org, self.org)
         self.assertEqual(android2.gcm_id, "GCM222")
         self.assertEqual(android2.uuid, "uuid")
@@ -1038,17 +1042,60 @@ class ChannelTest(TembaTest):
         android2.country = 'RW'
         android2.save()
 
+        # our country is RW
+        self.assertEqual(self.org.get_country_code(), 'RW')
+
+        # remove nexmo
+        nexmo.release()
+
+        self.assertEqual(self.org.get_country_code(), 'RW')
+
         # register another device with country as US
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM333", uuid='uuid'),
-                              dict(cmd='status', cc='US', dev="Nexus 5")])
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM444", uuid='uuid4'),
+                              dict(cmd='status', cc='US', dev="Nexus 6P")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
 
         claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
 
         # try to claim it...
-        response = self.client.post(reverse('channels.channel_claim_android'),
-                                    dict(claim_code=claim_code, phone_number="0788382382"))
-        self.assertFormError(response, 'form', 'claim_code', "Sorry, you can only add numbers for the same country (RW)")
+        self.client.post(reverse('channels.channel_claim_android'), dict(claim_code=claim_code, phone_number="12065551212"))
+
+        # should work, can have two channels in different countries
+        channel = Channel.objects.get(country='US')
+        self.assertEqual(channel.address, '+12065551212')
+
+        self.assertEqual(Channel.objects.filter(org=self.org, is_active=True).count(), 2)
+
+        # normalize a URN with a fully qualified number
+        number, valid = ContactURN.normalize_number('+12061112222', None)
+        self.assertTrue(valid)
+
+        # not international format
+        number, valid = ContactURN.normalize_number('0788383383', None)
+        self.assertFalse(valid)
+
+        # get our send channel without a URN, should just default to last
+        default_channel = self.org.get_send_channel(TEL_SCHEME)
+        self.assertEqual(default_channel, channel)
+
+        # get our send channel for a Rwandan urn
+        rwanda_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.get_or_create(self.org, TEL_SCHEME, '+250788383383'))
+        self.assertEqual(rwanda_channel, android2)
+
+        # and a US one
+        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.get_or_create(self.org, TEL_SCHEME, '+12065555353'))
+        self.assertEqual(us_channel, channel)
+
+        # a different country altogether should just give us the default
+        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.get_or_create(self.org, TEL_SCHEME, '+593997290044'))
+        self.assertEqual(us_channel, channel)
+        self.assertIsNone(self.org.get_country_code())
+
+        # yet another registration in rwanda
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM555", uuid='uuid5'),
+                              dict(cmd='status', cc='RW', dev="Nexus 5")])
+        response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
+        claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
 
         # try to claim it with number taken by other Android channel
         response = self.client.post(reverse('channels.channel_claim_android'),
@@ -2961,7 +3008,7 @@ class VerboiceTest(TembaTest):
 
         contact = self.create_contact('Bruno Mars', '+252788123123')
 
-        call = IVRCall.create_outgoing(self.channel, contact.pk, None, self.admin)
+        call = IVRCall.create_outgoing(self.channel, contact, contact.get_urn(TEL_SCHEME), None, self.admin)
         call.external_id = "12345"
         call.save()
 
