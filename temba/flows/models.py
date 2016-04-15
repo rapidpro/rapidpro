@@ -725,6 +725,17 @@ class Flow(TembaModel):
         return dict(handled=True, destination=destination, step=step)
 
     @classmethod
+    def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
+        action = UssdAction.from_ruleset(ruleset)
+        msgs = action.execute(run, ruleset.uuid, msg)
+
+        # sync our channels to trigger any messages if we have any
+        if msgs:
+            run.flow.org.trigger_send(msgs)
+
+        return dict(handled=True, destination=None, step=step)
+
+    @classmethod
     def apply_action_label(cls, user, flows, label, add):
         return label.toggle_label(flows, add)
 
