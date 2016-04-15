@@ -416,7 +416,7 @@
                 -blocktrans
                   Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs.
 
-    -if False
+    -if True
       .claim-row.infobip-channel
         .recommendation.hide
           %h3
@@ -476,7 +476,7 @@
                 -blocktrans
                   Use a <a href="http://verboice.instedd.org">Verboice</a> connection to leverage in-country SIP connections for building voice (IVR) flows.
 
-    -if False
+    -if True
       .claim-row.vumi-channel
         .recommendation.hide
           %h3
@@ -495,6 +495,26 @@
               %div
                 -blocktrans
                   Easily connect your <a href="http://vumi.com/">Vumi</a> account to take advantage of two way texting across different mediums.
+
+    -if True
+      .claim-row.vumi-ussd-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using Vumi USSD to connect a USSD code in your country, select this option to configure your channel.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_vumi_ussd' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Vumi USSD"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily connect your <a href="http://go.vumi.org/">Vumi</a> account to take advantage of two way texting across different mediums.
 
     .claim-row.external-channel
       .row
