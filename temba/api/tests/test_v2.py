@@ -53,10 +53,11 @@ class APITest(TembaTest):
 
         return self.client.get(url, HTTP_X_FORWARDED_HTTPS='https')
 
-    def fetchJSON(self, url, query=None):
-        url += '.json'
-        if query:
-            url += ('?' + query)
+    def fetchJSON(self, url, query=None, raw_url=False):
+        if not raw_url:
+            url += '.json'
+            if query:
+                url += ('?' + query)
 
         response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
 
@@ -178,36 +179,30 @@ class APITest(TembaTest):
         self.assertNotContains(response, "Log in to use the Explorer")
 
     def test_pagination(self):
-        url = reverse('api.v2.runs')
+        url = reverse('api.v2.runs') + '.json'
         self.login(self.admin)
 
-        # create 600 test runs
+        # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
         flow = self.create_flow(uuid_start=0)
-        runs = [FlowRun.create(flow, self.joe.pk) for r in range(600)]
+        runs = [FlowRun.create(flow, self.joe.pk) for r in range(1255)]
+        runs = list(reversed(runs))
 
         # give them all the same modified_on
         FlowRun.objects.all().update(modified_on=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
 
-        # fetch first full page
-        response = self.fetchJSON(url)
+        # fetch all full pages
+        response = None
+        for p in range(5):
+            response = self.fetchJSON(url if p == 0 else response.json['next'], raw_url=True)
 
-        self.assertEqual(len(response.json['results']), 250)
-        self.assertEqual(response.json['results'][0]['id'], runs[-1].pk)
-        self.assertEqual(response.json['results'][1]['id'], runs[-2].pk)
-        self.assertTrue(response.json['next'])
+            self.assertResultsById(response, [runs[p * 250 + i] for i in range(250)])
+            self.assertIsNotNone(response.json['next'])
 
-        # fetch second full page
-        response = self.fetchJSON(response.json['next'])
+        # fetch final partial page
+        response = self.fetchJSON(response.json['next'], raw_url=True)
 
-        self.assertEqual(len(response.json['results']), 250)
-        self.assertEqual(response.json['results'][0]['id'], runs[-251].pk)
-        self.assertTrue(response.json['next'])
-
-        # fetch remaining partial page
-        response = self.fetchJSON(response.json['next'])
-
-        self.assertEqual(len(response.json['results']), 100)
-        self.assertEqual(response.json['results'][0]['id'], runs[-501].pk)
+        self.assertEqual(len(response.json['results']), 5)
+        self.assertResultsById(response, [runs[1250], runs[1251], runs[1252], runs[1253], runs[1254]])
         self.assertIsNone(response.json['next'])
 
     def test_broadcasts(self):

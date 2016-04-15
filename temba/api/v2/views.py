@@ -4,7 +4,6 @@ from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from rest_framework import generics, mixins, status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -21,7 +20,7 @@ from .serializers import (
     MsgReadSerializer
 )
 from ..models import ApiPermission, SSLPermission
-from ..support import InvalidQueryError
+from ..support import InvalidQueryError, CustomCursorPagination
 
 
 @api_view(['GET'])
@@ -83,11 +82,11 @@ class ApiExplorerView(SmartTemplateView):
         return context
 
 
-class CreatedOnCursorPagination(CursorPagination):
+class CreatedOnCursorPagination(CustomCursorPagination):
     ordering = ('-created_on', '-pk')
 
 
-class ModifiedOnCursorPagination(CursorPagination):
+class ModifiedOnCursorPagination(CustomCursorPagination):
     ordering = ('-modified_on', '-pk')
 
 
@@ -764,7 +763,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
-    class Pagination(CursorPagination):
+    class Pagination(CustomCursorPagination):
         """
         Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
         at all incoming messages.
