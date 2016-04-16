@@ -4491,7 +4491,6 @@ class TwilioTest(TembaTest):
         self.assertTrue(msgs[1].text.startswith('https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msgs[1].text.endswith('.wav'))
 
-
         Msg.all_messages.all().delete()
 
         # try with no message body
@@ -5110,53 +5109,229 @@ class TelegramTest(TembaTest):
         self.assertEquals("Hello World", msg1.text)
         self.assertEqual(msg1.contact.name, 'Nic Pottier')
 
-        # now try sending a sticker which we don't accept
-        data = """
-          {
-            "update_id": 174114373,
-            "message": {
-              "message_id": 44,
-              "from": {
-                "id": 3527065,
-                "first_name": "Nic",
-                "last_name": "Pottier"
+        def test_file_message(data, file_path, content_type, extension):
+
+            Msg.all_messages.all().delete()
+
+            with patch('requests.post') as post:
+                with patch('requests.get') as get:
+
+                    post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
+                    get.return_value = MockResponse(200, "Fake image bits", headers={"Content-Type": content_type})
+
+                    response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+                    self.assertEquals(200, response.status_code)
+
+                    # should have a media message now with an image
+                    msgs = Msg.all_messages.all().order_by('-created_on')
+                    self.assertEqual(msgs.count(), 1)
+
+                    self.assertTrue(msgs[0].media.startswith('%s:https://' % content_type))
+                    self.assertTrue(msgs[0].media.endswith(extension))
+
+                    self.assertTrue(msgs[0].text.startswith('https://'))
+                    self.assertTrue(msgs[0].text.endswith(extension))
+
+        # stickers are allowed
+        sticker_data = """
+        {
+          "update_id":174114373,
+          "message":{
+            "message_id":44,
+            "from":{
+              "id":3527065,
+              "first_name":"Nic",
+              "last_name":"Pottier"
+            },
+            "chat":{
+              "id":3527065,
+              "first_name":"Nic",
+              "last_name":"Pottier",
+              "type":"private"
+            },
+            "date":1454119668,
+            "sticker":{
+              "width":436,
+              "height":512,
+              "thumb":{
+                "file_id":"AAQDABNW--sqAAS6easb1s1rNdJYAAIC",
+                "file_size":2510,
+                "width":77,
+                "height":90
               },
-              "chat": {
-                "id": 3527065,
-                "first_name": "Nic",
-                "last_name": "Pottier",
-                "type": "private"
-              },
-              "date": 1454119668,
-              "sticker": {
-                "width": 436,
-                "height": 512,
-                "thumb": {
-                  "file_id": "AAQDABNW--sqAAS6easb1s1rNdJYAAIC",
-                  "file_size": 2510,
-                  "width": 77,
-                  "height": 90
-                },
-                "file_id": "BQADAwADRQADyIsGAAHtBskMy6GoLAI",
-                "file_size": 38440
-              }
+              "file_id":"BQADAwADRQADyIsGAAHtBskMy6GoLAI",
+              "file_size":38440
             }
           }
+        }
         """
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path='file/image.webp'))))
-            mock.return_value.headers = {"Content-Type": "image/webp"}
+        photo_data = """
+        {
+          "update_id":414383172,
+          "message":{
+            "message_id":52,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460845907,
+            "photo":[
+              {
+                "file_id":"AgADAwADJKsxGwTofQF_vVnL5P2C2P8AAewqAARQoXPLPaJRfrgPAQABAg",
+                "file_size":1527,
+                "width":90,
+                "height":67
+              },
+              {
+                "file_id":"AgADAwADJKsxGwTofQF_vVnL5P2C2P8AAewqAATfgqvLofrK17kPAQABAg",
+                "file_size":21793,
+                "width":320,
+                "height":240
+              },
+              {
+                "file_id":"AgADAwADJKsxGwTofQF_vVnL5P2C2P8AAewqAAQn6a6fBlz_KLcPAQABAg",
+                "file_size":104602,
+                "width":800,
+                "height":600
+              },
+              {
+                "file_id":"AgADAwADJKsxGwTofQF_vVnL5P2C2P8AAewqAARtnUHeihUe-LYPAQABAg",
+                "file_size":193145,
+                "width":1280,
+                "height":960
+              }
+            ]
+          }
+        }
+        """
 
-            response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
-            self.assertEquals(200, response.status_code)
+        video_data = """
+        {
+          "update_id":414383173,
+          "message":{
+            "message_id":54,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460848768,
+            "video":{
+              "duration":5,
+              "width":640,
+              "height":360,
+              "thumb":{
+                "file_id":"AAQDABNaEOwqAATL2L1LaefkMyccAAIC",
+                "file_size":1903,
+                "width":90,
+                "height":50
+              },
+              "file_id":"BAADAwADbgADBOh9ARFryoDddM4bAg",
+              "file_size":368568
+            }
+          }
+        }
+        """
 
-            # should have a media message now with an image
-            msgs = Msg.all_messages.all().order_by('-created_on')
-            self.assertEqual(msgs.count(), 2)
+        audio_data = """
+        {
+          "update_id":414383174,
+          "message":{
+            "message_id":55,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460849148,
+            "voice":{
+              "duration":2,
+              "mime_type":"audio\/ogg",
+              "file_id":"AwADAwADbwADBOh9AYp70sKPJ09pAg",
+              "file_size":7748
+            }
+          }
+        }
+        """
 
-            #self.assertTrue(msgs[0].media.startswith('image/webp:https://'))
-            #self.assertTrue(msgs[0].text.startswith('https://'))
+        test_file_message(sticker_data, 'file/image.webp', "image/webp", "webp")
+        test_file_message(photo_data, 'file/image.jpg', "image/jpeg", "jpg")
+        test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4")
+        test_file_message(video_data, 'file/audio.oga', "audio/ogg", "oga")
+
+        location_data = """
+        {
+          "update_id":414383175,
+          "message":{
+            "message_id":56,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460849460,
+            "location":{
+              "latitude":-2.910574,
+              "longitude":-79.000239
+            },
+            "venue":{
+              "location":{
+                "latitude":-2.910574,
+                "longitude":-79.000239
+              },
+              "title":"Fogo Mar",
+              "address":"Av. Paucarbamba",
+              "foursquare_id":"55033319498eed335779a701"
+            }
+          }
+        }
+        """
+
+        # with patch('requests.post') as post:
+        # post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
+        Msg.all_messages.all().delete()
+        response = self.client.post(receive_url, location_data, content_type='application/json', post_data=location_data)
+        self.assertEquals(200, response.status_code)
+
+        # should have a media message now with an image
+        msgs = Msg.all_messages.all().order_by('-created_on')
+        self.assertEqual(msgs.count(), 1)
+        self.assertTrue(msgs[0].media.startswith('geo:'))
+        self.assertTrue('Fogo Mar' in msgs[0].text)
 
     def test_send(self):
         joe = self.create_contact("Ernie", urn=(TELEGRAM_SCHEME, '1234'))

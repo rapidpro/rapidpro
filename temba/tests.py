@@ -580,11 +580,13 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
 
 class MockResponse(object):
 
-    def __init__(self, status_code, text, method='GET', url='http://foo.com/'):
+    def __init__(self, status_code, text, method='GET', url='http://foo.com/', headers=None):
         self.text = text
         self.content = text
         self.status_code = status_code
-        self.headers = {}
+
+        if headers:
+            self.headers = headers
 
         # mock up a request object on our response as well
         self.request = dict_to_struct('MockRequest', dict(method=method, url=url))

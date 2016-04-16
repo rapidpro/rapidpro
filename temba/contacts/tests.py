@@ -1236,7 +1236,7 @@ class ContactTest(TembaTest):
 
         # valid
         media = 'geo:47.5414799,-122.6359908'
-        self.assertEqual('http://www.openstreetmap.org/#map=17/47.5414799/-122.6359908', osm_link(media))
+        self.assertEqual('http://www.openstreetmap.org/?mlat=47.5414799&mlon=-122.6359908#map=18/47.5414799/-122.6359908', osm_link(media))
         self.assertEqual('47.5414799,-122.6359908', location(media))
 
         # splitting the type and path
