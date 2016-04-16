@@ -267,8 +267,9 @@ class CallsEndpoint(ListAPIMixin, BaseAPIView):
      * **type** - the type of call (one of "in", "missed-in", "out", "missed-out").
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **channel** - the UUID and name of the channel that handled this call (object).
-     * **created_on** - when this message was either received by the channel or created (datetime), filterable as `before` and `after`.
-     * **duration** - the duration of the call in seconds (int, 0 for missed calls)
+     * **time** - when this call happened on the device (datetime).
+     * **duration** - the duration of the call in seconds (int, 0 for missed calls).
+     * **created_on** - when this call was created (datetime), filterable as `before` and `after`.
 
     Example:
 
@@ -285,8 +286,9 @@ class CallsEndpoint(ListAPIMixin, BaseAPIView):
                 "type": "in"
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
-                "created_on": "2013-02-27T09:06:15",
+                "time": "2013-02-27T09:06:12.123"
                 "duration": 606,
+                "created_on": "2013-02-27T09:06:15.456"
             },
             ...
 
@@ -332,6 +334,7 @@ class CallsEndpoint(ListAPIMixin, BaseAPIView):
             'request': "",
             'fields': [
                 {'name': "id", 'required': False, 'help': "A call ID to filter by. ex: 12345"},
+                {'name': "contact", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
             ]
         }
 
@@ -348,6 +351,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
      * **address** - the address (e.g. phone number, Twitter handle) of the channel (string), filterable as `address`.
      * **country** - which country the sim card for this channel is registered for (string, two letter country code).
      * **device** - information about the device if this is an Android channel:
+        * **name** - the name of the device (string).
         * **power_level** - the power level of the device (int).
         * **power_status** - the power status, either ```STATUS_DISCHARGING``` or ```STATUS_CHARGING``` (string).
         * **power_source** - the source of power as reported by Android (string).
@@ -412,6 +416,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
             'request': "",
             'fields': [
                 {'name': "uuid", 'required': False, 'help': "A channel UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+                {'name': "address", 'required': False, 'help': "A channel address to filter by. ex: +250783530001"},
             ]
         }
 
