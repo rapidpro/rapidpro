@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
-from temba.channels.models import Channel
+from temba.channels.models import Channel, SEND
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
@@ -1369,14 +1369,17 @@ class FlowRunStartSerializer(WriteSerializer):
             raise serializers.ValidationError("Cannot start flows by phone for anonymous organizations")
 
         if value:
-            # get a channel
-            channel = self.org.get_send_channel(TEL_SCHEME)
+            # check that we have some way of sending messages
+            channel = self.org.get_channel_for_role(SEND, TEL_SCHEME)
+
+            # get our country
+            country = self.org.get_country_code()
 
             if channel:
                 # check our numbers for validity
                 for tel, phone in value:
                     try:
-                        normalized = phonenumbers.parse(phone, channel.country.code)
+                        normalized = phonenumbers.parse(phone, country)
                         if not phonenumbers.is_possible_number(normalized):
                             raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
                     except:
@@ -1405,10 +1408,9 @@ class FlowRunStartSerializer(WriteSerializer):
         # include contacts created/matched via deprecated phone field
         phone_urns = self.validated_data.get('phone', [])
         if phone_urns:
-            channel = self.org.get_send_channel(TEL_SCHEME)
             for urn in phone_urns:
                 # treat each URN as separate contact
-                self.contact_objs.append(Contact.get_or_create(channel.org, self.user, urns=[urn]))
+                self.contact_objs.append(Contact.get_or_create(self.org, self.user, urns=[urn]))
 
         try:
             # if we only have one contact and it is a test contact, then set simulation to true so our flow starts
@@ -1489,8 +1491,7 @@ class BroadcastCreateSerializer(WriteSerializer):
         urn_tuples = []
         if value:
             # if we have tel URNs, we may need a country to normalize by
-            tel_sender = self.org.get_send_channel(TEL_SCHEME)
-            country = tel_sender.country if tel_sender else None
+            country = self.org.get_country_code()
 
             for urn in value:
                 try:
@@ -1585,8 +1586,7 @@ class MsgCreateSerializer(WriteSerializer):
         urn_tuples = []
         if value:
             # if we have tel URNs, we may need a country to normalize by
-            tel_sender = self.org.get_send_channel(TEL_SCHEME)
-            country = tel_sender.country if tel_sender else None
+            country = self.org.get_country_code()
 
             for urn in value:
                 try:
