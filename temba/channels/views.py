@@ -36,7 +36,7 @@ from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
 from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
-from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN
+from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN, FACEBOOK
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX
 from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, CHIKKA, AUTH_TOKEN
@@ -52,7 +52,8 @@ RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       PLIVO: "icon-channel-plivo",
                       CLICKATELL: "icon-channel-clickatell",
                       TWITTER: "icon-twitter",
-                      TELEGRAM: "icon-telegram"}
+                      TELEGRAM: "icon-telegram",
+                      FACEBOOK: "icon-facebook-official"}
 
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
 SESSION_TWITTER_SECRET = 'twitter_oauth_token_secret'
