@@ -264,18 +264,13 @@ class Channel(TembaModel):
         if 'uuid' not in create_args:
             create_args['uuid'] = generate_uuid()
 
-        return cls.objects.create(**create_args)
+        channel = cls.objects.create(**create_args)
 
-    @classmethod
-    def derive_country_from_phone(cls, phone, country=None):
-        """
-        Given a phone number in E164 returns the two letter country code for it.  ex: +250788383383 -> RW
-        """
-        try:
-            parsed = phonenumbers.parse(phone, country)
-            return phonenumbers.region_code_for_number(parsed)
-        except Exception:
-            return None
+        # normalize any telephone numbers that we may now have a clue as to country
+        if org:
+            org.normalize_contact_tels()
+
+        return channel
 
     @classmethod
     def add_telegram_channel(cls, org, user, auth_token):
@@ -674,12 +669,6 @@ class Channel(TembaModel):
             return self.org.get_verboice_client()
         return None
 
-    def ensure_normalized_contacts(self):
-        from temba.contacts.models import ContactURN
-        urns = ContactURN.objects.filter(org=self.org, path__startswith="+")
-        for urn in urns:
-            urn.ensure_number_normalization(self)
-
     def supports_ivr(self):
         return CALL in self.role or ANSWER in self.role
 
@@ -866,8 +855,10 @@ class Channel(TembaModel):
         """
         Claims this channel for the given org/user
         """
+        from temba.contacts.models import ContactURN
+
         if not self.country:
-            self.country = Channel.derive_country_from_phone(phone)
+            self.country = ContactURN.derive_country_from_tel(phone)
 
         self.alert_email = user.email
         self.org = org
@@ -875,6 +866,8 @@ class Channel(TembaModel):
         self.claim_code = None
         self.address = phone
         self.save()
+
+        org.normalize_contact_tels()
 
     def release(self, trigger_sync=True, notify_mage=True):
         """
