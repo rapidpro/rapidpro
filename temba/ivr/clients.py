@@ -64,10 +64,11 @@ class TwilioClient(TwilioRestClient):
 
         if content_type:
             extension = None
-
             if disposition:
                 filename = re.findall("filename=\"(.+)\"", disposition)[0]
                 extension = filename.rpartition('.')[2]
+            elif content_type == 'audio/x-wav':
+                extension = 'wav'
 
             temp = NamedTemporaryFile(delete=True)
             temp.write(response.content)

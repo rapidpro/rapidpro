@@ -1516,7 +1516,7 @@ class ChannelTest(TembaTest):
                 response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
                 self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
 
-                contact = self.create_contact('Telgram User', urn=(TELEGRAM_SCHEME, '1234'))
+                contact = self.create_contact('Telegram User', urn=(TELEGRAM_SCHEME, '1234'))
 
                 # make sure we our telegram channel satisfies as a send channel
                 self.login(self.admin)
@@ -4487,6 +4487,11 @@ class TwilioTest(TembaTest):
         self.assertTrue(msgs[1].media.startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msgs[1].media.endswith('.wav'))
 
+        # text should have the url (without the content type)
+        self.assertTrue(msgs[1].text.startswith('https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msgs[1].text.endswith('.wav'))
+
+
         Msg.all_messages.all().delete()
 
         # try with no message body
@@ -5138,11 +5143,20 @@ class TelegramTest(TembaTest):
             }
           }
         """
-        response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
-        self.assertEquals(200, response.status_code)
 
-        # read my lips, no new message
-        self.assertEqual(Msg.all_messages.all().count(), 1)
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path='file/image.webp'))))
+            mock.return_value.headers = {"Content-Type": "image/webp"}
+
+            response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+            self.assertEquals(200, response.status_code)
+
+            # should have a media message now with an image
+            msgs = Msg.all_messages.all().order_by('-created_on')
+            self.assertEqual(msgs.count(), 2)
+
+            #self.assertTrue(msgs[0].media.startswith('image/webp:https://'))
+            #self.assertTrue(msgs[0].text.startswith('https://'))
 
     def test_send(self):
         joe = self.create_contact("Ernie", urn=(TELEGRAM_SCHEME, '1234'))

@@ -84,7 +84,6 @@ class IVRTests(FlowFileTest):
         from temba.tests import MockResponse
         with patch('requests.get') as response:
             mock = MockResponse(200, 'Fake Recording Bits')
-            mock.add_header('Content-Disposition', 'filename="audio0000.wav"')
             mock.add_header('Content-Type', 'audio/x-wav')
             response.return_value = mock
 
@@ -111,8 +110,17 @@ class IVRTests(FlowFileTest):
         self.assertEquals(4, self.org.get_credits_used())
 
         # we should have played a recording from the contact back to them
+        outbound_msg = messages[1]
+        self.assertTrue(outbound_msg.media.startswith('audio/x-wav:https://'))
+        self.assertTrue(outbound_msg.media.endswith('.wav'))
+        self.assertTrue(outbound_msg.text.startswith('https://'))
+        self.assertTrue(outbound_msg.text.endswith('.wav'))
+
         media_msg = messages[2]
         self.assertTrue(media_msg.media.startswith('audio/x-wav:https://'))
+        self.assertTrue(media_msg.media.endswith('.wav'))
+        self.assertTrue(media_msg.text.startswith('https://'))
+        self.assertTrue(media_msg.text.endswith('.wav'))
 
         (host, directory, filename) = media_msg.media.rsplit('/', 2)
         recording = '%s/%s/%s/media/%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR,

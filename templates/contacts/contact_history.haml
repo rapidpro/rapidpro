@@ -8,8 +8,7 @@
       %td.icon
         -if item.media
           -if media_type == 'audio'
-
-            -if media_content_type|is_content_type:'wav'
+            -if media_content_type|is_supported_audio
               .recording{onClick:'playMessage("{{item.pk}}");'}
                 %audio{id:'message-{{item.pk}}', type:"{{media_content_type}}", src:'{{media_url}}'}
                 .play
@@ -25,7 +24,10 @@
             -elif media_type == 'image'
               .glyph.icon-photo_camera.user.boost
             -elif media_type == 'video'
-              .glyph.icon-videocam.user.user.boost
+              .glyph.icon-videocam.user.boost
+            -elif item.media|is_document
+              .glyph.icon-docs.user.boost
+
         -else
           %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
             -if not user_org.is_anon or perms.contacts.contact_break_anon
@@ -123,12 +125,15 @@
                 }}, function(){
                 }));
 
+        -elif item.media|is_document
+          .activity-message
+            .activity-body
+              {{media_url|extension|upper}} document (<a href="{{media_url}}" download>download</a>)
         -else
           -with item as message
 
             .activity-message
               -if message.direction == 'O'
-
                 -if message.broadcast.recipient_count > 1
                   .sent-to
                     .summary

@@ -459,8 +459,8 @@ class Flow(TembaModel):
         if text or media_url:
 
             # we don't have text for media, so lets use the media value there too
-            if media_url:
-                text = media_url
+            if media_url and ':' in media_url:
+                text = media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
                                       text, status=HANDLED, msg_type=IVR, media=media_url)
@@ -2982,6 +2982,7 @@ class FlowRun(models.Model):
         media = None
         if recording_url:
             media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
+            text = recording_url
 
         print 'Creating outgoing ivr'
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,

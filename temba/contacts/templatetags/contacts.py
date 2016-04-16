@@ -79,7 +79,7 @@ def osm_link(geo_url):
     coords = location.split(',')
     if len(coords) == 2:
         (lat, lng) = coords
-        return 'http://www.openstreetmap.org/#map=17/%s/%s' % (lat, lng)
+        return 'http://www.openstreetmap.org/?mlat=%(lat)s&mlon=%(lng)s#map=18/%(lat)s/%(lng)s' % {"lat": lat, "lng": lng}
 
 
 @register.filter
@@ -109,17 +109,28 @@ def media_content_type(media):
 
 @register.filter
 def media_type(media):
-    media_type = media_content_type(media)
-    if media_type and '/' in media_type:
-        media_type = media_type.split('/')[0]
-    return media_type
+    type = media_content_type(media)
+    if type == 'application/octet-stream' and media.endswith('.oga'):
+        return 'audio'
+    if type and '/' in type:
+        type = type.split('/')[0]
+    return type
 
 
 @register.filter
-def is_content_type(content_type, type):
-    if type == 'wav':
-        return content_type in ['audio/wav', 'audio/x-wav', 'audio/vnd.wav']
-    return False
+def is_supported_audio(content_type):
+    return content_type in ['audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'application/octet-stream']
+
+
+@register.filter
+def is_document(media_url):
+    type = media_type(media_url)
+    return type in ['application', 'text']
+
+
+@register.filter
+def extension(url):
+    return url.rpartition('.')[2]
 
 
 @register.filter

@@ -919,7 +919,10 @@ class Msg(models.Model):
                 return 'audio'
 
         if self.media and ':' in self.media:
-            return self.media.split(':', 1)[0].split('/', 1)[0]
+            type = self.media.split(':', 1)[0]
+            if type == 'application/octet-stream':
+                return 'audio'
+            return type.split('/', 1)[0]
 
     def is_media_type_audio(self):
         return Msg.MEDIA_AUDIO == self.get_media_type()
