@@ -612,7 +612,7 @@ class Flow(TembaModel):
         # lookup our next destination
         handled = False
         while destination:
-            result = {handled: False}
+            result = {"handled": False}
 
             if destination.get_step_type() == RULE_SET:
                 should_pause = False
