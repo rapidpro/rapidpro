@@ -5330,7 +5330,7 @@ class TelegramTest(TembaTest):
         test_file_message(sticker_data, 'file/image.webp', "image/webp", "webp")
         test_file_message(photo_data, 'file/image.jpg', "image/jpeg", "jpg")
         test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4")
-        test_file_message(video_data, 'file/audio.oga', "audio/ogg", "oga")
+        test_file_message(audio_data, 'file/audio.oga', "audio/ogg", "oga")
 
         location_data = """
         {
