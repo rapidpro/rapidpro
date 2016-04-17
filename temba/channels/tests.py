@@ -3820,6 +3820,178 @@ class VumiTest(TembaTest):
             settings.SEND_MESSAGES = False
 
 
+class VumiUssdTest(TembaTest):
+
+    def setUp(self):
+        super(VumiUssdTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', VUMIUSSD, None, '+250788123123',
+                                      config=dict(account_key='vumi-key', access_token='vumi-token', conversation_key='key'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_receive(self):
+        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
+
+        response = self.client.get(callback_url)
+        self.assertEqual(response.status_code, 405)
+
+        response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
+        self.assertEqual(response.status_code, 404)
+
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="Hello from Vumi", transport_type='ussd')
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.all_messages.get()
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello from Vumi", msg.text)
+        self.assertEquals('123456', msg.external_id)
+
+    def test_send(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        reporters = self.create_group("Reporters", [joe])
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        message = bcast.get_messages()[0]
+        r = get_redis_connection()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', message.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("1515", msg.external_id)
+                self.assertEquals(1, mock.call_count)
+
+                # should have a failsafe that it was sent
+                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
+
+                # try sending again, our failsafe should kick in
+                Channel.send_message(dict_to_struct('MsgStruct', message.as_task_json()))
+
+                # we shouldn't have been called again
+                self.assertEquals(1, mock.call_count)
+
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_ack(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        reporters = self.create_group("Reporters", [joe])
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        message = bcast.get_messages()[0]
+        r = get_redis_connection()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', message.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("1515", msg.external_id)
+                self.assertEquals(1, mock.call_count)
+
+                # simulate Vumi calling back to us sending an ACK event
+                data = {
+                    "transport_name": "ussd_transport",
+                    "event_type": "ack",
+                    "event_id": unicode(uuid.uuid4()),
+                    "sent_message_id": unicode(uuid.uuid4()),
+                    "helper_metadata": {},
+                    "routing_metadata": {},
+                    "message_version": "20110921",
+                    "timestamp": unicode(timezone.now()),
+                    "transport_metadata": {},
+                    "user_message_id": msg.external_id,
+                    "message_type": "event"
+                }
+                callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
+                self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+                # it should be SENT now
+                msg = bcast.get_messages()[0]
+                self.assertEquals(SENT, msg.status)
+
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_nack(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        reporters = self.create_group("Reporters", [joe])
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        message = bcast.get_messages()[0]
+        r = get_redis_connection()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', message.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("1515", msg.external_id)
+                self.assertEquals(1, mock.call_count)
+
+                # should have a failsafe that it was sent
+                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
+
+                # simulate Vumi calling back to us sending an NACK event
+                data = {
+                    "transport_name": "ussd_transport",
+                    "event_type": "nack",
+                    "nack_reason": "Unknown address.",
+                    "event_id": unicode(uuid.uuid4()),
+                    "timestamp": unicode(timezone.now()),
+                    "message_version": "20110921",
+                    "transport_metadata": {},
+                    "user_message_id": msg.external_id,
+                    "message_type": "event"
+                }
+                callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
+                response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(self.create_contact("Joe", "+250788383383").is_failed)
+
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+
 class ZenviaTest(TembaTest):
 
     def setUp(self):
