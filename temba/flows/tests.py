@@ -2052,6 +2052,42 @@ class FlowTest(TembaTest):
         # now we should trigger the other flow as we are at our terminal flow
         self.assertTrue(Trigger.find_and_handle(other_incoming))
 
+    @patch('temba.flows.models.Flow.handle_ussd_ruleset_action',
+           return_value=dict(handled=True, destination=None, step=None))
+    def test_ussd_ruleset_sends_message(self, handle_ussd_ruleset_action):
+        # set flow to USSD
+        self.definition['flow_type'] = 'U'
+        # have a USSD ruleset
+        self.definition['rule_sets'][0]['ruleset_type'] = "wait_menu"
+        self.flow.update(self.definition)
+
+        # start flow
+        self.flow.start([], [self.contact])
+
+        self.assertTrue(handle_ussd_ruleset_action.called)
+        self.assertEqual(handle_ussd_ruleset_action.call_count, 1)
+
+    @patch('temba.flows.models.Flow.handle_ussd_ruleset_action',
+           return_value=dict(handled=True, destination=None, step=None))
+    def test_triggered_start_with_ussd(self, handle_ussd_ruleset_action):
+        # set flow to USSD
+        self.definition['flow_type'] = 'U'
+        # have a USSD ruleset
+        self.definition['rule_sets'][0]['ruleset_type'] = "wait_menu"
+        self.flow.update(self.definition)
+
+        # create a trigger
+        Trigger.objects.create(org=self.org, keyword='derp', flow=self.flow,
+                               created_by=self.admin, modified_by=self.admin)
+
+        # create an incoming message
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="derp")
+
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        self.assertTrue(handle_ussd_ruleset_action.called)
+        self.assertEqual(handle_ussd_ruleset_action.call_count, 1)
+
 
 class ActionTest(TembaTest):
 
