@@ -83,6 +83,9 @@
         if('{{has_outgoing_channel}}' == 'None') {
           modal.setPrimaryButton(gettext("Add Channel"));
           onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
+        } else if (window.ussd && !{{is_ussd_channel|yesno:"true,false"}}) {
+          modal.setPrimaryButton(gettext("Add USSD Channel"));
+          onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
         }
         modal.setListeners(onActions);
         modal.show();
