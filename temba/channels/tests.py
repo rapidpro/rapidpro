@@ -41,7 +41,7 @@ from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
-from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA
+from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA, VUMIUSSD
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
@@ -812,6 +812,33 @@ class ChannelTest(TembaTest):
         response = self.client.post("%s?signature=sig&ts=%d" % (reverse('sync', args=[self.tel_channel.pk]), ts), content_type='application/json')
         self.assertEquals(401, response.status_code)
         self.assertEquals(3, json.loads(response.content)['error_id'])
+
+    def test_is_ussd_channel(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        # add a non USSD channel
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
+                              dict(cmd='status', cc='RW', dev='Nexus')])
+
+        response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
+        self.assertEqual(200, response.status_code)
+
+        # add a USSD channel
+        post_data = {
+            "country": "ZA",
+            "number": "+273454325324",
+            "account_key": "account1",
+            "conversation_key": "conversation1",
+            "transport_name": ""
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
+        self.assertEqual(302, response.status_code)
+
+        self.assertEqual(Channel.objects.first().channel_type, VUMIUSSD)
+        self.assertTrue(Channel.objects.first().is_ussd())
+        self.assertFalse(Channel.objects.last().is_ussd())
 
     def test_claim(self):
         # no access for regular users
