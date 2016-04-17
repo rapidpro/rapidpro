@@ -1449,7 +1449,7 @@ class ChannelCRUDL(SmartCRUDL):
                                           help_text=_("Your Vumi account key as found under Account -> Details"))
             conversation_key = forms.CharField(label=_("Conversation Key"),
                                                help_text=_("The key for your Vumi conversation, can be found in the URL"))
-            transport_name = forms.CharField(label=_("Transport Name"),
+            transport_name = forms.CharField(label=_("Transport Name"), required=False,
                                              help_text=_("The name of the Vumi transport you will use to send and receive messages"))
 
         title = _("Connect Vumi")
