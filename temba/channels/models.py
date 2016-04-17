@@ -868,6 +868,9 @@ class Channel(TembaModel):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
 
+    def is_ussd(self):
+        return self.channel_type in USSD_CHANNELS
+
     def claim(self, org, user, phone):
         """
         Claims this channel for the given org/user
