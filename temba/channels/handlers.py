@@ -929,12 +929,16 @@ class VumiHandler(View):
             if not message:
                 return HttpResponse("Message with external id of '%s' not found" % external_id, status=404)
 
-            if status not in ('ack', 'delivery_report'):
-                return HttpResponse("Unknown status '%s', ignoring", status=200)
+            if status not in ('ack', 'nack', 'delivery_report'):
+                return HttpResponse("Unknown status '%s', ignoring" % status, status=200)
 
             # only update to SENT status if still in WIRED state
             if status == 'ack':
                 message.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=SENT)
+            if status == 'nack':
+                if body.get('nack_reason') == "Unknown address.":
+                    message[0].contact.fail(permanently=True)
+                # TODO: deal with other nack_reasons after VUMI hands them over
             elif status == 'delivery_report':
                 message = message.first()
                 if message:
@@ -973,10 +977,8 @@ class VumiHandler(View):
             # use an update so there is no race with our handling
             Msg.all_messages.filter(pk=message.id).update(external_id=body['message_id'])
 
-            # TODO: handle "session_event"
-            # session_event == "new"
-            # session_event == "close"
-            # TODO: handle "optout"
+            # TODO: handle "session_event" == "new" as USSD Trigger
+            # TODO: handle "session_event" == "close" as Interrupted state
 
             return HttpResponse("Message Accepted: %d" % message.id)
 
