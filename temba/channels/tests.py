@@ -260,7 +260,7 @@ class ChannelTest(TembaTest):
         contact2 = self.create_contact("contact2", "+250788333444")
         contact3 = self.create_contact("contact3", "+18006927753")
 
-        self.tel_channel.ensure_normalized_contacts()
+        self.org.normalize_contact_tels()
 
         norm_c1 = Contact.objects.get(pk=contact1.pk)
         norm_c2 = Contact.objects.get(pk=contact2.pk)
@@ -832,6 +832,10 @@ class ChannelTest(TembaTest):
                                                                "Sweden, United Kingdom or United States")
 
     def test_register_and_claim_android(self):
+        # remove our explicit country so it needs to be derived from channels
+        self.org.country = None
+        self.org.save()
+
         Channel.objects.all().delete()
 
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
@@ -1021,14 +1025,14 @@ class ChannelTest(TembaTest):
 
         # re-register device with country as US
         reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM222", uuid='uuid'),
-                              dict(cmd='status', cc='US', dev="Nexus 5")])
+                              dict(cmd='status', cc='US', dev="Nexus 5X")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
         self.assertEqual(response.status_code, 200)
 
         # channel country and device updated
         android2.refresh_from_db()
         self.assertEqual(android2.country, 'US')
-        self.assertEqual(android2.device, "Nexus 5")
+        self.assertEqual(android2.device, "Nexus 5X")
         self.assertEqual(android2.org, self.org)
         self.assertEqual(android2.gcm_id, "GCM222")
         self.assertEqual(android2.uuid, "uuid")
@@ -1038,17 +1042,60 @@ class ChannelTest(TembaTest):
         android2.country = 'RW'
         android2.save()
 
+        # our country is RW
+        self.assertEqual(self.org.get_country_code(), 'RW')
+
+        # remove nexmo
+        nexmo.release()
+
+        self.assertEqual(self.org.get_country_code(), 'RW')
+
         # register another device with country as US
-        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM333", uuid='uuid'),
-                              dict(cmd='status', cc='US', dev="Nexus 5")])
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM444", uuid='uuid4'),
+                              dict(cmd='status', cc='US', dev="Nexus 6P")])
         response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
 
         claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
 
         # try to claim it...
-        response = self.client.post(reverse('channels.channel_claim_android'),
-                                    dict(claim_code=claim_code, phone_number="0788382382"))
-        self.assertFormError(response, 'form', 'claim_code', "Sorry, you can only add numbers for the same country (RW)")
+        self.client.post(reverse('channels.channel_claim_android'), dict(claim_code=claim_code, phone_number="12065551212"))
+
+        # should work, can have two channels in different countries
+        channel = Channel.objects.get(country='US')
+        self.assertEqual(channel.address, '+12065551212')
+
+        self.assertEqual(Channel.objects.filter(org=self.org, is_active=True).count(), 2)
+
+        # normalize a URN with a fully qualified number
+        number, valid = ContactURN.normalize_number('+12061112222', None)
+        self.assertTrue(valid)
+
+        # not international format
+        number, valid = ContactURN.normalize_number('0788383383', None)
+        self.assertFalse(valid)
+
+        # get our send channel without a URN, should just default to last
+        default_channel = self.org.get_send_channel(TEL_SCHEME)
+        self.assertEqual(default_channel, channel)
+
+        # get our send channel for a Rwandan urn
+        rwanda_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.get_or_create(self.org, TEL_SCHEME, '+250788383383'))
+        self.assertEqual(rwanda_channel, android2)
+
+        # and a US one
+        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.get_or_create(self.org, TEL_SCHEME, '+12065555353'))
+        self.assertEqual(us_channel, channel)
+
+        # a different country altogether should just give us the default
+        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.get_or_create(self.org, TEL_SCHEME, '+593997290044'))
+        self.assertEqual(us_channel, channel)
+        self.assertIsNone(self.org.get_country_code())
+
+        # yet another registration in rwanda
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM555", uuid='uuid5'),
+                              dict(cmd='status', cc='RW', dev="Nexus 5")])
+        response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
+        claim_code = json.loads(response.content)['cmds'][0]['relayer_claim_code']
 
         # try to claim it with number taken by other Android channel
         response = self.client.post(reverse('channels.channel_claim_android'),
@@ -1516,7 +1563,7 @@ class ChannelTest(TembaTest):
                 response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
                 self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
 
-                contact = self.create_contact('Telgram User', urn=(TELEGRAM_SCHEME, '1234'))
+                contact = self.create_contact('Telegram User', urn=(TELEGRAM_SCHEME, '1234'))
 
                 # make sure we our telegram channel satisfies as a send channel
                 self.login(self.admin)
@@ -2961,7 +3008,7 @@ class VerboiceTest(TembaTest):
 
         contact = self.create_contact('Bruno Mars', '+252788123123')
 
-        call = IVRCall.create_outgoing(self.channel, contact.pk, None, self.admin)
+        call = IVRCall.create_outgoing(self.channel, contact, contact.get_urn(TEL_SCHEME), None, self.admin)
         call.external_id = "12345"
         call.save()
 
@@ -4457,30 +4504,57 @@ class TwilioTest(TembaTest):
                                               APPLICATION_SID: self.application_sid})
         self.channel.org.save()
 
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_receive_mms(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Test",
-                         NumMedia='1', MediaUrl0='https://yourimage.io/IMPOSSIBLE-HASH')
+                         NumMedia='1', MediaUrl0='https://yourimage.io/IMPOSSIBLE-HASH',
+                         MediaContentType0='audio/x-wav')
+
         twilio_url = reverse('handlers.twilio_handler')
 
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-        self.assertEquals(201, response.status_code)
+        with patch('requests.get') as response:
+            mock = MockResponse(200, 'Fake Recording Bits')
+            mock.add_header('Content-Disposition', 'filename="audio0000.wav"')
+            mock.add_header('Content-Type', 'audio/x-wav')
+            response.return_value = mock
+            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+            self.assertEquals(201, response.status_code)
 
-        msg = Msg.all_messages.get()
-        self.assertEquals('Test\nhttps://yourimage.io/IMPOSSIBLE-HASH', msg.text)
+        # we should have two messages, one for the text, the other for the media
+        msgs = Msg.all_messages.all().order_by('-created_on')
+        self.assertEqual(2, msgs.count())
+        self.assertEqual('Test', msgs[0].text)
+        self.assertIsNone(msgs[0].media)
+        self.assertTrue(msgs[1].media.startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msgs[1].media.endswith('.wav'))
+
+        # text should have the url (without the content type)
+        self.assertTrue(msgs[1].text.startswith('https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msgs[1].text.endswith('.wav'))
 
         Msg.all_messages.all().delete()
 
         # try with no message body
-        post_data['Body'] = ''
-        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+        with patch('requests.get') as response:
+            mock = MockResponse(200, 'Fake Recording Bits')
+            mock.add_header('Content-Disposition', 'filename="audio0000.wav"')
+            mock.add_header('Content-Type', 'audio/x-wav')
+            response.return_value = mock
 
+            post_data['Body'] = ''
+            signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        # jsut a single message this time
         msg = Msg.all_messages.get()
-        self.assertEquals('https://yourimage.io/IMPOSSIBLE-HASH', msg.text)
+        self.assertTrue(msg.media.startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msg.media.endswith('.wav'))
 
     def test_receive(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
@@ -5082,44 +5156,229 @@ class TelegramTest(TembaTest):
         self.assertEquals("Hello World", msg1.text)
         self.assertEqual(msg1.contact.name, 'Nic Pottier')
 
-        # now try sending a sticker which we don't accept
-        data = """
-          {
-            "update_id": 174114373,
-            "message": {
-              "message_id": 44,
-              "from": {
-                "id": 3527065,
-                "first_name": "Nic",
-                "last_name": "Pottier"
+        def test_file_message(data, file_path, content_type, extension):
+
+            Msg.all_messages.all().delete()
+
+            with patch('requests.post') as post:
+                with patch('requests.get') as get:
+
+                    post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
+                    get.return_value = MockResponse(200, "Fake image bits", headers={"Content-Type": content_type})
+
+                    response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+                    self.assertEquals(200, response.status_code)
+
+                    # should have a media message now with an image
+                    msgs = Msg.all_messages.all().order_by('-created_on')
+                    self.assertEqual(msgs.count(), 1)
+
+                    self.assertTrue(msgs[0].media.startswith('%s:https://' % content_type))
+                    self.assertTrue(msgs[0].media.endswith(extension))
+
+                    self.assertTrue(msgs[0].text.startswith('https://'))
+                    self.assertTrue(msgs[0].text.endswith(extension))
+
+        # stickers are allowed
+        sticker_data = """
+        {
+          "update_id":174114373,
+          "message":{
+            "message_id":44,
+            "from":{
+              "id":3527065,
+              "first_name":"Nic",
+              "last_name":"Pottier"
+            },
+            "chat":{
+              "id":3527065,
+              "first_name":"Nic",
+              "last_name":"Pottier",
+              "type":"private"
+            },
+            "date":1454119668,
+            "sticker":{
+              "width":436,
+              "height":512,
+              "thumb":{
+                "file_id":"AAQDABNW--sqAAS6easb1s1rNdJYAAIC",
+                "file_size":2510,
+                "width":77,
+                "height":90
               },
-              "chat": {
-                "id": 3527065,
-                "first_name": "Nic",
-                "last_name": "Pottier",
-                "type": "private"
-              },
-              "date": 1454119668,
-              "sticker": {
-                "width": 436,
-                "height": 512,
-                "thumb": {
-                  "file_id": "AAQDABNW--sqAAS6easb1s1rNdJYAAIC",
-                  "file_size": 2510,
-                  "width": 77,
-                  "height": 90
-                },
-                "file_id": "BQADAwADRQADyIsGAAHtBskMy6GoLAI",
-                "file_size": 38440
-              }
+              "file_id":"BQADAwADRQADyIsGAAHtBskMy6GoLAI",
+              "file_size":38440
             }
           }
+        }
         """
-        response = self.client.post(receive_url, data, content_type='application/json', post_data=data)
+
+        photo_data = """
+        {
+          "update_id":414383172,
+          "message":{
+            "message_id":52,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460845907,
+            "photo":[
+              {
+                "file_id":"AgADAwADJKsxGwTofQF_vVnL5P2C2P8AAewqAARQoXPLPaJRfrgPAQABAg",
+                "file_size":1527,
+                "width":90,
+                "height":67
+              },
+              {
+                "file_id":"AgADAwADJKsxGwTofQF_vVnL5P2C2P8AAewqAATfgqvLofrK17kPAQABAg",
+                "file_size":21793,
+                "width":320,
+                "height":240
+              },
+              {
+                "file_id":"AgADAwADJKsxGwTofQF_vVnL5P2C2P8AAewqAAQn6a6fBlz_KLcPAQABAg",
+                "file_size":104602,
+                "width":800,
+                "height":600
+              },
+              {
+                "file_id":"AgADAwADJKsxGwTofQF_vVnL5P2C2P8AAewqAARtnUHeihUe-LYPAQABAg",
+                "file_size":193145,
+                "width":1280,
+                "height":960
+              }
+            ]
+          }
+        }
+        """
+
+        video_data = """
+        {
+          "update_id":414383173,
+          "message":{
+            "message_id":54,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460848768,
+            "video":{
+              "duration":5,
+              "width":640,
+              "height":360,
+              "thumb":{
+                "file_id":"AAQDABNaEOwqAATL2L1LaefkMyccAAIC",
+                "file_size":1903,
+                "width":90,
+                "height":50
+              },
+              "file_id":"BAADAwADbgADBOh9ARFryoDddM4bAg",
+              "file_size":368568
+            }
+          }
+        }
+        """
+
+        audio_data = """
+        {
+          "update_id":414383174,
+          "message":{
+            "message_id":55,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460849148,
+            "voice":{
+              "duration":2,
+              "mime_type":"audio\/ogg",
+              "file_id":"AwADAwADbwADBOh9AYp70sKPJ09pAg",
+              "file_size":7748
+            }
+          }
+        }
+        """
+
+        test_file_message(sticker_data, 'file/image.webp', "image/webp", "webp")
+        test_file_message(photo_data, 'file/image.jpg', "image/jpeg", "jpg")
+        test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4")
+        test_file_message(audio_data, 'file/audio.oga', "audio/ogg", "oga")
+
+        location_data = """
+        {
+          "update_id":414383175,
+          "message":{
+            "message_id":56,
+            "from":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn"
+            },
+            "chat":{
+              "id":25028612,
+              "first_name":"Eric",
+              "last_name":"Newcomer",
+              "username":"ericn",
+              "type":"private"
+            },
+            "date":1460849460,
+            "location":{
+              "latitude":-2.910574,
+              "longitude":-79.000239
+            },
+            "venue":{
+              "location":{
+                "latitude":-2.910574,
+                "longitude":-79.000239
+              },
+              "title":"Fogo Mar",
+              "address":"Av. Paucarbamba",
+              "foursquare_id":"55033319498eed335779a701"
+            }
+          }
+        }
+        """
+
+        # with patch('requests.post') as post:
+        # post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
+        Msg.all_messages.all().delete()
+        response = self.client.post(receive_url, location_data, content_type='application/json', post_data=location_data)
         self.assertEquals(200, response.status_code)
 
-        # read my lips, no new message
-        self.assertEqual(Msg.all_messages.all().count(), 1)
+        # should have a media message now with an image
+        msgs = Msg.all_messages.all().order_by('-created_on')
+        self.assertEqual(msgs.count(), 1)
+        self.assertTrue(msgs[0].media.startswith('geo:'))
+        self.assertTrue('Fogo Mar' in msgs[0].text)
 
     def test_send(self):
         joe = self.create_contact("Ernie", urn=(TELEGRAM_SCHEME, '1234'))

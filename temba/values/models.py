@@ -43,6 +43,16 @@ class Value(models.Model):
 
     TYPE_CHOICES = [(c[0], c[1]) for c in TYPE_CONFIG]
 
+    GPS = 'G'
+    AUDIO = 'A'
+    VIDEO = 'V'
+    IMAGE = 'I'
+
+    MEDIA_TYPES = ((GPS, _("GPS Coordinates")),
+                   (VIDEO, _("Video")),
+                   (AUDIO, _("Audio")),
+                   (IMAGE, _("Image")))
+
     contact = models.ForeignKey('contacts.Contact', related_name='values')
 
     contact_field = models.ForeignKey('contacts.ContactField', null=True, on_delete=models.SET_NULL,
@@ -70,8 +80,7 @@ class Value(models.Model):
     location_value = models.ForeignKey(AdminBoundary, on_delete=models.SET_NULL, null=True,
                                        help_text="The location value of this value if any.")
 
-    recording_value = models.TextField(max_length=640, null=True,
-                                       help_text="The recording url if any.")
+    media_value = models.TextField(max_length=640, null=True, help_text="The media value if any.")
 
     org = models.ForeignKey(Org)
 

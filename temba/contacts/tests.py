@@ -14,7 +14,7 @@ from mock import patch
 from smartmin.models import SmartImportRowError
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
-from temba.contacts.templatetags.contacts import contact_field
+from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -1226,6 +1226,23 @@ class ContactTest(TembaTest):
         msg.broadcast.recipient_count = 5
         self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
 
+    def test_media_tags(self):
+
+        # malformed
+        self.assertEqual(None, location('malformed'))
+        self.assertEqual(None, location('geo:latlngs'))
+        self.assertEqual(None, osm_link('malformed'))
+        self.assertEqual(None, osm_link('geo:latlngs'))
+
+        # valid
+        media = 'geo:47.5414799,-122.6359908'
+        self.assertEqual('http://www.openstreetmap.org/?mlat=47.5414799&mlon=-122.6359908#map=18/47.5414799/-122.6359908', osm_link(media))
+        self.assertEqual('47.5414799,-122.6359908', location(media))
+
+        # splitting the type and path
+        self.assertEqual('geo', media_type(media))
+        self.assertEqual('47.5414799,-122.6359908', media_url(media))
+
     def test_get_scheduled_messages(self):
         self.just_joe = self.create_group("Just Joe", [self.joe])
 
@@ -1363,10 +1380,10 @@ class ContactTest(TembaTest):
         self.login(self.manager1)
 
         # create kLab group, and add joe to the group
-        kLab = self.create_group("kLab", [self.joe])
+        klab = self.create_group("kLab", [self.joe])
 
         # post to read url, joe's contact and kLab group
-        post_data = dict(contact=self.joe.id, group=kLab.id)
+        post_data = dict(contact=self.joe.id, group=klab.id)
         response = self.client.post(read_url, post_data, follow=True)
 
         # this manager cannot operate on this organization

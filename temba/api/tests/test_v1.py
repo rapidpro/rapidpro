@@ -552,6 +552,102 @@ class APITest(TembaTest):
         # check flow activity
         self.assertEqual(flow.get_activity(), ({flow.entry_uuid: 1}, {}))
 
+    def test_api_steps_media(self):
+        url = reverse('api.v1.steps')
+
+        # login as surveyor
+        self.login(self.surveyor)
+
+        flow = self.get_flow('media-survey')
+
+        rulesets = RuleSet.objects.filter(flow=flow).order_by('y')
+        ruleset_name = rulesets[0]
+        ruleset_location = rulesets[1]
+        ruleset_photo = rulesets[2]
+        ruleset_video = rulesets[3]
+
+        data = dict(
+            flow=flow.uuid,
+            revision=1,
+            contact=self.joe.uuid,
+            started='2015-08-25T11:09:29.088Z',
+            submitted_by=self.admin.username,
+            steps=[
+
+                # the contact name
+                dict(node=ruleset_name.uuid,
+                     arrived_on='2015-08-25T11:11:30.000Z',
+                     rule=dict(uuid=ruleset_name.get_rules()[0].uuid,
+                               value="Marshawn",
+                               category="All Responses",
+                               text="Marshawn")),
+
+                # location ruleset
+                dict(node=ruleset_location.uuid,
+                     arrived_on='2015-08-25T11:12:30.000Z',
+                     rule=dict(uuid=ruleset_location.get_rules()[0].uuid,
+                               category="All Responses",
+                               media="geo:47.7579804,-121.0821648")),
+
+                # a picture of steve
+                dict(node=ruleset_photo.uuid,
+                     arrived_on='2015-08-25T11:13:30.000Z',
+                     rule=dict(uuid=ruleset_photo.get_rules()[0].uuid,
+                               category="All Responses",
+                               media="image/jpeg:http://testserver/media/steve.jpg")),
+
+                # a video
+                dict(node=ruleset_video.uuid,
+                     arrived_on='2015-08-25T11:13:30.000Z',
+                     rule=dict(uuid=ruleset_video.get_rules()[0].uuid,
+                               category="All Responses",
+                               media="video/mp4:http://testserver/media/snow.mp4")),
+            ],
+            completed=False)
+
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
+
+            # first try posting without an encoding on the media type
+            data['steps'][3]['rule']['media'] = 'video:http://testserver/media/snow.mp4'
+            response = self.postJSON(url, data)
+            self.assertEqual(400, response.status_code)
+            error = json.loads(response.content)['non_field_errors'][0]
+            self.assertEqual("Invalid media type 'video': video:http://testserver/media/snow.mp4", error)
+
+            # now update the video to an unrecognized type
+            data['steps'][3]['rule']['media'] = 'unknown/mp4:http://testserver/media/snow.mp4'
+            response = self.postJSON(url, data)
+            self.assertEqual(400, response.status_code)
+            error = json.loads(response.content)['non_field_errors'][0]
+            self.assertEqual("Invalid media type 'unknown': unknown/mp4:http://testserver/media/snow.mp4", error)
+
+            # finally do a valid media
+            data['steps'][3]['rule']['media'] = 'video/mp4:http://testserver/media/snow.mp4'
+            response = self.postJSON(url, data)
+            self.assertEqual(201, response.status_code)
+
+        from temba.flows.models import FlowStep
+        run = FlowRun.objects.get(flow=flow)
+        self.assertEqual(4, FlowStep.objects.filter(run=run).count())
+
+        # check our gps coordinates showed up properly, sooouie.
+        step = FlowStep.objects.filter(step_uuid=ruleset_location.uuid).first()
+        msg = step.messages.all().first()
+        self.assertEqual('47.7579804,-121.0821648', msg.text)
+        self.assertEqual('geo:47.7579804,-121.0821648', msg.media)
+
+        step = FlowStep.objects.filter(step_uuid=ruleset_photo.uuid).first()
+        msg = step.messages.all().first()
+        self.assertTrue(msg.media.startswith('image/jpeg:http'))
+        self.assertTrue(msg.media.endswith('.jpg'))
+        self.assertTrue(msg.is_media_type_image())
+
+        step = FlowStep.objects.filter(step_uuid=ruleset_video.uuid).first()
+        msg = step.messages.all().first()
+        self.assertTrue(msg.media.startswith('video/mp4:http'))
+        self.assertTrue(msg.media.endswith('.mp4'))
+        self.assertTrue(msg.is_media_type_video())
+
     def test_api_steps(self):
         url = reverse('api.v1.steps')
 
@@ -698,7 +794,7 @@ class APITest(TembaTest):
         self.assertEqual(value.decimal_value, None)
         self.assertEqual(value.datetime_value, None)
         self.assertEqual(value.location_value, None)
-        self.assertEqual(value.recording_value, None)
+        self.assertEqual(value.media_value, None)
         self.assertEqual(value.category, 'Orange')
 
         step1_msgs = list(steps[1].messages.order_by('pk'))

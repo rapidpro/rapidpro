@@ -863,7 +863,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Editor, self).get_context_data(*args, **kwargs)
 
-            context['recording_url'] = 'https://%s/' % settings.AWS_BUCKET_DOMAIN
+            context['media_url'] = 'https://%s/' % settings.AWS_BUCKET_DOMAIN
 
             # are there pending starts?
             starting = False
@@ -1262,11 +1262,27 @@ class FlowCRUDL(SmartCRUDL):
                 flow.start([], [test_contact], restart_participants=True)
 
             # try to create message
-            if 'new_message' in json_dict:
+            new_message = json_dict.get('new_message', '')
+            media = None
+
+            from temba.settings import TEMBA_HOST, STATIC_URL
+            media_url = 'http://%s%simages' % (TEMBA_HOST, STATIC_URL)
+
+            if 'new_photo' in json_dict:
+                media = '%s/png:%s/simulator_photo.png' % (Msg.MEDIA_IMAGE, media_url)
+            elif 'new_gps' in json_dict:
+                media = '%s:47.6089533,-122.34177' % Msg.MEDIA_GPS
+            elif 'new_video' in json_dict:
+                media = '%s/mp4:%s/simulator_video.mp4' % (Msg.MEDIA_VIDEO, media_url)
+            elif 'new_audio' in json_dict:
+                media = '%s/mp4:%s/simulator_audio.m4a' % (Msg.MEDIA_AUDIO, media_url)
+
+            if new_message or media:
                 try:
                     Msg.create_incoming(None,
                                         (TEL_SCHEME, test_contact.get_urn(TEL_SCHEME).path),
-                                        json_dict['new_message'],
+                                        new_message,
+                                        media=media,
                                         org=user.get_org())
                 except Exception as e:
                     traceback.print_exc(e)
@@ -1284,10 +1300,16 @@ class FlowCRUDL(SmartCRUDL):
                     messages_json.append(msg.simulator_json())
 
             (active, visited) = flow.get_activity(simulation=True)
+            response = dict(messages=messages_json, activity=active, visited=visited)
 
-            return build_json_response(dict(status="success", description="Message sent to Flow",
-                                            messages=messages_json,
-                                            activity=active, visited=visited))
+            # if we are at a ruleset, include it's details
+            step = FlowStep.objects.filter(contact=test_contact, left_on=None).order_by('-arrived_on').first()
+            if step:
+                ruleset = RuleSet.objects.filter(uuid=step.step_uuid).first()
+                if ruleset:
+                    response['ruleset'] = ruleset.as_json()
+
+            return build_json_response(dict(status="success", description="Message sent to Flow", **response))
 
     class Json(OrgObjPermsMixin, SmartUpdateView):
         success_message = ''

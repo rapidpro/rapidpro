@@ -178,7 +178,16 @@ class FlowTest(TembaTest):
         # should be back to one valid flow
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_revisions', args=[self.flow.pk]))
-        self.assertEquals(1, len(json.loads(response.content)))
+        self.assertEqual(1, len(json.loads(response.content)))
+
+        # fetch that revision
+        revision_id = json.loads(response.content)[0]['id']
+        response = self.client.get('%s?definition=%s' % (reverse('flows.flow_revisions', args=[self.flow.pk]),
+                                                         revision_id))
+
+        # make sure we can read the definition
+        definition = json.loads(response.content)
+        self.assertEqual('base', definition['base_language'])
 
         # make the last revision even more invalid (missing ruleset)
         revision = revisions[0]
@@ -1396,13 +1405,13 @@ class FlowTest(TembaTest):
     def test_location_entry_test(self):
 
         self.country = AdminBoundary.objects.create(osm_id='192787', name='Nigeria', level=0)
-        Kano = AdminBoundary.objects.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
-        Lagos = AdminBoundary.objects.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
-        Ajingi = AdminBoundary.objects.create(osm_id='3710308', name='Ajingi', level=2, parent=Kano)
-        Bichi = AdminBoundary.objects.create(osm_id='3710307', name='Bichi', level=2, parent=Kano)
-        Apapa = AdminBoundary.objects.create(osm_id='3718187', name='Apapa', level=2, parent=Lagos)
-        BichiWard = AdminBoundary.objects.create(osm_id='3710377', name='Bichi', level=3, parent=Bichi)
-        AdminBoundary.objects.create(osm_id='3710378', name='Ajingi', level=3, parent=Ajingi)
+        kano = AdminBoundary.objects.create(osm_id='3710302', name='Kano', level=1, parent=self.country)
+        lagos = AdminBoundary.objects.create(osm_id='3718182', name='Lagos', level=1, parent=self.country)
+        ajingi = AdminBoundary.objects.create(osm_id='3710308', name='Ajingi', level=2, parent=kano)
+        bichi = AdminBoundary.objects.create(osm_id='3710307', name='Bichi', level=2, parent=kano)
+        apapa = AdminBoundary.objects.create(osm_id='3718187', name='Apapa', level=2, parent=lagos)
+        bichiward = AdminBoundary.objects.create(osm_id='3710377', name='Bichi', level=3, parent=bichi)
+        AdminBoundary.objects.create(osm_id='3710378', name='Ajingi', level=3, parent=ajingi)
         sms = self.create_msg(contact=self.contact, text="awesome text")
         self.sms = sms
         runs = FlowRun.objects.filter(contact=self.contact)
@@ -1420,19 +1429,19 @@ class FlowTest(TembaTest):
         self.assertEquals(lga_tuple[1], None)
 
         lga_tuple = HasDistrictTest('Lagos').evaluate(run, sms, context, 'apapa')
-        self.assertEquals(lga_tuple[1], Apapa)
+        self.assertEquals(lga_tuple[1], apapa)
 
         # get lga with out higher admin level
         lga_tuple = HasDistrictTest().evaluate(run, sms, context, 'apapa')
-        self.assertEquals(lga_tuple[1], Apapa)
+        self.assertEquals(lga_tuple[1], apapa)
 
         # get ward with out higher admin levels
         ward_tuple = HasWardTest().evaluate(run, sms, context, 'bichi')
-        self.assertEquals(ward_tuple[1], BichiWard)
+        self.assertEquals(ward_tuple[1], bichiward)
 
         # get with hierarchy proved
         ward_tuple = HasWardTest('Kano', 'Bichi').evaluate(run, sms, context, 'bichi')
-        self.assertEquals(ward_tuple[1], BichiWard)
+        self.assertEquals(ward_tuple[1], bichiward)
 
         # wrong admin level should return None if provided
         ward_tuple = HasWardTest('Kano', 'Ajingi').evaluate(run, sms, context, 'bichi')
@@ -1584,6 +1593,16 @@ class FlowTest(TembaTest):
         response = self.client.post(reverse('flows.flow_create'), post_data)
         self.assertTrue(response.context['form'].errors)
         self.assertTrue('The keyword "unique" is already used for another flow' in response.context['form'].errors['keyword_triggers'])
+
+        # create another trigger so there are two in the way
+        trigger = Trigger.objects.create(org=self.org, keyword='this', flow=flow1,
+                                         created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.post(reverse('flows.flow_create'), post_data)
+        self.assertTrue(response.context['form'].errors)
+        print response.context['form'].errors['keyword_triggers']
+        self.assertTrue('The keywords "this, unique" are already used for another flow' in response.context['form'].errors['keyword_triggers'])
+        trigger.delete()
 
         # create a new flow with keywords
         post_data = dict()
@@ -3038,7 +3057,7 @@ class SimulationTest(FlowFileTest):
         response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
         json_dict = json.loads(response.content)
 
-        self.assertEquals(len(json_dict.keys()), 5)
+        self.assertEquals(len(json_dict.keys()), 6)
         self.assertEquals(len(json_dict['messages']), 2)
         self.assertEquals('Ben Haggerty has entered the &quot;Pick a Number&quot; flow', json_dict['messages'][0]['text'])
         self.assertEquals("Pick a number between 1-10.", json_dict['messages'][1]['text'])
@@ -3242,23 +3261,23 @@ class FlowsTest(FlowFileTest):
         response = self.client.get('%s?flow=%d' % (reverse('flows.flow_completion'), flow.pk))
         response = json.loads(response.content)
 
-        def assertInResponse(response, data_key, key):
+        def assert_in_response(response, data_key, key):
             found = False
             for item in response[data_key]:
                 if key == item['name']:
                     found = True
             self.assertTrue(found, 'Key %s not found in %s' % (key, response))
 
-        assertInResponse(response, 'message_completions', 'contact')
-        assertInResponse(response, 'message_completions', 'contact.first_name')
-        assertInResponse(response, 'message_completions', 'flow.color')
-        assertInResponse(response, 'message_completions', 'flow.color.category')
-        assertInResponse(response, 'message_completions', 'flow.color.text')
-        assertInResponse(response, 'message_completions', 'flow.color.time')
+        assert_in_response(response, 'message_completions', 'contact')
+        assert_in_response(response, 'message_completions', 'contact.first_name')
+        assert_in_response(response, 'message_completions', 'flow.color')
+        assert_in_response(response, 'message_completions', 'flow.color.category')
+        assert_in_response(response, 'message_completions', 'flow.color.text')
+        assert_in_response(response, 'message_completions', 'flow.color.time')
 
-        assertInResponse(response, 'function_completions', 'SUM')
-        assertInResponse(response, 'function_completions', 'ABS')
-        assertInResponse(response, 'function_completions', 'YEAR')
+        assert_in_response(response, 'function_completions', 'SUM')
+        assert_in_response(response, 'function_completions', 'ABS')
+        assert_in_response(response, 'function_completions', 'YEAR')
 
     def test_bulk_exit(self):
         flow = self.get_flow('favorites')

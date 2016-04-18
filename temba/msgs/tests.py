@@ -621,6 +621,12 @@ class MsgTest(TembaTest):
         msg3 = Msg.create_incoming(self.channel, joe_urn, "hello 3")
         msg4 = Msg.create_incoming(None, None, "hello 4", org=self.org, contact=self.joe)  # like a surveyor message
 
+        # inbound message with media attached, such as an ivr recording
+        msg5 = Msg.create_incoming(self.channel, joe_urn, "Media message", media='audio:http://rapidpro.io/audio/sound.mp3')
+
+        self.assertTrue(msg5.is_media_type_audio())
+        self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
+
         # label first message
         label = Label.get_or_create(self.org, self.user, "label1")
         label.toggle_label([msg1], add=True)
@@ -645,12 +651,14 @@ class MsgTest(TembaTest):
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
-        self.assertEquals(sheet.nrows, 4)  # msg3 not included as it's archived
+        self.assertEquals(sheet.nrows, 5)  # msg3 not included as it's archived
 
         self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels"])
-        self.assertExcelRow(sheet, 1, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 2, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 3, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
+        self.assertExcelRow(sheet, 1, [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", ""], pytz.UTC)
+
+        self.assertExcelRow(sheet, 2, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 3, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 4, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
 
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
@@ -687,10 +695,11 @@ class MsgTest(TembaTest):
             workbook = open_workbook(filename, 'rb')
             sheet = workbook.sheets()[0]
 
-            self.assertEquals(sheet.nrows, 4)
-            self.assertExcelRow(sheet, 1, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 2, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 3, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
+            self.assertEquals(sheet.nrows, 5)
+            self.assertExcelRow(sheet, 1, [msg5.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", ""], pytz.UTC)
+            self.assertExcelRow(sheet, 2, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
+            self.assertExcelRow(sheet, 3, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
+            self.assertExcelRow(sheet, 4, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)

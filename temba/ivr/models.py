@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from smartmin.models import SmartModel
-from temba.contacts.models import Contact, TEL_SCHEME, ContactURN
+from temba.contacts.models import Contact, ContactURN
 from temba.flows.models import Flow, ActionLog, FlowRun
 from temba.channels.models import Channel
 from temba.orgs.models import Org
@@ -78,16 +78,7 @@ class IVRCall(SmartModel):
                                help_text=_("The call that triggered this one"))
 
     @classmethod
-    def create_outgoing(cls, channel, contact_id, flow, user, call_type=FLOW):
-        contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
-
-        if not contact:
-            raise ValueError("Invalid contact, cannot initiate call")
-
-        contact_urn = contact.get_urn(TEL_SCHEME)
-        if not contact_urn:
-            raise ValueError("Can't call contact with no tel URN")
-
+    def create_outgoing(cls, channel, contact, contact_urn, flow, user, call_type=FLOW):
         call = IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
                                       direction=OUTGOING, org=channel.org,
                                       created_by=user, modified_by=user, call_type=call_type)
@@ -151,6 +142,8 @@ class IVRCall(SmartModel):
                 client.start_call(self, to=tel, from_=self.channel.address, status_callback=url)
 
             except IVRException as e:
+                import traceback
+                traceback.print_exc()
                 self.status = FAILED
                 self.save()
                 if self.contact.is_test:

@@ -651,7 +651,7 @@ class Contact(TembaModel):
         Gets or creates the test contact for the given user
         """
         org = user.get_org()
-        test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user).first()
+        test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user, is_active=True).order_by('-created_on').first()
 
         # double check that our test contact has a valid URN, it may have been reassigned
         if test_contact:
@@ -1518,15 +1518,15 @@ class ContactURN(models.Model):
         # this must be a local number of some kind, just lowercase and save
         return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
 
-    def ensure_number_normalization(self, channel):
+    def ensure_number_normalization(self, country_code):
         """
         Tries to normalize our phone number from a possible 10 digit (0788 383 383) to a 12 digit number
         with country code (+250788383383) using the country we now know about the channel.
         """
         number = self.path
 
-        if number and not number[0] == '+' and channel.country:
-            (norm_number, valid) = ContactURN.normalize_number(number, channel.country.code)
+        if number and not number[0] == '+' and country_code:
+            (norm_number, valid) = ContactURN.normalize_number(number, country_code)
 
             # don't trounce existing contacts with that country code already
             norm_urn = ContactURN.format_urn(TEL_SCHEME, norm_number)
@@ -1536,6 +1536,17 @@ class ContactURN(models.Model):
                 self.save()
 
         return self
+
+    @classmethod
+    def derive_country_from_tel(cls, phone, country=None):
+        """
+        Given a phone number in E164 returns the two letter country code for it.  ex: +250788383383 -> RW
+        """
+        try:
+            parsed = phonenumbers.parse(phone, country)
+            return phonenumbers.region_code_for_number(parsed)
+        except Exception:
+            return None
 
     def get_display(self, org=None, full=False):
         """
