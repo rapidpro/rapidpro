@@ -1,12 +1,11 @@
 from __future__ import unicode_literals
 
-from django.test import TestCase
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
-from temba.orgs.models import Org
 from smartmin.tests import SmartminTest, _CRUDLTest
-from .models import *
+from .models import Lead, Video
 from .views import VideoCRUDL
+
 
 class PublicTest(SmartminTest):
 
@@ -40,8 +39,6 @@ class PublicTest(SmartminTest):
     def test_privacy(self):
         response = self.client.get(reverse('public.public_privacy'))
         self.assertContains(response, "Privacy")
-
-
 
     def test_welcome(self):
         welcome_url = reverse('public.public_welcome')

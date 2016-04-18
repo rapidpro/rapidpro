@@ -1,9 +1,9 @@
+from __future__ import unicode_literals
+
 import json
+
 from django.core.urlresolvers import reverse
-from django.contrib.auth.models import User, Group
-from smartmin.tests import SmartminTest, _CRUDLTest
 from models import Report
-from temba.orgs.models import Org
 from temba.tests import TembaTest
 
 
@@ -21,7 +21,7 @@ class ReportTest(TembaTest):
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.request['PATH_INFO'], reverse('flows.ruleset_analytics'))
 
-        response = self.client.post(create_url, {"title":"first report", "description":"some description", "config":"{}"})
+        response = self.client.post(create_url, {"title": "first report", "description": "some description", "config": "{}"})
         self.assertEquals(json.loads(response.content)['status'], "error")
         self.assertFalse('report' in json.loads(response.content))
 
@@ -30,18 +30,21 @@ class ReportTest(TembaTest):
         self.assertTrue('report' in json.loads(response.content))
         self.assertTrue('id' in json.loads(response.content)['report'])
         report = Report.objects.get()
-        self.assertEquals(report.pk , json.loads(response.content)['report']['id'])
+        self.assertEquals(report.pk, json.loads(response.content)['report']['id'])
 
     def test_report_model(self):
+        Report.create_report(self.org, self.admin, dict(title="first", description="blah blah text",
+                                                        config=dict(fields=[1, 2, 3])))
+        self.assertEqual(Report.objects.all().count(), 1)
 
-        Report.create_report(self.org, self.admin, dict(title="first", description="blah blah text", config=dict(fields=[1,2,3])))
-        self.assertEquals(Report.objects.all().count(), 1)
+        Report.create_report(self.org, self.admin, dict(title="second", description="yeah yeah yeah",
+                                                        config=dict(fields=[4, 5, 6])))
+        self.assertEqual(Report.objects.all().count(), 2)
 
-        Report.create_report(self.org, self.admin, dict(title="second", description="yeah yeah yeah", config=dict(fields=[4,5,6])))
-        self.assertEquals(Report.objects.all().count(), 2)
-
-        id = Report.objects.filter(title="first")[0].pk
-        Report.create_report(self.org, self.admin, dict(title="updated", description="yeah yeah yeahnew description", config=dict(fields=[8,4]), id=id))
-        self.assertEquals(Report.objects.all().count(), 2)
+        report_id = Report.objects.filter(title="first")[0].pk
+        Report.create_report(self.org, self.admin, dict(title="updated",
+                                                        description="yeah yeah yeahnew description",
+                                                        config=dict(fields=[8, 4]), id=report_id))
+        self.assertEqual(Report.objects.all().count(), 2)
         self.assertFalse(Report.objects.filter(title="first"))
-        self.assertEquals(id, Report.objects.get(title="updated").pk)
+        self.assertEqual(Report.objects.get(title="updated").pk, report_id)

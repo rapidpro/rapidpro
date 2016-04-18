@@ -8,9 +8,10 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactField
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN
 from temba.flows.models import Flow
-from temba.msgs.models import Label
+from temba.msgs.models import Broadcast, Label
+from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
 from ..v2.serializers import format_datetime
@@ -61,23 +62,23 @@ class APITest(TembaTest):
         response.json = json.loads(response.content)
         return response
 
-    def assertEndpointAccess(self, url):
+    def assertEndpointAccess(self, url, query=None):
         # 403 if not authenticated but can read docs
-        response = self.fetchHTML(url)
+        response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
         # same for plain user
         self.login(self.user)
-        response = self.fetchHTML(url)
+        response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
         # 403 for JSON request too
-        response = self.fetchJSON(url)
+        response = self.fetchJSON(url, query)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
         # 200 for administrator
         self.login(self.admin)
-        response = self.fetchHTML(url)
+        response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 200)
 
     def assertResultsById(self, response, expected):
@@ -174,6 +175,49 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "Log in to use the Explorer")
 
+    def test_broadcasts(self):
+        url = reverse('api.v2.broadcasts')
+
+        self.assertEndpointAccess(url)
+
+        reporters = self.create_group("Reporters", [self.joe, self.frank])
+
+        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", [self.frank.get_urn('twitter')])
+        bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", [self.joe])
+        bcast3 = Broadcast.create(self.org, self.admin, "Hello 3", [self.frank], status='S')
+        bcast4 = Broadcast.create(self.org, self.admin, "Hello 4",
+                                  [self.frank.get_urn('twitter'), self.joe, reporters], status='F')
+        Broadcast.create(self.org2, self.admin2, "Different org...", [self.hans])
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsById(response, [bcast4, bcast3, bcast2, bcast1])
+        self.assertEqual(response.json['results'][0], {
+            'id': bcast4.pk,
+            'urns': ["twitter:franky"],
+            'contacts': [{'uuid': self.joe.uuid, 'name': self.joe.name}],
+            'groups': [{'uuid': reporters.uuid, 'name': reporters.name}],
+            'text': "Hello 4",
+            'created_on': format_datetime(bcast4.created_on),
+            'status': "failed"
+        })
+
+        # filter by id
+        response = self.fetchJSON(url, 'id=%d' % bcast3.pk)
+        self.assertResultsById(response, [bcast3])
+
+        # filter by after
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(bcast3.created_on))
+        self.assertResultsById(response, [bcast4, bcast3])
+
+        # filter by before
+        response = self.fetchJSON(url, 'before=%s' % format_datetime(bcast2.created_on))
+        self.assertResultsById(response, [bcast2, bcast1])
+
     def test_contacts(self):
         url = reverse('api.v2.contacts')
 
@@ -197,6 +241,7 @@ class APITest(TembaTest):
         group.update_contacts(self.user, [contact1], add=True)  # ordering
 
         contact1.refresh_from_db()
+        self.joe.refresh_from_db()
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
@@ -238,6 +283,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'group=invalid')
         self.assertResultsByUUID(response, [])
 
+        # filter by before
+        response = self.fetchJSON(url, 'before=%s' % format_datetime(contact4.modified_on))
+        self.assertResultsByUUID(response, [contact4, self.frank])
+
+        # filter by after
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(self.joe.modified_on))
+        self.assertResultsByUUID(response, [contact1, self.joe])
+
     def test_fields(self):
         url = reverse('api.v2.fields')
 
@@ -274,7 +327,7 @@ class APITest(TembaTest):
         developers.update_contacts(self.admin, [self.frank], add=True)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -315,10 +368,35 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % feedback.uuid)
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
 
+    def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
+        self.assertEqual(msg_json, {
+            'id': msg.pk,
+            'broadcast': msg.broadcast,
+            'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
+            'urn': msg.contact_urn.urn,
+            'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name },
+            'direction': "in" if msg.direction == 'I' else "out",
+            'type': msg_type,
+            'status': msg_status,
+            'archived': msg.visibility == 'A',
+            'visibility': msg_visibility,
+            'text': msg.text,
+            'labels': [dict(name=l.name, uuid=l.uuid) for l in msg.labels.all()],
+            'created_on': format_datetime(msg.created_on),
+            'sent_on': format_datetime(msg.sent_on),
+            'modified_on': format_datetime(msg.modified_on)
+        })
+
     def test_messages(self):
         url = reverse('api.v2.messages')
 
-        self.assertEndpointAccess(url)
+        # make sure user rights are correct
+        self.assertEndpointAccess(url, "folder=inbox")
+
+        # make sure you have to pass in something to filter by
+        response = self.fetchJSON(url)
+        self.assertResponseError(response, None,
+                                 "You must specify one of the contact, folder, label, broadcast, id parameters")
 
         # create some messages
         joe_msg1 = self.create_msg(direction='I', msg_type='F', text="Howdy", contact=self.joe)
@@ -333,7 +411,7 @@ class APITest(TembaTest):
                                    status='S', channel=None, sent_on=timezone.now())
 
         # add a deleted message
-        self.create_msg(direction='I', msg_type='I', text="!@$!%", contact=self.frank, visibility='D')
+        deleted_msg = self.create_msg(direction='I', msg_type='I', text="!@$!%", contact=self.frank, visibility='D')
 
         # add a test contact message
         self.create_msg(direction='I', msg_type='F', text="Hello", contact=self.test_contact)
@@ -341,53 +419,33 @@ class APITest(TembaTest):
         # add message in other org
         self.create_msg(direction='I', msg_type='I', text="Guten tag!", contact=self.hans, org=self.org2)
 
-        # label some of the messages
+        # label some of the messages, this will change our modified on as well for our `incoming` view
         label = Label.get_or_create(self.org, self.admin, "Spam")
-        label.toggle_label([frank_msg1, joe_msg3], add=True)
 
-        # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
-            response = self.fetchJSON(url)
+        # we do this in two calls so that we can predict ordering later
+        label.toggle_label([frank_msg1], add=True)
+        label.toggle_label([joe_msg3], add=True)
+
+        frank_msg1.refresh_from_db(fields=['modified_on'])
+        joe_msg3.refresh_from_db(fields=['modified_on'])
+
+        # filter by inbox
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+            response = self.fetchJSON(url, 'folder=INBOX')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertResultsById(response, [joe_msg4, frank_msg3, joe_msg3, frank_msg2, joe_msg2, frank_msg1, joe_msg1])
-        self.assertEqual(response.json['results'][0], {
-            'id': joe_msg4.pk,
-            'broadcast': None,
-            'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
-            'urn': None,
-            'channel': None,
-            'direction': "out",
-            'type': "flow",
-            'status': "sent",
-            'archived': False,
-            'text': "Surveys!",
-            'labels': [],
-            'created_on': format_datetime(joe_msg4.created_on),
-            'sent_on': format_datetime(joe_msg4.sent_on),
-            'delivered_on': None
-        })
-        self.assertEqual(response.json['results'][5], {
-            'id': frank_msg1.pk,
-            'broadcast': None,
-            'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
-            'urn': "twitter:franky",
-            'channel': {'uuid': self.twitter.uuid, 'name': "Twitter Channel"},
-            'direction': "in",
-            'type': "inbox",
-            'status': "queued",
-            'archived': False,
-            'text': "Bonjour",
-            'labels': [{'uuid': label.uuid, 'name': "Spam"}],
-            'created_on': format_datetime(frank_msg1.created_on),
-            'sent_on': None,
-            'delivered_on': None
-        })
+        self.assertResultsById(response, [frank_msg1])
+        self.assertMsgEqual(response.json['results'][0], frank_msg1, msg_type='inbox', msg_status='queued', msg_visibility='visible')
 
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):  # filter by folder (inbox)
-            response = self.fetchJSON(url, 'folder=INBOX')
-            self.assertResultsById(response, [frank_msg1])
+        # filter by incoming, should get deleted messages too
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+            response = self.fetchJSON(url, 'folder=incoming')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsById(response, [joe_msg3, frank_msg1, deleted_msg, frank_msg3, joe_msg1])
+        self.assertMsgEqual(response.json['results'][0], joe_msg3, msg_type='flow', msg_status='queued', msg_visibility='visible')
 
         # filter by folder (flow)
         response = self.fetchJSON(url, 'folder=flows')
@@ -433,12 +491,54 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'label=invalid')
         self.assertResultsById(response, [])
 
+        # filter by before (inclusive)
+        response = self.fetchJSON(url, 'folder=incoming&before=%s' % format_datetime(frank_msg1.modified_on))
+        self.assertResultsById(response, [frank_msg1, deleted_msg, frank_msg3, joe_msg1])
+
+        # filter by after (inclusive)
+        response = self.fetchJSON(url, 'folder=incoming&after=%s' % format_datetime(frank_msg1.modified_on))
+        self.assertResultsById(response, [joe_msg3, frank_msg1])
+
         # can't filter by more than one of contact, folder, label or broadcast together
         for query in ('contact=%s&label=Spam' % self.joe.uuid, 'label=Spam&folder=inbox',
                       'broadcast=12345&folder=inbox', 'broadcast=12345&label=Spam'):
             response = self.fetchJSON(url, query)
             self.assertResponseError(response, None,
                                      "You may only specify one of the contact, folder, label, broadcast parameters")
+
+    def test_org(self):
+        url = reverse('api.v2.org')
+
+        self.assertEndpointAccess(url)
+
+        # fetch as JSON
+        response = self.fetchJSON(url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.json, {
+            'name': "Temba",
+            'country': "RW",
+            'languages': [],
+            'primary_language': None,
+            'timezone': "Africa/Kigali",
+            'date_style': "day_first",
+            'anon': False
+        })
+
+        eng = Language.create(self.org, self.admin, "English", 'eng')
+        fre = Language.create(self.org, self.admin, "French", 'fre')
+        self.org.primary_language = eng
+        self.org.save()
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.json, {
+            'name': "Temba",
+            'country': "RW",
+            'languages': ["eng", "fre"],
+            'primary_language': "eng",
+            'timezone': "Africa/Kigali",
+            'date_style': "day_first",
+            'anon': False
+        })
 
     def test_runs(self):
         url = reverse('api.v2.runs')
@@ -472,7 +572,7 @@ class APITest(TembaTest):
         frank_run1.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -505,7 +605,7 @@ class APITest(TembaTest):
                     'value': None,
                     'category': None,
                     'type': 'ruleset'
-                 }
+                }
             ],
             'created_on': format_datetime(frank_run2.created_on),
             'modified_on': format_datetime(frank_run2.modified_on),
@@ -559,6 +659,17 @@ class APITest(TembaTest):
         # filter by flow
         response = self.fetchJSON(url, 'flow=%s' % flow1.uuid)
         self.assertResultsById(response, [frank_run2, frank_run1, joe_run2, joe_run1])
+
+        # doesn't work if flow is inactive
+        flow1.is_active = False
+        flow1.save()
+
+        response = self.fetchJSON(url, 'flow=%s' % flow1.uuid)
+        self.assertResultsById(response, [])
+
+        # restore to active
+        flow1.is_active = True
+        flow1.save()
 
         # filter by invalid flow
         response = self.fetchJSON(url, 'flow=invalid')

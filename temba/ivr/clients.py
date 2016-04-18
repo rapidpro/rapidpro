@@ -1,14 +1,16 @@
+from __future__ import unicode_literals
+
+import json
+import requests
+
+from django.conf import settings
+from django.utils.http import urlencode
+from django.utils.translation import ugettext_lazy as _
+from temba.contacts.models import Contact, TEL_SCHEME
+from temba.flows.models import Flow
+from temba.ivr.models import IN_PROGRESS
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
-from temba.contacts.models import Contact, TEL_SCHEME
-from temba.flows.models import Flow, FlowRun
-from temba.ivr.models import IN_PROGRESS
-from django.utils.http import urlencode
-from django.conf import settings
-import json
-from django.utils.translation import ugettext_lazy as _
-
-import requests
 from twilio.util import RequestValidator
 
 

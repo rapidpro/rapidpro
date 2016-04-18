@@ -38,14 +38,14 @@ class CampaignTest(TembaTest):
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
     def test_get_unique_name(self):
-        flow1 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        self.assertEqual(flow1.name, "Reminders")
+        campaign1 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(campaign1.name, "Reminders")
 
-        flow2 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        self.assertEqual(flow2.name, "Reminders 2")
+        campaign2 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(campaign2.name, "Reminders 2")
 
-        flow3 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        self.assertEqual(flow3.name, "Reminders 3")
+        campaign3 = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        self.assertEqual(campaign3.name, "Reminders 3")
 
         self.create_secondary_org()
         self.assertEqual(Campaign.get_unique_name(self.org2, "Reminders"), "Reminders")  # different org
@@ -151,7 +151,7 @@ class CampaignTest(TembaTest):
         self.client.logout()
 
         # create a viewer
-        self.viewer= self.create_user("Viewer")
+        self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
         self.viewer.set_org(self.org)
 
@@ -376,7 +376,7 @@ class CampaignTest(TembaTest):
 
         # now update the campaign
         from temba.contacts.models import ContactGroup
-        self.farmers = ContactGroup.user_groups.get(name='Farmers', is_active=True)
+        self.farmers = ContactGroup.user_groups.get(name='Farmers')
         self.login(self.admin)
         post_data = dict(name="Planting Reminders", group=self.farmers.pk)
         self.client.post(reverse('campaigns.campaign_update', args=[campaign.pk]), post_data)

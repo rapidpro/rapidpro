@@ -1,16 +1,21 @@
+from __future__ import unicode_literals
+
+import geojson
 import logging
+
+from django.contrib.gis.db import models
+from mptt.models import MPTTModel, TreeForeignKey
 from smartmin.models import SmartModel
 
 logger = logging.getLogger(__name__)
 
-from django.contrib.gis.db import models
-import geojson
-
 COUNTRY_LEVEL = 0
 STATE_LEVEL = 1
 DISTRICT_LEVEL = 2
+WARD_LEVEL = 3
 
-class AdminBoundary(models.Model):
+
+class AdminBoundary(MPTTModel, models.Model):
     """
     Represents a single administrative boundary (like a country, state or district)
     """
@@ -20,10 +25,11 @@ class AdminBoundary(models.Model):
     name = models.CharField(max_length=128,
                             help_text="The name of our administrative boundary")
 
-    level = models.IntegerField(help_text="The level of the boundary, 0 for country, 1 for state, 2 for district")
+    level = models.IntegerField(
+        help_text="The level of the boundary, 0 for country, 1 for state, 2 for district, 3 for ward")
 
-    parent = models.ForeignKey('locations.AdminBoundary', null=True, related_name='children',
-                               help_text="The parent to this political boundary if any")
+    parent = TreeForeignKey('self', null=True, blank=True, related_name='children', db_index=True,
+                            help_text="The parent to this political boundary if any")
 
     geometry = models.MultiPolygonField(null=True,
                                         help_text="The full geometry of this administrative boundary")
@@ -40,7 +46,8 @@ class AdminBoundary(models.Model):
         return geojson.dumps(feature_collection)
 
     def as_json(self):
-        result = dict(osm_id=self.osm_id, name=self.name, level=self.level, aliases='')
+        result = dict(osm_id=self.osm_id, name=self.name,
+                      level=self.level, aliases='')
 
         if self.parent:
             result['parent_osm_id'] = self.parent.osm_id
@@ -74,14 +81,8 @@ class BoundaryAlias(SmartModel):
 
     name = models.CharField(max_length=128, help_text="The name for our alias")
 
-    boundary = models.ForeignKey(AdminBoundary, help_text='The admin boundary this alias applies to', related_name='aliases')
+    boundary = models.ForeignKey(
+        AdminBoundary, help_text='The admin boundary this alias applies to', related_name='aliases')
 
-    org = models.ForeignKey('orgs.Org', help_text="The org that owns this alias")
-
-
-
-
-
-
-
-
+    org = models.ForeignKey(
+        'orgs.Org', help_text="The org that owns this alias")

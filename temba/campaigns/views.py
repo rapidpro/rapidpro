@@ -130,7 +130,7 @@ class CampaignCRUDL(SmartCRUDL):
                 super(CampaignCRUDL.Create.CampaignForm, self).__init__(*args, **kwargs)
 
                 group = self.fields['group']
-                group.queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True).order_by('name')
+                group.queryset = ContactGroup.user_groups.filter(org=self.user.get_org()).order_by('name')
                 group.user = user
 
             class Meta:
@@ -160,7 +160,7 @@ class CampaignCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(CampaignCRUDL.BaseList, self).get_context_data(**kwargs)
             context['org_has_campaigns'] = Campaign.objects.filter(org=self.request.user.get_org()).count()
-            context['folders']= self.get_folders()
+            context['folders'] = self.get_folders()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
             return context
@@ -254,7 +254,8 @@ class EventForm(forms.ModelForm):
         relative_to.queryset = ContactField.objects.filter(org=self.user.get_org(), is_active=True).order_by('label')
 
         flow = self.fields['flow_to_start']
-        flow.queryset = Flow.objects.filter(org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE], is_active=True, is_archived=False).order_by('name')
+        flow.queryset = Flow.objects.filter(org=self.user.get_org(), flow_type__in=[Flow.FLOW, Flow.VOICE],
+                                            is_active=True, is_archived=False).order_by('name')
 
     class Meta:
         model = CampaignEvent
@@ -311,10 +312,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
-            self.object.is_active = False
-            self.object.save()
-
-            EventFire.update_eventfires_for_event(self.object)
+            self.object.release()
 
             redirect_url = self.get_redirect_url()
             return HttpResponseRedirect(redirect_url)

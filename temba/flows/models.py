@@ -29,7 +29,8 @@ from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
-from temba.locations.models import AdminBoundary
+from temba.contacts.models import URN_CONTEXT_KEYS_TO_SCHEME, URN_CONTEXT_KEYS_TO_LABEL
+from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils.email import send_template_email, is_valid_address
@@ -38,6 +39,7 @@ from temba.utils.profiler import SegmentProfiler
 from temba.utils.cache import get_cacheable
 from temba.utils.models import TembaModel, ChunkIterator
 from temba.utils.queues import push_task
+from temba.utils import chunk_list
 from temba.values.models import Value
 from twilio import twiml
 from uuid import uuid4
@@ -116,10 +118,10 @@ def edit_distance(s1, s2): # pragma: no cover
     lenstr1 = len(s1)
     lenstr2 = len(s2)
 
-    for i in xrange(-1, lenstr1+1):
-        d[(i, -1)] = i+1
-    for j in xrange(-1, lenstr2+1):
-        d[(-1, j)] = j+1
+    for i in xrange(-1, lenstr1 + 1):
+        d[(i, -1)] = i + 1
+    for j in xrange(-1, lenstr2 + 1):
+        d[(-1, j)] = j + 1
 
     for i in xrange(0, lenstr1):
         for j in xrange(0, lenstr2):
@@ -128,14 +130,14 @@ def edit_distance(s1, s2): # pragma: no cover
             else:
                 cost = 1
             d[(i, j)] = min(
-                d[(i-1, j)] + 1,  # deletion
-                d[(i, j-1)] + 1,  # insertion
-                d[(i-1, j-1)] + cost,  # substitution
+                d[(i - 1, j)] + 1,  # deletion
+                d[(i, j - 1)] + 1,  # insertion
+                d[(i - 1, j - 1)] + cost,  # substitution
             )
-            if i > 1 and j > 1 and s1[i] == s2[j-1] and s1[i-1] == s2[j]:
-                d[(i, j)] = min(d[(i, j)], d[i-2, j-2] + cost)  # transposition
+            if i > 1 and j > 1 and s1[i] == s2[j - 1] and s1[i - 1] == s2[j]:
+                d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
 
-    return d[lenstr1-1,lenstr2-1]
+    return d[lenstr1 - 1, lenstr2 - 1]
 
 
 class Flow(TembaModel):
@@ -159,7 +161,6 @@ class Flow(TembaModel):
     SAVED_BY = 'saved_by'
     VERSION = 'version'
 
-
     CONTACT_CREATION = 'contact_creation'
     CONTACT_PER_RUN = 'run'
     CONTACT_PER_LOGIN = 'login'
@@ -171,7 +172,6 @@ class Flow(TembaModel):
     FLOW_TYPE = 'flow_type'
     ID = 'id'
     EXPIRES = 'expires'
-
 
     X = 'x'
     Y = 'y'
@@ -271,7 +271,7 @@ class Flow(TembaModel):
                    dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
         if response:
-            actions += [dict(type='reply', msg={base_language:response})]
+            actions += [dict(type='reply', msg={base_language: response})]
 
         if start_flow:
             actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
@@ -354,7 +354,7 @@ class Flow(TembaModel):
             if flow_type != Flow.MESSAGE:
                 # check if we can find that flow by id first
                 if same_site:
-                    flow = Flow.objects.filter(org=org, id=flow_spec['metadata']['id']).first()
+                    flow = Flow.objects.filter(org=org, is_active=True, id=flow_spec['metadata']['id']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(org, name, ignore=flow)
@@ -362,7 +362,7 @@ class Flow(TembaModel):
 
                 # if it's not of our world, let's try by name
                 if not flow:
-                    flow = Flow.objects.filter(org=org, name=name).first()
+                    flow = Flow.objects.filter(org=org, is_active=True, name=name).first()
 
                 # if there isn't one already, create a new flow
                 if not flow:
@@ -382,9 +382,9 @@ class Flow(TembaModel):
                         if action['id'] in flow_id_map:
                             action['id'] = flow_id_map[action['id']]
 
-                        existing_flow = Flow.objects.filter(id=action['id'], org=org).first()
+                        existing_flow = Flow.objects.filter(id=action['id'], org=org, is_active=True).first()
                         if not existing_flow:
-                            existing_flow = Flow.objects.filter(org=org, name=action['name']).first()
+                            existing_flow = Flow.objects.filter(org=org, name=action['name'], is_active=True).first()
                             if existing_flow:
                                 action['id'] = existing_flow.pk
 
@@ -742,6 +742,46 @@ class Flow(TembaModel):
                 pass
         return changed
 
+    def release(self):
+        """
+        Releases this flow, marking it inactive. We remove all flow runs, steps and values in a background process.
+        We keep FlowRevisions and FlowStarts however.
+        """
+        from .tasks import delete_flow_results_task
+
+        self.is_active = False
+        self.save()
+
+        # release any campaign events that depend on this flow
+        from temba.campaigns.models import CampaignEvent
+        for event in CampaignEvent.objects.filter(flow=self, is_active=True):
+            event.release()
+
+        # release any triggers that depend on this flow
+        from temba.triggers.models import Trigger
+        for trigger in Trigger.objects.filter(flow=self, is_active=True):
+            trigger.release()
+
+        # delete our results in the background
+        delete_flow_results_task.delay(self.id)
+
+    def delete_results(self):
+        """
+        Removes all flow runs, values and steps for a flow.
+        """
+        # grab the ids of all our runs
+        run_ids = self.runs.all().values_list('id', flat=True)
+
+        # in chunks of 1000, remove any values or flowsteps associated with these runs
+        # we keep Runs around for auditing purposes
+        for chunk in chunk_list(run_ids, 1000):
+            Value.objects.filter(run__in=run_ids).delete()
+            FlowStep.objects.filter(run__in=run_ids).delete()
+
+        # clear all our cached stats
+        self.clear_props_cache()
+        self.clear_stats_cache()
+
     def clear_props_cache(self):
         r = get_redis_connection()
         keys = [self.get_props_cache_key(c) for c in FlowPropsCache.__members__.values()]
@@ -871,7 +911,6 @@ class Flow(TembaModel):
 
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
-
 
     def get_activity(self, simulation=False, check_cache=True):
         """
@@ -1048,7 +1087,7 @@ class Flow(TembaModel):
         self.save(update_fields=['name', 'flow_type'])
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0,  uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
+        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
         self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language='base'))
 
     def steps(self):
@@ -1315,7 +1354,8 @@ class Flow(TembaModel):
 
         start_flow_task.delay(flow_start.pk)
 
-    def start(self, groups, contacts, restart_participants=False, started_flows=None, start_msg=None, extra=None, flow_start=None):
+    def start(self, groups, contacts, restart_participants=False, started_flows=None,
+              start_msg=None, extra=None, flow_start=None, parent_run=None):
         """
         Starts a flow for the passed in groups and contacts.
         """
@@ -1383,14 +1423,14 @@ class Flow(TembaModel):
 
         if self.flow_type == Flow.VOICE:
             return self.start_call_flow(all_contact_ids, start_msg=start_msg,
-                                        extra=extra, flow_start=flow_start)
+                                        extra=extra, flow_start=flow_start, parent_run=parent_run)
 
         else:
             return self.start_msg_flow(all_contact_ids,
-                                       started_flows=started_flows,
-                                       start_msg=start_msg, extra=extra, flow_start=flow_start)
+                                       started_flows=started_flows, start_msg=start_msg,
+                                       extra=extra, flow_start=flow_start, parent_run=parent_run)
 
-    def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None):
+    def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
         from temba.ivr.models import IVRCall
         runs = []
         channel = self.org.get_call_channel()
@@ -1418,8 +1458,13 @@ class Flow(TembaModel):
             run.call = call
             run.save(update_fields=['call'])
 
-            # trigger the call to start (in the background)
-            call.start_call()
+            # if we were started by other call, save that off
+            if parent_run and parent_run.call:
+                call.parent = parent_run.call
+                call.save()
+            else:
+                # trigger the call to start (in the background)
+                call.start_call()
 
             runs.append(run)
 
@@ -1428,7 +1473,9 @@ class Flow(TembaModel):
 
         return runs
 
-    def start_msg_flow(self, all_contact_ids, started_flows=None, start_msg=None, extra=None, flow_start=None):
+    def start_msg_flow(self, all_contact_ids, started_flows=None, start_msg=None, extra=None,
+                       flow_start=None, parent_run=None):
+
         start_msg_id = start_msg.id if start_msg else None
         flow_start_id = flow_start.id if flow_start else None
 
@@ -1504,7 +1551,8 @@ class Flow(TembaModel):
         # these fields are the initial state for our flow run
         run_fields = None
         if extra:
-            (normalized_fields, count) = FlowRun.normalize_fields(extra)
+            # we keep 1024 values in @extra for new flow runs because we might be passing the state
+            (normalized_fields, count) = FlowRun.normalize_fields(extra, 1024)
             run_fields = json.dumps(normalized_fields)
 
         # create all our flow runs for this set of contacts at once
@@ -1554,7 +1602,7 @@ class Flow(TembaModel):
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.current_messages.filter(broadcast=broadcast, created_on=created_on):
-                    if not msg.contact_id in message_map:
+                    if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:
                         message_map[msg.contact_id].append(msg)
@@ -2201,12 +2249,12 @@ class Flow(TembaModel):
 
             # now work through all our objects once more, making sure all uuids map appropriately
             for existing in existing_actionsets.values():
-                if not existing.uuid in seen:
+                if existing.uuid not in seen:
                     del existing_actionsets[existing.uuid]
                     existing.delete()
 
             for existing in existing_rulesets.values():
-                if not existing.uuid in seen:
+                if existing.uuid not in seen:
                     # clean up any values on this ruleset
                     Value.objects.filter(ruleset=existing, org=self.org).delete()
 
@@ -2215,7 +2263,7 @@ class Flow(TembaModel):
 
             # make sure all destinations are present though
             for destination in destinations:
-                if not destination in existing_rulesets and not destination in existing_actionsets:
+                if destination not in existing_rulesets and destination not in existing_actionsets:
                     raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
 
             entry = json_dict.get('entry', None)
@@ -2322,7 +2370,7 @@ class RuleSet(models.Model):
                                help_text=_("The value that rules will be run against, if None defaults to @step.value"))
 
     webhook_url = models.URLField(null=True, blank=True, max_length=255,
-                            help_text=_("The URL that will be called with the user's response before we run our rules"))
+                                  help_text=_("The URL that will be called with the user's response before we run our rules"))
 
     webhook_action = models.CharField(null=True, blank=True, max_length=8, default='POST',
                                       help_text=_('How the webhook should be executed'))
@@ -2397,7 +2445,7 @@ class RuleSet(models.Model):
             for value in Value.objects.filter(ruleset=self, category=label).order_by('rule_uuid').distinct('rule_uuid'):
                 uuid_to_category[value.rule_uuid] = label
 
-        return (ordered_categories, uuid_to_category)
+        return ordered_categories, uuid_to_category
 
     def get_value_type(self):
         """
@@ -2561,7 +2609,6 @@ class RuleSet(models.Model):
             return "RuleSet: %s" % (self.uuid, )
 
 
-
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
     flow = models.ForeignKey(Flow, related_name='action_sets')
@@ -2622,17 +2669,7 @@ class ActionSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
 
-    def get_description(self):
-        """
-        Tries to return a slightly friendly version of the actions in this actionset.
-        """
-        description = ""
-        for action in self.get_actions():
-            description += str(action.get_description()) + "\n"
-
-        return description
-
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid, )
 
 
@@ -2787,23 +2824,23 @@ class FlowRun(models.Model):
         return FlowRun.INVALID_EXTRA_KEY_CHARS.sub('_', key)[:255]
 
     @classmethod
-    def normalize_fields(cls, fields, count=-1):
+    def normalize_fields(cls, fields, max_values=128, count=-1):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
         if isinstance(fields, (str, unicode)):
-            return fields[:640], count+1
+            return fields[:640], count + 1
 
         elif isinstance(fields, numbers.Number):
-            return fields, count+1
+            return fields, count + 1
 
         elif isinstance(fields, dict):
             count += 1
             field_dict = dict()
             for (k, v) in fields.items():
-                (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, count)
+                (field_dict[FlowRun.normalize_field_key(k)], count) = FlowRun.normalize_fields(v, max_values, count)
 
-                if count >= 128:
+                if count >= max_values:
                     break
 
             return field_dict, count
@@ -2812,15 +2849,15 @@ class FlowRun(models.Model):
             count += 1
             list_dict = dict()
             for (i, v) in enumerate(fields):
-                (list_dict[str(i)], count) = FlowRun.normalize_fields(v, count)
+                (list_dict[str(i)], count) = FlowRun.normalize_fields(v, max_values, count)
 
-                if count >= 128:
+                if count >= max_values:
                     break
 
             return list_dict, count
 
         else:
-            return unicode(fields), count+1
+            return unicode(fields), count + 1
 
     @classmethod
     def bulk_exit(cls, runs, exit_type, exited_on=None):
@@ -2865,9 +2902,6 @@ class FlowRun(models.Model):
         # remove our run from the activity
         with self.flow.lock_on(FlowLock.activity):
             self.flow.remove_active_for_run_ids([self.pk])
-
-        # decrement our total flow count
-        r = get_redis_connection()
 
         # lastly delete ourselves
         self.delete()
@@ -2923,9 +2957,9 @@ class FlowRun(models.Model):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
         cls.bulk_exit(contact_runs, FlowRun.EXIT_TYPE_EXPIRED)
 
-    def update_fields(self, field_map):
+    def update_fields(self, field_map, max_values=128):
         # validate our field
-        (field_map, count) = FlowRun.normalize_fields(field_map)
+        (field_map, count) = FlowRun.normalize_fields(field_map, max_values)
 
         if not self.fields:
             self.fields = json.dumps(field_map)
@@ -3010,24 +3044,23 @@ class FlowRunCount(models.Model):
 
     @classmethod
     def populate_for_flow(cls, flow):
+        # remove old ones
+        FlowRunCount.objects.filter(flow=flow).delete()
+
         # get test contacts on this org
         test_contacts = Contact.objects.filter(org=flow.org, is_test=True).values('id')
 
         # calculate our count for each exit type
         counts = FlowRun.objects.filter(flow=flow).exclude(contact__in=test_contacts)\
-                                .values('exit_type').annotate(Count('exit_type'))
+                                .values('exit_type').annotate(count=Count('pk'))
 
         # insert updated counts for each
         for count in counts:
-            # remove old ones
-            FlowRunCount.objects.filter(flow=flow, exit_type=count['exit_type']).delete()
-
-            if count['exit_type__count'] > 0:
-                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], run_count=count['exit_type__count'])
+            if count['count'] > 0:
+                FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
 
     def __unicode__(self):
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
-
 
     class Meta:
         index_together = ('flow', 'exit_type')
@@ -3045,7 +3078,7 @@ class ExportFlowResultsTask(SmartModel):
 
     task_id = models.CharField(null=True, max_length=64)
 
-    is_finished = models.BooleanField(default=False,  help_text=_("Whether this export is complete"))
+    is_finished = models.BooleanField(default=False, help_text=_("Whether this export is complete"))
 
     uuid = models.CharField(max_length=36, null=True,
                             help_text=_("The uuid used to name the resulting export file"))
@@ -3100,7 +3133,7 @@ class ExportFlowResultsTask(SmartModel):
         # create a mapping of column id to index
         column_map = dict()
         for col in range(len(columns)):
-            column_map[columns[col].uuid] = 6+col*3
+            column_map[columns[col].uuid] = 6 + col * 3
 
         # build a cache of rule uuid to category name, we want to use the most recent name the user set
         # if possible and back down to the cached rule_category only when necessary
@@ -3136,7 +3169,7 @@ class ExportFlowResultsTask(SmartModel):
         # the full sheets we need for runs
         for i in range(all_runs_count / max_rows + 1):
             total_run_sheet_count += 1
-            name = "Runs" if (i+1) <= 1 else "Runs (%d)" % (i+1)
+            name = "Runs" if (i + 1) <= 1 else "Runs (%d)" % (i + 1)
             sheet = book.add_sheet(name, cell_overwrite_ok=True)
             run_sheets.append(sheet)
 
@@ -3145,7 +3178,7 @@ class ExportFlowResultsTask(SmartModel):
         # the full sheets we need for contacts
         for i in range(contacts_count / max_rows + 1):
             total_merged_run_sheet_count += 1
-            name = "Contacts" if (i+1) <= 1 else "Contacts (%d)" % (i+1)
+            name = "Contacts" if (i + 1) <= 1 else "Contacts (%d)" % (i + 1)
             sheet = book.add_sheet(name, cell_overwrite_ok=True)
             run_sheets.append(sheet)
 
@@ -3185,12 +3218,12 @@ class ExportFlowResultsTask(SmartModel):
 
             for col in range(len(columns)):
                 ruleset = columns[col]
-                sheet.write(0, index+col*3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, index+col*3+1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, index+col*3+2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.col(index+col*3).width = 15 * 256
-                sheet.col(index+col*3+1).width = 15 * 256
-                sheet.col(index+col*3+2).width = 15 * 256
+                sheet.write(0, index + col * 3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, index + col * 3 + 1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.write(0, index + col * 3 + 2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.col(index + col * 3).width = 15 * 256
+                sheet.col(index + col * 3 + 1).width = 15 * 256
+                sheet.col(index + col * 3 + 2).width = 15 * 256
 
         run_row = 0
         merged_row = 0
@@ -3306,17 +3339,15 @@ class ExportFlowResultsTask(SmartModel):
                         merged_runs.write(merged_row, 0, submitted_by)
                         padding = 1
 
-                    runs.write(run_row, padding+0, contact_uuid)
-                    runs.write(run_row, padding+1, contact_urn_display)
-                    runs.write(run_row, padding+2, run_step.contact.name)
-                    runs.write(run_row, padding+3, groups)
+                    runs.write(run_row, padding + 0, contact_uuid)
+                    runs.write(run_row, padding + 1, contact_urn_display)
+                    runs.write(run_row, padding + 2, run_step.contact.name)
+                    runs.write(run_row, padding + 3, groups)
 
-                    merged_runs.write(merged_row, padding+0, contact_uuid)
-                    merged_runs.write(merged_row, padding+1, contact_urn_display)
-                    merged_runs.write(merged_row, padding+2, run_step.contact.name)
-                    merged_runs.write(merged_row, padding+3, groups)
-
-
+                    merged_runs.write(merged_row, padding + 0, contact_uuid)
+                    merged_runs.write(merged_row, padding + 1, contact_urn_display)
+                    merged_runs.write(merged_row, padding + 2, run_step.contact.name)
+                    merged_runs.write(merged_row, padding + 3, groups)
 
                 if not latest or latest < run_step.arrived_on:
                     latest = run_step.arrived_on
@@ -3324,12 +3355,11 @@ class ExportFlowResultsTask(SmartModel):
                 if not merged_latest or merged_latest < run_step.arrived_on:
                     merged_latest = run_step.arrived_on
 
+                runs.write(run_row, padding + 4, as_org_tz(earliest), date_format)
+                runs.write(run_row, padding + 5, as_org_tz(latest), date_format)
 
-                runs.write(run_row, padding+4, as_org_tz(earliest), date_format)
-                runs.write(run_row, padding+5, as_org_tz(latest), date_format)
-
-                merged_runs.write(merged_row, padding+4, as_org_tz(merged_earliest), date_format)
-                merged_runs.write(merged_row, padding+5, as_org_tz(merged_latest), date_format)
+                merged_runs.write(merged_row, padding + 4, as_org_tz(merged_earliest), date_format)
+                merged_runs.write(merged_row, padding + 5, as_org_tz(merged_latest), date_format)
 
                 # write the step data
                 col = column_map.get(run_step.step_uuid, 0) + padding
@@ -3344,13 +3374,13 @@ class ExportFlowResultsTask(SmartModel):
 
                     value = run_step.rule_value
                     if value:
-                        runs.write(run_row, col+1, value)
-                        merged_runs.write(merged_row, col+1, value)
+                        runs.write(run_row, col + 1, value)
+                        merged_runs.write(merged_row, col + 1, value)
 
                     text = run_step.get_text()
                     if text:
-                        runs.write(run_row, col+2, text)
-                        merged_runs.write(merged_row, col+2, text)
+                        runs.write(run_row, col + 2, text)
+                        merged_runs.write(merged_row, col + 2, text)
 
                 last_run = run_step.run.pk
                 last_contact = run_step.contact.pk
@@ -3369,7 +3399,7 @@ class ExportFlowResultsTask(SmartModel):
                     msg_row = 1
                     msg_sheet_index += 1
 
-                    name = "Messages" if (msg_sheet_index+1) <= 1 else "Messages (%d)" % (msg_sheet_index+1)
+                    name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
                     msgs = book.add_sheet(name)
 
                     msgs.write(0, 0, "Contact UUID")
@@ -3455,7 +3485,7 @@ class ActionLog(models.Model):
 
         try:
             return ActionLog.objects.create(run=run, text=text, level=level)
-        except Exception:
+        except Exception:  # pragma: no cover
             return None  # it's possible our test run can be deleted out from under us
 
     @classmethod
@@ -3650,8 +3680,11 @@ class FlowStep(models.Model):
 
         # if message is from contact, mark run as responded
         if not self.run.responded and msg.direction == INCOMING:
+            # update our local run's responded state
             self.run.responded = True
-            self.run.save(update_fields=('responded',))
+
+            # and make sure the db is up to date
+            FlowRun.objects.filter(id=self.run.id, responded=False).update(responded=True)
 
     def get_step(self):
         """
@@ -3706,7 +3739,7 @@ class FlowStart(SmartModel):
 
             self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             import traceback
             traceback.print_exc(e)
 
@@ -3720,7 +3753,7 @@ class FlowStart(SmartModel):
             self.status = COMPLETE
             self.save(update_fields=['status'])
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
 
 
@@ -3737,7 +3770,7 @@ class FlowLabel(models.Model):
         return self.get_flows().count()
 
     def get_flows(self):
-        return Flow.objects.filter(Q(labels=self) | Q(labels__parent=self)).filter(is_archived=False).distinct()
+        return Flow.objects.filter(Q(labels=self) | Q(labels__parent=self)).filter(is_active=True, is_archived=False).distinct()
 
     @classmethod
     def create_unique(cls, base, org, parent=None):
@@ -3788,7 +3821,10 @@ class FlowLabel(models.Model):
     class Meta:
         unique_together = ('name', 'parent', 'org')
 
+
 __flow_user = None
+
+
 def get_flow_user():
     global __flow_user
     if not __flow_user:
@@ -3846,9 +3882,6 @@ class Action(object):
             if action:
                 actions.append(action)
         return actions
-
-    def get_description(self):
-        return str(self.__class__)
 
 
 class EmailAction(Action):
@@ -3915,9 +3948,6 @@ class EmailAction(Action):
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
 
-    def get_description(self):
-        return "Email to %s with subject %s" % (", ".join(self.emails), self.subject)
-
 
 class WebhookAction(Action):
     """
@@ -3949,9 +3979,6 @@ class WebhookAction(Action):
 
         WebHookEvent.trigger_flow_event(value, run.flow, run, actionset_uuid, run.contact, msg, self.action)
         return []
-
-    def get_description(self):
-        return "API call to %s" % self.webhook
 
 
 class AddToGroupAction(Action):
@@ -3990,20 +4017,10 @@ class AddToGroupAction(Action):
                 try:
                     group_id = int(group_id)
                 except Exception:
-                    group_id = -1
+                    group_id = None
 
-                if group_id and ContactGroup.user_groups.filter(org=org, id=group_id).first():
-                    group = ContactGroup.user_groups.filter(org=org, id=group_id).first()
-                    if not group.is_active:
-                        group.is_active = True
-                        group.save(update_fields=['is_active'])
-                elif ContactGroup.get_user_group(org, group_name):
-                    group = ContactGroup.get_user_group(org, group_name)
-                else:
-                    group = ContactGroup.create(org, org.created_by, group_name)
-
-                if group:
-                    groups.append(group)
+                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_id)
+                groups.append(group)
             else:
                 if g and g[0] == '@':
                     groups.append(g)
@@ -4064,9 +4081,6 @@ class AddToGroupAction(Action):
                             ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
         return []
 
-    def get_description(self):
-        return "Added to group %s" % (", ".join([g.name for g in self.groups]))
-
 
 class DeleteFromGroupAction(AddToGroupAction):
     """
@@ -4080,9 +4094,6 @@ class DeleteFromGroupAction(AddToGroupAction):
     @classmethod
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
-
-    def get_description(self):
-        return "Removed from group %s" % ", ".join([g.name for g in self.groups])
 
 
 class AddLabelAction(Action):
@@ -4169,9 +4180,6 @@ class AddLabelAction(Action):
                     label.toggle_label([msg], True)
         return []
 
-    def get_description(self):
-        return "Added label %s" % self.labels
-
 
 class SayAction(Action):
     """
@@ -4227,9 +4235,6 @@ class SayAction(Action):
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
 
-    def get_description(self):
-        return "Said %s" % self.msg
-
 
 class PlayAction(Action):
     """
@@ -4245,8 +4250,7 @@ class PlayAction(Action):
 
     @classmethod
     def from_json(cls, org, json_obj):
-        return PlayAction(json_obj.get(PlayAction.UUID),
-                         json_obj.get(PlayAction.URL))
+        return PlayAction(json_obj.get(PlayAction.UUID), json_obj.get(PlayAction.URL))
 
     def as_json(self):
         return dict(type=PlayAction.TYPE, url=self.url, uuid=self.uuid)
@@ -4265,9 +4269,6 @@ class PlayAction(Action):
             # no message, possibly failed loop detection
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
-
-    def get_description(self):
-        return "Played %s" % self.url
 
 
 class ReplyAction(Action):
@@ -4305,9 +4306,6 @@ class ReplyAction(Action):
             return list(broadcast.get_messages())
         return []
 
-    def get_description(self):
-        return "Replied with %s" % self.msg
-
 
 class VariableContactAction(Action):
     """
@@ -4334,13 +4332,7 @@ class VariableContactAction(Action):
             group_id = group_data.get(VariableContactAction.ID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            if group_id and ContactGroup.user_groups.filter(org=org, id=group_id, is_active=True):
-                group = ContactGroup.user_groups.get(org=org, id=group_id, is_active=True)
-            elif ContactGroup.get_user_group(org, group_name):
-                group = ContactGroup.get_user_group(org, group_name)
-            else:
-                group = ContactGroup.create(org, org.get_user(), group_name)
-
+            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_id)
             groups.append(group)
 
         return groups
@@ -4437,7 +4429,7 @@ class TriggerFlowAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=TriggerFlowAction.TYPE, id=self.flow.pk, name=self.flow.name,
                     contacts=contact_ids, groups=group_ids, variables=variables)
@@ -4476,9 +4468,6 @@ class TriggerFlowAction(VariableContactAction):
         log_txt = _("Added %d contact(s) to '%s' flow") % (contact_count, flow.name)
         log = ActionLog.create(run, log_txt)
         return log
-
-    def get_description(self):
-        return "Triggered flow %s" % self.flow
 
 
 class SetLanguageAction(Action):
@@ -4520,9 +4509,6 @@ class SetLanguageAction(Action):
         log = ActionLog.create(run, log_txt)
         return log
 
-    def get_description(self):
-        print "Set language to %s" % self.name
-
 
 class StartFlowAction(Action):
     """
@@ -4556,7 +4542,16 @@ class StartFlowAction(Action):
         extra = message_context.get('extra', {})
         extra['flow'] = message_context.get('flow', {})
 
-        self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra)
+        # if they are both flow runs, just redirect the call
+        if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
+            new_run = self.flow.start([], [run.contact], started_flows=started_flows,
+                                      restart_participants=True, extra=extra, parent_run=run)[0]
+            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
+            run.voice_response.redirect(url)
+        else:
+            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
+                            extra=extra, parent_run=run)
+
         self.logger(run)
         return []
 
@@ -4570,9 +4565,6 @@ class StartFlowAction(Action):
         log = ActionLog.create(run, log_txt)
 
         return log
-
-    def get_description(self):
-        return "Started flow %s" % self.flow
 
 
 class SaveToContactAction(Action):
@@ -4591,6 +4583,7 @@ class SaveToContactAction(Action):
 
     @classmethod
     def get_label(cls, org, field, label=None):
+
         # make sure this field exists
         if field == 'name':
             label = 'Contact Name'
@@ -4598,6 +4591,8 @@ class SaveToContactAction(Action):
             label = 'First Name'
         elif field == 'tel_e164':
             label = 'Phone Number'
+        elif field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
+            label = unicode(URN_CONTEXT_KEYS_TO_LABEL[field])
         else:
             contact_field = ContactField.objects.filter(org=org, key=field).first()
             if contact_field:
@@ -4646,28 +4641,50 @@ class SaveToContactAction(Action):
             contact.name = new_value
             contact.modified_by = user
             contact.save(update_fields=('name', 'modified_by', 'modified_on'))
+            self.logger(run, new_value)
 
         elif self.field == 'first_name':
             new_value = value[:128]
             contact.set_first_name(new_value)
             contact.modified_by = user
             contact.save(update_fields=('name', 'modified_by', 'modified_on'))
+            self.logger(run, new_value)
 
-        elif self.field == 'tel_e164':
+        elif self.field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
             new_value = value[:128]
 
-            # don't really update URNs on test contacts
-            if not contact.is_test:
-                urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
+            # add in our new urn number
+            scheme = URN_CONTEXT_KEYS_TO_SCHEME[self.field]
 
-                # add in our new phone number
-                urns += [('tel', new_value)]
-                contact.update_urns(user, urns)
+            # trim off '@' for twitter handles
+            if self.field == 'twitter':
+                if len(new_value) > 0:
+                    if new_value[0] == '@':
+                        new_value = new_value[1:]
+
+            # only valid urns get added, sorry
+            from temba.contacts.models import ContactURN
+            new_urn = None
+            if ContactURN.validate_urn(scheme, new_value, contact.org.get_country_code()):
+                new_urn = (scheme, new_value)
+            else:
+                if contact.is_test:
+                    ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
+
+            if new_urn:
+                urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
+                urns += [new_urn]
+
+                if not contact.is_test:
+                    # don't really update URNs on test contacts
+                    contact.update_urns(user, urns)
+                else:
+                    ActionLog.info(run, _('Added new connection for contact (%s:%s)' % (scheme, new_value)))
+
         else:
             new_value = value[:640]
             contact.set_field(user, self.field, new_value)
-
-        self.logger(run, new_value)
+            self.logger(run, new_value)
 
         return []
 
@@ -4682,9 +4699,6 @@ class SaveToContactAction(Action):
         log = ActionLog.create(run, log_txt)
 
         return log
-
-    def get_description(self):
-        return "Updated field %s to '%s'" % (self.field, self.value)
 
 
 class SendAction(VariableContactAction):
@@ -4708,7 +4722,7 @@ class SendAction(VariableContactAction):
 
     def as_json(self):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk) for _ in self.groups]
+        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
 
@@ -4768,9 +4782,6 @@ class SendAction(VariableContactAction):
                      contact_count) % dict(msg=text, count=contact_count)
         log = ActionLog.create(run, log_txt)
         return log
-
-    def get_description(self):
-        return "Sent '%s' to %s" % (self.msg, ", ".join(send.name for send in (self.contacts + self.groups)))
 
 
 class Rule(object):
@@ -4835,6 +4846,7 @@ class Rule(object):
 
         return rules
 
+
 class Test(object):
     TYPE = 'type'
     __test_mapping = None
@@ -4863,16 +4875,17 @@ class Test(object):
                 DateBeforeTest.TYPE: DateBeforeTest,
                 PhoneTest.TYPE: PhoneTest,
                 RegexTest.TYPE: RegexTest,
+                HasWardTest.TYPE: HasWardTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest
             }
 
         type = json_dict.get(cls.TYPE, None)
-        if not type: # pragma: no cover
+        if not type:  # pragma: no cover
             raise FlowException("Test definition missing 'type' field: %s", json_dict)
 
-        if not type in cls.__test_mapping: # pragma: no cover
+        if type not in cls.__test_mapping:  # pragma: no cover
             raise FlowException("Unknown type: '%s' in definition: %s" % (type, json_dict))
 
         return cls.__test_mapping[type].from_json(org, json_dict)
@@ -4885,7 +4898,7 @@ class Test(object):
 
         return tests
 
-    def evaluate(self, run, sms, context, text): # pragma: no cover
+    def evaluate(self, run, sms, context, text):  # pragma: no cover
         """
         Where the work happens, subclasses need to be able to evalute their Test
         according to their definition given the passed in message. Tests do not have
@@ -5011,6 +5024,7 @@ class NotEmptyTest(Test):
         if text and len(text.strip()):
             return 1, text
         return 0, None
+
 
 class ContainsTest(Test):
     """
@@ -5157,9 +5171,9 @@ class HasStateTest(Test):
         if not org.country:
             return 0, None
 
-        state = org.parse_location(text, 1)
+        state = org.parse_location(text, STATE_LEVEL)
         if state:
-            return 1, state
+            return 1, state[0]
 
         return 0, None
 
@@ -5168,7 +5182,7 @@ class HasDistrictTest(Test):
     TYPE = 'district'
     TEST = 'test'
 
-    def __init__(self, state):
+    def __init__(self, state=None):
         self.state = state
 
     @classmethod
@@ -5188,11 +5202,58 @@ class HasDistrictTest(Test):
         # evaluate our district in case it has a replacement variable
         state, errors = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
 
-        parent = org.parse_location(state, 1)
+        parent = org.parse_location(state, STATE_LEVEL)
         if parent:
-            district = org.parse_location(text, 2, parent)
+            district = org.parse_location(text, DISTRICT_LEVEL, parent[0])
             if district:
-                return 1, district
+                return 1, district[0]
+        district = org.parse_location(text, DISTRICT_LEVEL)
+
+        # parse location when state contraint is not provided or available
+        if (errors or not state) and len(district) == 1:
+            return 1, district[0]
+
+        return 0, None
+
+
+class HasWardTest(Test):
+    TYPE = 'ward'
+    STATE = 'state'
+    DISTRICT = 'district'
+
+    def __init__(self, state=None, district=None):
+        self.state = state
+        self.district = district
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.STATE], json[cls.DISTRICT])
+
+    def as_json(self):
+        return dict(type=self.TYPE, state=self.state, district=self.district)
+
+    def evaluate(self, run, sms, context, text):
+        # if they removed their country since adding the rule
+        org = run.flow.org
+        if not org.country:
+            return 0, None
+        district = None
+
+        # evaluate our district in case it has a replacement variable
+        district_name, missing_district = Msg.substitute_variables(self.district, sms.contact, context, org=run.flow.org)
+        state_name, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
+        if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
+            state = org.parse_location(state_name, STATE_LEVEL)
+            district = org.parse_location(district_name, DISTRICT_LEVEL, state.first())
+            if district:
+                ward = org.parse_location(text, WARD_LEVEL, district[0])
+                if ward:
+                    return 1, ward[0]
+
+        # parse location when district contraint is not provided or available
+        ward = org.parse_location(text, WARD_LEVEL)
+        if len(ward) == 1 and district is None:
+            return 1, ward[0]
 
         return 0, None
 

@@ -3,20 +3,18 @@ from __future__ import unicode_literals
 import calendar
 import json
 import logging
-import random
-import traceback
-import time
-from datetime import datetime, timedelta
-from decimal import Decimal
-from urlparse import urlparse
-from uuid import uuid4
-
 import os
 import pycountry
 import pytz
+import random
 import regex
 import stripe
+import traceback
+import time
+
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from decimal import Decimal
 from django.core.urlresolvers import reverse
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
@@ -36,6 +34,8 @@ from temba.utils import analytics, str_to_datetime, get_datetime_format, datetim
 from temba.utils import timezone_to_country_code
 from temba.utils.cache import get_cacheable_result, incrby_existing
 from twilio.rest import TwilioRestClient
+from urlparse import urlparse
+from uuid import uuid4
 from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
@@ -88,6 +88,11 @@ ACCOUNT_TOKEN = 'ACCOUNT_TOKEN'
 NEXMO_KEY = 'NEXMO_KEY'
 NEXMO_SECRET = 'NEXMO_SECRET'
 NEXMO_UUID = 'NEXMO_UUID'
+
+ORG_STATUS = 'STATUS'
+SUSPENDED = 'suspended'
+RESTORED = 'restored'
+WHITELISTED = 'whitelisted'
 
 ORG_LOW_CREDIT_THRESHOLD = 500
 
@@ -174,7 +179,7 @@ class Org(SmartModel):
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
     webhook = models.TextField(null=True, verbose_name=_("Webhook"),
-                              help_text=_("Webhook endpoint and configuration"))
+                               help_text=_("Webhook endpoint and configuration"))
 
     webhook_events = models.IntegerField(default=0, verbose_name=_("Webhook Events"),
                                          help_text=_("Which type of actions will trigger webhook events."))
@@ -189,13 +194,15 @@ class Org(SmartModel):
     config = models.TextField(null=True, verbose_name=_("Configuration"),
                               help_text=_("More Organization specific configuration"))
 
-    slug = models.SlugField(verbose_name=_("Slug"), max_length=255, null=True, blank=True, unique=True, error_messages=dict(unique=_("This slug is not available")))
+    slug = models.SlugField(verbose_name=_("Slug"), max_length=255, null=True, blank=True, unique=True,
+                            error_messages=dict(unique=_("This slug is not available")))
 
     is_anon = models.BooleanField(default=False,
                                   help_text=_("Whether this organization anonymizes the phone numbers of contacts within it"))
 
     primary_language = models.ForeignKey('orgs.Language', null=True, blank=True, related_name='orgs',
-                                         help_text=_('The primary language will be used for contacts with no language preference.'), on_delete=models.SET_NULL)
+                                         help_text=_('The primary language will be used for contacts with no language preference.'),
+                                         on_delete=models.SET_NULL)
 
     brand = models.CharField(max_length=128, default=settings.DEFAULT_BRAND, verbose_name=_("Brand"),
                              help_text=_("The brand used in emails"))
@@ -279,6 +286,27 @@ class Org(SmartModel):
                             **active_topup_keys)
         else:
             return 0
+
+    def set_status(self, status):
+        config = self.config_json()
+        config[ORG_STATUS] = status
+        self.config = json.dumps(config)
+        self.save(update_fields=['config'])
+
+    def set_suspended(self):
+        self.set_status(SUSPENDED)
+
+    def set_whitelisted(self):
+        self.set_status(WHITELISTED)
+
+    def set_restored(self):
+        self.set_status(RESTORED)
+
+    def is_suspended(self):
+        return self.config_json().get(ORG_STATUS, None) == SUSPENDED
+
+    def is_whitelisted(self):
+        return self.config_json().get(ORG_STATUS, None) == WHITELISTED
 
     @transaction.atomic
     def import_app(self, data, user, site=None):
@@ -647,9 +675,7 @@ class Org(SmartModel):
         return self.date_format == DAYFIRST
 
     def get_tzinfo(self):
-        # we have to build the timezone based on an actual date
-        # see: https://bugs.launchpad.net/pytz/+bug/1319939
-        return timezone.now().astimezone(pytz.timezone(self.timezone)).tzinfo
+        return pytz.timezone(self.timezone)
 
     def format_date(self, datetime, show_time=True):
         """
@@ -671,36 +697,53 @@ class Org(SmartModel):
         except Exception:
             return None
 
+    def generate_location_query(self, name, level, is_alias=False):
+        if is_alias:
+            query = dict(name__iexact=name, boundary__level=level)
+            query['__'.join(['boundary'] + ['parent'] * level)] = self.country
+        else :
+            query = dict(name__iexact=name, level=level)
+            query['__'.join(['parent'] * level)] = self.country
+
+        return query
+
     def find_boundary_by_name(self, name, level, parent):
+        """
+        Finds the boundary with the passed in name or alias on this organization at the stated level.
+
+        @returns Iterable of matching boundaries
+        """
         # first check if we have a direct name match
         if parent:
-            boundary = parent.children.filter(name__iexact=name, level=level).first()
-        elif level == 1:
-            boundary = AdminBoundary.objects.filter(parent=self.country, name__iexact=name, level=level).first()
-        elif level == 2:
-            boundary = AdminBoundary.objects.filter(parent__parent=self.country, name__iexact=name, level=level).first()
+            boundary = parent.children.filter(name__iexact=name, level=level)
+        else:
+            query = self.generate_location_query(name, level)
+            boundary = AdminBoundary.objects.filter(**query)
 
         # not found by name, try looking up by alias
         if not boundary:
             if parent:
                 alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
                                                      boundary__parent=parent).first()
-            elif level == 1:
-                alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
-                                                     boundary__parent=self.country).first()
-            elif level == 2:
-                alias = BoundaryAlias.objects.filter(name__iexact=name, boundary__level=level,
-                                                     boundary__parent__parent=self.country).first()
+            else:
+                query = self.generate_location_query(name, level, True)
+                alias = BoundaryAlias.objects.filter(**query).first()
 
             if alias:
-                boundary = alias.boundary
+                boundary = [alias.boundary]
 
         return boundary
 
     def parse_location(self, location_string, level, parent=None):
+        """
+        Attempts to parse the passed in location string at the passed in level. This does various tokenizing
+        of the string to try to find the best possible match.
+
+        @returns Iterable of matching boundaries
+        """
         # no country? bail
         if not self.country or not isinstance(location_string, basestring):
-            return None
+            return []
 
         # now look up the boundary by full name
         boundary = self.find_boundary_by_name(location_string, level, parent)
@@ -716,13 +759,13 @@ class Org(SmartModel):
             if len(words) > 1:
                 for word in words:
                     boundary = self.find_boundary_by_name(word, level, parent)
-                    if boundary:
+                    if not boundary:
                         break
 
                 if not boundary:
                     # still no boundary? try n-gram of 2
-                    for i in range(0, len(words)-1):
-                        bigram = " ".join(words[i:i+2])
+                    for i in range(0, len(words) - 1):
+                        bigram = " ".join(words[i:i + 2])
                         boundary = self.find_boundary_by_name(bigram, level, parent)
                         if boundary:
                             break
@@ -926,10 +969,9 @@ class Org(SmartModel):
         active_credits = active_credits if active_credits else 0
 
         # these are the credits that have been used in expired topups
-        expired_credits = TopUpCredits.objects.filter(topup__org=self,
-                                                      topup__is_active=True,
-                                                      topup__expires_on__lte=timezone.now())\
-                                               .aggregate(Sum('used')).get('used__sum')
+        expired_credits = TopUpCredits.objects.filter(
+            topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now()
+        ).aggregate(Sum('used')).get('used__sum')
 
         expired_credits = expired_credits if expired_credits else 0
 
@@ -943,9 +985,8 @@ class Org(SmartModel):
                                     self._calculate_credits_used)
 
     def _calculate_credits_used(self):
-        used_credits_sum = TopUpCredits.objects.filter(topup__org=self,
-                                                       topup__is_active=True)\
-                                                .aggregate(Sum('used')).get('used__sum')
+        used_credits_sum = TopUpCredits.objects.filter(topup__org=self, topup__is_active=True)
+        used_credits_sum = used_credits_sum.aggregate(Sum('used')).get('used__sum')
         used_credits_sum = used_credits_sum if used_credits_sum else 0
 
         unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None, purged=False).count()
@@ -1088,7 +1129,7 @@ class Org(SmartModel):
 
     def add_credits(self, bundle, token, user):
         # look up our bundle
-        if not bundle in BUNDLE_MAP:
+        if bundle not in BUNDLE_MAP:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
 
         bundle = BUNDLE_MAP[bundle]
@@ -1296,6 +1337,9 @@ class Org(SmartModel):
         elif countrycode == 'UG':
             recommended = 'yo'
 
+        elif countrycode == 'PH':
+            recommended = 'chikka'
+
         return recommended
 
     def increment_unread_msg_count(self, type):
@@ -1357,7 +1401,7 @@ class Org(SmartModel):
         return self.name
 
 
-############ monkey patch User class with a few extra functions ##############
+# ===================== monkey patch User class with a few extra functions ========================
 
 def get_user_orgs(user):
     if user.is_superuser:
@@ -1541,7 +1585,7 @@ class Invitation(SmartModel):
         """
         Generates a [length] characters alpha numeric secret
         """
-        letters="23456789ABCDEFGHJKLMNPQRSTUVWXYZ" # avoid things that could be mistaken ex: 'I' and '1'
+        letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ" # avoid things that could be mistaken ex: 'I' and '1'
         return ''.join([random.choice(letters) for _ in range(length)])
 
     def send_invitation(self):
@@ -1754,7 +1798,8 @@ class CreditAlert(SmartModel):
         from temba.msgs.models import Msg
 
         # all active orgs in the last hour
-        active_orgs = Msg.current_messages.filter(created_on__gte=timezone.now()-timedelta(hours=1)).order_by('org').distinct('org')
+        active_orgs = Msg.current_messages.filter(created_on__gte=timezone.now() - timedelta(hours=1))
+        active_orgs = active_orgs.order_by('org').distinct('org')
 
         for msg in active_orgs:
             org = msg.org
@@ -1769,6 +1814,4 @@ class CreditAlert(SmartModel):
             elif org_low_credits:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
             elif org_credits_expiring > 0:
-               CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)
-
-
+                CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)

@@ -113,13 +113,6 @@
         }
       });
 
-      // close the compose when clicked escape
-      $(document).keyup(function(e) {
-        if(e.keyCode === 27) {
-          hideCompose();
-        }
-      });
-
       // store our post location in the form
       $('#send-form').attr("action", url);
 

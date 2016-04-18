@@ -173,6 +173,10 @@ input, textarea {
   width: 350px;
 }
 
+.controls .uneditable-input {
+  width: 350px;
+}
+
 select, textarea, input[type="text"], input[type="password"], input[type="datetime"], input[type="datetime-local"], input[type="date"], input[type="month"], input[type="time"], input[type="week"], input[type="number"], input[type="email"], input[type="url"], input[type="search"], input[type="tel"], input[type="color"], .uneditable-input {
   display: inline-block;
   height: 25px;
@@ -1243,6 +1247,12 @@ form.smartmin-form {
   }
 }
 
+form.smartmin-form.form-horizontal {
+  ul.errorlist {
+    margin-left: 150px;
+  }
+}
+
 .sort-placeholder {
   border-top: 1px solid @flat-white - #111;
   border-bottom: 1px solid @flat-white - #111;
@@ -2079,7 +2089,7 @@ input[type='radio'] {
   background-color: @color-alert-error + #222;
   border: 1px solid @color-alert-error;
   text-shadow: none;
-  width:520px;
+  width:560px;
 
   ul.errorlist {
     margin: 0px;
@@ -2586,4 +2596,8 @@ span.label a {
 #intercom-container .intercom-launcher {
   bottom: 60px;
   right: 12px;
+}
+
+.select2-hidden-accessible {
+  display:none;
 }

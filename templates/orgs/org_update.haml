@@ -4,7 +4,10 @@
   %h1= org.name
 
 -block above-bar
-  %a.btn.btn-primary{ style:"float:right", href:"{% url 'orgs.topup_manage' %}?org={{ org.id }}" } TopUps
+  .pull-right
+    -block buttons-right
+      -block gear-menu
+        -include "gear_links_include.haml"
 
 -block post-form
   -if perms.auth.org_clear_cache

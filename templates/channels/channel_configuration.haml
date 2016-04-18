@@ -232,6 +232,25 @@
     %code
       https://{{ domain }}{% url 'handlers.blackmyna_handler' 'status' object.uuid %}
 
+  -elif object.channel_type == 'TMS'
+    %h4
+      -blocktrans
+        To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your Messaging Service Inbound Settings.
+
+    %hr
+
+    %h4
+      -trans "Request URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by Twilio when new messages are received by your Messaging Service.
+
+    %code
+      https://{{ domain }}{% url 'handlers.twilio_messaging_service_handler' 'receive' object.uuid %}
+
+    %hr
+
   -elif object.channel_type == 'SC'
     %h4
       -blocktrans
@@ -466,6 +485,41 @@
           omit-empty = true
           accepted-smsc = YOUR-SMSC
 
+  -elif object.channel_type == 'JS'
+    %h4
+      -blocktrans
+        As a last step you'll need to configure Jasmin to call the following URL for MO (incoming) messages.
+
+    %hr
+
+    %h4
+      -trans "Push Message URL"
+
+    %p
+      -blocktrans
+        This endpoint will be called by Jasmin when new messages are received to your number, it must be configured
+        to be called as a POST
+
+    %code
+      https://{{ domain }}{% url 'handlers.jasmin_handler' 'receive' object.uuid %}
+
+  -elif object.channel_type == 'MB'
+    %h4
+      -blocktrans
+        As a last step you'll need to set the following callback URL on your Mblox account:
+
+    %hr
+
+    %h4
+      -trans "Callback URL"
+
+    %p
+      -blocktrans
+        This endpoint will be called by Mblox when new messages are received to your number and for delivery reports.
+
+    %code
+      https://{{ domain }}{% url 'handlers.mblox_handler' object.uuid %}
+
   -elif object.channel_type == 'VB'
     %h4
       -blocktrans
@@ -479,6 +533,26 @@
     %code
       https://{{ domain }}{% url 'handlers.verboice_handler' 'status' object.uuid %}
 
+  -elif object.channel_type == 'FB'
+    %h4
+      -blocktrans
+        To finish configuring your Facebook connection you'll need to set the following webhook URL on your application
+        page, use the verify token below when updating it. Make sure to check all boxes to subscribe to all incoming
+        Facebook events.
+
+    %hr
+
+    %h4
+      -trans "Webhook URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.facebook_handler' object.uuid %}
+
+    %h4
+      -trans "Verify Token"
+
+    %code
+      {{ channel.secret }}
 
   -elif object.channel_type == 'HX'
     %h4
@@ -508,6 +582,27 @@
 
     %code
       https://{{ domain }}{% url 'handlers.yo_handler' 'received' object.uuid %}
+
+  -elif object.channel_type == 'CK'
+    %h4
+      -blocktrans
+        To finish configuring your Chikka connection you need to set the following URLs in your Chikka account API settings.
+
+    %hr
+
+    %h4
+      -trans "Notification Receiver URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.chikka_handler' object.uuid %}
+
+    %hr
+
+    %h4
+      -trans "Message Receiver URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.chikka_handler' object.uuid %}
 
   -elif object.channel_type == 'EX'
     %h4

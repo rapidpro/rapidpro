@@ -5,6 +5,7 @@ import json
 from datetime import date, timedelta
 from django import forms
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.contrib import messages
 from django.db import IntegrityError
@@ -68,6 +69,7 @@ class SendMessageForm(Form):
 
     def __init__(self, user, *args, **kwargs):
         super(SendMessageForm, self).__init__(*args, **kwargs)
+        self.user = user
         self.fields['omnibox'].set_user(user)
 
     def is_valid(self):
@@ -77,6 +79,12 @@ class SendMessageForm(Form):
                 self.errors['__all__'] = self.error_class([unicode(_("At least one recipient is required"))])
                 return False
         return valid
+
+    def clean(self):
+        cleaned = super(SendMessageForm, self).clean()
+        if self.user.get_org().is_suspended():
+            raise ValidationError(_("Sorry, your account is currently suspended. To enable sending messages, please contact support."))
+        return cleaned
 
 
 class MsgListView(OrgPermsMixin, SmartListView):
@@ -184,7 +192,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Update(OrgObjPermsMixin, SmartUpdateView):
         form_class = BroadcastForm
         fields = ('message', 'omnibox')
-        field_config = {'restrict':{'label':''}, 'omnibox':{'label':''}, 'message':{'label':'', 'help':''},}
+        field_config = {'restrict': {'label': ''}, 'omnibox': {'label': ''}, 'message': {'label': '', 'help': ''}}
         success_message = ''
         success_url = 'msgs.broadcast_schedule_list'
 
@@ -248,7 +256,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
             # can this org send to any URN schemes?
             if not org.get_schemes(SEND):
-                return HttpResponseBadRequest("You must add a phone number before sending messages")
+                return HttpResponseBadRequest(_("You must add a phone number before sending messages"))
 
             return response
 
@@ -405,7 +413,6 @@ class ExportForm(Form):
         if start_date and start_date > date.today():
             raise forms.ValidationError(_("The Start Date should not be a date in the future."))
 
-
         if end_date and start_date and end_date <= start_date:
             raise forms.ValidationError(_("The End Date should be a date after the Start Date"))
 
@@ -474,13 +481,14 @@ class MsgCRUDL(SmartCRUDL):
                 export_sms_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-                    messages.info(self.request, _("We are preparing your export. ") +
-                                                _("We will e-mail you at %s when it is ready.") % self.request.user.username)
+                    messages.info(self.request, _("We are preparing your export. We will e-mail you at %s when "
+                                                  "it is ready.") % self.request.user.username)
 
                 else:
                     export = ExportMessagesTask.objects.get(id=export.pk)
                     dl_url = reverse('assets.download', kwargs=dict(type='message_export', pk=export.pk))
-                    messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
+                    messages.info(self.request, _("Export complete, you can find it here: %s (production users "
+                                                  "will get an email)") % dl_url)
 
             try:
                 messages.success(self.request, self.derive_success_message())
@@ -533,7 +541,7 @@ class MsgCRUDL(SmartCRUDL):
             context['base_template'] = 'msgs/msg_test_frame.html'
             return self.render_to_response(Context(context))
 
-        def get_form_kwargs(self ,*args, **kwargs):
+        def get_form_kwargs(self, *args, **kwargs):
             kwargs = super(MsgCRUDL.Test, self).get_form_kwargs(*args, **kwargs)
             kwargs['org'] = self.request.user.get_org()
             return kwargs

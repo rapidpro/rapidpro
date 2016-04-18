@@ -1,15 +1,18 @@
-# Create your views here.
-from datetime import datetime, timedelta
-from django.utils import timezone
-from django import forms
-from django.core.urlresolvers import reverse
-from django.utils.timezone import get_current_timezone_name, get_current_timezone
-from .models import Schedule, repeat_choices
-from smartmin.views import SmartCRUDL, SmartUpdateView, SmartCreateView
-from temba.orgs.views import OrgPermsMixin
+from __future__ import unicode_literals
+
 import pytz
 
-class BaseScheduleForm():
+from datetime import datetime, timedelta
+from django import forms
+from django.core.urlresolvers import reverse
+from django.utils import timezone
+from django.utils.timezone import get_current_timezone_name
+from smartmin.views import SmartCRUDL, SmartUpdateView
+from temba.orgs.views import OrgPermsMixin
+from .models import Schedule
+
+
+class BaseScheduleForm(object):
 
     def starts_never(self):
         return self.cleaned_data['start'] == "never"
@@ -36,7 +39,7 @@ class BaseScheduleForm():
 
 
 class ScheduleForm(BaseScheduleForm, forms.ModelForm):
-    repeat_period = forms.ChoiceField(choices=repeat_choices)
+    repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES)
     repeat_days = forms.IntegerField(required=False)
     start = forms.CharField(max_length=16)
     start_datetime_value = forms.IntegerField(required=False)
@@ -119,6 +122,7 @@ class ScheduleCRUDL(SmartCRUDL):
                         days = form.cleaned_data['repeat_days']
                     schedule.repeat_days = days
                     schedule.repeat_hour_of_day = schedule.next_fire.hour
+                    schedule.repeat_minute_of_hour = schedule.next_fire.minute
                     schedule.repeat_day_of_month = schedule.next_fire.day
                 schedule.save()
 

@@ -1,26 +1,28 @@
-#-----------------------------------------------------------------------------------
+from __future__ import unicode_literals
+
+# -----------------------------------------------------------------------------------
 # Sample RapidPro settings file, this should allow you to deploy RapidPro locally on
 # a PostgreSQL database.
 #
 # The following are requirements:
-#     - a postgreSQL database named 'temba', with a user name 'temba' and 
+#     - a postgreSQL database named 'temba', with a user name 'temba' and
 #       password 'temba' (with postgis extensions installed)
 #     - a redis instance listening on localhost
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 
-# import our default settings
-from settings_common import *
-import logging
+import warnings
 
-#-----------------------------------------------------------------------------------
+from settings_common import *  # noqa
+
+# -----------------------------------------------------------------------------------
 # Used when creating callbacks for Twilio, Nexmo etc..
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 HOSTNAME = 'rapidpro.ngrok.com'
 TEMBA_HOST = 'rapidpro.ngrok.com'
 
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 # Redis & Cache Configuration (we expect a Redis instance on localhost)
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 CACHES = {
     "default": {
         "BACKEND": "redis_cache.cache.RedisCache",
@@ -31,9 +33,9 @@ CACHES = {
     }
 }
 
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 # Need a PostgreSQL database on localhost with postgis extension installed.
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
@@ -55,35 +57,32 @@ DATABASES['default']['ENGINE'] = 'django.contrib.gis.db.backends.postgis'
 
 INTERNAL_IPS = ('127.0.0.1',)
 
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 # Load development apps
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 INSTALLED_APPS = INSTALLED_APPS + ('storages',)
 # INSTALLED_APPS = INSTALLED_APPS + ('debug_toolbar', )
 
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 # In development, add in extra logging for exceptions and the debug toolbar
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 MIDDLEWARE_CLASSES = ('temba.middleware.ExceptionMiddleware',) + MIDDLEWARE_CLASSES
 
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 # In development, perform background tasks in the web thread (synchronously)
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 CELERY_ALWAYS_EAGER = True
 CELERY_EAGER_PROPAGATES_EXCEPTIONS = True
 BROKER_BACKEND = 'memory'
 
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 # This setting throws an exception if a naive datetime is used anywhere. (they should
 # always contain a timezone)
-#-----------------------------------------------------------------------------------
-import warnings
-warnings.filterwarnings(
-        'error', r"DateTimeField .* received a naive datetime",
-        RuntimeWarning, r'django\.db\.models\.fields')
+# -----------------------------------------------------------------------------------
+warnings.filterwarnings('error', r"DateTimeField .* received a naive datetime",
+                        RuntimeWarning, r'django\.db\.models\.fields')
 
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 # Make our sitestatic URL be our static URL on development
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 STATIC_URL = '/sitestatic/'
-

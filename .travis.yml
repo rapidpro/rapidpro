@@ -4,7 +4,7 @@ python:
 services:
 - redis-server
 addons:
-  postgresql: '9.3'
+  postgresql: '9.4'
 sudo: false
 cache:
   directories:
@@ -27,6 +27,7 @@ before_script:
 script:
 - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
 - coverage run manage.py test --noinput --verbosity=2
+- flake8
 after_success:
 - coverage report -i
 - coveralls

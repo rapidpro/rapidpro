@@ -1,12 +1,14 @@
+from __future__ import unicode_literals
+
 from decimal import Decimal
 
 WELCOME_TOPUP_SIZE = 1000
 
-BUNDLES = (dict(  cents="2000", credits=1000),
-           dict(  cents="4000", credits=2500),
-           dict( cents="14000", credits=10000),
-           dict( cents="25000", credits=20000),
-           dict( cents="55000", credits=50000),
+BUNDLES = (dict(cents="2000", credits=1000),
+           dict(cents="4000", credits=2500),
+           dict(cents="14000", credits=10000),
+           dict(cents="25000", credits=20000),
+           dict(cents="55000", credits=50000),
            dict(cents="100000", credits=100000),
            dict(cents="225000", credits=250000),
            dict(cents="400000", credits=500000))

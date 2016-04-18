@@ -61,7 +61,7 @@
     %div{ng-if:'config.type == "save"'}
       .label
         -trans "Save to field"
-      %input{ng-model:"field",name:"field",text:"[[action.label]]",select-static:"[[contactFields]]",required:"",key:"[[action.field]]",type:"hidden"}
+      %input{ng-model:"field",name:"field",text:"[[action.label]]", select-static:"[[updateContactFields]]",required:"",key:"[[action.field]]",type:"hidden"}
       .help-text
         -blocktrans
           Select an existing field, or type a name to create a new field.
@@ -99,8 +99,7 @@
     %div{ng-if:'config.type == "flow"'}
       %p{class:"description"}
         -blocktrans
-          This action redirects contacts to a new flow. When they
-          are done with that flow they can continue the current one.
+          This action redirects contacts to a new flow. When they start that flow, they will exit this one.
       %input{ng-model:"action.flow",search:"true",init-text:"[[action.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.id]]",select-server:"/flow/?_format=select2",type:"hidden"}
       %button{ng-click:"saveStartFlow(action_editor.flow.selected)",class:"submit hide"}
         -trans "Ok"

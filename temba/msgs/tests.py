@@ -279,7 +279,7 @@ class MsgTest(TembaTest):
         # now send the broadcast so we have messages
         broadcast2.send(trigger_send=False)
         msg4, msg3, msg2 = tuple(Msg.all_messages.filter(broadcast=broadcast2))
-        
+
         response = self.client.get(reverse('msgs.msg_outbox'))
 
         self.assertContains(response, "Outbox (4)")
@@ -483,7 +483,7 @@ class MsgTest(TembaTest):
 
     def test_flows(self):
         url = reverse('msgs.msg_flow')
-        
+
         msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, self.joe.get_urn().path), "test 1", msg_type='F')
 
         # user not in org can't access
@@ -598,8 +598,8 @@ class MsgTest(TembaTest):
         self.assertEquals(sheet.nrows, 4)  # msg3 not included as it's archived
 
         self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels"])
-        self.assertExcelRow(sheet, 1, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid,  "Incoming", "hello 4", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 2, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid,  "Incoming", "hello 2", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 1, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 2, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
         self.assertExcelRow(sheet, 3, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
 
         email_args = mock_send_temba_email.call_args[0]  # all positional args
@@ -1556,7 +1556,7 @@ class ConsoleTest(TembaTest):
         self.create_secondary_org()
 
         # create a new console
-        self.console = MessageConsole(self.org)
+        self.console = MessageConsole(self.org, "tel:+250788123123")
 
         # a few test contacts
         self.john = self.create_contact("John Doe", "0788123123")
@@ -1621,6 +1621,7 @@ class ConsoleTest(TembaTest):
         # now trigger a flow
         self.console.default("Color")
         self.assertEchoed("What is your favorite color?")
+
 
 class BroadcastLanguageTest(TembaTest):
 

@@ -261,9 +261,9 @@ class WebHookEvent(SmartModel):
 
         # if the org doesn't care about this type of message, ignore it
         if (event == 'mo_sms' and not org.is_notified_of_mo_sms()) or \
-           (event == 'mt_sent' and not org.is_notified_of_mt_sms()) or \
-           (event == 'mt_dlvd' and not org.is_notified_of_mt_sms()):
-           return
+            (event == 'mt_sent' and not org.is_notified_of_mt_sms()) or \
+            (event == 'mt_dlvd' and not org.is_notified_of_mt_sms()):
+            return
 
         api_user = get_api_user()
 
@@ -453,6 +453,7 @@ class WebHookEvent(SmartModel):
 
     def __unicode__(self):
         return "WebHookEvent[%s:%d] %s" % (self.event, self.pk, self.data)
+
 
 class WebHookResult(SmartModel):
     """

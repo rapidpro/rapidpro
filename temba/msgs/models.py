@@ -2,14 +2,12 @@ from __future__ import unicode_literals
 
 import json
 import logging
-import time
-import traceback
-from datetime import datetime, timedelta
-from uuid import uuid4
-
 import pytz
 import regex
-from redis_cache import get_redis_connection
+import time
+import traceback
+
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -21,6 +19,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
@@ -31,6 +30,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
+from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -76,30 +76,25 @@ BULK_THRESHOLD = 50
 
 MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
-STATUS_CHOICES = (
-    # special state for flows that is used to hold off sending the message until the flow is ready to receive a response
-    (INITIALIZING, _("Initializing")),
+# status codes used for both messages and broadcasts (single char constant, human readable, API readable)
+STATUS_CONFIG = (
+    # special state for flows used to hold off sending the message until the flow is ready to receive a response
+    (INITIALIZING, _("Initializing"), 'initializing'),
 
-    # initial state for all messages
-    (PENDING, _("Pending")),
+    (PENDING, _("Pending"), 'pending'),        # initial state for all messages
 
     # valid only for outgoing messages
-    (QUEUED, _("Queued")),
-    (WIRED, _("Wired")),  # means the message was handed off to the provider and credits were deducted for it
-    (SENT, _("Sent")),  # means we have confirmation that a message was sent
-    (DELIVERED, _("Delivered")),
+    (QUEUED, _("Queued"), 'queued'),
+    (WIRED, _("Wired"), 'wired'),              # message was handed off to the provider and credits were deducted for it
+    (SENT, _("Sent"), 'sent'),                 # we have confirmation that a message was sent
+    (DELIVERED, _("Delivered"), 'delivered'),
 
     # valid only for incoming messages
-    (HANDLED, _("Handled")),
+    (HANDLED, _("Handled"), 'handled'),
 
-    # there was an error during delivery
-    (ERRORED, _("Error Sending")),
-
-    # we gave up on sending this message
-    (FAILED, _("Failed Sending")),
-
-    # we retried this message
-    (RESENT, _("Resent message")),
+    (ERRORED, _("Error Sending"), 'errored'),  # there was an error during delivery
+    (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
+    (RESENT, _("Resent message"), 'resent'),   # we retried this message
 )
 
 
@@ -159,6 +154,8 @@ class Broadcast(models.Model):
     as a ContactGroup or a list of Contacts. It's nothing more than a way to tie
     messages sent from the same bundle together
     """
+    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
+
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
 
@@ -292,9 +289,6 @@ class Broadcast(models.Model):
 
     def get_messages(self):
         return self.msgs.exclude(status=RESENT)
-
-    def get_messages_by_status(self):
-        return self.get_messages().order_by('delivered_on', 'sent_on', '-status')
 
     def get_messages_substitution_complete(self):
         return self.get_messages().filter(has_template_error=False)
@@ -524,10 +518,14 @@ class Msg(models.Model):
     Inbound messages are much simpler. They start as PENDING and the can be picked up by Triggers
     or Flows where they would get set to the HANDLED state once they've been dealt with.
     """
+    STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
-    VISIBILITY_CHOICES = ((VISIBLE, _("Visible")),
-                          (ARCHIVED, _("Archived")),
-                          (DELETED, _("Deleted")))
+    # single char flag, human readable name, API readable name
+    VISIBILITY_CONFIG = ((VISIBLE, _("Visible"), 'visible'),
+                         (ARCHIVED, _("Archived"), 'archived'),
+                         (DELETED, _("Deleted"), 'deleted'))
+
+    VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
 
     DIRECTION_CHOICES = ((INCOMING, _("Incoming")),
                          (OUTGOING, _("Outgoing")))
@@ -564,11 +562,11 @@ class Msg(models.Model):
     created_on = models.DateTimeField(verbose_name=_("Created On"), db_index=True,
                                       help_text=_("When this message was created"))
 
+    modified_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Modified On"), auto_now=True,
+                                       help_text=_("When this message was last modified"))
+
     sent_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Sent On"),
                                    help_text=_("When this message was sent to the endpoint"))
-
-    delivered_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Delivered On"),
-                                        help_text=_("When this message was delivered to the final recipient (for incoming messages, when the message was handled)"))
 
     queued_on = models.DateTimeField(null=True, blank=True, verbose_name=_("Queued On"),
                                      help_text=_("When this message was queued to be sent or handled."))
@@ -580,7 +578,7 @@ class Msg(models.Model):
                               help_text=_("The current status for this message"))
 
     response_to = models.ForeignKey('Msg', null=True, blank=True, related_name='responses',
-                                    verbose_name=_("Response To"),
+                                    verbose_name=_("Response To"), db_index=False,
                                     help_text=_("The message that this message is in reply to"))
 
     labels = models.ManyToManyField('Label', related_name='msgs', verbose_name=_("Labels"),
@@ -642,11 +640,11 @@ class Msg(models.Model):
 
                 # update them to queued
                 send_messages = Msg.current_messages.filter(id__in=msg_ids)\
-                                           .exclude(channel__channel_type=ANDROID)\
-                                           .exclude(msg_type=IVR)\
-                                           .exclude(topup=None)\
-                                           .exclude(contact__is_test=True)
-                send_messages.update(status=QUEUED, queued_on=queued_on)
+                                                    .exclude(channel__channel_type=ANDROID)\
+                                                    .exclude(msg_type=IVR)\
+                                                    .exclude(topup=None)\
+                                                    .exclude(contact__is_test=True)
+                send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
                 for msg in msgs:
@@ -673,7 +671,8 @@ class Msg(models.Model):
 
         if msg.contact.is_blocked:
             msg.visibility = ARCHIVED
-            msg.save(update_fields=['visibility'])
+            msg.modified_on = timezone.now()
+            msg.save(update_fields=['visibility', 'modified_on'])
         else:
             for handler in handlers:
                 try:
@@ -701,11 +700,11 @@ class Msg(models.Model):
 
         # record our handling latency for this object
         if msg.queued_on:
-            analytics.gauge('temba.handling_latency', (msg.delivered_on - msg.queued_on).total_seconds())
+            analytics.gauge('temba.handling_latency', (msg.modified_on - msg.queued_on).total_seconds())
 
         # this is the latency from when the message was received at the channel, which may be different than
         # above if people above us are queueing (or just because clocks are out of sync)
-        analytics.gauge('temba.channel_handling_latency', (msg.delivered_on - msg.created_on).total_seconds())
+        analytics.gauge('temba.channel_handling_latency', (msg.modified_on - msg.created_on).total_seconds())
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
@@ -732,12 +731,12 @@ class Msg(models.Model):
         """
         one_week_ago = timezone.now() - timedelta(days=7)
         failed_messages = Msg.current_messages.filter(created_on__lte=one_week_ago, direction=OUTGOING,
-                                             status__in=[QUEUED, PENDING, ERRORED])
+                                                      status__in=[QUEUED, PENDING, ERRORED])
 
         failed_broadcasts = list(failed_messages.order_by('broadcast').values('broadcast').distinct())
 
         # fail our messages
-        failed_messages.update(status='F')
+        failed_messages.update(status='F', modified_on=timezone.now())
 
         # and update all related broadcast statuses
         for broadcast in Broadcast.objects.filter(id__in=[b['broadcast'] for b in failed_broadcasts]):
@@ -752,8 +751,8 @@ class Msg(models.Model):
 
         if unread_count is None:
             unread_count = Msg.current_messages.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
-                                              contact__is_test=False, created_on__gt=org.msg_last_viewed, labels=None).count()
-
+                                                       contact__is_test=False, created_on__gt=org.msg_last_viewed,
+                                                       labels=None).count()
             cache.set(key, unread_count, 900)
 
         return unread_count
@@ -763,7 +762,7 @@ class Msg(models.Model):
         """
         Marks an incoming message as HANDLED
         """
-        update_fields = ['status', 'delivered_on']
+        update_fields = ['status', 'modified_on']
 
         # if flows or IVR haven't claimed this message, then it's going to the inbox
         if not msg.msg_type:
@@ -771,7 +770,7 @@ class Msg(models.Model):
             update_fields.append('msg_type')
 
         msg.status = HANDLED
-        msg.delivered_on = timezone.now()  # current time as delivery date so we can track created->delivered latency
+        msg.modified_on = timezone.now()
 
         # make sure we don't overwrite any async message changes by only saving specific fields
         msg.save(update_fields=update_fields)
@@ -793,17 +792,19 @@ class Msg(models.Model):
                 analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
         else:
             msg.status = ERRORED
-            msg.next_attempt = timezone.now() + timedelta(minutes=5*msg.error_count)
+            msg.modified_on = timezone.now()
+            msg.next_attempt = timezone.now() + timedelta(minutes=5 * msg.error_count)
 
             if isinstance(msg, Msg):
-                msg.save(update_fields=('status', 'next_attempt', 'error_count'))
+                msg.save(update_fields=('status', 'modified_on', 'next_attempt', 'error_count'))
             else:
-                Msg.all_messages.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt, error_count=msg.error_count)
+                Msg.all_messages.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt,
+                                                          error_count=msg.error_count, modified_on=msg.modified_on)
 
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
             pipe = r.pipeline()
             pipe.srem(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
-            pipe.srem((timezone.now()-timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
+            pipe.srem((timezone.now() - timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
             pipe.execute()
 
             if channel:
@@ -868,21 +869,21 @@ class Msg(models.Model):
         else:
             def next_part(text):
                 if len(text) <= max_length:
-                    return (text, None)
+                    return text, None
 
                 else:
                     # search for a space to split on, up to 140 characters in
                     index = max_length
-                    while index > max_length-20:
+                    while index > max_length - 20:
                         if text[index] == ' ':
                             break
-                        index = index - 1
+                        index -= 1
 
                     # couldn't find a good split, oh well, 160 it is
-                    if index == max_length-20:
-                        return (text[:max_length], text[max_length:])
+                    if index == max_length - 20:
+                        return text[:max_length], text[max_length:]
                     else:
-                        return (text[:index], text[index+1:])
+                        return text[:index], text[index + 1:]
 
             parts = []
             rest = text
@@ -923,7 +924,7 @@ class Msg(models.Model):
 
         elif keyword == 'mt_dlvd':
             self.status = DELIVERED
-            self.delivered_on = date
+            self.modified_on = timezone.now()
             handled = True
             WebHookEvent.trigger_sms_event(SMS_DELIVERED, self, date)
 
@@ -963,25 +964,28 @@ class Msg(models.Model):
         """
         Resends this message by creating a clone and triggering a send of that clone
         """
+        now = timezone.now()
         topup_id = self.org.decrement_credit()  # costs 1 credit to resend message
 
         # see if we should use a new channel
         channel = self.org.get_send_channel(contact_urn=self.contact_urn)
 
         cloned = Msg.all_messages.create(org=self.org,
-                                    channel=channel,
-                                    contact=self.contact,
-                                    contact_urn=self.contact_urn,
-                                    created_on=timezone.now(),
-                                    text=self.text,
-                                    response_to=self.response_to,
-                                    direction=self.direction,
-                                    topup_id=topup_id,
-                                    status=PENDING,
-                                    broadcast=self.broadcast)
+                                         channel=channel,
+                                         contact=self.contact,
+                                         contact_urn=self.contact_urn,
+                                         created_on=now,
+                                         modified_on=now,
+                                         text=self.text,
+                                         response_to=self.response_to,
+                                         direction=self.direction,
+                                         topup_id=topup_id,
+                                         status=PENDING,
+                                         broadcast=self.broadcast)
 
         # mark ourselves as resent
         self.status = RESENT
+        self.modified_on = now
         self.topup = None
         self.save()
 
@@ -1016,9 +1020,9 @@ class Msg(models.Model):
                     contact=self.contact_id, contact_urn=self.contact_urn_id,
                     priority=self.priority, error_count=self.error_count, next_attempt=self.next_attempt,
                     status=self.status, direction=self.direction,
-                    external_id=self.external_id,
+                    external_id=self.external_id, response_to_id=self.response_to_id,
                     sent_on=self.sent_on, queued_on=self.queued_on,
-                    created_on=self.created_on, delivered_on=self.delivered_on)
+                    created_on=self.created_on, modified_on=self.modified_on)
 
     def __unicode__(self):
         return self.text
@@ -1066,6 +1070,7 @@ class Msg(models.Model):
                         channel=channel,
                         text=text,
                         created_on=date,
+                        modified_on=timezone.now(),
                         queued_on=timezone.now(),
                         direction=INCOMING,
                         msg_type=msg_type,
@@ -1231,6 +1236,7 @@ class Msg(models.Model):
                         channel=channel,
                         text=text,
                         created_on=created_on,
+                        modified_on=created_on,
                         direction=OUTGOING,
                         status=status,
                         broadcast=broadcast,
@@ -1281,7 +1287,8 @@ class Msg(models.Model):
         Fails this message, provided it is currently not failed
         """
         self.status = FAILED
-        self.save(update_fields=('status',))
+        self.modified_on = timezone.now()
+        self.save(update_fields=('status', 'modified_on'))
 
         Channel.track_status(self.channel, "Failed")
 
@@ -1289,9 +1296,11 @@ class Msg(models.Model):
         """
         Update the message status to SENT
         """
+        now = timezone.now()
         self.status = SENT
-        self.sent_on = timezone.now()
-        self.save(update_fields=('status', 'sent_on'))
+        self.sent_on = now
+        self.modified_on = now
+        self.save(update_fields=('status', 'sent_on', 'modified_on'))
 
         Channel.track_status(self.channel, "Sent")
 
@@ -1300,10 +1309,10 @@ class Msg(models.Model):
         Update the message status to DELIVERED
         """
         self.status = DELIVERED
-        self.delivered_on = timezone.now()
+        self.modified_on = timezone.now()
         if not self.sent_on:
             self.sent_on = timezone.now()
-        self.save(update_fields=('status', 'delivered_on', 'sent_on'))
+        self.save(update_fields=('status', 'modified_on', 'sent_on'))
 
         Channel.track_status(self.channel, "Delivered")
 
@@ -1315,7 +1324,21 @@ class Msg(models.Model):
             raise ValueError("Can only archive incoming non-test messages")
 
         self.visibility = ARCHIVED
-        self.save(update_fields=('visibility',))
+        self.modified_on = timezone.now()
+        self.save(update_fields=('visibility', 'modified_on'))
+
+    @classmethod
+    def archive_all_for_contacts(cls, contacts):
+        """
+        Archives all incoming messages for the given contacts
+        """
+        msgs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, contact__in=contacts)
+        msg_ids = list(msgs.values_list('pk', flat=True))
+
+        # update modified on in small batches to avoid long table lock, and having too many non-unique values for
+        # modified_on which is the primary ordering for the API
+        for batch in chunk_list(msg_ids, 100):
+            Msg.all_messages.filter(pk__in=batch).update(visibility=ARCHIVED, modified_on=timezone.now())
 
     def restore(self):
         """
@@ -1325,7 +1348,9 @@ class Msg(models.Model):
             raise ValueError("Can only restore incoming non-test messages")
 
         self.visibility = VISIBLE
-        self.save(update_fields=('visibility',))
+        self.modified_on = timezone.now()
+
+        self.save(update_fields=('visibility', 'modified_on'))
 
     def release(self):
         """
@@ -1333,7 +1358,9 @@ class Msg(models.Model):
         """
         self.visibility = DELETED
         self.text = ""
-        self.save(update_fields=('visibility', 'text'))
+        self.modified_on = timezone.now()
+
+        self.save(update_fields=('visibility', 'text', 'modified_on'))
 
         # remove labels
         self.labels.clear()
@@ -1349,6 +1376,9 @@ class Msg(models.Model):
         for msg in msgs:
             msg.archive()
             changed.append(msg.pk)
+
+        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
+
         return changed
 
     @classmethod
@@ -1358,6 +1388,9 @@ class Msg(models.Model):
         for msg in msgs:
             msg.restore()
             changed.append(msg.pk)
+
+        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
+
         return changed
 
     @classmethod
@@ -1367,6 +1400,9 @@ class Msg(models.Model):
         for msg in msgs:
             msg.release()
             changed.append(msg.pk)
+
+        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
+
         return changed
 
     @classmethod
@@ -1380,6 +1416,7 @@ class Msg(models.Model):
 
     class Meta:
         ordering = ['-created_on', '-pk']
+
 
 class Call(SmartModel):
     """
@@ -1452,7 +1489,12 @@ class Call(SmartModel):
         self.save(update_fields=('is_active',))
 
 
-STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
+STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,' \
+             'cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,' \
+             'how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,' \
+             'not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,' \
+             'their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,' \
+             'who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
 class SystemLabel(models.Model):
@@ -1641,7 +1683,7 @@ class Label(TembaModel):
             return folder
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
-                                       created_by=user, modified_by=user)
+                                         created_by=user, modified_by=user)
 
     @classmethod
     def get_hierarchy(cls, org):
@@ -1714,6 +1756,9 @@ class Label(TembaModel):
                     msg.labels.remove(self)
                     changed.add(msg.pk)
 
+        # update modified on all our changed msgs
+        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
+
         return changed
 
     def is_folder(self):
@@ -1742,7 +1787,7 @@ class MsgIterator(object):
 
     def _setup(self):
         for i in xrange(0, len(self._ids), self.max_obj_num):
-            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i+self.max_obj_num])
+            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
                 chunk_queryset = chunk_queryset.order_by(*self._order_by)
@@ -1815,12 +1860,14 @@ class ExportMessagesTask(SmartModel):
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
+        tz = self.org.get_tzinfo()
+
         if self.start_date:
-            start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
+            start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
             all_messages = all_messages.filter(created_on__gte=start_date)
 
         if self.end_date:
-            end_date = datetime.combine(self.end_date, datetime.max.time()).replace(tzinfo=self.org.get_tzinfo())
+            end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
             all_messages = all_messages.filter(created_on__lte=end_date)
 
         if self.groups.all():
