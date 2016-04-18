@@ -343,7 +343,7 @@
                   -if last_message
                     - blocktrans with created_on=last_message.created_on
                       Last message sent {{created_on}}
-                -if last_message.text|length > 1 and last_message.text != last_message.recording_url
+                -if last_message.text|length > 1 and last_message.text != last_message.get_media_path
                   {{last_message}}
 
 
@@ -363,11 +363,11 @@
               -for msg in messages
                 -if msg.direction == 'O'
                   .imsg.from
-                    -if msg.text != msg.recording_url
+                    -if msg.text != msg.get_media_path
                       {{msg.text}}
-                    -if msg.recording_url
+                    -if msg.media.is_media_type_audio
                       .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
-                        %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
+                        %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.get_media_path}}'}
                         .play
                           %a{href:'javascript:void();'}
                             -trans "listen"
@@ -380,11 +380,11 @@
                       -trans "Empty message"
                   -else
                     .imsg.to
-                      -if msg.text != msg.recording_url
+                      -if msg.text != msg.get_media_path
                         {{msg.text}}
-                      -if msg.recording_url
+                      -if msg.is_media_type_audio
                         .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
-                          %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
+                          %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.get_media_path}}'}
                           .play
                             %a{href:'javascript:void();'}
                               -trans "listen"

@@ -651,7 +651,7 @@ class Contact(TembaModel):
         Gets or creates the test contact for the given user
         """
         org = user.get_org()
-        test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user).first()
+        test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user, is_active=True).order_by('-created_on').first()
 
         # double check that our test contact has a valid URN, it may have been reassigned
         if test_contact:

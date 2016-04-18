@@ -1,8 +1,10 @@
 from __future__ import absolute_import, unicode_literals
 
+
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from rest_framework import generics, mixins, status
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -550,6 +552,30 @@ class LabelsEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': "uuid", 'required': False, 'help': "A label UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
         }
+
+
+class MediaEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to submit media which can be embedded in flow steps
+
+    ## Creating Media
+
+    By making a ```POST``` request to the endpoint you can add a new media files
+    """
+    parser_classes = (MultiPartParser, FormParser,)
+    permission = 'msgs.msg_api'
+
+    def post(self, request, format=None, *args, **kwargs):
+
+        org = self.request.user.get_org()
+        media_file = request.data.get('media_file', None)
+        extension = request.data.get('extension', None)
+
+        if media_file and extension:
+            location = org.save_media(media_file, extension)
+            return Response(dict(location=location), status=status.HTTP_201_CREATED)
+
+        return Response(dict(), status=status.HTTP_400_BAD_REQUEST)
 
 
 class MessagesEndpoint(ListAPIMixin, BaseAPIView):

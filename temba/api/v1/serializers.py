@@ -1245,6 +1245,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         for step in steps:
             node_obj = None
             key = 'rule_sets' if 'rule' in step else 'action_sets'
+
             for json_node in definition[key]:
                 if json_node['uuid'] == step['node']:
                     node_obj = VersionNode(json_node, 'rule' in step)
@@ -1253,6 +1254,24 @@ class FlowRunWriteSerializer(WriteSerializer):
             if not node_obj:
                 raise serializers.ValidationError("No such node with UUID %s in flow '%s'" % (step['node'], self.flow_obj.name))
             else:
+                rule = step.get('rule', None)
+                if rule:
+                    media = rule.get('media', None)
+                    if media:
+                        (media_type, media_path) = media.split(':', 1)
+                        if media_type != 'geo':
+                            media_type_parts = media_type.split('/')
+
+                            error = None
+                            if len(media_type_parts) != 2:
+                                error = (media_type, media)
+
+                            if media_type_parts[0] not in Msg.MEDIA_TYPES:
+                                error = (media_type_parts[0], media)
+
+                            if error:
+                                raise serializers.ValidationError("Invalid media type '%s': %s" % error)
+
                 step['node'] = node_obj
 
         return data

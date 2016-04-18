@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
+from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
@@ -665,7 +666,7 @@ class Org(SmartModel):
             account_sid = config.get(ACCOUNT_SID, None)
             auth_token = config.get(ACCOUNT_TOKEN, None)
             if account_sid and auth_token:
-                return TwilioClient(account_sid, auth_token)
+                return TwilioClient(account_sid, auth_token, org=self)
         return None
 
     def get_nexmo_client(self):
@@ -1412,6 +1413,21 @@ class Org(SmartModel):
         self.create_system_labels_and_groups()
         self.create_sample_flows(brand.get('api_link', ""))
         self.create_welcome_topup(topup_size)
+
+    def save_media(self, file, extension):
+        """
+        Saves the given file data with the extension and returns an absolute url to the result
+        """
+        random_file = str(uuid4())
+        random_dir = random_file[0:4]
+
+        filename = '%s/%s' % (random_dir, random_file)
+        if extension:
+            filename = '%s.%s' % (filename, extension)
+
+        path = '%s/%d/media/%s' % (settings.STORAGE_ROOT_DIR, self.pk, filename)
+        location = default_storage.save(path, file)
+        return "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, location)
 
     @classmethod
     def create_user(cls, email, password):

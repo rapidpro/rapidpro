@@ -712,7 +712,7 @@ class ContactCRUDL(SmartCRUDL):
                 contact_fields.append(dict(label='Language', value=lang, featured=True))
 
             context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
-            context['recent_seconds'] = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
+            context['recent_seconds'] = int(time.mktime((timezone.now() - timedelta(minutes=5)).timetuple()))
             return context
 
         def post(self, request, *args, **kwargs):
