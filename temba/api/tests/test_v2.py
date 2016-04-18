@@ -11,6 +11,7 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
+from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
@@ -365,6 +366,34 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'after=%s' % format_datetime(call2.created_on))
         self.assertResultsById(response, [call4, call3, call2])
 
+    def test_campaigns(self):
+        url = reverse('api.v2.campaigns')
+
+        self.assertEndpointAccess(url)
+
+        reporters = self.create_group("Reporters", [self.joe, self.frank])
+
+        campaign1 = Campaign.create(self.org, self.admin, "Reminders #1", reporters)
+        campaign2 = Campaign.create(self.org, self.admin, "Reminders #2", reporters)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsByUUID(response, [campaign2, campaign1])
+        self.assertEqual(response.json['results'][0], {
+            'uuid': campaign2.uuid,
+            'name': "Reminders #2",
+            'group': {'uuid': reporters.uuid, 'name': "Reporters"},
+            'created_on': format_datetime(campaign2.created_on)
+        })
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % campaign1.uuid)
+        self.assertResultsByUUID(response, [campaign1])
+
     def test_channels(self):
         url = reverse('api.v2.channels')
 
@@ -376,7 +405,7 @@ class APITest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertEqual(len(response.json['results']), 2)
+        self.assertResultsByUUID(response, [self.twitter, self.channel])
         self.assertEqual(response.json['results'][1], {
             'uuid': self.channel.uuid,
             'name': "Test Channel",

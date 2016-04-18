@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView
 from temba.api.models import get_or_create_api_token, APIToken
+from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
@@ -20,7 +21,7 @@ from temba.msgs.models import Broadcast, Call, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import (
-    BroadcastReadSerializer, CallReadSerializer, ChannelReadSerializer, ContactReadSerializer,
+    BroadcastReadSerializer, CallReadSerializer, CampaignReadSerializer, ChannelReadSerializer, ContactReadSerializer,
     ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer,
     MsgReadSerializer
 )
@@ -389,6 +390,72 @@ class CallsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
+class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    ## Listing Campaigns
+
+    You can retrieve the campaigns for your organization by sending a ```GET``` to the same endpoint, listing the
+    most recently created campaigns first.
+
+     * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
+     * **name** - the name of the campaign (string).
+     * **group** - the group this campaign operates on (object).
+     * **created_on** - when the campaign was created (datetime), filterable as `before` and `after`.
+
+    Example:
+
+        GET /api/v2/campaigns.json
+
+    Response is a list of the campaigns on your account
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+                "name": "Reminders",
+                "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9",
+                "created_on": "2013-08-19T19:11:21.088Z"
+            },
+            ...
+        }
+
+    """
+    permission = 'campaigns.campaign_api'
+    model = Campaign
+    serializer_class = CampaignReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        queryset = queryset.filter(is_active=True)
+
+        # filter by UUID (optional)
+        uuid = params.get('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        queryset = queryset.prefetch_related(
+            Prefetch('group', queryset=ContactGroup.user_groups.only('uuid', 'name')),
+        )
+
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Campaigns",
+            'url': reverse('api.v2.campaigns'),
+            'slug': 'campaign-list',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+            ]
+        }
+
+
 class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
     """
     ## Listing Channels
@@ -396,7 +463,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
     A **GET** returns the list of Android channels for your organization, in the order of last created.  Note that for
     Android devices, all status information is as of the last time it was seen and can be null before the first sync.
 
-     * **uuid** - the unique identifier of the channel (string), filterable as `uuid`.
+     * **uuid** - the UUID of the channel (string), filterable as `uuid`.
      * **name** - the name of the channel (string).
      * **address** - the address (e.g. phone number, Twitter handle) of the channel (string), filterable as `address`.
      * **country** - which country the sim card for this channel is registered for (string, two letter country code).
@@ -480,7 +547,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
     only deleted contacts by passing the "deleted=true" parameter to your call.
 
-     * **uuid** - the unique identifier of the contact (string), filterable as `uuid`.
+     * **uuid** - the UUID of the contact (string), filterable as `uuid`.
      * **name** - the name of the contact (string).
      * **language** - the preferred language of the contact (string).
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.

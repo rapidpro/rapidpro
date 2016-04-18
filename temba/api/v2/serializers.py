@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 from rest_framework import serializers
+from temba.campaigns.models import Campaign
 from temba.channels.models import Channel, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
@@ -81,6 +82,17 @@ class CallReadSerializer(ReadSerializer):
     class Meta:
         model = Call
         fields = ('id', 'type', 'contact', 'channel', 'time', 'duration', 'created_on')
+
+
+class CampaignReadSerializer(ReadSerializer):
+    group = serializers.SerializerMethodField()
+
+    def get_group(self, obj):
+        return {'uuid': obj.group.uuid, 'name': obj.group.name}
+
+    class Meta:
+        model = Campaign
+        fields = ('uuid', 'name', 'group', 'created_on')
 
 
 class ChannelReadSerializer(ReadSerializer):
