@@ -5,10 +5,12 @@ import json
 import pytz
 
 from datetime import datetime
+from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
+from rest_framework.test import APIClient
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
@@ -16,6 +18,7 @@ from temba.msgs.models import Broadcast, Call, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
+from ..models import APIToken
 from ..v2.serializers import format_datetime
 
 
@@ -204,6 +207,73 @@ class APITest(TembaTest):
         self.assertEqual(len(response.json['results']), 5)
         self.assertResultsById(response, [runs[1250], runs[1251], runs[1252], runs[1253], runs[1254]])
         self.assertIsNone(response.json['next'])
+
+    def test_authenticate(self):
+        url = reverse('api.v2.authenticate')
+
+        # fetch as HTML
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['form'].fields.keys(), ['username', 'password', 'role', 'loc'])
+
+        admins = Group.objects.get(name='Administrators')
+        surveyors = Group.objects.get(name='Surveyors')
+
+        # authenticate an admin as an admin
+        response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'A'})
+
+        # should have created a new token object
+        token_obj1 = APIToken.objects.get(user=self.admin, role=admins)
+
+        tokens = json.loads(response.content)['tokens']
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0], {'org': {'id': self.org.pk, 'name': "Temba"}, 'token': token_obj1.key})
+
+        # authenticate an admin as a surveyor
+        response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'S'})
+
+        # should have created a new token object
+        token_obj2 = APIToken.objects.get(user=self.admin, role=surveyors)
+
+        tokens = json.loads(response.content)['tokens']
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0], {'org': {'id': self.org.pk, 'name': "Temba"}, 'token': token_obj2.key})
+
+        # the keys should be different
+        self.assertNotEqual(token_obj1.key, token_obj2.key)
+
+        client = APIClient()
+
+        # messages can be fetched by admin token
+        client.credentials(HTTP_AUTHORIZATION="Token " + token_obj1.key)
+        self.assertEqual(client.get(reverse('api.v2.messages') + '.json?id=1').status_code, 200)
+
+        # but not by an admin's surveyor token
+        client.credentials(HTTP_AUTHORIZATION="Token " + token_obj2.key)
+        self.assertEqual(client.get(reverse('api.v2.messages') + '.json?id=1').status_code, 403)
+
+        # but their surveyor token can get flows or contacts
+        # self.assertEqual(client.get(reverse('api.v2.flows') + '.json').status_code, 200)  # TODO re-enable when added
+        self.assertEqual(client.get(reverse('api.v2.contacts') + '.json').status_code, 200)
+
+        # our surveyor can't login with an admin role
+        response = self.client.post(url, {'username': "Surveyor", 'password': "Surveyor", 'role': 'A'})
+        tokens = json.loads(response.content)['tokens']
+        self.assertEqual(len(tokens), 0)
+
+        # but they can with a surveyor role
+        response = self.client.post(url, {'username': "Surveyor", 'password': "Surveyor", 'role': 'S'})
+        tokens = json.loads(response.content)['tokens']
+        self.assertEqual(len(tokens), 1)
+
+        token_obj3 = APIToken.objects.get(user=self.surveyor, role=surveyors)
+
+        # and can fetch flows, contacts, and fields, but not campaigns
+        client.credentials(HTTP_AUTHORIZATION="Token " + token_obj3.key)
+        # self.assertEqual(client.get(reverse('api.v1.flows') + '.json').status_code, 200)  # TODO re-enable when added
+        self.assertEqual(client.get(reverse('api.v2.contacts') + '.json').status_code, 200)
+        self.assertEqual(client.get(reverse('api.v2.fields') + '.json').status_code, 200)
+        self.assertEqual(client.get(reverse('api.v2.messages') + '.json?id=1').status_code, 403)
 
     def test_broadcasts(self):
         url = reverse('api.v2.broadcasts')

@@ -3,14 +3,15 @@ from __future__ import absolute_import, unicode_literals
 from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
 from .views import (
-    api, ApiExplorerView, BroadcastEndpoint, CallsEndpoint, ChannelsEndpoint, ContactsEndpoint, FieldsEndpoint,
-    GroupsEndpoint, LabelsEndpoint, MessagesEndpoint, OrgEndpoint, RunsEndpoint
+    api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, CallsEndpoint, ChannelsEndpoint, ContactsEndpoint,
+    FieldsEndpoint, GroupsEndpoint, LabelsEndpoint, MessagesEndpoint, OrgEndpoint, RunsEndpoint
 )
 
 
 urlpatterns = [
     url(r'^$', api, name='api.v2'),
     url(r'^/explorer/$', ApiExplorerView.as_view(), name='api.v2.explorer'),
+    url(r'^/authenticate$', AuthenticateView.as_view(), name='api.v2.authenticate'),
 
     url(r'^/broadcasts$', BroadcastEndpoint.as_view(), name='api.v2.broadcasts'),
     url(r'^/calls$', CallsEndpoint.as_view(), name='api.v2.calls'),

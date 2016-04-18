@@ -1,13 +1,18 @@
 from __future__ import absolute_import, unicode_literals
 
+from django import forms
+from django.contrib.auth import authenticate, login
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
-from smartmin.views import SmartTemplateView
+from smartmin.views import SmartTemplateView, SmartFormView
+from temba.api.models import get_or_create_api_token, APIToken
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
@@ -80,6 +85,49 @@ class ApiExplorerView(SmartTemplateView):
             RunsEndpoint.get_read_explorer()
         ]
         return context
+
+
+class AuthenticateView(SmartFormView):
+    """
+    Provides a login form view for app users to generate and access their API tokens
+    """
+    class LoginForm(forms.Form):
+        username = forms.CharField()
+        password = forms.CharField(widget=forms.PasswordInput)
+        role = forms.ChoiceField(choices=APIToken.ROLE_CHOICES)
+
+    title = "API Authentication"
+    form_class = LoginForm
+
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        return super(AuthenticateView, self).dispatch(*args, **kwargs)
+
+    def form_valid(self, form, *args, **kwargs):
+        username = form.cleaned_data.get('username')
+        password = form.cleaned_data.get('password')
+        role = form.cleaned_data.get('role')
+
+        user = authenticate(username=username, password=password)
+        if user and user.is_active:
+            login(self.request, user)
+            tokens = []
+
+            valid_orgs, role = APIToken.get_orgs_for_role(user, role)
+            if role:
+                for org in valid_orgs:
+                    user.set_org(org)
+                    user.set_role(role)
+                    token = get_or_create_api_token(user)
+
+                    if token:
+                        tokens.append({'org': {'id': org.pk, 'name': org.name}, 'token': token})
+            else:
+                return HttpResponse(status=403)
+
+            return JsonResponse({'tokens': tokens})
+        else:
+            return HttpResponse(status=403)
 
 
 class CreatedOnCursorPagination(CustomCursorPagination):
