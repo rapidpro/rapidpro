@@ -7,8 +7,11 @@ import requests
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
@@ -150,20 +153,14 @@ class TwilioHandler(View):
 
             body = request.POST['Body']
 
-            # process any attached media, we will append these to our body
-            media = list()
+            # process any attached media
             for i in range(int(request.POST.get('NumMedia', 0))):
-                media.append(request.POST['MediaUrl%d' % i])
+                media_url = client.download_media(request.POST['MediaUrl%d' % i])
+                path = media_url.partition(':')[2]
+                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), path, media=media_url)
 
-            if media:
-                # add a newline if there is a text message as well
-                if body:
-                    body += '\n'
-
-                # Add each media URL, with newlines separating them
-                body += '\n'.join(media)
-
-            Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), body)
+            if body:
+                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), body)
 
             return HttpResponse("", status=201)
 
@@ -433,20 +430,41 @@ class TelegramHandler(View):
     def dispatch(self, *args, **kwargs):
         return super(TelegramHandler, self).dispatch(*args, **kwargs)
 
+    @classmethod
+    def download_file(cls, channel, file_id):
+        """
+        Fetches a file from Telegram's server based on their file id
+        """
+        auth_token = channel.config_json()[AUTH_TOKEN]
+        url = 'https://api.telegram.org/bot%s/getFile' % auth_token
+        response = requests.post(url, {'file_id': file_id})
+
+        if response.status_code == 200:
+            if json:
+                response_json = response.json()
+                if response_json['ok']:
+                    url = 'https://api.telegram.org/file/bot%s/%s' % (auth_token, response_json['result']['file_path'])
+                    extension = url.rpartition('.')[2]
+                    response = requests.get(url)
+                    content_type = response.headers['Content-Type']
+
+                    temp = NamedTemporaryFile(delete=True)
+                    temp.write(response.content)
+                    temp.flush()
+
+                    return '%s:%s' % (content_type, channel.org.save_media(File(temp), extension))
+
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
         from temba.channels.models import TELEGRAM
 
         channel_uuid = kwargs['uuid']
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TELEGRAM).exclude(org=None).first()
+
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
         body = json.loads(request.body)
-
-        # skip if there is no message block (could be a sticker or voice)
-        if 'text' not in body['message']:
-            return HttpResponse("No message text, ignored.")
 
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
@@ -470,10 +488,61 @@ class TelegramHandler(View):
                 Contact.get_or_create(channel.org, channel.created_by, name, [(TELEGRAM_SCHEME, telegram_id)])
 
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
-        sms = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), body['message']['text'],
-                                  date=msg_date)
 
-        return HttpResponse("SMS Accepted: %d" % sms.id)
+        def create_media_message(file_id):
+            media_url = TelegramHandler.download_file(channel, file_id)
+            url = media_url.partition(':')[2]
+            msg = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), url, date=msg_date, media=media_url)
+            return HttpResponse("Message Accepted: %d" % msg.id)
+
+        if 'sticker' in body['message']:
+            return create_media_message(body['message']['sticker']['file_id'])
+
+        if 'video' in body['message']:
+            return create_media_message(body['message']['video']['file_id'])
+
+        if 'voice' in body['message']:
+            return create_media_message(body['message']['voice']['file_id'])
+
+        if 'document' in body['message']:
+            return create_media_message(body['message']['document']['file_id'])
+
+        if 'location' in body['message']:
+            location = body['message']['location']
+            location = '%s,%s' % (location['latitude'], location['longitude'])
+
+            msg_text = location
+            if 'venue' in body['message']:
+                if 'title' in body['message']['venue']:
+                    msg_text = '%s (%s)' % (msg_text, body['message']['venue']['title'])
+            media_url = 'geo:%s' % location
+            msg = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), msg_text, date=msg_date, media=media_url)
+            return HttpResponse("Message Accepted: %d" % msg.id)
+
+        if 'photo' in body['message']:
+            photos = body['message']['photo']
+            if len(photos):
+                # grab the last (largest) photo in the list
+                return create_media_message(photos[-1:][0]['file_id'])
+
+        if 'contact' in body['message']:
+            contact = body['message']['contact']
+
+            if 'first_name' in contact and 'phone_number' in contact:
+                body['message']['text'] = '%(first_name)s (%(phone_number)s)' % contact
+
+            elif 'first_name' in contact:
+                body['message']['text'] = '%(first_name)s' % contact
+
+            elif 'phone_number' in contact:
+                body['message']['text'] = '%(phone_number)s' % contact
+
+        # skip if there is no message block (could be a sticker or voice)
+        if 'text' in body['message']:
+            msg = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), body['message']['text'], date=msg_date)
+            return HttpResponse("Message Accepted: %d" % msg.id)
+
+        return HttpResponse("No message, ignored.")
 
 
 class InfobipHandler(View):

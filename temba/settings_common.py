@@ -495,12 +495,13 @@ GROUP_PERMISSIONS = {
     "Beta": (
     ),
     "Surveyors": (
-        'orgs.org_surveyor',
-        'orgs.org_api',
         'contacts.contact_api',
         'contacts.contactfield_api',
+        'flows.flow_api',
         'locations.adminboundary_api',
-        'flows.flow_api'
+        'orgs.org_api',
+        'orgs.org_surveyor',
+        'msgs.msg_api',
     ),
     "Granters": (
         'orgs.org_grant',

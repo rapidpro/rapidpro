@@ -4,7 +4,8 @@ from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
 from .views import (
     api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, CallsEndpoint, CampaignsEndpoint, ChannelsEndpoint,
-    ContactsEndpoint, FieldsEndpoint, GroupsEndpoint, LabelsEndpoint, MessagesEndpoint, OrgEndpoint, RunsEndpoint
+    ContactsEndpoint, FieldsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint, OrgEndpoint,
+    RunsEndpoint
 )
 
 
@@ -21,9 +22,11 @@ urlpatterns = [
     url(r'^/fields$', FieldsEndpoint.as_view(), name='api.v2.fields'),
     url(r'^/groups$', GroupsEndpoint.as_view(), name='api.v2.groups'),
     url(r'^/labels$', LabelsEndpoint.as_view(), name='api.v2.labels'),
+    url(r'^/media$', MediaEndpoint.as_view(), name='api.v2.media'),
     url(r'^/messages$', MessagesEndpoint.as_view(), name='api.v2.messages'),
     url(r'^/org$', OrgEndpoint.as_view(), name='api.v2.org'),
     url(r'^/runs$', RunsEndpoint.as_view(), name='api.v2.runs'),
+
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=['json', 'api'])

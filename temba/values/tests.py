@@ -134,6 +134,20 @@ class ResultTest(FlowFileTest):
         gender = RuleSet.objects.get(flow=self.flow, label="Gender")
         age = RuleSet.objects.get(flow=self.flow, label="Age")
 
+        # fetch our results through the view
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.ruleset_results', args=[color.pk]))
+        response = json.loads(response.content)
+
+        categories = response['results'][0]['categories']
+        self.assertEqual('Red', categories[0]['label'])
+        self.assertEqual('Blue', categories[1]['label'])
+        self.assertEqual('Green', categories[2]['label'])
+
+        self.assertEqual(2, categories[0]['count'])
+        self.assertEqual(1, categories[1]['count'])
+        self.assertEqual(1, categories[2]['count'])
+
         # categories should be in the same order as our rules, should have correct counts
         result = Value.get_value_summary(ruleset=color)[0]
         self.assertEquals(3, len(result['categories']))
