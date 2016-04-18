@@ -104,7 +104,7 @@ class ChannelReadSerializer(ReadSerializer):
 
     class Meta:
         model = Channel
-        fields = ('uuid', 'name', 'address', 'country', 'device', 'last_seen')
+        fields = ('uuid', 'name', 'address', 'country', 'device', 'last_seen', 'created_on')
 
 
 class ContactReadSerializer(ReadSerializer):

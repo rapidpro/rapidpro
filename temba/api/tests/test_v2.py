@@ -319,7 +319,8 @@ class APITest(TembaTest):
                 'power_source': None,
                 'power_status': None
             },
-            'last_seen': format_datetime(self.channel.last_seen)
+            'last_seen': format_datetime(self.channel.last_seen),
+            'created_on': format_datetime(self.channel.created_on)
         })
 
         # filter by UUID

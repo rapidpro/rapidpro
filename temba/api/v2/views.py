@@ -335,6 +335,8 @@ class CallsEndpoint(ListAPIMixin, BaseAPIView):
             'fields': [
                 {'name': "id", 'required': False, 'help': "A call ID to filter by. ex: 12345"},
                 {'name': "contact", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+                {'name': 'before', 'required': False, 'help': "Only return calls created before this date, ex: 2015-01-28T18:00:00.000"},
+                {'name': 'after', 'required': False, 'help': "Only return calls created after this date, ex: 2015-01-28T18:00:00.000"}
             ]
         }
 
@@ -357,6 +359,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
         * **power_source** - the source of power as reported by Android (string).
         * **network_type** - the type of network the device is connected to as reported by Android (string).
      * **last_seen** - the datetime when this channel was last seen (datetime).
+     * **created_on** - the datetime when this channel was created (datetime).
 
     Example:
 
@@ -380,7 +383,8 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
                     "power_source": "BATTERY",
                     "network_type": "WIFI",
                 },
-                "last_seen": "2013-03-01T05:31:27"
+                "last_seen": "2016-03-01T05:31:27.456",
+                "created_on": "2014-06-23T09:34:12.866",
             }]
         }
 
