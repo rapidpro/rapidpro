@@ -11,7 +11,7 @@ from temba.flows.models import Flow
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.views import BaseActionForm
 
-from .models import Campaign, CampaignEvent, EventFire, UNIT_CHOICES
+from .models import Campaign, CampaignEvent, EventFire
 
 
 class CampaignActionForm(BaseActionForm):
@@ -202,7 +202,7 @@ class EventForm(forms.ModelForm):
     direction = forms.ChoiceField(choices=(('B', "Before"),
                                            ('A', "After")), required=True)
 
-    unit = forms.ChoiceField(choices=UNIT_CHOICES, required=True)
+    unit = forms.ChoiceField(choices=CampaignEvent.UNIT_CHOICES, required=True)
 
     flow_to_start = forms.ModelChoiceField(queryset=Flow.objects.filter(is_active=True), required=False)
 

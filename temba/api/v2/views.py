@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView
 from temba.api.models import get_or_create_api_token, APIToken
-from temba.campaigns.models import Campaign
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
@@ -22,9 +22,9 @@ from temba.msgs.models import Broadcast, Call, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import (
-    BroadcastReadSerializer, CallReadSerializer, CampaignReadSerializer, ChannelReadSerializer, ContactReadSerializer,
-    ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer,
-    MsgReadSerializer
+    BroadcastReadSerializer, CallReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer,
+    ChannelReadSerializer, ContactReadSerializer, ContactFieldReadSerializer, ContactGroupReadSerializer,
+    FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 )
 from ..models import ApiPermission, SSLPermission
 from ..support import InvalidQueryError, CustomCursorPagination
@@ -41,6 +41,8 @@ def api(request, format=None):
 
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
      * [/api/v2/calls](/api/v2/calls) - to list calls
+     * [/api/v2/campaigns](/api/v2/campaigns) - to list campaigns
+     * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
@@ -55,6 +57,8 @@ def api(request, format=None):
     return Response({
         'broadcasts': reverse('api.v2.broadcasts', request=request),
         'calls': reverse('api.v2.calls', request=request),
+        'campaigns': reverse('api.v2.campaigns', request=request),
+        'campaign_events': reverse('api.v2.campaign_events', request=request),
         'channels': reverse('api.v2.channels', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
         'fields': reverse('api.v2.fields', request=request),
@@ -77,6 +81,8 @@ class ApiExplorerView(SmartTemplateView):
         context['endpoints'] = [
             BroadcastEndpoint.get_read_explorer(),
             CallsEndpoint.get_read_explorer(),
+            CampaignsEndpoint.get_read_explorer(),
+            CampaignEventsEndpoint.get_read_explorer(),
             ChannelsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
@@ -395,7 +401,7 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
     """
     ## Listing Campaigns
 
-    You can retrieve the campaigns for your organization by sending a ```GET``` to the same endpoint, listing the
+    You can retrieve the campaigns for your organization by sending a ```GET``` to this endpoint, listing the
     most recently created campaigns first.
 
      * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
@@ -453,6 +459,73 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
             'request': "",
             'fields': [
                 {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+            ]
+        }
+
+
+class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    ## Listing Campaign Events
+
+    You can retrieve the campaign events for your organization by sending a ```GET``` to this endpoint, listing the
+    most recently created events first.
+
+     * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
+     * **name** - the name of the campaign (string).
+     * **group** - the group this campaign operates on (object).
+     * **created_on** - when the campaign was created (datetime), filterable as `before` and `after`.
+
+    Example:
+
+        GET /api/v2/events.json
+
+    Response is a list of the campaigns on your account
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+                "name": "Reminders",
+                "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9",
+                "created_on": "2013-08-19T19:11:21.088Z"
+            },
+            ...
+        }
+
+    """
+    permission = 'campaigns.campaignevent_api'
+    model = CampaignEvent
+    serializer_class = CampaignEventReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        queryset = queryset.filter(is_active=True)
+
+        # filter by UUID (optional)
+        uuid = params.get('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        queryset = queryset.prefetch_related(
+            Prefetch('campaign', queryset=Campaign.objects.only('uuid', 'name')),
+            Prefetch('flow', queryset=Flow.objects.only('uuid', 'name')),
+        )
+
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Events",
+            'url': reverse('api.v2.events'),
+            'slug': 'event-list',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "An event UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
             ]
         }
 
