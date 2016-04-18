@@ -225,7 +225,7 @@ def generate_location_field_comparison(field, comparator, value):
         'values__location_value__name__%s' % lookup: value})
 
 
-#################################### Lexer definition ####################################
+# ================================== Lexer definition ==================================
 
 tokens = ('BINOP', 'COMPARATOR', 'TEXT', 'STRING')
 
@@ -264,7 +264,7 @@ def t_error(t):
     raise SearchException("Invalid character %s" % t.value[0])
 
 
-#################################### Parser definition ####################################
+# ================================== Parser definition ==================================
 
 precedence = (
     (str('left'), str('BINOP')),
@@ -300,7 +300,7 @@ def p_error(p):
     raise SearchException(message)
 
 
-#################################### Module initialization ####################################
+# ================================== Module initialization ==================================
 
 # initalize the PLY library for lexing and parsing
 search_lexer = lex.lex()

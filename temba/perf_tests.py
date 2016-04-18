@@ -11,7 +11,7 @@ from temba.channels.models import Channel, ChannelLog
 from temba.flows.models import FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
 from temba.utils import dict_to_struct
-from temba.values.models import Value, TEXT, DECIMAL
+from temba.values.models import Value
 from temba.utils.profiler import SegmentProfiler
 from tests import TembaTest
 
@@ -45,13 +45,19 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter", address="billy_bob")
 
         # for generating tuples of scheme, path and channel
-        generate_tel_mtn = lambda num: (TEL_SCHEME, "+25078%07d" % (num + 1), self.tel_mtn)
-        generate_tel_tigo = lambda num: (TEL_SCHEME, "+25072%07d" % (num + 1), self.tel_tigo)
-        generate_twitter = lambda num: (TWITTER_SCHEME, "tweep_%d" % (num + 1), self.twitter)
+        def generate_tel_mtn(num):
+            return TEL_SCHEME, "+25078%07d" % (num + 1), self.tel_mtn
+
+        def generate_tel_tigo(num):
+            return TEL_SCHEME, "+25072%07d" % (num + 1), self.tel_tigo
+
+        def generate_twitter(num):
+            return TWITTER_SCHEME, "tweep_%d" % (num + 1), self.twitter
+
         self.urn_generators = (generate_tel_mtn, generate_tel_tigo, generate_twitter)
 
-        self.field_nick = ContactField.get_or_create(self.org, self.admin, 'nick', 'Nickname', show_in_table=True, value_type=TEXT)
-        self.field_age = ContactField.get_or_create(self.org, self.admin, 'age', 'Age', show_in_table=True, value_type=DECIMAL)
+        self.field_nick = ContactField.get_or_create(self.org, self.admin, 'nick', 'Nickname', show_in_table=True, value_type=Value.TYPE_TEXT)
+        self.field_age = ContactField.get_or_create(self.org, self.admin, 'age', 'Age', show_in_table=True, value_type=Value.TYPE_DECIMAL)
 
     @classmethod
     def tearDownClass(cls):
@@ -111,8 +117,10 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             text = '%s %d' % (base_text, m + 1)
             contact = contacts[m % len(contacts)]
             contact_urn = contact.urn_objects.values()[0]
-            msg = Msg.all_messages.create(contact=contact, contact_urn=contact_urn, org=self.org, channel=channel, text=text,
-                                     direction=INCOMING, status=PENDING, created_on=date, queued_on=date)
+            msg = Msg.all_messages.create(contact=contact, contact_urn=contact_urn,
+                                          org=self.org, channel=channel,
+                                          text=text, direction=INCOMING, status=PENDING,
+                                          created_on=date, queued_on=date)
             messages.append(msg)
         return messages
 
@@ -282,13 +290,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.clear_cache()
 
         with SegmentProfiler("Fetch first page of contacts from API", self,
-                             assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
+                             assert_queries=API_INITIAL_REQUEST_QUERIES + 7, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.v1.contacts'))
 
         # query count now cached
 
         with SegmentProfiler("Fetch second page of contacts from API", self,
-                             assert_queries=API_REQUEST_QUERIES+6, assert_tx=0, force_profile=True):
+                             assert_queries=API_REQUEST_QUERIES + 6, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json?page=2' % reverse('api.v1.contacts'))
 
     def test_api_groups(self):
@@ -299,7 +307,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.clear_cache()
 
         with SegmentProfiler("Fetch first page of groups from API", self,
-                             assert_queries=API_INITIAL_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
+                             assert_queries=API_INITIAL_REQUEST_QUERIES + 2, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.v1.contactgroups'))
 
     def test_api_messages(self):
@@ -313,13 +321,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.clear_cache()
 
         with SegmentProfiler("Fetch first page of messages from API", self,
-                             assert_queries=API_INITIAL_REQUEST_QUERIES+3, assert_tx=0, force_profile=True):
+                             assert_queries=API_INITIAL_REQUEST_QUERIES + 3, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.v1.messages'))
 
         # query count now cached
 
         with SegmentProfiler("Fetch second page of messages from API", self,
-                             assert_queries=API_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
+                             assert_queries=API_REQUEST_QUERIES + 2, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json?page=2' % reverse('api.v1.messages'))
 
     def test_api_runs(self):
@@ -331,13 +339,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.clear_cache()
 
         with SegmentProfiler("Fetch first page of flow runs from API", self,
-                             assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
+                             assert_queries=API_INITIAL_REQUEST_QUERIES + 7, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.v1.runs'))
 
         # query count, terminal nodes and category nodes for the flow all now cached
 
         with SegmentProfiler("Fetch second page of flow runs from API", self,
-                             assert_queries=API_REQUEST_QUERIES+4, assert_tx=0, force_profile=True):
+                             assert_queries=API_REQUEST_QUERIES + 4, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json?page=2' % reverse('api.v1.runs'))
 
         with SegmentProfiler("Create new flow runs via API endpoint", self, assert_tx=1, force_profile=True):
@@ -423,4 +431,3 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             for i in range(10000):
                 ChannelLog.log_success(msg, "Sent Message", method="GET", url="http://foo",
                                        request="GET http://foo", response="Ok", response_status="201")
-

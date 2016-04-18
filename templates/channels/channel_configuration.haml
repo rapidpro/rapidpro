@@ -485,6 +485,41 @@
           omit-empty = true
           accepted-smsc = YOUR-SMSC
 
+  -elif object.channel_type == 'JS'
+    %h4
+      -blocktrans
+        As a last step you'll need to configure Jasmin to call the following URL for MO (incoming) messages.
+
+    %hr
+
+    %h4
+      -trans "Push Message URL"
+
+    %p
+      -blocktrans
+        This endpoint will be called by Jasmin when new messages are received to your number, it must be configured
+        to be called as a POST
+
+    %code
+      https://{{ domain }}{% url 'handlers.jasmin_handler' 'receive' object.uuid %}
+
+  -elif object.channel_type == 'MB'
+    %h4
+      -blocktrans
+        As a last step you'll need to set the following callback URL on your Mblox account:
+
+    %hr
+
+    %h4
+      -trans "Callback URL"
+
+    %p
+      -blocktrans
+        This endpoint will be called by Mblox when new messages are received to your number and for delivery reports.
+
+    %code
+      https://{{ domain }}{% url 'handlers.mblox_handler' object.uuid %}
+
   -elif object.channel_type == 'VB'
     %h4
       -blocktrans
@@ -498,6 +533,26 @@
     %code
       https://{{ domain }}{% url 'handlers.verboice_handler' 'status' object.uuid %}
 
+  -elif object.channel_type == 'FB'
+    %h4
+      -blocktrans
+        To finish configuring your Facebook connection you'll need to set the following webhook URL on your application
+        page, use the verify token below when updating it. Make sure to check all boxes to subscribe to all incoming
+        Facebook events.
+
+    %hr
+
+    %h4
+      -trans "Webhook URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.facebook_handler' object.uuid %}
+
+    %h4
+      -trans "Verify Token"
+
+    %code
+      {{ channel.secret }}
 
   -elif object.channel_type == 'HX'
     %h4

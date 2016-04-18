@@ -114,7 +114,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         Order contacts by name, case insensitive
         """
         return queryset
-            
+
     def get_context_data(self, **kwargs):
         org = self.request.user.get_org()
         counts = ContactGroup.get_system_group_counts(org)
@@ -301,7 +301,7 @@ class UpdateContactForm(ContactForm):
                 lang = languages.get_language_name(self.instance.language)
                 choices += [(self.instance.language, _("%s (Missing)") % lang)]
 
-        choices += [(lang.iso_code, lang.name) for lang in self.instance.org.languages.all().order_by('orgs', 'name')]
+        choices += [(l.iso_code, l.name) for l in self.instance.org.languages.all().order_by('orgs', 'name')]
 
         self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'), initial=self.instance.language, choices=choices)
 
@@ -407,7 +407,6 @@ class ContactCRUDL(SmartCRUDL):
             Adds fields to the form for extra columns found in the spreadsheet. Returns a list of dictionaries
             containing the column label and the names of the fields
             """
-
             org = self.derive_org()
             column_controls = []
             for header in column_headers:
@@ -415,8 +414,6 @@ class ContactCRUDL(SmartCRUDL):
 
                 include_field = forms.BooleanField(label=' ', required=False, initial=True)
                 include_field_name = 'column_%s_include' % header_key
-                label_field = forms.CharField(label=' ', initial=header.title())
-
 
                 label_initial = ContactField.get_by_label(org, header.title())
 
@@ -424,8 +421,7 @@ class ContactCRUDL(SmartCRUDL):
                 if label_initial:
                     label_field_initial = label_initial.label
 
-                label_field = forms.CharField( initial=label_field_initial,
-                                                     required=False, label=' ')
+                label_field = forms.CharField(initial=label_field_initial, required=False, label=' ')
 
                 label_field_name = 'column_%s_label' % header_key
 
@@ -433,13 +429,15 @@ class ContactCRUDL(SmartCRUDL):
                 if label_initial:
                     type_field_initial = label_initial.value_type
 
-                type_field = forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, required=True, initial=type_field_initial)
+                type_field = forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, required=True,
+                                               initial=type_field_initial)
                 type_field_name = 'column_%s_type' % header_key
 
-                fields = []
-                fields.append((include_field_name, include_field))
-                fields.append((label_field_name, label_field))
-                fields.append((type_field_name, type_field))
+                fields = [
+                    (include_field_name, include_field),
+                    (label_field_name, label_field),
+                    (type_field_name, type_field)
+                ]
 
                 self.form.fields = OrderedDict(self.form.fields.items() + fields)
 
@@ -466,7 +464,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_form(self, form_class):
             form = super(ContactCRUDL.Customize, self).get_form(form_class)
             form.fields.clear()
-            
+
             self.headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
             self.column_controls = self.create_column_controls(self.headers)
 
@@ -815,7 +813,7 @@ class ContactCRUDL(SmartCRUDL):
             else:
                 start_message = (page - 1) * msgs_per_page
                 end_message = page * msgs_per_page
-                text_messages = text_messages[start_message:end_message+1]
+                text_messages = text_messages[start_message:end_message + 1]
 
             # ignore our lead message past the first page
             count = len(text_messages)
@@ -830,7 +828,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # grab up to 100 messages from our first message
             if not recent_seconds:
-                text_messages = text_messages[first_message:first_message+100]
+                text_messages = text_messages[first_message:first_message + 100]
 
             activity = []
 
@@ -1295,7 +1293,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             num_fields = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True).count()
 
             contact_fields = []
-            for field_idx in range(1, num_fields+2):
+            for field_idx in range(1, num_fields + 2):
                 contact_field = dict(show='show_%d' % field_idx,
                                      type='type_%d' % field_idx,
                                      label='label_%d' % field_idx,

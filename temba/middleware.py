@@ -1,12 +1,20 @@
 from __future__ import absolute_import, unicode_literals
 
+import pstats
 import traceback
 
+from cStringIO import StringIO
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone, translation
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
 from temba.settings import BRANDING, DEFAULT_BRAND, HOSTNAME
+
+try:
+    import cProfile as profile
+except ImportError:
+    import profile
 
 
 class ExceptionMiddleware(object):
@@ -55,6 +63,7 @@ class BrandingMiddleware(object):
             traceback.print_exc()
 
         request.branding = BrandingMiddleware.get_branding_for_host(host)
+
 
 class ActivateLanguageMiddleware(object):
 
@@ -108,14 +117,6 @@ class FlowSimulationMiddleware(object):
         Contact.set_simulation(False)
         return None
 
-try:
-    import cProfile as profile
-except ImportError:
-    import profile
-import pstats
-from cStringIO import StringIO
-from django.conf import settings
-
 
 class ProfilerMiddleware(object):
     """
@@ -168,4 +169,3 @@ class NonAtomicGetsMiddleware(object):
             else:
                 view_func._non_atomic_requests = set()
         return None
-

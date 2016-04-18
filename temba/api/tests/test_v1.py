@@ -753,7 +753,6 @@ class APITest(TembaTest):
                     ],
                     completed=True)
 
-
         with patch.object(timezone, 'now', return_value=datetime(2015, 9, 16, 0, 0, 0, 0, pytz.UTC)):
 
             # this version doesn't have our node
@@ -890,6 +889,13 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone="+250788123123"))
         self.assertEqual(201, response.status_code)
         self.assertEqual(2, FlowRun.objects.filter(contact__urns__path="+250788123123").count())
+
+        # can start for a test contact (we use this for zapier integrations)
+        self.admin.set_org(self.org)
+        test_contact = Contact.get_test_contact(self.admin)
+        response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone=test_contact.get_urn('tel').path))
+        self.assertEqual(201, response.status_code)
+        self.assertEqual(1, FlowRun.objects.filter(contact=test_contact).count())
 
         # can provide extra
         response = self.postJSON(url, dict(flow_uuid=flow.uuid, phone="+250788123124", extra=dict(code="ONEZ")))

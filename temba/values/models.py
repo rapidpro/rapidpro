@@ -566,14 +566,14 @@ class Value(models.Model):
         pipe.execute()
 
         # leave me: nice for profiling..
-        #from django.db import connection as db_connection, reset_queries
-        #print "=" * 80
-        #for query in db_connection.queries:
+        # from django.db import connection as db_connection, reset_queries
+        # print "=" * 80
+        # for query in db_connection.queries:
         #    print "%s - %s" % (query['time'], query['sql'][:1000])
-        #print "-" * 80
-        #print "took: %f" % (time.time() - start)
-        #print "=" * 80
-        #reset_queries()
+        # print "-" * 80
+        # print "took: %f" % (time.time() - start)
+        # print "=" * 80
+        # reset_queries()
 
         return results
 

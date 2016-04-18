@@ -86,6 +86,7 @@ class SendMessageForm(Form):
             raise ValidationError(_("Sorry, your account is currently suspended. To enable sending messages, please contact support."))
         return cleaned
 
+
 class MsgListView(OrgPermsMixin, SmartListView):
     """
     Base class for message list views with message folders and labels listed by the side
@@ -191,7 +192,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Update(OrgObjPermsMixin, SmartUpdateView):
         form_class = BroadcastForm
         fields = ('message', 'omnibox')
-        field_config = {'restrict':{'label':''}, 'omnibox':{'label':''}, 'message':{'label':'', 'help':''},}
+        field_config = {'restrict': {'label': ''}, 'omnibox': {'label': ''}, 'message': {'label': '', 'help': ''}}
         success_message = ''
         success_url = 'msgs.broadcast_schedule_list'
 
@@ -412,7 +413,6 @@ class ExportForm(Form):
         if start_date and start_date > date.today():
             raise forms.ValidationError(_("The Start Date should not be a date in the future."))
 
-
         if end_date and start_date and end_date <= start_date:
             raise forms.ValidationError(_("The End Date should be a date after the Start Date"))
 
@@ -481,13 +481,14 @@ class MsgCRUDL(SmartCRUDL):
                 export_sms_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-                    messages.info(self.request, _("We are preparing your export. ") +
-                                                _("We will e-mail you at %s when it is ready.") % self.request.user.username)
+                    messages.info(self.request, _("We are preparing your export. We will e-mail you at %s when "
+                                                  "it is ready.") % self.request.user.username)
 
                 else:
                     export = ExportMessagesTask.objects.get(id=export.pk)
                     dl_url = reverse('assets.download', kwargs=dict(type='message_export', pk=export.pk))
-                    messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
+                    messages.info(self.request, _("Export complete, you can find it here: %s (production users "
+                                                  "will get an email)") % dl_url)
 
             try:
                 messages.success(self.request, self.derive_success_message())
@@ -540,7 +541,7 @@ class MsgCRUDL(SmartCRUDL):
             context['base_template'] = 'msgs/msg_test_frame.html'
             return self.render_to_response(Context(context))
 
-        def get_form_kwargs(self ,*args, **kwargs):
+        def get_form_kwargs(self, *args, **kwargs):
             kwargs = super(MsgCRUDL.Test, self).get_form_kwargs(*args, **kwargs)
             kwargs['org'] = self.request.user.get_org()
             return kwargs

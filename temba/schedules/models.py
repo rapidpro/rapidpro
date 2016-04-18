@@ -48,11 +48,11 @@ class Schedule(SmartModel):
     def get_broadcast(self):
         if hasattr(self, 'broadcast'):
             return self.broadcast
-        
+
     def get_trigger(self):
         if hasattr(self, 'trigger'):
             return self.trigger
-        
+
     def get_org_timezone(self):
         org = None
 
@@ -80,7 +80,8 @@ class Schedule(SmartModel):
             (weekday, days) = calendar.monthrange(trigger_date.year, trigger_date.month)
             day_of_month = min(days, self.repeat_day_of_month)
             next_date = datetime(trigger_date.year, trigger_date.month, day=day_of_month,
-                                 hour=hour, minute=minute, second=0, microsecond=0).replace(tzinfo=self.get_org_timezone())
+                                 hour=hour, minute=minute, second=0, microsecond=0)
+            next_date = self.get_org_timezone().localize(next_date)
             if trigger_date.day >= self.repeat_day_of_month:
                 next_date += relativedelta(months=1)
             return next_date
@@ -156,7 +157,7 @@ class Schedule(SmartModel):
         if self.repeat_days:
             bitmask_number = bin(self.repeat_days)
             for i in range(7):
-                power = bin(pow(2, i+1))
+                power = bin(pow(2, i + 1))
                 if bin(int(bitmask_number, 2) & int(power, 2)) == power:
                     days.append(str(int(power, 2)))
         return days
@@ -164,4 +165,3 @@ class Schedule(SmartModel):
     def __unicode__(self):  # pragma: no cover
         return "[%s] %s %s %s:%s" % (str(self.next_fire), self.repeat_period, self.repeat_day_of_month,
                                      self.repeat_hour_of_day, self.repeat_minute_of_hour)
-

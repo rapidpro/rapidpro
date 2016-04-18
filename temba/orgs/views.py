@@ -1,9 +1,10 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import logging
 import plivo
 import regex
-import logging
+import six
 
 from collections import OrderedDict
 from datetime import datetime
@@ -149,13 +150,13 @@ class ModalMixin(SmartFormView):
     def get_context_data(self, **kwargs):
         context = super(ModalMixin, self).get_context_data(**kwargs)
 
-        if 'HTTP_X_PJAX' in self.request.META and not 'HTTP_X_FORMAX' in self.request.META:  # pragma: no cover
+        if 'HTTP_X_PJAX' in self.request.META and 'HTTP_X_FORMAX' not in self.request.META:  # pragma: no cover
             context['base_template'] = "smartmin/modal.html"
         if 'success_url' in kwargs:  # pragma: no cover
             context['success_url'] = kwargs['success_url']
 
-        context['action_url'] = self.request.path + "?" + \
-                                "&".join(urlquote(_) + "=" + urlquote(self.request.REQUEST[_]) for _ in self.request.REQUEST.keys() if _ != '_')
+        pairs = [urlquote(k) + "=" + urlquote(v) for k, v in six.iteritems(self.request.REQUEST) if k != '_']
+        context['action_url'] = self.request.path + "?" + ("&".join(pairs))
 
         return context
 
@@ -510,6 +511,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             from collections import defaultdict
+
             def connected_components(lists):
                 neighbors = defaultdict(set)
                 seen = set()
@@ -518,7 +520,7 @@ class OrgCRUDL(SmartCRUDL):
                         neighbors[item].update(each)
 
                 def component(node, neighbors=neighbors, seen=seen, see=seen.add):
-                    nodes = set([node])
+                    nodes = {node}
                     next_node = nodes.pop
                     while nodes:
                         node = next_node()
@@ -553,7 +555,6 @@ class OrgCRUDL(SmartCRUDL):
                 all_depends.append((campaign,))
 
             buckets = connected_components(all_depends)
-
 
             # sort our buckets, campaigns, flows, triggers
             bucket_list = []
@@ -731,7 +732,6 @@ class OrgCRUDL(SmartCRUDL):
             response['Temba-Success'] = self.get_success_url()
             return response
 
-
     class Manage(SmartListView):
         fields = ('credits', 'used', 'name', 'owner', 'created_on')
         default_order = ('-credits', '-created_on',)
@@ -822,9 +822,9 @@ class OrgCRUDL(SmartCRUDL):
 
             if org.is_suspended():
                 links.append(dict(title=_('Restore'),
-                              style='btn-secondary',
-                              posterize=True,
-                              href='%s?status=restored' % reverse("orgs.org_update", args=[org.pk])))
+                                  style='btn-secondary',
+                                  posterize=True,
+                                  href='%s?status=restored' % reverse("orgs.org_update", args=[org.pk])))
             else:
                 links.append(dict(title=_('Suspend'),
                                   style='btn-secondary',
@@ -881,7 +881,7 @@ class OrgCRUDL(SmartCRUDL):
         GROUP_LEVELS = ('administrators', 'editors', 'viewers', 'surveyors')
 
         def derive_title(self):
-            return _("Manage %(name)s Accounts") % {'name':self.get_object().name}
+            return _("Manage %(name)s Accounts") % {'name': self.get_object().name}
 
         def add_check_fields(self, form, objects, org_id, field_dict):
             for obj in objects:
@@ -1164,7 +1164,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_title(self):
             org = self.get_object()
-            return _("Join %(name)s") % {'name':org.name}
+            return _("Join %(name)s") % {'name': org.name}
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.CreateLogin, self).get_context_data(**kwargs)
@@ -1201,7 +1201,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_title(self):
             org = self.get_object()
-            return _("Join %(name)s") % {'name':org.name}
+            return _("Join %(name)s") % {'name': org.name}
 
         def save(self, org):
             org = self.get_object()
@@ -1579,9 +1579,11 @@ class OrgCRUDL(SmartCRUDL):
     class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class CountryForm(forms.ModelForm):
-            country = forms.ModelChoiceField(Org.get_possible_countries(), required=False,
-                                      label=_("The country used for location values. (optional)"),
-                                      help_text="State and district names will be searched against this country.")
+            country = forms.ModelChoiceField(
+                Org.get_possible_countries(), required=False,
+                label=_("The country used for location values. (optional)"),
+                help_text="State and district names will be searched against this country."
+            )
 
             class Meta:
                 model = Org
@@ -1597,8 +1599,14 @@ class OrgCRUDL(SmartCRUDL):
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class LanguagesForm(forms.ModelForm):
-            primary_lang = forms.CharField(required=False, label=_('Primary Language'), help_text=_('The primary language will be used for contacts with no language preference.'))
-            languages = forms.CharField(required=False, label=_('Additional Languages'), help_text=('Add any other languages you would like to provide translations for.'))
+            primary_lang = forms.CharField(
+                required=False, label=_('Primary Language'),
+                help_text=_('The primary language will be used for contacts with no language preference.')
+            )
+            languages = forms.CharField(
+                required=False, label=_('Additional Languages'),
+                help_text=_('Add any other languages you would like to provide translations for.')
+            )
 
             def __init__(self, *args, **kwargs):
                 self.org = kwargs['org']

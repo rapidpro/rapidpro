@@ -2,14 +2,12 @@ from __future__ import unicode_literals
 
 import json
 import logging
-import time
-import traceback
-from datetime import datetime, timedelta
-from uuid import uuid4
-
 import pytz
 import regex
-from redis_cache import get_redis_connection
+import time
+import traceback
+
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -21,6 +19,7 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
@@ -31,6 +30,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
+from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -96,6 +96,7 @@ STATUS_CONFIG = (
     (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
     (RESENT, _("Resent message"), 'resent'),   # we retried this message
 )
+
 
 def get_message_handlers():
     """
@@ -730,7 +731,7 @@ class Msg(models.Model):
         """
         one_week_ago = timezone.now() - timedelta(days=7)
         failed_messages = Msg.current_messages.filter(created_on__lte=one_week_ago, direction=OUTGOING,
-                                             status__in=[QUEUED, PENDING, ERRORED])
+                                                      status__in=[QUEUED, PENDING, ERRORED])
 
         failed_broadcasts = list(failed_messages.order_by('broadcast').values('broadcast').distinct())
 
@@ -750,8 +751,8 @@ class Msg(models.Model):
 
         if unread_count is None:
             unread_count = Msg.current_messages.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
-                                              contact__is_test=False, created_on__gt=org.msg_last_viewed, labels=None).count()
-
+                                                       contact__is_test=False, created_on__gt=org.msg_last_viewed,
+                                                       labels=None).count()
             cache.set(key, unread_count, 900)
 
         return unread_count
@@ -792,7 +793,7 @@ class Msg(models.Model):
         else:
             msg.status = ERRORED
             msg.modified_on = timezone.now()
-            msg.next_attempt = timezone.now() + timedelta(minutes=5*msg.error_count)
+            msg.next_attempt = timezone.now() + timedelta(minutes=5 * msg.error_count)
 
             if isinstance(msg, Msg):
                 msg.save(update_fields=('status', 'modified_on', 'next_attempt', 'error_count'))
@@ -803,7 +804,7 @@ class Msg(models.Model):
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
             pipe = r.pipeline()
             pipe.srem(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
-            pipe.srem((timezone.now()-timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
+            pipe.srem((timezone.now() - timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
             pipe.execute()
 
             if channel:
@@ -868,21 +869,21 @@ class Msg(models.Model):
         else:
             def next_part(text):
                 if len(text) <= max_length:
-                    return (text, None)
+                    return text, None
 
                 else:
                     # search for a space to split on, up to 140 characters in
                     index = max_length
-                    while index > max_length-20:
+                    while index > max_length - 20:
                         if text[index] == ' ':
                             break
-                        index = index - 1
+                        index -= 1
 
                     # couldn't find a good split, oh well, 160 it is
-                    if index == max_length-20:
-                        return (text[:max_length], text[max_length:])
+                    if index == max_length - 20:
+                        return text[:max_length], text[max_length:]
                     else:
-                        return (text[:index], text[index+1:])
+                        return text[:index], text[index + 1:]
 
             parts = []
             rest = text
@@ -1416,6 +1417,7 @@ class Msg(models.Model):
     class Meta:
         ordering = ['-created_on', '-pk']
 
+
 class Call(SmartModel):
     """
     Call represents a inbound, outobound, or missed call on an Android Channel. When such an event occurs
@@ -1487,7 +1489,12 @@ class Call(SmartModel):
         self.save(update_fields=('is_active',))
 
 
-STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
+STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,' \
+             'cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,' \
+             'how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,' \
+             'not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,' \
+             'their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,' \
+             'who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
 class SystemLabel(models.Model):
@@ -1676,7 +1683,7 @@ class Label(TembaModel):
             return folder
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
-                                       created_by=user, modified_by=user)
+                                         created_by=user, modified_by=user)
 
     @classmethod
     def get_hierarchy(cls, org):
@@ -1780,7 +1787,7 @@ class MsgIterator(object):
 
     def _setup(self):
         for i in xrange(0, len(self._ids), self.max_obj_num):
-            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i+self.max_obj_num])
+            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
                 chunk_queryset = chunk_queryset.order_by(*self._order_by)
@@ -1853,12 +1860,14 @@ class ExportMessagesTask(SmartModel):
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
+        tz = self.org.get_tzinfo()
+
         if self.start_date:
-            start_date = datetime.combine(self.start_date, datetime.min.time()).replace(tzinfo=self.org.get_tzinfo())
+            start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
             all_messages = all_messages.filter(created_on__gte=start_date)
 
         if self.end_date:
-            end_date = datetime.combine(self.end_date, datetime.max.time()).replace(tzinfo=self.org.get_tzinfo())
+            end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
             all_messages = all_messages.filter(created_on__lte=end_date)
 
         if self.groups.all():

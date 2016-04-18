@@ -1,19 +1,15 @@
+from __future__ import unicode_literals
+
 import json
-import urllib2
-from temba.contacts.models import Contact, TEL_SCHEME
-from django.core.files import File
-from django.core.files.storage import default_storage
-from django.core.files.temp import NamedTemporaryFile
+
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from django.conf import settings
-from twilio import twiml
-
 from temba.utils import build_json_response
-from temba.flows.models import Flow, FlowRun, ActionSet
+from temba.flows.models import Flow, FlowRun
 from .models import IVRCall, IN_PROGRESS, COMPLETED
+
 
 class CallHandler(View):
 
@@ -25,8 +21,6 @@ class CallHandler(View):
         return HttpResponse("ILLEGAL METHOD")
 
     def post(self, request, *args, **kwargs):
-        from twilio.util import RequestValidator
-
         call = IVRCall.objects.filter(pk=kwargs['pk']).first()
 
         if not call:
@@ -43,8 +37,15 @@ class CallHandler(View):
                     return HttpResponse("Not found", status=404)
 
         if client.validate(request):
-            call.update_status(request.POST.get('CallStatus', None),
-                               request.POST.get('CallDuration', None))
+            status = request.POST.get('CallStatus', None)
+            duration = request.POST.get('CallDuration', None)
+            call.update_status(status, duration)
+
+            # update any calls we have spawned with the same
+            for child in call.child_calls.all():
+                child.update_status(status, duration)
+                child.save()
+
             call.save()
 
             hangup = 'hangup' == request.POST.get('Digits', None)

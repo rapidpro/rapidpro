@@ -1,17 +1,15 @@
 from __future__ import unicode_literals
 
-from datetime import datetime, timedelta
-from django.utils import timezone
 import json
-import time
-from django.core.urlresolvers import reverse
-from django.contrib.auth.models import User, Group
-from .models import Schedule
-from dateutil.relativedelta import relativedelta
-from temba.msgs.models import Broadcast
-from temba.orgs.models import Org
-from temba.tests import TembaTest
 import pytz
+import time
+
+from datetime import datetime, timedelta
+from django.core.urlresolvers import reverse
+from django.utils import timezone
+from temba.msgs.models import Broadcast
+from temba.tests import TembaTest
+from .models import Schedule
 
 MONDAY = 0     # 2
 TUESDAY = 1    # 4
@@ -138,15 +136,15 @@ class ScheduleTest(TembaTest):
 
         # update our message
         post_data = dict(message="An updated scheduled message", omnibox="c-%d" % joe.pk)
-        self.client.post(reverse('msgs.broadcast_update', args=[broadcast.pk]),  post_data)
+        self.client.post(reverse('msgs.broadcast_update', args=[broadcast.pk]), post_data)
         self.assertEquals("An updated scheduled message", Broadcast.objects.get(pk=broadcast.pk).text)
 
         # update the schedule
         post_data = dict(repeat_period='W', repeat_days=6, start='later', start_datetime_value=1)
-        response = self.client.post(reverse('schedules.schedule_update', args=[broadcast.schedule.pk]),  post_data)
+        response = self.client.post(reverse('schedules.schedule_update', args=[broadcast.schedule.pk]), post_data)
 
-        #broadcast = Broadcast.objects.get(pk=broadcast.pk)
-        #self.assertTrue(broadcast.schedule.has_pending_fire())
+        # broadcast = Broadcast.objects.get(pk=broadcast.pk)
+        # self.assertTrue(broadcast.schedule.has_pending_fire())
 
     def test_update(self):
         sched = self.create_schedule('W', [THURSDAY, SATURDAY])
@@ -226,8 +224,8 @@ class ScheduleTest(TembaTest):
         self.org.timezone = 'US/Eastern'
         self.org.save()
 
-        tz = self.org.get_tzinfo()
-        eleven_fifteen_est = datetime(2013, 1, 3, hour=23, minute=15, second=0, microsecond=0).replace(tzinfo=tz)
+        tz = pytz.timezone(self.org.timezone)
+        eleven_fifteen_est = tz.localize(datetime(2013, 1, 3, hour=23, minute=15, second=0, microsecond=0))
 
         # Test date is 10:15am on a Thursday, Jan 3rd
         schedule = self.create_schedule('D', start_date=eleven_fifteen_est)
@@ -237,7 +235,8 @@ class ScheduleTest(TembaTest):
         schedule = Schedule.objects.get(pk=schedule.pk)
 
         # when is the next fire once our first one passes
-        sched_date = datetime(2013, 1, 3, hour=23, minute=30, second=0, microsecond=0).replace(tzinfo=tz)
+        sched_date = tz.localize(datetime(2013, 1, 3, hour=23, minute=30, second=0, microsecond=0))
+
         schedule.update_schedule(sched_date)
         self.assertEquals('2013-01-04 23:15:00-05:00', unicode(schedule.next_fire))
 
@@ -245,7 +244,7 @@ class ScheduleTest(TembaTest):
 
         self.org.timezone = 'US/Eastern'
         self.org.save()
-        tz = self.org.get_tzinfo()
+        tz = pytz.timezone(self.org.timezone)
 
         sched = self.create_schedule('D')
         Broadcast.create(self.org, self.admin, 'Message', [], schedule=sched)
@@ -256,7 +255,8 @@ class ScheduleTest(TembaTest):
         self.login(self.admin)
 
         # way off into the future
-        start_date = datetime(2050, 1, 3, 23, 0, 0, 0, tzinfo=tz)
+        start_date = datetime(2050, 1, 3, 23, 0, 0, 0)
+        start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
         post_data = dict()
@@ -270,7 +270,8 @@ class ScheduleTest(TembaTest):
         self.assertEquals('2050-01-04 04:00:00+00:00', unicode(sched.next_fire))
 
         # a time in the past
-        start_date = datetime(2010, 1, 3, 23, 45, 0, 0, tzinfo=tz)
+        start_date = datetime(2010, 1, 3, 23, 45, 0, 0)
+        start_date = tz.localize(start_date)
         start_date = pytz.utc.normalize(start_date.astimezone(pytz.utc))
 
         post_data = dict()
@@ -282,5 +283,3 @@ class ScheduleTest(TembaTest):
 
         # next fire should fall at the right hour and minute
         self.assertIn('04:45:00+00:00', unicode(sched.next_fire))
-
-

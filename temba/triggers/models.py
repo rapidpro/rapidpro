@@ -13,6 +13,7 @@ from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Msg, Call
 from temba.ivr.models import IVRCall
 
+
 class Trigger(SmartModel):
     """
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire
@@ -146,7 +147,6 @@ class Trigger(SmartModel):
 
                     for group in groups:
                         trigger.groups.add(group)
-
 
     @classmethod
     def get_triggers_of_type(cls, org, trigger_type):
@@ -342,6 +342,6 @@ class Trigger(SmartModel):
             self.trigger_count += 1
             self.save()
 
-            return self.flow.start(groups, contacts, restart_participants=True) 
+            return self.flow.start(groups, contacts, restart_participants=True)
 
         return False

@@ -40,24 +40,29 @@ from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLab
 logger = logging.getLogger(__name__)
 
 
+EXPIRES_CHOICES = (
+    (0, _('Never')),
+    (5, _('After 5 minutes')),
+    (10, _('After 10 minutes')),
+    (15, _('After 15 minutes')),
+    (30, _('After 30 minutes')),
+    (60, _('After 1 hour')),
+    (60 * 3, _('After 3 hours')),
+    (60 * 6, _('After 6 hours')),
+    (60 * 12, _('After 12 hours')),
+    (60 * 24, _('After 1 day')),
+    (60 * 24 * 3, _('After 3 days')),
+    (60 * 24 * 7, _('After 1 week')),
+    (60 * 24 * 14, _('After 2 weeks')),
+    (60 * 24 * 30, _('After 30 days'))
+)
+
+
 class BaseFlowForm(forms.ModelForm):
     expires_after_minutes = forms.ChoiceField(label=_('Expire inactive contacts'),
                                               help_text=_("When inactive contacts should be removed from the flow"),
-                                              initial=str(60*24*7),
-                                              choices=((0, _('Never')),
-                                                       (5, _('After 5 minutes')),
-                                                       (10, _('After 10 minutes')),
-                                                       (15, _('After 15 minutes')),
-                                                       (30, _('After 30 minutes')),
-                                                       (60, _('After 1 hour')),
-                                                       (60*3, _('After 3 hours')),
-                                                       (60*6, _('After 6 hours')),
-                                                       (60*12, _('After 12 hours')),
-                                                       (60*24, _('After 1 day')),
-                                                       (60*24*3, _('After 3 days')),
-                                                       (60*24*7, _('After 1 week')),
-                                                       (60*24*14, _('After 2 weeks')),
-                                                       (60*24*30, _('After 30 days'))))
+                                              initial=str(60 * 24 * 7),
+                                              choices=EXPIRES_CHOICES)
 
     def clean_keyword_triggers(self):
         org = self.user.get_org()
@@ -247,9 +252,10 @@ class RuleCRUDL(SmartCRUDL):
         title = "Analytics"
 
         def get_context_data(self, **kwargs):
-            org = self.request.user.get_org()
-            dthandler = lambda obj: obj.isoformat() if isinstance(obj, datetime) else obj
+            def dthandler(obj):
+                return obj.isoformat() if isinstance(obj, datetime) else obj
 
+            org = self.request.user.get_org()
             rules = RuleSet.objects.filter(flow__is_active=True, flow__org=org).exclude(label=None).order_by('flow__created_on', 'y').select_related('flow')
             current_flow = None
             flow_json = []
@@ -292,8 +298,9 @@ class RuleCRUDL(SmartCRUDL):
                 if request_report:
                     current_report = json.dumps(request_report.as_json())
 
-            org_supports_map = org.country and org.contactfields.filter(value_type=Value.TYPE_STATE).first() and \
-                               org.contactfields.filter(value_type=Value.TYPE_DISTRICT).first()
+            state_fields = org.contactfields.filter(value_type=Value.TYPE_STATE)
+            district_fields = org.contactfields.filter(value_type=Value.TYPE_DISTRICT)
+            org_supports_map = org.country and state_fields.first() and district_fields.first()
 
             return dict(flows=json.dumps(flow_json, default=dthandler), org_supports_map=org_supports_map,
                         groups=json.dumps(groups_json), reports=json.dumps(reports_json), current_report=current_report)
@@ -310,6 +317,7 @@ def msg_log_cmp(a, b):
         else:
             return 1
 
+
 class PartialTemplate(SmartTemplateView):
 
     def pre_process(self, request, *args, **kwargs):
@@ -318,6 +326,7 @@ class PartialTemplate(SmartTemplateView):
 
     def get_template_names(self):
         return "partials/%s.html" % self.template
+
 
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results',
@@ -501,21 +510,21 @@ class FlowCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
-
-
-
-            keyword_triggers = forms.CharField(required=False, label=_("Global keyword triggers"),
-                                               help_text=_("When a user sends any of these keywords they will begin this flow"))
-
-
+            keyword_triggers = forms.CharField(
+                required=False,
+                label=_("Global keyword triggers"),
+                help_text=_("When a user sends any of these keywords they will begin this flow")
+            )
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Update.FlowUpdateForm, self).__init__(*args, **kwargs)
                 self.user = user
 
                 metadata = self.instance.get_metadata_json()
-                flow_triggers = Trigger.objects.filter(org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
-                                                       trigger_type=Trigger.TYPE_KEYWORD).order_by('created_on')
+                flow_triggers = Trigger.objects.filter(
+                    org=self.instance.org, flow=self.instance, is_archived=False, groups=None,
+                    trigger_type=Trigger.TYPE_KEYWORD
+                ).order_by('created_on')
 
                 # if we don't have a base language let them pick one (this is immutable)
                 if not self.instance.base_language:
@@ -524,11 +533,15 @@ class FlowCRUDL(SmartCRUDL):
                     self.fields['base_language'] = forms.ChoiceField(label=_('Language'), choices=choices)
 
                 if self.instance.flow_type == Flow.SURVEY:
-                    contact_creation = forms.ChoiceField(label=_('Create a contact '),
-                                                       initial=metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN),
-                                                       help_text=_("Whether surveyor logins should be used as the contact for each run"),
-                                                       choices=((Flow.CONTACT_PER_RUN, _('For each run')),
-                                                                (Flow.CONTACT_PER_LOGIN, _('For each login'))))
+                    contact_creation = forms.ChoiceField(
+                        label=_('Create a contact '),
+                        initial=metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN),
+                        help_text=_("Whether surveyor logins should be used as the contact for each run"),
+                        choices=(
+                            (Flow.CONTACT_PER_RUN, _('For each run')),
+                            (Flow.CONTACT_PER_LOGIN, _('For each login'))
+                        )
+                    )
 
                     self.fields[Flow.CONTACT_CREATION] = contact_creation
 
@@ -595,7 +608,6 @@ class FlowCRUDL(SmartCRUDL):
                     Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
                                            flow=obj, created_by=user, modified_by=user)
 
-
             # run async task to update all runs
             from .tasks import update_run_expirations_task
             update_run_expirations_task.delay(obj.pk)
@@ -622,8 +634,8 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(FlowCRUDL.BaseList, self).get_context_data(**kwargs)
             context['org_has_flows'] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count()
-            context['folders']= self.get_folders()
-            context['labels']= self.get_flow_labels()
+            context['folders'] = self.get_folders()
+            context['labels'] = self.get_flow_labels()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
             return context
@@ -637,10 +649,10 @@ class FlowCRUDL(SmartCRUDL):
         def get_folders(self):
             org = self.request.user.get_org()
 
-            folders = []
-            folders.append(dict(label="Active", url=reverse('flows.flow_list'), count=Flow.objects.filter(is_active=True, is_archived=False, flow_type=Flow.FLOW, org=org).count()))
-            folders.append(dict(label="Archived", url=reverse('flows.flow_archived'), count=Flow.objects.filter(is_active=True, is_archived=True, org=org).count()))
-            return folders
+            return [
+                dict(label="Active", url=reverse('flows.flow_list'), count=Flow.objects.filter(is_active=True, is_archived=False, flow_type=Flow.FLOW, org=org).count()),
+                dict(label="Archived", url=reverse('flows.flow_archived'), count=Flow.objects.filter(is_active=True, is_archived=True, org=org).count())
+            ]
 
     class Archived(BaseList):
         actions = ('restore',)
@@ -663,7 +675,6 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            run_id = self.request.REQUEST.get('run', None)
 
             if self.has_org_perm('flows.flow_update'):
                 links.append(dict(title=_('Edit'),
@@ -835,7 +846,6 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Export"),
                                   href=reverse('flows.flow_export', args=[self.get_object().id])))
 
-
             if self.has_org_perm('flows.flow_revisions'):
                 links.append(dict(divider=True)),
                 links.append(dict(title=_("Revision History"),
@@ -853,7 +863,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Editor(Read):
         def get_context_data(self, *args, **kwargs):
-            context = super(FlowCRUDL.Read, self).get_context_data(*args, **kwargs)
+            context = super(FlowCRUDL.Editor, self).get_context_data(*args, **kwargs)
 
             context['recording_url'] = 'https://%s/' % settings.AWS_BUCKET_DOMAIN
 
@@ -1026,7 +1036,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 total = runs.count()
 
-                runs = runs[start:(start+show)]
+                runs = runs[start:(start + show)]
 
                 # fetch the step data for our set of contacts
                 contacts = []
@@ -1410,7 +1420,6 @@ class FlowLabelCRUDL(SmartCRUDL):
         success_message = ''
         submit_button_name = _("Create")
 
-
         def get_form_kwargs(self):
             kwargs = super(FlowLabelCRUDL.Create, self).get_form_kwargs()
             kwargs['org'] = self.request.user.get_org()
@@ -1426,7 +1435,7 @@ class FlowLabelCRUDL(SmartCRUDL):
 
             flow_ids = []
             if self.form.cleaned_data['flows']:
-                flow_ids = [ int(_) for _ in self.form.cleaned_data['flows'].split(',') if _.isdigit() ]
+                flow_ids = [int(f) for f in self.form.cleaned_data['flows'].split(',') if f.isdigit()]
 
             flows = Flow.objects.filter(org=obj.org, is_active=True, pk__in=flow_ids)
 

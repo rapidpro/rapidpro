@@ -179,7 +179,7 @@ class Org(SmartModel):
                                    help_text=_("Whether day comes first or month comes first in dates"))
 
     webhook = models.TextField(null=True, verbose_name=_("Webhook"),
-                              help_text=_("Webhook endpoint and configuration"))
+                               help_text=_("Webhook endpoint and configuration"))
 
     webhook_events = models.IntegerField(default=0, verbose_name=_("Webhook Events"),
                                          help_text=_("Which type of actions will trigger webhook events."))
@@ -194,13 +194,15 @@ class Org(SmartModel):
     config = models.TextField(null=True, verbose_name=_("Configuration"),
                               help_text=_("More Organization specific configuration"))
 
-    slug = models.SlugField(verbose_name=_("Slug"), max_length=255, null=True, blank=True, unique=True, error_messages=dict(unique=_("This slug is not available")))
+    slug = models.SlugField(verbose_name=_("Slug"), max_length=255, null=True, blank=True, unique=True,
+                            error_messages=dict(unique=_("This slug is not available")))
 
     is_anon = models.BooleanField(default=False,
                                   help_text=_("Whether this organization anonymizes the phone numbers of contacts within it"))
 
     primary_language = models.ForeignKey('orgs.Language', null=True, blank=True, related_name='orgs',
-                                         help_text=_('The primary language will be used for contacts with no language preference.'), on_delete=models.SET_NULL)
+                                         help_text=_('The primary language will be used for contacts with no language preference.'),
+                                         on_delete=models.SET_NULL)
 
     brand = models.CharField(max_length=128, default=settings.DEFAULT_BRAND, verbose_name=_("Brand"),
                              help_text=_("The brand used in emails"))
@@ -284,7 +286,6 @@ class Org(SmartModel):
                             **active_topup_keys)
         else:
             return 0
-
 
     def set_status(self, status):
         config = self.config_json()
@@ -674,9 +675,7 @@ class Org(SmartModel):
         return self.date_format == DAYFIRST
 
     def get_tzinfo(self):
-        # we have to build the timezone based on an actual date
-        # see: https://bugs.launchpad.net/pytz/+bug/1319939
-        return timezone.now().astimezone(pytz.timezone(self.timezone)).tzinfo
+        return pytz.timezone(self.timezone)
 
     def format_date(self, datetime, show_time=True):
         """
@@ -765,8 +764,8 @@ class Org(SmartModel):
 
                 if not boundary:
                     # still no boundary? try n-gram of 2
-                    for i in range(0, len(words)-1):
-                        bigram = " ".join(words[i:i+2])
+                    for i in range(0, len(words) - 1):
+                        bigram = " ".join(words[i:i + 2])
                         boundary = self.find_boundary_by_name(bigram, level, parent)
                         if boundary:
                             break
@@ -970,10 +969,9 @@ class Org(SmartModel):
         active_credits = active_credits if active_credits else 0
 
         # these are the credits that have been used in expired topups
-        expired_credits = TopUpCredits.objects.filter(topup__org=self,
-                                                      topup__is_active=True,
-                                                      topup__expires_on__lte=timezone.now())\
-                                               .aggregate(Sum('used')).get('used__sum')
+        expired_credits = TopUpCredits.objects.filter(
+            topup__org=self, topup__is_active=True, topup__expires_on__lte=timezone.now()
+        ).aggregate(Sum('used')).get('used__sum')
 
         expired_credits = expired_credits if expired_credits else 0
 
@@ -1131,7 +1129,7 @@ class Org(SmartModel):
 
     def add_credits(self, bundle, token, user):
         # look up our bundle
-        if not bundle in BUNDLE_MAP:
+        if bundle not in BUNDLE_MAP:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
 
         bundle = BUNDLE_MAP[bundle]
@@ -1403,7 +1401,7 @@ class Org(SmartModel):
         return self.name
 
 
-############ monkey patch User class with a few extra functions ##############
+# ===================== monkey patch User class with a few extra functions ========================
 
 def get_user_orgs(user):
     if user.is_superuser:
@@ -1587,7 +1585,7 @@ class Invitation(SmartModel):
         """
         Generates a [length] characters alpha numeric secret
         """
-        letters="23456789ABCDEFGHJKLMNPQRSTUVWXYZ" # avoid things that could be mistaken ex: 'I' and '1'
+        letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ" # avoid things that could be mistaken ex: 'I' and '1'
         return ''.join([random.choice(letters) for _ in range(length)])
 
     def send_invitation(self):
@@ -1800,7 +1798,8 @@ class CreditAlert(SmartModel):
         from temba.msgs.models import Msg
 
         # all active orgs in the last hour
-        active_orgs = Msg.current_messages.filter(created_on__gte=timezone.now()-timedelta(hours=1)).order_by('org').distinct('org')
+        active_orgs = Msg.current_messages.filter(created_on__gte=timezone.now() - timedelta(hours=1))
+        active_orgs = active_orgs.order_by('org').distinct('org')
 
         for msg in active_orgs:
             org = msg.org

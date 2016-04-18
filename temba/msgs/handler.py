@@ -20,14 +20,25 @@ class MessageHandler(object):
         return self.name
 
     # incoming phases
-    def pre_receive(self, msg): pass
-    def receive(self, msg): pass
-    def post_receive(self, msg): pass
+    def pre_receive(self, msg):
+        pass
+
+    def receive(self, msg):
+        pass
+
+    def post_receive(self, msg):
+        pass
 
     # main phase
-    def handle(self, msg): pass
+    def handle(self, msg):
+        pass
 
     # outgoing phases:
-    def pre_send(self, msg): pass
-    def send(self, msg): pass
-    def post_send(self, msg): pass
+    def pre_send(self, msg):
+        pass
+
+    def send(self, msg):
+        pass
+
+    def post_send(self, msg):
+        pass
