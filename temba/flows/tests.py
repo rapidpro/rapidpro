@@ -2146,7 +2146,7 @@ class ActionTest(TembaTest):
             "ussd_message": {"base": "test"}
         }
         ussd_ruleset.config = json.dumps(config)
-        action = UssdAction.from_ruleset(ussd_ruleset)
+        action = UssdAction.from_ruleset(ussd_ruleset, run.flow.org)
         execution = action.execute(run, None, msg)
 
         self.assertIsNotNone(action.msg)
