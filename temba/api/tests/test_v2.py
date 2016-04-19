@@ -246,13 +246,13 @@ class APITest(TembaTest):
 
         client = APIClient()
 
-        # messages can be fetched by admin token
+        # campaigns can be fetched by admin token
         client.credentials(HTTP_AUTHORIZATION="Token " + token_obj1.key)
-        self.assertEqual(client.get(reverse('api.v2.messages') + '.json?id=1').status_code, 200)
+        self.assertEqual(client.get(reverse('api.v2.campaigns') + '.json').status_code, 200)
 
         # but not by an admin's surveyor token
         client.credentials(HTTP_AUTHORIZATION="Token " + token_obj2.key)
-        self.assertEqual(client.get(reverse('api.v2.messages') + '.json?id=1').status_code, 403)
+        self.assertEqual(client.get(reverse('api.v2.campaigns') + '.json').status_code, 403)
 
         # but their surveyor token can get flows or contacts
         # self.assertEqual(client.get(reverse('api.v2.flows') + '.json').status_code, 200)  # TODO re-enable when added
@@ -275,7 +275,7 @@ class APITest(TembaTest):
         # self.assertEqual(client.get(reverse('api.v1.flows') + '.json').status_code, 200)  # TODO re-enable when added
         self.assertEqual(client.get(reverse('api.v2.contacts') + '.json').status_code, 200)
         self.assertEqual(client.get(reverse('api.v2.fields') + '.json').status_code, 200)
-        self.assertEqual(client.get(reverse('api.v2.messages') + '.json?id=1').status_code, 403)
+        self.assertEqual(client.get(reverse('api.v2.campaigns') + '.json').status_code, 403)
 
     def test_broadcasts(self):
         url = reverse('api.v2.broadcasts')
