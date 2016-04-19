@@ -418,18 +418,32 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
     serializer_class = CampaignEventReadSerializer
     pagination_class = CreatedOnCursorPagination
 
+    def get_queryset(self):
+        return self.model.objects.filter(campaign__org=self.request.user.get_org(), is_active=True)
+
     def filter_queryset(self, queryset):
         params = self.request.query_params
         queryset = queryset.filter(is_active=True)
+        org = self.request.user.get_org()
 
         # filter by UUID (optional)
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
+        # filter by campaign name/uuid (optional)
+        campaign_ref = params.get('campaign')
+        if campaign_ref:
+            campaign = Campaign.objects.filter(org=org).filter(Q(uuid=campaign_ref) | Q(name=campaign_ref)).first()
+            if campaign:
+                queryset = queryset.filter(campaign=campaign)
+            else:
+                queryset = queryset.filter(pk=-1)
+
         queryset = queryset.prefetch_related(
             Prefetch('campaign', queryset=Campaign.objects.only('uuid', 'name')),
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name')),
+            Prefetch('relative_to', queryset=ContactField.objects.only('key')),
         )
 
         return queryset
@@ -438,9 +452,9 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         return {
             'method': "GET",
-            'title': "List Events",
-            'url': reverse('api.v2.events'),
-            'slug': 'event-list',
+            'title': "List Campaign Events",
+            'url': reverse('api.v2.campaign_events'),
+            'slug': 'campaign-event-list',
             'request': "",
             'fields': [
                 {'name': "uuid", 'required': False, 'help': "An event UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},

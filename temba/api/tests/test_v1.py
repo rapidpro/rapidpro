@@ -16,7 +16,7 @@ from mock import patch
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
-from temba.campaigns.models import Campaign, CampaignEvent, MESSAGE_EVENT, FLOW_EVENT
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, SyncEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, RULE_SET
@@ -2812,7 +2812,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         event1 = CampaignEvent.objects.get()
-        self.assertEqual(event1.event_type, FLOW_EVENT)
+        self.assertEqual(event1.event_type, CampaignEvent.TYPE_FLOW)
         self.assertEqual(event1.campaign, campaign)
         self.assertEqual(event1.offset, 5)
         self.assertEqual(event1.unit, 'W')
@@ -2848,7 +2848,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         event2 = CampaignEvent.objects.order_by('-pk').first()
-        self.assertEqual(event2.event_type, FLOW_EVENT)
+        self.assertEqual(event2.event_type, CampaignEvent.TYPE_FLOW)
         self.assertEqual(event2.campaign, campaign)
         self.assertEqual(event2.offset, 3)
         self.assertEqual(event2.unit, 'D')
@@ -2870,7 +2870,7 @@ class APITest(TembaTest):
 
         message_flow1 = Flow.objects.exclude(pk=color_flow.pk).get()
         event3 = CampaignEvent.objects.order_by('-pk').first()
-        self.assertEqual(event3.event_type, MESSAGE_EVENT)
+        self.assertEqual(event3.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event3.campaign, campaign)
         self.assertEqual(event3.offset, 3)
         self.assertEqual(event3.unit, 'D')
@@ -2896,7 +2896,7 @@ class APITest(TembaTest):
 
         message_flow2 = Flow.objects.exclude(pk__in=[color_flow.pk, message_flow1.pk]).get()
         event1.refresh_from_db()
-        self.assertEqual(event1.event_type, MESSAGE_EVENT)
+        self.assertEqual(event1.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event1.campaign, campaign)
         self.assertEqual(event1.offset, 30)
         self.assertEqual(event1.unit, 'D')
@@ -2911,7 +2911,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         event3.refresh_from_db()
-        self.assertEqual(event3.event_type, MESSAGE_EVENT)
+        self.assertEqual(event3.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event3.message, "Time to go to the clinic. NOW!")
         self.assertEqual(event3.flow, message_flow1)
 
@@ -2927,7 +2927,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 201)
 
         event2.refresh_from_db()
-        self.assertEqual(event2.event_type, FLOW_EVENT)
+        self.assertEqual(event2.event_type, CampaignEvent.TYPE_FLOW)
         self.assertEqual(event2.campaign, campaign)
         self.assertEqual(event2.offset, 3)
         self.assertEqual(event2.unit, 'W')

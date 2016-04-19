@@ -120,7 +120,7 @@ class CampaignEventReadSerializer(ReadSerializer):
 
     class Meta:
         model = CampaignEvent
-        fields = ('uuid', 'campaign', 'flow', 'relative_to', 'offset', 'unit', 'delivery_hour', 'message', 'created_on')
+        fields = ('uuid', 'campaign', 'relative_to', 'offset', 'unit', 'delivery_hour', 'flow', 'message', 'created_on')
 
 
 class ChannelReadSerializer(ReadSerializer):

@@ -12,7 +12,7 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
-from temba.campaigns.models import Campaign
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
@@ -326,9 +326,12 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
-
         campaign1 = Campaign.create(self.org, self.admin, "Reminders #1", reporters)
         campaign2 = Campaign.create(self.org, self.admin, "Reminders #2", reporters)
+
+        # create campaign for other org
+        spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+        Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
@@ -348,10 +351,73 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % campaign1.uuid)
         self.assertResultsByUUID(response, [campaign1])
 
+    def test_campaign_events(self):
+        url = reverse('api.v2.campaign_events')
+
+        self.assertEndpointAccess(url)
+
+        flow = self.create_flow()
+        reporters = self.create_group("Reporters", [self.joe, self.frank])
+        registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration")
+
+        campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
+        event1 = CampaignEvent.create_message_event(self.org, self.admin, campaign1, registration,
+                                                    1, CampaignEvent.UNIT_DAYS, "Don't forget to brush your teeth")
+
+        campaign2 = Campaign.create(self.org, self.admin, "Notifications", reporters)
+        event2 = CampaignEvent.create_flow_event(self.org, self.admin, campaign2, registration,
+                                                 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12)
+
+        # create event for another org
+        joined = ContactField.get_or_create(self.org2, self.admin2, 'joined', "Joined On")
+        spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+        spam = Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
+        CampaignEvent.create_flow_event(self.org2, self.admin2, spam, joined,
+                                        6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsByUUID(response, [event2, event1])
+        self.assertEqual(response.json['results'][0], {
+            'uuid': event2.uuid,
+            'campaign': {'uuid': campaign2.uuid, 'name': "Notifications"},
+            'relative_to': "registration",
+            'offset': 6,
+            'unit': 'hours',
+            'delivery_hour': 12,
+            'flow': {'uuid': flow.uuid, 'name': "Color Flow"},
+            'message': None,
+            'created_on': format_datetime(event2.created_on)
+        })
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % event1.uuid)
+        self.assertResultsByUUID(response, [event1])
+
+        # filter by campaign name
+        response = self.fetchJSON(url, 'campaign=Reminders')
+        self.assertResultsByUUID(response, [event1])
+
+        # filter by campaign UUID
+        response = self.fetchJSON(url, 'campaign=%s' % campaign1.uuid)
+        self.assertResultsByUUID(response, [event1])
+
+        # filter by invalid campaign
+        response = self.fetchJSON(url, 'campaign=invalid')
+        self.assertResultsByUUID(response, [])
+
     def test_channels(self):
         url = reverse('api.v2.channels')
 
         self.assertEndpointAccess(url)
+
+        # create channel for other org
+        Channel.create(self.org2, self.admin2, None, 'TT', name="Twitter Channel",
+                       address="nyaruka", role="SR", scheme='twitter')
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
