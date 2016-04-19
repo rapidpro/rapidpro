@@ -4393,8 +4393,7 @@ class UssdAction(ReplyAction):
         # add menu to the msg
         for menu in obj[UssdAction.MENU]:
             self.msg = {language: localised_msg + ": ".join(
-                (str(menu['option']), self.get_menu_label(menu['label'], language),)) + '\n' for language, localised_msg
-                        in self.msg.iteritems()}
+                (str(menu['option']), self.get_menu_label(menu['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
 
 
 class VariableContactAction(Action):
