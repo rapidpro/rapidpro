@@ -4687,7 +4687,7 @@ class MissedCallChannelTest(FlowFileTest):
         flow = self.get_flow('call-channel-split')
 
         # trigger a missed call on our channel
-        call = Call.create_call(self.channel, '+250788111222', timezone.now(), 0, Call.TYPE_IN_MISSED)
+        call = Call.create_call(self.channel, '+250788111222', timezone.now(), 0, Call.TYPE_CALL_IN_MISSED)
 
         # should have triggered our flow
         FlowRun.objects.get(flow=flow)

@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
 from .views import (
-    api, ApiExplorerView, BroadcastEndpoint, CallsEndpoint, ChannelsEndpoint, ContactsEndpoint, FieldsEndpoint,
+    api, ApiExplorerView, BroadcastEndpoint, ChannelsEndpoint, ChannelEventsEndpoint, ContactsEndpoint, FieldsEndpoint,
     GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint, OrgEndpoint, RunsEndpoint
 )
 
@@ -12,8 +12,8 @@ urlpatterns = [
     url(r'^$', api, name='api.v2'),
     url(r'^/explorer/$', ApiExplorerView.as_view(), name='api.v2.explorer'),
     url(r'^/broadcasts$', BroadcastEndpoint.as_view(), name='api.v2.broadcasts'),
-    url(r'^/calls$', CallsEndpoint.as_view(), name='api.v2.calls'),
     url(r'^/channels$', ChannelsEndpoint.as_view(), name='api.v2.channels'),
+    url(r'^/channel_events$', ChannelEventsEndpoint.as_view(), name='api.v2.channel_events'),
     url(r'^/contacts$', ContactsEndpoint.as_view(), name='api.v2.contacts'),
     url(r'^/fields$', FieldsEndpoint.as_view(), name='api.v2.fields'),
     url(r'^/groups$', GroupsEndpoint.as_view(), name='api.v2.groups'),
