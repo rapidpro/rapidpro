@@ -320,53 +320,6 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'before=%s' % format_datetime(bcast2.created_on))
         self.assertResultsById(response, [bcast2, bcast1])
 
-    def test_calls(self):
-        url = reverse('api.v2.calls')
-
-        self.assertEndpointAccess(url)
-
-        call1 = Call.create_call(self.channel, "0788123123", timezone.now(), 0, Call.TYPE_IN_MISSED)
-        call2 = Call.create_call(self.channel, "0788124124", timezone.now(), 36, Call.TYPE_IN)
-        call3 = Call.create_call(self.channel, "0788124124", timezone.now(), 0, Call.TYPE_OUT_MISSED)
-        call4 = Call.create_call(self.channel, "0788123123", timezone.now(), 15, Call.TYPE_OUT)
-
-        # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
-            response = self.fetchJSON(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json['next'], None)
-        self.assertResultsById(response, [call4, call3, call2, call1])
-        self.assertEqual(response.json['results'][0], {
-            'id': call4.pk,
-            'type': "out",
-            'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
-            'channel': {'uuid': self.channel.uuid, 'name': "Test Channel"},
-            'time': format_datetime(call4.time),
-            'duration': 15,
-            'created_on': format_datetime(call4.created_on),
-        })
-
-        # filter by id
-        response = self.fetchJSON(url, 'id=%d' % call1.pk)
-        self.assertResultsById(response, [call1])
-
-        # filter by contact
-        response = self.fetchJSON(url, 'contact=%s' % self.joe.uuid)
-        self.assertResultsById(response, [call4, call1])
-
-        # filter by invalid contact
-        response = self.fetchJSON(url, 'contact=invalid')
-        self.assertResultsById(response, [])
-
-        # filter by before
-        response = self.fetchJSON(url, 'before=%s' % format_datetime(call3.created_on))
-        self.assertResultsById(response, [call3, call2, call1])
-
-        # filter by after
-        response = self.fetchJSON(url, 'after=%s' % format_datetime(call2.created_on))
-        self.assertResultsById(response, [call4, call3, call2])
-
     def test_campaigns(self):
         url = reverse('api.v2.campaigns')
 
@@ -430,6 +383,53 @@ class APITest(TembaTest):
         # filter by address
         response = self.fetchJSON(url, 'address=billy_bob')
         self.assertResultsByUUID(response, [self.twitter])
+
+    def test_channel_events(self):
+        url = reverse('api.v2.channel_events')
+
+        self.assertEndpointAccess(url)
+
+        call1 = Call.create_call(self.channel, "0788123123", timezone.now(), 0, Call.TYPE_CALL_IN_MISSED)
+        call2 = Call.create_call(self.channel, "0788124124", timezone.now(), 36, Call.TYPE_CALL_IN)
+        call3 = Call.create_call(self.channel, "0788124124", timezone.now(), 0, Call.TYPE_CALL_OUT_MISSED)
+        call4 = Call.create_call(self.channel, "0788123123", timezone.now(), 15, Call.TYPE_CALL_OUT)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsById(response, [call4, call3, call2, call1])
+        self.assertEqual(response.json['results'][0], {
+            'id': call4.pk,
+            'channel': {'uuid': self.channel.uuid, 'name': "Test Channel"},
+            'type': "call-out",
+            'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
+            'time': format_datetime(call4.time),
+            'duration': 15,
+            'created_on': format_datetime(call4.created_on),
+        })
+
+        # filter by id
+        response = self.fetchJSON(url, 'id=%d' % call1.pk)
+        self.assertResultsById(response, [call1])
+
+        # filter by contact
+        response = self.fetchJSON(url, 'contact=%s' % self.joe.uuid)
+        self.assertResultsById(response, [call4, call1])
+
+        # filter by invalid contact
+        response = self.fetchJSON(url, 'contact=invalid')
+        self.assertResultsById(response, [])
+
+        # filter by before
+        response = self.fetchJSON(url, 'before=%s' % format_datetime(call3.created_on))
+        self.assertResultsById(response, [call3, call2, call1])
+
+        # filter by after
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(call2.created_on))
+        self.assertResultsById(response, [call4, call3, call2])
 
     def test_contacts(self):
         url = reverse('api.v2.contacts')

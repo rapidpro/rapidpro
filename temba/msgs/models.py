@@ -1459,33 +1459,28 @@ class Msg(models.Model):
         ordering = ['-created_on', '-pk']
 
 
-class Call(SmartModel):
+class Call(SmartModel):  # TODO rename to ChannelEvent and move to channels app
     """
-    Call represents a inbound, outobound, or missed call on an Android Channel. When such an event occurs
-    on an Android Phone with the Channel application installed, the calls are relayed to the server much
-    the same way incoming messages are.
-
-    Note: These are not related to calls made for voice-based flows.
+    An event that has occurred on a channel which may be used as a trigger
     """
-    TYPE_UNKNOWN = 'unk'
-    TYPE_OUT = 'mt_call'
-    TYPE_OUT_MISSED = 'mt_miss'
-    TYPE_IN = 'mo_call'
-    TYPE_IN_MISSED = 'mo_miss'
+    TYPE_UNKNOWN = 'unknown'
+    TYPE_CALL_OUT = 'mt_call'
+    TYPE_CALL_OUT_MISSED = 'mt_miss'
+    TYPE_CALL_IN = 'mo_call'
+    TYPE_CALL_IN_MISSED = 'mo_miss'
 
     # single char flag, human readable name, API readable name
     TYPE_CONFIG = ((TYPE_UNKNOWN, _("Unknown Call Type"), 'unknown'),
-                   (TYPE_OUT, _("Outgoing Call"), 'out'),
-                   (TYPE_OUT_MISSED, _("Missed Outgoing Call"), 'missed-out'),
-                   (TYPE_IN, _("Incoming Call"), 'in'),
-                   (TYPE_IN_MISSED, _("Missed Incoming Call"), 'missed-in'))
+                   (TYPE_CALL_OUT, _("Outgoing Call"), 'call-out'),
+                   (TYPE_CALL_OUT_MISSED, _("Missed Outgoing Call"), 'call-out-missed'),
+                   (TYPE_CALL_IN, _("Incoming Call"), 'call-in'),
+                   (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'))
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The org this call is connected to"))
 
-    channel = models.ForeignKey(Channel,
-                                null=True, verbose_name=_("Channel"),
+    channel = models.ForeignKey(Channel, null=True, verbose_name=_("Channel"),
                                 help_text=_("The channel where this call took place"))
     contact = models.ForeignKey(Contact, verbose_name=_("Contact"), related_name='calls',
                                 help_text=_("The phone number for this call"))
@@ -1519,7 +1514,7 @@ class Call(SmartModel):
 
         WebHookEvent.trigger_call_event(call)
 
-        if call_type == Call.TYPE_IN_MISSED:
+        if call_type == Call.TYPE_CALL_IN_MISSED:
             Trigger.catch_triggers(call, Trigger.TYPE_MISSED_CALL, channel)
 
         return call

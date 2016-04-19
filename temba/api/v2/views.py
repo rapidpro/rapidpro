@@ -40,10 +40,10 @@ def api(request, format=None):
     The following endpoints are provided:
 
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
-     * [/api/v2/calls](/api/v2/calls) - to list calls
      * [/api/v2/campaigns](/api/v2/campaigns) - to list campaigns
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
+     * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/groups](/api/v2/groups) - to list contact groups
@@ -56,10 +56,10 @@ def api(request, format=None):
     """
     return Response({
         'broadcasts': reverse('api.v2.broadcasts', request=request),
-        'calls': reverse('api.v2.calls', request=request),
         'campaigns': reverse('api.v2.campaigns', request=request),
         'campaign_events': reverse('api.v2.campaign_events', request=request),
         'channels': reverse('api.v2.channels', request=request),
+        'channel_events': reverse('api.v2.channel_events', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
         'fields': reverse('api.v2.fields', request=request),
         'groups': reverse('api.v2.groups', request=request),
@@ -80,10 +80,10 @@ class ApiExplorerView(SmartTemplateView):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
             BroadcastEndpoint.get_read_explorer(),
-            CallsEndpoint.get_read_explorer(),
             CampaignsEndpoint.get_read_explorer(),
             CampaignEventsEndpoint.get_read_explorer(),
             ChannelsEndpoint.get_read_explorer(),
+            ChannelEventsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_read_explorer(),
@@ -315,88 +315,6 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class CallsEndpoint(ListAPIMixin, BaseAPIView):
-    """
-    Returns the incoming and outgoing calls for your organization, most recent first.
-
-     * **id** - the ID of the call (int), filterable as `id`.
-     * **type** - the type of call (one of "in", "missed-in", "out", "missed-out").
-     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
-     * **channel** - the UUID and name of the channel that handled this call (object).
-     * **time** - when this call happened on the device (datetime).
-     * **duration** - the duration of the call in seconds (int, 0 for missed calls).
-     * **created_on** - when this call was created (datetime), filterable as `before` and `after`.
-
-    Example:
-
-        GET /api/v2/calls.json
-
-    Response:
-
-        {
-            "next": null,
-            "previous": null,
-            "results": [
-            {
-                "id": 4,
-                "type": "in"
-                "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
-                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
-                "time": "2013-02-27T09:06:12.123"
-                "duration": 606,
-                "created_on": "2013-02-27T09:06:15.456"
-            },
-            ...
-
-    """
-    permission = 'msgs.call_api'
-    model = Call
-    serializer_class = CallReadSerializer
-    pagination_class = CreatedOnCursorPagination
-
-    def filter_queryset(self, queryset):
-        params = self.request.query_params
-        queryset = queryset.filter(is_active=True)
-        org = self.request.user.get_org()
-
-        # filter by id (optional)
-        call_id = params.get('id')
-        if call_id:
-            queryset = queryset.filter(pk=call_id)
-
-        # filter by contact (optional)
-        contact_uuid = params.get('contact')
-        if contact_uuid:
-            contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
-            if contact:
-                queryset = queryset.filter(contact=contact)
-            else:
-                queryset = queryset.filter(pk=-1)
-
-        queryset = queryset.prefetch_related(
-            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
-            Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
-        )
-
-        return self.filter_before_after(queryset, 'created_on')
-
-    @classmethod
-    def get_read_explorer(cls):
-        return {
-            'method': "GET",
-            'title': "List Calls",
-            'url': reverse('api.v2.calls'),
-            'slug': 'call-list',
-            'request': "",
-            'fields': [
-                {'name': "id", 'required': False, 'help': "A call ID to filter by. ex: 12345"},
-                {'name': "contact", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
-                {'name': 'before', 'required': False, 'help': "Only return calls created before this date, ex: 2015-01-28T18:00:00.000"},
-                {'name': 'after', 'required': False, 'help': "Only return calls created after this date, ex: 2015-01-28T18:00:00.000"}
-            ]
-        }
-
-
 class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
     """
     ## Listing Campaigns
@@ -610,6 +528,88 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
             'fields': [
                 {'name': "uuid", 'required': False, 'help': "A channel UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': "address", 'required': False, 'help': "A channel address to filter by. ex: +250783530001"},
+            ]
+        }
+
+
+class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    Returns the channel events for your organization, most recent first.
+
+     * **id** - the ID of the event (int), filterable as `id`.
+     * **channel** - the UUID and name of the channel that handled this call (object).
+     * **type** - the type of event (one of "call-in", "call-in-missed", "call-out", "call-out-missed").
+     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
+     * **time** - when this event happened on the channel (datetime).
+     * **duration** - the duration in seconds if event is a call (int, 0 for missed calls).
+     * **created_on** - when this event was created (datetime), filterable as `before` and `after`.
+
+    Example:
+
+        GET /api/v2/channel_events.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "id": 4,
+                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
+                "type": "call-in"
+                "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
+                "time": "2013-02-27T09:06:12.123"
+                "duration": 606,
+                "created_on": "2013-02-27T09:06:15.456"
+            },
+            ...
+
+    """
+    permission = 'msgs.call_api'
+    model = Call
+    serializer_class = CallReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        queryset = queryset.filter(is_active=True)
+        org = self.request.user.get_org()
+
+        # filter by id (optional)
+        call_id = params.get('id')
+        if call_id:
+            queryset = queryset.filter(pk=call_id)
+
+        # filter by contact (optional)
+        contact_uuid = params.get('contact')
+        if contact_uuid:
+            contact = Contact.objects.filter(org=org, is_test=False, is_active=True, uuid=contact_uuid).first()
+            if contact:
+                queryset = queryset.filter(contact=contact)
+            else:
+                queryset = queryset.filter(pk=-1)
+
+        queryset = queryset.prefetch_related(
+            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
+            Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
+        )
+
+        return self.filter_before_after(queryset, 'created_on')
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Channel Events",
+            'url': reverse('api.v2.channel_events'),
+            'slug': 'channel-event-list',
+            'request': "",
+            'fields': [
+                {'name': "id", 'required': False, 'help': "An event ID to filter by. ex: 12345"},
+                {'name': "contact", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+                {'name': 'before', 'required': False, 'help': "Only return events created before this date, ex: 2015-01-28T18:00:00.000"},
+                {'name': 'after', 'required': False, 'help': "Only return events created after this date, ex: 2015-01-28T18:00:00.000"}
             ]
         }
 
