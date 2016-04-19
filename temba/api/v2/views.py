@@ -49,7 +49,6 @@ def api(request, format=None):
     """
     return Response({
         'broadcasts': reverse('api.v2.broadcasts', request=request),
-        'calls': reverse('api.v2.calls', request=request),
         'channels': reverse('api.v2.channels', request=request),
         'channel_events': reverse('api.v2.channel_events', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
