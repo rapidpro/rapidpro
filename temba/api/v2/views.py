@@ -458,6 +458,7 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
             'request': "",
             'fields': [
                 {'name': "uuid", 'required': False, 'help': "An event UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+                {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter by. ex: Reminders"},
             ]
         }
 
@@ -912,7 +913,7 @@ class LabelsEndpoint(ListAPIMixin, BaseAPIView):
             'slug': 'label-list',
             'request': "",
             'fields': [
-                {'name': "uuid", 'required': False, 'help': "A label UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
+                {'name': "uuid", 'required': False, 'help': "A label UUID to filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
         }
 
