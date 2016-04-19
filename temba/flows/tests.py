@@ -2131,7 +2131,7 @@ class ActionTest(TembaTest):
         ussd_ruleset.save()
 
         # without USSD config we only get an empty UssdAction
-        action = UssdAction.from_ruleset(ussd_ruleset)
+        action = UssdAction.from_ruleset(ussd_ruleset, run.flow.org)
         execution = action.execute(run, None, msg)
 
         self.assertIsNone(action.msg)
@@ -2153,6 +2153,79 @@ class ActionTest(TembaTest):
         self.assertEquals(action.msg, {u'base': u'test\n1: Test1\n2: Test2\n'})
         self.assertIsInstance(execution[0], Msg)
         self.assertEquals(execution[0].text, u'test\n1: Test1\n2: Test2')
+
+        Broadcast.objects.all().delete()
+
+    def test_multilanguage_ussd_menu_partly_translated(self):
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        ussd_ruleset = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WAIT_USSD_MENU)
+        ussd_ruleset.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json()])
+        ussd_ruleset.save()
+
+        english = Language.create(self.org, self.admin, "English", 'eng')
+        hungarian = Language.create(self.org, self.admin, "Hungarian", 'hun')
+        russian = Language.create(self.org, self.admin, "Russian", 'rus')
+        self.flow.org.primary_language = english
+
+        # add config menu object
+        config = {
+            "ussd_menu": [
+                {"option": 1, "label": {"eng": "labelENG", "hun": "labelHUN"}},
+                # here option 2's "hun" label is missing translation
+                {"option": 2, "label": {"eng": "label2ENG"}},
+            ],
+            "ussd_message": {"eng": "testENG", "hun": "testHUN"}
+        }
+        ussd_ruleset.config = json.dumps(config)
+        action = UssdAction.from_ruleset(ussd_ruleset, run.flow.org)
+        execution = action.execute(run, None, msg)
+
+        self.assertIsNotNone(action.msg)
+        # we have three languages, although only 2 are (partly) translated
+        self.assertEqual(len(action.msg.keys()), 3)
+        self.assertEqual(action.msg.keys(), [u'rus', u'hun', u'eng'])
+
+        # we don't have any translation for Russian, so it should be the same as eng
+        self.assertEqual(action.msg['eng'], action.msg['rus'])
+
+        # we have partly translated hungarian labels
+        self.assertNotEqual(action.msg['eng'], action.msg['hun'])
+
+        # the missing translation should be the same as the english label
+        self.assertNotIn('labelENG', action.msg['hun'])
+        self.assertIn('label2ENG', action.msg['hun'])
+
+        self.assertEquals(action.msg['hun'], u'testHUN\n1: labelHUN\n2: label2ENG\n')
+
+        # the msg sent out is in english
+        self.assertIsInstance(execution[0], Msg)
+        self.assertEquals(execution[0].text, u'testENG\n1: labelENG\n2: label2ENG')
+
+        # now set contact's language to something we don't have in our org languages
+        self.contact.language = 'fre'
+        self.contact.save(update_fields=('language',))
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        # resend the message to him
+        execution = action.execute(run, None, msg)
+
+        # he will still get the english (base language)
+        self.assertIsInstance(execution[0], Msg)
+        self.assertEquals(execution[0].text, u'testENG\n1: labelENG\n2: label2ENG')
+
+        # now set contact's language to hungarian
+        self.contact.language = 'hun'
+        self.contact.save(update_fields=('language',))
+        run = FlowRun.create(self.flow, self.contact.pk)
+
+        # resend the message to him
+        execution = action.execute(run, None, msg)
+
+        # he will get the partly translated hungarian version
+        self.assertIsInstance(execution[0], Msg)
+        self.assertEquals(execution[0].text, u'testHUN\n1: labelHUN\n2: label2ENG')
 
         Broadcast.objects.all().delete()
 

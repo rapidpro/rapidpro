@@ -726,7 +726,7 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
-        action = UssdAction.from_ruleset(ruleset)
+        action = UssdAction.from_ruleset(ruleset, run.flow.org)
         msgs = action.execute(run, ruleset.uuid, msg)
 
         # sync our channels to trigger any messages if we have any
@@ -4337,9 +4337,8 @@ class ReplyAction(Action):
 class UssdAction(ReplyAction):
     """
     USSD action to send outgoing USSD messages
-
-    Note: now it mimics the functionality of ReplyAction to use with the simulator, once the USSD channel is implemented
-    this is to be changed
+    Created from a USSD ruleset
+    It builds localised text with localised USSD menu support
     """
     TYPE = 'ussd'
     MESSAGE = 'ussd_message'
@@ -4347,30 +4346,55 @@ class UssdAction(ReplyAction):
     TYPE_WAIT_USSD_MENU = 'wait_menu'
     TYPE_WAIT_USSD = 'wait_ussd'
 
-    @classmethod
-    def from_ruleset(cls, rule):
+    def __init__(self, msg=None, base_language=None, languages=None):
+        super(UssdAction, self).__init__(msg)
+        self.base_language = base_language
+        self.languages = languages
+
+    @staticmethod
+    def from_ruleset(rule, org):
         if rule and hasattr(rule, 'config') and isinstance(rule.config, basestring):
+            # initial message, menu obj
             obj = json.loads(rule.config)
             msg = obj.get(UssdAction.MESSAGE, '')
 
-            if rule.ruleset_type == UssdAction.TYPE_WAIT_USSD_MENU:
-                msg = UssdAction.add_menu_to_msg(msg, obj)
+            # define language
+            base_language = org.primary_language.iso_code if org.primary_language else 'base'
+            org_languages = {l.iso_code for l in org.languages.all()}
 
-            return UssdAction(msg=msg)
+            # initialize UssdAction
+            ussd_action = UssdAction(msg, base_language, org_languages)
+
+            ussd_action.prepare_localised_msg()
+
+            if rule.ruleset_type == UssdAction.TYPE_WAIT_USSD_MENU:
+                ussd_action.add_menu_to_msg(obj)
+
+            return ussd_action
         else:
             return UssdAction()
 
-    @classmethod
-    def add_menu_to_msg(cls, msg, obj):
+    def prepare_localised_msg(self):
+        # if there is a translation missing fill it with the base language
+        for language in self.languages:
+            if language not in self.msg:
+                self.msg[language] = self.msg[self.base_language]
+
+    def get_menu_label(self, label, language):
+        if language not in label:
+            return str(label[self.base_language])
+        else:
+            return str(label[language])
+
+    def add_menu_to_msg(self, obj):
         # start with a new line
-        msg = {language: localised_msg + '\n' for language, localised_msg in msg.iteritems()}
+        self.msg = {language: localised_msg + '\n' for language, localised_msg in self.msg.iteritems()}
 
         # add menu to the msg
         for menu in obj[UssdAction.MENU]:
-            msg = {language: localised_msg + ": ".join((str(menu['option']), str(menu['label'][language]),)) + '\n'
-                   for language, localised_msg in msg.iteritems()}
-
-        return msg
+            self.msg = {language: localised_msg +
+                   ": ".join((str(menu['option']), self.get_menu_label(menu['label'], language), )) + '\n'
+                   for language, localised_msg in self.msg.iteritems()}
 
 
 class VariableContactAction(Action):
