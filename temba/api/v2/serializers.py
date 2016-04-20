@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 from rest_framework import serializers
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
-from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, ARCHIVED, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING, QUEUED
+from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING, QUEUED
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -236,7 +236,7 @@ class MsgReadSerializer(ReadSerializer):
         return self.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
 
     def get_archived(self, obj):
-        return obj.visibility == ARCHIVED
+        return obj.visibility == Msg.VISIBILITY_ARCHIVED
 
     def get_visibility(self, obj):
         return self.VISIBILITIES.get(obj.visibility)

@@ -452,7 +452,7 @@ class TriggerTest(TembaTest):
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.FLOW)
+        Flow.objects.get(flow_type=Flow.FLOW)
 
         # now let's try it out
         contact = self.create_contact('Ben', '+250788382382')
@@ -793,8 +793,8 @@ class TriggerTest(TembaTest):
         keyword = 'unique'
 
         # no group trigger
-        trigger1 = Trigger.objects.create(org=self.org, keyword=keyword, flow=flow1,
-                                          created_by=self.admin, modified_by=self.admin)
+        Trigger.objects.create(org=self.org, keyword=keyword, flow=flow1,
+                               created_by=self.admin, modified_by=self.admin)
 
         # group1 trigger
         trigger2 = Trigger.objects.create(org=self.org, keyword=keyword, flow=flow2,

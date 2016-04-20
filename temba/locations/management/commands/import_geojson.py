@@ -1,11 +1,13 @@
-from optparse import make_option
-import os
+from __future__ import unicode_literals
+
+import geojson
 import regex
+
 from zipfile import ZipFile
 from django.contrib.gis.geos import Polygon, MultiPolygon
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
+from optparse import make_option
 from temba.locations.models import AdminBoundary, COUNTRY_LEVEL, STATE_LEVEL, DISTRICT_LEVEL
-import geojson
 
 
 class Command(BaseCommand):  # pragma: no cover
@@ -50,11 +52,11 @@ class Command(BaseCommand):  # pragma: no cover
         for feature in admin_json['features']:
             # what level are we?
             props = feature.properties
+
             # get parent id which is set in new file format
             parent_osm_id = props.get('parent_id')
 
-            # if parent_osm_id is not set and not COUNTRY_LEVEL check for old
-            # file format
+            # if parent_osm_id is not set and not COUNTRY_LEVEL check for old file format
             if not parent_osm_id and level != COUNTRY_LEVEL:
                 if level == STATE_LEVEL:
                     parent_osm_id = props['is_in_country']
@@ -62,15 +64,14 @@ class Command(BaseCommand):  # pragma: no cover
                     parent_osm_id = props['is_in_state']
 
             osm_id = props['osm_id']
-            name = props.get('name_en', '')
-            if not name or name == 'None':
-                name = props['name']
+            name = props.get('name', '')
+            if not name or name == 'None' or level == COUNTRY_LEVEL:
+                name = props.get('name_en', '')
 
             # try to find parent, bail if we can't
             parent = None
             if parent_osm_id and parent_osm_id != 'None':
-                parent = AdminBoundary.objects.filter(
-                    osm_id=parent_osm_id).first()
+                parent = AdminBoundary.objects.filter(osm_id=parent_osm_id).first()
                 if not parent:
                     print("Skipping %s (%s) as parent %s not found." %
                           (name, osm_id, parent_osm_id))
@@ -81,8 +82,7 @@ class Command(BaseCommand):  # pragma: no cover
 
             # didn't find it? what about by name?
             if not boundary:
-                boundary = AdminBoundary.objects.filter(
-                    parent=parent, name__iexact=name)
+                boundary = AdminBoundary.objects.filter(parent=parent, name__iexact=name)
 
             # skip over items with no geometry
             if not feature['geometry'] or not feature['geometry']['coordinates']:
@@ -109,6 +109,7 @@ class Command(BaseCommand):  # pragma: no cover
             # if this is an update, just update with those fields
             if boundary:
                 print " ** updating %s (%s)" % (name, osm_id)
+                boundary = boundary.first()
                 boundary.update(**kwargs)
 
             # otherwise, this is new, so create it
@@ -126,8 +127,7 @@ class Command(BaseCommand):  # pragma: no cover
         current_boundary = AdminBoundary.objects.filter(osm_id=osm_id).first()
         if current_boundary:
             country = current_boundary.get_root()
-            country.get_descendants().filter(level=level).exclude(
-                osm_id__in=seen_osm_ids).delete()
+            country.get_descendants().filter(level=level).exclude(osm_id__in=seen_osm_ids).delete()
 
     def handle(self, *args, **options):
         filenames = []

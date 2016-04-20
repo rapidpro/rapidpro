@@ -60,10 +60,6 @@ RESENT = 'R'
 INCOMING = 'I'
 OUTGOING = 'O'
 
-VISIBLE = 'V'
-ARCHIVED = 'A'
-DELETED = 'D'
-
 INBOX = 'I'
 FLOW = 'F'
 IVR = 'V'
@@ -202,7 +198,8 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
-    purged = models.BooleanField(default=False, help_text="If the messages for this broadcast have been purged")
+    purged = models.NullBooleanField(default=False,
+                                     help_text="If the messages for this broadcast have been purged")
 
     @classmethod
     def create(cls, org, user, text, recipients, channel=None, **kwargs):
@@ -520,10 +517,14 @@ class Msg(models.Model):
     """
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
+    VISIBILITY_VISIBLE = 'V'
+    VISIBILITY_ARCHIVED = 'A'
+    VISIBILITY_DELETED = 'D'
+
     # single char flag, human readable name, API readable name
-    VISIBILITY_CONFIG = ((VISIBLE, _("Visible"), 'visible'),
-                         (ARCHIVED, _("Archived"), 'archived'),
-                         (DELETED, _("Deleted"), 'deleted'))
+    VISIBILITY_CONFIG = ((VISIBILITY_VISIBLE, _("Visible"), 'visible'),
+                         (VISIBILITY_ARCHIVED, _("Archived"), 'archived'),
+                         (VISIBILITY_DELETED, _("Deleted"), 'deleted'))
 
     VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
 
@@ -533,6 +534,13 @@ class Msg(models.Model):
     MSG_TYPES = ((INBOX, _("Inbox Message")),
                  (FLOW, _("Flow Message")),
                  (IVR, _("IVR Message")))
+
+    MEDIA_GPS = 'geo'
+    MEDIA_IMAGE = 'image'
+    MEDIA_VIDEO = 'video'
+    MEDIA_AUDIO = 'audio'
+
+    MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
@@ -584,7 +592,7 @@ class Msg(models.Model):
     labels = models.ManyToManyField('Label', related_name='msgs', verbose_name=_("Labels"),
                                     help_text=_("Any labels on this message"))
 
-    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBLE, db_index=True,
+    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE, db_index=True,
                                   verbose_name=_("Visibility"),
                                   help_text=_("The current visibility of this message, either visible, archived or deleted"))
 
@@ -609,10 +617,11 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
 
-    recording_url = models.URLField(null=True, blank=True, max_length=255,
-                                    help_text=_("The url for any recording associated with this message"))
+    media = models.URLField(null=True, blank=True, max_length=255,
+                            help_text=_("The media associated with this message if any"))
 
-    purged = models.BooleanField(default=False, help_text="If this message has been purged")
+    purged = models.NullBooleanField(default=False,
+                                     help_text="If this message has been purged")
 
     all_messages = models.Manager()
     current_messages = models.Manager()
@@ -647,12 +656,21 @@ class Msg(models.Model):
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
+                seen_contact_ids = set()
                 for msg in msgs:
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and \
                             msg.topup and not msg.contact.is_test:
                         # serialize the model to a dictionary
                         msg.queued_on = queued_on
                         task = msg.as_task_json()
+
+                        # if we've already seen this contact in our current 500ms batch, then pause
+                        # to make sure ordering remains the same
+                        if msg.contact_id in seen_contact_ids:
+                            time.sleep(.5)
+                            seen_contact_ids = set()
+
+                        seen_contact_ids.add(msg.contact_id)
 
                         task_priority = DEFAULT_PRIORITY
                         if msg.priority == SMS_BULK_PRIORITY:
@@ -670,7 +688,7 @@ class Msg(models.Model):
         handlers = get_message_handlers()
 
         if msg.contact.is_blocked:
-            msg.visibility = ARCHIVED
+            msg.visibility = Msg.VISIBILITY_ARCHIVED
             msg.modified_on = timezone.now()
             msg.save(update_fields=['visibility', 'modified_on'])
         else:
@@ -711,9 +729,9 @@ class Msg(models.Model):
         messages = Msg.all_messages.filter(org=org)
 
         if is_archived:
-            messages = messages.filter(visibility=ARCHIVED)
+            messages = messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)
         else:
-            messages = messages.filter(visibility=VISIBLE)
+            messages = messages.filter(visibility=Msg.VISIBILITY_VISIBLE)
 
         if direction:
             messages = messages.filter(direction=direction)
@@ -750,9 +768,9 @@ class Msg(models.Model):
         unread_count = cache.get(key, None)
 
         if unread_count is None:
-            unread_count = Msg.current_messages.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
-                                                       contact__is_test=False, created_on__gt=org.msg_last_viewed,
-                                                       labels=None).count()
+            unread_count = Msg.current_messages.filter(org=org, visibility=Msg.VISIBILITY_VISIBLE, direction=INCOMING,
+                                                       msg_type=INBOX, contact__is_test=False,
+                                                       created_on__gt=org.msg_last_viewed, labels=None).count()
             cache.set(key, unread_count, 900)
 
         return unread_count
@@ -850,6 +868,7 @@ class Msg(models.Model):
         return dict(direction=self.direction,
                     text=self.text,
                     id=self.id,
+                    media=self.media,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
@@ -892,6 +911,38 @@ class Msg(models.Model):
                 parts.append(part)
 
             return parts
+
+    def get_media_path(self):
+
+        if self.media:
+            # TODO: remove after migration msgs.0053
+            if self.media.startswith('http'):
+                return self.media
+
+            if ':' in self.media:
+                return self.media.split(':', 1)[1]
+
+    def get_media_type(self):
+
+        if self.media:
+            # TODO: remove after migration msgs.0053
+            if self.media.startswith('http'):
+                return 'audio'
+
+        if self.media and ':' in self.media:
+            type = self.media.split(':', 1)[0]
+            if type == 'application/octet-stream':
+                return 'audio'
+            return type.split('/', 1)[0]
+
+    def is_media_type_audio(self):
+        return Msg.MEDIA_AUDIO == self.get_media_type()
+
+    def is_media_type_video(self):
+        return Msg.MEDIA_VIDEO == self.get_media_type()
+
+    def is_media_type_image(self):
+        return Msg.MEDIA_IMAGE == self.get_media_type()
 
     def reply(self, text, user, trigger_send=False, message_context=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
@@ -1029,7 +1080,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, recording_url=None, msg_type=None, topup=None):
+                        status=PENDING, media=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1062,7 +1113,8 @@ class Msg(models.Model):
             topup_id = org.decrement_credit()
 
         # we limit text messages to 640 characters
-        text = text[:640]
+        if text:
+            text = text[:640]
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
@@ -1074,7 +1126,7 @@ class Msg(models.Model):
                         queued_on=timezone.now(),
                         direction=INCOMING,
                         msg_type=msg_type,
-                        recording_url=recording_url,
+                        media=media,
                         status=status)
 
         if topup_id is not None:
@@ -1141,7 +1193,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        recording_url=None, topup_id=None, msg_type=INBOX):
+                        media=None, topup_id=None, msg_type=INBOX):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1189,15 +1241,13 @@ class Msg(models.Model):
             same_msgs = Msg.current_messages.filter(contact_urn=contact_urn,
                                                     contact__is_test=False,
                                                     channel=channel,
-                                                    recording_url=recording_url,
+                                                    media=media,
                                                     text=text,
                                                     direction=OUTGOING,
                                                     created_on__gte=created_on - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
-
-            channel_id = channel.pk if channel else None
 
             if same_msg_count >= 10:
                 analytics.gauge('temba.msg_loop_caught')
@@ -1243,7 +1293,7 @@ class Msg(models.Model):
                         response_to=response_to,
                         msg_type=msg_type,
                         priority=priority,
-                        recording_url=recording_url,
+                        media=media,
                         has_template_error=len(errors) > 0)
 
         if topup_id is not None:
@@ -1323,7 +1373,7 @@ class Msg(models.Model):
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only archive incoming non-test messages")
 
-        self.visibility = ARCHIVED
+        self.visibility = Msg.VISIBILITY_ARCHIVED
         self.modified_on = timezone.now()
         self.save(update_fields=('visibility', 'modified_on'))
 
@@ -1332,13 +1382,13 @@ class Msg(models.Model):
         """
         Archives all incoming messages for the given contacts
         """
-        msgs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, contact__in=contacts)
+        msgs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, contact__in=contacts)
         msg_ids = list(msgs.values_list('pk', flat=True))
 
         # update modified on in small batches to avoid long table lock, and having too many non-unique values for
         # modified_on which is the primary ordering for the API
         for batch in chunk_list(msg_ids, 100):
-            Msg.all_messages.filter(pk__in=batch).update(visibility=ARCHIVED, modified_on=timezone.now())
+            Msg.all_messages.filter(pk__in=batch).update(visibility=Msg.VISIBILITY_ARCHIVED, modified_on=timezone.now())
 
     def restore(self):
         """
@@ -1347,7 +1397,7 @@ class Msg(models.Model):
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only restore incoming non-test messages")
 
-        self.visibility = VISIBLE
+        self.visibility = Msg.VISIBILITY_VISIBLE
         self.modified_on = timezone.now()
 
         self.save(update_fields=('visibility', 'modified_on'))
@@ -1356,7 +1406,7 @@ class Msg(models.Model):
         """
         Releases (i.e. deletes) this message
         """
-        self.visibility = DELETED
+        self.visibility = Msg.VISIBILITY_DELETED
         self.text = ""
         self.modified_on = timezone.now()
 
@@ -1572,17 +1622,17 @@ class SystemLabel(models.Model):
         """
         # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW)
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=ARCHIVED)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status=FAILED)
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
@@ -1599,6 +1649,30 @@ class SystemLabel(models.Model):
                 qs = qs.exclude(contact__is_test=True)
 
         return qs
+
+    @classmethod
+    def recalculate_counts(cls, org, label_types=None):
+        """
+        Recalculates the system label counts for the passed in org, updating them in our database
+        """
+        if label_types is None:
+            label_types = [cls.TYPE_INBOX, cls.TYPE_FLOWS, cls.TYPE_ARCHIVED, cls.TYPE_OUTBOX, cls.TYPE_SENT,
+                           cls.TYPE_FAILED, cls.TYPE_SCHEDULED, cls.TYPE_CALLS]
+
+        counts_by_type = {}
+
+        # for each type
+        for label_type in label_types:
+            count = cls.get_queryset(org, label_type).count()
+            counts_by_type[label_type] = count
+
+            # delete existing counts
+            cls.objects.filter(org=org, label_type=label_type).delete()
+
+            # and create our new count
+            cls.objects.create(org=org, label_type=label_type, count=count)
+
+        return counts_by_type
 
     @classmethod
     def get_counts(cls, org, label_types=None):

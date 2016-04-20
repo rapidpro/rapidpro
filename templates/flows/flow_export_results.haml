@@ -1,0 +1,19 @@
+-extends 'smartmin/form.html'
+-load i18n
+-load smartmin
+-load temba
+
+-block pre-form
+  Flow exports will include the latest result for each contact that has passed through the flow. You may optionally
+  include up to 10 contact fields whose values will also be exported with each run.
+
+-block modal-script
+  {{block.super}}
+  %script
+    $('#id_contact_fields').select2({
+      containerCssClass: "select2-temba-field"
+    });
+
+    useFontCheckbox(".form-horizontal input[type=checkbox]")
+
+

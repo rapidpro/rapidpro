@@ -1,8 +1,10 @@
 from __future__ import absolute_import, unicode_literals
 
+
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
-from rest_framework import generics, mixins, pagination, status
+from rest_framework import generics, mixins, status
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -11,13 +13,13 @@ from smartmin.views import SmartTemplateView
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Msg, Label, SystemLabel, DELETED
+from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import BroadcastReadSerializer, ContactReadSerializer, ContactFieldReadSerializer
 from .serializers import ContactGroupReadSerializer, FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
-from ..support import InvalidQueryError
+from ..support import InvalidQueryError, CustomCursorPagination
 
 
 @api_view(['GET'])
@@ -73,15 +75,15 @@ class ApiExplorerView(SmartTemplateView):
         return context
 
 
-class CreatedOnCursorPagination(pagination.CursorPagination):
+class CreatedOnCursorPagination(CustomCursorPagination):
     ordering = '-created_on'
 
 
-class ModifiedOnCursorPagination(pagination.CursorPagination):
+class ModifiedOnCursorPagination(CustomCursorPagination):
     ordering = '-modified_on'
 
 
-class MsgCursorPagination(pagination.CursorPagination):
+class MsgCursorPagination(CustomCursorPagination):
     """
     Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
     at all incoming messages.
@@ -552,6 +554,30 @@ class LabelsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
+class MediaEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to submit media which can be embedded in flow steps
+
+    ## Creating Media
+
+    By making a ```POST``` request to the endpoint you can add a new media files
+    """
+    parser_classes = (MultiPartParser, FormParser,)
+    permission = 'msgs.msg_api'
+
+    def post(self, request, format=None, *args, **kwargs):
+
+        org = self.request.user.get_org()
+        media_file = request.data.get('media_file', None)
+        extension = request.data.get('extension', None)
+
+        if media_file and extension:
+            location = org.save_media(media_file, extension)
+            return Response(dict(location=location), status=status.HTTP_201_CREATED)
+
+        return Response(dict(), status=status.HTTP_400_BAD_REQUEST)
+
+
 class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to fetch messages.
@@ -637,7 +663,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             else:
                 return self.model.all_messages.filter(pk=-1)
         else:
-            return self.model.all_messages.filter(org=org).exclude(visibility=DELETED).exclude(msg_type=None)
+            return self.model.all_messages.filter(org=org).exclude(visibility=Msg.VISIBILITY_DELETED).exclude(msg_type=None)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -671,7 +697,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
         if label_ref:
             label = Label.label_objects.filter(org=org).filter(Q(name=label_ref) | Q(uuid=label_ref)).first()
             if label:
-                queryset = queryset.filter(labels=label)
+                queryset = queryset.filter(labels=label, visibility=Msg.VISIBILITY_VISIBLE)
             else:
                 queryset = queryset.filter(pk=-1)
 
