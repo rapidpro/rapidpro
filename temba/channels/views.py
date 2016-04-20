@@ -339,7 +339,7 @@ def sync(request, channel_id):
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
 
-                        msg = Msg.create_incoming(channel, (TEL_SCHEME, tel), cmd['msg'], date=date)
+                        msg = Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, tel), cmd['msg'], date=date)
                         if msg:
                             extra = dict(msg_id=msg.id)
                             handled = True

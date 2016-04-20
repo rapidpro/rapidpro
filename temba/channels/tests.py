@@ -74,7 +74,7 @@ class ChannelTest(TembaTest):
         group = ContactGroup.get_or_create(org, user, 'Numbers: %s' % ','.join(numbers))
         contacts = list()
         for number in numbers:
-            contacts.append(Contact.get_or_create(org, user, name=None, urns=[(TEL_SCHEME, number)]))
+            contacts.append(Contact.get_or_create(org, user, name=None, urns=[ContactURN.format_urn(TEL_SCHEME, number)]))
 
         group.contacts.add(*contacts)
 
@@ -195,7 +195,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(tigo, sms.channel)
 
         # now our MTN contact texts, the tigo number which should change their affinity
-        sms = Msg.create_incoming(tigo, (TEL_SCHEME, "+250788382382"), "Send an inbound message to Tigo")
+        sms = Msg.create_incoming(tigo, "tel:+250788382382", "Send an inbound message to Tigo")
         self.assertEquals(tigo, sms.channel)
         self.assertEquals(tigo, self.org.get_send_channel(contact_urn=sms.contact_urn))
         self.assertEquals(tigo, ContactURN.objects.get(path='+250788382382').channel)
@@ -238,7 +238,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.channel_type = 'EX'
         self.tel_channel.save()
 
-        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '+250738382382'), 'x' * 400)  # 400 chars long
+        msg = Msg.create_outgoing(self.org, self.user, 'tel:+250738382382', 'x' * 400)  # 400 chars long
         Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
         self.assertEqual(3, Msg.all_messages.get(pk=msg.id).msg_count)
 
@@ -247,7 +247,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
         cache.clear()  # clear the channel from cache
 
-        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '+250738382382'), 'y' * 400)
+        msg = Msg.create_outgoing(self.org, self.user, 'tel:+250738382382', 'y' * 400)
         Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
         self.assertEqual(self.tel_channel, Msg.all_messages.get(pk=msg.id).channel)
         self.assertEqual(1, Msg.all_messages.get(pk=msg.id).msg_count)
@@ -453,21 +453,21 @@ class ChannelTest(TembaTest):
         self.assertNotIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # add a message, just sent so shouldn't have delayed
-        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250788123123'), "test")
+        msg = Msg.create_outgoing(self.org, self.user, 'tel:250788123123', "test")
         response = self.client.get('/', Follow=True)
         self.assertIn('delayed_syncevents', response.context)
         self.assertNotIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # but put it in the past
         msg.delete()
-        msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250788123123'), "test",
+        msg = Msg.create_outgoing(self.org, self.user, 'tel:250788123123', "test",
                                   created_on=timezone.now() - timedelta(hours=3))
         response = self.client.get('/', Follow=True)
         self.assertIn('delayed_syncevents', response.context)
         self.assertIn('unsent_msgs', response.context, msg="Found unsent_msgs in context")
 
         # if there is a successfully sent message after sms was created we do not consider it as delayed
-        success_msg = Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '+250788123123'), "success-send",
+        success_msg = Msg.create_outgoing(self.org, self.user, 'tel:+250788123123', "success-send",
                                           created_on=timezone.now() - timedelta(hours=2))
         success_msg.sent_on = timezone.now() - timedelta(hours=2)
         success_msg.status = 'S'
@@ -697,7 +697,7 @@ class ChannelTest(TembaTest):
             sync.save()
 
         # add a message, just sent so shouldn't be delayed
-        Msg.create_outgoing(self.org, self.user, (TEL_SCHEME, '250785551212'), 'delayed message', created_on=two_hours_ago)
+        Msg.create_outgoing(self.org, self.user, 'tel:250785551212', 'delayed message', created_on=two_hours_ago)
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.admin)
         self.assertIn('delayed_sync_event', response.context_data.keys())
@@ -727,7 +727,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # send messages with a test contact
-        Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'This incoming message will not be counted')
+        Msg.create_incoming(self.tel_channel, test_contact.get_urn().urn, 'This incoming message will not be counted')
         Msg.create_outgoing(self.org, self.user, test_contact, 'This outgoing message will not be counted')
 
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
@@ -745,7 +745,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # send messages with a normal contact
-        Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn(TEL_SCHEME).path), 'This incoming message will be counted')
+        Msg.create_incoming(self.tel_channel, joe.get_urn(TEL_SCHEME).urn, 'This incoming message will be counted')
         Msg.create_outgoing(self.org, self.user, joe, 'This outgoing message will be counted')
 
         # now we have an inbound message and two outbounds
@@ -768,7 +768,7 @@ class ChannelTest(TembaTest):
         self.tel_channel.save()
 
         from temba.msgs.models import IVR
-        Msg.create_incoming(self.tel_channel, (TEL_SCHEME, test_contact.get_urn().path), 'incoming ivr as a test contact', msg_type=IVR)
+        Msg.create_incoming(self.tel_channel, test_contact.get_urn().urn, 'incoming ivr as a test contact', msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, test_contact, 'outgoing ivr as a test contact', msg_type=IVR)
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
@@ -782,7 +782,7 @@ class ChannelTest(TembaTest):
         self.assertEquals(0, response.context['message_stats_table'][0]['outgoing_ivr_count'])
 
         # now let's create an ivr interaction from a real contact
-        Msg.create_incoming(self.tel_channel, (TEL_SCHEME, joe.get_urn().path), 'incoming ivr', msg_type=IVR)
+        Msg.create_incoming(self.tel_channel, joe.get_urn().urn, 'incoming ivr', msg_type=IVR)
         Msg.create_outgoing(self.org, self.user, joe, 'outgoing ivr', msg_type=IVR)
         response = self.fetch_protected(reverse('channels.channel_read', args=[self.tel_channel.uuid]), self.superuser)
 
@@ -2634,17 +2634,17 @@ class CountTest(TembaTest):
         self.assertFalse(ChannelCount.objects.all())
 
         # real contact, but no channel
-        Msg.create_incoming(None, (TEL_SCHEME, '+250788111222'), "Test Message", org=self.org)
+        Msg.create_incoming(None, 'tel:+250788111222', "Test Message", org=self.org)
 
         # still no channel counts
         self.assertFalse(ChannelCount.objects.all())
 
         # incoming msg with a channel
-        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788111222'), "Test Message", org=self.org)
+        msg = Msg.create_incoming(self.channel, 'tel:+250788111222', "Test Message", org=self.org)
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         # insert another
-        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788111222'), "Test Message", org=self.org)
+        msg = Msg.create_incoming(self.channel, 'tel:+250788111222', "Test Message", org=self.org)
         self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         # squash our counts
@@ -2663,7 +2663,7 @@ class CountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # ok, test outgoing now
-        real_contact = Contact.get_or_create(self.org, self.admin, urns=[(TEL_SCHEME, '+250788111222')])
+        real_contact = Contact.get_or_create(self.org, self.admin, urns=['tel:+250788111222'])
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
@@ -2674,7 +2674,7 @@ class CountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # incoming IVR
-        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788111222'),
+        msg = Msg.create_incoming(self.channel, 'tel:+250788111222',
                                   "Test Message", org=self.org, msg_type=IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
 

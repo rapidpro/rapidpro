@@ -94,7 +94,7 @@ class PhoneArrayField(serializers.ListField):
     """
     def to_internal_value(self, data):
         if isinstance(data, basestring):
-            return [(TEL_SCHEME, data)]
+            return [ContactURN.format_urn(TEL_SCHEME, data)]
 
         elif isinstance(data, list):
             if len(data) > 100:
@@ -104,7 +104,7 @@ class PhoneArrayField(serializers.ListField):
             for phone in data:
                 if not isinstance(phone, basestring):
                     raise serializers.ValidationError("Invalid phone: %s" % str(phone))
-                urns.append((TEL_SCHEME, phone))
+                urns.append(ContactURN.format_urn(TEL_SCHEME, phone))
 
             return urns
         else:
@@ -415,7 +415,7 @@ class ContactWriteSerializer(WriteSerializer):
             except Exception:
                 raise serializers.ValidationError("Invalid phone number: '%s'" % value)
 
-            self.urn_tuples = [(TEL_SCHEME, phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164))]
+            self.urn_tuples = [ContactURN.format_urn(TEL_SCHEME, phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164))]
         return value
 
     def validate_urns(self, value):
@@ -432,7 +432,7 @@ class ContactWriteSerializer(WriteSerializer):
                 if not ContactURN.validate_urn(norm_scheme, norm_path):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
 
-                self.urn_tuples.append((norm_scheme, norm_path))
+                self.urn_tuples.append(ContactURN.format_urn(norm_scheme, norm_path))
 
         return value
 
@@ -1377,7 +1377,8 @@ class FlowRunStartSerializer(WriteSerializer):
 
             if channel:
                 # check our numbers for validity
-                for tel, phone in value:
+                for urn in value:
+                    tel, phone = ContactURN.parse_urn(urn)
                     try:
                         normalized = phonenumbers.parse(phone, country)
                         if not phonenumbers.is_possible_number(normalized):
@@ -1488,23 +1489,23 @@ class BroadcastCreateSerializer(WriteSerializer):
     channel = ChannelField(required=False)
 
     def validate_urns(self, value):
-        urn_tuples = []
+        urns = []
         if value:
             # if we have tel URNs, we may need a country to normalize by
             country = self.org.get_country_code()
 
             for urn in value:
                 try:
-                    parsed = ContactURN.parse_urn(urn)
+                    scheme, path = ContactURN.parse_urn(urn)
                 except ValueError, e:
                     raise serializers.ValidationError(e.message)
 
-                norm_scheme, norm_path = ContactURN.normalize_urn(parsed.scheme, parsed.path, country)
+                norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
                 if not ContactURN.validate_urn(norm_scheme, norm_path):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
-                urn_tuples.append((norm_scheme, norm_path))
+                urns.append(ContactURN.format_urn(norm_scheme, norm_path))
 
-        return urn_tuples
+        return urns
 
     def validate_contacts(self, value):
         if value:
@@ -1583,23 +1584,23 @@ class MsgCreateSerializer(WriteSerializer):
         return []
 
     def validate_urn(self, value):
-        urn_tuples = []
+        urns = []
         if value:
             # if we have tel URNs, we may need a country to normalize by
             country = self.org.get_country_code()
 
             for urn in value:
                 try:
-                    parsed = ContactURN.parse_urn(urn)
+                    scheme, path = ContactURN.parse_urn(urn)
                 except ValueError, e:
                     raise serializers.ValidationError(e.message)
 
-                norm_scheme, norm_path = ContactURN.normalize_urn(parsed.scheme, parsed.path, country)
+                norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
                 if not ContactURN.validate_urn(norm_scheme, norm_path):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
-                urn_tuples.append((norm_scheme, norm_path))
+                urns.append(ContactURN.format_urn(norm_scheme, norm_path))
 
-        return urn_tuples
+        return urns
 
     def validate(self, data):
         urns = data.get('urn', [])
@@ -1622,7 +1623,8 @@ class MsgCreateSerializer(WriteSerializer):
 
             # check our numbers for validity
             country = channel.country
-            for tel, phone in phones:
+            for urn in phones:
+                tel, phone = ContactURN.parse_urn(urn)
                 try:
                     normalized = phonenumbers.parse(phone, country.code)
                     if not phonenumbers.is_possible_number(normalized):

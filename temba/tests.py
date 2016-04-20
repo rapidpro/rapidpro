@@ -20,7 +20,7 @@ from django.utils import timezone
 from HTMLParser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
-from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
@@ -219,9 +219,9 @@ class TembaTest(SmartminTest):
         """
         urns = []
         if number:
-            urns.append((TEL_SCHEME, number))
+            urns.append(ContactURN.format_urn(TEL_SCHEME, number))
         if twitter:
-            urns.append((TWITTER_SCHEME, twitter))
+            urns.append(ContactURN.format_urn(TWITTER_SCHEME, twitter))
         if urn:
             urns.append(urn)
 

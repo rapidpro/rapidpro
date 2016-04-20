@@ -221,8 +221,8 @@ class APITest(TembaTest):
 
         phones_field = PhoneArrayField(source='test')
 
-        self.assertEqual(phones_field.to_internal_value(['123', '234']), [('tel', '123'), ('tel', '234')])
-        self.assertEqual(phones_field.to_internal_value('123'), [('tel', '123')])  # convert single string to array
+        self.assertEqual(phones_field.to_internal_value(['123', '234']), ['tel:123', 'tel:234'])
+        self.assertEqual(phones_field.to_internal_value('123'), ['tel:123'])  # convert single string to array
         self.assertRaises(ValidationError, phones_field.to_internal_value, {})  # must be a list
         self.assertRaises(ValidationError, phones_field.to_internal_value, ['123'] * 101)  # 100 items max
 
@@ -2192,9 +2192,9 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
 
         # add some incoming messages and a flow message
-        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test2")
+        msg2 = Msg.create_incoming(self.channel, 'tel:0788123123', "test2")
         msg3 = Msg.create_incoming(self.channel, None, "test3", contact=self.joe)  # no URN
-        msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test4 (سلم)")
+        msg4 = Msg.create_incoming(self.channel, 'tel:0788123123', "test4 (سلم)")
 
         flow = self.create_flow()
         flow.start([], [contact])
@@ -2365,9 +2365,9 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 405)  # because endpoint doesn't support GET
 
         # create some messages to act on
-        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #1')
-        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #2')
-        msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #3')
+        msg1 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #1')
+        msg2 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #2')
+        msg3 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #3')
         msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")
 
         # add label by name to messages 1, 2 and 4

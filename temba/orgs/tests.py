@@ -1189,13 +1189,13 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, masked)
 
         # create an incoming SMS, check our flow page
-        Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Blue")
+        Msg.create_incoming(self.channel, contact.get_urn().urn, "Blue")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
 
         # send another, this will be in our inbox this time
-        Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Where's the beef?")
+        Msg.create_incoming(self.channel, contact.get_urn().urn, "Where's the beef?")
         response = self.client.get(reverse('msgs.msg_flow'))
         self.assertNotContains(response, "788 123 123")
         self.assertContains(response, masked)
@@ -1397,7 +1397,7 @@ class OrgCRUDLTest(TembaTest):
     def test_org_timezone(self):
         self.assertEqual(self.org.timezone, 'Africa/Kigali')
 
-        Msg.create_incoming(self.channel, (TEL_SCHEME, "250788382382"), "My name is Frank")
+        Msg.create_incoming(self.channel, "tel:250788382382", "My name is Frank")
 
         self.login(self.admin)
         response = self.client.get(reverse('msgs.msg_inbox'), follow=True)

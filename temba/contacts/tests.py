@@ -17,14 +17,16 @@ from smartmin.csv_imports.models import ImportTask
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
-from temba.campaigns.models import Campaign, CampaignEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel
 from temba.msgs.models import Msg, Call, Label, SystemLabel, Broadcast
+from temba.msgs.tasks import check_messages_task
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
 from temba.values.models import Value
+from xlrd import open_workbook
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME, TELEGRAM_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
 from .tasks import squash_contactgroupcounts
@@ -72,10 +74,10 @@ class ContactCRUDLTest(_CRUDLTest):
         return self.object
 
     def testList(self):
-        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')])
+        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:123'])
         self.joe.set_field(self.user, 'age', 20)
         self.joe.set_field(self.user, 'home', 'Kigali')
-        self.frank = Contact.get_or_create(self.org, self.user, name='Frank', urns=[(TEL_SCHEME, '124')])
+        self.frank = Contact.get_or_create(self.org, self.user, name='Frank', urns=['tel:124'])
         self.frank.set_field(self.user, 'age', 18)
 
         response = self._do_test_view('list')
@@ -88,7 +90,7 @@ class ContactCRUDLTest(_CRUDLTest):
         self.assertEqual([self.joe], list(response.context['object_list']))
 
     def testRead(self):
-        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')])
+        self.joe = Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:123'])
 
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
         response = self.client.get(read_url)
@@ -152,8 +154,8 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
                                       secret="12345", gcm_id="123")
 
-        self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
-        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
+        self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=["tel:123"])
+        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=["tel:1234"])
 
     def getCreatePostData(self):
         return dict(name="My Group")
@@ -250,9 +252,9 @@ class ContactGroupTest(TembaTest):
     def setUp(self):
         super(ContactGroupTest, self).setUp()
 
-        self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=[(TEL_SCHEME, "123")])
-        self.frank = Contact.get_or_create(self.org, self.admin, name="Frank Smith", urns=[(TEL_SCHEME, "1234")])
-        self.mary = Contact.get_or_create(self.org, self.admin, name="Mary Mo", urns=[(TEL_SCHEME, "345")])
+        self.joe = Contact.get_or_create(self.org, self.admin, name="Joe Blow", urns=["tel:123"])
+        self.frank = Contact.get_or_create(self.org, self.admin, name="Frank Smith", urns=["tel:1234"])
+        self.mary = Contact.get_or_create(self.org, self.admin, name="Mary Mo", urns=["tel:345"])
 
     def test_create(self):
         # exception if group name is blank
@@ -469,7 +471,7 @@ class ContactTest(TembaTest):
 
         # can't create without org or user
         with self.assertRaises(ValueError):
-            Contact.get_or_create(None, None, name='Joe', urns=[(TEL_SCHEME, '123')])
+            Contact.get_or_create(None, None, name='Joe', urns=['tel:123'])
 
         # incoming channel with no urns
         with self.assertRaises(ValueError):
@@ -477,31 +479,31 @@ class ContactTest(TembaTest):
 
         # incoming channel with two urns
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=[(TEL_SCHEME, '123'),
-                                                                                                        (TEL_SCHEME, '456')])
+            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=['tel:123',
+                                                                                                        'tel:456'])
 
         # missing scheme
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, name='Joe', urns=[(None, '123')])
+            Contact.get_or_create(self.org, self.user, name='Joe', urns=[':123'])
 
         # missing path
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, None)])
+            Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:'])
 
         # create a contact with a language
-        contact = Contact.get_or_create(self.org, self.user, name='Joe', urns=[(TEL_SCHEME, '123')], language='fre')
+        contact = Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:123'], language='fre')
         self.assertEquals(contact.language, 'fre')
 
         # create another contact with the same urn as Joe
         snoop = Contact.get_or_create(self.org, self.user, name='Snoop')
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=[(TEL_SCHEME, '123')])
+            Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=['tel:123'])
 
         # now give snoop his own urn
-        Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=[(TEL_SCHEME, '456')])
+        Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=['tel:456'])
 
         self.assertIsNone(snoop.urns.all().first().channel)
-        snoop = Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, urns=[(TEL_SCHEME, '456')])
+        snoop = Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, urns=['tel:456'])
         self.assertEquals(1, snoop.urns.all().count())
         self.assertEqual(snoop.urns.all().first().channel, self.channel)
 
@@ -1192,7 +1194,7 @@ class ContactTest(TembaTest):
         self.assertEquals("1 minute before Planting Date", event_time(event))
 
     def test_activity_icon(self):
-        msg = Msg.create_incoming(self.channel, (TEL_SCHEME, '+1234'), "Inbound message")
+        msg = Msg.create_incoming(self.channel, 'tel:+1234', "Inbound message")
 
         from temba.contacts.templatetags.contacts import activity_icon
 
@@ -1435,7 +1437,6 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'name', "Name is used by another group")
 
     def test_update_and_list(self):
-        from temba.msgs.tasks import check_messages_task
         list_url = reverse('contacts.contact_list')
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
@@ -1846,7 +1847,7 @@ class ContactTest(TembaTest):
         contact6 = self.create_contact(name='James', number="0788333555")
         self.assertEquals(contact5.pk, contact6.pk)
 
-        contact5.update_urns(self.user, [(TWITTER_SCHEME, 'jimmy_woot'), (TEL_SCHEME, '0788333666')])
+        contact5.update_urns(self.user, ['twitter:jimmy_woot', 'tel:0788333666'])
 
         # check old phone URN still existing but was detached
         self.assertIsNone(ContactURN.objects.get(urn='tel:+250788333555').contact)
@@ -1863,7 +1864,7 @@ class ContactTest(TembaTest):
         self.assertIsNone(contact5.get_urn(schemes=['facebook']))
 
         # check that we can steal other contact's URNs
-        contact5.update_urns(self.user, [(TEL_SCHEME, '0788333444')])
+        contact5.update_urns(self.user, ['tel:0788333444'])
         self.assertEquals(contact5, ContactURN.objects.get(urn='tel:+250788333444').contact)
         self.assertFalse(contact4.urns.all())
 
@@ -2760,7 +2761,7 @@ class ContactTest(TembaTest):
     def test_urn_priority(self):
         bob = self.create_contact("Bob")
 
-        bob.update_urns(self.user, [('tel', '456'), ('tel', '789')])
+        bob.update_urns(self.user, ['tel:456', 'tel:789'])
         urns = bob.urns.all().order_by('-priority')
         self.assertEquals(2, len(urns))
         self.assertEquals('456', urns[0].path)
@@ -2768,14 +2769,14 @@ class ContactTest(TembaTest):
         self.assertEquals(99, urns[0].priority)
         self.assertEquals(98, urns[1].priority)
 
-        bob.update_urns(self.user, [('tel', '789'), ('tel', '456')])
+        bob.update_urns(self.user, ['tel:789', 'tel:456'])
         urns = bob.urns.all().order_by('-priority')
         self.assertEquals(2, len(urns))
         self.assertEquals('789', urns[0].path)
         self.assertEquals('456', urns[1].path)
 
         # add an email urn
-        bob.update_urns(self.user, [('email', 'bob@marley.com'), ('tel', '789'), ('tel', '456')])
+        bob.update_urns(self.user, ['email:bob@marley.com', 'tel:789', 'tel:456'])
         urns = bob.urns.all().order_by('-priority')
         self.assertEquals(3, len(urns))
         self.assertEquals(99, urns[0].priority)
@@ -2790,13 +2791,11 @@ class ContactTest(TembaTest):
         self.assertEquals(urn.path, '789')
 
         # swap our phone numbers
-        bob.update_urns(self.user, [('email', 'bob@marley.com'), ('tel', '456'), ('tel', '789')])
+        bob.update_urns(self.user, ['email:bob@marley.com', 'tel:456', 'tel:789'])
         contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
         self.assertEquals(urn.path, '456')
 
     def test_update_handling(self):
-        from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-
         def create_dynamic_group(name, query):
             return ContactGroup.create(self.org, self.user, name, query=query)
 
@@ -2807,7 +2806,7 @@ class ContactTest(TembaTest):
         group = self.create_group("Customers", [])
 
         old_modified_on = bob.modified_on
-        bob.update_urns(self.user, [('tel', "111333")])
+        bob.update_urns(self.user, ['tel:111333'])
         self.assertTrue(bob.modified_on > old_modified_on)
 
         old_modified_on = bob.modified_on
@@ -2889,7 +2888,7 @@ class ContactTest(TembaTest):
             self.assertEquals(2, joe_fires.count())
 
             # change Mary's URNs
-            self.mary.update_urns(self.user, [('tel', "54321"), ('twitter', 'mary_mary')])
+            self.mary.update_urns(self.user, ['tel:54321', 'twitter:mary_mary'])
             self.assertEquals([self.frank, self.joe], list(_123_group.contacts.order_by('name')))
 
     def test_simulator_contact_views(self):
@@ -2924,16 +2923,13 @@ class ContactURNTest(TembaTest):
         super(ContactURNTest, self).setUp()
 
     def test_parse_urn(self):
-        def urn_tuple(p):
-            return p.scheme, p.path
-
-        self.assertEquals(('tel', '+1234'), urn_tuple(ContactURN.parse_urn('tel:+1234')))
-        self.assertEquals(('twitter', 'billy_bob'), urn_tuple(ContactURN.parse_urn('twitter:billy_bob')))
+        self.assertEqual(ContactURN.parse_urn('tel:+1234'), ('tel', '+1234'))
+        self.assertEqual(ContactURN.parse_urn('twitter:billy_bob'), ('twitter', 'billy_bob'))
         self.assertRaises(Exception, ContactURN.parse_urn, 'tel : 1234')  # URNs can't have spaces
         self.assertRaises(Exception, ContactURN.parse_urn, 'xxx:1234')  # no such scheme
 
     def test_format_urn(self):
-        self.assertEquals('tel:+1234', ContactURN.format_urn('tel', '+1234'))
+        self.assertEqual(ContactURN.format_urn('tel', '+1234'), 'tel:+1234')
 
     def test_normalize_urn(self):
         # valid tel numbers
@@ -3071,7 +3067,6 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_label("âge"))      # a-z only
 
     def test_export(self):
-        from xlrd import open_workbook
         self.clear_storage()
 
         self.login(self.admin)
@@ -3088,9 +3083,9 @@ class ContactFieldTest(TembaTest):
 
         # create another contact, this should sort before Ben
         contact2 = self.create_contact("Adam Sumner", '+12067799191', twitter='adam')
-        urns = [(urn.scheme, urn.path) for urn in contact2.get_urns()]
-        urns.append((EMAIL_SCHEME, 'adam@sumner.com'))
-        urns.append((TELEGRAM_SCHEME, '1234'))
+        urns = [urn.urn for urn in contact2.get_urns()]
+        urns.append("email:adam@sumner.com")
+        urns.append("telegram:1234")
         contact2.update_urns(self.admin, urns)
 
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export

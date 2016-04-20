@@ -77,7 +77,7 @@ class TwilioHandler(View):
 
                 # find a contact for the one initiating us
                 contact_urn = ContactURN.get_or_create(channel.org, TEL_SCHEME, from_number, channel)
-                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, from_number)])
+                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[ContactURN.format_urn(TEL_SCHEME, from_number)])
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
                 call = IVRCall.create_incoming(channel, contact, contact_urn, flow, channel.created_by)
@@ -157,10 +157,10 @@ class TwilioHandler(View):
             for i in range(int(request.POST.get('NumMedia', 0))):
                 media_url = client.download_media(request.POST['MediaUrl%d' % i])
                 path = media_url.partition(':')[2]
-                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), path, media=media_url)
+                Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, request.POST['From']), path, media=media_url)
 
             if body:
-                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), body)
+                Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, request.POST['From']), body)
 
             return HttpResponse("", status=201)
 
@@ -199,7 +199,7 @@ class TwilioMessagingServiceHandler(View):
                 # raise an exception that things weren't properly signed
                 raise ValidationError("Invalid request signature")
 
-            Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), request.POST['Body'])
+            Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, request.POST['From']), request.POST['Body'])
 
             return HttpResponse("", status=201)
 
@@ -255,7 +255,7 @@ class AfricasTalkingHandler(View):
             if 'from' not in request.POST or 'text' not in request.POST:
                 return HttpResponse("Missing from or text parameters", status=400)
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.POST['from']), request.POST['text'])
+            sms = Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, request.POST['from']), request.POST['text'])
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -323,7 +323,7 @@ class ZenviaHandler(View):
             brazil_date = pytz.timezone('America/Sao_Paulo').localize(sms_date)
 
             sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['from']),
+                                      ContactURN.format_urn(TEL_SCHEME, request.REQUEST['from']),
                                       request.REQUEST['msg'],
                                       date=brazil_date)
 
@@ -618,7 +618,7 @@ class InfobipHandler(View):
         if channel.address != '+' + request.REQUEST['receiver']:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
-        sms = Msg.create_incoming(channel, (TEL_SCHEME, request.REQUEST['sender']), request.REQUEST['text'])
+        sms = Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, request.REQUEST['sender']), request.REQUEST['text'])
 
         return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -673,7 +673,7 @@ class Hub9Handler(View):
                 return HttpResponse("Channel with number '%s' not found." % to_number, status=404)
 
             from_number = '+' + from_number
-            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, from_number), message)
             return HttpResponse("000")
 
         return HttpResponse("Unreconized action: %s" % action, status=404)
@@ -736,7 +736,7 @@ class HighConnectionHandler(View):
             if to_number is None or from_number is None or message is None:
                 return HttpResponse("Missing TO, FROM or MESSAGE parameters", status=400)
 
-            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message, date=received)
+            msg = Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, from_number), message, date=received)
             return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
@@ -795,7 +795,7 @@ class BlackmynaHandler(View):
             if channel.address != to_number:
                 return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
 
-            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, from_number), message)
             return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
@@ -829,7 +829,7 @@ class SMSCentralHandler(View):
             if from_number is None or message is None:
                 return HttpResponse("Missing mobile or message parameters", status=400)
 
-            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, from_number), message)
             return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
@@ -905,7 +905,7 @@ class NexmoHandler(View):
         # this is a new incoming message
         elif action == 'receive':
             number = '+%s' % request.REQUEST['msisdn']
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, number), request.REQUEST['text'])
+            sms = Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, number), request.REQUEST['text'])
             sms.external_id = request.REQUEST['messageId']
             sms.save(update_fields=['external_id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -1031,7 +1031,7 @@ class VumiHandler(View):
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
             sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, body['from_addr']),
+                                      ContactURN.format_urn(TEL_SCHEME, body['from_addr']),
                                       body['content'],
                                       date=gmt_date)
 
@@ -1117,7 +1117,7 @@ class KannelHandler(View):
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
             sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['sender']),
+                                      ContactURN.format_urn(TEL_SCHEME, request.REQUEST['sender']),
                                       request.REQUEST['message'],
                                       date=gmt_date)
 
@@ -1239,7 +1239,7 @@ class ClickatellHandler(View):
                 text = text.encode('iso-8859-1', 'ignore').decode('iso-8859-1').encode('utf-8')
 
             sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['from']),
+                                      ContactURN.format_urn(TEL_SCHEME, request.REQUEST['from']),
                                       text,
                                       date=gmt_date)
 
@@ -1348,7 +1348,7 @@ class PlivoHandler(View):
                 return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
 
             sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['From']),
+                                      ContactURN.format_urn(TEL_SCHEME, request.REQUEST['From']),
                                       request.REQUEST['Text'])
 
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
@@ -1444,7 +1444,7 @@ class StartHandler(View):
         if text is None:
             text = ""
 
-        Msg.create_incoming(channel, (TEL_SCHEME, sender_el.text), text)
+        Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, sender_el.text), text)
 
         # Start expects an XML response
         xml_response = """<answer type="async"><state>Accepted</state></answer>"""
@@ -1516,7 +1516,7 @@ class ChikkaHandler(View):
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
             sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['mobile_number']),
+                                      ContactURN.format_urn(TEL_SCHEME, request.REQUEST['mobile_number']),
                                       request.REQUEST['message'],
                                       date=gmt_date)
 
@@ -1585,7 +1585,7 @@ class JasminHandler(View):
             if request.POST['coding'] == '0':
                 content = gsm7.decode(request.POST['content'], 'replace')[0]
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.POST['from']), content)
+            sms = Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, request.POST['from']), content)
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.POST['id'])
             return HttpResponse('ACK/Jasmin')
 
@@ -1656,7 +1656,7 @@ class MbloxHandler(View):
                                     status=400)
 
             msg_date = parse_datetime(body['received_at'])
-            msg = Msg.create_incoming(channel, (TEL_SCHEME, body['from']), body['body'], date=msg_date)
+            msg = Msg.create_incoming(channel, ContactURN.format_urn(TEL_SCHEME, body['from']), body['body'], date=msg_date)
             Msg.all_messages.filter(pk=msg.id).update(external_id=body['id'])
             return HttpResponse("SMS Accepted: %d" % msg.id)
 

@@ -7,6 +7,7 @@ import phonenumbers
 import regex
 import time
 
+from collections import defaultdict
 from django.core.files import File
 from django.db import models, connection
 from django.db.models import Count, Max, Q, Sum
@@ -25,7 +26,6 @@ from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
 from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from urlparse import urlparse, urlunparse, ParseResult
 from uuid import uuid4
 
 
@@ -482,6 +482,8 @@ class Contact(TembaModel):
         # deal with None being passed into urns
         if urns is None:
             urns = ()
+        if urns and (not isinstance(urns[0], basestring) or ":" not in urns[0]):
+            raise ValueError("URNs must be formatted strings with scheme and path")
 
         # get country from channel or org
         if incoming_channel:
@@ -494,10 +496,7 @@ class Contact(TembaModel):
         # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
         # it is read only from a contacts perspective, but it is by far the most common case
         if not uuid and not name and urns and len(urns) == 1:
-            scheme, path = urns[0]
-            norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-            norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
-            existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
+            existing_urn = ContactURN.lookup(org, urns[0], country)
 
             if existing_urn and existing_urn.contact:
                 contact = existing_urn.contact
@@ -554,8 +553,8 @@ class Contact(TembaModel):
             existing_owned_urns = dict()
             existing_orphan_urns = dict()
             urns_to_create = dict()
-            for scheme, path in urns:
-
+            for urn in urns:
+                scheme, path = ContactURN.parse_urn(urn)
                 if not scheme or not path:
                     raise ValueError(_("URN cannot have empty scheme or path"))
 
@@ -565,13 +564,13 @@ class Contact(TembaModel):
 
                 if existing_urn:
                     if existing_urn.contact and not force_urn_update:
-                        existing_owned_urns[(scheme, path)] = existing_urn
+                        existing_owned_urns[urn] = existing_urn
                         if contact and contact != existing_urn.contact:
                             raise ValueError(_("Provided URNs belong to different existing contacts"))
                         else:
                             contact = existing_urn.contact
                     else:
-                        existing_orphan_urns[(scheme, path)] = existing_urn
+                        existing_orphan_urns[urn] = existing_urn
                         if not contact and existing_urn.contact:
                             contact = existing_urn.contact
 
@@ -580,7 +579,7 @@ class Contact(TembaModel):
                         existing_urn.channel = incoming_channel
                         existing_urn.save(update_fields=['channel'])
                 else:
-                    urns_to_create[(scheme, path)] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
+                    urns_to_create[urn] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
 
             # URNs correspond to one contact so update and return that
             if contact:
@@ -633,11 +632,11 @@ class Contact(TembaModel):
 
             # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
             # assign them property names with added count
-            urns_for_scheme_counts = dict()
-            for scheme, path in urn_objects.keys():
-                count = urns_for_scheme_counts.get(scheme, 1)
-                urns_for_scheme_counts[scheme] = count + 1
-                params["%s%d" % (scheme, count)] = path
+            urns_for_scheme_counts = defaultdict(int)
+            for urn in urn_objects.keys():
+                scheme, path = ContactURN.parse_urn(urn)
+                urns_for_scheme_counts[scheme] += 1
+                params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
 
             analytics.gauge('temba.contact_created')
 
@@ -651,7 +650,8 @@ class Contact(TembaModel):
         Gets or creates the test contact for the given user
         """
         org = user.get_org()
-        test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user, is_active=True).order_by('-created_on').first()
+        test_contacts = Contact.objects.filter(is_test=True, org=org, created_by=user, is_active=True)
+        test_contact = test_contacts.order_by('-created_on').first()
 
         # double check that our test contact has a valid URN, it may have been reassigned
         if test_contact:
@@ -664,13 +664,12 @@ class Contact(TembaModel):
 
         if not test_contact:
             test_urn_path = START_TEST_CONTACT_PATH
-            existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
+            existing_urn = ContactURN.lookup(org, 'tel:+%s' % test_urn_path, normalize=False)
             while existing_urn and test_urn_path < END_TEST_CONTACT_PATH:
                 test_urn_path += 1
-                existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
+                existing_urn = ContactURN.lookup(org, 'tel:+%s' % test_urn_path, normalize=False)
 
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, '+%s' % test_urn_path)],
-                                                 is_test=True)
+            test_contact = Contact.get_or_create(org, user, "Test Contact", ['tel:+%s' % test_urn_path], is_test=True)
         return test_contact
 
     @classmethod
@@ -747,7 +746,7 @@ class Contact(TembaModel):
             if org.is_anon and search_contact and not is_admin:
                 raise SmartImportRowError("Other existing contact on anonymous organization")
 
-            urns.append((urn_scheme, value))
+            urns.append(ContactURN.format_urn(urn_scheme, value))
 
         if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
@@ -1212,7 +1211,8 @@ class Contact(TembaModel):
             # urns are submitted in order of priority
             priority = HIGHEST_PRIORITY
 
-            for scheme, path in urns:
+            for urn_as_string in urns:
+                scheme, path = ContactURN.parse_urn(urn_as_string)
                 norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
                 norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
 
@@ -1247,7 +1247,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[(u.scheme, u.path) for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[u.urn for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -1376,49 +1376,45 @@ class ContactURN(models.Model):
                                   scheme=scheme, path=path, urn=urn)
 
     @classmethod
-    def get_existing_urn(cls, org, scheme, path):
-        urn = cls.format_urn(scheme, path)
-        return ContactURN.objects.filter(org=org, urn=urn).first()
-
-    @classmethod
     def get_or_create(cls, org, scheme, path, channel=None):
-        existing = ContactURN.get_existing_urn(org, scheme, path)
-
         with org.lock_on(OrgLock.contacts):
+            existing = ContactURN.lookup(org, cls.format_urn(scheme, path))
+
             if existing:
                 return existing
             else:
                 return cls.create(org, None, scheme, path, channel)
 
     @classmethod
-    def parse_urn(cls, urn):
-        # for the tel case, we parse ourselves due to a Python bug for those that don't start with +
-        # see: http://bugs.python.org/issue14072
-        parsed = urlparse(urn)
-        if urn.startswith('tel:'):
-            path = parsed.path
-            if path.startswith('tel:'):
-                path = parsed.path.split(':')[1]
+    def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
+        """
+        Looks up an existing URN by a formatted URN string, e.g. "tel:+250234562222"
+        """
+        if normalize:
+            scheme, path = cls.parse_urn(urn_as_string)
+            scheme, path = cls.normalize_urn(scheme, path, country_code)
+            urn_as_string = cls.format_urn(scheme, path)
 
-            parsed = ParseResult('tel', parsed.netloc, path, parsed.params, parsed.query, parsed.fragment)
-
-        # URN isn't valid without a scheme and path
-        if not parsed.scheme or not parsed.path:
-            raise ValueError("URNs must define a scheme (%s) and path (%s), none found in: %s" % (parsed.scheme, parsed.path, urn))
-
-        return parsed
+        return cls.objects.filter(org=org, urn=urn_as_string).first()
 
     @classmethod
-    def format_urn(cls, scheme, namespace_specific_string):
+    def parse_urn(cls, urn_as_string):
+        """
+        Splits a formatted URN string into scheme and path
+        """
+        return tuple(urn_as_string.split(':', 1))
+
+    @classmethod
+    def format_urn(cls, scheme, path):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
-        return urlunparse((scheme, None, namespace_specific_string, None, None, None))
+        return '%s:%s' % (scheme, path)
 
     @classmethod
     def validate_urn(cls, scheme, path, country_code=None):
         """
-        Validates a URN scheme and path. Assumes both are normalized
+        Validates a URN scheme and path. Assumes both are normalized.
         """
         if not scheme or not path:
             return False

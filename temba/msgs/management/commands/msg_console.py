@@ -60,11 +60,8 @@ class MessageConsole(cmd.Cmd):
         self.prompt = ("\n" + Fore.CYAN + "[%s] " + Fore.WHITE) % self.contact
 
     def get_or_create_contact(self, urn):
-        if ':' in urn:
-            parsed = ContactURN.parse_urn(urn)
-            urn = (parsed.scheme, parsed.path)
-        else:
-            urn = (TEL_SCHEME, urn)  # assume phone number
+        if ':' not in urn:
+            urn = ContactURN.format_urn(TEL_SCHEME, urn)  # assume phone number
 
         return Contact.get_or_create(self.org, self.user, name=None, urns=[urn])
 
@@ -112,7 +109,8 @@ class MessageConsole(cmd.Cmd):
         """
         urn = self.contact.get_urn()
 
-        incoming = Msg.create_incoming(None, (urn.scheme, urn.path), line, date=timezone.now(), org=self.org)
+        incoming = Msg.create_incoming(None, ContactURN.format_urn(urn.scheme, urn.path),
+                                       line, date=timezone.now(), org=self.org)
 
         self.echo((Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (urn.urn, incoming.text))
 

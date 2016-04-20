@@ -1280,7 +1280,7 @@ class FlowCRUDL(SmartCRUDL):
             if new_message or media:
                 try:
                     Msg.create_incoming(None,
-                                        (TEL_SCHEME, test_contact.get_urn(TEL_SCHEME).path),
+                                        test_contact.get_urn(TEL_SCHEME).urn,
                                         new_message,
                                         media=media,
                                         org=user.get_org())

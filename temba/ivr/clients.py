@@ -10,7 +10,7 @@ from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
-from temba.contacts.models import Contact, TEL_SCHEME
+from temba.contacts.models import Contact, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow
 from temba.ivr.models import IN_PROGRESS
 from twilio import TwilioRestException
@@ -97,7 +97,7 @@ class VerboiceClient:
     def start_call(self, call, to, from_, status_callback):
 
         channel = call.channel
-        Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, to)])
+        Contact.get_or_create(channel.org, channel.created_by, urns=[ContactURN.format_urn(TEL_SCHEME, to)])
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
         payload = unicode(Flow.handle_call(call, {}))
