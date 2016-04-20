@@ -11,7 +11,6 @@ import resource
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
-from django.core.serializers.json import DjangoJSONEncoder
 from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
