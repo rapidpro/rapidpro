@@ -112,7 +112,7 @@ class CampaignEventReadSerializer(ReadSerializer):
             return None
 
     def get_relative_to(self, obj):
-        return obj.relative_to.key
+        return {'key': obj.relative_to.key, 'label': obj.relative_to.label}
 
     def get_unit(self, obj):
         return self.UNITS.get(obj.unit)

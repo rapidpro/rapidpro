@@ -442,7 +442,7 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.prefetch_related(
             Prefetch('campaign', queryset=Campaign.objects.only('uuid', 'name')),
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name')),
-            Prefetch('relative_to', queryset=ContactField.objects.only('key')),
+            Prefetch('relative_to', queryset=ContactField.objects.only('key', 'label')),
         )
 
         return queryset

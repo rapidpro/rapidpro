@@ -359,7 +359,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0], {
             'uuid': event2.uuid,
             'campaign': {'uuid': campaign2.uuid, 'name': "Notifications"},
-            'relative_to': "registration",
+            'relative_to': {'key': "registration", 'label': "Registration"},
             'offset': 6,
             'unit': 'hours',
             'delivery_hour': 12,
