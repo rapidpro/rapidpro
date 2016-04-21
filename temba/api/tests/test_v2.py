@@ -14,7 +14,7 @@ from mock import patch
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
-from temba.msgs.models import Broadcast, Label
+from temba.msgs.models import Broadcast, Call, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
@@ -55,10 +55,11 @@ class APITest(TembaTest):
 
         return self.client.get(url, HTTP_X_FORWARDED_HTTPS='https')
 
-    def fetchJSON(self, url, query=None):
-        url += '.json'
-        if query:
-            url += ('?' + query)
+    def fetchJSON(self, url, query=None, raw_url=False):
+        if not raw_url:
+            url += '.json'
+            if query:
+                url += ('?' + query)
 
         response = self.client.get(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
 
@@ -221,6 +222,89 @@ class APITest(TembaTest):
         # filter by before
         response = self.fetchJSON(url, 'before=%s' % format_datetime(bcast2.created_on))
         self.assertResultsById(response, [bcast2, bcast1])
+
+    def test_channels(self):
+        url = reverse('api.v2.channels')
+
+        self.assertEndpointAccess(url)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 2)
+        self.assertEqual(response.json['results'][1], {
+            'uuid': self.channel.uuid,
+            'name': "Test Channel",
+            'address': "+250785551212",
+            'country': "RW",
+            'device': {
+                'name': "Nexus 5X",
+                'network_type': None,
+                'power_level': -1,
+                'power_source': None,
+                'power_status': None
+            },
+            'last_seen': format_datetime(self.channel.last_seen),
+            'created_on': format_datetime(self.channel.created_on)
+        })
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % self.twitter.uuid)
+        self.assertResultsByUUID(response, [self.twitter])
+
+        # filter by address
+        response = self.fetchJSON(url, 'address=billy_bob')
+        self.assertResultsByUUID(response, [self.twitter])
+
+    def test_channel_events(self):
+        url = reverse('api.v2.channel_events')
+
+        self.assertEndpointAccess(url)
+
+        call1 = Call.create_call(self.channel, "0788123123", timezone.now(), 0, Call.TYPE_CALL_IN_MISSED)
+        call2 = Call.create_call(self.channel, "0788124124", timezone.now(), 36, Call.TYPE_CALL_IN)
+        call3 = Call.create_call(self.channel, "0788124124", timezone.now(), 0, Call.TYPE_CALL_OUT_MISSED)
+        call4 = Call.create_call(self.channel, "0788123123", timezone.now(), 15, Call.TYPE_CALL_OUT)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsById(response, [call4, call3, call2, call1])
+        self.assertEqual(response.json['results'][0], {
+            'id': call4.pk,
+            'channel': {'uuid': self.channel.uuid, 'name': "Test Channel"},
+            'type': "call-out",
+            'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
+            'time': format_datetime(call4.time),
+            'duration': 15,
+            'created_on': format_datetime(call4.created_on),
+        })
+
+        # filter by id
+        response = self.fetchJSON(url, 'id=%d' % call1.pk)
+        self.assertResultsById(response, [call1])
+
+        # filter by contact
+        response = self.fetchJSON(url, 'contact=%s' % self.joe.uuid)
+        self.assertResultsById(response, [call4, call1])
+
+        # filter by invalid contact
+        response = self.fetchJSON(url, 'contact=invalid')
+        self.assertResultsById(response, [])
+
+        # filter by before
+        response = self.fetchJSON(url, 'before=%s' % format_datetime(call3.created_on))
+        self.assertResultsById(response, [call3, call2, call1])
+
+        # filter by after
+        response = self.fetchJSON(url, 'after=%s' % format_datetime(call2.created_on))
+        self.assertResultsById(response, [call4, call3, call2])
 
     def test_contacts(self):
         url = reverse('api.v2.contacts')

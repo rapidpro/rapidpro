@@ -46,7 +46,7 @@ class WebHookTest(TembaTest):
         call = Call.objects.create(org=self.org,
                                    channel=self.channel,
                                    contact=self.joe,
-                                   call_type=Call.TYPE_IN_MISSED,
+                                   call_type=Call.TYPE_CALL_IN_MISSED,
                                    time=now,
                                    created_by=self.admin,
                                    modified_by=self.admin)
