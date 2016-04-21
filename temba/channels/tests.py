@@ -41,7 +41,7 @@ from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
-from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA, VUMIUSSD
+from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA, VUMI_USSD
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
@@ -836,7 +836,7 @@ class ChannelTest(TembaTest):
         response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
         self.assertEqual(302, response.status_code)
 
-        self.assertEqual(Channel.objects.first().channel_type, VUMIUSSD)
+        self.assertEqual(Channel.objects.first().channel_type, VUMI_USSD)
         self.assertTrue(Channel.objects.first().is_ussd())
         self.assertFalse(Channel.objects.last().is_ussd())
 
@@ -2336,7 +2336,7 @@ class ChannelAlertTest(TembaTest):
         self.assertEquals(channel.address, post_data['number'])
         self.assertEquals(channel.config_json()['account_key'], post_data['account_key'])
         self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEquals(channel.channel_type, VUMIUSSD)
+        self.assertEquals(channel.channel_type, VUMI_USSD)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
         self.assertRedirect(response, config_url)
@@ -3826,7 +3826,7 @@ class VumiUssdTest(TembaTest):
         super(VumiUssdTest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', VUMIUSSD, None, '+250788123123',
+        self.channel = Channel.create(self.org, self.user, 'RW', VUMI_USSD, None, '+250788123123',
                                       config=dict(account_key='vumi-key', access_token='vumi-token', conversation_key='key'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 

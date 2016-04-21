@@ -61,7 +61,7 @@ TWILIO = 'T'
 TWITTER = 'TT'
 VERBOICE = 'VB'
 VUMI = 'VM'
-VUMIUSSD = 'VMU'
+VUMI_USSD = 'VMU'
 ZENVIA = 'ZV'
 YO = 'YO'
 START = 'ST'
@@ -128,13 +128,13 @@ CHANNEL_SETTINGS = {
     TWITTER: dict(scheme='twitter', max_length=10000),
     VERBOICE: dict(scheme='tel', max_length=1600),
     VUMI: dict(scheme='tel', max_length=1600),
-    VUMIUSSD: dict(scheme='tel', max_length=182),
+    VUMI_USSD: dict(scheme='tel', max_length=182),
     YO: dict(scheme='tel', max_length=1600),
     ZENVIA: dict(scheme='tel', max_length=150),
 }
 
 # list of all USSD channels
-USSD_CHANNELS = [VUMIUSSD]
+USSD_CHANNELS = [VUMI_USSD]
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
@@ -2411,7 +2411,7 @@ class Channel(TembaModel):
                       TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
                       TWITTER: Channel.send_twitter_message,
                       VUMI: Channel.send_vumi_message,
-                      VUMIUSSD: Channel.send_vumi_message,
+                      VUMI_USSD: Channel.send_vumi_message,
                       YO: Channel.send_yo_message,
                       ZENVIA: Channel.send_zenvia_message}
 

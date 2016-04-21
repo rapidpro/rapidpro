@@ -40,7 +40,7 @@ from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRA
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX
 from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN, CHIKKA
-from .models import AUTH_TOKEN, FACEBOOK, VUMIUSSD
+from .models import AUTH_TOKEN, FACEBOOK, VUMI_USSD
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       CHIKKA: "icon-channel-external",
@@ -1477,7 +1477,7 @@ class ChannelCRUDL(SmartCRUDL):
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimVumiUssd(ClaimVumi):
-        channel_type = VUMIUSSD
+        channel_type = VUMI_USSD
 
     class ClaimClickatell(ClaimAuthenticatedExternal):
         class ClickatellForm(forms.Form):

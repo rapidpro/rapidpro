@@ -895,7 +895,7 @@ class VumiHandler(View):
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg, PENDING, QUEUED, WIRED, SENT, DELIVERED, FAILED, ERRORED
-        from temba.channels.models import VUMI, VUMIUSSD
+        from temba.channels.models import VUMI, VUMI_USSD
 
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
@@ -908,7 +908,7 @@ class VumiHandler(View):
 
         # determine if it's a USSD session message or a regular SMS
         is_ussd = "ussd" in body.get('transport_name', '') or body.get('transport_type') == 'ussd'
-        channel_type = VUMIUSSD if is_ussd else VUMI
+        channel_type = VUMI_USSD if is_ussd else VUMI
 
         # look up the channel
         channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=channel_type).exclude(org=None).first()

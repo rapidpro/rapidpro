@@ -2,14 +2,14 @@
 
 .split-header-inner
   %p
-    Add text:
+    -trans "Add text:"
 
 .split-margin
   %textarea{ng-model:"ruleset.config.ussd_text",name:"ussd",auto-complete:"",flow:"[[flowId]]",ng-change:"countCharacters()",class:"ussd-add-text"}
 
 .split-header-inner{ng-if:'USSD_MENU'}
   %p
-    Add menu:
+    -trans "Add menu:"
 
 %form{name:'menuForm', ng-if:'USSD_MENU'}
   %span
