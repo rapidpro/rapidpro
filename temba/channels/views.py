@@ -1740,7 +1740,7 @@ class ChannelCRUDL(SmartCRUDL):
     class FacebookWelcome(ModalMixin, OrgPermsMixin, SmartUpdateView):
         class WelcomeForm(forms.ModelForm):
             message = forms.CharField(max_length=160, widget=forms.Textarea, label=_("Welcome Message"), required=False,
-                                      help_text="This message will appear when a user first interacts with your page.")
+                                      help_text=_("This message will appear when a user first interacts with your page."))
 
             class Meta:
                 model = Channel

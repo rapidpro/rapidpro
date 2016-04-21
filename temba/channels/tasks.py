@@ -114,7 +114,7 @@ def fb_channel_subscribe(channel_id):
         page_access_token = channel.config_json()[AUTH_TOKEN]
 
         # subscribe to messaging events for this channel
-        response = requests.post('https://graph.facebook.com/v2.5/me/subscribed_apps',
+        response = requests.post('https://graph.facebook.com/v2.6/me/subscribed_apps',
                                  params=dict(access_token=page_access_token))
 
         if response.status_code != 200 or not response.json()['success']:
