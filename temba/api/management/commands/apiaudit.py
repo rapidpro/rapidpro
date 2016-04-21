@@ -4,7 +4,7 @@ import time
 
 from colorama import init as colorama_init, Fore, Style
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection, transaction
+from django.db import connection
 from django.core.urlresolvers import reverse
 from rest_framework.test import APIClient
 
