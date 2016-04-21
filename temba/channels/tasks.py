@@ -14,6 +14,7 @@ from temba.utils.queues import pop_task
 from temba.utils.mage import MageClient
 from .models import Channel, Alert, ChannelLog, ChannelCount, AUTH_TOKEN
 
+
 class MageStreamAction(Enum):
     activate = 1
     refresh = 2
@@ -118,5 +119,3 @@ def fb_channel_subscribe(channel_id):
 
         if response.status_code != 200 or not response.json()['success']:
             print "Unable to subscribe for delivery of events: %s" % response.content
-
-
