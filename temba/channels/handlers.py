@@ -13,7 +13,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
@@ -24,7 +24,7 @@ from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
 from temba.triggers.models import Trigger
-from temba.utils import JsonResponse, json_date_to_datetime
+from temba.utils import json_date_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from twilio import twiml

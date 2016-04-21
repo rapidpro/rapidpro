@@ -1,22 +1,28 @@
 from __future__ import absolute_import, unicode_literals
 
-
+from django import forms
+from django.contrib.auth import authenticate, login
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, status
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
-from smartmin.views import SmartTemplateView
+from smartmin.views import SmartTemplateView, SmartFormView
+from temba.api.models import get_or_create_api_token, APIToken
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Call, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
-from .serializers import BroadcastReadSerializer, CallReadSerializer, ChannelReadSerializer, ContactReadSerializer
+from .serializers import BroadcastReadSerializer, CallReadSerializer, CampaignReadSerializer
+from .serializers import CampaignEventReadSerializer, ChannelReadSerializer, ContactReadSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
 from .serializers import LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
@@ -33,6 +39,8 @@ def api(request, format=None):
     The following endpoints are provided:
 
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
+     * [/api/v2/campaigns](/api/v2/campaigns) - to list campaigns
+     * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
@@ -47,6 +55,8 @@ def api(request, format=None):
     """
     return Response({
         'broadcasts': reverse('api.v2.broadcasts', request=request),
+        'campaigns': reverse('api.v2.campaigns', request=request),
+        'campaign_events': reverse('api.v2.campaign_events', request=request),
         'channels': reverse('api.v2.channels', request=request),
         'channel_events': reverse('api.v2.channel_events', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
@@ -69,6 +79,8 @@ class ApiExplorerView(SmartTemplateView):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
             BroadcastEndpoint.get_read_explorer(),
+            CampaignsEndpoint.get_read_explorer(),
+            CampaignEventsEndpoint.get_read_explorer(),
             ChannelsEndpoint.get_read_explorer(),
             ChannelEventsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
@@ -80,6 +92,49 @@ class ApiExplorerView(SmartTemplateView):
             RunsEndpoint.get_read_explorer()
         ]
         return context
+
+
+class AuthenticateView(SmartFormView):
+    """
+    Provides a login form view for app users to generate and access their API tokens
+    """
+    class LoginForm(forms.Form):
+        username = forms.CharField()
+        password = forms.CharField(widget=forms.PasswordInput)
+        role = forms.ChoiceField(choices=APIToken.ROLE_CHOICES)
+
+    title = "API Authentication"
+    form_class = LoginForm
+
+    @csrf_exempt
+    def dispatch(self, *args, **kwargs):
+        return super(AuthenticateView, self).dispatch(*args, **kwargs)
+
+    def form_valid(self, form, *args, **kwargs):
+        username = form.cleaned_data.get('username')
+        password = form.cleaned_data.get('password')
+        role = form.cleaned_data.get('role')
+
+        user = authenticate(username=username, password=password)
+        if user and user.is_active:
+            login(self.request, user)
+            tokens = []
+
+            valid_orgs, role = APIToken.get_orgs_for_role(user, role)
+            if role:
+                for org in valid_orgs:
+                    user.set_org(org)
+                    user.set_role(role)
+                    token = get_or_create_api_token(user)
+
+                    if token:
+                        tokens.append({'org': {'id': org.pk, 'name': org.name}, 'token': token})
+            else:
+                return HttpResponse(status=403)
+
+            return JsonResponse({'tokens': tokens})
+        else:
+            return HttpResponse(status=403)
 
 
 class CreatedOnCursorPagination(CustomCursorPagination):
@@ -259,6 +314,164 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
+class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    ## Listing Campaigns
+
+    You can retrieve the campaigns for your organization by sending a ```GET``` to this endpoint, listing the
+    most recently created campaigns first.
+
+     * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
+     * **name** - the name of the campaign (string).
+     * **group** - the group this campaign operates on (object).
+     * **created_on** - when the campaign was created (datetime), filterable as `before` and `after`.
+
+    Example:
+
+        GET /api/v2/campaigns.json
+
+    Response is a list of the campaigns on your account
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+                "name": "Reminders",
+                "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
+                "created_on": "2013-08-19T19:11:21.088Z"
+            },
+            ...
+        }
+
+    """
+    permission = 'campaigns.campaign_api'
+    model = Campaign
+    serializer_class = CampaignReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        queryset = queryset.filter(is_active=True)
+
+        # filter by UUID (optional)
+        uuid = params.get('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        queryset = queryset.prefetch_related(
+            Prefetch('group', queryset=ContactGroup.user_groups.only('uuid', 'name')),
+        )
+
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Campaigns",
+            'url': reverse('api.v2.campaigns'),
+            'slug': 'campaign-list',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+            ]
+        }
+
+
+class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    ## Listing Campaign Events
+
+    You can retrieve the campaign events for your organization by sending a ```GET``` to this endpoint, listing the
+    most recently created events first.
+
+     * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
+     * **campaign** - the UUID and name of the campaign (object), filterable as `campaign` with UUID.
+     * **relative_to** - the key and label of the date field this event is based on (object).
+     * **offset** - the offset from our contact field (positive or negative integer).
+     * **unit** - the unit for our offset (one of "minutes, "hours", "days", "weeks").
+     * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the contact field).
+     * **message** - the message to send to the contact if this is a message event (string)
+     * **flow** - the UUID and name of the flow if this is a flow event (object).
+     * **created_on** - when the event was created (datetime).
+
+    Example:
+
+        GET /api/v2/campaign_events.json
+
+    Response is a list of the campaign events on your account
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+                "campaign": {"uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00", "name": "Reminders"},
+                "relative_to": {"key": "registration", "label": "Registration Date"},
+                "offset": 7,
+                "unit": "days",
+                "delivery_hour": 9,
+                "flow": {"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Survey"},
+                "message": null,
+                "created_on": "2013-08-19T19:11:21.088Z"
+            },
+            ...
+        }
+
+    """
+    permission = 'campaigns.campaignevent_api'
+    model = CampaignEvent
+    serializer_class = CampaignEventReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def get_queryset(self):
+        return self.model.objects.filter(campaign__org=self.request.user.get_org(), is_active=True)
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        queryset = queryset.filter(is_active=True)
+        org = self.request.user.get_org()
+
+        # filter by UUID (optional)
+        uuid = params.get('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        # filter by campaign name/uuid (optional)
+        campaign_ref = params.get('campaign')
+        if campaign_ref:
+            campaign = Campaign.objects.filter(org=org).filter(Q(uuid=campaign_ref) | Q(name=campaign_ref)).first()
+            if campaign:
+                queryset = queryset.filter(campaign=campaign)
+            else:
+                queryset = queryset.filter(pk=-1)
+
+        queryset = queryset.prefetch_related(
+            Prefetch('campaign', queryset=Campaign.objects.only('uuid', 'name')),
+            Prefetch('flow', queryset=Flow.objects.only('uuid', 'name')),
+            Prefetch('relative_to', queryset=ContactField.objects.only('key', 'label')),
+        )
+
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Campaign Events",
+            'url': reverse('api.v2.campaign_events'),
+            'slug': 'campaign-event-list',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "An event UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+                {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter by. ex: Reminders"},
+            ]
+        }
+
+
 class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
     """
     ## Listing Channels
@@ -266,7 +479,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
     A **GET** returns the list of Android channels for your organization, in the order of last created.  Note that for
     Android devices, all status information is as of the last time it was seen and can be null before the first sync.
 
-     * **uuid** - the unique identifier of the channel (string), filterable as `uuid`.
+     * **uuid** - the UUID of the channel (string), filterable as `uuid`.
      * **name** - the name of the channel (string).
      * **address** - the address (e.g. phone number, Twitter handle) of the channel (string), filterable as `address`.
      * **country** - which country the sim card for this channel is registered for (string, two letter country code).
@@ -432,7 +645,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
     only deleted contacts by passing the "deleted=true" parameter to your call.
 
-     * **uuid** - the unique identifier of the contact (string), filterable as `uuid`.
+     * **uuid** - the UUID of the contact (string), filterable as `uuid`.
      * **name** - the name of the contact (string).
      * **language** - the preferred language of the contact (string).
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
@@ -709,7 +922,7 @@ class LabelsEndpoint(ListAPIMixin, BaseAPIView):
             'slug': 'label-list',
             'request': "",
             'fields': [
-                {'name': "uuid", 'required': False, 'help': "A label UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
+                {'name': "uuid", 'required': False, 'help': "A label UUID to filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
         }
 

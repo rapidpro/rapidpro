@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
-from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, SEND
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
@@ -727,13 +727,13 @@ class CampaignEventReadSerializer(ReadSerializer):
         return obj.campaign.uuid
 
     def get_flow_uuid(self, obj):
-        return obj.flow.uuid if obj.event_type == FLOW_EVENT else None
+        return obj.flow.uuid if obj.event_type == CampaignEvent.TYPE_FLOW else None
 
     def get_campaign(self, obj):
         return obj.campaign_id
 
     def get_flow(self, obj):
-        return obj.flow_id if obj.event_type == FLOW_EVENT else None
+        return obj.flow_id if obj.event_type == CampaignEvent.TYPE_FLOW else None
 
     def get_relative_to(self, obj):
         return obj.relative_to.label
@@ -855,7 +855,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
             # we are being set to a flow
             if self.flow_obj:
                 self.instance.flow = self.flow_obj
-                self.instance.event_type = FLOW_EVENT
+                self.instance.event_type = CampaignEvent.TYPE_FLOW
                 self.instance.message = None
 
             # we are being set to a message
@@ -863,9 +863,9 @@ class CampaignEventWriteSerializer(WriteSerializer):
                 self.instance.message = message
 
                 # if we aren't currently a message event, we need to create our hidden message flow
-                if self.instance.event_type != MESSAGE_EVENT:
+                if self.instance.event_type != CampaignEvent.TYPE_MESSAGE:
                     self.instance.flow = Flow.create_single_message(self.org, self.user, self.instance.message)
-                    self.instance.event_type = MESSAGE_EVENT
+                    self.instance.event_type = CampaignEvent.TYPE_MESSAGE
 
                 # otherwise, we can just update that flow
                 else:

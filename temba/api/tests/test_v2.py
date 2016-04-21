@@ -5,12 +5,15 @@ import json
 import pytz
 
 from datetime import datetime
+from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
+from rest_framework.test import APIClient
 from mock import patch
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
@@ -18,6 +21,7 @@ from temba.msgs.models import Broadcast, Call, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
+from ..models import APIToken
 from ..v2.serializers import format_datetime
 
 
@@ -180,6 +184,73 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "Log in to use the Explorer")
 
+    def test_authenticate(self):
+        url = reverse('api.v2.authenticate')
+
+        # fetch as HTML
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['form'].fields.keys(), ['username', 'password', 'role', 'loc'])
+
+        admins = Group.objects.get(name='Administrators')
+        surveyors = Group.objects.get(name='Surveyors')
+
+        # authenticate an admin as an admin
+        response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'A'})
+
+        # should have created a new token object
+        token_obj1 = APIToken.objects.get(user=self.admin, role=admins)
+
+        tokens = json.loads(response.content)['tokens']
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0], {'org': {'id': self.org.pk, 'name': "Temba"}, 'token': token_obj1.key})
+
+        # authenticate an admin as a surveyor
+        response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'S'})
+
+        # should have created a new token object
+        token_obj2 = APIToken.objects.get(user=self.admin, role=surveyors)
+
+        tokens = json.loads(response.content)['tokens']
+        self.assertEqual(len(tokens), 1)
+        self.assertEqual(tokens[0], {'org': {'id': self.org.pk, 'name': "Temba"}, 'token': token_obj2.key})
+
+        # the keys should be different
+        self.assertNotEqual(token_obj1.key, token_obj2.key)
+
+        client = APIClient()
+
+        # campaigns can be fetched by admin token
+        client.credentials(HTTP_AUTHORIZATION="Token " + token_obj1.key)
+        self.assertEqual(client.get(reverse('api.v2.campaigns') + '.json').status_code, 200)
+
+        # but not by an admin's surveyor token
+        client.credentials(HTTP_AUTHORIZATION="Token " + token_obj2.key)
+        self.assertEqual(client.get(reverse('api.v2.campaigns') + '.json').status_code, 403)
+
+        # but their surveyor token can get flows or contacts
+        # self.assertEqual(client.get(reverse('api.v2.flows') + '.json').status_code, 200)  # TODO re-enable when added
+        self.assertEqual(client.get(reverse('api.v2.contacts') + '.json').status_code, 200)
+
+        # our surveyor can't login with an admin role
+        response = self.client.post(url, {'username': "Surveyor", 'password': "Surveyor", 'role': 'A'})
+        tokens = json.loads(response.content)['tokens']
+        self.assertEqual(len(tokens), 0)
+
+        # but they can with a surveyor role
+        response = self.client.post(url, {'username': "Surveyor", 'password': "Surveyor", 'role': 'S'})
+        tokens = json.loads(response.content)['tokens']
+        self.assertEqual(len(tokens), 1)
+
+        token_obj3 = APIToken.objects.get(user=self.surveyor, role=surveyors)
+
+        # and can fetch flows, contacts, and fields, but not campaigns
+        client.credentials(HTTP_AUTHORIZATION="Token " + token_obj3.key)
+        # self.assertEqual(client.get(reverse('api.v1.flows') + '.json').status_code, 200)  # TODO re-enable when added
+        self.assertEqual(client.get(reverse('api.v2.contacts') + '.json').status_code, 200)
+        self.assertEqual(client.get(reverse('api.v2.fields') + '.json').status_code, 200)
+        self.assertEqual(client.get(reverse('api.v2.campaigns') + '.json').status_code, 403)
+
     def test_broadcasts(self):
         url = reverse('api.v2.broadcasts')
 
@@ -223,10 +294,18 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'before=%s' % format_datetime(bcast2.created_on))
         self.assertResultsById(response, [bcast2, bcast1])
 
-    def test_channels(self):
-        url = reverse('api.v2.channels')
+    def test_campaigns(self):
+        url = reverse('api.v2.campaigns')
 
         self.assertEndpointAccess(url)
+
+        reporters = self.create_group("Reporters", [self.joe, self.frank])
+        campaign1 = Campaign.create(self.org, self.admin, "Reminders #1", reporters)
+        campaign2 = Campaign.create(self.org, self.admin, "Reminders #2", reporters)
+
+        # create campaign for other org
+        spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+        Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
@@ -234,7 +313,93 @@ class APITest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertEqual(len(response.json['results']), 2)
+        self.assertResultsByUUID(response, [campaign2, campaign1])
+        self.assertEqual(response.json['results'][0], {
+            'uuid': campaign2.uuid,
+            'name': "Reminders #2",
+            'group': {'uuid': reporters.uuid, 'name': "Reporters"},
+            'created_on': format_datetime(campaign2.created_on)
+        })
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % campaign1.uuid)
+        self.assertResultsByUUID(response, [campaign1])
+
+    def test_campaign_events(self):
+        url = reverse('api.v2.campaign_events')
+
+        self.assertEndpointAccess(url)
+
+        flow = self.create_flow()
+        reporters = self.create_group("Reporters", [self.joe, self.frank])
+        registration = ContactField.get_or_create(self.org, self.admin, 'registration', "Registration")
+
+        campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
+        event1 = CampaignEvent.create_message_event(self.org, self.admin, campaign1, registration,
+                                                    1, CampaignEvent.UNIT_DAYS, "Don't forget to brush your teeth")
+
+        campaign2 = Campaign.create(self.org, self.admin, "Notifications", reporters)
+        event2 = CampaignEvent.create_flow_event(self.org, self.admin, campaign2, registration,
+                                                 6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12)
+
+        # create event for another org
+        joined = ContactField.get_or_create(self.org2, self.admin2, 'joined', "Joined On")
+        spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+        spam = Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
+        CampaignEvent.create_flow_event(self.org2, self.admin2, spam, joined,
+                                        6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsByUUID(response, [event2, event1])
+        self.assertEqual(response.json['results'][0], {
+            'uuid': event2.uuid,
+            'campaign': {'uuid': campaign2.uuid, 'name': "Notifications"},
+            'relative_to': {'key': "registration", 'label': "Registration"},
+            'offset': 6,
+            'unit': 'hours',
+            'delivery_hour': 12,
+            'flow': {'uuid': flow.uuid, 'name': "Color Flow"},
+            'message': None,
+            'created_on': format_datetime(event2.created_on)
+        })
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % event1.uuid)
+        self.assertResultsByUUID(response, [event1])
+
+        # filter by campaign name
+        response = self.fetchJSON(url, 'campaign=Reminders')
+        self.assertResultsByUUID(response, [event1])
+
+        # filter by campaign UUID
+        response = self.fetchJSON(url, 'campaign=%s' % campaign1.uuid)
+        self.assertResultsByUUID(response, [event1])
+
+        # filter by invalid campaign
+        response = self.fetchJSON(url, 'campaign=invalid')
+        self.assertResultsByUUID(response, [])
+
+    def test_channels(self):
+        url = reverse('api.v2.channels')
+
+        self.assertEndpointAccess(url)
+
+        # create channel for other org
+        Channel.create(self.org2, self.admin2, None, 'TT', name="Twitter Channel",
+                       address="nyaruka", role="SR", scheme='twitter')
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertResultsByUUID(response, [self.twitter, self.channel])
         self.assertEqual(response.json['results'][1], {
             'uuid': self.channel.uuid,
             'name': "Test Channel",

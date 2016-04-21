@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 from rest_framework import serializers
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
@@ -80,6 +81,45 @@ class CallReadSerializer(ReadSerializer):
     class Meta:
         model = Call
         fields = ('id', 'type', 'contact', 'channel', 'time', 'duration', 'created_on')
+
+
+class CampaignReadSerializer(ReadSerializer):
+    group = serializers.SerializerMethodField()
+
+    def get_group(self, obj):
+        return {'uuid': obj.group.uuid, 'name': obj.group.name}
+
+    class Meta:
+        model = Campaign
+        fields = ('uuid', 'name', 'group', 'created_on')
+
+
+class CampaignEventReadSerializer(ReadSerializer):
+    UNITS = ReadSerializer.extract_constants(CampaignEvent.UNIT_CONFIG)
+
+    campaign = serializers.SerializerMethodField()
+    flow = serializers.SerializerMethodField()
+    relative_to = serializers.SerializerMethodField()
+    unit = serializers.SerializerMethodField()
+
+    def get_campaign(self, obj):
+        return {'uuid': obj.campaign.uuid, 'name': obj.campaign.name}
+
+    def get_flow(self, obj):
+        if obj.event_type == CampaignEvent.TYPE_FLOW:
+            return {'uuid': obj.flow.uuid, 'name': obj.flow.name}
+        else:
+            return None
+
+    def get_relative_to(self, obj):
+        return {'key': obj.relative_to.key, 'label': obj.relative_to.label}
+
+    def get_unit(self, obj):
+        return self.UNITS.get(obj.unit)
+
+    class Meta:
+        model = CampaignEvent
+        fields = ('uuid', 'campaign', 'relative_to', 'offset', 'unit', 'delivery_hour', 'flow', 'message', 'created_on')
 
 
 class ChannelReadSerializer(ReadSerializer):

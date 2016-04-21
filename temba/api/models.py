@@ -12,6 +12,7 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
@@ -511,6 +512,14 @@ class APIToken(models.Model):
     """
     Our API token, ties in orgs
     """
+    ROLE_ADMIN = 'A'
+    ROLE_EDITOR = 'E'
+    ROLE_SURVEYOR = 'S'
+
+    ROLE_CHOICES = ((ROLE_ADMIN, _("Administrator")),
+                    (ROLE_EDITOR, _("Editor")),
+                    (ROLE_SURVEYOR, _("Surveyor")))
+
     key = models.CharField(max_length=40, primary_key=True)
 
     user = models.ForeignKey(User, related_name='api_tokens')
@@ -528,14 +537,14 @@ class APIToken(models.Model):
         takes a single character role (A, E, S, etc) and maps it to a UserGroup.
         """
 
-        if role == 'A':
+        if role == cls.ROLE_ADMIN:
             valid_orgs = Org.objects.filter(administrators__in=[user])
             role = Group.objects.get(name='Administrators')
-        elif role == 'E':
+        elif role == cls.ROLE_EDITOR:
             # admins can authenticate as editors
             valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]))
             role = Group.objects.get(name='Editors')
-        elif role == 'S':
+        elif role == cls.ROLE_SURVEYOR:
             # admins and editors can authenticate as surveyors
             valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]) | Q(surveyors__in=[user]))
             role = Group.objects.get(name='Surveyors')
