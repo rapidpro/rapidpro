@@ -1,9 +1,20 @@
 -extends "smartmin/read.haml"
--load i18n
+-load i18n channels
 
 -block title
-  %h2 {{ object.get_channel_type_display }} {% trans "Configuration" %}
-  %h3 {{ object.get_address_display }}
+  .medium-help.float-left{class:'{{object|channel_icon}}'}
+  %h2.font_normalize.header-margin.title
+    {{ object.get_channel_type_display }} Configuration
+
+    .number
+      {{ object.get_address_display }}
+      -if object.get_country_display
+        ({{ object.get_country_display }})
+
+      -if object.channel_type == 'A'
+        \- {{ channel.device }}
+        -if channel.os
+          (v{{channel.os}})
 
 -block content
   -if object.channel_type == 'AT'
@@ -540,6 +551,11 @@
         page, use the verify token below when updating it. Make sure to check all boxes to subscribe to all incoming
         Facebook events.
 
+    .important
+      %p
+        -blocktrans
+          It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application.
+
     %hr
 
     %h4
@@ -745,5 +761,20 @@
       -webkit-border-radius: 0px;
       -moz-border-radius: 0px;
       border-radius: 0px;
+    }
+
+    .important {
+      background-color: #efefef;
+      border: 1px solid #ccc;
+      padding: 10px 10px 0px 10px;
+      margin-bottom: 10px;
+    }
+
+    .device .number {
+      padding-left:5px;
+    }
+
+    .title .number {
+      font-size:20px;
     }
 

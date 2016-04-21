@@ -9,11 +9,11 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent, FLOW_EVENT, MESSAGE_EVENT
-from temba.channels.models import Channel
+from temba.channels.models import Channel, SEND
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label, ARCHIVED, DELETED, INCOMING
+from temba.msgs.models import Msg, Call, Broadcast, Label, INCOMING
 from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
@@ -196,7 +196,7 @@ class MsgReadSerializer(ReadSerializer):
         return 'Q' if obj.status in ['Q', 'P'] else obj.status
 
     def get_archived(self, obj):
-        return obj.visibility == ARCHIVED
+        return obj.visibility == Msg.VISIBILITY_ARCHIVED
 
     def get_delivered_on(self, obj):
         return None
@@ -252,7 +252,7 @@ class MsgBulkActionSerializer(WriteSerializer):
         action = self.validated_data['action']
 
         # fetch messages to be modified
-        msgs = Msg.current_messages.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).exclude(visibility=DELETED)
+        msgs = Msg.current_messages.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).exclude(visibility=Msg.VISIBILITY_DELETED)
         msgs = msgs.select_related('contact')
 
         if action == 'label':
@@ -1245,6 +1245,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         for step in steps:
             node_obj = None
             key = 'rule_sets' if 'rule' in step else 'action_sets'
+
             for json_node in definition[key]:
                 if json_node['uuid'] == step['node']:
                     node_obj = VersionNode(json_node, 'rule' in step)
@@ -1253,6 +1254,24 @@ class FlowRunWriteSerializer(WriteSerializer):
             if not node_obj:
                 raise serializers.ValidationError("No such node with UUID %s in flow '%s'" % (step['node'], self.flow_obj.name))
             else:
+                rule = step.get('rule', None)
+                if rule:
+                    media = rule.get('media', None)
+                    if media:
+                        (media_type, media_path) = media.split(':', 1)
+                        if media_type != 'geo':
+                            media_type_parts = media_type.split('/')
+
+                            error = None
+                            if len(media_type_parts) != 2:
+                                error = (media_type, media)
+
+                            if media_type_parts[0] not in Msg.MEDIA_TYPES:
+                                error = (media_type_parts[0], media)
+
+                            if error:
+                                raise serializers.ValidationError("Invalid media type '%s': %s" % error)
+
                 step['node'] = node_obj
 
         return data
@@ -1350,14 +1369,17 @@ class FlowRunStartSerializer(WriteSerializer):
             raise serializers.ValidationError("Cannot start flows by phone for anonymous organizations")
 
         if value:
-            # get a channel
-            channel = self.org.get_send_channel(TEL_SCHEME)
+            # check that we have some way of sending messages
+            channel = self.org.get_channel_for_role(SEND, TEL_SCHEME)
+
+            # get our country
+            country = self.org.get_country_code()
 
             if channel:
                 # check our numbers for validity
                 for tel, phone in value:
                     try:
-                        normalized = phonenumbers.parse(phone, channel.country.code)
+                        normalized = phonenumbers.parse(phone, country)
                         if not phonenumbers.is_possible_number(normalized):
                             raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
                     except:
@@ -1386,10 +1408,9 @@ class FlowRunStartSerializer(WriteSerializer):
         # include contacts created/matched via deprecated phone field
         phone_urns = self.validated_data.get('phone', [])
         if phone_urns:
-            channel = self.org.get_send_channel(TEL_SCHEME)
             for urn in phone_urns:
                 # treat each URN as separate contact
-                self.contact_objs.append(Contact.get_or_create(channel.org, self.user, urns=[urn]))
+                self.contact_objs.append(Contact.get_or_create(self.org, self.user, urns=[urn]))
 
         try:
             # if we only have one contact and it is a test contact, then set simulation to true so our flow starts
@@ -1470,8 +1491,7 @@ class BroadcastCreateSerializer(WriteSerializer):
         urn_tuples = []
         if value:
             # if we have tel URNs, we may need a country to normalize by
-            tel_sender = self.org.get_send_channel(TEL_SCHEME)
-            country = tel_sender.country if tel_sender else None
+            country = self.org.get_country_code()
 
             for urn in value:
                 try:
@@ -1566,8 +1586,7 @@ class MsgCreateSerializer(WriteSerializer):
         urn_tuples = []
         if value:
             # if we have tel URNs, we may need a country to normalize by
-            tel_sender = self.org.get_send_channel(TEL_SCHEME)
-            country = tel_sender.country if tel_sender else None
+            country = self.org.get_country_code()
 
             for urn in value:
                 try:

@@ -1,7 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
 import mimetypes
-import urllib2
 
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseForbidden, HttpResponseRedirect

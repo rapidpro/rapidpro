@@ -67,7 +67,7 @@ class WebHookEventReadView(WebHookEventMixin, SmartReadView):
     permission = 'api.webhookevent_read'
     field_config = {'next_attempt': dict(label=_("Next Delivery")), 'tries': dict(label=_("Attempts"))}
 
-    def get_next_attempt(self, obj): # pragma: no cover
+    def get_next_attempt(self, obj):  # pragma: no cover
         if obj.next_attempt:
             return _("Around %s") % obj.next_attempt
         else:

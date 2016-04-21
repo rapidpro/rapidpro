@@ -260,9 +260,7 @@ class WebHookEvent(SmartModel):
             return
 
         # if the org doesn't care about this type of message, ignore it
-        if (event == 'mo_sms' and not org.is_notified_of_mo_sms()) or \
-            (event == 'mt_sent' and not org.is_notified_of_mt_sms()) or \
-            (event == 'mt_dlvd' and not org.is_notified_of_mt_sms()):
+        if (event == SMS_RECEIVED and not org.is_notified_of_mo_sms()) or (event == SMS_SENT and not org.is_notified_of_mt_sms()) or (event == SMS_DELIVERED and not org.is_notified_of_mt_sms()):
             return
 
         api_user = get_api_user()
@@ -326,7 +324,7 @@ class WebHookEvent(SmartModel):
         org = channel.org
 
         # no-op if no webhook configured
-        if not org or not org.get_webhook_url(): # pragma: no cover
+        if not org or not org.get_webhook_url():  # pragma: no cover
             return
 
         if not org.is_notified_of_alarms():
@@ -366,7 +364,7 @@ class WebHookEvent(SmartModel):
         # look up the endpoint for this channel
         result = dict(url=self.org.get_webhook_url(), data=urlencode(post_data, doseq=True))
 
-        if not self.org.get_webhook_url(): # pragma: no cover
+        if not self.org.get_webhook_url():  # pragma: no cover
             result['status_code'] = 0
             result['message'] = "No webhook registered for this org, ignoring event"
             self.status = FAILED
@@ -505,7 +503,7 @@ class WebHookResult(SmartModel):
                                      modified_by=api_user)
 
         # keep only the most recent 100 events for each org
-        for old_event in WebHookEvent.objects.filter(org=event.org, status__in=['C', 'F']).order_by('-created_on')[100:]: # pragma: no cover
+        for old_event in WebHookEvent.objects.filter(org=event.org, status__in=['C', 'F']).order_by('-created_on')[100:]:  # pragma: no cover
             old_event.delete()
 
 

@@ -3,19 +3,22 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
+import requests
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
 from django.db.models import Q
 from django.http import HttpResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
-from redis_cache import get_redis_connection
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE
+from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN
 from temba.contacts.models import Contact, ContactURN, TEL_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
@@ -150,20 +153,14 @@ class TwilioHandler(View):
 
             body = request.POST['Body']
 
-            # process any attached media, we will append these to our body
-            media = list()
+            # process any attached media
             for i in range(int(request.POST.get('NumMedia', 0))):
-                media.append(request.POST['MediaUrl%d' % i])
+                media_url = client.download_media(request.POST['MediaUrl%d' % i])
+                path = media_url.partition(':')[2]
+                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), path, media=media_url)
 
-            if media:
-                # add a newline if there is a text message as well
-                if body:
-                    body += '\n'
-
-                # Add each media URL, with newlines separating them
-                body += '\n'.join(media)
-
-            Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), body)
+            if body:
+                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), body)
 
             return HttpResponse("", status=201)
 
@@ -219,7 +216,7 @@ class AfricasTalkingHandler(View):
         return HttpResponse("ILLEGAL METHOD", status=400)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import AFRICAS_TALKING
 
         action = kwargs['action']
@@ -276,7 +273,7 @@ class ZenviaHandler(View):
         return self.post(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import ZENVIA
 
         request.encoding = "ISO-8859-1"
@@ -350,7 +347,7 @@ class ExternalHandler(View):
         return self.post(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
 
         action = kwargs['action'].lower()
 
@@ -433,20 +430,41 @@ class TelegramHandler(View):
     def dispatch(self, *args, **kwargs):
         return super(TelegramHandler, self).dispatch(*args, **kwargs)
 
+    @classmethod
+    def download_file(cls, channel, file_id):
+        """
+        Fetches a file from Telegram's server based on their file id
+        """
+        auth_token = channel.config_json()[AUTH_TOKEN]
+        url = 'https://api.telegram.org/bot%s/getFile' % auth_token
+        response = requests.post(url, {'file_id': file_id})
+
+        if response.status_code == 200:
+            if json:
+                response_json = response.json()
+                if response_json['ok']:
+                    url = 'https://api.telegram.org/file/bot%s/%s' % (auth_token, response_json['result']['file_path'])
+                    extension = url.rpartition('.')[2]
+                    response = requests.get(url)
+                    content_type = response.headers['Content-Type']
+
+                    temp = NamedTemporaryFile(delete=True)
+                    temp.write(response.content)
+                    temp.flush()
+
+                    return '%s:%s' % (content_type, channel.org.save_media(File(temp), extension))
+
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
         from temba.channels.models import TELEGRAM
 
         channel_uuid = kwargs['uuid']
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TELEGRAM).exclude(org=None).first()
+
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
         body = json.loads(request.body)
-
-        # skip if there is no message block (could be a sticker or voice)
-        if 'text' not in body['message']:
-            return HttpResponse("No message text, ignored.")
 
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
@@ -470,10 +488,61 @@ class TelegramHandler(View):
                 Contact.get_or_create(channel.org, channel.created_by, name, [(TELEGRAM_SCHEME, telegram_id)])
 
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
-        sms = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), body['message']['text'],
-                                  date=msg_date)
 
-        return HttpResponse("SMS Accepted: %d" % sms.id)
+        def create_media_message(file_id):
+            media_url = TelegramHandler.download_file(channel, file_id)
+            url = media_url.partition(':')[2]
+            msg = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), url, date=msg_date, media=media_url)
+            return HttpResponse("Message Accepted: %d" % msg.id)
+
+        if 'sticker' in body['message']:
+            return create_media_message(body['message']['sticker']['file_id'])
+
+        if 'video' in body['message']:
+            return create_media_message(body['message']['video']['file_id'])
+
+        if 'voice' in body['message']:
+            return create_media_message(body['message']['voice']['file_id'])
+
+        if 'document' in body['message']:
+            return create_media_message(body['message']['document']['file_id'])
+
+        if 'location' in body['message']:
+            location = body['message']['location']
+            location = '%s,%s' % (location['latitude'], location['longitude'])
+
+            msg_text = location
+            if 'venue' in body['message']:
+                if 'title' in body['message']['venue']:
+                    msg_text = '%s (%s)' % (msg_text, body['message']['venue']['title'])
+            media_url = 'geo:%s' % location
+            msg = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), msg_text, date=msg_date, media=media_url)
+            return HttpResponse("Message Accepted: %d" % msg.id)
+
+        if 'photo' in body['message']:
+            photos = body['message']['photo']
+            if len(photos):
+                # grab the last (largest) photo in the list
+                return create_media_message(photos[-1:][0]['file_id'])
+
+        if 'contact' in body['message']:
+            contact = body['message']['contact']
+
+            if 'first_name' in contact and 'phone_number' in contact:
+                body['message']['text'] = '%(first_name)s (%(phone_number)s)' % contact
+
+            elif 'first_name' in contact:
+                body['message']['text'] = '%(first_name)s' % contact
+
+            elif 'phone_number' in contact:
+                body['message']['text'] = '%(phone_number)s' % contact
+
+        # skip if there is no message block (could be a sticker or voice)
+        if 'text' in body['message']:
+            msg = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), body['message']['text'], date=msg_date)
+            return HttpResponse("Message Accepted: %d" % msg.id)
+
+        return HttpResponse("No message, ignored.")
 
 
 class InfobipHandler(View):
@@ -483,10 +552,9 @@ class InfobipHandler(View):
         return super(InfobipHandler, self).dispatch(*args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import INFOBIP
 
-        action = kwargs['action'].lower()
         channel_uuid = kwargs['uuid']
 
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=INFOBIP).exclude(org=None).first()
@@ -528,7 +596,7 @@ class InfobipHandler(View):
         return HttpResponse("SMS Status Updated")
 
     def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import INFOBIP
 
         action = kwargs['action'].lower()
@@ -562,7 +630,7 @@ class Hub9Handler(View):
         return super(Hub9Handler, self).dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import HUB9
 
         channel_uuid = kwargs['uuid']
@@ -719,7 +787,7 @@ class BlackmynaHandler(View):
             to_number = request.REQUEST.get('to', None)
             from_number = request.REQUEST.get('from', None)
             message = request.REQUEST.get('text', None)
-            smsc = request.REQUEST.get('smsc', None)
+            # smsc = request.REQUEST.get('smsc', None)
 
             if to_number is None or from_number is None or message is None:
                 return HttpResponse("Missing to, from or text parameters", status=400)
@@ -727,7 +795,7 @@ class BlackmynaHandler(View):
             if channel.address != to_number:
                 return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
 
-            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
             return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
@@ -786,7 +854,7 @@ class NexmoHandler(View):
         return self.get(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import NEXMO
 
         action = kwargs['action'].lower()
@@ -894,7 +962,7 @@ class VumiHandler(View):
         return HttpResponse("Illegal method, must be POST", status=405)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, PENDING, QUEUED, WIRED, SENT, DELIVERED, FAILED, ERRORED
+        from temba.msgs.models import Msg, PENDING, QUEUED, WIRED, SENT
         from temba.channels.models import VUMI
 
         action = kwargs['action'].lower()
@@ -1342,7 +1410,7 @@ class StartHandler(View):
         return super(StartHandler, self).dispatch(*args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, FAILED, DELIVERED
+        from temba.msgs.models import Msg
         from temba.channels.models import START
 
         channel_uuid = kwargs['uuid']
@@ -1360,7 +1428,7 @@ class StartHandler(View):
         # </message>
         try:
             message = ET.fromstring(request.body)
-        except ET.ParseError as e:
+        except ET.ParseError:
             message = None
 
         service = message.find('service') if message is not None else None
@@ -1393,7 +1461,7 @@ class ChikkaHandler(View):
         return self.post(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, SENT, DELIVERED, FAILED, WIRED, PENDING, QUEUED
+        from temba.msgs.models import Msg, SENT, FAILED, WIRED, PENDING, QUEUED
         from temba.channels.models import CHIKKA
 
         request_uuid = kwargs['uuid']
@@ -1608,13 +1676,12 @@ class FacebookHandler(View):
         # look up the channel
         channel = Channel.objects.filter(uuid=kwargs['uuid'], is_active=True,
                                          channel_type=FACEBOOK).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
-
         return channel
 
     def get(self, request, *args, **kwargs):
         channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
         # this is a verification of a webhook
         if request.GET.get('hub.mode') == 'subscribe':
@@ -1622,13 +1689,14 @@ class FacebookHandler(View):
             if channel.secret == request.GET.get('hub.verify_token'):
                 return HttpResponse(request.GET.get('hub.challenge'))
 
-        else:
-            return JsonResponse(dict(error="Unknown request"), status=400)
+        return JsonResponse(dict(error="Unknown request"), status=400)
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
         channel = self.lookup_channel(kwargs)
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % kwargs['uuid'], status=400)
 
         # parse our response
         try:
@@ -1662,15 +1730,42 @@ class FacebookHandler(View):
 
                             content = '\n'.join(urls)
 
+                        # if we have some content, create the msg
                         if content:
-                            # otherwise, create the incoming message
+                            # does this contact already exist?
+                            sender_id = envelope['sender']['id']
+                            contact = Contact.from_urn(channel.org, FACEBOOK_SCHEME, sender_id)
+
+                            # if not, let's go create it
+                            if not contact:
+                                name = None
+
+                                # if this isn't an anonymous org, look up their name from the Facebook API
+                                if not channel.org.is_anon:
+                                    try:
+                                        response = requests.get('https://graph.facebook.com/v2.5/' + unicode(sender_id),
+                                                                params=dict(fields='first_name,last_name',
+                                                                            access_token=channel.config_json()[AUTH_TOKEN]))
+
+                                        if response.status_code == 200:
+                                            user_stats = response.json()
+                                            name = ' '.join([user_stats.get('first_name', ''), user_stats.get('last_name', '')])
+
+                                    except Exception as e:
+                                        # something went wrong trying to look up the user's attributes, oh well, move on
+                                        import traceback
+                                        traceback.print_exc()
+
+                                contact = Contact.get_or_create(channel.org, channel.created_by, incoming_channel=channel,
+                                                                name=name, urns=[(FACEBOOK_SCHEME, sender_id)])
+
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
-                            msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, str(envelope['sender']['id'])),
-                                                      content, date=msg_date)
+                            msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, sender_id),
+                                                      content, date=msg_date, contact=contact)
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             msgs.append(msg)
 
-                    elif 'delivery' in envelope:
+                    elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
                             msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
                             if msg:
@@ -1679,5 +1774,4 @@ class FacebookHandler(View):
 
                 return HttpResponse("Msgs Updated: %s" % (",".join([str(m.id) for m in msgs])))
 
-        else:
-            return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
+        return HttpResponse("Ignored, unknown msg", status=200)

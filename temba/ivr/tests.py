@@ -82,15 +82,11 @@ class IVRTests(FlowFileTest):
         # simulate the caller making a recording and then hanging up, first they'll give us the
         # recording (they give us a call status of completed at the same time)
         from temba.tests import MockResponse
-
-        # make sure our file isn't there to start
-        run = contact.runs.all().first()
-        recording_file = '%s/recordings/%d/%d/runs/%d/FAKESID.wav' % (settings.MEDIA_ROOT, flow.org.pk, flow.pk, run.pk)
-        if os.path.isfile(recording_file):
-            os.remove(recording_file)
-
         with patch('requests.get') as response:
-            response.return_value = MockResponse(200, 'Fake Recording Bits')
+            mock = MockResponse(200, 'Fake Recording Bits')
+            mock.add_header('Content-Type', 'audio/x-wav')
+            response.return_value = mock
+
             self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
                              dict(CallStatus='completed',
                                   Digits='hangup',
@@ -99,7 +95,6 @@ class IVRTests(FlowFileTest):
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
-        self.assertTrue(os.path.isfile(recording_file))
         self.assertEquals(COMPLETED, call.status)
 
         # twilio will also send us a final completion message with the call duration (status of completed again)
@@ -115,7 +110,22 @@ class IVRTests(FlowFileTest):
         self.assertEquals(4, self.org.get_credits_used())
 
         # we should have played a recording from the contact back to them
-        self.assertTrue('FAKESID.wav' in messages[2].recording_url)
+        outbound_msg = messages[1]
+        self.assertTrue(outbound_msg.media.startswith('audio/x-wav:https://'))
+        self.assertTrue(outbound_msg.media.endswith('.wav'))
+        self.assertTrue(outbound_msg.text.startswith('https://'))
+        self.assertTrue(outbound_msg.text.endswith('.wav'))
+
+        media_msg = messages[2]
+        self.assertTrue(media_msg.media.startswith('audio/x-wav:https://'))
+        self.assertTrue(media_msg.media.endswith('.wav'))
+        self.assertTrue(media_msg.text.startswith('https://'))
+        self.assertTrue(media_msg.text.endswith('.wav'))
+
+        (host, directory, filename) = media_msg.media.rsplit('/', 2)
+        recording = '%s/%s/%s/media/%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR,
+                                              self.org.pk, directory, filename)
+        self.assertTrue(os.path.isfile(recording))
 
         from temba.flows.models import FlowStep
         steps = FlowStep.objects.all()
@@ -168,7 +178,7 @@ class IVRTests(FlowFileTest):
         self.get_flow('ivr_call_redirect')
 
         flow_1 = Flow.objects.get(name="Call Number 1")
-        flow_2 = Flow.objects.get(name="Call Number 2")
+        Flow.objects.get(name="Call Number 2")
 
         shawn = self.create_contact('Marshawn', '+24')
         flow_1.start(groups=[], contacts=[shawn])
@@ -209,7 +219,7 @@ class IVRTests(FlowFileTest):
         self.get_flow('text_trigger_ivr')
 
         msg_flow = Flow.objects.get(name="Message Flow - Parent")
-        ivr_flow = Flow.objects.get(name="IVR Flow - Child")
+        Flow.objects.get(name="IVR Flow - Child")
 
         shawn = self.create_contact('Marshawn', '+24')
         msg_flow.start(groups=[], contacts=[shawn])
@@ -263,7 +273,11 @@ class IVRTests(FlowFileTest):
         # now pretend we got a recording
         from temba.tests import MockResponse
         with patch('requests.get') as response:
-            response.return_value = MockResponse(200, 'Fake Recording Bits')
+            mock = MockResponse(200, 'Fake Recording Bits')
+            mock.add_header('Content-Disposition', 'filename="audio0000.wav"')
+            mock.add_header('Content-Type', 'audio/x-wav')
+            response.return_value = mock
+
             self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
                              dict(CallStatus='in-progress', Digits='#',
                                   RecordingUrl='http://api.twilio.com/ASID/Recordings/SID', RecordingSid='FAKESID'))
@@ -455,15 +469,6 @@ class IVRTests(FlowFileTest):
         # the next step shouldn't have any messages yet since they haven't pressed anything
         self.assertEquals(0, steps[1].messages.all().count())
 
-        # test invalid contact id
-        with self.assertRaises(ValueError):
-            IVRCall.create_outgoing(call.channel, 999, flow, self.admin)
-
-        # test no valid urn
-        with self.assertRaises(ValueError):
-            call.contact.urns.all().delete()
-            IVRCall.create_outgoing(call.channel, call.contact.pk, flow, self.admin)
-
         # try updating our status to completed for a test contact
         Contact.set_simulation(True)
         flow.start([], [test_contact])
@@ -531,7 +536,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        flow = self.get_flow('call-me-maybe')
+        self.get_flow('call-me-maybe')
 
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
