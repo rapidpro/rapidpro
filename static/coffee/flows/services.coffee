@@ -364,9 +364,12 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
         jsPlumb.repaint(element)
       else
         jsPlumb.repaintEverything()
+    , 0
 
+    $timeout ->
       service.setPageHeight()
     , 0
+
 
   disconnectRules: (rules) ->
     for rule in rules
@@ -438,6 +441,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', split:'message response', filter:[TEXT,SURVEY] },
         { type: 'wait_menu', name:'Wait for USSD Menu', verbose_name: 'Wait for USSD Menu', split:'USSD Menu response', filter:USSD },
         { type: 'wait_ussd', name:'Wait for USSD Response', verbose_name: 'Wait for USSD response', split:'USSD response', filter:USSD },
+
+        # survey media types
+        { type: 'wait_photo', name:'Wait for a photo', verbose_name: 'Wait for photo', filter:[SURVEY] },
+        { type: 'wait_audio', name:'Wait for an audio recording', verbose_name: 'Wait for audio', filter:[SURVEY] },
+        { type: 'wait_video', name:'Wait for a video', verbose_name: 'Wait for video', filter:[SURVEY] },
+        { type: 'wait_gps', name:'Wait for GPS coordinates', verbose_name: 'Wait for GPS', filter:[SURVEY] },
 
         # voice flows only
         { type: 'wait_recording', name:'Get Recording', verbose_name: 'Wait for recording', filter:VOICE },

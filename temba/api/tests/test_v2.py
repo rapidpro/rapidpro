@@ -2,14 +2,18 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import pytz
 
+from datetime import datetime
 from django.core.urlresolvers import reverse
+from django.conf import settings
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
+from mock import patch
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN
-from temba.flows.models import Flow
+from temba.contacts.models import Contact, ContactGroup, ContactField
+from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
@@ -322,7 +326,7 @@ class APITest(TembaTest):
 
         customers = ContactGroup.get_or_create(self.org, self.admin, "Customers")
         developers = ContactGroup.get_or_create(self.org, self.admin, "Developers")
-        spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+        ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
         developers.update_contacts(self.admin, [self.frank], add=True)
 
@@ -348,7 +352,7 @@ class APITest(TembaTest):
 
         important = Label.get_or_create(self.org, self.admin, "Important")
         feedback = Label.get_or_create(self.org, self.admin, "Feedback")
-        spam = Label.get_or_create(self.org2, self.admin2, "Spam")
+        Label.get_or_create(self.org2, self.admin2, "Spam")
 
         msg = self.create_msg(direction="I", text="Hello", contact=self.frank)
         important.toggle_label([msg], add=True)
@@ -374,7 +378,7 @@ class APITest(TembaTest):
             'broadcast': msg.broadcast,
             'contact': {'uuid': msg.contact.uuid, 'name': msg.contact.name},
             'urn': msg.contact_urn.urn,
-            'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name },
+            'channel': {'uuid': msg.channel.uuid, 'name': msg.channel.name},
             'direction': "in" if msg.direction == 'I' else "out",
             'type': msg_type,
             'status': msg_status,
@@ -423,11 +427,12 @@ class APITest(TembaTest):
         label = Label.get_or_create(self.org, self.admin, "Spam")
 
         # we do this in two calls so that we can predict ordering later
+        label.toggle_label([frank_msg3], add=True)
         label.toggle_label([frank_msg1], add=True)
         label.toggle_label([joe_msg3], add=True)
 
-        frank_msg1.refresh_from_db(fields=['modified_on'])
-        joe_msg3.refresh_from_db(fields=['modified_on'])
+        frank_msg1.refresh_from_db(fields=('modified_on',))
+        joe_msg3.refresh_from_db(fields=('modified_on',))
 
         # filter by inbox
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
@@ -444,7 +449,7 @@ class APITest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertResultsById(response, [joe_msg3, frank_msg1, deleted_msg, frank_msg3, joe_msg1])
+        self.assertResultsById(response, [joe_msg3, frank_msg1, frank_msg3, deleted_msg, joe_msg1])
         self.assertMsgEqual(response.json['results'][0], joe_msg3, msg_type='flow', msg_status='queued', msg_visibility='visible')
 
         # filter by folder (flow)
@@ -493,11 +498,20 @@ class APITest(TembaTest):
 
         # filter by before (inclusive)
         response = self.fetchJSON(url, 'folder=incoming&before=%s' % format_datetime(frank_msg1.modified_on))
-        self.assertResultsById(response, [frank_msg1, deleted_msg, frank_msg3, joe_msg1])
+        self.assertResultsById(response, [frank_msg1, frank_msg3, deleted_msg, joe_msg1])
 
         # filter by after (inclusive)
         response = self.fetchJSON(url, 'folder=incoming&after=%s' % format_datetime(frank_msg1.modified_on))
         self.assertResultsById(response, [joe_msg3, frank_msg1])
+
+        # filter by broadcast
+        broadcast = Broadcast.create(self.org, self.user, "A beautiful broadcast", [self.joe, self.frank])
+        broadcast.send()
+        response = self.fetchJSON(url, 'broadcast=%s' % broadcast.pk)
+
+        expected = {m.pk for m in broadcast.msgs.all()}
+        results = {m['id'] for m in response.json['results']}
+        self.assertEqual(expected, results)
 
         # can't filter by more than one of contact, folder, label or broadcast together
         for query in ('contact=%s&label=Spam' % self.joe.uuid, 'label=Spam&folder=inbox',
@@ -525,7 +539,7 @@ class APITest(TembaTest):
         })
 
         eng = Language.create(self.org, self.admin, "English", 'eng')
-        fre = Language.create(self.org, self.admin, "French", 'fre')
+        Language.create(self.org, self.admin, "French", 'fre')
         self.org.primary_language = eng
         self.org.save()
 
@@ -539,6 +553,108 @@ class APITest(TembaTest):
             'date_style': "day_first",
             'anon': False
         })
+
+    def test_media(self):
+        url = reverse('api.v2.media') + '.json'
+
+        self.login(self.admin)
+
+        def assert_media_upload(filename, ext):
+            with open(filename, 'rb') as data:
+
+                post_data = dict(media_file=data, extension=ext, HTTP_X_FORWARDED_HTTPS='https')
+                response = self.client.post(url, post_data)
+
+                self.assertEqual(response.status_code, 201)
+                location = json.loads(response.content).get('location', None)
+                self.assertIsNotNone(location)
+
+                starts_with = 'https://%s/%s/%d/media/' % (settings.AWS_BUCKET_DOMAIN, settings.STORAGE_ROOT_DIR, self.org.pk)
+                self.assertEqual(starts_with, location[0:len(starts_with)])
+                self.assertEqual('.%s' % ext, location[-4:])
+
+        assert_media_upload('%s/test_media/steve.marten.jpg' % settings.MEDIA_ROOT, 'jpg')
+        assert_media_upload('%s/test_media/snow.mp4' % settings.MEDIA_ROOT, 'mp4')
+
+        # missing file
+        response = self.client.post(url, dict(), HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEqual(response.status_code, 400)
+        self.clear_storage()
+
+    def test_runs_offset(self):
+        url = reverse('api.v2.runs')
+
+        self.assertEndpointAccess(url)
+
+        flow1 = self.create_flow(uuid_start=0)
+
+        for i in range(600):
+            FlowRun.create(flow1, self.joe.pk)
+
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            now = timezone.now()
+            for r in FlowRun.objects.all():
+                r.modified_on = now
+                r.save()
+
+        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=10):
+            response = self.fetchJSON(url)
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=400):
+            url = reverse('api.v2.runs')
+            response = self.fetchJSON(url)
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 200)
+            self.assertIsNone(response.json['next'])
+
+        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=5000):
+            url = reverse('api.v2.runs')
+            response = self.fetchJSON(url)
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 100)
+            self.assertIsNone(response.json['next'])
 
     def test_runs(self):
         url = reverse('api.v2.runs')
@@ -701,6 +817,10 @@ class APITest(TembaTest):
 
         # filter by invalid before
         response = self.fetchJSON(url, 'before=longago')
+        self.assertResultsById(response, [])
+
+        # filter by invalid after
+        response = self.fetchJSON(url, 'before=%s&after=thefuture' % format_datetime(frank_run1.modified_on))
         self.assertResultsById(response, [])
 
         # can't filter by both contact and flow together

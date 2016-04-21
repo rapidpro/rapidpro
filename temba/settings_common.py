@@ -363,6 +363,7 @@ PERMISSIONS = {
                  'languages',
                  'manage',
                  'manage_accounts',
+                 'nexmo_configuration',
                  'nexmo_account',
                  'nexmo_connect',
                  'plivo_connect',
@@ -495,12 +496,13 @@ GROUP_PERMISSIONS = {
     "Beta": (
     ),
     "Surveyors": (
-        'orgs.org_surveyor',
-        'orgs.org_api',
         'contacts.contact_api',
         'contacts.contactfield_api',
+        'flows.flow_api',
         'locations.adminboundary_api',
-        'flows.flow_api'
+        'orgs.org_api',
+        'orgs.org_surveyor',
+        'msgs.msg_api',
     ),
     "Granters": (
         'orgs.org_grant',
@@ -569,6 +571,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_manage_accounts',
         'orgs.org_nexmo_account',
         'orgs.org_nexmo_connect',
+        'orgs.org_nexmo_configuration',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
         'orgs.org_twilio_account',
@@ -1015,6 +1018,8 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
+CURSOR_PAGINATION_OFFSET_CUTOFF = 1000000
+
 
 # -----------------------------------------------------------------------------------
 # Aggregator settings

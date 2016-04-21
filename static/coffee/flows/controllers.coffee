@@ -426,15 +426,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
   # method to determine if the last action in an action set is missing a translation
   # this is necessary to style the bottom of the action set node container accordingly
   $scope.lastActionMissingTranslation = (actionset) ->
-    if actionset._lastActionMissingTranslation == null
       lastAction = actionset.actions[actionset.actions.length - 1]
-      actionset._lastActionMissingTranslation = false
-      if Flow.language
-        if Flow.language.iso_code != Flow.flow.base_language
-          if lastAction.msg and lastAction.type in ['reply', 'send', 'say'] and not lastAction.msg[Flow.language.iso_code]
-              actionset._lastActionMissingTranslation = true
-    return actionset._lastActionMissingTranslation
-
+      return lastAction._missingTranslation
 
   $scope.broadcastToStep = (uuid) ->
     window.broadcastToNode(uuid)

@@ -50,6 +50,7 @@ app.directive "node",[ "Plumb", "Flow", "DragHelper", "utils", "$timeout", "$log
               scope.node.y = element[0].offsetTop
 
               Flow.determineFlowStart()
+              Plumb.setPageHeight()
 
               # reset our dragging flag after our current event loop
               $timeout ->
@@ -146,8 +147,8 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
     scope.updateTranslationStatus = (action, baseLanguage, currentLanguage) ->
 
       action._missingTranslation = false
-      # grab the appropriate translated version
 
+      # grab the appropriate translated version
       iso_code = Flow.flow.base_language
       if currentLanguage
         iso_code = currentLanguage.iso_code
@@ -159,7 +160,7 @@ app.directive "action", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
         if action.recording
           action._translation_recording = action.recording[iso_code]
           if action._translation_recording
-            action._translation_recording = window.recordingURL + action._translation_recording
+            action._translation_recording = window.mediaURL + action._translation_recording
 
         if action._translation is undefined
           action._translation = action.msg[baseLanguage]

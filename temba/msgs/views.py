@@ -24,7 +24,7 @@ from temba.channels.models import Channel, SEND
 from temba.utils import analytics
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
-from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel, VISIBLE
+from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 
 
 def send_message_auto_complete_processor(request):
@@ -693,7 +693,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
-            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE)
+            qs = self.derive_label().filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
 
             return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
 

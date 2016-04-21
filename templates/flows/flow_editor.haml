@@ -49,7 +49,7 @@
     window.ivr = '{{object.flow_type}}' == 'V';
     window.ussd = '{{object.flow_type}}' == 'U';
     window.flow_type = '{{object.flow_type}}';
-    window.recordingURL = '{{recording_url}}';
+    window.mediaURL = '{{media_url}}';
 
     $('.draggable').draggable();
     // TODO: All inline javascript below should be replaced with corresponding angular implementations
@@ -469,8 +469,25 @@
             .title.wait-ussd{ng-show:'ruleset.ruleset_type=="wait_ussd"'}
               -trans "Wait for USSD Response"
 
+            .title.wait-photo{ng-show:'ruleset.ruleset_type=="wait_photo"'}
+              -trans "Wait for "
+              [[ruleset.label]]
+
+            .title.wait-video{ng-show:'ruleset.ruleset_type=="wait_video"'}
+              -trans "Wait for "
+              [[ruleset.label]]
+
+            .title.wait-audio{ng-show:'ruleset.ruleset_type=="wait_audio"'}
+              -trans "Wait for "
+              [[ruleset.label]]
+
+            .title.wait-gps{ng-show:'ruleset.ruleset_type=="wait_gps"'}
+              -trans "Wait for "
+              [[ruleset.label]]
+
             .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_recording"'}
-              -trans "Wait for Recording"
+              -trans "Wait for "
+              [[ruleset.label]]
 
             .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digit"'}
               -trans "Wait for Menu"

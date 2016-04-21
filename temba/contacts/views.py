@@ -5,7 +5,6 @@ import regex
 import pytz
 import time
 
-
 from collections import OrderedDict
 from datetime import timedelta, datetime
 from django import forms
@@ -23,17 +22,16 @@ from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
-from temba.channels.models import RECEIVE
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, URN_SCHEME_CONFIG
-from temba.contacts.models import ExportContactsTask
-from temba.contacts.tasks import export_contacts_task
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.msgs.models import Broadcast, Call, Msg, VISIBLE, ARCHIVED
+from temba.msgs.models import Broadcast, Call, Msg
 from temba.msgs.views import SendMessageForm
 from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages
 from temba.utils.views import BaseActionForm
+from .models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, URN_SCHEME_CONFIG
+from .models import ExportContactsTask
 from .omnibox import omnibox_query, omnibox_results_to_dict
+from .tasks import export_contacts_task
 
 
 class RemoveContactForm(forms.Form):
@@ -74,12 +72,18 @@ class ContactGroupForm(forms.ModelForm):
         super(ContactGroupForm, self).__init__(*args, **kwargs)
 
     def clean_name(self):
-        data = self.cleaned_data['name'].strip()
+        name = self.cleaned_data['name'].strip()
 
-        if not ContactGroup.is_valid_name(data):
-            raise forms.ValidationError("Group name must not be blank or begin with + or -")
+        # make sure the name isn't already taken
+        existing = ContactGroup.get_user_group(self.user.get_org(), name)
+        if existing and self.instance != existing:
+            raise forms.ValidationError(_("Name is used by another group"))
 
-        return data
+        # and that the name is valid
+        if not ContactGroup.is_valid_name(name):
+            raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
+
+        return name
 
     class Meta:
         fields = '__all__'
@@ -708,7 +712,7 @@ class ContactCRUDL(SmartCRUDL):
                 contact_fields.append(dict(label='Language', value=lang, featured=True))
 
             context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
-            context['recent_seconds'] = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
+            context['recent_seconds'] = int(time.mktime((timezone.now() - timedelta(minutes=5)).timetuple()))
             return context
 
         def post(self, request, *args, **kwargs):
@@ -803,7 +807,8 @@ class ContactCRUDL(SmartCRUDL):
             recent = self.request.REQUEST.get('r', False)
             context['recent_date'] = datetime.utcfromtimestamp(recent_seconds).replace(tzinfo=pytz.utc)
 
-            text_messages = Msg.all_messages.filter(contact=contact.id, visibility__in=(VISIBLE, ARCHIVED)).order_by('-created_on')
+            text_messages = Msg.all_messages.filter(contact=contact.id).exclude(visibility=Msg.VISIBILITY_DELETED)
+            text_messages = text_messages.order_by('-created_on')
             if recent:
                 start_time = context['recent_date']
                 text_messages = text_messages.filter(created_on__gt=start_time)
@@ -1264,8 +1269,6 @@ class ContactFieldCRUDL(SmartCRUDL):
             return qs
 
         def render_to_response(self, context, **response_kwargs):
-            org = self.request.user.get_org()
-
             results = []
             for obj in context['object_list']:
                 result = dict(id=obj.pk, key=obj.key, label=obj.label)
@@ -1314,7 +1317,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             i = 1
             for contact_field in contact_fields:
-                form_field_label = _("@contact.%(key)s") % {'key' : contact_field.key }
+                form_field_label = _("@contact.%(key)s") % {'key': contact_field.key}
                 added_fields.append(("show_%d" % i, forms.BooleanField(initial=contact_field.show_in_table, required=False)))
                 added_fields.append(("type_%d" % i, forms.ChoiceField(label=' ', choices=Value.TYPE_CHOICES, initial=contact_field.value_type, required=True)))
                 added_fields.append(("label_%d" % i, forms.CharField(label=' ', max_length=36, help_text=form_field_label, initial=contact_field.label, required=False)))
