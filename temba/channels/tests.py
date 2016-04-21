@@ -3962,7 +3962,7 @@ class VumiUssdTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        reporters = self.create_group("Reporters", [joe])
+        self.create_group("Reporters", [joe])
         bcast = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
@@ -4000,12 +4000,11 @@ class VumiUssdTest(TembaTest):
 
     def test_ack(self):
         joe = self.create_contact("Joe", "+250788383383")
-        reporters = self.create_group("Reporters", [joe])
+        self.create_group("Reporters", [joe])
         bcast = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
         message = bcast.get_messages()[0]
-        r = get_redis_connection()
 
         try:
             settings.SEND_MESSAGES = True
@@ -4050,7 +4049,7 @@ class VumiUssdTest(TembaTest):
 
     def test_nack(self):
         joe = self.create_contact("Joe", "+250788383383")
-        reporters = self.create_group("Reporters", [joe])
+        self.create_group("Reporters", [joe])
         bcast = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing message

@@ -2256,8 +2256,8 @@ class ActionTest(TembaTest):
         ussd_ruleset.save()
 
         english = Language.create(self.org, self.admin, "English", 'eng')
-        hungarian = Language.create(self.org, self.admin, "Hungarian", 'hun')
-        russian = Language.create(self.org, self.admin, "Russian", 'rus')
+        Language.create(self.org, self.admin, "Hungarian", 'hun')
+        Language.create(self.org, self.admin, "Russian", 'rus')
         self.flow.org.primary_language = english
 
         # add config menu object
