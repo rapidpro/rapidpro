@@ -5,9 +5,8 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
-from temba.msgs.models import (
-    Broadcast, Msg, Label, Call, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING, QUEUED
-)
+from temba.msgs.models import Broadcast, Msg, Label, Call, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
+from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -113,7 +112,7 @@ class CampaignEventReadSerializer(ReadSerializer):
             return None
 
     def get_relative_to(self, obj):
-        return obj.relative_to.key
+        return {'key': obj.relative_to.key, 'label': obj.relative_to.label}
 
     def get_unit(self, obj):
         return self.UNITS.get(obj.unit)

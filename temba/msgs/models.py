@@ -656,12 +656,21 @@ class Msg(models.Model):
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
+                seen_contact_ids = set()
                 for msg in msgs:
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and \
                             msg.topup and not msg.contact.is_test:
                         # serialize the model to a dictionary
                         msg.queued_on = queued_on
                         task = msg.as_task_json()
+
+                        # if we've already seen this contact in our current 500ms batch, then pause
+                        # to make sure ordering remains the same
+                        if msg.contact_id in seen_contact_ids:
+                            time.sleep(.5)
+                            seen_contact_ids = set()
+
+                        seen_contact_ids.add(msg.contact_id)
 
                         task_priority = DEFAULT_PRIORITY
                         if msg.priority == SMS_BULK_PRIORITY:
@@ -1464,7 +1473,7 @@ class Call(SmartModel):  # TODO rename to ChannelEvent and move to channels app
     """
     An event that has occurred on a channel which may be used as a trigger
     """
-    TYPE_UNKNOWN = 'unknown'
+    TYPE_UNKNOWN = 'unk'
     TYPE_CALL_OUT = 'mt_call'
     TYPE_CALL_OUT_MISSED = 'mt_miss'
     TYPE_CALL_IN = 'mo_call'
@@ -1472,10 +1481,10 @@ class Call(SmartModel):  # TODO rename to ChannelEvent and move to channels app
 
     # single char flag, human readable name, API readable name
     TYPE_CONFIG = ((TYPE_UNKNOWN, _("Unknown Call Type"), 'unknown'),
-                   (TYPE_CALL_OUT, _("Outgoing Call"), 'call-out'),
-                   (TYPE_CALL_OUT_MISSED, _("Missed Outgoing Call"), 'call-out-missed'),
                    (TYPE_CALL_IN, _("Incoming Call"), 'call-in'),
-                   (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'))
+                   (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'),
+                   (TYPE_CALL_OUT, _("Outgoing Call"), 'call-out'),
+                   (TYPE_CALL_OUT_MISSED, _("Missed Outgoing Call"), 'call-out-missed'))
 
     TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
 

@@ -4818,3 +4818,43 @@ class FlowBatchTest(FlowFileTest):
 
         # but only one broadcast
         self.assertEquals(1, Broadcast.objects.all().count())
+
+
+class TwoInRowTest(FlowFileTest):
+
+    def setUp(self):
+        super(TwoInRowTest, self).setUp()
+        self.contact2 = self.create_contact('Ryan Lewis', '+12065552121')
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+                                      config=dict(send_url='https://google.com'), uuid='00000000-0000-0000-0000-000000001234')
+
+    def tearDown(self):
+        super(TwoInRowTest, self).tearDown()
+
+    def test_two_in_row(self):
+        flow = self.get_flow('two-in-row')
+
+        # start our flow with a contact
+        flow.start([], [self.contact])
+
+        # two msgs should have been sent
+        msgs = Msg.all_messages.all().order_by('pk')
+
+        # the difference in the time they sent should be more than 250ms
+        self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(milliseconds=450))
+
+        Msg.all_messages.all().delete()
+
+        # try with multiple contacts, first two messages should go out quickly
+        flow.start([], [self.contact, self.contact2], restart_participants=True)
+
+        first = Msg.all_messages.filter(text="Here is your first message.").order_by('sent_on')
+        second = Msg.all_messages.filter(text="Here is your second.").order_by('sent_on')
+
+        # all messages went out quickly
+        self.assertTrue(second[1].sent_on - first[0].sent_on < timedelta(milliseconds=650))
+
+        # but gap between two was long enough
+        self.assertTrue(second[0].sent_on - first[0].sent_on > timedelta(milliseconds=450))

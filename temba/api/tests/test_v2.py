@@ -12,6 +12,7 @@ from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
+from mock import patch
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField
@@ -182,33 +183,6 @@ class APITest(TembaTest):
         response = self.fetchHTML(url)
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "Log in to use the Explorer")
-
-    def test_pagination(self):
-        url = reverse('api.v2.runs') + '.json'
-        self.login(self.admin)
-
-        # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
-        flow = self.create_flow(uuid_start=0)
-        runs = [FlowRun.create(flow, self.joe.pk) for r in range(1255)]
-        runs = list(reversed(runs))
-
-        # give them all the same modified_on
-        FlowRun.objects.all().update(modified_on=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
-
-        # fetch all full pages
-        response = None
-        for p in range(5):
-            response = self.fetchJSON(url if p == 0 else response.json['next'], raw_url=True)
-
-            self.assertResultsById(response, [runs[p * 250 + i] for i in range(250)])
-            self.assertIsNotNone(response.json['next'])
-
-        # fetch final partial page
-        response = self.fetchJSON(response.json['next'], raw_url=True)
-
-        self.assertEqual(len(response.json['results']), 5)
-        self.assertResultsById(response, [runs[1250], runs[1251], runs[1252], runs[1253], runs[1254]])
-        self.assertIsNone(response.json['next'])
 
     def test_authenticate(self):
         url = reverse('api.v2.authenticate')
@@ -385,7 +359,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0], {
             'uuid': event2.uuid,
             'campaign': {'uuid': campaign2.uuid, 'name': "Notifications"},
-            'relative_to': "registration",
+            'relative_to': {'key': "registration", 'label': "Registration"},
             'offset': 6,
             'unit': 'hours',
             'delivery_hour': 12,
@@ -855,6 +829,81 @@ class APITest(TembaTest):
         response = self.client.post(url, dict(), HTTP_X_FORWARDED_HTTPS='https')
         self.assertEqual(response.status_code, 400)
         self.clear_storage()
+
+    def test_runs_offset(self):
+        url = reverse('api.v2.runs')
+
+        self.assertEndpointAccess(url)
+
+        flow1 = self.create_flow(uuid_start=0)
+
+        for i in range(600):
+            FlowRun.create(flow1, self.joe.pk)
+
+        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
+            now = timezone.now()
+            for r in FlowRun.objects.all():
+                r.modified_on = now
+                r.save()
+
+        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=10):
+            response = self.fetchJSON(url)
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=400):
+            url = reverse('api.v2.runs')
+            response = self.fetchJSON(url)
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 200)
+            self.assertIsNone(response.json['next'])
+
+        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=5000):
+            url = reverse('api.v2.runs')
+            response = self.fetchJSON(url)
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertTrue(response.json['next'])
+
+            query = response.json['next'].split('?')[1]
+            response = self.fetchJSON(url, query=query)
+
+            self.assertEqual(len(response.json['results']), 100)
+            self.assertIsNone(response.json['next'])
 
     def test_runs(self):
         url = reverse('api.v2.runs')
