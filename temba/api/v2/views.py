@@ -21,11 +21,10 @@ from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Call, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
-from .serializers import (
-    BroadcastReadSerializer, CallReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer,
-    ChannelReadSerializer, ContactReadSerializer, ContactFieldReadSerializer, ContactGroupReadSerializer,
-    FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
-)
+from .serializers import BroadcastReadSerializer, CallReadSerializer, CampaignReadSerializer
+from .serializers import CampaignEventReadSerializer, ChannelReadSerializer, ContactReadSerializer
+from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
+from .serializers import LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
 from ..support import InvalidQueryError, CustomCursorPagination
 
@@ -139,11 +138,11 @@ class AuthenticateView(SmartFormView):
 
 
 class CreatedOnCursorPagination(CustomCursorPagination):
-    ordering = ('-created_on', '-pk')
+    ordering = ('-created_on',)
 
 
 class ModifiedOnCursorPagination(CustomCursorPagination):
-    ordering = ('-modified_on', '-pk')
+    ordering = ('-modified_on',)
 
 
 class BaseAPIView(generics.GenericAPIView):

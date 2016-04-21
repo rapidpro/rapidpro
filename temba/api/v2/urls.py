@@ -2,11 +2,9 @@ from __future__ import absolute_import, unicode_literals
 
 from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
-from .views import (
-    api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, CampaignsEndpoint, CampaignEventsEndpoint,
-    ChannelsEndpoint, ChannelEventsEndpoint, ContactsEndpoint, FieldsEndpoint, GroupsEndpoint, LabelsEndpoint,
-    MediaEndpoint, MessagesEndpoint, OrgEndpoint, RunsEndpoint
-)
+from .views import api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, ChannelsEndpoint, ChannelEventsEndpoint
+from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, FieldsEndpoint, GroupsEndpoint
+from .views import LabelsEndpoint, MediaEndpoint, MessagesEndpoint, OrgEndpoint, RunsEndpoint
 
 
 urlpatterns = [
