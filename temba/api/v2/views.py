@@ -339,7 +339,7 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
             {
                 "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
                 "name": "Reminders",
-                "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9",
+                "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
                 "created_on": "2013-08-19T19:11:21.088Z"
             },
             ...
@@ -388,15 +388,20 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
     most recently created events first.
 
      * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
-     * **name** - the name of the campaign (string).
-     * **group** - the group this campaign operates on (object).
-     * **created_on** - when the campaign was created (datetime), filterable as `before` and `after`.
+     * **campaign** - the UUID and name of the campaign (object), filterable as `campaign` with UUID.
+     * **relative_to** - the key and label of the date field this event is based on (object).
+     * **offset** - the offset from our contact field (positive or negative integer).
+     * **unit** - the unit for our offset (one of "minutes, "hours", "days", "weeks").
+     * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the contact field).
+     * **message** - the message to send to the contact if this is a message event (string)
+     * **flow** - the UUID and name of the flow if this is a flow event (object).
+     * **created_on** - when the event was created (datetime).
 
     Example:
 
-        GET /api/v2/events.json
+        GET /api/v2/campaign_events.json
 
-    Response is a list of the campaigns on your account
+    Response is a list of the campaign events on your account
 
         {
             "next": null,
@@ -404,8 +409,13 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
             "results": [
             {
                 "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
-                "name": "Reminders",
-                "group_uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9",
+                "campaign": {"uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00", "name": "Reminders"},
+                "relative_to": {"key": "registration", "label": "Registration Date"},
+                "offset": 7,
+                "unit": "days",
+                "delivery_hour": 9,
+                "flow": {"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Survey"},
+                "message": null,
                 "created_on": "2013-08-19T19:11:21.088Z"
             },
             ...
