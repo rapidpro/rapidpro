@@ -27,7 +27,7 @@ from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
 from temba.values.models import Value
 from xlrd import open_workbook
-from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME, TELEGRAM_SCHEME
+from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
 from .tasks import squash_contactgroupcounts
 
@@ -2776,7 +2776,7 @@ class ContactTest(TembaTest):
         self.assertEquals('456', urns[1].path)
 
         # add an email urn
-        bob.update_urns(self.user, ['email:bob@marley.com', 'tel:789', 'tel:456'])
+        bob.update_urns(self.user, ['mailto:bob@marley.com', 'tel:789', 'tel:456'])
         urns = bob.urns.all().order_by('-priority')
         self.assertEquals(3, len(urns))
         self.assertEquals(99, urns[0].priority)
@@ -2791,7 +2791,7 @@ class ContactTest(TembaTest):
         self.assertEquals(urn.path, '789')
 
         # swap our phone numbers
-        bob.update_urns(self.user, ['email:bob@marley.com', 'tel:456', 'tel:789'])
+        bob.update_urns(self.user, ['mailto:bob@marley.com', 'tel:456', 'tel:789'])
         contact, urn = Msg.resolve_recipient(self.org, self.admin, bob, self.channel)
         self.assertEquals(urn.path, '456')
 
@@ -2944,33 +2944,33 @@ class ContactURNTest(TembaTest):
 
     def test_normalize_urn(self):
         # valid tel numbers
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("TEL:0788383383", "RW"))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:+250788383383", "KE"))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:+250788383383", None))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:250788383383", None))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:2.50788383383E+11", None))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:2.50788383383E+12", None))
-        self.assertEquals(('tel', "+19179925253"), ContactURN.normalize_urn("tel:(917) 992-5253", "US"))
-        self.assertEquals(('tel', "+19179925253"), ContactURN.normalize_urn("tel:19179925253", None))
-        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn("tel:+62877747666", None))
-        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn("tel:62877747666", "ID"))
-        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn("tel:0877747666", "ID"))
+        self.assertEqual(ContactURN.normalize_urn("TEL:0788383383", "RW"), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize_urn("tel:+250788383383", "KE"), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize_urn("tel:+250788383383", None), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize_urn("tel:250788383383", None), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize_urn("tel:2.50788383383E+11", None), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize_urn("tel:2.50788383383E+12", None), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize_urn("tel:(917) 992-5253", "US"), "tel:+19179925253")
+        self.assertEqual(ContactURN.normalize_urn("tel:19179925253", None), "tel:+19179925253")
+        self.assertEqual(ContactURN.normalize_urn("tel:+62877747666", None), "tel:+62877747666")
+        self.assertEqual(ContactURN.normalize_urn("tel:62877747666", "ID"), "tel:+62877747666")
+        self.assertEqual(ContactURN.normalize_urn("tel:0877747666", "ID"), "tel:+62877747666")
 
         # invalid tel numbers
-        self.assertEquals(('tel', "12345"), ContactURN.normalize_urn(TEL_SCHEME, "12345", "RW"))
-        self.assertEquals(('tel', "0788383383"), ContactURN.normalize_urn(TEL_SCHEME, "0788383383", None))
-        self.assertEquals(('tel', "0788383383"), ContactURN.normalize_urn(TEL_SCHEME, "0788383383", "ZZ"))
-        self.assertEquals(('tel', "mtn"), ContactURN.normalize_urn(TEL_SCHEME, "MTN", "RW"))
+        self.assertEqual(ContactURN.normalize_urn("tel:12345", "RW"), "tel:12345")
+        self.assertEqual(ContactURN.normalize_urn("tel:0788383383", None), "tel:0788383383")
+        self.assertEqual(ContactURN.normalize_urn("tel:0788383383", "ZZ"), "tel:0788383383")
+        self.assertEqual(ContactURN.normalize_urn("tel:MTN", "RW"), "tel:mtn")
 
         # twitter handles
-        self.assertEquals(('twitter', "jimmyjo"), ContactURN.normalize_urn('TWITTER', "jimmyJO"))
-        self.assertEquals(('twitter', "billy_bob"), ContactURN.normalize_urn('twitter', " @Billy_bob "))
+        self.assertEqual(ContactURN.normalize_urn("TWITTER:jimmyJO"), "twitter:jimmyjo")
+        self.assertEqual(ContactURN.normalize_urn("twitter: @Billy_bob "), "twitter:billy_bob")
 
         # email addresses
-        self.assertEqual(('mailto', "name@domain.com"), ContactURN.normalize_urn('mailto', " nAme@domAIN.cOm "))
+        self.assertEqual(ContactURN.normalize_urn("mailto: nAme@domAIN.cOm "), "mailto:name@domain.com")
 
         # external ids are case sensitive
-        self.assertEqual(('ext', "eXterNAL123"), ContactURN.normalize_urn('ext', " eXterNAL123 "))
+        self.assertEqual(ContactURN.normalize_urn("ext: eXterNAL123 "), "ext:eXterNAL123")
 
     def test_validate_urn(self):
         # valid tel numbers
@@ -2995,11 +2995,11 @@ class ContactURNTest(TembaTest):
 
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
-        self.assertEquals('0788 383 383', urn.get_display(self.org))
-        self.assertEquals('+250788383383', urn.get_display(self.org, full=True))
+        self.assertEqual(urn.get_display(self.org), '0788 383 383')
+        self.assertEqual(urn.get_display(self.org, full=True), '+250788383383')
 
         urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
-        self.assertEquals('billy_bob', urn.get_display(self.org))
+        self.assertEqual(urn.get_display(self.org), 'billy_bob')
 
 
 class ContactFieldTest(TembaTest):
@@ -3090,7 +3090,7 @@ class ContactFieldTest(TembaTest):
         # create another contact, this should sort before Ben
         contact2 = self.create_contact("Adam Sumner", '+12067799191', twitter='adam')
         urns = [urn.urn for urn in contact2.get_urns()]
-        urns.append("email:adam@sumner.com")
+        urns.append("mailto:adam@sumner.com")
         urns.append("telegram:1234")
         contact2.update_urns(self.admin, urns)
 
@@ -3129,7 +3129,7 @@ class ContactFieldTest(TembaTest):
         # more contacts do not increase the queries
         contact3 = self.create_contact('Luol Deng', '+12078776655', twitter='deng')
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
-        ContactURN.create(self.org, contact, 'teL:+12062233445')
+        ContactURN.create(self.org, contact, 'tel:+12062233445')
 
         with self.assertNumQueries(35):
             self.client.get(reverse('contacts.contact_export'), dict())

@@ -18,7 +18,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, SyncEvent
-from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
+from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, RULE_SET
 from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED
 from temba.orgs.models import Org, Language
@@ -1747,7 +1747,7 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
 
         # lookup that contact from an urn
-        contact = Contact.from_urn(self.org, "email:snoop@foshizzle.com")
+        contact = Contact.from_urn(self.org, "mailto:snoop@foshizzle.com")
         self.assertEquals('Snoop', contact.first_name(self.org))
 
         # find it via the api

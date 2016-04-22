@@ -462,7 +462,7 @@ class Flow(TembaModel):
             if media_url and ':' in media_url:
                 text = media_url.partition(':')[2]
 
-            msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
+            msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
                                       text, status=HANDLED, msg_type=IVR, media=media_url)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
@@ -4501,7 +4501,8 @@ class VariableContactAction(Action):
                     if country:
                         (number, valid) = ContactURN.normalize_number(variable, country)
                         if number and valid:
-                            contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[(TEL_SCHEME, number)])
+                            urn = ContactURN.format_urn(TEL_SCHEME, number)
+                            contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[urn])
                             contacts.append(contact)
 
         return groups, contacts

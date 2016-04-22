@@ -460,7 +460,11 @@ class Contact(TembaModel):
         """
         Looks up a contact by a URN string (which will be normalized)
         """
-        urn_obj = ContactURN.lookup(org, urn_as_string, country)
+        try:
+            urn_obj = ContactURN.lookup(org, urn_as_string, country)
+        except ValueError:
+            return None
+
         if urn_obj and urn_obj.contact and urn_obj.contact.is_active:
             return urn_obj.contact
         else:
@@ -517,12 +521,11 @@ class Contact(TembaModel):
             # if contact already exists try to figured if it has all the urn to skip the lock
             if contact:
                 contact_has_all_urns = True
-                contact_urns = contact.get_urns()
-                contact_urns_values = contact_urns.values_list('scheme', 'path')
-                if len(urns) <= len(contact_urns_values):
-                    for scheme, path in urns:
-                        norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-                        if (norm_scheme, norm_path) not in contact_urns_values:
+                contact_urns = set(contact.get_urns().values_list('urn', flat=True))
+                if len(urns) <= len(contact_urns):
+                    for urn in urns:
+                        normalized = ContactURN.normalize_urn(urn, country)
+                        if normalized not in contact_urns:
                             contact_has_all_urns = False
 
                     if contact_has_all_urns:

@@ -36,7 +36,7 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
-from telegram import User
+from telegram import User as TelegramUser
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
@@ -1544,7 +1544,7 @@ class ChannelTest(TembaTest):
             self.assertEqual('Your authentication token is invalid, please check and try again', response.context['form'].errors['auth_token'][0])
 
         with patch('telegram.Bot.getMe') as get_me:
-            user = User(123, 'Rapid')
+            user = TelegramUser(123, 'Rapid')
             user.last_name = 'Bot'
             user.username = 'rapidbot'
             get_me.return_value = user

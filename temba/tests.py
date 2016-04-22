@@ -352,24 +352,23 @@ class TembaTest(SmartminTest):
         """
         Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
         """
-        self.assertEqual(len(values), sheet.ncols, msg="Expecting %d columns, found %d" % (len(values), sheet.ncols))
-
-        actual_values = []
         expected_values = []
-        for c in range(0, len(values)):
-            cell = sheet.cell(row_num, c)
-            actual = cell.value
-            expected = values[c]
-
-            if cell.ctype == XL_CELL_DATE:
-                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
-
+        for expected in values:
             # if expected value is datetime, localize and remove microseconds
             if isinstance(expected, datetime):
                 expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
 
-            actual_values.append(actual)
             expected_values.append(expected)
+
+        actual_values = []
+        for c in range(0, sheet.ncols):
+            cell = sheet.cell(row_num, c)
+            actual = cell.value
+
+            if cell.ctype == XL_CELL_DATE:
+                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
+
+            actual_values.append(actual)
 
         self.assertEqual(actual_values, expected_values)
 

@@ -18,7 +18,7 @@ from django.utils import timezone
 from mock import patch
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME
 from temba.contacts.models import URN_SCHEMES
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
@@ -2479,7 +2479,7 @@ class ActionTest(TembaTest):
         self.flow.update(self.create_flow_definition())
         self.flow.start([], [self.contact])
 
-        sms = Msg.create_incoming(self.channel, ('tel', '+250788382382'), "Blue is my favorite")
+        sms = Msg.create_incoming(self.channel, "tel:+250788382382", "Blue is my favorite")
 
         run = FlowRun.objects.get()
 
