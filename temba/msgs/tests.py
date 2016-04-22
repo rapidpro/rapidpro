@@ -1733,7 +1733,7 @@ class SystemLabelTest(TembaTest):
         Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 2")
         msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 3")
         msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, "0783835001"), text="Message 4")
-        call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, Call.TYPE_IN)
+        call1 = Call.create_call(self.channel, "0783835001", timezone.now(), 10, Call.TYPE_CALL_IN)
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
         Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
                          schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
@@ -1746,7 +1746,7 @@ class SystemLabelTest(TembaTest):
         msg3.archive()
         bcast1.send(status=QUEUED)
         msg5, msg6 = tuple(Msg.all_messages.filter(broadcast=bcast1))
-        Call.create_call(self.channel, "0783835002", timezone.now(), 10, Call.TYPE_IN)
+        Call.create_call(self.channel, "0783835002", timezone.now(), 10, Call.TYPE_CALL_IN)
         Broadcast.create(self.org, self.user, "Broadcast 3", [contact1],
                          schedule=Schedule.create_schedule(timezone.now(), 'W', self.user))
 

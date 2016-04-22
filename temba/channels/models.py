@@ -500,13 +500,6 @@ class Channel(TembaModel):
 
     @classmethod
     def add_facebook_channel(cls, org, user, page_name, page_id, page_access_token):
-        # subscribe to messaging events
-        response = requests.post('https://graph.facebook.com/v2.5/me/subscribed_apps',
-                                 params=dict(access_token=page_access_token))
-
-        if response.status_code != 200 or not response.json()['success']:
-            raise Exception("Unable to subscribe for delivery of events: %s" % (response.content))
-
         return Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
                               config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
                               secret=Channel.generate_secret())
