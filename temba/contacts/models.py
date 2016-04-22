@@ -34,6 +34,9 @@ OLD_TEST_CONTACT_TEL = '12065551212'
 START_TEST_CONTACT_PATH = 12065550100
 END_TEST_CONTACT_PATH = 12065550199
 
+# how many sequential contacts on import triggers suspension
+SEQUENTIAL_CONTACTS_THRESHOLD = 250
+
 TEL_SCHEME = 'tel'
 TWITTER_SCHEME = 'twitter'
 TWILIO_SCHEME = 'twilio'
@@ -41,12 +44,6 @@ FACEBOOK_SCHEME = 'facebook'
 TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
-
-# how many sequential contacts on import triggers suspension
-SEQUENTIAL_CONTACTS_THRESHOLD = 250
-
-URN_SCHEMES = [TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, FACEBOOK_SCHEME,
-               TELEGRAM_SCHEME, EMAIL_SCHEME, EXTERNAL_SCHEME]
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
@@ -56,17 +53,7 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
 
-# schemes that we actually support
-URN_SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
-
-IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
-
-
-URN_CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
-
-URN_CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
 
 
 class ContactField(SmartModel):
@@ -714,7 +701,7 @@ class Contact(TembaModel):
             if not value:
                 continue
 
-            urn_scheme = IMPORT_HEADER_TO_SCHEME[urn_header]
+            urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
 
             if urn_scheme == TEL_SCHEME:
 
@@ -810,7 +797,7 @@ class Contact(TembaModel):
             else:
                 raise Exception('Extra field %s is a reserved field name' % key)
 
-        active_scheme = [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        active_scheme = [scheme[0] for scheme in ContactURN.SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
         # remove any field that's not a reserved field or an explicitly included extra field
         for key in field_dict.keys():
@@ -1119,7 +1106,7 @@ class Contact(TembaModel):
         contact_dict[Contact.LANGUAGE] = self.language
 
         # add all URNs
-        for scheme, label in URN_SCHEME_CHOICES:
+        for scheme, label in ContactURN.SCHEME_CHOICES:
             urn_value = self.get_urn_display(scheme=scheme, org=org)
             contact_dict[scheme] = urn_value if urn_value is not None else ''
 
@@ -1208,7 +1195,7 @@ class Contact(TembaModel):
         with self.org.lock_on(OrgLock.contacts):
 
             # urns are submitted in order of priority
-            priority = HIGHEST_PRIORITY
+            priority = ContactURN.PRIORITY_HIGHEST
 
             for urn_as_string in urns:
                 normalized = ContactURN.normalize_urn(urn_as_string, country)
@@ -1315,35 +1302,42 @@ class Contact(TembaModel):
         return self.get_display()
 
 
-LOWEST_PRIORITY = 1
-STANDARD_PRIORITY = 50
-HIGHEST_PRIORITY = 99
-
-URN_SCHEME_PRIORITIES = {TEL_SCHEME: STANDARD_PRIORITY,
-                         TWITTER_SCHEME: 90}
-
-URN_ANON_MASK = '*' * 8  # returned instead of URN values
-
-URN_SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
-
-URN_SCHEMES_EXPORT_FIELDS = {
-    TEL_SCHEME: dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
-    TWITTER_SCHEME: dict(label='Twitter', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
-    EXTERNAL_SCHEME: dict(label='External', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
-    EMAIL_SCHEME: dict(label='Email', key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
-    TELEGRAM_SCHEME: dict(label='Telegram', key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
-    FACEBOOK_SCHEME: dict(label='Facebook', key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
-}
-
-
 class ContactURN(models.Model):
     """
-    A Universal Resource Name. This is essentially a table of formatted URNs that can be used to identify contacts.
+    A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
     """
+    # schemes that we actually support
+    SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
+
+    ALL_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
+
+    CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
+    CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
+    IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
+
+    SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
+
+    EXPORT_FIELDS = {
+        TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
+        TWITTER_SCHEME: dict(label="Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+        EXTERNAL_SCHEME: dict(label="External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+        EMAIL_SCHEME: dict(label="Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
+        TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
+        FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
+    }
+
+    PRIORITY_LOWEST = 1
+    PRIORITY_STANDARD = 50
+    PRIORITY_HIGHEST = 99
+
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90}
+
+    ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
+
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='urns',
                                 help_text="The contact that this URN is for, can be null")
 
-    urn = models.CharField(max_length=255, choices=URN_SCHEME_CHOICES,
+    urn = models.CharField(max_length=255, choices=SCHEME_CHOICES,
                            help_text="The Universal Resource Name as a string. ex: tel:+250788383383")
 
     path = models.CharField(max_length=255,
@@ -1355,7 +1349,7 @@ class ContactURN(models.Model):
     org = models.ForeignKey(Org,
                             help_text="The organization for this URN, can be null")
 
-    priority = models.IntegerField(default=STANDARD_PRIORITY,
+    priority = models.IntegerField(default=PRIORITY_STANDARD,
                                    help_text="The priority of this URN for the contact it is associated with")
 
     channel = models.ForeignKey(Channel, null=True, blank=True,
@@ -1366,7 +1360,7 @@ class ContactURN(models.Model):
         scheme, path = cls.parse_urn(urn_as_string)
 
         if not priority:
-            priority = URN_SCHEME_PRIORITIES[scheme] if scheme in URN_SCHEME_PRIORITIES else STANDARD_PRIORITY
+            priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
                                   scheme=scheme, path=path, urn=urn_as_string)
@@ -1391,7 +1385,7 @@ class ContactURN(models.Model):
         if len(result) != 2 or not result[0] or not result[1]:
             raise ValueError("URN strings must contain a scheme and a path")
 
-        if result[0].lower() not in URN_SCHEMES:
+        if result[0].lower() not in cls.ALL_SCHEMES:
             raise ValueError("URN contains unsupported scheme: %s" % result[0])
 
         return result
@@ -1548,7 +1542,7 @@ class ContactURN(models.Model):
             org = self.org
 
         if org.is_anon:
-            return URN_ANON_MASK
+            return self.ANON_MASK
 
         if self.scheme == TEL_SCHEME and not full:
             # if we don't want a full tell, see if we can show the national format instead
@@ -1913,7 +1907,7 @@ class ExportContactsTask(SmartModel):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]
+            active_urn_schemes = [c[0] for c in ContactURN.SCHEME_CHOICES]
 
             scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
 
@@ -1924,7 +1918,7 @@ class ExportContactsTask(SmartModel):
                 count = scheme_counts[scheme]
                 if count is not None:
                     for i in range(count):
-                        field_dict = URN_SCHEMES_EXPORT_FIELDS[scheme].copy()
+                        field_dict = ContactURN.EXPORT_FIELDS[scheme].copy()
                         field_dict['position'] = i
                         fields.append(field_dict)
 

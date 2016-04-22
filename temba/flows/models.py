@@ -28,7 +28,6 @@ from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
-from temba.contacts.models import URN_CONTEXT_KEYS_TO_SCHEME, URN_CONTEXT_KEYS_TO_LABEL
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -4697,8 +4696,8 @@ class SaveToContactAction(Action):
             label = 'First Name'
         elif field == 'tel_e164':
             label = 'Phone Number'
-        elif field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
-            label = unicode(URN_CONTEXT_KEYS_TO_LABEL[field])
+        elif field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
+            label = unicode(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
         else:
             contact_field = ContactField.objects.filter(org=org, key=field).first()
             if contact_field:
@@ -4756,11 +4755,11 @@ class SaveToContactAction(Action):
             contact.save(update_fields=('name', 'modified_by', 'modified_on'))
             self.logger(run, new_value)
 
-        elif self.field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
+        elif self.field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
             new_value = value[:128]
 
             # add in our new urn number
-            scheme = URN_CONTEXT_KEYS_TO_SCHEME[self.field]
+            scheme = ContactURN.CONTEXT_KEYS_TO_SCHEME[self.field]
 
             # trim off '@' for twitter handles
             if self.field == 'twitter':

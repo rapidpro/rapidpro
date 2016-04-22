@@ -28,7 +28,7 @@ from temba.msgs.views import SendMessageForm
 from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages
 from temba.utils.views import BaseActionForm
-from .models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, URN_SCHEME_CONFIG
+from .models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task
@@ -232,7 +232,7 @@ class ContactForm(forms.ModelForm):
                 first_urn = last_urn is None or urn.scheme != last_urn.scheme
 
                 urn_choice = None
-                for choice in URN_SCHEME_CHOICES:
+                for choice in ContactURN.SCHEME_CHOICES:
                     if choice[0] == urn.scheme:
                         urn_choice = choice
 
@@ -1038,7 +1038,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Update, self).get_context_data(**kwargs)
-            context['schemes'] = URN_SCHEME_CHOICES
+            context['schemes'] = ContactURN.SCHEME_CHOICES
             return context
 
         def post_save(self, obj):

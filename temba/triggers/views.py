@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.db.models import Min
 from smartmin.views import SmartCRUDL, SmartListView, SmartCreateView, SmartTemplateView, SmartUpdateView
-from temba.contacts.models import ContactGroup, URN_SCHEMES_SUPPORTING_FOLLOW
+from temba.contacts.models import ContactGroup, ContactURN
 from temba.contacts.fields import OmniboxField
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
@@ -258,7 +258,7 @@ class FollowTriggerForm(BaseTriggerForm):
         super(FollowTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 scheme__in=URN_SCHEMES_SUPPORTING_FOLLOW)
+                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_FOLLOW)
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('channel', 'flow')
@@ -323,7 +323,7 @@ class TriggerCRUDL(SmartCRUDL):
             add_section('trigger-missedcall', 'triggers.trigger_missed_call', 'icon-phone')
             add_section('trigger-catchall', 'triggers.trigger_catchall', 'icon-bubble')
 
-            if URN_SCHEMES_SUPPORTING_FOLLOW.intersection(org_schemes):
+            if ContactURN.SCHEMES_SUPPORTING_FOLLOW.intersection(org_schemes):
                 add_section('trigger-follow', 'triggers.trigger_follow', 'icon-user-restore')
 
     class Update(ModalMixin, OrgMixin, SmartUpdateView):
