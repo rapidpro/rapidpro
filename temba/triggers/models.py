@@ -138,7 +138,7 @@ class Trigger(SmartModel):
                     # if we have a channel resolve it
                     channel = trigger_spec.get('channel', None)  # older exports won't have a channel
                     if channel:
-                        channel = Channel.objects.filter(pk=channel.pk, org=org).first()
+                        channel = Channel.objects.filter(pk=channel, org=org).first()
 
                     trigger = Trigger.objects.create(org=org, trigger_type=trigger_spec['trigger_type'],
                                                      keyword=trigger_spec['keyword'], flow=flow,
