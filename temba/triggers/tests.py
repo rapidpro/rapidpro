@@ -856,10 +856,3 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.trigger_type, Trigger.TYPE_FOLLOW)
         self.assertEqual(trigger.flow, flow)
         self.assertEqual(list(trigger.groups.all()), [group])
-
-
-
-
-
-
-
