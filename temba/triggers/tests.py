@@ -855,4 +855,5 @@ class TriggerTest(TembaTest):
         trigger = Trigger.objects.get()
         self.assertEqual(trigger.trigger_type, Trigger.TYPE_FOLLOW)
         self.assertEqual(trigger.flow, flow)
+        self.assertEqual(trigger.channel, self.channel)
         self.assertEqual(list(trigger.groups.all()), [group])
