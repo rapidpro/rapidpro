@@ -26,7 +26,6 @@ from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES
 from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
@@ -37,15 +36,17 @@ from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLI
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
+from telegram import User
 from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
-from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA
+from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA, TELEGRAM
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
 from .tasks import check_channels_task, squash_channelcounts
+from .views import TWILIO_SUPPORTED_COUNTRIES
 
 
 class ChannelTest(TembaTest):
@@ -1078,16 +1079,16 @@ class ChannelTest(TembaTest):
         default_channel = self.org.get_send_channel(TEL_SCHEME)
         self.assertEqual(default_channel, channel)
 
-        # get our send channel for a Rwandan urn
-        rwanda_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.get_or_create(self.org, TEL_SCHEME, '+250788383383'))
+        # get our send channel for a Rwandan URN
+        rwanda_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, 'tel:+250788383383'))
         self.assertEqual(rwanda_channel, android2)
 
         # and a US one
-        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.get_or_create(self.org, TEL_SCHEME, '+12065555353'))
+        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, 'tel:+12065555353'))
         self.assertEqual(us_channel, channel)
 
         # a different country altogether should just give us the default
-        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.get_or_create(self.org, TEL_SCHEME, '+593997290044'))
+        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, 'tel:+593997290044'))
         self.assertEqual(us_channel, channel)
         self.assertIsNone(self.org.get_country_code())
 
@@ -1543,7 +1544,6 @@ class ChannelTest(TembaTest):
             self.assertEqual('Your authentication token is invalid, please check and try again', response.context['form'].errors['auth_token'][0])
 
         with patch('telegram.Bot.getMe') as get_me:
-            from telegram import User
             user = User(123, 'Rapid')
             user.last_name = 'Bot'
             user.username = 'rapidbot'
@@ -1551,7 +1551,6 @@ class ChannelTest(TembaTest):
 
             with patch('telegram.Bot.setWebhook') as set_webhook:
                 set_webhook.return_value = ''
-                from temba.channels.models import TELEGRAM
 
                 response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
                 channel = Channel.objects.all().order_by('-pk').first()
@@ -1563,7 +1562,7 @@ class ChannelTest(TembaTest):
                 response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
                 self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
 
-                contact = self.create_contact('Telegram User', urn=(TELEGRAM_SCHEME, '1234'))
+                contact = self.create_contact('Telegram User', urn=ContactURN.format_urn(TELEGRAM_SCHEME, '1234'))
 
                 # make sure we our telegram channel satisfies as a send channel
                 self.login(self.admin)
@@ -5381,7 +5380,7 @@ class TelegramTest(TembaTest):
         self.assertTrue('Fogo Mar' in msgs[0].text)
 
     def test_send(self):
-        joe = self.create_contact("Ernie", urn=(TELEGRAM_SCHEME, '1234'))
+        joe = self.create_contact("Ernie", urn='telegram:1234')
         bcast = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing sms
@@ -6042,7 +6041,7 @@ class ChikkaTest(TembaTest):
         joe = self.create_contact("Joe", '+63911231234')
 
         # incoming message for a reply test
-        incoming = Msg.create_incoming(self.channel, ('tel', '+63911231234'), "incoming message")
+        incoming = Msg.create_incoming(self.channel, 'tel:+63911231234', "incoming message")
         incoming.external_id = '4004'
         incoming.save()
 
@@ -6379,7 +6378,7 @@ class FacebookTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # create test message to update
-        joe = self.create_contact("Joe Biden", urn=('facebook', '1234'))
+        joe = self.create_contact("Joe Biden", urn='facebook:1234')
         broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
         msg = broadcast.get_messages()[0]
         msg.external_id = "mblox-id"
@@ -6528,7 +6527,7 @@ class FacebookTest(TembaTest):
         self.assertEqual(msg.text, "http://mediaurl.com/img.gif")
 
     def test_send(self):
-        joe = self.create_contact("Joe", urn=('facebook', "1234"))
+        joe = self.create_contact("Joe", urn="facebook:1234")
         bcast = joe.send("Facebook Msg", self.admin, trigger_send=False)
 
         # our outgoing sms

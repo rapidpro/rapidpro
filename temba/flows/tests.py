@@ -2400,11 +2400,11 @@ class ActionTest(TembaTest):
         test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
 
         # make sure they have a twitter urn first
-        contact.urns.add(ContactURN.get_or_create(self.org, TWITTER_SCHEME, 'enewcomer'))
+        contact.urns.add(ContactURN.create(self.org, None, 'twitter:enewcomer'))
         self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
 
         # add another phone number to make sure it doesn't get removed too
-        contact.urns.add(ContactURN.get_or_create(self.org, TEL_SCHEME, '+18005551212'))
+        contact.urns.add(ContactURN.create(self.org, None, 'tel:+18005551212'))
         self.assertEquals(3, contact.urns.all().count())
 
         # create an inbound message on our original phone number
@@ -3821,7 +3821,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("What is her phone number?", self.send_message(registration_flow, "31.1.2014"))
         self.assertEquals("Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383"))
 
-        mother = Contact.from_urn(self.org, TEL_SCHEME, "+250788383383")
+        mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEquals("Judy Pottier", mother.name)
         self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('31-01-2014'))
         self.assertEquals("+12065552020", mother.get_field_raw('chw'))

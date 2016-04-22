@@ -548,7 +548,7 @@ class ContactTest(TembaTest):
         self.assertNoFormErrors(response)
 
         # check that the orphaned URN has been associated with the contact
-        self.assertEqual('Ben Haggerty', Contact.from_urn(self.org, TEL_SCHEME, '8888').name)
+        self.assertEqual('Ben Haggerty', Contact.from_urn(self.org, 'tel:8888').name)
 
     def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
@@ -1669,7 +1669,7 @@ class ContactTest(TembaTest):
         self.joe = Contact.objects.get(pk=self.joe.id)
         self.assertEquals("12345", self.joe.get_urn_display(scheme=TEL_SCHEME))
         self.assertEquals(self.joe.get_field_raw('state'), "newyork")  # raw user input as location wasn't matched
-        self.assertFalse(Contact.from_urn(self.org, TEL_SCHEME, "123"))  # tel 123 is nobody now
+        self.assertFalse(Contact.from_urn(self.org, "tel:123"))  # tel 123 is nobody now
 
         # update joe, change his number back
         data = dict(name="Joe Blow", urn__tel__0="123", order__urn__tel__0="0", __field__location="Kigali")
@@ -1680,7 +1680,7 @@ class ContactTest(TembaTest):
         self.assertEquals(self.joe, ContactURN.objects.get(urn="tel:123").contact)
 
         # add another URN to joe
-        ContactURN.create(self.org, self.joe, TEL_SCHEME, "67890")
+        ContactURN.create(self.org, self.joe, "tel:67890")
 
         # assert that our update form has the extra URN
         response = self.client.get(reverse('contacts.contact_update', args=[self.joe.id]))
@@ -1799,8 +1799,8 @@ class ContactTest(TembaTest):
 
         post_data = dict(name="Joe X", groups=[self.just_joe.id])
         self.client.post(reverse('contacts.contact_update', args=[self.joe.id]), post_data, follow=True)
-        self.assertEquals(Contact.from_urn(self.org, TEL_SCHEME, "12345"), self.joe)  # ensure Joe still has tel 12345
-        self.assertEquals(Contact.from_urn(self.org, TEL_SCHEME, "12345").name, "Joe X")
+        self.assertEquals(Contact.from_urn(self.org, "tel:12345"), self.joe)  # ensure Joe still has tel 12345
+        self.assertEquals(Contact.from_urn(self.org, "tel:12345").name, "Joe X")
 
         # try delete action
         call = Call.create_call(self.channel, self.frank.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_CALL_OUT_MISSED)
@@ -1869,9 +1869,9 @@ class ContactTest(TembaTest):
         self.assertFalse(contact4.urns.all())
 
     def test_from_urn(self):
-        self.assertEqual(self.joe, Contact.from_urn(self.org, 'tel', '123'))  # URN with contact
-        self.assertIsNone(Contact.from_urn(self.org, 'tel', '8888'))  # URN with no contact
-        self.assertIsNone(Contact.from_urn(self.org, None, 'snoop@dogg.com'))
+        self.assertEqual(self.joe, Contact.from_urn(self.org, 'tel:123'))  # URN with contact
+        self.assertIsNone(Contact.from_urn(self.org, 'tel:8888'))  # URN with no contact
+        self.assertIsNone(Contact.from_urn(self.org, 'snoop@dogg.com'))  # URN with no scheme
 
     def test_validate_import_header(self):
         with self.assertRaises(Exception):
@@ -2922,10 +2922,21 @@ class ContactURNTest(TembaTest):
     def setUp(self):
         super(ContactURNTest, self).setUp()
 
+    def test_create(self):
+        urn = ContactURN.create(self.org, None, 'tel:1234')
+        self.assertEqual(urn.org, self.org)
+        self.assertEqual(urn.contact, None)
+        self.assertEqual(urn.urn, 'tel:1234')
+        self.assertEqual(urn.scheme, 'tel')
+        self.assertEqual(urn.path, '1234')
+        self.assertEqual(urn.priority, 50)
+
     def test_parse_urn(self):
         self.assertEqual(ContactURN.parse_urn('tel:+1234'), ('tel', '+1234'))
         self.assertEqual(ContactURN.parse_urn('twitter:billy_bob'), ('twitter', 'billy_bob'))
-        self.assertRaises(Exception, ContactURN.parse_urn, 'tel : 1234')  # URNs can't have spaces
+        self.assertRaises(Exception, ContactURN.parse_urn, 'tel:')
+        self.assertRaises(Exception, ContactURN.parse_urn, ':1234')
+        self.assertRaises(Exception, ContactURN.parse_urn, 'tel:1234:1234')
         self.assertRaises(Exception, ContactURN.parse_urn, 'xxx:1234')  # no such scheme
 
     def test_format_urn(self):
@@ -2933,17 +2944,17 @@ class ContactURNTest(TembaTest):
 
     def test_normalize_urn(self):
         # valid tel numbers
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn('TEL', "0788383383", "RW"))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn('tel', "+250788383383", "KE"))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn('tel', "+250788383383", None))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn('tel', "250788383383", None))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn('tel', "2.50788383383E+11", None))
-        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn('tel', "2.50788383383E+12", None))
-        self.assertEquals(('tel', "+19179925253"), ContactURN.normalize_urn('tel', "(917) 992-5253", "US"))
-        self.assertEquals(('tel', "+19179925253"), ContactURN.normalize_urn('tel', "19179925253", None))
-        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn('tel', "+62877747666", None))
-        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn('tel', "62877747666", "ID"))
-        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn('tel', "0877747666", "ID"))
+        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("TEL:0788383383", "RW"))
+        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:+250788383383", "KE"))
+        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:+250788383383", None))
+        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:250788383383", None))
+        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:2.50788383383E+11", None))
+        self.assertEquals(('tel', "+250788383383"), ContactURN.normalize_urn("tel:2.50788383383E+12", None))
+        self.assertEquals(('tel', "+19179925253"), ContactURN.normalize_urn("tel:(917) 992-5253", "US"))
+        self.assertEquals(('tel', "+19179925253"), ContactURN.normalize_urn("tel:19179925253", None))
+        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn("tel:+62877747666", None))
+        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn("tel:62877747666", "ID"))
+        self.assertEquals(('tel', "+62877747666"), ContactURN.normalize_urn("tel:0877747666", "ID"))
 
         # invalid tel numbers
         self.assertEquals(('tel', "12345"), ContactURN.normalize_urn(TEL_SCHEME, "12345", "RW"))
@@ -2963,24 +2974,24 @@ class ContactURNTest(TembaTest):
 
     def test_validate_urn(self):
         # valid tel numbers
-        self.assertTrue(ContactURN.validate_urn('tel', "0788383383", "RW"))
-        self.assertTrue(ContactURN.validate_urn('tel', "+250788383383", "KE"))
-        self.assertTrue(ContactURN.validate_urn('tel', "+23761234567", "CM"))  # old Cameroon format
-        self.assertTrue(ContactURN.validate_urn('tel', "+237661234567", "CM"))  # new Cameroon format
-        self.assertTrue(ContactURN.validate_urn('tel', "+250788383383", None))
-        self.assertTrue(ContactURN.validate_urn('tel', "0788383383", None))  # assumed valid because no country
+        self.assertTrue(ContactURN.validate_urn("tel:0788383383", "RW"))
+        self.assertTrue(ContactURN.validate_urn("tel:+250788383383", "KE"))
+        self.assertTrue(ContactURN.validate_urn("tel:+23761234567", "CM"))  # old Cameroon format
+        self.assertTrue(ContactURN.validate_urn("tel:+237661234567", "CM"))  # new Cameroon format
+        self.assertTrue(ContactURN.validate_urn("tel:+250788383383", None))
+        self.assertTrue(ContactURN.validate_urn("tel:0788383383", None))  # assumed valid because no country
 
         # invalid tel numbers
-        self.assertFalse(ContactURN.validate_urn('tel', "0788383383", "ZZ"))  # invalid country
-        self.assertFalse(ContactURN.validate_urn('tel', "MTN", "RW"))
+        self.assertFalse(ContactURN.validate_urn("tel:0788383383", "ZZ"))  # invalid country
+        self.assertFalse(ContactURN.validate_urn("tel:MTN", "RW"))
 
         # valid twitter handles
-        self.assertTrue(ContactURN.validate_urn('twitter', "jimmyjo"))
-        self.assertTrue(ContactURN.validate_urn('twitter', "billy_bob"))
+        self.assertTrue(ContactURN.validate_urn("twitter:jimmyjo"))
+        self.assertTrue(ContactURN.validate_urn("twitter:billy_bob"))
 
         # invalid twitter handles
-        self.assertFalse(ContactURN.validate_urn('twitter', "jimmyjo!@"))
-        self.assertFalse(ContactURN.validate_urn('twitter', "billy bob"))
+        self.assertFalse(ContactURN.validate_urn("twitter:jimmyjo!@"))
+        self.assertFalse(ContactURN.validate_urn("twitter:billy bob"))
 
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
@@ -2989,11 +3000,6 @@ class ContactURNTest(TembaTest):
 
         urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
         self.assertEquals('billy_bob', urn.get_display(self.org))
-
-    def test_get_or_create(self):
-        urn = ContactURN.get_or_create(self.org, TEL_SCHEME, '1234')
-        urn2 = ContactURN.get_or_create(self.org, TEL_SCHEME, '1234')
-        self.assertEquals(urn.pk, urn2.pk)
 
 
 class ContactFieldTest(TembaTest):
@@ -3123,7 +3129,7 @@ class ContactFieldTest(TembaTest):
         # more contacts do not increase the queries
         contact3 = self.create_contact('Luol Deng', '+12078776655', twitter='deng')
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
-        ContactURN.create(self.org, contact, TEL_SCHEME, '+12062233445')
+        ContactURN.create(self.org, contact, 'teL:+12062233445')
 
         with self.assertNumQueries(35):
             self.client.get(reverse('contacts.contact_export'), dict())

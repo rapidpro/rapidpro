@@ -4768,16 +4768,15 @@ class SaveToContactAction(Action):
                         new_value = new_value[1:]
 
             # only valid urns get added, sorry
-            from temba.contacts.models import ContactURN
-            new_urn = None
-            if ContactURN.validate_urn(scheme, new_value, contact.org.get_country_code()):
-                new_urn = (scheme, new_value)
+            new_urn = ContactURN.normalize_urn(ContactURN.format_urn(scheme, new_value))
+            if not ContactURN.validate_urn(new_urn, contact.org.get_country_code()):
+                new_urn = None
             else:
                 if contact.is_test:
                     ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
 
             if new_urn:
-                urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
+                urns = [urn.urn for urn in contact.urns.all()]
                 urns += [new_urn]
 
                 if not contact.is_test:

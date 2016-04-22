@@ -259,13 +259,13 @@ class ContactForm(forms.ModelForm):
         country = self.org.get_country_code()
 
         def validate_urn(key, urn_scheme, urn_path):
-            norm_scheme, norm_path = ContactURN.normalize_urn(urn_scheme, urn_path, country)
-            existing = Contact.from_urn(self.org, norm_scheme, norm_path)
+            normalized = ContactURN.normalize_urn(ContactURN.format_urn(urn_scheme, urn_path), country)
+            existing = Contact.from_urn(self.org, normalized)
 
             if existing and existing != self.instance:
                 self._errors[key] = _("Used by another contact")
                 return False
-            elif not ContactURN.validate_urn(norm_scheme, norm_path):
+            elif not ContactURN.validate_urn(normalized, country):
                 self._errors[key] = _("Invalid format")
                 return False
             return True

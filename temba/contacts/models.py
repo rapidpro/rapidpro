@@ -456,15 +456,15 @@ class Contact(TembaModel):
             EventFire.update_events_for_contact(self)
 
     @classmethod
-    def from_urn(cls, org, scheme, path, country=None):
-        if not scheme or not path:
+    def from_urn(cls, org, urn_as_string, country=None):
+        """
+        Looks up a contact by a URN string (which will be normalized)
+        """
+        urn_obj = ContactURN.lookup(org, urn_as_string, country)
+        if urn_obj and urn_obj.contact and urn_obj.contact.is_active:
+            return urn_obj.contact
+        else:
             return None
-
-        norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-        norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
-
-        existing = ContactURN.objects.filter(org=org, urn=norm_urn, contact__is_active=True).select_related('contact')
-        return existing[0].contact if existing else None
 
     @classmethod
     def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None, language=None, is_test=False, force_urn_update=False):
@@ -554,13 +554,8 @@ class Contact(TembaModel):
             existing_orphan_urns = dict()
             urns_to_create = dict()
             for urn in urns:
-                scheme, path = ContactURN.parse_urn(urn)
-                if not scheme or not path:
-                    raise ValueError(_("URN cannot have empty scheme or path"))
-
-                norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-                norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
-                existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
+                normalized = ContactURN.normalize_urn(urn, country)
+                existing_urn = ContactURN.lookup(org, normalized, normalize=False)
 
                 if existing_urn:
                     if existing_urn.contact and not force_urn_update:
@@ -579,7 +574,7 @@ class Contact(TembaModel):
                         existing_urn.channel = incoming_channel
                         existing_urn.save(update_fields=['channel'])
                 else:
-                    urns_to_create[urn] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
+                    urns_to_create[urn] = normalized
 
             # URNs correspond to one contact so update and return that
             if contact:
@@ -615,7 +610,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in urns_to_create.iteritems():
-                urn = ContactURN.create(org, contact, normalized['scheme'], normalized['path'], channel=incoming_channel)
+                urn = ContactURN.create(org, contact, normalized, channel=incoming_channel)
                 urn_objects[raw] = urn
 
             # save which urns were updated
@@ -740,13 +735,14 @@ class Contact(TembaModel):
                 if value == OLD_TEST_CONTACT_TEL:
                     raise SmartImportRowError("Ignored test contact")
 
-            search_contact = Contact.from_urn(org, urn_scheme, value, country)
+            urn = ContactURN.format_urn(urn_scheme, value)
+            search_contact = Contact.from_urn(org, urn, country)
 
             # if this is an anonymous org, don't allow updating
             if org.is_anon and search_contact and not is_admin:
                 raise SmartImportRowError("Other existing contact on anonymous organization")
 
-            urns.append(ContactURN.format_urn(urn_scheme, value))
+            urns.append(urn)
 
         if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
@@ -1212,13 +1208,10 @@ class Contact(TembaModel):
             priority = HIGHEST_PRIORITY
 
             for urn_as_string in urns:
-                scheme, path = ContactURN.parse_urn(urn_as_string)
-                norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-                norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
-
-                urn = ContactURN.objects.filter(org=self.org, urn=norm_urn).first()
+                normalized = ContactURN.normalize_urn(urn_as_string, country)
+                urn = ContactURN.objects.filter(org=self.org, urn=normalized).first()
                 if not urn:
-                    urn = ContactURN.create(self.org, self, norm_scheme, norm_path, priority=priority)
+                    urn = ContactURN.create(self.org, self, normalized, priority=priority)
                     urns_created.append(urn)
 
                 # unassigned URN or assigned to someone else
@@ -1366,24 +1359,14 @@ class ContactURN(models.Model):
                                 help_text="The preferred channel for this URN")
 
     @classmethod
-    def create(cls, org, contact, scheme, path, channel=None, priority=None):
-        urn = cls.format_urn(scheme, path)
+    def create(cls, org, contact, urn_as_string, channel=None, priority=None):
+        scheme, path = cls.parse_urn(urn_as_string)
 
         if not priority:
             priority = URN_SCHEME_PRIORITIES[scheme] if scheme in URN_SCHEME_PRIORITIES else STANDARD_PRIORITY
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
-                                  scheme=scheme, path=path, urn=urn)
-
-    @classmethod
-    def get_or_create(cls, org, scheme, path, channel=None):
-        with org.lock_on(OrgLock.contacts):
-            existing = ContactURN.lookup(org, cls.format_urn(scheme, path))
-
-            if existing:
-                return existing
-            else:
-                return cls.create(org, None, scheme, path, channel)
+                                  scheme=scheme, path=path, urn=urn_as_string)
 
     @classmethod
     def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
@@ -1391,18 +1374,24 @@ class ContactURN(models.Model):
         Looks up an existing URN by a formatted URN string, e.g. "tel:+250234562222"
         """
         if normalize:
-            scheme, path = cls.parse_urn(urn_as_string)
-            scheme, path = cls.normalize_urn(scheme, path, country_code)
-            urn_as_string = cls.format_urn(scheme, path)
+            urn_as_string = cls.normalize_urn(urn_as_string, country_code)
 
-        return cls.objects.filter(org=org, urn=urn_as_string).first()
+        return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
 
     @classmethod
     def parse_urn(cls, urn_as_string):
         """
         Splits a formatted URN string into scheme and path
         """
-        return tuple(urn_as_string.split(':', 1))
+        result = tuple(urn_as_string.split(':'))
+
+        if len(result) != 2 or not result[0] or not result[1]:
+            raise ValueError("URN strings must contain a scheme and a path")
+
+        if result[0].lower() not in URN_SCHEMES:
+            raise ValueError("URN contains unsupported scheme: %s" % result[0])
+
+        return result
 
     @classmethod
     def format_urn(cls, scheme, path):
@@ -1412,11 +1401,13 @@ class ContactURN(models.Model):
         return '%s:%s' % (scheme, path)
 
     @classmethod
-    def validate_urn(cls, scheme, path, country_code=None):
+    def validate_urn(cls, urn_as_string, country_code=None):
         """
         Validates a URN scheme and path. Assumes both are normalized.
         """
-        if not scheme or not path:
+        try:
+            scheme, path = ContactURN.parse_urn(urn_as_string)
+        except ValueError:
             return False
 
         if scheme == TEL_SCHEME:
@@ -1457,10 +1448,12 @@ class ContactURN(models.Model):
             return False  # only tel and twitter currently supported
 
     @classmethod
-    def normalize_urn(cls, scheme, path, country_code=None):
+    def normalize_urn(cls, urn_as_string, country_code=None):
         """
         Normalizes a URN scheme and path. Should be called anytime looking for a URN match.
         """
+        scheme, path = ContactURN.parse_urn(urn_as_string)
+
         norm_scheme = unicode(scheme).strip().lower()
         norm_path = unicode(path).strip()
 
@@ -1476,7 +1469,7 @@ class ContactURN(models.Model):
         elif norm_scheme == FACEBOOK_SCHEME:
             norm_path = norm_path.lower()
 
-        return norm_scheme, norm_path
+        return cls.format_urn(norm_scheme, norm_path)
 
     @classmethod
     def normalize_number(cls, number, country_code):
