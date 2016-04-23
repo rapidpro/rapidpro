@@ -1,5 +1,5 @@
 -extends "smartmin/read.html"
--load smartmin sms compress temba contacts
+-load smartmin sms compress temba contacts i18n
 
 -block page-top
   .row
@@ -15,8 +15,10 @@
 
     .span3
       .pull-right
-        %a.btn.btn-success{ href: "{% url 'flows.flow_export_results' %}?ids={{ object.id }}" } Download Results
-        %a.btn{ href: "{% url 'flows.flow_editor' object.pk %}" } View
+        %a.btn.btn-success{ href: "#", onClick:"exportFlow()" }
+          -trans "Download"
+        %a.btn{ href: "{% url 'flows.flow_editor' object.pk %}" }
+          -trans "View"
 
 -block buttons
 
@@ -26,51 +28,49 @@
     %thead
       %tr
         %th
-          Date
+          -trans "Date"
         %th
-          Phone
+          -trans "URN"
         %th
-          Name
+          -trans "Name"
         %th
-          Runs
+          -trans "Runs"
 
         -for col in counts
           %th
             {{ col.ruleset.label }}
 
-        //%th.date
-        //  Date
     %tbody
 
   #table-gutter
 
     %h5.table-options
-      Table Options
+      -trans "Table Options"
 
     #column-options.hide
       #contact-columns
         .column-header
-          Contact Data
+          -trans "Contact Data"
         .option
           %div{class:'col_0 view_toggle', data-col:'0'}
             .glyph.notif-checkbox
           .col
-            Date
+            -trans "Date"
         .option
           %div{class:'col_1 view_toggle', data-col:'1'}
             .glyph.notif-checkbox
           .col
-            Phone
+            -trans "URN"
         .option
           %div{class:'col_2 view_toggle', data-col:'2'}
             .glyph.notif-checkbox
           .col
-            Name
+            -trans "Name"
         .option
           %div{class:'col_3 view_toggle', data-col:'3'}
             .glyph.notif-checkbox
           .col
-            Runs
+            -trans "Runs"
 
 
 -block extra-script
@@ -81,6 +81,14 @@
   <script src="{{ STATIC_URL }}js/highcharts-theme.js?v=2"></script>
 
   :javascript
+    function exportFlow(){
+      var flowIds = getCheckedIds();
+      var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
+      modal.setIcon('icon-excel');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    }
+
     $(function() {
       jQuery.fn.dataTableExt.oApi.fnSetFilteringDelay = function ( oSettings, iDelay ) {
         var _that = this;
@@ -171,7 +179,7 @@
                       data.category = '-';
                     }
 
-                    if (data.category == 'All Responses') {
+                    if (data.category == '{% trans "All Responses" %}') {
                       data.category = data.text;
                     }
 
@@ -218,7 +226,7 @@
 
       // remove the search label
       $('.dataTables_filter label').replaceWith($('.dataTables_filter input'));
-      $('.dataTables_filter input').attr('placeholder', 'Search for name or number');
+      $('.dataTables_filter input').attr('placeholder', '{% trans "Search for name or number" %}');
 
       var charts = $('.inline-chart').length
       if (charts == 0) {
@@ -230,10 +238,10 @@
         $('#more-link').on('click', function() {
           if ($('#top-charts').css('height') == '240px') {
             $('#top-charts').css('height', '100%');
-            $(this).text('Less Charts');
+            $(this).text('{% trans "Less Charts" %}');
           } else {
             $('#top-charts').css('height', '240px');
-            $(this).text('More Charts');
+            $(this).text('{% trans "More Charts" %}');
           }
 
           $(this).blur();

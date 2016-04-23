@@ -74,6 +74,66 @@ def urn_icon(urn):
 
 
 @register.filter
+def osm_link(geo_url):
+    (media_type, delim, location) = geo_url.partition(':')
+    coords = location.split(',')
+    if len(coords) == 2:
+        (lat, lng) = coords
+        return 'http://www.openstreetmap.org/?mlat=%(lat)s&mlon=%(lng)s#map=18/%(lat)s/%(lng)s' % {"lat": lat, "lng": lng}
+
+
+@register.filter
+def location(geo_url):
+    (media_type, delim, location) = geo_url.partition(':')
+    if len(location.split(',')) == 2:
+        return location
+
+
+@register.filter
+def media_url(media):
+    if media:
+        # TODO: remove after migration msgs.0053
+        if media.startswith('http'):
+            return media
+        return media.partition(':')[2]
+
+
+@register.filter
+def media_content_type(media):
+    if media:
+        # TODO: remove after migration msgs.0053
+        if media.startswith('http'):
+            return 'audio/x-wav'
+        return media.partition(':')[0]
+
+
+@register.filter
+def media_type(media):
+    type = media_content_type(media)
+    if type == 'application/octet-stream' and media.endswith('.oga'):
+        return 'audio'
+    if type and '/' in type:
+        type = type.split('/')[0]
+    return type
+
+
+@register.filter
+def is_supported_audio(content_type):
+    return content_type in ['audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'application/octet-stream']
+
+
+@register.filter
+def is_document(media_url):
+    type = media_type(media_url)
+    return type in ['application', 'text']
+
+
+@register.filter
+def extension(url):
+    return url.rpartition('.')[2]
+
+
+@register.filter
 def activity_icon(item):
     name = type(item).__name__
     if name == 'Msg':

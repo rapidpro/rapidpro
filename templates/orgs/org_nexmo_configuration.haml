@@ -1,0 +1,102 @@
+-extends "smartmin/read.haml"
+-load i18n
+
+-block title
+  %h2 Nexmo {% trans "Configuration" %}
+
+-block content
+    %h4
+      -blocktrans
+        To finish configuring your Nexmo connection you'll need to set the following callback URLs on the
+        Nexmo website under your account settings page.
+
+    .clearfix
+      .config-value
+        .name
+          -trans "API Key:"
+        .value {{ nexmo_api_key }}
+      .config-value
+        .name
+          -trans "API Secret:"
+        .value {{ nexmo_api_secret }}
+
+    .clearfix
+    %hr
+
+    %h4
+      -trans "Callback URL"
+
+    %p
+      -blocktrans
+        You can set the Callback URL for Inbound Message on your Nexmo account by visiting the Dashboard
+        <a href="https://dashboard.nexmo.com/settings" target="nexmo">API settings section</a>.
+
+
+    %code
+      {{ mo_path }}
+
+    %hr
+
+    %h4
+      -trans "Delivery URL"
+
+    %p
+      -blocktrans
+        You can set the Callback URL for Delivery Receipt on your Nexmo account by visiting the Dashboard
+        <a href="https://dashboard.nexmo.com/settings" target="nexmo">API settings section</a>.
+
+
+    %code
+      {{ dl_path }}
+
+    %hr
+      %h4
+        -trans "Once the settings are succefully updated on Nexmo"
+
+      %a.btn.btn-primary{'href':"{% url 'channels.channel_claim_nexmo' %}"}
+        -trans "Add a Nexmo Channel"
+
+
+-block extra-script
+  {{ block.super }}
+  <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+  :javascript
+    $(function(){
+      prettyPrint();
+    });
+
+-block extra-style
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
+  :css
+    .config-value {
+      float: left;
+      padding-top: 10px;
+      padding-bottom: 10px;
+      padding-right: 20px;
+      height: 10px;
+    }
+
+    .config-value .name {
+      font-weight: normal;
+      float: left;
+    }
+
+    .config-value .value {
+      float: left;
+      padding-left: 5px;
+    }
+
+    pre.prettyprint {
+      margin-top: 0px;
+      margin-bottom: 0px;
+
+      font-family: monospace;
+      font-size: inherit;
+      white-space: pre;
+      line-height: 110%;
+
+      -webkit-border-radius: 0px;
+      -moz-border-radius: 0px;
+      border-radius: 0px;
+    }
+

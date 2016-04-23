@@ -1,9 +1,11 @@
+from __future__ import unicode_literals
+
+import time
+
+from django.conf import settings
 from django.core.urlresolvers import resolve
 from django.http import HttpResponseRedirect
-from django.template import RequestContext, loader
-import time
 from orgs.context_processors import user_group_perms_processor
-from django.conf import settings
 
 
 class FormaxMixin(object):

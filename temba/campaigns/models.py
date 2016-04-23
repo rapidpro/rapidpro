@@ -319,7 +319,7 @@ class CampaignEvent(SmartModel):
         if date_value:
             date_value = date_value.replace(second=0, microsecond=0)
 
-        if not self.relative_to.is_active: # pragma: no cover
+        if not self.relative_to.is_active:  # pragma: no cover
             return None
 
         # try to parse it to a datetime
