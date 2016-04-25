@@ -2289,14 +2289,16 @@ class ChannelEventCRUDL(SmartCRUDL):
     actions = ('calls',)
 
     class Calls(MsgListView):
+        title = _("Calls")
         fields = ('event_type', 'contact', 'channel', 'time')
         default_order = '-time'
         search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
         system_label = SystemLabel.TYPE_CALLS
+        select_related = ('contact', 'channel')
 
-        def get_queryset(self, **kwargs):
-            qs = super(ChannelEventCRUDL.Calls, self).get_queryset(**kwargs)
-            return qs.filter(event_type__in=ChannelEvent.CALL_TYPES).select_related('contact', 'channel')
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r'^calls/$'
 
         def get_contact(self, obj):
             return obj.contact.get_display(self.org)

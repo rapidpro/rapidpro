@@ -8,10 +8,11 @@ from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, T
 from .handlers import TwilioMessagingServiceHandler, JasminHandler, MbloxHandler, FacebookHandler
 from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
 
-crudl_urls = ChannelCRUDL().as_urlpatterns() + ChannelEventCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns()
 
 urlpatterns = [
-    url(r'^channels/', include(crudl_urls)),
+    url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),
+
+    url(r'^channels/', include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
 
     url(r'^handlers', include([
         url(r'^/twilio/$', TwilioHandler.as_view(), name='handlers.twilio_handler'),
