@@ -423,7 +423,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @actions = [
         { type:'say', name:'Play Message', verbose_name:'Play a message', icon: 'icon-bubble-3', message: true, filter:[VOICE] }
         { type:'play', name:'Play Recording', verbose_name:'Play a contact recording', icon: 'icon-mic', filter:[VOICE]}
-        { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true, filter:ALL }
+        { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE,SURVEY] }
         { type:'send', name:'Send Message', verbose_name: 'Send an SMS to somebody else', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE] }
         { type:'add_label', name:'Add Label', verbose_name: 'Add a label to a Message', icon: 'icon-tag', filter:ALL }
         { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user', filter:ALL }
@@ -457,10 +457,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE,USSD] },
 
         # all flows
-        { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', filter:ALL },
-        { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', filter:ALL },
-        { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', filter:ALL },
-        { type: 'form_field', name:'Split by Message Form', verbose_name: 'Split by message form', filter:ALL },
+        { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', filter:[TEXT,VOICE,SURVEY] },
+        { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', filter:[TEXT,VOICE,SURVEY] },
+        { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', filter:[TEXT,VOICE,SURVEY] },
+        { type: 'form_field', name:'Split by Message Form', verbose_name: 'Split by message form', filter:[TEXT,VOICE,SURVEY] },
 
         # Not supported yet
         # { type: 'group', verbose_name: 'Split by group membership', ivr:true, text:true},
