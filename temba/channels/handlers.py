@@ -76,7 +76,7 @@ class TwilioHandler(View):
                 from temba.ivr.models import IVRCall
 
                 # find a contact for the one initiating us
-                urn = ContactURN.format_urn(TEL_SCHEME, from_number)
+                urn = ContactURN.format(TEL_SCHEME, from_number)
                 contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], incoming_channel=channel)
                 urn_obj = contact.urn_objects[urn]
 
@@ -154,7 +154,7 @@ class TwilioHandler(View):
                 raise ValidationError("Invalid request signature")
 
             body = request.POST['Body']
-            urn = ContactURN.format_urn(TEL_SCHEME, request.POST['From'])
+            urn = ContactURN.format(TEL_SCHEME, request.POST['From'])
 
             # process any attached media
             for i in range(int(request.POST.get('NumMedia', 0))):
@@ -202,7 +202,7 @@ class TwilioMessagingServiceHandler(View):
                 # raise an exception that things weren't properly signed
                 raise ValidationError("Invalid request signature")
 
-            urn = ContactURN.format_urn(TEL_SCHEME, request.POST['From'])
+            urn = ContactURN.format(TEL_SCHEME, request.POST['From'])
             Msg.create_incoming(channel, urn, request.POST['Body'])
 
             return HttpResponse("", status=201)
@@ -259,7 +259,7 @@ class AfricasTalkingHandler(View):
             if 'from' not in request.POST or 'text' not in request.POST:
                 return HttpResponse("Missing from or text parameters", status=400)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, request.POST['from'])
+            urn = ContactURN.format(TEL_SCHEME, request.POST['from'])
             sms = Msg.create_incoming(channel, urn, request.POST['text'])
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -327,7 +327,7 @@ class ZenviaHandler(View):
             sms_date = datetime.strptime(request.REQUEST['date'], "%d/%m/%Y %H:%M:%S")
             brazil_date = pytz.timezone('America/Sao_Paulo').localize(sms_date)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, request.REQUEST['from'])
+            urn = ContactURN.format(TEL_SCHEME, request.REQUEST['from'])
             sms = Msg.create_incoming(channel, urn, request.REQUEST['msg'], date=brazil_date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -403,7 +403,7 @@ class ExternalHandler(View):
             if date:
                 date = json_date_to_datetime(date)
 
-            urn = ContactURN.format_urn(channel.scheme, sender)
+            urn = ContactURN.format(channel.scheme, sender)
             sms = Msg.create_incoming(channel, urn, text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -469,7 +469,7 @@ class TelegramHandler(View):
 
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
-        urn = ContactURN.format_urn(TELEGRAM_SCHEME, telegram_id)
+        urn = ContactURN.format(TELEGRAM_SCHEME, telegram_id)
         existing_contact = Contact.from_urn(channel.org, urn)
 
         # if the contact doesn't exist, try to create one
@@ -620,7 +620,7 @@ class InfobipHandler(View):
         if channel.address != '+' + request.REQUEST['receiver']:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
-        urn = ContactURN.format_urn(TEL_SCHEME, request.REQUEST['sender'])
+        urn = ContactURN.format(TEL_SCHEME, request.REQUEST['sender'])
         sms = Msg.create_incoming(channel, urn, request.REQUEST['text'])
 
         return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -675,7 +675,7 @@ class Hub9Handler(View):
             if channel.address != '+' + to_number:
                 return HttpResponse("Channel with number '%s' not found." % to_number, status=404)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, '+' + from_number)
+            urn = ContactURN.format(TEL_SCHEME, '+' + from_number)
             Msg.create_incoming(channel, urn, message)
             return HttpResponse("000")
 
@@ -739,7 +739,7 @@ class HighConnectionHandler(View):
             if to_number is None or from_number is None or message is None:
                 return HttpResponse("Missing TO, FROM or MESSAGE parameters", status=400)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, from_number)
+            urn = ContactURN.format(TEL_SCHEME, from_number)
             msg = Msg.create_incoming(channel, urn, message, date=received)
             return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
 
@@ -799,7 +799,7 @@ class BlackmynaHandler(View):
             if channel.address != to_number:
                 return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, from_number)
+            urn = ContactURN.format(TEL_SCHEME, from_number)
             Msg.create_incoming(channel, urn, message)
             return HttpResponse("")
 
@@ -834,7 +834,7 @@ class SMSCentralHandler(View):
             if from_number is None or message is None:
                 return HttpResponse("Missing mobile or message parameters", status=400)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, from_number)
+            urn = ContactURN.format(TEL_SCHEME, from_number)
             Msg.create_incoming(channel, urn, message)
             return HttpResponse("")
 
@@ -910,7 +910,7 @@ class NexmoHandler(View):
 
         # this is a new incoming message
         elif action == 'receive':
-            urn = ContactURN.format_urn(TEL_SCHEME, '+%s' % request.REQUEST['msisdn'])
+            urn = ContactURN.format(TEL_SCHEME, '+%s' % request.REQUEST['msisdn'])
             sms = Msg.create_incoming(channel, urn, request.REQUEST['text'])
             sms.external_id = request.REQUEST['messageId']
             sms.save(update_fields=['external_id'])
@@ -1036,7 +1036,7 @@ class VumiHandler(View):
             sms_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, body['from_addr'])
+            urn = ContactURN.format(TEL_SCHEME, body['from_addr'])
             sms = Msg.create_incoming(channel, urn, body['content'], date=gmt_date)
 
             # use an update so there is no race with our handling
@@ -1120,7 +1120,7 @@ class KannelHandler(View):
             sms_date = datetime.utcfromtimestamp(int(request.REQUEST['ts']))
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, request.REQUEST['sender'])
+            urn = ContactURN.format(TEL_SCHEME, request.REQUEST['sender'])
             sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
 
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
@@ -1240,7 +1240,7 @@ class ClickatellHandler(View):
             elif charset == 'ISO-8859-1':
                 text = text.encode('iso-8859-1', 'ignore').decode('iso-8859-1').encode('utf-8')
 
-            urn = ContactURN.format_urn(TEL_SCHEME, request.REQUEST['from'])
+            urn = ContactURN.format(TEL_SCHEME, request.REQUEST['from'])
             sms = Msg.create_incoming(channel, urn, text, date=gmt_date)
 
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
@@ -1347,7 +1347,7 @@ class PlivoHandler(View):
             if channel.address != channel_address:
                 return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, request.REQUEST['From'])
+            urn = ContactURN.format(TEL_SCHEME, request.REQUEST['From'])
             sms = Msg.create_incoming(channel, urn, request.REQUEST['Text'])
 
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
@@ -1443,7 +1443,7 @@ class StartHandler(View):
         if text is None:
             text = ""
 
-        urn = ContactURN.format_urn(TEL_SCHEME, sender_el.text)
+        urn = ContactURN.format(TEL_SCHEME, sender_el.text)
         Msg.create_incoming(channel, urn, text)
 
         # Start expects an XML response
@@ -1515,7 +1515,7 @@ class ChikkaHandler(View):
             sms_date = datetime.utcfromtimestamp(float(request.REQUEST['timestamp']))
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
-            urn = ContactURN.format_urn(TEL_SCHEME, request.REQUEST['mobile_number'])
+            urn = ContactURN.format(TEL_SCHEME, request.REQUEST['mobile_number'])
             sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
 
             # save our request id in case of replies
@@ -1583,7 +1583,7 @@ class JasminHandler(View):
             if request.POST['coding'] == '0':
                 content = gsm7.decode(request.POST['content'], 'replace')[0]
 
-            urn = ContactURN.format_urn(TEL_SCHEME, request.POST['from'])
+            urn = ContactURN.format(TEL_SCHEME, request.POST['from'])
             sms = Msg.create_incoming(channel, urn, content)
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.POST['id'])
             return HttpResponse('ACK/Jasmin')
@@ -1655,7 +1655,7 @@ class MbloxHandler(View):
                                     status=400)
 
             msg_date = parse_datetime(body['received_at'])
-            urn = ContactURN.format_urn(TEL_SCHEME, body['from'])
+            urn = ContactURN.format(TEL_SCHEME, body['from'])
             msg = Msg.create_incoming(channel, urn, body['body'], date=msg_date)
             Msg.all_messages.filter(pk=msg.id).update(external_id=body['id'])
             return HttpResponse("SMS Accepted: %d" % msg.id)
@@ -1734,7 +1734,7 @@ class FacebookHandler(View):
                         if content:
                             # does this contact already exist?
                             sender_id = envelope['sender']['id']
-                            urn = ContactURN.format_urn(FACEBOOK_SCHEME, sender_id)
+                            urn = ContactURN.format(FACEBOOK_SCHEME, sender_id)
                             contact = Contact.from_urn(channel.org, urn)
 
                             # if not, let's go create it

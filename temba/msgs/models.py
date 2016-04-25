@@ -1324,7 +1324,7 @@ class Msg(models.Model):
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, basestring):
-            scheme, path = ContactURN.parse_urn(recipient)
+            scheme, path = ContactURN.parse(recipient)
             if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
@@ -1508,7 +1508,7 @@ class Call(SmartModel):  # TODO rename to ChannelEvent and move to channels app
         if not user:
             user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
 
-        contact = Contact.get_or_create(channel.org, user, name=None, urns=[ContactURN.format_urn(TEL_SCHEME, phone)],
+        contact = Contact.get_or_create(channel.org, user, name=None, urns=[ContactURN.format(TEL_SCHEME, phone)],
                                         incoming_channel=channel)
 
         call = Call.objects.create(channel=channel,

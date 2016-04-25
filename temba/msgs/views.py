@@ -523,7 +523,7 @@ class MsgCRUDL(SmartCRUDL):
         def form_valid(self, *args, **kwargs):
             data = self.form.cleaned_data
             handled = Msg.create_incoming(data['channel'],
-                                          ContactURN.format_urn(TEL_SCHEME, data['urn']),
+                                          ContactURN.format(TEL_SCHEME, data['urn']),
                                           data['text'],
                                           user=self.request.user)
 

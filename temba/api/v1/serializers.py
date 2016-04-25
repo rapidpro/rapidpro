@@ -94,7 +94,7 @@ class PhoneArrayField(serializers.ListField):
     """
     def to_internal_value(self, data):
         if isinstance(data, basestring):
-            return [ContactURN.format_urn(TEL_SCHEME, data)]
+            return [ContactURN.format(TEL_SCHEME, data)]
 
         elif isinstance(data, list):
             if len(data) > 100:
@@ -104,7 +104,7 @@ class PhoneArrayField(serializers.ListField):
             for phone in data:
                 if not isinstance(phone, basestring):
                     raise serializers.ValidationError("Invalid phone: %s" % str(phone))
-                urns.append(ContactURN.format_urn(TEL_SCHEME, phone))
+                urns.append(ContactURN.format(TEL_SCHEME, phone))
 
             return urns
         else:
@@ -415,7 +415,8 @@ class ContactWriteSerializer(WriteSerializer):
             except Exception:
                 raise serializers.ValidationError("Invalid phone number: '%s'" % value)
 
-            self.parsed_urns = [ContactURN.format_urn(TEL_SCHEME, phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164))]
+            e164_number = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
+            self.parsed_urns = [ContactURN.format(TEL_SCHEME, e164_number)]
         return value
 
     def validate_urns(self, value):
@@ -423,11 +424,11 @@ class ContactWriteSerializer(WriteSerializer):
             self.parsed_urns = []
             for urn in value:
                 try:
-                    normalized = ContactURN.normalize_urn(urn)
+                    normalized = ContactURN.normalize(urn)
                 except ValueError:
                     raise serializers.ValidationError("Unable to parse URN: '%s'" % urn)
 
-                if not ContactURN.validate_urn(normalized):
+                if not ContactURN.validate(normalized):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
 
                 self.parsed_urns.append(normalized)
@@ -1376,7 +1377,7 @@ class FlowRunStartSerializer(WriteSerializer):
             if channel:
                 # check our numbers for validity
                 for urn in value:
-                    tel, phone = ContactURN.parse_urn(urn)
+                    tel, phone = ContactURN.parse(urn)
                     try:
                         normalized = phonenumbers.parse(phone, country)
                         if not phonenumbers.is_possible_number(normalized):
@@ -1494,11 +1495,11 @@ class BroadcastCreateSerializer(WriteSerializer):
 
             for urn in value:
                 try:
-                    normalized = ContactURN.normalize_urn(urn, country)
+                    normalized = ContactURN.normalize(urn, country)
                 except ValueError, e:
                     raise serializers.ValidationError(e.message)
 
-                if not ContactURN.validate_urn(normalized, country):
+                if not ContactURN.validate(normalized, country):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
                 urns.append(normalized)
 
@@ -1588,11 +1589,11 @@ class MsgCreateSerializer(WriteSerializer):
 
             for urn in value:
                 try:
-                    normalized = ContactURN.normalize_urn(urn, country)
+                    normalized = ContactURN.normalize(urn, country)
                 except ValueError, e:
                     raise serializers.ValidationError(e.message)
 
-                if not ContactURN.validate_urn(normalized, country):
+                if not ContactURN.validate(normalized, country):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
                 urns.append(normalized)
 
@@ -1621,7 +1622,7 @@ class MsgCreateSerializer(WriteSerializer):
             country = channel.country
             for urn in phones:
                 try:
-                    tel, phone = ContactURN.parse_urn(urn)
+                    tel, phone = ContactURN.parse(urn)
                     normalized = phonenumbers.parse(phone, country.code)
                     if not phonenumbers.is_possible_number(normalized):
                         raise serializers.ValidationError("Invalid phone number: '%s'" % phone)

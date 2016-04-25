@@ -4500,7 +4500,7 @@ class VariableContactAction(Action):
                     if country:
                         (number, valid) = ContactURN.normalize_number(variable, country)
                         if number and valid:
-                            urn = ContactURN.format_urn(TEL_SCHEME, number)
+                            urn = ContactURN.format(TEL_SCHEME, number)
                             contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[urn])
                             contacts.append(contact)
 
@@ -4768,8 +4768,8 @@ class SaveToContactAction(Action):
                         new_value = new_value[1:]
 
             # only valid urns get added, sorry
-            new_urn = ContactURN.normalize_urn(ContactURN.format_urn(scheme, new_value))
-            if not ContactURN.validate_urn(new_urn, contact.org.get_country_code()):
+            new_urn = ContactURN.normalize(ContactURN.format(scheme, new_value))
+            if not ContactURN.validate(new_urn, contact.org.get_country_code()):
                 new_urn = None
             else:
                 if contact.is_test:

@@ -27,7 +27,7 @@ class OmniboxWidget(forms.TextInput):
         # turn our raw numbers into new contacts with tel URNs for orgs that aren't anonymous
         if not org.is_anon:
             for number in raw_numbers:
-                urn = ContactURN.format_urn(TEL_SCHEME, number)
+                urn = ContactURN.format(TEL_SCHEME, number)
                 contact = Contact.get_or_create(org, user, urns=[urn])
                 urn = contact.urn_objects[urn]
                 urn_ids.append(urn.pk)

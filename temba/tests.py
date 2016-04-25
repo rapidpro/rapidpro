@@ -219,9 +219,9 @@ class TembaTest(SmartminTest):
         """
         urns = []
         if number:
-            urns.append(ContactURN.format_urn(TEL_SCHEME, number))
+            urns.append(ContactURN.format(TEL_SCHEME, number))
         if twitter:
-            urns.append(ContactURN.format_urn(TWITTER_SCHEME, twitter))
+            urns.append(ContactURN.format(TWITTER_SCHEME, twitter))
         if urn:
             urns.append(urn)
 

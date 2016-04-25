@@ -97,7 +97,7 @@ class VerboiceClient:
     def start_call(self, call, to, from_, status_callback):
 
         channel = call.channel
-        Contact.get_or_create(channel.org, channel.created_by, urns=[ContactURN.format_urn(TEL_SCHEME, to)])
+        Contact.get_or_create(channel.org, channel.created_by, urns=[ContactURN.format(TEL_SCHEME, to)])
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
         payload = unicode(Flow.handle_call(call, {}))

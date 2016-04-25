@@ -259,14 +259,14 @@ class ContactForm(forms.ModelForm):
         country = self.org.get_country_code()
 
         def validate_urn(key, scheme, path):
-            normalized = ContactURN.normalize_urn(ContactURN.format_urn(scheme, path), country)
+            normalized = ContactURN.normalize(ContactURN.format(scheme, path), country)
             existing_urn = ContactURN.lookup(self.org, normalized, normalize=False)
 
             if existing_urn and existing_urn.contact and existing_urn.contact != self.instance:
                 self._errors[key] = _("Used by another contact")
                 return False
             # validate but not with country as users are allowed to enter numbers before adding a channel
-            elif not ContactURN.validate_urn(normalized):
+            elif not ContactURN.validate(normalized):
                 self._errors[key] = _("Invalid format")
                 return False
             return True
@@ -992,7 +992,7 @@ class ContactCRUDL(SmartCRUDL):
             for field_key, value in self.form.cleaned_data.iteritems():
                 if field_key.startswith('urn__') and value:
                     scheme = field_key.split('__')[1]
-                    urns.append(ContactURN.format_urn(scheme, value))
+                    urns.append(ContactURN.format(scheme, value))
 
             Contact.get_or_create(obj.org, self.request.user, obj.name, urns)
 
@@ -1053,13 +1053,13 @@ class ContactCRUDL(SmartCRUDL):
                         scheme = parts[1]
 
                         order = int(self.form.data.get('order__' + field_key, "0"))
-                        urns.append((order, ContactURN.format_urn(scheme, value)))
+                        urns.append((order, ContactURN.format(scheme, value)))
 
                 new_scheme = self.form.cleaned_data.get('new_scheme', None)
                 new_path = self.form.cleaned_data.get('new_path', None)
 
                 if new_scheme and new_path:
-                    urns.append((len(urns), ContactURN.format_urn(new_scheme, new_path)))
+                    urns.append((len(urns), ContactURN.format(new_scheme, new_path)))
 
                 # sort our urns by the supplied order
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]

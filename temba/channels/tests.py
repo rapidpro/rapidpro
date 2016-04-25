@@ -75,7 +75,7 @@ class ChannelTest(TembaTest):
         group = ContactGroup.get_or_create(org, user, 'Numbers: %s' % ','.join(numbers))
         contacts = list()
         for number in numbers:
-            contacts.append(Contact.get_or_create(org, user, name=None, urns=[ContactURN.format_urn(TEL_SCHEME, number)]))
+            contacts.append(Contact.get_or_create(org, user, name=None, urns=[ContactURN.format(TEL_SCHEME, number)]))
 
         group.contacts.add(*contacts)
 
@@ -1562,7 +1562,7 @@ class ChannelTest(TembaTest):
                 response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
                 self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
 
-                contact = self.create_contact('Telegram User', urn=ContactURN.format_urn(TELEGRAM_SCHEME, '1234'))
+                contact = self.create_contact('Telegram User', urn=ContactURN.format(TELEGRAM_SCHEME, '1234'))
 
                 # make sure we our telegram channel satisfies as a send channel
                 self.login(self.admin)

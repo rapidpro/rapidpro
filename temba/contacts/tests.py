@@ -2931,67 +2931,67 @@ class ContactURNTest(TembaTest):
         self.assertEqual(urn.path, '1234')
         self.assertEqual(urn.priority, 50)
 
-    def test_parse_urn(self):
-        self.assertEqual(ContactURN.parse_urn('tel:+1234'), ('tel', '+1234'))
-        self.assertEqual(ContactURN.parse_urn('twitter:billy_bob'), ('twitter', 'billy_bob'))
-        self.assertRaises(Exception, ContactURN.parse_urn, 'tel:')
-        self.assertRaises(Exception, ContactURN.parse_urn, ':1234')
-        self.assertRaises(Exception, ContactURN.parse_urn, 'tel:1234:1234')
-        self.assertRaises(Exception, ContactURN.parse_urn, 'xxx:1234')  # no such scheme
+    def test_parse(self):
+        self.assertEqual(ContactURN.parse('tel:+1234'), ('tel', '+1234'))
+        self.assertEqual(ContactURN.parse('twitter:billy_bob'), ('twitter', 'billy_bob'))
+        self.assertRaises(Exception, ContactURN.parse, 'tel:')
+        self.assertRaises(Exception, ContactURN.parse, ':1234')
+        self.assertRaises(Exception, ContactURN.parse, 'tel:1234:1234')
+        self.assertRaises(Exception, ContactURN.parse, 'xxx:1234')  # no such scheme
 
-    def test_format_urn(self):
-        self.assertEqual(ContactURN.format_urn('tel', '+1234'), 'tel:+1234')
+    def test_format(self):
+        self.assertEqual(ContactURN.format('tel', '+1234'), 'tel:+1234')
 
-    def test_normalize_urn(self):
+    def test_normalize(self):
         # valid tel numbers
-        self.assertEqual(ContactURN.normalize_urn("TEL:0788383383", "RW"), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize_urn("tel:+250788383383", "KE"), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize_urn("tel:+250788383383", None), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize_urn("tel:250788383383", None), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize_urn("tel:2.50788383383E+11", None), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize_urn("tel:2.50788383383E+12", None), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize_urn("tel:(917) 992-5253", "US"), "tel:+19179925253")
-        self.assertEqual(ContactURN.normalize_urn("tel:19179925253", None), "tel:+19179925253")
-        self.assertEqual(ContactURN.normalize_urn("tel:+62877747666", None), "tel:+62877747666")
-        self.assertEqual(ContactURN.normalize_urn("tel:62877747666", "ID"), "tel:+62877747666")
-        self.assertEqual(ContactURN.normalize_urn("tel:0877747666", "ID"), "tel:+62877747666")
+        self.assertEqual(ContactURN.normalize("TEL:0788383383", "RW"), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize("tel:+250788383383", "KE"), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize("tel:+250788383383", None), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize("tel:250788383383", None), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize("tel:2.50788383383E+11", None), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize("tel:2.50788383383E+12", None), "tel:+250788383383")
+        self.assertEqual(ContactURN.normalize("tel:(917) 992-5253", "US"), "tel:+19179925253")
+        self.assertEqual(ContactURN.normalize("tel:19179925253", None), "tel:+19179925253")
+        self.assertEqual(ContactURN.normalize("tel:+62877747666", None), "tel:+62877747666")
+        self.assertEqual(ContactURN.normalize("tel:62877747666", "ID"), "tel:+62877747666")
+        self.assertEqual(ContactURN.normalize("tel:0877747666", "ID"), "tel:+62877747666")
 
         # invalid tel numbers
-        self.assertEqual(ContactURN.normalize_urn("tel:12345", "RW"), "tel:12345")
-        self.assertEqual(ContactURN.normalize_urn("tel:0788383383", None), "tel:0788383383")
-        self.assertEqual(ContactURN.normalize_urn("tel:0788383383", "ZZ"), "tel:0788383383")
-        self.assertEqual(ContactURN.normalize_urn("tel:MTN", "RW"), "tel:mtn")
+        self.assertEqual(ContactURN.normalize("tel:12345", "RW"), "tel:12345")
+        self.assertEqual(ContactURN.normalize("tel:0788383383", None), "tel:0788383383")
+        self.assertEqual(ContactURN.normalize("tel:0788383383", "ZZ"), "tel:0788383383")
+        self.assertEqual(ContactURN.normalize("tel:MTN", "RW"), "tel:mtn")
 
         # twitter handles
-        self.assertEqual(ContactURN.normalize_urn("TWITTER:jimmyJO"), "twitter:jimmyjo")
-        self.assertEqual(ContactURN.normalize_urn("twitter: @Billy_bob "), "twitter:billy_bob")
+        self.assertEqual(ContactURN.normalize("TWITTER:jimmyJO"), "twitter:jimmyjo")
+        self.assertEqual(ContactURN.normalize("twitter: @Billy_bob "), "twitter:billy_bob")
 
         # email addresses
-        self.assertEqual(ContactURN.normalize_urn("mailto: nAme@domAIN.cOm "), "mailto:name@domain.com")
+        self.assertEqual(ContactURN.normalize("mailto: nAme@domAIN.cOm "), "mailto:name@domain.com")
 
         # external ids are case sensitive
-        self.assertEqual(ContactURN.normalize_urn("ext: eXterNAL123 "), "ext:eXterNAL123")
+        self.assertEqual(ContactURN.normalize("ext: eXterNAL123 "), "ext:eXterNAL123")
 
-    def test_validate_urn(self):
+    def test_validate(self):
         # valid tel numbers
-        self.assertTrue(ContactURN.validate_urn("tel:0788383383", "RW"))
-        self.assertTrue(ContactURN.validate_urn("tel:+250788383383", "KE"))
-        self.assertTrue(ContactURN.validate_urn("tel:+23761234567", "CM"))  # old Cameroon format
-        self.assertTrue(ContactURN.validate_urn("tel:+237661234567", "CM"))  # new Cameroon format
-        self.assertTrue(ContactURN.validate_urn("tel:+250788383383", None))
-        self.assertTrue(ContactURN.validate_urn("tel:0788383383", None))  # assumed valid because no country
+        self.assertTrue(ContactURN.validate("tel:0788383383", "RW"))
+        self.assertTrue(ContactURN.validate("tel:+250788383383", "KE"))
+        self.assertTrue(ContactURN.validate("tel:+23761234567", "CM"))  # old Cameroon format
+        self.assertTrue(ContactURN.validate("tel:+237661234567", "CM"))  # new Cameroon format
+        self.assertTrue(ContactURN.validate("tel:+250788383383", None))
+        self.assertTrue(ContactURN.validate("tel:0788383383", None))  # assumed valid because no country
 
         # invalid tel numbers
-        self.assertFalse(ContactURN.validate_urn("tel:0788383383", "ZZ"))  # invalid country
-        self.assertFalse(ContactURN.validate_urn("tel:MTN", "RW"))
+        self.assertFalse(ContactURN.validate("tel:0788383383", "ZZ"))  # invalid country
+        self.assertFalse(ContactURN.validate("tel:MTN", "RW"))
 
         # valid twitter handles
-        self.assertTrue(ContactURN.validate_urn("twitter:jimmyjo"))
-        self.assertTrue(ContactURN.validate_urn("twitter:billy_bob"))
+        self.assertTrue(ContactURN.validate("twitter:jimmyjo"))
+        self.assertTrue(ContactURN.validate("twitter:billy_bob"))
 
         # invalid twitter handles
-        self.assertFalse(ContactURN.validate_urn("twitter:jimmyjo!@"))
-        self.assertFalse(ContactURN.validate_urn("twitter:billy bob"))
+        self.assertFalse(ContactURN.validate("twitter:jimmyjo!@"))
+        self.assertFalse(ContactURN.validate("twitter:billy bob"))
 
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
