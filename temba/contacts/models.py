@@ -474,8 +474,6 @@ class Contact(TembaModel):
         # deal with None being passed into urns
         if urns is None:
             urns = ()
-        if urns and (not isinstance(urns[0], basestring) or ":" not in urns[0]):
-            raise ValueError("URNs must be formatted strings with scheme and path")
 
         # get country from channel or org
         if incoming_channel:
@@ -1449,7 +1447,7 @@ class ContactURN(models.Model):
     @classmethod
     def normalize(cls, urn_as_string, country_code=None):
         """
-        Normalizes a URN scheme and path. Should be called anytime looking for a URN match.
+        Normalizes a URN string. Should be called anytime looking for a URN match.
         """
         scheme, path = cls.parse(urn_as_string)
 
