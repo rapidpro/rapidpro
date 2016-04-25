@@ -1442,7 +1442,7 @@ class APITest(TembaTest):
 
         # try to update a contact using an invalid URN
         response = self.postJSON(url, dict(name="Mathers", uuid=contact.uuid, urns=['uh:nope']))
-        self.assertResponseError(response, 'urns', "Unable to parse URN: 'uh:nope'")
+        self.assertResponseError(response, 'urns', "Invalid URN: 'uh:nope'")
 
         with AnonymousOrg(self.org):
             # anon orgs can update contacts by uuid
