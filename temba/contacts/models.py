@@ -9,6 +9,7 @@ import time
 
 from collections import defaultdict
 from django.core.files import File
+from django.core.validators import validate_email
 from django.db import models, connection
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
@@ -648,13 +649,18 @@ class Contact(TembaModel):
                 test_contact = None
 
         if not test_contact:
+            # creates a full URN string from a phone number stored as an integer
+            def make_urn(tel_as_int):
+                return ContactURN.format(TEL_SCHEME, '+%s' % tel_as_int)
+
+            # generate sequential test contact URNs until we find an available one
             test_urn_path = START_TEST_CONTACT_PATH
-            existing_urn = ContactURN.lookup(org, 'tel:+%s' % test_urn_path, normalize=False)
+            existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
             while existing_urn and test_urn_path < END_TEST_CONTACT_PATH:
                 test_urn_path += 1
-                existing_urn = ContactURN.lookup(org, 'tel:+%s' % test_urn_path, normalize=False)
+                existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
 
-            test_contact = Contact.get_or_create(org, user, "Test Contact", ['tel:+%s' % test_urn_path], is_test=True)
+            test_contact = Contact.get_or_create(org, user, "Test Contact", [make_urn(test_urn_path)], is_test=True)
         return test_contact
 
     @classmethod
@@ -1385,9 +1391,6 @@ class ContactURN(models.Model):
         if len(result) != 2 or not result[0] or not result[1]:
             raise ValueError("URN strings must contain a scheme and a path")
 
-        if result[0].lower() not in cls.ALL_SCHEMES:
-            raise ValueError("URN contains unsupported scheme: %s" % result[0])
-
         return result
 
     @classmethod
@@ -1422,7 +1425,6 @@ class ContactURN(models.Model):
             return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
 
         elif scheme == EMAIL_SCHEME:
-            from django.core.validators import validate_email
             try:
                 validate_email(path)
                 return True

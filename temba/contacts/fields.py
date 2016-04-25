@@ -29,8 +29,8 @@ class OmniboxWidget(forms.TextInput):
             for number in raw_numbers:
                 urn = ContactURN.format(TEL_SCHEME, number)
                 contact = Contact.get_or_create(org, user, urns=[urn])
-                urn = contact.urn_objects[urn]
-                urn_ids.append(urn.pk)
+                urn_obj = contact.urn_objects[urn]
+                urn_ids.append(urn_obj.pk)
 
         groups = ContactGroup.user_groups.filter(id__in=group_ids, org=org)
         contacts = Contact.objects.filter(id__in=contact_ids, org=org, is_active=True)

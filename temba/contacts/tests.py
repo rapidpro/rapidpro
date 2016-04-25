@@ -2937,7 +2937,6 @@ class ContactURNTest(TembaTest):
         self.assertRaises(Exception, ContactURN.parse, 'tel:')
         self.assertRaises(Exception, ContactURN.parse, ':1234')
         self.assertRaises(Exception, ContactURN.parse, 'tel:1234:1234')
-        self.assertRaises(Exception, ContactURN.parse, 'xxx:1234')  # no such scheme
 
     def test_format(self):
         self.assertEqual(ContactURN.format('tel', '+1234'), 'tel:+1234')
