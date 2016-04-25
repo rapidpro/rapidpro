@@ -1095,7 +1095,7 @@ class ContactTest(TembaTest):
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
         # create a missed call
-        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_OUT_MISSED)
+        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_CALL_OUT_MISSED)
 
         # fetch our contact history
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
@@ -1802,7 +1802,7 @@ class ContactTest(TembaTest):
         self.assertEquals(Contact.from_urn(self.org, TEL_SCHEME, "12345").name, "Joe X")
 
         # try delete action
-        call = Call.create_call(self.channel, self.frank.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_OUT_MISSED)
+        call = Call.create_call(self.channel, self.frank.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_CALL_OUT_MISSED)
         post_data['action'] = 'delete'
         post_data['objects'] = self.frank.pk
 
