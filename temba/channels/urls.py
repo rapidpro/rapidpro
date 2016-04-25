@@ -6,10 +6,12 @@ from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHa
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, TelegramHandler, ChikkaHandler
 from .handlers import TwilioMessagingServiceHandler, JasminHandler, MbloxHandler, FacebookHandler
-from .views import ChannelCRUDL, ChannelLogCRUDL
+from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
+
+crudl_urls = ChannelCRUDL().as_urlpatterns() + ChannelEventCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns()
 
 urlpatterns = [
-    url(r'^channels/', include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
+    url(r'^channels/', include(crudl_urls)),
 
     url(r'^handlers', include([
         url(r'^/twilio/$', TwilioHandler.as_view(), name='handlers.twilio_handler'),

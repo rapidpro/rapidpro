@@ -6,12 +6,12 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup
-from temba.orgs.models import Org
-from temba.channels.models import Channel
 from temba.flows.models import Flow, FlowRun
-from temba.msgs.models import Msg, Call
 from temba.ivr.models import IVRCall
+from temba.msgs.models import Msg
+from temba.orgs.models import Org
 
 
 class Trigger(SmartModel):
@@ -157,7 +157,7 @@ class Trigger(SmartModel):
         if isinstance(entity, Msg):
             contact = entity.contact
             start_msg = entity
-        elif isinstance(entity, Call) or isinstance(entity, IVRCall):
+        elif isinstance(entity, ChannelEvent) or isinstance(entity, IVRCall):
             contact = entity.contact
             start_msg = Msg(org=entity.org, contact=contact, channel=entity.channel, created_on=timezone.now(), id=0)
         elif isinstance(entity, Contact):

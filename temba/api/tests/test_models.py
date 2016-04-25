@@ -8,9 +8,9 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
-from temba.channels.models import SyncEvent
+from temba.channels.models import ChannelEvent, SyncEvent
 from temba.contacts.models import Contact, TEL_SCHEME
-from temba.msgs.models import Broadcast, Call
+from temba.msgs.models import Broadcast
 from temba.orgs.models import ALL_EVENTS
 from temba.tests import MockResponse, TembaTest
 from urlparse import parse_qs
@@ -43,13 +43,11 @@ class WebHookTest(TembaTest):
     def test_call_deliveries(self):
         self.setupChannel()
         now = timezone.now()
-        call = Call.objects.create(org=self.org,
-                                   channel=self.channel,
-                                   contact=self.joe,
-                                   call_type=Call.TYPE_CALL_IN_MISSED,
-                                   time=now,
-                                   created_by=self.admin,
-                                   modified_by=self.admin)
+        call = ChannelEvent.objects.create(org=self.org,
+                                           channel=self.channel,
+                                           contact=self.joe,
+                                           event_type=ChannelEvent.TYPE_CALL_IN_MISSED,
+                                           time=now)
 
         self.setupChannel()
 

@@ -16,15 +16,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
+from temba.channels.models import Channel, ChannelEvent, SEND
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, ContactURN, TEL_SCHEME
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.channels.models import Channel, SEND
 from temba.utils import analytics
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
-from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
+from .models import Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 
 
 def send_message_auto_complete_processor(request):
@@ -128,7 +128,7 @@ class MsgListView(OrgPermsMixin, SmartListView):
                    dict(count=counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse('msgs.msg_archived')),
                    dict(count=counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse('msgs.msg_outbox')),
                    dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse('msgs.msg_sent')),
-                   dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse('msgs.call_list')),
+                   dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse('channels.channelevent_calls')),
                    dict(count=counts[SystemLabel.TYPE_SCHEDULED], label=_("Schedules"), url=reverse('msgs.broadcast_schedule_list')),
                    dict(count=counts[SystemLabel.TYPE_FAILED], label=_("Failed"), url=reverse('msgs.msg_failed'))]
 
@@ -819,26 +819,3 @@ class LabelCRUDL(SmartCRUDL):
         redirect_url = "@msgs.msg_inbox"
         cancel_url = "@msgs.msg_inbox"
         success_message = ''
-
-
-class CallCRUDL(SmartCRUDL):
-    model = Call
-    actions = ('list',)
-
-    class List(MsgListView):
-        fields = ('call_type', 'contact', 'channel', 'time')
-        default_order = '-time'
-        search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
-        system_label = SystemLabel.TYPE_CALLS
-
-        def get_queryset(self, **kwargs):
-            qs = super(CallCRUDL.List, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').select_related('contact')
-
-        def get_contact(self, obj):
-            return obj.contact.get_display(self.org)
-
-        def get_context_data(self, *args, **kwargs):
-            context = super(CallCRUDL.List, self).get_context_data(*args, **kwargs)
-            context['actions'] = []
-            return context

@@ -418,6 +418,9 @@ PERMISSIONS = {
                          'search_numbers',
                          ),
 
+    'channels.channelevent': ('api',
+                              'calls'),
+
     'flows.flow': ('activity',
                    'activity_list',
                    'analytics',
@@ -467,8 +470,6 @@ PERMISSIONS = {
                        'schedule_read',
                        'send',
                        ),
-
-    'msgs.call': ('api',),
 
     'msgs.label': ('api', 'create', 'create_folder'),
 
@@ -621,6 +622,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_search_nexmo',
         'channels.channel_search_numbers',
         'channels.channel_update',
+        'channels.channelevent.*',
         'channels.channellog_list',
         'channels.channellog_read',
 
@@ -634,7 +636,6 @@ GROUP_PERMISSIONS = {
 
         'msgs.broadcast.*',
         'msgs.broadcastschedule.*',
-        'msgs.call.*',
         'msgs.label.*',
         'msgs.msg_api',
         'msgs.msg_archive',
@@ -739,6 +740,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_read',
         'channels.channel_search_numbers',
         'channels.channel_update',
+        'channels.channelevent.*',
 
         'reports.report.*',
 
@@ -750,7 +752,6 @@ GROUP_PERMISSIONS = {
 
         'msgs.broadcast.*',
         'msgs.broadcastschedule.*',
-        'msgs.call.*',
         'msgs.label.*',
         'msgs.msg_api',
         'msgs.msg_archive',
@@ -796,6 +797,7 @@ GROUP_PERMISSIONS = {
 
         'channels.channel_list',
         'channels.channel_read',
+        'channels.channelevent_calls',
 
         'flows.flow_activity',
         'flows.flow_archived',
@@ -817,7 +819,6 @@ GROUP_PERMISSIONS = {
 
         'msgs.broadcast_schedule_list',
         'msgs.broadcast_schedule_read',
-        'msgs.call_list',
         'msgs.msg_archived',
         'msgs.msg_export',
         'msgs.msg_failed',

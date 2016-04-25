@@ -22,9 +22,10 @@ from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.msgs.models import Broadcast, Call, Msg
+from temba.channels.models import ChannelEvent
+from temba.msgs.models import Broadcast, Msg
 from temba.msgs.views import SendMessageForm
+from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages
 from temba.utils.views import BaseActionForm
@@ -855,11 +856,11 @@ class ContactCRUDL(SmartCRUDL):
                 runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
                 fired = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
 
-                # missed calls
-                calls = Call.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+                # channel events, e.g. missed calls etc
+                events = ChannelEvent.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
 
                 # now chain them all together in the same list and sort by time
-                activity = sorted(chain(text_messages, runs, fired, calls), cmp=activity_cmp, reverse=True)
+                activity = sorted(chain(text_messages, runs, fired, events), cmp=activity_cmp, reverse=True)
 
             context['activity'] = activity
             return context

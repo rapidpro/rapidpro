@@ -1042,9 +1042,9 @@ class Contact(TembaModel):
         for msg in self.msgs.all():
             msg.release()
 
-        # release all calls with this contact
-        for call in self.calls.all():
-            call.release()
+        # release all channel events with this contact
+        for event in self.channel_events.all():
+            event.release()
 
         # remove all flow runs and steps
         for run in self.runs.all():
