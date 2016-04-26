@@ -25,7 +25,7 @@ djangorestframework==3.3.1
 djangorestframework-xml==1.2.0
 -e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django-ttag-dev
 iptools==0.6.1
-requests==1.2.3
+requests==2.9.1
 mock==1.0.1
 selenium==2.31.0
 -e git+http://github.com/nyaruka/django-celery-transactions.git@f7adf7f2d5ce0bcd7992e0d4f3624fb96a7d80b8#egg=django_celery_transactions-master
