@@ -26,7 +26,7 @@ from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
-from . import datetime_to_str
+from . import datetime_to_str, urns
 
 
 class InitTest(TembaTest):
@@ -769,3 +769,36 @@ class TableExporterTest(TembaTest):
 
         self.assertEquals(67000 + 2 - 65536, sheet2.nrows)
         self.assertEquals(32, sheet2.ncols)
+
+
+class URNSTest(TembaTest):
+    def test_to_parts(self):
+        self.assertEqual(urns.to_parts("A-a:Aa0()+,-.:=@;$_!*'"), ("A-a", "Aa0()+,-.:=@;$_!*'"))
+        self.assertEqual(urns.to_parts("tel:12345"), ("tel", "12345"))
+        self.assertEqual(urns.to_parts("tel:+12345"), ("tel", "+12345"))
+        self.assertEqual(urns.to_parts("twitter:abc_123"), ("twitter", "abc_123"))
+        self.assertEqual(urns.to_parts("twilio:12345"), ("twilio", "12345"))
+        self.assertEqual(urns.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com"))
+        self.assertEqual(urns.to_parts("facebook:12345"), ("facebook", "12345"))
+        self.assertEqual(urns.to_parts("telegram:12345"), ("telegram", "12345"))
+        self.assertEqual(urns.to_parts("ext:abc-123"), ("ext", "abc-123"))
+
+        self.assertRaises(ValueError, urns.to_parts, "tel")
+        self.assertRaises(ValueError, urns.to_parts, "tel:")  # missing scheme
+        self.assertRaises(ValueError, urns.to_parts, ":12345")  # missing path
+        self.assertRaises(ValueError, urns.to_parts, "x_y:123")  # invalid scheme
+        self.assertRaises(ValueError, urns.to_parts, "xyz:{abc}")  # invalid path
+
+    def test_from_parts(self):
+        self.assertEqual(urns.from_parts("A-a", "Aa0()+,-.:=@;$_!*'"), "A-a:Aa0()+,-.:=@;$_!*'")
+        self.assertEqual(urns.from_parts("tel", "12345"), "tel:12345")
+        self.assertEqual(urns.from_parts("tel", "+12345"), "tel:+12345")
+        self.assertEqual(urns.from_parts("mailto", "a_b+c@d.com"), "mailto:a_b+c@d.com")
+
+        self.assertEqual(urns.from_tel("+12345"), "tel:+12345")
+        self.assertEqual(urns.from_twitter("abc_123"), "twitter:abc_123")
+        self.assertEqual(urns.from_twilio("12345"), "twilio:12345")
+        self.assertEqual(urns.from_email("a_b+c@d.com"), "mailto:a_b+c@d.com")
+        self.assertEqual(urns.from_facebook("12345"), "facebook:12345")
+        self.assertEqual(urns.from_telegram("12345"), "telegram:12345")
+        self.assertEqual(urns.from_external("abc-123"), "ext:abc-123")
