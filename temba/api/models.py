@@ -293,7 +293,7 @@ class WebHookEvent(SmartModel):
         if not org or not org.get_webhook_url():
             return
 
-        event = call.call_type
+        event = call.event_type
 
         # if the org doesn't care about this type of message, ignore it
         if (event == 'mt_call' and not org.is_notified_of_mt_call()) or \

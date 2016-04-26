@@ -998,7 +998,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
 
         call_types = splitting_getlist(self.request, 'call_type')
         if call_types:
-            queryset = queryset.filter(call_type__in=call_types)
+            queryset = queryset.filter(event_type__in=call_types)
 
         phones = splitting_getlist(self.request, 'phone')
         if phones:

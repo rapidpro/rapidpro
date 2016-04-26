@@ -90,7 +90,7 @@ class WebHookTest(TembaTest):
             self.assertEquals('+250788123123', data['phone'][0])
             self.assertEquals(call.pk, int(data['call'][0]))
             self.assertEquals(0, int(data['duration'][0]))
-            self.assertEquals(call.call_type, data['event'][0])
+            self.assertEquals(call.event_type, data['event'][0])
             self.assertTrue('time' in data)
             self.assertEquals(self.channel.pk, int(data['channel'][0]))
 

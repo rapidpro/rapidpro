@@ -2635,6 +2635,8 @@ class ChannelEvent(models.Model):
                                   help_text=_("The type of event"))
     contact = models.ForeignKey('contacts.Contact', verbose_name=_("Contact"), related_name='channel_events',
                                 help_text=_("The contact associated with this event"))
+    contact_urn = models.ForeignKey('contacts.ContactURN', null=True, verbose_name=_("URN"), related_name='channel_events',
+                                    help_text=_("The contact URN associated with this event"))
     time = models.DateTimeField(verbose_name=_("Time"),
                                 help_text=_("When this event took place"))
     duration = models.IntegerField(default=0, verbose_name=_("Duration"),
@@ -2654,8 +2656,9 @@ class ChannelEvent(models.Model):
         user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)  # TODO lookup by name for latest django-guardian
 
         contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+        contact_urn = contact.urn_objects[urn]
 
-        event = cls.objects.create(org=org, channel=channel, contact=contact,
+        event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
                                    time=date, duration=duration, event_type=event_type)
 
         if event_type in cls.CALL_TYPES:

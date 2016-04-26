@@ -22,24 +22,24 @@
       -for object in object_list
         %tr.select-row{class:'{% cycle row1 row2 %}', onClick:'document.location="{% url "contacts.contact_read" object.contact.uuid %}"'}
           %td.value-phone.field_contact
-            {% get_value object 'contact' %}
-          %td.value-text.field_call_type
-            - if object.call_type == 'mt_call'
+            {% object.contact|short_name:user_org %}
+          %td.value-text.field_event_type
+            - if object.event_type == 'mt_call'
               -blocktrans with duration=object.duration
                 Outgoing Call ({{duration}} seconds)
-            - elif object.call_type == 'mo_call'
+            - elif object.event_type == 'mo_call'
               -blocktrans with duration=object.duration            
                 Incoming Call ({{duration}} seconds)
-            - elif object.call_type == 'mo_miss'
+            - elif object.event_type == 'mo_miss'
               -trans "Missed Incoming Call"
-            - elif object.call_type == 'mt_miss'
+            - elif object.event_type == 'mt_miss'
               -trans "Missed Outgoing Call"
             - else
-              - get_value object 'call_type'
+              - get_value object 'event_type'
           %td.value-icon
-            - if object.call_type == 'mt_call'
+            - if object.event_type == 'mt_call'
               %span.glyph.icon-call-outgoing
-            - elif object.call_type == 'mo_call'
+            - elif object.event_type == 'mo_call'
               %span.glyph.icon-call-incoming
             - else
               %span.glyph.icon-phone

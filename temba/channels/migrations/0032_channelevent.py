@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
+from django.db.models import Prefetch
 from temba.utils import chunk_list
 import django.utils.timezone
 
@@ -20,15 +21,25 @@ WHERE is_active = TRUE AND event_type IN ('mt_call', 'mt_miss', 'mo_call', 'mo_m
 def migrate_from_calls(apps, schema_editor):
     Call = apps.get_model('msgs', 'Call')
     ChannelEvent = apps.get_model('channels', 'ChannelEvent')
+    ContactURN = apps.get_model('contacts', 'ContactURN')
 
     call_ids = list(Call.objects.values_list('pk', flat=True))
     num_created = 0
+    num_without_urn = 0
+
+    urn_prefetch = Prefetch('contact__urns', ContactURN.objects.filter(scheme='tel'))
 
     for call_id_batch in chunk_list(call_ids, 1000):
-        call_batch = list(Call.objects.filter(pk__in=call_id_batch))
+        call_batch = list(Call.objects.filter(pk__in=call_id_batch).prefetch_related(urn_prefetch))
         event_batch = []
 
         for call in call_batch:
+            contact_urns = list(call.contact.urns.all())
+            call_urn = contact_urns[0] if contact_urns else None
+
+            if not call_urn:
+                num_without_urn += 1
+
             event_batch.append(ChannelEvent(event_type=call.call_type,
                                             time=call.time,
                                             duration=call.duration,
@@ -36,11 +47,16 @@ def migrate_from_calls(apps, schema_editor):
                                             is_active=call.is_active,
                                             channel_id=call.channel_id,
                                             contact_id=call.contact_id,
+                                            contact_urn=call_urn,
                                             org_id=call.org_id))
+
         ChannelEvent.objects.bulk_create(event_batch)
         num_created += len(event_batch)
 
-        print("Migrated %d of %d calls to channel events" % (num_created, len(call_ids)))
+        print(" > Migrated %d of %d calls" % (num_created, len(call_ids)))
+
+    if num_created:
+        print("Migrated %d calls to channel events (couldn't find URN for %d)" % (num_created, num_without_urn))
 
 
 class Migration(migrations.Migration):
@@ -63,6 +79,7 @@ class Migration(migrations.Migration):
                 ('is_active', models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting')),
                 ('channel', models.ForeignKey(verbose_name='Channel', to='channels.Channel', help_text='The channel on which this event took place')),
                 ('contact', models.ForeignKey(related_name='channel_events', verbose_name='Contact', to='contacts.Contact', help_text='The contact associated with this event')),
+                ('contact_urn', models.ForeignKey(related_name='channel_events', verbose_name='URN', to='contacts.ContactURN', help_text='The contact URN associated with this event', null=True)),
                 ('org', models.ForeignKey(verbose_name='Org', to='orgs.Org', help_text='The org this event is connected to')),
             ],
         ),
