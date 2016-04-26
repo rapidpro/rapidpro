@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import json
 
 from django.forms import forms
-from .models import Contact, ContactGroup, ContactURN, TEL_SCHEME
+from .models import Contact, ContactGroup, ContactURN, URN
 
 
 class OmniboxWidget(forms.TextInput):
@@ -27,7 +27,7 @@ class OmniboxWidget(forms.TextInput):
         # turn our raw numbers into new contacts with tel URNs for orgs that aren't anonymous
         if not org.is_anon:
             for number in raw_numbers:
-                urn = ContactURN.format(TEL_SCHEME, number)
+                urn = URN.from_tel(number)
                 contact = Contact.get_or_create(org, user, urns=[urn])
                 urn_obj = contact.urn_objects[urn]
                 urn_ids.append(urn_obj.pk)

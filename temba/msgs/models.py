@@ -21,7 +21,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ANDROID, SEND, CALL
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
@@ -1324,7 +1324,7 @@ class Msg(models.Model):
                 contact = recipient.contact
                 contact_urn = recipient
         elif isinstance(recipient, basestring):
-            scheme, path = ContactURN.parse(recipient)
+            scheme, path = URN.to_parts(recipient)
             if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
@@ -1508,7 +1508,7 @@ class Call(SmartModel):  # TODO rename to ChannelEvent and move to channels app
         if not user:
             user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
 
-        contact = Contact.get_or_create(channel.org, user, name=None, urns=[ContactURN.format(TEL_SCHEME, phone)],
+        contact = Contact.get_or_create(channel.org, user, name=None, urns=[URN.from_tel(phone)],
                                         incoming_channel=channel)
 
         call = Call.objects.create(channel=channel,

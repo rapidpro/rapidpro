@@ -57,6 +57,186 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 
+class URN(object):
+    """
+    URN support functions, based on https://tools.ietf.org/html/rfc2141 but with following limitations:
+        * Only supports URNs with scheme and path parts (no netloc, query, params or fragment)
+        * No hex escaping in URN path
+    """
+    SCHEME_REGEX = regex.compile(r"^[A-Za-z0-9][A-Za-z0-9\-]{0,31}$", regex.UNICODE | regex.V0)
+
+    # don't allow the reserved %/?# characters
+    PATH_REGEX = regex.compile(r"^[A-Za-z0-9\(\)\+\,\-\.\:\=\@\;\$\_\!\*\']+$", regex.UNICODE | regex.V0)
+
+    @classmethod
+    def from_parts(cls, scheme, path):
+        """
+        Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
+        """
+        # remove spaces so that it can construct a valid URN from a path like "(917) 992-5253"
+        return '%s:%s' % (scheme, path.replace(' ', ''))
+
+    @classmethod
+    def to_parts(cls, urn):
+        """
+        Parses a URN string (e.g. tel:+250783835665) into a tuple of scheme and path
+        """
+        try:
+            scheme, path = urn.split(':', 1)
+        except:
+            raise ValueError("URN strings must contain scheme and path components")
+
+        if not cls.is_valid_scheme(scheme):
+            raise ValueError("URN contains an invalid scheme component")
+
+        if not cls.is_valid_path(path):
+            raise ValueError("URN contains an invalid path component")
+
+        return scheme, path
+
+    @classmethod
+    def is_valid_scheme(cls, scheme):
+        return scheme and cls.SCHEME_REGEX.match(scheme)
+
+    @classmethod
+    def is_valid_path(cls, path):
+        return path and cls.PATH_REGEX.match(path)
+
+    @classmethod
+    def validate(cls, urn_as_string, country_code=None):
+        """
+        Validates a normalized URN
+        """
+        try:
+            scheme, path = URN.to_parts(urn_as_string)
+        except ValueError:
+            return False
+
+        if scheme == TEL_SCHEME:
+            if country_code:
+                try:
+                    normalized = phonenumbers.parse(path, country_code)
+                    return phonenumbers.is_possible_number(normalized)
+                except Exception:
+                    return False
+
+            return True  # if we don't have a channel with country, we can't for now validate tel numbers
+
+        # validate twitter URNs look like handles
+        elif scheme == TWITTER_SCHEME:
+            return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
+
+        elif scheme == EMAIL_SCHEME:
+            try:
+                validate_email(path)
+                return True
+            except Exception:
+                return False
+
+        # anything goes for external schemes
+        elif scheme == EXTERNAL_SCHEME:
+            return True
+
+        # telegram and facebook uses integer ids
+        elif scheme in [TELEGRAM_SCHEME, FACEBOOK_SCHEME]:
+            try:
+                int(path)
+                return True
+            except Exception:
+                return False
+
+        else:
+            return False  # unrecognized scheme
+
+    @classmethod
+    def normalize(cls, urn_as_string, country_code=None):
+        """
+        Normalizes a URN string. Should be called anytime looking for a URN match.
+        """
+        scheme, path = cls.to_parts(urn_as_string)
+
+        norm_scheme = unicode(scheme).strip().lower()
+        norm_path = unicode(path).strip()
+
+        if norm_scheme == TEL_SCHEME:
+            norm_path, valid = cls.normalize_number(norm_path, country_code)
+        elif norm_scheme == TWITTER_SCHEME:
+            norm_path = norm_path.lower()
+            if norm_path[0:1] == '@':  # strip @ prefix if provided
+                norm_path = norm_path[1:]
+            norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
+        elif norm_scheme == EMAIL_SCHEME:
+            norm_path = norm_path.lower()
+        elif norm_scheme == FACEBOOK_SCHEME:
+            norm_path = norm_path.lower()
+
+        return URN.from_parts(norm_scheme, norm_path)
+
+    @classmethod
+    def normalize_number(cls, number, country_code):
+        """
+        Normalizes the passed in number, they should be only digits, some backends prepend + and
+        maybe crazy users put in dashes or parentheses in the console.
+
+        Returns a tuple of the normalized number and whether it looks like a possible full international
+        number.
+        """
+        # if the number ends with e11, then that is Excel corrupting it, remove it
+        if number.lower().endswith("e+11") or number.lower().endswith("e+12"):
+            number = number[0:-4].replace('.', '')
+
+        # remove other characters
+        number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
+
+        # add on a plus if it looks like it could be a fully qualified number
+        if len(number) >= 11 and number[0] != '+':
+            number = '+' + number
+
+        normalized = None
+        try:
+            normalized = phonenumbers.parse(number, str(country_code) if country_code else None)
+        except Exception:
+            pass
+
+        # now does it look plausible?
+        try:
+            if phonenumbers.is_possible_number(normalized):
+                return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164), True
+        except Exception:
+            pass
+
+        # this must be a local number of some kind, just lowercase and save
+        return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
+
+    @classmethod
+    def from_tel(cls, path):
+        return cls.from_parts(TEL_SCHEME, path)
+
+    @classmethod
+    def from_twitter(cls, path):
+        return cls.from_parts(TWITTER_SCHEME, path)
+
+    @classmethod
+    def from_twilio(cls, path):
+        return cls.from_parts(TWILIO_SCHEME, path)
+
+    @classmethod
+    def from_email(cls, path):
+        return cls.from_parts(EMAIL_SCHEME, path)
+
+    @classmethod
+    def from_facebook(cls, path):
+        return cls.from_parts(FACEBOOK_SCHEME, path)
+
+    @classmethod
+    def from_telegram(cls, path):
+        return cls.from_parts(TELEGRAM_SCHEME, path)
+
+    @classmethod
+    def from_external(cls, path):
+        return cls.from_parts(EXTERNAL_SCHEME, path)
+
+
 class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
@@ -510,7 +690,7 @@ class Contact(TembaModel):
                 contact_urns = set(contact.get_urns().values_list('urn', flat=True))
                 if len(urns) <= len(contact_urns):
                     for urn in urns:
-                        normalized = ContactURN.normalize(urn, country)
+                        normalized = URN.normalize(urn, country)
                         if normalized not in contact_urns:
                             contact_has_all_urns = False
 
@@ -543,7 +723,7 @@ class Contact(TembaModel):
             existing_orphan_urns = dict()
             urns_to_create = dict()
             for urn in urns:
-                normalized = ContactURN.normalize(urn, country)
+                normalized = URN.normalize(urn, country)
                 existing_urn = ContactURN.lookup(org, normalized, normalize=False)
 
                 if existing_urn:
@@ -618,7 +798,7 @@ class Contact(TembaModel):
             # assign them property names with added count
             urns_for_scheme_counts = defaultdict(int)
             for urn in urn_objects.keys():
-                scheme, path = ContactURN.parse(urn)
+                scheme, path = URN.to_parts(urn)
                 urns_for_scheme_counts[scheme] += 1
                 params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
 
@@ -649,7 +829,7 @@ class Contact(TembaModel):
         if not test_contact:
             # creates a full URN string from a phone number stored as an integer
             def make_urn(tel_as_int):
-                return ContactURN.format(TEL_SCHEME, '+%s' % tel_as_int)
+                return URN.from_tel('+%s' % tel_as_int)
 
             # generate sequential test contact URNs until we find an available one
             test_urn_path = START_TEST_CONTACT_PATH
@@ -720,7 +900,7 @@ class Contact(TembaModel):
                     pass
 
                 # only allow valid numbers
-                (normalized, is_valid) = ContactURN.normalize_number(value, country)
+                (normalized, is_valid) = URN.normalize_number(value, country)
 
                 if not is_valid:
                     raise SmartImportRowError("Invalid Phone number %s" % value)
@@ -729,7 +909,7 @@ class Contact(TembaModel):
                 if value == OLD_TEST_CONTACT_TEL:
                     raise SmartImportRowError("Ignored test contact")
 
-            urn = ContactURN.format(urn_scheme, value)
+            urn = URN.from_parts(urn_scheme, value)
             search_contact = Contact.from_urn(org, urn, country)
 
             # if this is an anonymous org, don't allow updating
@@ -1202,7 +1382,7 @@ class Contact(TembaModel):
             priority = ContactURN.PRIORITY_HIGHEST
 
             for urn_as_string in urns:
-                normalized = ContactURN.normalize(urn_as_string, country)
+                normalized = URN.normalize(urn_as_string, country)
                 urn = ContactURN.objects.filter(org=self.org, urn=normalized).first()
                 if not urn:
                     urn = ContactURN.create(self.org, self, normalized, priority=priority)
@@ -1361,7 +1541,7 @@ class ContactURN(models.Model):
 
     @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None):
-        scheme, path = cls.parse(urn_as_string)
+        scheme, path = URN.to_parts(urn_as_string)
 
         if not priority:
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
@@ -1375,134 +1555,9 @@ class ContactURN(models.Model):
         Looks up an existing URN by a formatted URN string, e.g. "tel:+250234562222"
         """
         if normalize:
-            urn_as_string = cls.normalize(urn_as_string, country_code)
+            urn_as_string = URN.normalize(urn_as_string, country_code)
 
         return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
-
-    @classmethod
-    def parse(cls, urn_as_string):
-        """
-        Splits a formatted URN string into scheme and path
-        """
-        result = tuple(urn_as_string.split(':'))
-
-        if len(result) != 2 or not result[0] or not result[1]:
-            raise ValueError("URN strings must contain a scheme and a path")
-
-        return result
-
-    @classmethod
-    def format(cls, scheme, path):
-        """
-        Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
-        """
-        return '%s:%s' % (scheme, path)
-
-    @classmethod
-    def validate(cls, urn_as_string, country_code=None):
-        """
-        Validates a URN scheme and path. Assumes both are normalized.
-        """
-        try:
-            scheme, path = cls.parse(urn_as_string)
-        except ValueError:
-            return False
-
-        if scheme == TEL_SCHEME:
-            if country_code:
-                try:
-                    normalized = phonenumbers.parse(path, country_code)
-                    return phonenumbers.is_possible_number(normalized)
-                except Exception:
-                    return False
-
-            return True  # if we don't have a channel with country, we can't for now validate tel numbers
-
-        # validate twitter URNs look like handles
-        elif scheme == TWITTER_SCHEME:
-            return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
-
-        elif scheme == EMAIL_SCHEME:
-            try:
-                validate_email(path)
-                return True
-            except Exception:
-                return False
-
-        # anything goes for external schemes
-        elif scheme == EXTERNAL_SCHEME:
-            return True
-
-        # telegram and facebook uses integer ids
-        elif scheme in [TELEGRAM_SCHEME, FACEBOOK_SCHEME]:
-            try:
-                int(path)
-                return True
-            except Exception:
-                return False
-
-        else:
-            return False  # unrecognized scheme
-
-    @classmethod
-    def normalize(cls, urn_as_string, country_code=None):
-        """
-        Normalizes a URN string. Should be called anytime looking for a URN match.
-        """
-        scheme, path = cls.parse(urn_as_string)
-
-        norm_scheme = unicode(scheme).strip().lower()
-        norm_path = unicode(path).strip()
-
-        if norm_scheme == TEL_SCHEME:
-            norm_path, valid = cls.normalize_number(norm_path, country_code)
-        elif norm_scheme == TWITTER_SCHEME:
-            norm_path = norm_path.lower()
-            if norm_path[0:1] == '@':  # strip @ prefix if provided
-                norm_path = norm_path[1:]
-            norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
-        elif norm_scheme == EMAIL_SCHEME:
-            norm_path = norm_path.lower()
-        elif norm_scheme == FACEBOOK_SCHEME:
-            norm_path = norm_path.lower()
-
-        return cls.format(norm_scheme, norm_path)
-
-    @classmethod
-    def normalize_number(cls, number, country_code):
-        """
-        Normalizes the passed in number, they should be only digits, some backends prepend + and
-        maybe crazy users put in dashes or parentheses in the console.
-
-        Returns a tuple of the normalizes number and whether it looks like a possible full international
-        number.
-        """
-        # if the number ends with e11, then that is Excel corrupting it, remove it
-        if number.lower().endswith("e+11") or number.lower().endswith("e+12"):
-            number = number[0:-4].replace('.', '')
-
-        # remove other characters
-        number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
-
-        # add on a plus if it looks like it could be a fully qualified number
-        if len(number) >= 11 and number[0] != '+':
-            number = '+' + number
-
-        normalized = None
-        try:
-            normalized = phonenumbers.parse(number, str(country_code) if country_code else None)
-        except Exception:
-            pass
-
-        # now does it look plausible?
-        try:
-            if phonenumbers.is_possible_number(normalized):
-                return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164), True
-        except Exception:
-            pass
-
-        # this must be a local number of some kind, just lowercase and save
-        return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
 
     def ensure_number_normalization(self, country_code):
         """
@@ -1512,10 +1567,10 @@ class ContactURN(models.Model):
         number = self.path
 
         if number and not number[0] == '+' and country_code:
-            (norm_number, valid) = ContactURN.normalize_number(number, country_code)
+            (norm_number, valid) = URN.normalize_number(number, country_code)
 
             # don't trounce existing contacts with that country code already
-            norm_urn = ContactURN.format(TEL_SCHEME, norm_number)
+            norm_urn = URN.from_tel(norm_number)
             if not ContactURN.objects.filter(urn=norm_urn, org_id=self.org_id).exclude(id=self.id):
                 self.urn = norm_urn
                 self.path = norm_number
