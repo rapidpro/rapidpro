@@ -28,7 +28,7 @@ from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
 from temba.contacts.models import ContactURN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING
-from temba.msgs.views import MsgListView
+from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
@@ -2288,7 +2288,7 @@ class ChannelEventCRUDL(SmartCRUDL):
     model = ChannelEvent
     actions = ('calls',)
 
-    class Calls(MsgListView):
+    class Calls(InboxView):
         title = _("Calls")
         fields = ('event_type', 'contact', 'channel', 'time')
         default_order = '-time'

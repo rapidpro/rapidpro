@@ -1,5 +1,5 @@
 -extends "msgs/message_box.html"
--load smartmin
+-load smartmin contacts
 -load i18n
 
 -block title-icon
@@ -22,7 +22,7 @@
       -for object in object_list
         %tr.select-row{class:'{% cycle row1 row2 %}', onClick:'document.location="{% url "contacts.contact_read" object.contact.uuid %}"'}
           %td.value-phone.field_contact
-            {% object.contact|short_name:user_org %}
+            {{ object.contact|short_name:user_org }}
           %td.value-text.field_event_type
             - if object.event_type == 'mt_call'
               -blocktrans with duration=object.duration
