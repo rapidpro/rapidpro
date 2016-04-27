@@ -311,6 +311,13 @@ class MsgTest(TembaTest):
         broadcast.refresh_from_db()
         self.assertEquals(1, broadcast.recipient_count)
 
+        # send it
+        broadcast.send()
+
+        # assert that recipient is set
+        self.assertEqual(broadcast.recipients.all().count(), 1)
+        self.assertEqual(broadcast.recipients.all()[0], self.joe.urns.all().first())
+
     def test_outbox(self):
         self.login(self.admin)
 
@@ -832,6 +839,24 @@ class BroadcastTest(TembaTest):
         # a Twitter channel
         self.twitter = Channel.create(self.org, self.user, None, 'TT')
 
+    def test_broadcast_batch(self):
+        broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin])
+        self.assertEquals(3, broadcast.recipient_count)
+
+        # change our broadcast size to 2
+        import temba.msgs.models as msgs_models
+        orig_batch_size = msgs_models.BATCH_SIZE
+
+        try:
+            # downsize our batches and send it (this tests other code paths)
+            msgs_models.BATCH_SIZE = 2
+            broadcast.send()
+
+            self.assertEquals(broadcast.get_message_count(), 3)
+            self.assertEqual(broadcast.recipients.all().count(), 3)
+        finally:
+            msgs_models.BATCH_SIZE = orig_batch_size
+
     def test_broadcast_model(self):
 
         def assertBroadcastStatus(sms, new_sms_status, broadcast_status):
@@ -844,9 +869,13 @@ class BroadcastTest(TembaTest):
         self.assertEquals('I', broadcast.status)
         self.assertEquals(4, broadcast.recipient_count)
 
+        # no recipients created yet, done when we send
+        self.assertEquals(0, broadcast.recipients.all().count())
+
         broadcast.send(trigger_send=False)
         self.assertEquals('Q', broadcast.status)
         self.assertEquals(broadcast.get_message_count(), 4)
+        self.assertEqual(broadcast.recipients.all().count(), 4)
 
         bcast_commands = broadcast.get_sync_commands(self.channel)
         self.assertEquals(1, len(bcast_commands))
