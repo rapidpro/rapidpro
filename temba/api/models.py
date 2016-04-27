@@ -296,10 +296,10 @@ class WebHookEvent(SmartModel):
         event = call.event_type
 
         # if the org doesn't care about this type of message, ignore it
-        if (event == 'mt_call' and not org.is_notified_of_mt_call()) or \
-           (event == 'mt_miss' and not org.is_notified_of_mt_call()) or \
-           (event == 'mo_call' and not org.is_notified_of_mo_call()) or \
-           (event == 'mo_miss' and not org.is_notified_of_mo_call()):
+        if (event == ChannelEvent.TYPE_CALL_OUT and not org.is_notified_of_mt_call()) or \
+           (event == ChannelEvent.TYPE_CALL_OUT_MISSED and not org.is_notified_of_mt_call()) or \
+           (event == ChannelEvent.TYPE_CALL_IN and not org.is_notified_of_mo_call()) or \
+           (event == ChannelEvent.TYPE_CALL_IN_MISSED and not org.is_notified_of_mo_call()):
             return
 
         api_user = get_api_user()
