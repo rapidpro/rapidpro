@@ -1479,7 +1479,7 @@ class APITest(TembaTest):
 
         # try to update the contact with and un-parseable urn
         response = self.postJSON(url, dict(name='Dr Dre', urns=['tel250788123456']))
-        self.assertResponseError(response, 'urns', "Unable to parse URN: 'tel250788123456'")
+        self.assertResponseError(response, 'urns', "Invalid URN: 'tel250788123456'")
 
         # try to post a new group with a blank name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["  "]))
