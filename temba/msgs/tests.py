@@ -310,6 +310,13 @@ class MsgTest(TembaTest):
         broadcast.refresh_from_db()
         self.assertEquals(1, broadcast.recipient_count)
 
+        # send it
+        broadcast.send()
+
+        # assert that recipient is set
+        self.assertEqual(broadcast.recipients.all().count(), 1)
+        self.assertEqual(broadcast.recipients.all()[0], self.joe.urns.all().first())
+
     def test_outbox(self):
         self.login(self.admin)
 
@@ -843,9 +850,13 @@ class BroadcastTest(TembaTest):
         self.assertEquals('I', broadcast.status)
         self.assertEquals(4, broadcast.recipient_count)
 
+        # no recipients created yet, done when we send
+        self.assertEquals(0, broadcast.recipients.all().count())
+
         broadcast.send(trigger_send=False)
         self.assertEquals('Q', broadcast.status)
         self.assertEquals(broadcast.get_message_count(), 4)
+        self.assertEqual(broadcast.recipients.all().count(), 4)
 
         bcast_commands = broadcast.get_sync_commands(self.channel)
         self.assertEquals(1, len(bcast_commands))
