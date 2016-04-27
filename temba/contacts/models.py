@@ -68,6 +68,9 @@ class URN(object):
     """
     VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
 
+    def __init__(self):  # pragma: no cover
+        raise ValueError("Class shouldn't be instantiated")
+
     @classmethod
     def from_parts(cls, scheme, path):
         """
