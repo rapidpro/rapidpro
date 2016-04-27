@@ -838,6 +838,24 @@ class BroadcastTest(TembaTest):
         # a Twitter channel
         self.twitter = Channel.create(self.org, self.user, None, 'TT')
 
+    def test_broadcast_batch(self):
+        broadcast = Broadcast.create(self.org, self.user, "Like a tweet", [self.joe_and_frank, self.kevin])
+        self.assertEquals(3, broadcast.recipient_count)
+
+        # change our broadcast size to 2
+        import temba.msgs.models as msgs_models
+        orig_batch_size = msgs_models.BATCH_SIZE
+
+        try:
+            # downsize our batches and send it (this tests other code paths)
+            msgs_models.BATCH_SIZE = 2
+            broadcast.send()
+
+            self.assertEquals(broadcast.get_message_count(), 3)
+            self.assertEqual(broadcast.recipients.all().count(), 3)
+        finally:
+            msgs_models.BATCH_SIZE = orig_batch_size
+
     def test_broadcast_model(self):
 
         def assertBroadcastStatus(sms, new_sms_status, broadcast_status):
