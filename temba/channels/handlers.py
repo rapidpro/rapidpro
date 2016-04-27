@@ -26,6 +26,7 @@ from temba.triggers.models import Trigger
 from temba.utils import json_date_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
+from .tasks import fb_channel_subscribe
 from twilio import twiml
 
 
@@ -1673,6 +1674,9 @@ class FacebookHandler(View):
         if request.GET.get('hub.mode') == 'subscribe':
             # verify the token against our secret, if the same return the challenge FB sent us
             if channel.secret == request.GET.get('hub.verify_token'):
+                # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to this webhook result
+                fb_channel_subscribe.apply_async([channel.id], delay=5)
+
                 return HttpResponse(request.GET.get('hub.challenge'))
 
         return JsonResponse(dict(error="Unknown request"), status=400)

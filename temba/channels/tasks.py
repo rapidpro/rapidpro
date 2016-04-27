@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import requests
+
 from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
@@ -10,7 +12,7 @@ from temba.msgs.models import SEND_MSG_TASK
 from temba.utils import dict_to_struct
 from temba.utils.queues import pop_task
 from temba.utils.mage import MageClient
-from .models import Channel, Alert, ChannelLog, ChannelCount
+from .models import Channel, Alert, ChannelLog, ChannelCount, AUTH_TOKEN
 
 
 class MageStreamAction(Enum):
@@ -102,3 +104,18 @@ def squash_channelcounts():
     if not r.get(key):
         with r.lock(key, timeout=900):
             ChannelCount.squash_counts()
+
+
+@task(track_started=True, name="fb_channel_subscribe")
+def fb_channel_subscribe(channel_id):
+    channel = Channel.objects.filter(id=channel_id, is_active=True).first()
+
+    if channel:
+        page_access_token = channel.config_json()[AUTH_TOKEN]
+
+        # subscribe to messaging events for this channel
+        response = requests.post('https://graph.facebook.com/v2.6/me/subscribed_apps',
+                                 params=dict(access_token=page_access_token))
+
+        if response.status_code != 200 or not response.json()['success']:
+            print "Unable to subscribe for delivery of events: %s" % response.content

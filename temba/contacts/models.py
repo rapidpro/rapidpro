@@ -8,6 +8,7 @@ import regex
 import time
 
 from collections import defaultdict
+from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.validators import validate_email
 from django.db import models, connection
@@ -59,8 +60,9 @@ IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 class URN(object):
     """
-    URN support functions. We differ from the strict definition of a URN (https://tools.ietf.org/html/rfc2141) in that:
-        * Only supports URNs with scheme and path parts (no netloc, query, params or fragment)
+    Support class for URN strings. We differ from the strict definition of a URN (https://tools.ietf.org/html/rfc2141)
+    in that:
+        * We only supports URNs with scheme and path parts (no netloc, query, params or fragment)
         * Path component can be any non-blank unicode string
         * No hex escaping in URN path
     """
@@ -71,7 +73,12 @@ class URN(object):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
-        # remove spaces so that it can construct a valid URN from a path like "(917) 992-5253"
+        if not scheme or scheme not in cls.VALID_SCHEMES:
+            raise ValueError("Invalid scheme component: '%s'" % scheme)
+
+        if not path:
+            raise ValueError("Invalid path component: '%s'" % path)
+
         return '%s:%s' % (scheme, path)
 
     @classmethod
@@ -85,10 +92,10 @@ class URN(object):
             raise ValueError("URN strings must contain scheme and path components")
 
         if not scheme or scheme not in cls.VALID_SCHEMES:
-            raise ValueError("URN contains an invalid scheme component")
+            raise ValueError("URN contains an invalid scheme component: '%s'" % scheme)
 
         if not path:
-            raise ValueError("URN contains an invalid path component")
+            raise ValueError("URN contains an invalid path component: '%s'" % path)
 
         return scheme, path
 
@@ -98,7 +105,7 @@ class URN(object):
         Validates a normalized URN
         """
         try:
-            scheme, path = URN.to_parts(urn)
+            scheme, path = cls.to_parts(urn)
         except ValueError:
             return False
 
@@ -120,7 +127,7 @@ class URN(object):
             try:
                 validate_email(path)
                 return True
-            except Exception:
+            except ValidationError:
                 return False
 
         # telegram and facebook uses integer ids
@@ -128,7 +135,7 @@ class URN(object):
             try:
                 int(path)
                 return True
-            except Exception:
+            except ValueError:
                 return False
 
         # anything goes for external schemes
@@ -152,10 +159,8 @@ class URN(object):
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
         elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
-        elif scheme == FACEBOOK_SCHEME:
-            norm_path = norm_path.lower()
 
-        return URN.from_parts(scheme, norm_path)
+        return cls.from_parts(scheme, norm_path)
 
     @classmethod
     def normalize_number(cls, number, country_code):
@@ -192,6 +197,8 @@ class URN(object):
 
         # this must be a local number of some kind, just lowercase and save
         return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
+
+    # ==================== shortcut constructors ===========================
 
     @classmethod
     def from_tel(cls, path):

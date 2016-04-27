@@ -6,11 +6,11 @@ import time
 from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
-from temba.channels.models import ChannelEvent, CALL, ANSWER
+from temba.channels.models import Channel, ChannelEvent, CALL, ANSWER, TWITTER
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import Flow, ActionSet, FlowRun
-from temba.msgs.models import Msg, INCOMING
 from temba.orgs.models import Language
+from temba.msgs.models import Msg, INCOMING
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest
 from .models import Trigger
@@ -830,3 +830,30 @@ class TriggerTest(TembaTest):
 
         # incoming4 should not be handled
         self.assertFalse(Trigger.find_and_handle(incoming4))
+
+    def test_export_import(self):
+        # tweak our current channel to be twitter so we can create a channel-based trigger
+        Channel.objects.filter(id=self.channel.id).update(channel_type=TWITTER)
+        flow = self.create_flow()
+
+        group = self.create_group("Trigger Group", [])
+
+        # create a trigger on this flow for the follow actions but only on some groups
+        trigger = Trigger.objects.create(org=self.org, flow=flow, trigger_type=Trigger.TYPE_FOLLOW, channel=self.channel,
+                                         created_by=self.admin, modified_by=self.admin)
+        trigger.groups.add(group)
+
+        # export everything
+        export = Flow.export_definitions([flow])
+
+        # remove our trigger
+        Trigger.objects.all().delete()
+
+        # and reimport them.. trigger should be recreated
+        self.org.import_app(export, self.admin)
+
+        trigger = Trigger.objects.get()
+        self.assertEqual(trigger.trigger_type, Trigger.TYPE_FOLLOW)
+        self.assertEqual(trigger.flow, flow)
+        self.assertEqual(trigger.channel, self.channel)
+        self.assertEqual(list(trigger.groups.all()), [group])
