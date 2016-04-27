@@ -425,10 +425,9 @@ class ContactWriteSerializer(WriteSerializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn)
+                    if not URN.validate(normalized):
+                        raise ValueError()
                 except ValueError:
-                    raise serializers.ValidationError("Unable to parse URN: '%s'" % urn)
-
-                if not URN.validate(normalized):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
 
                 self.parsed_urns.append(normalized)

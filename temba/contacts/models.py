@@ -59,14 +59,12 @@ IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
 class URN(object):
     """
-    URN support functions, based on https://tools.ietf.org/html/rfc2141 but with following limitations:
+    URN support functions. We differ from the strict definition of a URN (https://tools.ietf.org/html/rfc2141) in that:
         * Only supports URNs with scheme and path parts (no netloc, query, params or fragment)
+        * Path component can be any non-blank unicode string
         * No hex escaping in URN path
     """
-    SCHEME_REGEX = regex.compile(r"^[A-Za-z0-9][A-Za-z0-9\-]{0,31}$", regex.UNICODE | regex.V0)
-
-    # don't allow the reserved %/?# characters
-    PATH_REGEX = regex.compile(r"^[A-Za-z0-9\(\)\+\,\-\.\:\=\@\;\$\_\!\*\']+$", regex.UNICODE | regex.V0)
+    VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
 
     @classmethod
     def from_parts(cls, scheme, path):
@@ -74,7 +72,7 @@ class URN(object):
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
         # remove spaces so that it can construct a valid URN from a path like "(917) 992-5253"
-        return '%s:%s' % (scheme, path.replace(' ', ''))
+        return '%s:%s' % (scheme, path)
 
     @classmethod
     def to_parts(cls, urn):
@@ -86,29 +84,21 @@ class URN(object):
         except:
             raise ValueError("URN strings must contain scheme and path components")
 
-        if not cls.is_valid_scheme(scheme):
+        if not scheme or scheme not in cls.VALID_SCHEMES:
             raise ValueError("URN contains an invalid scheme component")
 
-        if not cls.is_valid_path(path):
+        if not path:
             raise ValueError("URN contains an invalid path component")
 
         return scheme, path
 
     @classmethod
-    def is_valid_scheme(cls, scheme):
-        return scheme and cls.SCHEME_REGEX.match(scheme)
-
-    @classmethod
-    def is_valid_path(cls, path):
-        return path and cls.PATH_REGEX.match(path)
-
-    @classmethod
-    def validate(cls, urn_as_string, country_code=None):
+    def validate(cls, urn, country_code=None):
         """
         Validates a normalized URN
         """
         try:
-            scheme, path = URN.to_parts(urn_as_string)
+            scheme, path = URN.to_parts(urn)
         except ValueError:
             return False
 
@@ -133,44 +123,39 @@ class URN(object):
             except Exception:
                 return False
 
-        # anything goes for external schemes
-        elif scheme == EXTERNAL_SCHEME:
-            return True
-
         # telegram and facebook uses integer ids
-        elif scheme in [TELEGRAM_SCHEME, FACEBOOK_SCHEME]:
+        elif scheme in (TELEGRAM_SCHEME, FACEBOOK_SCHEME):
             try:
                 int(path)
                 return True
             except Exception:
                 return False
 
-        else:
-            return False  # unrecognized scheme
+        # anything goes for external schemes
+        return True
 
     @classmethod
-    def normalize(cls, urn_as_string, country_code=None):
+    def normalize(cls, urn, country_code=None):
         """
-        Normalizes a URN string. Should be called anytime looking for a URN match.
+        Normalizes the path of a URN string. Should be called anytime looking for a URN match.
         """
-        scheme, path = cls.to_parts(urn_as_string)
+        scheme, path = cls.to_parts(urn)
 
-        norm_scheme = unicode(scheme).strip().lower()
         norm_path = unicode(path).strip()
 
-        if norm_scheme == TEL_SCHEME:
+        if scheme == TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
-        elif norm_scheme == TWITTER_SCHEME:
+        elif scheme == TWITTER_SCHEME:
             norm_path = norm_path.lower()
             if norm_path[0:1] == '@':  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
-        elif norm_scheme == EMAIL_SCHEME:
+        elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
-        elif norm_scheme == FACEBOOK_SCHEME:
+        elif scheme == FACEBOOK_SCHEME:
             norm_path = norm_path.lower()
 
-        return URN.from_parts(norm_scheme, norm_path)
+        return URN.from_parts(scheme, norm_path)
 
     @classmethod
     def normalize_number(cls, number, country_code):
@@ -215,10 +200,6 @@ class URN(object):
     @classmethod
     def from_twitter(cls, path):
         return cls.from_parts(TWITTER_SCHEME, path)
-
-    @classmethod
-    def from_twilio(cls, path):
-        return cls.from_parts(TWILIO_SCHEME, path)
 
     @classmethod
     def from_email(cls, path):
@@ -1492,9 +1473,6 @@ class ContactURN(models.Model):
     """
     # schemes that we actually support
     SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-
-    ALL_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
-
     CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
     CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
     IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
