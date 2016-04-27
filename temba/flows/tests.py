@@ -18,8 +18,7 @@ from django.utils import timezone
 from mock import patch
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, TWITTER_SCHEME
-from temba.contacts.models import URN_SCHEMES
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING, Call
@@ -2362,7 +2361,7 @@ class ActionTest(TembaTest):
 
         # throw exception for other reserved words except name and first_name
         for word in Contact.RESERVED_FIELDS:
-            if word not in ['name', 'first_name'] + URN_SCHEMES:
+            if word not in ['name', 'first_name'] + list(URN.VALID_SCHEMES):
                 with self.assertRaises(Exception):
                     test = SaveToContactAction.from_json(self.org, dict(type='save', label=word, value='', field=word))
                     test.value = "Jen"
@@ -2400,11 +2399,11 @@ class ActionTest(TembaTest):
         test = SaveToContactAction.from_json(self.org, dict(type='save', label='Phone Number', field='tel_e164', value='@step'))
 
         # make sure they have a twitter urn first
-        contact.urns.add(ContactURN.get_or_create(self.org, TWITTER_SCHEME, 'enewcomer'))
+        contact.urns.add(ContactURN.create(self.org, None, 'twitter:enewcomer'))
         self.assertIsNotNone(contact.urns.filter(path='enewcomer').first())
 
         # add another phone number to make sure it doesn't get removed too
-        contact.urns.add(ContactURN.get_or_create(self.org, TEL_SCHEME, '+18005551212'))
+        contact.urns.add(ContactURN.create(self.org, None, 'tel:+18005551212'))
         self.assertEquals(3, contact.urns.all().count())
 
         # create an inbound message on our original phone number
@@ -2479,7 +2478,7 @@ class ActionTest(TembaTest):
         self.flow.update(self.create_flow_definition())
         self.flow.start([], [self.contact])
 
-        sms = Msg.create_incoming(self.channel, ('tel', '+250788382382'), "Blue is my favorite")
+        sms = Msg.create_incoming(self.channel, "tel:+250788382382", "Blue is my favorite")
 
         run = FlowRun.objects.get()
 
@@ -3821,7 +3820,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("What is her phone number?", self.send_message(registration_flow, "31.1.2014"))
         self.assertEquals("Great, you've registered the new mother!", self.send_message(registration_flow, "0788 383 383"))
 
-        mother = Contact.from_urn(self.org, TEL_SCHEME, "+250788383383")
+        mother = Contact.from_urn(self.org, "tel:+250788383383")
         self.assertEquals("Judy Pottier", mother.name)
         self.assertTrue(mother.get_field_raw('expected_delivery_date').startswith('31-01-2014'))
         self.assertEquals("+12065552020", mother.get_field_raw('chw'))

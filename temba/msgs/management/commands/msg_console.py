@@ -5,7 +5,7 @@ import cmd
 from colorama import init as colorama_init, Fore, Style
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
-from temba.contacts.models import Contact, ContactURN, TEL_SCHEME
+from temba.contacts.models import Contact, URN
 from temba.orgs.models import Org
 from temba.msgs.models import Msg, OUTGOING
 
@@ -60,11 +60,8 @@ class MessageConsole(cmd.Cmd):
         self.prompt = ("\n" + Fore.CYAN + "[%s] " + Fore.WHITE) % self.contact
 
     def get_or_create_contact(self, urn):
-        if ':' in urn:
-            parsed = ContactURN.parse_urn(urn)
-            urn = (parsed.scheme, parsed.path)
-        else:
-            urn = (TEL_SCHEME, urn)  # assume phone number
+        if ':' not in urn:
+            urn = URN.from_tel(urn)  # assume phone number
 
         return Contact.get_or_create(self.org, self.user, name=None, urns=[urn])
 
@@ -112,7 +109,8 @@ class MessageConsole(cmd.Cmd):
         """
         urn = self.contact.get_urn()
 
-        incoming = Msg.create_incoming(None, (urn.scheme, urn.path), line, date=timezone.now(), org=self.org)
+        incoming = Msg.create_incoming(None, URN.from_parts(urn.scheme, urn.path),
+                                       line, date=timezone.now(), org=self.org)
 
         self.echo((Fore.GREEN + "[%s] " + Fore.YELLOW + ">>" + Fore.MAGENTA + " %s" + Fore.WHITE) % (urn.urn, incoming.text))
 

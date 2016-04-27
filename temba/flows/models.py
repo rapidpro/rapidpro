@@ -27,8 +27,7 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
-from temba.contacts.models import URN_CONTEXT_KEYS_TO_SCHEME, URN_CONTEXT_KEYS_TO_LABEL
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -462,7 +461,7 @@ class Flow(TembaModel):
             if media_url and ':' in media_url:
                 text = media_url.partition(':')[2]
 
-            msg = Msg.create_incoming(call.channel, (call.contact_urn.scheme, call.contact_urn.path),
+            msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
                                       text, status=HANDLED, msg_type=IVR, media=media_url)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
@@ -4499,9 +4498,9 @@ class VariableContactAction(Action):
                 else:
                     country = run.flow.org.get_country_code()
                     if country:
-                        (number, valid) = ContactURN.normalize_number(variable, country)
+                        (number, valid) = URN.normalize_number(variable, country)
                         if number and valid:
-                            contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[(TEL_SCHEME, number)])
+                            contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[URN.from_tel(number)])
                             contacts.append(contact)
 
         return groups, contacts
@@ -4696,8 +4695,8 @@ class SaveToContactAction(Action):
             label = 'First Name'
         elif field == 'tel_e164':
             label = 'Phone Number'
-        elif field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
-            label = unicode(URN_CONTEXT_KEYS_TO_LABEL[field])
+        elif field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
+            label = unicode(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
         else:
             contact_field = ContactField.objects.filter(org=org, key=field).first()
             if contact_field:
@@ -4755,11 +4754,11 @@ class SaveToContactAction(Action):
             contact.save(update_fields=('name', 'modified_by', 'modified_on'))
             self.logger(run, new_value)
 
-        elif self.field in URN_CONTEXT_KEYS_TO_SCHEME.keys():
+        elif self.field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
             new_value = value[:128]
 
             # add in our new urn number
-            scheme = URN_CONTEXT_KEYS_TO_SCHEME[self.field]
+            scheme = ContactURN.CONTEXT_KEYS_TO_SCHEME[self.field]
 
             # trim off '@' for twitter handles
             if self.field == 'twitter':
@@ -4768,16 +4767,15 @@ class SaveToContactAction(Action):
                         new_value = new_value[1:]
 
             # only valid urns get added, sorry
-            from temba.contacts.models import ContactURN
-            new_urn = None
-            if ContactURN.validate_urn(scheme, new_value, contact.org.get_country_code()):
-                new_urn = (scheme, new_value)
+            new_urn = URN.normalize(URN.from_parts(scheme, new_value))
+            if not URN.validate(new_urn, contact.org.get_country_code()):
+                new_urn = None
             else:
                 if contact.is_test:
                     ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
 
             if new_urn:
-                urns = [(urn.scheme, urn.path) for urn in contact.urns.all()]
+                urns = [urn.urn for urn in contact.urns.all()]
                 urns += [new_urn]
 
                 if not contact.is_test:

@@ -572,7 +572,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(catch_all_trigger)
 
-        Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(1, Msg.all_messages.all().count())
         self.assertEquals(0, flow.runs.all().count())
 
@@ -593,7 +593,7 @@ class TriggerTest(TembaTest):
 
         self.assertEquals(catch_all_trigger.pk, trigger.pk)
 
-        incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(1, flow.runs.all().count())
         self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.all_messages.get(response_to=incoming)
@@ -662,7 +662,7 @@ class TriggerTest(TembaTest):
         FlowRun.objects.all().delete()
         Msg.all_messages.all().delete()
 
-        incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(0, FlowRun.objects.all().count())
         self.assertFalse(Msg.all_messages.filter(response_to=incoming))
 
@@ -670,7 +670,7 @@ class TriggerTest(TembaTest):
         group.contacts.add(contact)
 
         # this time should trigger the flow
-        incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(1, FlowRun.objects.all().count())
         self.assertEquals(other_flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.all_messages.get(response_to=incoming)

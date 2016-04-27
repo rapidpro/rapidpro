@@ -7,7 +7,10 @@ import phonenumbers
 import regex
 import time
 
+from collections import defaultdict
+from django.core.exceptions import ValidationError
 from django.core.files import File
+from django.core.validators import validate_email
 from django.db import models, connection
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
@@ -25,7 +28,6 @@ from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
 from temba.values.models import Value
 from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from urlparse import urlparse, urlunparse, ParseResult
 from uuid import uuid4
 
 
@@ -33,6 +35,9 @@ from uuid import uuid4
 OLD_TEST_CONTACT_TEL = '12065551212'
 START_TEST_CONTACT_PATH = 12065550100
 END_TEST_CONTACT_PATH = 12065550199
+
+# how many sequential contacts on import triggers suspension
+SEQUENTIAL_CONTACTS_THRESHOLD = 250
 
 TEL_SCHEME = 'tel'
 TWITTER_SCHEME = 'twitter'
@@ -42,12 +47,6 @@ TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
 
-# how many sequential contacts on import triggers suspension
-SEQUENTIAL_CONTACTS_THRESHOLD = 250
-
-URN_SCHEMES = [TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, FACEBOOK_SCHEME,
-               TELEGRAM_SCHEME, EMAIL_SCHEME, EXTERNAL_SCHEME]
-
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
@@ -56,17 +55,177 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
 
-# schemes that we actually support
-URN_SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
-IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
+class URN(object):
+    """
+    Support class for URN strings. We differ from the strict definition of a URN (https://tools.ietf.org/html/rfc2141)
+    in that:
+        * We only supports URNs with scheme and path parts (no netloc, query, params or fragment)
+        * Path component can be any non-blank unicode string
+        * No hex escaping in URN path
+    """
+    VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
 
-URN_CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
+    def __init__(self):  # pragma: no cover
+        raise ValueError("Class shouldn't be instantiated")
 
-URN_CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
+    @classmethod
+    def from_parts(cls, scheme, path):
+        """
+        Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
+        """
+        if not scheme or scheme not in cls.VALID_SCHEMES:
+            raise ValueError("Invalid scheme component: '%s'" % scheme)
+
+        if not path:
+            raise ValueError("Invalid path component: '%s'" % path)
+
+        return '%s:%s' % (scheme, path)
+
+    @classmethod
+    def to_parts(cls, urn):
+        """
+        Parses a URN string (e.g. tel:+250783835665) into a tuple of scheme and path
+        """
+        try:
+            scheme, path = urn.split(':', 1)
+        except:
+            raise ValueError("URN strings must contain scheme and path components")
+
+        if not scheme or scheme not in cls.VALID_SCHEMES:
+            raise ValueError("URN contains an invalid scheme component: '%s'" % scheme)
+
+        if not path:
+            raise ValueError("URN contains an invalid path component: '%s'" % path)
+
+        return scheme, path
+
+    @classmethod
+    def validate(cls, urn, country_code=None):
+        """
+        Validates a normalized URN
+        """
+        try:
+            scheme, path = cls.to_parts(urn)
+        except ValueError:
+            return False
+
+        if scheme == TEL_SCHEME:
+            if country_code:
+                try:
+                    normalized = phonenumbers.parse(path, country_code)
+                    return phonenumbers.is_possible_number(normalized)
+                except Exception:
+                    return False
+
+            return True  # if we don't have a channel with country, we can't for now validate tel numbers
+
+        # validate twitter URNs look like handles
+        elif scheme == TWITTER_SCHEME:
+            return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
+
+        elif scheme == EMAIL_SCHEME:
+            try:
+                validate_email(path)
+                return True
+            except ValidationError:
+                return False
+
+        # telegram and facebook uses integer ids
+        elif scheme in (TELEGRAM_SCHEME, FACEBOOK_SCHEME):
+            try:
+                int(path)
+                return True
+            except ValueError:
+                return False
+
+        # anything goes for external schemes
+        return True
+
+    @classmethod
+    def normalize(cls, urn, country_code=None):
+        """
+        Normalizes the path of a URN string. Should be called anytime looking for a URN match.
+        """
+        scheme, path = cls.to_parts(urn)
+
+        norm_path = unicode(path).strip()
+
+        if scheme == TEL_SCHEME:
+            norm_path, valid = cls.normalize_number(norm_path, country_code)
+        elif scheme == TWITTER_SCHEME:
+            norm_path = norm_path.lower()
+            if norm_path[0:1] == '@':  # strip @ prefix if provided
+                norm_path = norm_path[1:]
+            norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
+        elif scheme == EMAIL_SCHEME:
+            norm_path = norm_path.lower()
+
+        return cls.from_parts(scheme, norm_path)
+
+    @classmethod
+    def normalize_number(cls, number, country_code):
+        """
+        Normalizes the passed in number, they should be only digits, some backends prepend + and
+        maybe crazy users put in dashes or parentheses in the console.
+
+        Returns a tuple of the normalized number and whether it looks like a possible full international
+        number.
+        """
+        # if the number ends with e11, then that is Excel corrupting it, remove it
+        if number.lower().endswith("e+11") or number.lower().endswith("e+12"):
+            number = number[0:-4].replace('.', '')
+
+        # remove other characters
+        number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
+
+        # add on a plus if it looks like it could be a fully qualified number
+        if len(number) >= 11 and number[0] != '+':
+            number = '+' + number
+
+        normalized = None
+        try:
+            normalized = phonenumbers.parse(number, str(country_code) if country_code else None)
+        except Exception:
+            pass
+
+        # now does it look plausible?
+        try:
+            if phonenumbers.is_possible_number(normalized):
+                return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164), True
+        except Exception:
+            pass
+
+        # this must be a local number of some kind, just lowercase and save
+        return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
+
+    # ==================== shortcut constructors ===========================
+
+    @classmethod
+    def from_tel(cls, path):
+        return cls.from_parts(TEL_SCHEME, path)
+
+    @classmethod
+    def from_twitter(cls, path):
+        return cls.from_parts(TWITTER_SCHEME, path)
+
+    @classmethod
+    def from_email(cls, path):
+        return cls.from_parts(EMAIL_SCHEME, path)
+
+    @classmethod
+    def from_facebook(cls, path):
+        return cls.from_parts(FACEBOOK_SCHEME, path)
+
+    @classmethod
+    def from_telegram(cls, path):
+        return cls.from_parts(TELEGRAM_SCHEME, path)
+
+    @classmethod
+    def from_external(cls, path):
+        return cls.from_parts(EXTERNAL_SCHEME, path)
 
 
 class ContactField(SmartModel):
@@ -456,15 +615,19 @@ class Contact(TembaModel):
             EventFire.update_events_for_contact(self)
 
     @classmethod
-    def from_urn(cls, org, scheme, path, country=None):
-        if not scheme or not path:
+    def from_urn(cls, org, urn_as_string, country=None):
+        """
+        Looks up a contact by a URN string (which will be normalized)
+        """
+        try:
+            urn_obj = ContactURN.lookup(org, urn_as_string, country)
+        except ValueError:
             return None
 
-        norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-        norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
-
-        existing = ContactURN.objects.filter(org=org, urn=norm_urn, contact__is_active=True).select_related('contact')
-        return existing[0].contact if existing else None
+        if urn_obj and urn_obj.contact and urn_obj.contact.is_active:
+            return urn_obj.contact
+        else:
+            return None
 
     @classmethod
     def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None, language=None, is_test=False, force_urn_update=False):
@@ -494,10 +657,7 @@ class Contact(TembaModel):
         # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
         # it is read only from a contacts perspective, but it is by far the most common case
         if not uuid and not name and urns and len(urns) == 1:
-            scheme, path = urns[0]
-            norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-            norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
-            existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
+            existing_urn = ContactURN.lookup(org, urns[0], country)
 
             if existing_urn and existing_urn.contact:
                 contact = existing_urn.contact
@@ -518,12 +678,11 @@ class Contact(TembaModel):
             # if contact already exists try to figured if it has all the urn to skip the lock
             if contact:
                 contact_has_all_urns = True
-                contact_urns = contact.get_urns()
-                contact_urns_values = contact_urns.values_list('scheme', 'path')
-                if len(urns) <= len(contact_urns_values):
-                    for scheme, path in urns:
-                        norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-                        if (norm_scheme, norm_path) not in contact_urns_values:
+                contact_urns = set(contact.get_urns().values_list('urn', flat=True))
+                if len(urns) <= len(contact_urns):
+                    for urn in urns:
+                        normalized = URN.normalize(urn, country)
+                        if normalized not in contact_urns:
                             contact_has_all_urns = False
 
                     if contact_has_all_urns:
@@ -554,24 +713,19 @@ class Contact(TembaModel):
             existing_owned_urns = dict()
             existing_orphan_urns = dict()
             urns_to_create = dict()
-            for scheme, path in urns:
-
-                if not scheme or not path:
-                    raise ValueError(_("URN cannot have empty scheme or path"))
-
-                norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-                norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
-                existing_urn = ContactURN.objects.filter(org=org, urn=norm_urn).first()
+            for urn in urns:
+                normalized = URN.normalize(urn, country)
+                existing_urn = ContactURN.lookup(org, normalized, normalize=False)
 
                 if existing_urn:
                     if existing_urn.contact and not force_urn_update:
-                        existing_owned_urns[(scheme, path)] = existing_urn
+                        existing_owned_urns[urn] = existing_urn
                         if contact and contact != existing_urn.contact:
                             raise ValueError(_("Provided URNs belong to different existing contacts"))
                         else:
                             contact = existing_urn.contact
                     else:
-                        existing_orphan_urns[(scheme, path)] = existing_urn
+                        existing_orphan_urns[urn] = existing_urn
                         if not contact and existing_urn.contact:
                             contact = existing_urn.contact
 
@@ -580,7 +734,7 @@ class Contact(TembaModel):
                         existing_urn.channel = incoming_channel
                         existing_urn.save(update_fields=['channel'])
                 else:
-                    urns_to_create[(scheme, path)] = dict(scheme=norm_scheme, path=norm_path, urn=norm_urn)
+                    urns_to_create[urn] = normalized
 
             # URNs correspond to one contact so update and return that
             if contact:
@@ -616,7 +770,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in urns_to_create.iteritems():
-                urn = ContactURN.create(org, contact, normalized['scheme'], normalized['path'], channel=incoming_channel)
+                urn = ContactURN.create(org, contact, normalized, channel=incoming_channel)
                 urn_objects[raw] = urn
 
             # save which urns were updated
@@ -633,11 +787,11 @@ class Contact(TembaModel):
 
             # properties passed to track must be flat so since we may have multiple URNs for the same scheme, we
             # assign them property names with added count
-            urns_for_scheme_counts = dict()
-            for scheme, path in urn_objects.keys():
-                count = urns_for_scheme_counts.get(scheme, 1)
-                urns_for_scheme_counts[scheme] = count + 1
-                params["%s%d" % (scheme, count)] = path
+            urns_for_scheme_counts = defaultdict(int)
+            for urn in urn_objects.keys():
+                scheme, path = URN.to_parts(urn)
+                urns_for_scheme_counts[scheme] += 1
+                params["%s%d" % (scheme, urns_for_scheme_counts[scheme])] = path
 
             analytics.gauge('temba.contact_created')
 
@@ -651,7 +805,8 @@ class Contact(TembaModel):
         Gets or creates the test contact for the given user
         """
         org = user.get_org()
-        test_contact = Contact.objects.filter(is_test=True, org=org, created_by=user, is_active=True).order_by('-created_on').first()
+        test_contacts = Contact.objects.filter(is_test=True, org=org, created_by=user, is_active=True)
+        test_contact = test_contacts.order_by('-created_on').first()
 
         # double check that our test contact has a valid URN, it may have been reassigned
         if test_contact:
@@ -663,14 +818,18 @@ class Contact(TembaModel):
                 test_contact = None
 
         if not test_contact:
+            # creates a full URN string from a phone number stored as an integer
+            def make_urn(tel_as_int):
+                return URN.from_tel('+%s' % tel_as_int)
+
+            # generate sequential test contact URNs until we find an available one
             test_urn_path = START_TEST_CONTACT_PATH
-            existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
+            existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
             while existing_urn and test_urn_path < END_TEST_CONTACT_PATH:
                 test_urn_path += 1
-                existing_urn = ContactURN.get_existing_urn(org, TEL_SCHEME, '+%s' % test_urn_path)
+                existing_urn = ContactURN.lookup(org, make_urn(test_urn_path), normalize=False)
 
-            test_contact = Contact.get_or_create(org, user, "Test Contact", [(TEL_SCHEME, '+%s' % test_urn_path)],
-                                                 is_test=True)
+            test_contact = Contact.get_or_create(org, user, "Test Contact", [make_urn(test_urn_path)], is_test=True)
         return test_contact
 
     @classmethod
@@ -717,7 +876,7 @@ class Contact(TembaModel):
             if not value:
                 continue
 
-            urn_scheme = IMPORT_HEADER_TO_SCHEME[urn_header]
+            urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
 
             if urn_scheme == TEL_SCHEME:
 
@@ -732,7 +891,7 @@ class Contact(TembaModel):
                     pass
 
                 # only allow valid numbers
-                (normalized, is_valid) = ContactURN.normalize_number(value, country)
+                (normalized, is_valid) = URN.normalize_number(value, country)
 
                 if not is_valid:
                     raise SmartImportRowError("Invalid Phone number %s" % value)
@@ -741,13 +900,14 @@ class Contact(TembaModel):
                 if value == OLD_TEST_CONTACT_TEL:
                     raise SmartImportRowError("Ignored test contact")
 
-            search_contact = Contact.from_urn(org, urn_scheme, value, country)
+            urn = URN.from_parts(urn_scheme, value)
+            search_contact = Contact.from_urn(org, urn, country)
 
             # if this is an anonymous org, don't allow updating
             if org.is_anon and search_contact and not is_admin:
                 raise SmartImportRowError("Other existing contact on anonymous organization")
 
-            urns.append((urn_scheme, value))
+            urns.append(urn)
 
         if not urns and not (org.is_anon or uuid):
             error_str = "Missing any valid URNs"
@@ -812,7 +972,7 @@ class Contact(TembaModel):
             else:
                 raise Exception('Extra field %s is a reserved field name' % key)
 
-        active_scheme = [scheme[0] for scheme in URN_SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
+        active_scheme = [scheme[0] for scheme in ContactURN.SCHEME_CHOICES if scheme[0] != TEL_SCHEME]
 
         # remove any field that's not a reserved field or an explicitly included extra field
         for key in field_dict.keys():
@@ -1121,7 +1281,7 @@ class Contact(TembaModel):
         contact_dict[Contact.LANGUAGE] = self.language
 
         # add all URNs
-        for scheme, label in URN_SCHEME_CHOICES:
+        for scheme, label in ContactURN.SCHEME_CHOICES:
             urn_value = self.get_urn_display(scheme=scheme, org=org)
             contact_dict[scheme] = urn_value if urn_value is not None else ''
 
@@ -1210,15 +1370,13 @@ class Contact(TembaModel):
         with self.org.lock_on(OrgLock.contacts):
 
             # urns are submitted in order of priority
-            priority = HIGHEST_PRIORITY
+            priority = ContactURN.PRIORITY_HIGHEST
 
-            for scheme, path in urns:
-                norm_scheme, norm_path = ContactURN.normalize_urn(scheme, path, country)
-                norm_urn = ContactURN.format_urn(norm_scheme, norm_path)
-
-                urn = ContactURN.objects.filter(org=self.org, urn=norm_urn).first()
+            for urn_as_string in urns:
+                normalized = URN.normalize(urn_as_string, country)
+                urn = ContactURN.objects.filter(org=self.org, urn=normalized).first()
                 if not urn:
-                    urn = ContactURN.create(self.org, self, norm_scheme, norm_path, priority=priority)
+                    urn = ContactURN.create(self.org, self, normalized, priority=priority)
                     urns_created.append(urn)
 
                 # unassigned URN or assigned to someone else
@@ -1247,7 +1405,7 @@ class Contact(TembaModel):
         self.save(update_fields=('modified_on', 'modified_by'))
 
         # trigger updates based all urns created or detached
-        self.handle_update(urns=[(u.scheme, u.path) for u in (urns_created + urns_attached + urns_detached)])
+        self.handle_update(urns=[u.urn for u in (urns_created + urns_attached + urns_detached)])
 
         # clear URN cache
         if hasattr(self, '__urns'):
@@ -1319,35 +1477,39 @@ class Contact(TembaModel):
         return self.get_display()
 
 
-LOWEST_PRIORITY = 1
-STANDARD_PRIORITY = 50
-HIGHEST_PRIORITY = 99
-
-URN_SCHEME_PRIORITIES = {TEL_SCHEME: STANDARD_PRIORITY,
-                         TWITTER_SCHEME: 90}
-
-URN_ANON_MASK = '*' * 8  # returned instead of URN values
-
-URN_SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
-
-URN_SCHEMES_EXPORT_FIELDS = {
-    TEL_SCHEME: dict(label='Phone', key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
-    TWITTER_SCHEME: dict(label='Twitter', key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
-    EXTERNAL_SCHEME: dict(label='External', key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
-    EMAIL_SCHEME: dict(label='Email', key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
-    TELEGRAM_SCHEME: dict(label='Telegram', key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
-    FACEBOOK_SCHEME: dict(label='Facebook', key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
-}
-
-
 class ContactURN(models.Model):
     """
-    A Universal Resource Name. This is essentially a table of formatted URNs that can be used to identify contacts.
+    A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
     """
+    # schemes that we actually support
+    SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
+    CONTEXT_KEYS_TO_SCHEME = {c[3]: c[0] for c in URN_SCHEME_CONFIG}
+    CONTEXT_KEYS_TO_LABEL = {c[3]: c[1] for c in URN_SCHEME_CONFIG}
+    IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
+
+    SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
+
+    EXPORT_FIELDS = {
+        TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
+        TWITTER_SCHEME: dict(label="Twitter", key=None, id=0, field=None, urn_scheme=TWITTER_SCHEME),
+        EXTERNAL_SCHEME: dict(label="External", key=None, id=0, field=None, urn_scheme=EXTERNAL_SCHEME),
+        EMAIL_SCHEME: dict(label="Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
+        TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
+        FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
+    }
+
+    PRIORITY_LOWEST = 1
+    PRIORITY_STANDARD = 50
+    PRIORITY_HIGHEST = 99
+
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90}
+
+    ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
+
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='urns',
                                 help_text="The contact that this URN is for, can be null")
 
-    urn = models.CharField(max_length=255, choices=URN_SCHEME_CHOICES,
+    urn = models.CharField(max_length=255, choices=SCHEME_CHOICES,
                            help_text="The Universal Resource Name as a string. ex: tel:+250788383383")
 
     path = models.CharField(max_length=255,
@@ -1359,164 +1521,31 @@ class ContactURN(models.Model):
     org = models.ForeignKey(Org,
                             help_text="The organization for this URN, can be null")
 
-    priority = models.IntegerField(default=STANDARD_PRIORITY,
+    priority = models.IntegerField(default=PRIORITY_STANDARD,
                                    help_text="The priority of this URN for the contact it is associated with")
 
     channel = models.ForeignKey(Channel, null=True, blank=True,
                                 help_text="The preferred channel for this URN")
 
     @classmethod
-    def create(cls, org, contact, scheme, path, channel=None, priority=None):
-        urn = cls.format_urn(scheme, path)
+    def create(cls, org, contact, urn_as_string, channel=None, priority=None):
+        scheme, path = URN.to_parts(urn_as_string)
 
         if not priority:
-            priority = URN_SCHEME_PRIORITIES[scheme] if scheme in URN_SCHEME_PRIORITIES else STANDARD_PRIORITY
+            priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
-                                  scheme=scheme, path=path, urn=urn)
+                                  scheme=scheme, path=path, urn=urn_as_string)
 
     @classmethod
-    def get_existing_urn(cls, org, scheme, path):
-        urn = cls.format_urn(scheme, path)
-        return ContactURN.objects.filter(org=org, urn=urn).first()
-
-    @classmethod
-    def get_or_create(cls, org, scheme, path, channel=None):
-        existing = ContactURN.get_existing_urn(org, scheme, path)
-
-        with org.lock_on(OrgLock.contacts):
-            if existing:
-                return existing
-            else:
-                return cls.create(org, None, scheme, path, channel)
-
-    @classmethod
-    def parse_urn(cls, urn):
-        # for the tel case, we parse ourselves due to a Python bug for those that don't start with +
-        # see: http://bugs.python.org/issue14072
-        parsed = urlparse(urn)
-        if urn.startswith('tel:'):
-            path = parsed.path
-            if path.startswith('tel:'):
-                path = parsed.path.split(':')[1]
-
-            parsed = ParseResult('tel', parsed.netloc, path, parsed.params, parsed.query, parsed.fragment)
-
-        # URN isn't valid without a scheme and path
-        if not parsed.scheme or not parsed.path:
-            raise ValueError("URNs must define a scheme (%s) and path (%s), none found in: %s" % (parsed.scheme, parsed.path, urn))
-
-        return parsed
-
-    @classmethod
-    def format_urn(cls, scheme, namespace_specific_string):
+    def lookup(cls, org, urn_as_string, country_code=None, normalize=True):
         """
-        Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
+        Looks up an existing URN by a formatted URN string, e.g. "tel:+250234562222"
         """
-        return urlunparse((scheme, None, namespace_specific_string, None, None, None))
+        if normalize:
+            urn_as_string = URN.normalize(urn_as_string, country_code)
 
-    @classmethod
-    def validate_urn(cls, scheme, path, country_code=None):
-        """
-        Validates a URN scheme and path. Assumes both are normalized
-        """
-        if not scheme or not path:
-            return False
-
-        if scheme == TEL_SCHEME:
-            if country_code:
-                try:
-                    normalized = phonenumbers.parse(path, country_code)
-                    return phonenumbers.is_possible_number(normalized)
-                except Exception:
-                    return False
-
-            return True  # if we don't have a channel with country, we can't for now validate tel numbers
-
-        # validate twitter URNs look like handles
-        elif scheme == TWITTER_SCHEME:
-            return regex.match(r'^[a-zA-Z0-9_]{1,15}$', path, regex.V0)
-
-        elif scheme == EMAIL_SCHEME:
-            from django.core.validators import validate_email
-            try:
-                validate_email(path)
-                return True
-            except Exception:
-                return False
-
-        # anything goes for external schemes
-        elif scheme == EXTERNAL_SCHEME:
-            return True
-
-        # telegram and facebook uses integer ids
-        elif scheme in [TELEGRAM_SCHEME, FACEBOOK_SCHEME]:
-            try:
-                int(path)
-                return True
-            except Exception:
-                return False
-
-        else:
-            return False  # only tel and twitter currently supported
-
-    @classmethod
-    def normalize_urn(cls, scheme, path, country_code=None):
-        """
-        Normalizes a URN scheme and path. Should be called anytime looking for a URN match.
-        """
-        norm_scheme = unicode(scheme).strip().lower()
-        norm_path = unicode(path).strip()
-
-        if norm_scheme == TEL_SCHEME:
-            norm_path, valid = cls.normalize_number(norm_path, country_code)
-        elif norm_scheme == TWITTER_SCHEME:
-            norm_path = norm_path.lower()
-            if norm_path[0:1] == '@':  # strip @ prefix if provided
-                norm_path = norm_path[1:]
-            norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
-        elif norm_scheme == EMAIL_SCHEME:
-            norm_path = norm_path.lower()
-        elif norm_scheme == FACEBOOK_SCHEME:
-            norm_path = norm_path.lower()
-
-        return norm_scheme, norm_path
-
-    @classmethod
-    def normalize_number(cls, number, country_code):
-        """
-        Normalizes the passed in number, they should be only digits, some backends prepend + and
-        maybe crazy users put in dashes or parentheses in the console.
-
-        Returns a tuple of the normalizes number and whether it looks like a possible full international
-        number.
-        """
-        # if the number ends with e11, then that is Excel corrupting it, remove it
-        if number.lower().endswith("e+11") or number.lower().endswith("e+12"):
-            number = number[0:-4].replace('.', '')
-
-        # remove other characters
-        number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
-
-        # add on a plus if it looks like it could be a fully qualified number
-        if len(number) >= 11 and number[0] != '+':
-            number = '+' + number
-
-        normalized = None
-        try:
-            normalized = phonenumbers.parse(number, str(country_code) if country_code else None)
-        except Exception:
-            pass
-
-        # now does it look plausible?
-        try:
-            if phonenumbers.is_possible_number(normalized):
-                return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164), True
-        except Exception:
-            pass
-
-        # this must be a local number of some kind, just lowercase and save
-        return regex.sub('[^0-9a-z]', '', number.lower(), regex.V0), False
+        return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
 
     def ensure_number_normalization(self, country_code):
         """
@@ -1526,10 +1555,10 @@ class ContactURN(models.Model):
         number = self.path
 
         if number and not number[0] == '+' and country_code:
-            (norm_number, valid) = ContactURN.normalize_number(number, country_code)
+            (norm_number, valid) = URN.normalize_number(number, country_code)
 
             # don't trounce existing contacts with that country code already
-            norm_urn = ContactURN.format_urn(TEL_SCHEME, norm_number)
+            norm_urn = URN.from_tel(norm_number)
             if not ContactURN.objects.filter(urn=norm_urn, org_id=self.org_id).exclude(id=self.id):
                 self.urn = norm_urn
                 self.path = norm_number
@@ -1556,7 +1585,7 @@ class ContactURN(models.Model):
             org = self.org
 
         if org.is_anon:
-            return URN_ANON_MASK
+            return self.ANON_MASK
 
         if self.scheme == TEL_SCHEME and not full:
             # if we don't want a full tell, see if we can show the national format instead
@@ -1921,7 +1950,7 @@ class ExportContactsTask(SmartModel):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            active_urn_schemes = [c[0] for c in URN_SCHEME_CHOICES]
+            active_urn_schemes = [c[0] for c in ContactURN.SCHEME_CHOICES]
 
             scheme_counts = {scheme: ContactURN.objects.filter(org=self.org, scheme=scheme).exclude(contact=None).values('contact').annotate(count=Count('contact')).aggregate(Max('count'))['count__max'] for scheme in active_urn_schemes}
 
@@ -1932,7 +1961,7 @@ class ExportContactsTask(SmartModel):
                 count = scheme_counts[scheme]
                 if count is not None:
                     for i in range(count):
-                        field_dict = URN_SCHEMES_EXPORT_FIELDS[scheme].copy()
+                        field_dict = ContactURN.EXPORT_FIELDS[scheme].copy()
                         field_dict['position'] = i
                         fields.append(field_dict)
 

@@ -4,7 +4,7 @@ from django import template
 from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, ContactURN, EMAIL_SCHEME, EXTERNAL_SCHEME, FACEBOOK_SCHEME
-from temba.contacts.models import TELEGRAM_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME, URN_ANON_MASK
+from temba.contacts.models import TELEGRAM_SCHEME, TEL_SCHEME, TWITTER_SCHEME, TWILIO_SCHEME
 
 register = template.Library()
 
@@ -60,7 +60,7 @@ def name_or_urn(contact, org):
 def format_urn(urn_or_contact, org):
     if isinstance(urn_or_contact, ContactURN):
         urn_val = urn_or_contact.get_display(org=org)
-        return urn_val if urn_val != URN_ANON_MASK else '\u2022' * 8  # replace *'s with prettier HTML entity
+        return urn_val if urn_val != ContactURN.ANON_MASK else '\u2022' * 8  # replace *'s with prettier HTML entity
     elif isinstance(urn_or_contact, Contact):
         # will render contact's highest priority URN
         return urn_or_contact.get_urn_display(org=org)

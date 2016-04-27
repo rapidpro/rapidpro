@@ -61,10 +61,10 @@ def contact_search(org, query, base_queryset):
     :param base_queryset: the base query set which queries operate on
     :return: a tuple of the contact query set, a boolean whether query was complex
     """
-    from .models import URN_SCHEME_CHOICES
+    from .models import ContactURN
     global PROPERTY_ALIASES
     if not PROPERTY_ALIASES:
-        PROPERTY_ALIASES = {scheme: 'urns__path' for scheme, label in URN_SCHEME_CHOICES}
+        PROPERTY_ALIASES = {scheme: 'urns__path' for scheme, label in ContactURN.SCHEME_CHOICES}
 
     try:
         return contact_search_complex(org, query, base_queryset), True
