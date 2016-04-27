@@ -26,7 +26,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import ContactURN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID
@@ -340,7 +340,7 @@ def sync(request, channel_id):
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
 
-                        msg = Msg.create_incoming(channel, ContactURN.format(TEL_SCHEME, tel), cmd['msg'], date=date)
+                        msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
                         if msg:
                             extra = dict(msg_id=msg.id)
                             handled = True
@@ -357,7 +357,7 @@ def sync(request, channel_id):
                         # ignore these events on our side as they have no purpose and break a lot of our
                         # assumptions
                         if cmd['phone']:
-                            urn = ContactURN.format(TEL_SCHEME, cmd['phone'])
+                            urn = URN.from_parts(TEL_SCHEME, cmd['phone'])
                             ChannelEvent.create(channel, urn, cmd['type'], date, duration)
                         handled = True
 

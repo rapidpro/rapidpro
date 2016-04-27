@@ -27,7 +27,7 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME, NEW_CONTACT_VARIABLE
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -4498,10 +4498,9 @@ class VariableContactAction(Action):
                 else:
                     country = run.flow.org.get_country_code()
                     if country:
-                        (number, valid) = ContactURN.normalize_number(variable, country)
+                        (number, valid) = URN.normalize_number(variable, country)
                         if number and valid:
-                            urn = ContactURN.format(TEL_SCHEME, number)
-                            contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[urn])
+                            contact = Contact.get_or_create(run.flow.org, get_flow_user(), urns=[URN.from_tel(number)])
                             contacts.append(contact)
 
         return groups, contacts
@@ -4768,8 +4767,8 @@ class SaveToContactAction(Action):
                         new_value = new_value[1:]
 
             # only valid urns get added, sorry
-            new_urn = ContactURN.normalize(ContactURN.format(scheme, new_value))
-            if not ContactURN.validate(new_urn, contact.org.get_country_code()):
+            new_urn = URN.normalize(URN.from_parts(scheme, new_value))
+            if not URN.validate(new_urn, contact.org.get_country_code()):
                 new_urn = None
             else:
                 if contact.is_test:

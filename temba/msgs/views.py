@@ -18,7 +18,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
 from temba.channels.models import Channel, ChannelEvent, SEND
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import ContactGroup, ContactURN, TEL_SCHEME
+from temba.contacts.models import ContactGroup, URN
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils import analytics
@@ -522,9 +522,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def form_valid(self, *args, **kwargs):
             data = self.form.cleaned_data
-            handled = Msg.create_incoming(data['channel'],
-                                          ContactURN.format(TEL_SCHEME, data['urn']),
-                                          data['text'],
+            handled = Msg.create_incoming(data['channel'], URN.from_tel(data['urn']), data['text'],
                                           user=self.request.user)
 
             kwargs = self.get_form_kwargs()

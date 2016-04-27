@@ -27,7 +27,7 @@ from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, get_datetime_format
 from temba.values.models import Value
 from xlrd import open_workbook
-from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, EXTERNAL_SCHEME
+from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
 from .tasks import squash_contactgroupcounts
 
@@ -490,11 +490,19 @@ class ContactTest(TembaTest):
         with self.assertRaises(ValueError):
             Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:'])
 
-        # create a contact with a language
-        contact = Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:123'], language='fre')
-        self.assertEquals(contact.language, 'fre')
+        # create a contact with name, phone number and language
+        joe = Contact.get_or_create(self.org, self.user, name="Joe", urns=['tel:0783835665'], language='fre')
+        self.assertEqual(joe.org, self.org)
+        self.assertEqual(joe.name, "Joe")
+        self.assertEqual(joe.language, 'fre')
 
-        # create another contact with the same urn as Joe
+        # calling again with same URN updates and returns existing contact
+        contact = Contact.get_or_create(self.org, self.user, name="Joey", urns=['tel:+250783835665'], language='eng')
+        self.assertEqual(contact, joe)
+        self.assertEqual(contact.name, "Joey")
+        self.assertEqual(contact.language, 'eng')
+
+        # create a URN-less contact and try to update them with a taken URN
         snoop = Contact.get_or_create(self.org, self.user, name='Snoop')
         with self.assertRaises(ValueError):
             Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=['tel:123'])
@@ -2933,67 +2941,6 @@ class ContactURNTest(TembaTest):
         self.assertEqual(urn.path, '1234')
         self.assertEqual(urn.priority, 50)
 
-    def test_parse(self):
-        self.assertEqual(ContactURN.parse('tel:+1234'), ('tel', '+1234'))
-        self.assertEqual(ContactURN.parse('twitter:billy_bob'), ('twitter', 'billy_bob'))
-        self.assertRaises(Exception, ContactURN.parse, 'tel:')
-        self.assertRaises(Exception, ContactURN.parse, ':1234')
-        self.assertRaises(Exception, ContactURN.parse, 'tel:1234:1234')
-
-    def test_format(self):
-        self.assertEqual(ContactURN.format('tel', '+1234'), 'tel:+1234')
-
-    def test_normalize(self):
-        # valid tel numbers
-        self.assertEqual(ContactURN.normalize("TEL:0788383383", "RW"), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize("tel:+250788383383", "KE"), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize("tel:+250788383383", None), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize("tel:250788383383", None), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize("tel:2.50788383383E+11", None), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize("tel:2.50788383383E+12", None), "tel:+250788383383")
-        self.assertEqual(ContactURN.normalize("tel:(917) 992-5253", "US"), "tel:+19179925253")
-        self.assertEqual(ContactURN.normalize("tel:19179925253", None), "tel:+19179925253")
-        self.assertEqual(ContactURN.normalize("tel:+62877747666", None), "tel:+62877747666")
-        self.assertEqual(ContactURN.normalize("tel:62877747666", "ID"), "tel:+62877747666")
-        self.assertEqual(ContactURN.normalize("tel:0877747666", "ID"), "tel:+62877747666")
-
-        # invalid tel numbers
-        self.assertEqual(ContactURN.normalize("tel:12345", "RW"), "tel:12345")
-        self.assertEqual(ContactURN.normalize("tel:0788383383", None), "tel:0788383383")
-        self.assertEqual(ContactURN.normalize("tel:0788383383", "ZZ"), "tel:0788383383")
-        self.assertEqual(ContactURN.normalize("tel:MTN", "RW"), "tel:mtn")
-
-        # twitter handles
-        self.assertEqual(ContactURN.normalize("TWITTER:jimmyJO"), "twitter:jimmyjo")
-        self.assertEqual(ContactURN.normalize("twitter: @Billy_bob "), "twitter:billy_bob")
-
-        # email addresses
-        self.assertEqual(ContactURN.normalize("mailto: nAme@domAIN.cOm "), "mailto:name@domain.com")
-
-        # external ids are case sensitive
-        self.assertEqual(ContactURN.normalize("ext: eXterNAL123 "), "ext:eXterNAL123")
-
-    def test_validate(self):
-        # valid tel numbers
-        self.assertTrue(ContactURN.validate("tel:0788383383", "RW"))
-        self.assertTrue(ContactURN.validate("tel:+250788383383", "KE"))
-        self.assertTrue(ContactURN.validate("tel:+23761234567", "CM"))  # old Cameroon format
-        self.assertTrue(ContactURN.validate("tel:+237661234567", "CM"))  # new Cameroon format
-        self.assertTrue(ContactURN.validate("tel:+250788383383", None))
-        self.assertTrue(ContactURN.validate("tel:0788383383", None))  # assumed valid because no country
-
-        # invalid tel numbers
-        self.assertFalse(ContactURN.validate("tel:0788383383", "ZZ"))  # invalid country
-        self.assertFalse(ContactURN.validate("tel:MTN", "RW"))
-
-        # valid twitter handles
-        self.assertTrue(ContactURN.validate("twitter:jimmyjo"))
-        self.assertTrue(ContactURN.validate("twitter:billy_bob"))
-
-        # invalid twitter handles
-        self.assertFalse(ContactURN.validate("twitter:jimmyjo!@"))
-        self.assertFalse(ContactURN.validate("twitter:billy bob"))
-
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
@@ -3335,3 +3282,93 @@ class ContactFieldTest(TembaTest):
         self.assertEquals(response_json[8]['key'], 'key0')
         self.assertEquals(response_json[9]['label'], 'First')
         self.assertEquals(response_json[9]['key'], 'first')
+
+
+class URNTest(TembaTest):
+    def test_from_parts(self):
+        self.assertEqual(URN.from_parts("tel", "12345"), "tel:12345")
+        self.assertEqual(URN.from_parts("tel", "+12345"), "tel:+12345")
+        self.assertEqual(URN.from_parts("tel", "(917) 992-5253"), "tel:(917) 992-5253")
+        self.assertEqual(URN.from_parts("mailto", "a_b+c@d.com"), "mailto:a_b+c@d.com")
+
+        self.assertEqual(URN.from_tel("+12345"), "tel:+12345")
+        self.assertEqual(URN.from_twitter("abc_123"), "twitter:abc_123")
+        self.assertEqual(URN.from_email("a_b+c@d.com"), "mailto:a_b+c@d.com")
+        self.assertEqual(URN.from_facebook(12345), "facebook:12345")
+        self.assertEqual(URN.from_telegram(12345), "telegram:12345")
+        self.assertEqual(URN.from_external("Aa0()+,-.:=@;$_!*'"), "ext:Aa0()+,-.:=@;$_!*'")
+
+    def test_to_parts(self):
+        self.assertEqual(URN.to_parts("tel:12345"), ("tel", "12345"))
+        self.assertEqual(URN.to_parts("tel:+12345"), ("tel", "+12345"))
+        self.assertEqual(URN.to_parts("twitter:abc_123"), ("twitter", "abc_123"))
+        self.assertEqual(URN.to_parts("mailto:a_b+c@d.com"), ("mailto", "a_b+c@d.com"))
+        self.assertEqual(URN.to_parts("facebook:12345"), ("facebook", "12345"))
+        self.assertEqual(URN.to_parts("telegram:12345"), ("telegram", "12345"))
+        self.assertEqual(URN.to_parts("ext:Aa0()+,-.:=@;$_!*'"), ("ext", "Aa0()+,-.:=@;$_!*'"))
+
+        self.assertRaises(ValueError, URN.to_parts, "tel")
+        self.assertRaises(ValueError, URN.to_parts, "tel:")  # missing scheme
+        self.assertRaises(ValueError, URN.to_parts, ":12345")  # missing path
+        self.assertRaises(ValueError, URN.to_parts, "x_y:123")  # invalid scheme
+        self.assertRaises(ValueError, URN.to_parts, "xyz:{abc}")  # invalid path
+
+    def test_normalize(self):
+        # valid tel numbers
+        self.assertEqual(URN.normalize("tel:0788383383", "RW"), "tel:+250788383383")
+        self.assertEqual(URN.normalize("tel: +250788383383 ", "KE"), "tel:+250788383383")
+        self.assertEqual(URN.normalize("tel:+250788383383", None), "tel:+250788383383")
+        self.assertEqual(URN.normalize("tel:250788383383", None), "tel:+250788383383")
+        self.assertEqual(URN.normalize("tel:2.50788383383E+11", None), "tel:+250788383383")
+        self.assertEqual(URN.normalize("tel:2.50788383383E+12", None), "tel:+250788383383")
+        self.assertEqual(URN.normalize("tel:(917)992-5253", "US"), "tel:+19179925253")
+        self.assertEqual(URN.normalize("tel:19179925253", None), "tel:+19179925253")
+        self.assertEqual(URN.normalize("tel:+62877747666", None), "tel:+62877747666")
+        self.assertEqual(URN.normalize("tel:62877747666", "ID"), "tel:+62877747666")
+        self.assertEqual(URN.normalize("tel:0877747666", "ID"), "tel:+62877747666")
+
+        # un-normalizable tel numbers
+        self.assertEqual(URN.normalize("tel:12345", "RW"), "tel:12345")
+        self.assertEqual(URN.normalize("tel:0788383383", None), "tel:0788383383")
+        self.assertEqual(URN.normalize("tel:0788383383", "ZZ"), "tel:0788383383")
+        self.assertEqual(URN.normalize("tel:MTN", "RW"), "tel:mtn")
+
+        # twitter handles remove @
+        self.assertEqual(URN.normalize("twitter: @jimmyJO"), "twitter:jimmyjo")
+
+        # email addresses
+        self.assertEqual(URN.normalize("mailto: nAme@domAIN.cOm "), "mailto:name@domain.com")
+
+        # external ids are case sensitive
+        self.assertEqual(URN.normalize("ext: eXterNAL123 "), "ext:eXterNAL123")
+
+    def test_validate(self):
+        self.assertFalse(URN.validate("xxxx", None))  # un-parseable URNs don't validate
+
+        # valid tel numbers
+        self.assertTrue(URN.validate("tel:0788383383", "RW"))
+        self.assertTrue(URN.validate("tel:+250788383383", "KE"))
+        self.assertTrue(URN.validate("tel:+23761234567", "CM"))  # old Cameroon format
+        self.assertTrue(URN.validate("tel:+237661234567", "CM"))  # new Cameroon format
+        self.assertTrue(URN.validate("tel:+250788383383", None))
+        self.assertTrue(URN.validate("tel:0788383383", None))  # assumed valid because no country
+
+        # invalid tel numbers
+        self.assertFalse(URN.validate("tel:0788383383", "ZZ"))  # invalid country
+        self.assertFalse(URN.validate("tel:MTN", "RW"))
+
+        # twitter handles
+        self.assertTrue(URN.validate("twitter:jimmyjo"))
+        self.assertTrue(URN.validate("twitter:billy_bob"))
+        self.assertFalse(URN.validate("twitter:jimmyjo!@"))
+        self.assertFalse(URN.validate("twitter:billy bob"))
+
+        # emil addresses
+        self.assertTrue(URN.validate("mailto:abcd+label@x.y.z.com"))
+        self.assertFalse(URN.validate("mailto:@@@"))
+
+        # facebook and telegram URN paths must be integers
+        self.assertTrue(URN.validate("telegram:12345678901234567"))
+        self.assertFalse(URN.validate("telegram:abcdef"))
+        self.assertTrue(URN.validate("facebook:12345678901234567"))
+        self.assertFalse(URN.validate("facebook:abcdef"))

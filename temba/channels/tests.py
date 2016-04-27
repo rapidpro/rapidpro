@@ -26,7 +26,7 @@ from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
 from temba.middleware import BrandingMiddleware
@@ -75,7 +75,7 @@ class ChannelTest(TembaTest):
         group = ContactGroup.get_or_create(org, user, 'Numbers: %s' % ','.join(numbers))
         contacts = list()
         for number in numbers:
-            contacts.append(Contact.get_or_create(org, user, name=None, urns=[ContactURN.format(TEL_SCHEME, number)]))
+            contacts.append(Contact.get_or_create(org, user, name=None, urns=[URN.from_tel(number)]))
 
         group.contacts.add(*contacts)
 
@@ -1068,11 +1068,11 @@ class ChannelTest(TembaTest):
         self.assertEqual(Channel.objects.filter(org=self.org, is_active=True).count(), 2)
 
         # normalize a URN with a fully qualified number
-        number, valid = ContactURN.normalize_number('+12061112222', None)
+        number, valid = URN.normalize_number('+12061112222', None)
         self.assertTrue(valid)
 
         # not international format
-        number, valid = ContactURN.normalize_number('0788383383', None)
+        number, valid = URN.normalize_number('0788383383', None)
         self.assertFalse(valid)
 
         # get our send channel without a URN, should just default to last
@@ -1562,7 +1562,7 @@ class ChannelTest(TembaTest):
                 response = self.client.post(claim_url, dict(auth_token='184875172:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8'))
                 self.assertEqual('A telegram channel for this bot already exists on your account.', response.context['form'].errors['auth_token'][0])
 
-                contact = self.create_contact('Telegram User', urn=ContactURN.format(TELEGRAM_SCHEME, '1234'))
+                contact = self.create_contact('Telegram User', urn=URN.from_telegram('1234'))
 
                 # make sure we our telegram channel satisfies as a send channel
                 self.login(self.admin)

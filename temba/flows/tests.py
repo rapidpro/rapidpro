@@ -17,8 +17,8 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
 from temba.api.models import WebHookEvent
-from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, TEL_SCHEME
+from temba.channels.models import Channel
+from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING
@@ -2361,7 +2361,7 @@ class ActionTest(TembaTest):
 
         # throw exception for other reserved words except name and first_name
         for word in Contact.RESERVED_FIELDS:
-            if word not in ['name', 'first_name'] + list(ContactURN.ALL_SCHEMES):
+            if word not in ['name', 'first_name'] + list(URN.VALID_SCHEMES):
                 with self.assertRaises(Exception):
                     test = SaveToContactAction.from_json(self.org, dict(type='save', label=word, value='', field=word))
                     test.value = "Jen"
