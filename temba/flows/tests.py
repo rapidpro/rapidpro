@@ -17,7 +17,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
 from temba.api.models import WebHookEvent
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
