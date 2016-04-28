@@ -155,17 +155,20 @@ class Broadcast(models.Model):
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
 
-    groups = models.ManyToManyField(ContactGroup, verbose_name=_("Groups"),
+    groups = models.ManyToManyField(ContactGroup, verbose_name=_("Groups"), related_name='addressed_broadcasts',
                                     help_text=_("The groups to send the message to"))
 
-    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"),
+    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='addressed_broadcasts',
                                       help_text=_("Individual contacts included in this message"))
 
-    urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"),
+    urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"), related_name='addressed_broadcasts',
                                   help_text=_("Individual URNs included in this message"))
 
+    recipients = models.ManyToManyField(ContactURN, verbose_name=_("Recipients"), related_name='broadcasts',
+                                        help_text=_("The URNs which received this message"))
+
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
-                                          help_text=_("Number of contacts to receive this broadcast"))
+                                          help_text=_("Number of urns which received this broadcast"))
 
     text = models.TextField(max_length=640, verbose_name=_("Text"),
                             help_text=_("The message to send out"))
@@ -228,6 +231,9 @@ class Broadcast(models.Model):
 
         self.recipient_count = len(contact_ids)
         self.save(update_fields=('recipient_count',))
+
+        # cache on object for use in subsequent send(..) calls
+        delattr(self, '_recipient_cache')
 
     def update_recipients(self, recipients):
         """
@@ -360,8 +366,11 @@ class Broadcast(models.Model):
         Contact.bulk_cache_initialize(self.org, contacts)
         recipients = list(urns) + list(contacts)
 
+        RelatedRecipient = Broadcast.recipients.through
+
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
+        recipient_batch = []
 
         # our priority is based on the number of recipients
         priority = SMS_NORMAL_PRIORITY
@@ -426,10 +435,13 @@ class Broadcast(models.Model):
             # only add it to our batch if it was legit
             if msg:
                 batch.append(msg)
+                # keep track of this URN as a recipient
+                recipient_batch.append(RelatedRecipient(contacturn_id=msg.contact_urn_id, broadcast_id=self.id))
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
                 Msg.all_messages.bulk_create(batch)
+                RelatedRecipient.objects.bulk_create(recipient_batch)
 
                 # send any messages
                 if trigger_send:
@@ -439,10 +451,12 @@ class Broadcast(models.Model):
                     created_on = created_on + timedelta(seconds=1)
 
                 batch = []
+                recipient_batch = []
 
         # commit any remaining objects
         if batch:
             Msg.all_messages.bulk_create(batch)
+            RelatedRecipient.objects.bulk_create(recipient_batch)
 
             if trigger_send:
                 self.org.trigger_send(Msg.current_messages.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
