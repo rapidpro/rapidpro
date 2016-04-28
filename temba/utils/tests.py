@@ -693,6 +693,10 @@ class GSM7Test(TembaTest):
         self.assertEquals("No capital accented E!", replaced)
         self.assertTrue(is_gsm7(replaced))
 
+        replaced = replace_non_gsm7_accents("No crazy “word” quotes.")
+        self.assertEquals('No crazy "word" quotes.', replaced)
+        self.assertTrue(is_gsm7(replaced))
+
 
 class TableExporterTest(TembaTest):
 
