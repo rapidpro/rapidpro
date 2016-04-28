@@ -20,7 +20,7 @@ def populate_recipients_for_broadcast(Broadcast, MsgManager, broadcast_id):
     RelatedRecipients = Broadcast.recipients.through
     Broadcast.objects.get(id=broadcast_id).recipients.clear()
 
-    for urn_batch in chunk_list(urn_ids, 1000):
+    for urn_batch in chunk_list(set(urn_ids), 1000):
         recipient_batch = [RelatedRecipients(contacturn_id=u, broadcast_id=broadcast_id) for u in urn_batch]
         RelatedRecipients.objects.bulk_create(recipient_batch)
 
