@@ -2335,7 +2335,7 @@ class ChannelEventCRUDL(SmartCRUDL):
 
     class Calls(InboxView):
         title = _("Calls")
-        fields = ('event_type', 'contact', 'channel', 'time')
+        fields = ('contact', 'event_type', 'channel', 'time')
         default_order = '-time'
         search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
         system_label = SystemLabel.TYPE_CALLS
@@ -2344,9 +2344,6 @@ class ChannelEventCRUDL(SmartCRUDL):
         @classmethod
         def derive_url_pattern(cls, path, action):
             return r'^calls/$'
-
-        def get_contact(self, obj):
-            return obj.contact.get_display(self.org)
 
         def get_context_data(self, *args, **kwargs):
             context = super(ChannelEventCRUDL.Calls, self).get_context_data(*args, **kwargs)
