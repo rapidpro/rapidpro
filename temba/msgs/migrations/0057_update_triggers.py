@@ -8,9 +8,9 @@ from temba.sql import InstallSQL
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0054_delete_call'),
+        ('msgs', '0056_delete_call'),
     ]
 
     operations = [
-        InstallSQL("0055_msgs")
+        InstallSQL("0057_msgs")
     ]
