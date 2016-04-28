@@ -6,15 +6,15 @@ import time
 from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
-from temba.orgs.models import Language
+from temba.channels.models import Channel, ChannelEvent, CALL, ANSWER, TWITTER
 from temba.contacts.models import TEL_SCHEME
 from temba.flows.models import Flow, ActionSet, FlowRun
+from temba.orgs.models import Language
+from temba.msgs.models import Msg, INCOMING
 from temba.schedules.models import Schedule
-from temba.msgs.models import Msg, INCOMING, Call
-from temba.channels.models import CALL, ANSWER, TWITTER, Channel
 from temba.tests import TembaTest
 from .models import Trigger
-from temba.triggers.views import DefaultTriggerForm, RegisterTriggerForm
+from .views import DefaultTriggerForm, RegisterTriggerForm
 
 
 class TriggerTest(TembaTest):
@@ -500,9 +500,9 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(missed_call_trigger)
 
-        Call.create_call(self.channel, contact.get_urn(TEL_SCHEME).path, timezone.now(), 0, Call.TYPE_CALL_IN_MISSED)
-        self.assertEquals(1, Call.objects.all().count())
-        self.assertEquals(0, flow.runs.all().count())
+        ChannelEvent.create(self.channel, contact.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        self.assertEqual(ChannelEvent.objects.all().count(), 1)
+        self.assertEqual(flow.runs.all().count(), 0)
 
         trigger_url = reverse("triggers.trigger_missed_call")
 
@@ -521,10 +521,10 @@ class TriggerTest(TembaTest):
 
         self.assertEquals(missed_call_trigger.pk, trigger.pk)
 
-        Call.create_call(self.channel, contact.get_urn(TEL_SCHEME).path, timezone.now(), 0, Call.TYPE_CALL_IN_MISSED)
-        self.assertEquals(2, Call.objects.all().count())
-        self.assertEquals(1, flow.runs.all().count())
-        self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
+        ChannelEvent.create(self.channel, contact.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        self.assertEqual(ChannelEvent.objects.all().count(), 2)
+        self.assertEqual(flow.runs.all().count(), 1)
+        self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
 
         other_flow = Flow.copy(flow, self.admin)
         post_data = dict(flow=other_flow.pk)

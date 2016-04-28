@@ -14,13 +14,13 @@ from mock import patch
 from smartmin.models import SmartImportRowError
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
 from temba.locations.models import AdminBoundary
-from temba.orgs.models import Org
-from temba.campaigns.models import Campaign, CampaignEvent, EventFire
-from temba.channels.models import Channel
-from temba.msgs.models import Msg, Call, Label, SystemLabel, Broadcast
+from temba.msgs.models import Msg, Label, SystemLabel, Broadcast
 from temba.msgs.tasks import check_messages_task
+from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
@@ -1105,14 +1105,15 @@ class ContactTest(TembaTest):
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
         # create a missed call
-        Call.create_call(self.channel, self.joe.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_CALL_OUT_MISSED)
+        ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_OUT_MISSED,
+                            timezone.now(), 5)
 
         # fetch our contact history
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
 
         # even though there are no messages after it, should still see the recent call
-        self.assertTrue(isinstance(activity[0], Call))
+        self.assertTrue(isinstance(activity[0], ChannelEvent))
 
         # 100 messages, a call, and a flow run
         self.assertEquals(102, len(activity))
@@ -1138,10 +1139,10 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
 
-        # now we'll see the message that just came in first, followed by the Call event
+        # now we'll see the message that just came in first, followed by the call event
         self.assertEquals('Newer message', activity[0].text)
         self.assertTrue(isinstance(activity[0], Msg))
-        self.assertTrue(isinstance(activity[1], Call))
+        self.assertTrue(isinstance(activity[1], ChannelEvent))
 
         # remove 50 messages
         for i in range(50):
@@ -1811,7 +1812,8 @@ class ContactTest(TembaTest):
         self.assertEquals(Contact.from_urn(self.org, "tel:12345").name, "Joe X")
 
         # try delete action
-        call = Call.create_call(self.channel, self.frank.get_urn(TEL_SCHEME).path, timezone.now(), 5, Call.TYPE_CALL_OUT_MISSED)
+        call = ChannelEvent.create(self.channel, self.frank.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_OUT_MISSED,
+                                   timezone.now(), 5)
         post_data['action'] = 'delete'
         post_data['objects'] = self.frank.pk
 

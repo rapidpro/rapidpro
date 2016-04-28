@@ -27,7 +27,8 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
-from temba.msgs.models import Broadcast, Call, Msg, QUEUED, PENDING
+from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING
+from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
@@ -35,7 +36,7 @@ from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_co
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
+from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN, FACEBOOK
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX
@@ -356,11 +357,8 @@ def sync(request, channel_id):
                         # ignore these events on our side as they have no purpose and break a lot of our
                         # assumptions
                         if cmd['phone']:
-                            Call.create_call(channel=channel,
-                                             phone=cmd['phone'],
-                                             date=date,
-                                             duration=duration,
-                                             call_type=cmd['type'])
+                            urn = URN.from_parts(TEL_SCHEME, cmd['phone'])
+                            ChannelEvent.create(channel, urn, cmd['type'], date, duration)
                         handled = True
 
                     elif keyword == 'gcm':
@@ -2329,6 +2327,28 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(numbers))
             except Exception as e:
                 return HttpResponse(json.dumps(dict(error=str(e))))
+
+
+class ChannelEventCRUDL(SmartCRUDL):
+    model = ChannelEvent
+    actions = ('calls',)
+
+    class Calls(InboxView):
+        title = _("Calls")
+        fields = ('contact', 'event_type', 'channel', 'time')
+        default_order = '-time'
+        search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
+        system_label = SystemLabel.TYPE_CALLS
+        select_related = ('contact', 'channel')
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r'^calls/$'
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(ChannelEventCRUDL.Calls, self).get_context_data(*args, **kwargs)
+            context['actions'] = []
+            return context
 
 
 class ChannelLogCRUDL(SmartCRUDL):

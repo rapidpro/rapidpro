@@ -7,9 +7,9 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
-from temba.channels.models import Channel, ChannelLog
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
+from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
 from temba.utils import dict_to_struct
 from temba.values.models import Value
 from temba.utils.profiler import SegmentProfiler
@@ -143,16 +143,19 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
     def _create_calls(self, count, channel, contacts):
         """
-        Creates the given number of calls
+        Creates the given number of missed call events
         """
         calls = []
         date = timezone.now()
         for c in range(0, count):
             duration = random.randint(10, 30)
             contact = contacts[c % len(contacts)]
-            calls.append(Call(channel=channel, org=self.org, contact=contact, time=date, duration=duration,
-                              call_type='mo_call', created_by=self.user, modified_by=self.user))
-        Call.objects.bulk_create(calls)
+            contact_urn = contact.urn_objects.values()[0]
+            calls.append(ChannelEvent(channel=channel, org=self.org, event_type='mt_miss',
+                                      contact=contact, contact_urn=contact_urn,
+                                      time=date, duration=duration,
+                                      created_by=self.user, modified_by=self.user))
+        ChannelEvent.objects.bulk_create(calls)
         return calls
 
     def _create_runs(self, count, flow, contacts):

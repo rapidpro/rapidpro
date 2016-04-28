@@ -16,10 +16,9 @@ from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
+from temba.channels.models import Channel, ChannelEvent, TEMBA_HEADERS
 from temba.contacts.models import TEL_SCHEME
 from temba.orgs.models import Org
-from temba.channels.models import Channel, TEMBA_HEADERS
-from temba.msgs.models import Call
 from temba.utils import datetime_to_str, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
 from urllib import urlencode
@@ -47,10 +46,10 @@ CATEGORIZE = 'categorize'
 EVENT_CHOICES = ((SMS_RECEIVED, "Incoming SMS Message"),
                  (SMS_SENT, "Outgoing SMS Sent"),
                  (SMS_DELIVERED, "Outgoing SMS Delivered to Recipient"),
-                 (Call.TYPE_CALL_OUT, "Outgoing Call"),
-                 (Call.TYPE_CALL_OUT_MISSED, "Missed Outgoing Call"),
-                 (Call.TYPE_CALL_IN, "Incoming Call"),
-                 (Call.TYPE_CALL_IN_MISSED, "Missed Incoming Call"),
+                 (ChannelEvent.TYPE_CALL_OUT, "Outgoing Call"),
+                 (ChannelEvent.TYPE_CALL_OUT_MISSED, "Missed Outgoing Call"),
+                 (ChannelEvent.TYPE_CALL_IN, "Incoming Call"),
+                 (ChannelEvent.TYPE_CALL_IN_MISSED, "Missed Incoming Call"),
                  (RELAYER_ALARM, "Channel Alarm"),
                  (FLOW, "Flow Step Reached"),
                  (CATEGORIZE, "Flow Categorization"))
@@ -294,13 +293,13 @@ class WebHookEvent(SmartModel):
         if not org or not org.get_webhook_url():
             return
 
-        event = call.call_type
+        event = call.event_type
 
         # if the org doesn't care about this type of message, ignore it
-        if (event == 'mt_call' and not org.is_notified_of_mt_call()) or \
-           (event == 'mt_miss' and not org.is_notified_of_mt_call()) or \
-           (event == 'mo_call' and not org.is_notified_of_mo_call()) or \
-           (event == 'mo_miss' and not org.is_notified_of_mo_call()):
+        if (event == ChannelEvent.TYPE_CALL_OUT and not org.is_notified_of_mt_call()) or \
+           (event == ChannelEvent.TYPE_CALL_OUT_MISSED and not org.is_notified_of_mt_call()) or \
+           (event == ChannelEvent.TYPE_CALL_IN and not org.is_notified_of_mo_call()) or \
+           (event == ChannelEvent.TYPE_CALL_IN_MISSED and not org.is_notified_of_mo_call()):
             return
 
         api_user = get_api_user()

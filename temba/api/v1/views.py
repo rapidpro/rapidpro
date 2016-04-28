@@ -19,16 +19,16 @@ from temba.api.models import get_or_create_api_token, APIToken
 from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, Call, Label
+from temba.msgs.models import Broadcast, Msg, Label
 from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
 from ..models import ApiPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
-from .serializers import CallSerializer, CampaignReadSerializer, CampaignWriteSerializer
+from .serializers import ChannelEventSerializer, CampaignReadSerializer, CampaignWriteSerializer
 from .serializers import CampaignEventReadSerializer, CampaignEventWriteSerializer
 from .serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
@@ -968,9 +968,9 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
             ...
 
     """
-    permission = 'msgs.call_api'
-    model = Call
-    serializer_class = CallSerializer
+    permission = 'channels.channelevent_api'
+    model = ChannelEvent
+    serializer_class = ChannelEventSerializer
     cache_counts = True
 
     def get_queryset(self):
@@ -998,7 +998,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
 
         call_types = splitting_getlist(self.request, 'call_type')
         if call_types:
-            queryset = queryset.filter(call_type__in=call_types)
+            queryset = queryset.filter(event_type__in=call_types)
 
         phones = splitting_getlist(self.request, 'phone')
         if phones:

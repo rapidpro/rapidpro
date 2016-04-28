@@ -14,10 +14,10 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from mock import patch
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
-from temba.msgs.models import Broadcast, Call, Label
+from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
@@ -429,10 +429,10 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        call1 = Call.create_call(self.channel, "0788123123", timezone.now(), 0, Call.TYPE_CALL_IN_MISSED)
-        call2 = Call.create_call(self.channel, "0788124124", timezone.now(), 36, Call.TYPE_CALL_IN)
-        call3 = Call.create_call(self.channel, "0788124124", timezone.now(), 0, Call.TYPE_CALL_OUT_MISSED)
-        call4 = Call.create_call(self.channel, "0788123123", timezone.now(), 15, Call.TYPE_CALL_OUT)
+        call1 = ChannelEvent.create(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        call2 = ChannelEvent.create(self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_IN, timezone.now(), 36)
+        call3 = ChannelEvent.create(self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 0)
+        call4 = ChannelEvent.create(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_OUT, timezone.now(), 15)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):

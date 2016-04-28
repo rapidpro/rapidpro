@@ -22,7 +22,7 @@ from temba_expressions.evaluator import EvaluationContext, DateStyle
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
-from temba.channels.models import Channel, ANDROID, SEND, CALL
+from temba.channels.models import Channel, ChannelEvent, ANDROID, SEND, CALL
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils.email import send_template_email
@@ -1483,75 +1483,6 @@ class Msg(models.Model):
         ordering = ['-created_on', '-pk']
 
 
-class Call(SmartModel):  # TODO rename to ChannelEvent and move to channels app
-    """
-    An event that has occurred on a channel which may be used as a trigger
-    """
-    TYPE_UNKNOWN = 'unk'
-    TYPE_CALL_OUT = 'mt_call'
-    TYPE_CALL_OUT_MISSED = 'mt_miss'
-    TYPE_CALL_IN = 'mo_call'
-    TYPE_CALL_IN_MISSED = 'mo_miss'
-
-    # single char flag, human readable name, API readable name
-    TYPE_CONFIG = ((TYPE_UNKNOWN, _("Unknown Call Type"), 'unknown'),
-                   (TYPE_CALL_IN, _("Incoming Call"), 'call-in'),
-                   (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'),
-                   (TYPE_CALL_OUT, _("Outgoing Call"), 'call-out'),
-                   (TYPE_CALL_OUT_MISSED, _("Missed Outgoing Call"), 'call-out-missed'))
-
-    TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
-
-    org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The org this call is connected to"))
-
-    channel = models.ForeignKey(Channel, null=True, verbose_name=_("Channel"),
-                                help_text=_("The channel where this call took place"))
-    contact = models.ForeignKey(Contact, verbose_name=_("Contact"), related_name='calls',
-                                help_text=_("The phone number for this call"))
-    time = models.DateTimeField(verbose_name=_("Time"), help_text=_("When this call took place"))
-    duration = models.IntegerField(default=0, verbose_name=_("Duration"),
-                                   help_text=_("The duration of this call in seconds, if appropriate"))
-    call_type = models.CharField(max_length=16, choices=TYPE_CHOICES,
-                                 verbose_name=_("Call Type"), help_text=_("The type of call"))
-
-    @classmethod
-    def create_call(cls, channel, phone, date, duration, call_type, user=None):
-        from temba.api.models import WebHookEvent
-        from temba.triggers.models import Trigger
-
-        if not user:
-            user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
-
-        contact = Contact.get_or_create(channel.org, user, name=None, urns=[URN.from_tel(phone)],
-                                        incoming_channel=channel)
-
-        call = Call.objects.create(channel=channel,
-                                   org=channel.org,
-                                   contact=contact,
-                                   time=date,
-                                   duration=duration,
-                                   call_type=call_type,
-                                   created_by=user,
-                                   modified_by=user)
-
-        analytics.gauge('temba.call_%s' % call.get_call_type_display().lower().replace(' ', '_'))
-
-        WebHookEvent.trigger_call_event(call)
-
-        if call_type == Call.TYPE_CALL_IN_MISSED:
-            Trigger.catch_triggers(call, Trigger.TYPE_MISSED_CALL, channel)
-
-        return call
-
-    @classmethod
-    def get_calls(cls, org):
-        return Call.objects.filter(org=org)
-
-    def release(self):
-        self.is_active = False
-        self.save(update_fields=('is_active',))
-
-
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,' \
              'cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,' \
              'how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,' \
@@ -1649,7 +1580,7 @@ class SystemLabel(models.Model):
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
-            qs = Call.objects.filter(is_active=True)
+            qs = ChannelEvent.objects.filter(is_active=True, event_type__in=ChannelEvent.CALL_TYPES)
         else:
             raise ValueError("Invalid label type: %s" % label_type)
 

@@ -15,14 +15,14 @@ from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView
 from temba.api.models import get_or_create_api_token, APIToken
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Call, Msg, Label, SystemLabel
+from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
-from .serializers import BroadcastReadSerializer, CallReadSerializer, CampaignReadSerializer
-from .serializers import CampaignEventReadSerializer, ChannelReadSerializer, ContactReadSerializer
+from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
+from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
 from .serializers import LabelReadSerializer, MsgReadSerializer
 from ..models import ApiPermission, SSLPermission
@@ -590,9 +590,9 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
             ...
 
     """
-    permission = 'msgs.call_api'
-    model = Call
-    serializer_class = CallReadSerializer
+    permission = 'channels.channelevent_api'
+    model = ChannelEvent
+    serializer_class = ChannelEventReadSerializer
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):

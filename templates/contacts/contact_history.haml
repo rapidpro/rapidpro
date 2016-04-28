@@ -50,9 +50,9 @@
 
               .activity-body
                 {{broadcast.text}}
-        -elif item.call_type
+        -elif item.event_type
           -with item as call
-            -if call.call_type == 'mt_miss'
+            -if call.event_type == 'mt_miss'
               Missed call
             -else
               Phone call ({{call.duration|format_seconds}})

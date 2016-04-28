@@ -9,11 +9,11 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, SEND
+from temba.channels.models import Channel, ChannelEvent, SEND
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label, INCOMING
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING
 from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
@@ -1670,8 +1670,9 @@ class MsgCreateResultSerializer(ReadSerializer):
         fields = ('messages', 'sms')
 
 
-class CallSerializer(ReadSerializer):
+class ChannelEventSerializer(ReadSerializer):
     call = serializers.SerializerMethodField()
+    call_type = serializers.SerializerMethodField()
     contact = serializers.SerializerMethodField('get_contact_uuid')
     created_on = DateTimeField(source='time')
     phone = serializers.SerializerMethodField()
@@ -1699,8 +1700,11 @@ class CallSerializer(ReadSerializer):
     def get_call(self, obj):
         return obj.pk
 
+    def get_call_type(self, obj):
+        return obj.event_type
+
     class Meta:
-        model = Call
+        model = ChannelEvent
         fields = ('call', 'contact', 'relayer', 'relayer_phone', 'phone', 'created_on', 'duration', 'call_type')
 
 

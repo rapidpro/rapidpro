@@ -30,7 +30,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
 from temba.middleware import BrandingMiddleware
-from temba.msgs.models import Broadcast, Call, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
@@ -41,7 +41,7 @@ from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
-from .models import Channel, ChannelCount, SyncEvent, Alert, ChannelLog, CHIKKA, TELEGRAM
+from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, CHIKKA, TELEGRAM
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
@@ -278,12 +278,12 @@ class ChannelTest(TembaTest):
 
         # a message, a call, and a broadcast
         msg = self.send_message(['250788382382'], "How is it going?")
-        call = Call.create_call(self.tel_channel, "250788383385", timezone.now(), 5, 'mo', self.user)
+        call = ChannelEvent.create(self.tel_channel, "tel:+250788383385", ChannelEvent.TYPE_CALL_IN, timezone.now(), 5)
 
         self.assertEqual(self.org, msg.org)
         self.assertEqual(self.tel_channel, msg.channel)
         self.assertEquals(1, Msg.get_messages(self.org).count())
-        self.assertEquals(1, Call.get_calls(self.org).count())
+        self.assertEquals(1, ChannelEvent.get_all(self.org).count())
         self.assertEquals(1, Broadcast.get_broadcasts(self.org).count())
 
         # start off in the pending state
@@ -305,7 +305,7 @@ class ChannelTest(TembaTest):
         # queued messages for the channel should get marked as failed
         self.assertEquals('F', msg.status)
 
-        call = Call.objects.get(pk=call.pk)
+        call = ChannelEvent.objects.get(pk=call.pk)
         self.assertIsNotNone(call.channel)
         self.assertIsNone(call.channel.gcm_id)
         self.assertIsNone(call.channel.secret)
@@ -317,7 +317,7 @@ class ChannelTest(TembaTest):
 
         # should still be considered that user's message, call and broadcast
         self.assertEquals(1, Msg.get_messages(self.org).count())
-        self.assertEquals(1, Call.get_calls(self.org).count())
+        self.assertEquals(1, ChannelEvent.get_all(self.org).count())
         self.assertEquals(1, Broadcast.get_broadcasts(self.org).count())
 
         # syncing this channel should result in a release
@@ -2072,6 +2072,40 @@ class ChannelBatchTest(TembaTest):
 
         epoch = datetime_to_ms(now)
         self.assertEquals(ms_to_datetime(epoch), now)
+
+
+class ChannelEventTest(TembaTest):
+
+    def test_create(self):
+        now = timezone.now()
+        event = ChannelEvent.create(self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, 300)
+
+        contact = Contact.objects.get()
+        self.assertEqual(contact.get_urn().urn, "tel:+250783535665")
+
+        self.assertEqual(event.org, self.org)
+        self.assertEqual(event.channel, self.channel)
+        self.assertEqual(event.contact, contact)
+        self.assertEqual(event.event_type, ChannelEvent.TYPE_CALL_OUT)
+        self.assertEqual(event.time, now)
+        self.assertEqual(event.duration, 300)
+
+
+class ChannelEventCRUDLTest(TembaTest):
+
+    def test_calls(self):
+        now = timezone.now()
+        ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, 600)
+        ChannelEvent.create(self.channel, "tel:890", ChannelEvent.TYPE_CALL_IN_MISSED, now, 0)
+        ChannelEvent.create(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN, now, 0)
+
+        list_url = reverse('channels.channelevent_calls')
+
+        response = self.fetch_protected(list_url, self.user)
+
+        self.assertEquals(response.context['object_list'].count(), 2)
+        self.assertContains(response, "Missed Incoming Call")
+        self.assertContains(response, "Incoming Call (600 seconds)")
 
 
 class SyncEventTest(SmartminTest):

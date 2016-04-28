@@ -17,10 +17,10 @@ from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, SyncEvent
+from temba.channels.models import Channel, ChannelEvent, SyncEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, RULE_SET
-from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED
+from temba.msgs.models import Broadcast, Msg, Label, FAILED, ERRORED
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import datetime_to_json_date
@@ -39,13 +39,11 @@ class APITest(TembaTest):
         self.channel2 = Channel.create(None, self.admin, 'RW', 'A', "Unclaimed Channel",
                                        claim_code="123123123", secret="123456", gcm_id="1234")
 
-        self.call1 = Call.objects.create(contact=self.joe,
-                                         channel=self.channel,
-                                         org=self.org,
-                                         call_type='mt_miss',
-                                         time=timezone.now(),
-                                         created_by=self.admin,
-                                         modified_by=self.admin)
+        self.call1 = ChannelEvent.objects.create(contact=self.joe,
+                                                 channel=self.channel,
+                                                 org=self.org,
+                                                 event_type=ChannelEvent.TYPE_CALL_OUT_MISSED,
+                                                 time=timezone.now())
 
         # this is needed to prevent REST framework from rolling back transaction created around each unit test
         connection.settings_dict['ATOMIC_REQUESTS'] = False
