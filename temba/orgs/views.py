@@ -3,7 +3,6 @@ from __future__ import absolute_import, unicode_literals
 import json
 import logging
 import plivo
-import regex
 import six
 
 from collections import OrderedDict
@@ -29,6 +28,7 @@ from django.views.generic import View
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
 from datetime import timedelta
+from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
@@ -918,51 +918,47 @@ class OrgCRUDL(SmartCRUDL):
         form_class = InviteForm
         success_url = "@orgs.org_home"
         success_message = ""
-        GROUP_LEVELS = ('administrators', 'editors', 'viewers', 'surveyors')
+        ROLES = ('administrators', 'editors', 'viewers', 'surveyors')
 
         def derive_title(self):
             return _("Manage %(name)s Accounts") % {'name': self.get_object().name}
 
-        def add_check_fields(self, form, objects, org_id, field_dict):
-            for obj in objects:
-                fields = []
+        def add_user_role_fields(self, form, users):
+            fields_by_user = {}
 
+            for user in users:
+                fields = []
                 field_mapping = []
-                for grp_level in self.GROUP_LEVELS:
+
+                for role in self.ROLES:
                     check_field = forms.BooleanField(required=False)
-                    field_name = "%s_%d" % (grp_level, obj.id)
+                    field_name = "%s_%d" % (role, user.pk)
 
                     field_mapping.append((field_name, check_field))
                     fields.append(field_name)
 
                 # as of django 1.7 we can't insert into fields, construct a new OrderedDict
                 form.fields = OrderedDict(form.fields.items() + field_mapping)
-                field_dict[obj] = fields
+                fields_by_user[user] = fields
+            return fields_by_user
 
         def derive_initial(self):
-            self.org_users = self.get_object().get_org_users()
+            initial = super(OrgCRUDL.ManageAccounts, self).derive_initial()
 
-            initial = dict()
-            for grp_level in self.GROUP_LEVELS:
-                if grp_level == 'administrators':
-                    assigned_users = self.get_object().get_org_admins()
-                if grp_level == 'editors':
-                    assigned_users = self.get_object().get_org_editors()
-                if grp_level == 'viewers':
-                    assigned_users = self.get_object().get_org_viewers()
-                if grp_level == 'surveyors':
-                    assigned_users = self.get_object().get_org_surveyors()
+            org = self.get_object()
+            for role in self.ROLES:
+                users_with_role = getattr(org, role).all()
 
-                for obj in assigned_users:
-                    key = "%s_%d" % (grp_level, obj.id)
-                    initial[key] = True
+                for obj in users_with_role:
+                    initial['%s_%d' % (role, obj.id)] = True
 
             return initial
 
         def get_form(self, form_class):
             form = super(OrgCRUDL.ManageAccounts, self).get_form(form_class)
-            self.group_fields = dict()
-            self.add_check_fields(form, self.org_users, self.get_object().pk, self.group_fields)
+
+            self.org_users = self.get_object().get_org_users()
+            self.fields_by_users = self.add_user_role_fields(form, self.org_users)
 
             return form
 
@@ -974,14 +970,11 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
 
             user_group = cleaned_data['user_group']
-
             emails = cleaned_data['emails'].lower().strip()
-            email_list = emails.split(',')
-
             host = self.request.branding['host']
 
             if emails:
-                for email in email_list:
+                for email in emails.split(','):
 
                     # if they already have an invite, update it
                     invites = Invitation.objects.filter(email=email, org=org).order_by('-pk')
@@ -1005,36 +998,32 @@ class OrgCRUDL(SmartCRUDL):
 
                     invitation.send_invitation()
 
-            # remove all the org users
-            org = self.get_object()
-            for user in org.get_org_admins():
-                org.administrators.remove(user)
-            for user in org.get_org_editors():
-                org.editors.remove(user)
-            for user in org.get_org_viewers():
-                org.viewers.remove(user)
-            for user in org.get_org_surveyors():
-                org.surveyors.remove(user)
+            current_roles = {}
+            new_roles = {}
 
-            # now update the org accounts
-            for field in self.form.fields:
-                if self.form.cleaned_data[field]:
-                    matcher = regex.match("(\w+)_(\d+)", field, regex.V0)
-                    if matcher:
-                        user_type = matcher.group(1)
-                        user_id = matcher.group(2)
-                        user = User.objects.get(pk=user_id)
-                        if user_type == 'administrators':
-                            self.get_object().administrators.add(user)
-                        if user_type == 'editors':
-                            self.get_object().editors.add(user)
-                        if user_type == 'viewers':
-                            self.get_object().viewers.add(user)
-                        if user_type == 'surveyors':
-                            self.get_object().surveyors.add(user)
+            for role in reversed(self.ROLES):  # reversed so if user has more than one role, highest takes priority
+                # gather up existing users with their roles
+                for user in getattr(org, role).all():
+                    current_roles[user] = role
 
-            # update our org users after we've removed them
-            self.org_users = self.get_object().get_org_users()
+                # parse form fields to get new roles
+                for field in self.form.cleaned_data:
+                    if field.startswith(role + '_') and self.form.cleaned_data[field]:
+                        user = User.objects.get(pk=field.split('_')[1])
+                        new_roles[user] = role
+
+            for user in current_roles.keys():
+                current_role = current_roles.get(user)
+                new_role = new_roles.get(user)
+
+                if current_role != new_role:
+                    if current_role:
+                        getattr(org, current_role).remove(user)
+                    if new_role:
+                        getattr(org, new_role).add(user)
+
+                    # when a user's role changes, we delete any API tokens they have for this org
+                    APIToken.objects.filter(org=org, user=user).delete()
 
             return obj
 
@@ -1043,19 +1032,16 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             context['org'] = org
             context['org_users'] = self.org_users
-            context['group_fields'] = self.group_fields
+            context['group_fields'] = self.fields_by_users
             context['invites'] = Invitation.objects.filter(org=org, is_active=True).order_by('email')
 
             return context
 
         def get_success_url(self):
-            # if we are no longer part of this form, redirect to the chooser
-            if self.request.user not in self.org_users:
-                return reverse('orgs.org_choose')
+            still_in_org = self.request.user in self.get_object().get_org_users()
 
-            # otherwise, back to our home page
-            else:
-                return reverse('orgs.org_home')
+            # if current user no longer belongs to this org, redirect to org chooser
+            return reverse('orgs.org_home') if still_in_org else reverse('orgs.org_choose')
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
