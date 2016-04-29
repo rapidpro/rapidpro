@@ -519,6 +519,14 @@ class APIToken(models.Model):
                     (ROLE_EDITOR, _("Editor")),
                     (ROLE_SURVEYOR, _("Surveyor")))
 
+    ROLE_CONFIG = {
+        ROLE_ADMIN: {'group': "Administrators", 'granted_to': ("administrators",)},
+        ROLE_EDITOR: {'group': "Editors", 'granted_to': ("administrators", "editors")},
+        ROLE_SURVEYOR: {'group': "Surveyors", 'granted_to': ("administrators", "editors", "surveyors")},
+    }
+
+    ROLE_GROUPS = {c['group'] for c in ROLE_CONFIG.values()}
+
     key = models.CharField(max_length=40, primary_key=True)
 
     user = models.ForeignKey(User, related_name='api_tokens')
@@ -535,24 +543,18 @@ class APIToken(models.Model):
         Gets all the orgs the user can login to with the given role. Also
         takes a single character role (A, E, S, etc) and maps it to a UserGroup.
         """
+        role_config = cls.ROLE_CONFIG.get(role)
+        if not role_config:
+            return [], None
 
-        if role == cls.ROLE_ADMIN:
-            valid_orgs = Org.objects.filter(administrators__in=[user])
-            role = Group.objects.get(name='Administrators')
-        elif role == cls.ROLE_EDITOR:
-            # admins can authenticate as editors
-            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]))
-            role = Group.objects.get(name='Editors')
-        elif role == cls.ROLE_SURVEYOR:
-            # admins and editors can authenticate as surveyors
-            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]) | Q(surveyors__in=[user]))
-            role = Group.objects.get(name='Surveyors')
-        else:
-            # can't authenticate via the api as anything else
-            valid_orgs = []
-            role = None
+        user_query = Q()
+        for user_group in role_config['granted_to']:
+            user_query |= Q(**{user_group: user})
 
-        return valid_orgs, role
+        orgs = Org.objects.filter(user_query)
+        group = Group.objects.get(name=role_config['group'])
+
+        return orgs, group
 
     def save(self, *args, **kwargs):
         if not self.key:
@@ -572,7 +574,7 @@ class APIToken(models.Model):
 
 def get_or_create_api_token(user):
     """
-    Gets or (lazily creates) an API token for this user
+    Gets or creates an API token for this user
     """
     if not user.is_authenticated():
         return None
@@ -581,16 +583,16 @@ def get_or_create_api_token(user):
     if not org:
         org = Org.get_org(user)
 
-    role = user.get_role()
-
     if org:
-        tokens = APIToken.objects.filter(user=user, org=org, role=role)
+        role = user.get_role()
+        if role.name not in APIToken.ROLE_GROUPS:  # don't allow creating tokens for Viewers group etc
+            return None
 
-        if tokens:
-            return str(tokens[0])
-        else:
+        token = APIToken.objects.filter(user=user, org=org, role=role).first()
+        if not token:
             token = APIToken.objects.create(user=user, org=org, role=role)
-            return str(token)
+
+        return str(token)
     else:
         return None
 

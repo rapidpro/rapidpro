@@ -5,7 +5,7 @@ import logging
 import plivo
 import six
 
-from collections import OrderedDict
+from collections import defaultdict, OrderedDict
 from datetime import datetime
 from decimal import Decimal
 from django import forms
@@ -1012,6 +1012,12 @@ class OrgCRUDL(SmartCRUDL):
                         user = User.objects.get(pk=field.split('_')[1])
                         new_roles[user] = role
 
+            # find the API token groups that each role can belong to
+            token_groups_by_role = defaultdict(list)
+            for token_role_config in APIToken.ROLE_CONFIG.values():
+                for role in token_role_config['granted_to']:
+                    token_groups_by_role[role].append(token_role_config['group'])
+
             for user in current_roles.keys():
                 current_role = current_roles.get(user)
                 new_role = new_roles.get(user)
@@ -1022,8 +1028,9 @@ class OrgCRUDL(SmartCRUDL):
                     if new_role:
                         getattr(org, new_role).add(user)
 
-                    # when a user's role changes, we delete any API tokens they have for this org
-                    APIToken.objects.filter(org=org, user=user).delete()
+                    # when a user's role changes, delete any API tokens they're no longer allowed to have
+                    token_groups = token_groups_by_role.get(new_role, [])
+                    APIToken.objects.filter(org=org, user=user).exclude(role__name__in=token_groups).delete()
 
             return obj
 

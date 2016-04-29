@@ -385,10 +385,10 @@ class OrgTest(TembaTest):
         all_users = [self.surveyor, self.user, self.editor, self.admin]
         all_roles = ['administrators', 'editors', 'viewers', 'surveyors']
 
-        # ensure all users have an API token
+        # ensure all users have an API token and give admin an additional surveyor-role token
         for user in all_users:
-            token = user.api_token
-            self.assertIsNotNone(token)
+            user.api_token
+        APIToken.objects.create(org=self.org, user=self.admin, role=Group.objects.get(name="Surveyors"))
 
         # we have 19 fields in the form including 16 checkboxes for the four users, an email field, a user group field
         # and 'loc' field.
@@ -422,8 +422,11 @@ class OrgTest(TembaTest):
         self.assertFalse(set(self.org.viewers.all()), set())
         self.assertEqual(set(self.org.surveyors.all()), set())
 
-        # our viewers and surveyor's API tokens will also have been deleted
-        self.assertEqual({t.user for t in APIToken.objects.all()}, {self.admin, self.editor})
+        # our surveyor's API token will have been deleted
+        self.assertTrue(APIToken.objects.filter(user=self.admin, role__name="Administrators").exists())
+        self.assertTrue(APIToken.objects.filter(user=self.admin, role__name="Surveyors").exists())
+        self.assertTrue(APIToken.objects.filter(user=self.editor, role__name="Editors").exists())
+        self.assertFalse(APIToken.objects.filter(user=self.surveyor, role__name="Surveyors").exists())
 
         # next we leave existing roles unchanged, but try to invite new user to be admin with invalid email address
         post_data['emails'] = "norkans7gmail.com"
@@ -498,6 +501,9 @@ class OrgTest(TembaTest):
         self.assertEqual(set(self.org.editors.all()), {self.user, self.editor})
         self.assertEqual(set(self.org.viewers.all()), set())
         self.assertEqual(set(self.org.surveyors.all()), set())
+
+        # and all our API tokens for this org are deleted
+        self.assertFalse(APIToken.objects.filter(user=self.admin).exists())
 
     @patch('temba.utils.email.send_temba_email')
     def test_join(self, mock_send_temba_email):
