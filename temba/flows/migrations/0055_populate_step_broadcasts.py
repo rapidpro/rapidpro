@@ -30,8 +30,6 @@ def backfill_flowsteps(FlowStep, Broadcast, MsgManager):
     if highpoint is None:
         highpoint = 0
 
-    highpoint = 0
-
     RelatedBroadcast = FlowStep.broadcasts.through
     RelatedMsg = FlowStep.messages.through
 
