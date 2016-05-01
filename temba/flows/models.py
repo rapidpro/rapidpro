@@ -44,6 +44,7 @@ from uuid import uuid4
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
 
+
 class FlowException(Exception):
     def __init__(self, *args, **kwargs):
         super(FlowException, self).__init__(*args, **kwargs)
