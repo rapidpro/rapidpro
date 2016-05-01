@@ -4,7 +4,7 @@ from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
+from temba.flows.models import FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
@@ -222,8 +222,8 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 class FlowRunReadSerializer(ReadSerializer):
     NODE_TYPES = {
-        RULE_SET: 'ruleset',
-        ACTION_SET: 'actionset'
+        FlowStep.TYPE_RULE_SET: 'ruleset',
+        FlowStep.TYPE_ACTION_SET: 'actionset'
     }
     EXIT_TYPES = {
         FlowRun.EXIT_TYPE_COMPLETED: 'completed',

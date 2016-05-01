@@ -30,7 +30,7 @@ from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
-from .models import ActionSet, RuleSet, Action, Rule, ACTION_SET, RULE_SET, COMPLETE, FlowRunCount, get_flow_user
+from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, get_flow_user
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
@@ -323,7 +323,7 @@ class FlowTest(TembaTest):
         # check our steps for contact #1
         self.assertEqual(unicode(contact1_steps[0]), "Eric - A:00000000-00000000-00000000-00000001")
         self.assertEqual(contact1_steps[0].step_uuid, entry.uuid)
-        self.assertEqual(contact1_steps[0].step_type, ACTION_SET)
+        self.assertEqual(contact1_steps[0].step_type, FlowStep.TYPE_ACTION_SET)
         self.assertEqual(contact1_steps[0].contact, self.contact)
         self.assertTrue(contact1_steps[0].arrived_on)
         self.assertTrue(contact1_steps[0].left_on)
@@ -332,7 +332,7 @@ class FlowTest(TembaTest):
 
         self.assertEqual(unicode(contact1_steps[1]), "Eric - R:00000000-00000000-00000000-00000005")
         self.assertEqual(contact1_steps[1].step_uuid, entry.destination)
-        self.assertEqual(contact1_steps[1].step_type, RULE_SET)
+        self.assertEqual(contact1_steps[1].step_type, FlowStep.TYPE_RULE_SET)
         self.assertEqual(contact1_steps[1].contact, self.contact)
         self.assertTrue(contact1_steps[1].arrived_on)
         self.assertEqual(contact1_steps[1].left_on, None)
@@ -449,7 +449,7 @@ class FlowTest(TembaTest):
         # finally we should have our final step which was our outgoing reply
         step = FlowStep.objects.filter(run__contact=self.contact).order_by('pk')[2]
 
-        self.assertEquals(ACTION_SET, step.step_type)
+        self.assertEquals(FlowStep.TYPE_ACTION_SET, step.step_type)
         self.assertEquals(self.contact, step.run.contact)
         self.assertEquals(self.contact, step.contact)
         self.assertEquals(self.flow, step.run.flow)
@@ -1838,7 +1838,7 @@ class FlowTest(TembaTest):
         start = FlowStart.objects.get(flow=flow)
 
         # should be in a completed state
-        self.assertEquals(COMPLETE, start.status)
+        self.assertEquals(FlowStart.STATUS_COMPLETE, start.status)
         self.assertEquals(1, start.contact_count)
 
         # do so again but don't restart the participants
@@ -1849,11 +1849,11 @@ class FlowTest(TembaTest):
         # should have a new flow start
         new_start = FlowStart.objects.filter(flow=flow).order_by('-created_on').first()
         self.assertNotEquals(start, new_start)
-        self.assertEquals(COMPLETE, new_start.status)
+        self.assertEquals(FlowStart.STATUS_COMPLETE, new_start.status)
         self.assertEquals(0, new_start.contact_count)
 
         # mark that start as incomplete
-        new_start.status = 'S'
+        new_start.status = FlowStart.STATUS_STARTING
         new_start.save()
 
         # try to start again
@@ -2030,8 +2030,8 @@ class FlowTest(TembaTest):
         run = FlowRun.objects.filter(contact=self.contact).first()
 
         self.assertEquals(run.steps.all().count(), 2)
-        actionset_step = run.steps.filter(step_type=ACTION_SET).first()
-        ruleset_step = run.steps.filter(step_type=RULE_SET).first()
+        actionset_step = run.steps.filter(step_type=FlowStep.TYPE_ACTION_SET).first()
+        ruleset_step = run.steps.filter(step_type=FlowStep.TYPE_RULE_SET).first()
 
         # no messages on the ruleset step
         self.assertFalse(ruleset_step.messages.all())
@@ -2906,7 +2906,7 @@ class WebhookTest(TembaTest):
                               Rule(uuid(13), dict(base="Invalid"), uuid(3), 'A', ContainsTest(dict(base="invalid"))).as_json()])
         rules.save()
 
-        webhook_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
+        webhook_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=FlowStep.TYPE_RULE_SET,
                                                step_uuid=webhook.uuid, arrived_on=timezone.now())
         incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="1001")
 
@@ -2945,7 +2945,7 @@ class WebhookTest(TembaTest):
         run.fields = json.dumps(dict())
         run.save()
 
-        rule_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=RULE_SET,
+        rule_step = FlowStep.objects.create(run=run, contact=run.contact, step_type=FlowStep.TYPE_RULE_SET,
                                             step_uuid=rules.uuid, arrived_on=timezone.now())
 
         with patch('requests.post') as mock:
@@ -3571,18 +3571,18 @@ class FlowsTest(FlowFileTest):
         start = ActionSet.objects.get(flow=flow, y=0)
 
         # assert our destination
-        self.assertEquals(RULE_SET, start.destination_type)
+        self.assertEquals(FlowStep.TYPE_RULE_SET, start.destination_type)
 
         # and that ruleset points to an actionset
         ruleset = RuleSet.objects.get(uuid=start.destination)
         rule = ruleset.get_rules()[0]
-        self.assertEquals(ACTION_SET, rule.destination_type)
+        self.assertEquals(FlowStep.TYPE_ACTION_SET, rule.destination_type)
 
         # point our rule to a ruleset
         passive = RuleSet.objects.get(flow=flow, label='passive')
         self.update_destination(flow, rule.uuid, passive.uuid)
         ruleset = RuleSet.objects.get(uuid=start.destination)
-        self.assertEquals(RULE_SET, ruleset.get_rules()[0].destination_type)
+        self.assertEquals(FlowStep.TYPE_RULE_SET, ruleset.get_rules()[0].destination_type)
 
     def test_orphaned_action_to_action(self):
         """
@@ -4818,6 +4818,11 @@ class FlowBatchTest(FlowFileTest):
 
         # but only one broadcast
         self.assertEquals(1, Broadcast.objects.all().count())
+        broadcast = Broadcast.objects.get()
+
+        # ensure that our flowsteps all have the broadcast set on them
+        for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET):
+            self.assertEqual(broadcast, step.broadcasts.all().get())
 
 
 class TwoInRowTest(FlowFileTest):
