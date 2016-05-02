@@ -201,7 +201,7 @@ class APITest(TembaTest):
 
         # try to authenticate with invalid role
         response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'X'})
-        self.assertEqual(response.status_code, 404)
+        self.assertFormError(response, 'form', 'role', "Select a valid choice. X is not one of the available choices.")
 
         # authenticate an admin as an admin
         response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'A'})
