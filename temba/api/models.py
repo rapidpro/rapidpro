@@ -511,21 +511,11 @@ class APIToken(models.Model):
     """
     Our API token, ties in orgs
     """
-    ROLE_ADMIN = 'A'
-    ROLE_EDITOR = 'E'
-    ROLE_SURVEYOR = 'S'
+    CODE_TO_ROLE = {'A': "Administrators", 'E': "Editors", 'S': "Surveyors"}
 
-    ROLE_CHOICES = ((ROLE_ADMIN, _("Administrator")),
-                    (ROLE_EDITOR, _("Editor")),
-                    (ROLE_SURVEYOR, _("Surveyor")))
-
-    ROLE_CONFIG = {
-        ROLE_ADMIN: {'group': "Administrators", 'granted_to': ("administrators",)},
-        ROLE_EDITOR: {'group': "Editors", 'granted_to': ("administrators", "editors")},
-        ROLE_SURVEYOR: {'group': "Surveyors", 'granted_to': ("administrators", "editors", "surveyors")},
-    }
-
-    ROLE_GROUPS = {c['group'] for c in ROLE_CONFIG.values()}
+    ROLE_GRANTED_TO = {"Administrators": ("Administrators",),
+                       "Editors": ("Administrators", "Editors"),
+                       "Surveyors": ("Administrators", "Editors", "Surveyors")}
 
     key = models.CharField(max_length=40, primary_key=True)
 
@@ -538,23 +528,67 @@ class APIToken(models.Model):
     role = models.ForeignKey(Group)
 
     @classmethod
+    def get_or_create(cls, org, user, role=None):
+        """
+        Gets or creates an API token for this user
+        """
+        if not role:
+            role = cls.get_default_role(org, user)
+
+        if not role:
+            raise ValueError("User '%s' has no suitable role for API usage" % unicode(user))
+        elif role.name not in cls.ROLE_GRANTED_TO:
+            raise ValueError("Role %s is a not valid for API usage" % role.name)
+
+        token = cls.objects.filter(user=user, org=org, role=role).first()
+        if not token:
+            token = cls.objects.create(user=user, org=org, role=role)
+
+        return token
+
+    @classmethod
     def get_orgs_for_role(cls, user, role):
         """
-        Gets all the orgs the user can login to with the given role. Also
-        takes a single character role (A, E, S, etc) and maps it to a UserGroup.
+        Gets all the orgs the user can access the API with the given role
         """
-        role_config = cls.ROLE_CONFIG.get(role)
-        if not role_config:
-            return [], None
-
         user_query = Q()
-        for user_group in role_config['granted_to']:
-            user_query |= Q(**{user_group: user})
+        for user_group in cls.ROLE_GRANTED_TO.get(role.name):
+            user_query |= Q(**{user_group.lower(): user})
 
-        orgs = Org.objects.filter(user_query)
-        group = Group.objects.get(name=role_config['group'])
+        return Org.objects.filter(user_query)
 
-        return orgs, group
+    @classmethod
+    def get_default_role(cls, org, user):
+        """
+        Gets the default API role for the given user
+        """
+        group = org.get_user_org_group(user)
+
+        if group.name not in cls.ROLE_GRANTED_TO:  # don't allow creating tokens for Viewers group etc
+            return None
+        return group
+
+    @classmethod
+    def get_allowed_roles(cls, org, user):
+        """
+        Gets all of the allowed API roles for the given user
+        """
+        user_group = None
+        for group_name in cls.ROLE_GRANTED_TO.keys():
+            if user in getattr(org, group_name.lower()).all():
+                user_group = group_name
+
+        role_names = []
+        for role_name, granted_to in cls.ROLE_GRANTED_TO.iteritems():
+            if user_group in granted_to:
+                role_names.append(role_name)
+
+        return Group.objects.filter(name__in=role_names)
+
+    @classmethod
+    def get_role_from_code(cls, code):
+        role = cls.CODE_TO_ROLE.get(code)
+        return Group.objects.get(name=role) if role else None
 
     def save(self, *args, **kwargs):
         if not self.key:
@@ -574,27 +608,20 @@ class APIToken(models.Model):
 
 def get_or_create_api_token(user):
     """
-    Gets or creates an API token for this user
+    Gets or creates an API token for this user. If user doen't have access to the API, this returns None.
     """
-    if not user.is_authenticated():
-        return None
-
     org = user.get_org()
     if not org:
         org = Org.get_org(user)
 
     if org:
-        role = user.get_role()
-        if role.name not in APIToken.ROLE_GROUPS:  # don't allow creating tokens for Viewers group etc
-            return None
+        try:
+            token = APIToken.get_or_create(org, user)
+            return unicode(token)
+        except ValueError:
+            pass
 
-        token = APIToken.objects.filter(user=user, org=org, role=role).first()
-        if not token:
-            token = APIToken.objects.create(user=user, org=org, role=role)
-
-        return str(token)
-    else:
-        return None
+    return None
 
 
 def api_token(user):

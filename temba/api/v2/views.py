@@ -5,6 +5,7 @@ from django.contrib.auth import authenticate, login
 from django.db.models import Prefetch, Q
 from django.db.transaction import non_atomic_requests
 from django.http import HttpResponse, JsonResponse
+from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, status
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -13,7 +14,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView
-from temba.api.models import get_or_create_api_token, APIToken
+from temba.api.models import APIToken
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
@@ -99,9 +100,11 @@ class AuthenticateView(SmartFormView):
     Provides a login form view for app users to generate and access their API tokens
     """
     class LoginForm(forms.Form):
+        ROLE_CHOICES = (('A', _("Administrator")), ('E', _("Editor")), ('S', _("Surveyor")))
+
         username = forms.CharField()
         password = forms.CharField(widget=forms.PasswordInput)
-        role = forms.ChoiceField(choices=APIToken.ROLE_CHOICES)
+        role = forms.ChoiceField(choices=ROLE_CHOICES)
 
     title = "API Authentication"
     form_class = LoginForm
@@ -113,22 +116,20 @@ class AuthenticateView(SmartFormView):
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('username')
         password = form.cleaned_data.get('password')
-        role = form.cleaned_data.get('role')
+        role_code = form.cleaned_data.get('role')
 
         user = authenticate(username=username, password=password)
         if user and user.is_active:
             login(self.request, user)
+
+            role = APIToken.get_role_from_code(role_code)
             tokens = []
 
-            valid_orgs, role = APIToken.get_orgs_for_role(user, role)
             if role:
+                valid_orgs = APIToken.get_orgs_for_role(user, role)
                 for org in valid_orgs:
-                    user.set_org(org)
-                    user.set_role(role)
-                    token = get_or_create_api_token(user)
-
-                    if token:
-                        tokens.append({'org': {'id': org.pk, 'name': org.name}, 'token': token})
+                    token = APIToken.get_or_create(org, user, role)
+                    tokens.append({'org': {'id': org.pk, 'name': org.name}, 'token': token.key})
             else:
                 return HttpResponse(status=403)
 

@@ -5,13 +5,14 @@ from collections import defaultdict
 from django.db import migrations
 
 
-ROLES = ('administrators', 'editors', 'viewers', 'surveyors')
+GROUP_SETS = ('administrators', 'editors', 'viewers', 'surveyors')
 
-ROLE_TOKEN_GROUPS = {
-    'administrators': ("Administrators", "Editors", "Surveyors"),
-    'editors': ("Editors", "Surveyors"),
-    'viewers': (),
-    'surveyors': ("Surveyors",)
+# API roles that a user is allowed to have if they belong to a given org group set
+ALLOWED_API_ROLES = {
+    'administrators': {"Administrators", "Editors", "Surveyors"},
+    'editors': {"Editors", "Surveyors"},
+    'viewers': set(),
+    'surveyors': {"Surveyors"}
 }
 
 
@@ -19,32 +20,38 @@ def fix_org_groups(apps, schema_editor):
     Org = apps.get_model('orgs', 'Org')
 
     for org in Org.objects.all():
-        org_user_roles = defaultdict(list)
+        user_memberships = defaultdict(list)
+        user_fixed_memberships = {}
 
-        # get the roles for all users in this org
-        for role in ROLES:
-            for user in getattr(org, role).all():
-                org_user_roles[user].append(role)
+        # get the group memberships for all users in this org
+        for group_set in GROUP_SETS:
+            for user in getattr(org, group_set).all():
+                user_memberships[user].append(group_set)
 
-        for user, user_roles in org_user_roles.iteritems():
-            # fix users who have more than one role
-            if len(user_roles) > 1:
-                keep_role = user_roles[0]
-                for remove_role in user_roles[1:]:
-                    getattr(org, remove_role).remove(user)
-                    print("Removed user '%s' [%d] from %s role in org '%s' [%d] as they have %s role"
-                          % (user.username, user.pk, remove_role, org.name, org.pk, keep_role))
+        for user, memberships in user_memberships.iteritems():
+            keep_group = memberships[0]
+            user_fixed_memberships[user] = keep_group
 
-        # delete API tokens where users no longer have that role
+            # fix users who are members of more than one group
+            if len(memberships) > 1:
+                for leave_group in memberships[1:]:
+                    getattr(org, leave_group).remove(user)
+                    print("Removed user '%s' [%d] from group %s in org '%s' [%d] as they are in %s"
+                          % (user.username, user.pk, leave_group, org.name, org.pk, keep_group))
+
+        # delete API tokens where users don't have a valid API role. They may have one at one point or may have
+        # requested an API token in a group which can't use the API, e.g. Viewers
         for token in org.api_tokens.select_related('user', 'role'):
             user = token.user
-            user_actual_role = org_user_roles.get(user, [])[0]
-            user_allowed_groups = ROLE_TOKEN_GROUPS.get(user_actual_role, [])
+            user_actual_group = user_fixed_memberships.get(user)
+            user_allowed_roles = ALLOWED_API_ROLES.get(user_actual_group, [])
 
-            if token.role.name not in user_allowed_groups:
+            if token.role.name not in user_allowed_roles:
                 token.delete()
                 print("Deleted token %s with role %s for user '%s' [%d] in org '%s' [%d]"
                       % (token.key, token.role.name, user.username, user.pk, org.name, org.pk))
+
+    raise ValueError("DOH")
 
 
 class Migration(migrations.Migration):

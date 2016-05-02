@@ -116,23 +116,21 @@ class AuthenticateEndpoint(SmartFormView):
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('email')
         password = form.cleaned_data.get('password')
-        role = form.cleaned_data.get('role')
+        role_code = form.cleaned_data.get('role')
 
         user = authenticate(username=username, password=password)
         if user and user.is_active:
             login(self.request, user)
 
+            role = APIToken.get_role_from_code(role_code)
             orgs = []
 
-            valid_orgs, role = APIToken.get_orgs_for_role(user, role)
             if role:
-                for org in valid_orgs:
-                    user.set_org(org)
-                    user.set_role(role)
-                    token = get_or_create_api_token(user)
+                valid_orgs = APIToken.get_orgs_for_role(user, role)
 
-                    if token:
-                        orgs.append(dict(id=org.pk, name=org.name, token=token))
+                for org in valid_orgs:
+                    token = APIToken.get_or_create(org, user, role)
+                    orgs.append(dict(id=org.pk, name=org.name, token=token.key))
             else:
                 return HttpResponse(status=403)
 

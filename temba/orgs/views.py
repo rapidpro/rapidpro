@@ -5,7 +5,7 @@ import logging
 import plivo
 import six
 
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict
 from datetime import datetime
 from decimal import Decimal
 from django import forms
@@ -892,16 +892,34 @@ class OrgCRUDL(SmartCRUDL):
 
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
-        class InviteForm(forms.ModelForm):
-            emails = forms.CharField(label=_("Invite people to your organization"), required=False)
-            user_group = forms.ChoiceField(choices=(('A', _("Administrators")),
-                                                    ('E', _("Editors")),
-                                                    ('V', _("Viewers")),
-                                                    ('S', _("Surveyors"))),
-                                           required=True, initial='V', label=_("User group"))
+        class AccountsForm(forms.ModelForm):
+            invite_emails = forms.CharField(label=_("Invite people to your organization"), required=False)
+            invite_group = forms.ChoiceField(choices=(('A', _("Administrators")),
+                                                      ('E', _("Editors")),
+                                                      ('V', _("Viewers")),
+                                                      ('S', _("Surveyors"))),
+                                             required=True, initial='V', label=_("User group"))
 
-            def clean_emails(self):
-                emails = self.cleaned_data['emails'].lower().strip()
+            def add_user_group_fields(self, groups, users):
+                fields_by_user = {}
+
+                for user in users:
+                    fields = []
+                    field_mapping = []
+
+                    for group in groups:
+                        check_field = forms.BooleanField(required=False)
+                        field_name = "%s_%d" % (group.lower(), user.pk)
+
+                        field_mapping.append((field_name, check_field))
+                        fields.append(field_name)
+
+                    self.fields = OrderedDict(self.fields.items() + field_mapping)
+                    fields_by_user[user] = fields
+                return fields_by_user
+
+            def clean_invite_emails(self):
+                emails = self.cleaned_data['invite_emails'].lower().strip()
                 if emails:
                     email_list = emails.split(',')
                     for email in email_list:
@@ -913,44 +931,29 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Invitation
-                fields = ('emails', 'user_group')
+                fields = ('invite_emails', 'invite_group')
 
-        form_class = InviteForm
+        form_class = AccountsForm
         success_url = "@orgs.org_home"
         success_message = ""
-        ROLES = ('administrators', 'editors', 'viewers', 'surveyors')
+        ORG_GROUPS = ('Administrators', 'Editors', 'Viewers', 'Surveyors')
+
+        @staticmethod
+        def org_group_set(org, group_name):
+            return getattr(org, group_name.lower())
 
         def derive_title(self):
             return _("Manage %(name)s Accounts") % {'name': self.get_object().name}
-
-        def add_user_role_fields(self, form, users):
-            fields_by_user = {}
-
-            for user in users:
-                fields = []
-                field_mapping = []
-
-                for role in self.ROLES:
-                    check_field = forms.BooleanField(required=False)
-                    field_name = "%s_%d" % (role, user.pk)
-
-                    field_mapping.append((field_name, check_field))
-                    fields.append(field_name)
-
-                # as of django 1.7 we can't insert into fields, construct a new OrderedDict
-                form.fields = OrderedDict(form.fields.items() + field_mapping)
-                fields_by_user[user] = fields
-            return fields_by_user
 
         def derive_initial(self):
             initial = super(OrgCRUDL.ManageAccounts, self).derive_initial()
 
             org = self.get_object()
-            for role in self.ROLES:
-                users_with_role = getattr(org, role).all()
+            for group in self.ORG_GROUPS:
+                users_in_group = self.org_group_set(org, group).all()
 
-                for obj in users_with_role:
-                    initial['%s_%d' % (role, obj.id)] = True
+                for user in users_in_group:
+                    initial['%s_%d' % (group.lower(), user.pk)] = True
 
             return initial
 
@@ -958,7 +961,7 @@ class OrgCRUDL(SmartCRUDL):
             form = super(OrgCRUDL.ManageAccounts, self).get_form(form_class)
 
             self.org_users = self.get_object().get_org_users()
-            self.fields_by_users = self.add_user_role_fields(form, self.org_users)
+            self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
 
             return form
 
@@ -966,71 +969,56 @@ class OrgCRUDL(SmartCRUDL):
             obj = super(OrgCRUDL.ManageAccounts, self).post_save(obj)
 
             cleaned_data = self.form.cleaned_data
-            user = self.request.user
             org = self.get_object()
 
-            user_group = cleaned_data['user_group']
-            emails = cleaned_data['emails'].lower().strip()
-            host = self.request.branding['host']
+            invite_emails = cleaned_data['invite_emails'].lower().strip()
+            invite_group = cleaned_data['invite_group']
+            invite_host = self.request.branding['host']
 
-            if emails:
-                for email in emails.split(','):
-
+            if invite_emails:
+                for email in invite_emails.split(','):
                     # if they already have an invite, update it
                     invites = Invitation.objects.filter(email=email, org=org).order_by('-pk')
                     invitation = invites.first()
 
                     if invitation:
+                        invites.exclude(pk=invitation.pk).delete()  # remove any old invites
 
-                        # remove any old invites
-                        invites.exclude(pk=invitation.pk).delete()
-
-                        invitation.user_group = user_group
+                        invitation.user_group = invite_group
                         invitation.is_active = True
                         invitation.save()
                     else:
-                        invitation = Invitation.objects.create(email=email,
-                                                               org=org,
-                                                               host=host,
-                                                               user_group=user_group,
-                                                               created_by=user,
-                                                               modified_by=user)
+                        invitation = Invitation.create(org, self.request.user, email, invite_group, invite_host)
 
                     invitation.send_invitation()
 
-            current_roles = {}
-            new_roles = {}
+            current_groups = {}
+            new_groups = {}
 
-            for role in reversed(self.ROLES):  # reversed so if user has more than one role, highest takes priority
-                # gather up existing users with their roles
-                for user in getattr(org, role).all():
-                    current_roles[user] = role
+            for group in self.ORG_GROUPS:
+                # gather up existing users with their groups
+                for user in self.org_group_set(org, group).all():
+                    current_groups[user] = group
 
                 # parse form fields to get new roles
                 for field in self.form.cleaned_data:
-                    if field.startswith(role + '_') and self.form.cleaned_data[field]:
+                    if field.startswith(group.lower() + '_') and self.form.cleaned_data[field]:
                         user = User.objects.get(pk=field.split('_')[1])
-                        new_roles[user] = role
+                        new_groups[user] = group
 
-            # find the API token groups that each role can belong to
-            token_groups_by_role = defaultdict(list)
-            for token_role_config in APIToken.ROLE_CONFIG.values():
-                for role in token_role_config['granted_to']:
-                    token_groups_by_role[role].append(token_role_config['group'])
+            for user in current_groups.keys():
+                current_group = current_groups.get(user)
+                new_group = new_groups.get(user)
 
-            for user in current_roles.keys():
-                current_role = current_roles.get(user)
-                new_role = new_roles.get(user)
-
-                if current_role != new_role:
-                    if current_role:
-                        getattr(org, current_role).remove(user)
-                    if new_role:
-                        getattr(org, new_role).add(user)
+                if current_group != new_group:
+                    if current_group:
+                        self.org_group_set(org, current_group).remove(user)
+                    if new_group:
+                        self.org_group_set(org, new_group).add(user)
 
                     # when a user's role changes, delete any API tokens they're no longer allowed to have
-                    token_groups = token_groups_by_role.get(new_role, [])
-                    APIToken.objects.filter(org=org, user=user).exclude(role__name__in=token_groups).delete()
+                    api_roles = APIToken.get_allowed_roles(org, user)
+                    APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles).delete()
 
             return obj
 

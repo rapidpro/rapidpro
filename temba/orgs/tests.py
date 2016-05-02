@@ -382,19 +382,19 @@ class OrgTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
-        all_users = [self.surveyor, self.user, self.editor, self.admin]
-        all_roles = ['administrators', 'editors', 'viewers', 'surveyors']
-
-        # ensure all users have an API token and give admin an additional surveyor-role token
-        for user in all_users:
-            user.api_token
-        APIToken.objects.create(org=self.org, user=self.admin, role=Group.objects.get(name="Surveyors"))
+        # give users an API token and give admin and editor an additional surveyor-role token
+        APIToken.get_or_create(self.org, self.admin)
+        APIToken.get_or_create(self.org, self.editor)
+        APIToken.get_or_create(self.org, self.surveyor)
+        APIToken.get_or_create(self.org, self.admin, role=Group.objects.get(name="Surveyors"))
+        APIToken.get_or_create(self.org, self.editor, role=Group.objects.get(name="Surveyors"))
 
         # we have 19 fields in the form including 16 checkboxes for the four users, an email field, a user group field
         # and 'loc' field.
-        expected_fields = {'emails', 'user_group', 'loc'}
-        for user in all_users:
-            expected_fields.update([r + '_%d' % user.pk for r in all_roles])
+        expected_fields = {'invite_emails', 'invite_group', 'loc'}
+        for user in (self.surveyor, self.user, self.editor, self.admin):
+            for group in ('administrators', 'editors', 'viewers', 'surveyors'):
+                expected_fields.add(group + '_%d' % user.pk)
 
         self.assertEqual(set(response.context['form'].fields.keys()), expected_fields)
         self.assertEqual(response.context['form'].initial, {
@@ -403,15 +403,16 @@ class OrgTest(TembaTest):
             'viewers_%d' % self.user.pk: True,
             'surveyors_%d' % self.surveyor.pk: True
         })
-        self.assertEqual(response.context['form'].fields['emails'].initial, None)
-        self.assertEqual(response.context['form'].fields['user_group'].initial, 'V')
+        self.assertEqual(response.context['form'].fields['invite_emails'].initial, None)
+        self.assertEqual(response.context['form'].fields['invite_group'].initial, 'V')
 
         # keep admin as admin, editor as editor, but make user an editor too, and remove surveyor
         post_data = {
             'administrators_%d' % self.admin.pk: 'on',
             'editors_%d' % self.editor.pk: 'on',
             'editors_%d' % self.user.pk: 'on',
-            'user_group': 'V'
+            'invite_emails': "",
+            'invite_group': "V"
         }
         response = self.client.post(url, post_data)
         self.assertRedirect(response, reverse('orgs.org_home'))
@@ -423,20 +424,19 @@ class OrgTest(TembaTest):
         self.assertEqual(set(self.org.surveyors.all()), set())
 
         # our surveyor's API token will have been deleted
-        self.assertTrue(APIToken.objects.filter(user=self.admin, role__name="Administrators").exists())
-        self.assertTrue(APIToken.objects.filter(user=self.admin, role__name="Surveyors").exists())
-        self.assertTrue(APIToken.objects.filter(user=self.editor, role__name="Editors").exists())
-        self.assertFalse(APIToken.objects.filter(user=self.surveyor, role__name="Surveyors").exists())
+        self.assertEqual(self.admin.api_tokens.count(), 2)
+        self.assertEqual(self.editor.api_tokens.count(), 2)
+        self.assertEqual(self.surveyor.api_tokens.count(), 0)
 
         # next we leave existing roles unchanged, but try to invite new user to be admin with invalid email address
-        post_data['emails'] = "norkans7gmail.com"
-        post_data['user_group'] = 'A'
+        post_data['invite_emails'] = "norkans7gmail.com"
+        post_data['invite_group'] = 'A'
         response = self.client.post(url, post_data)
 
-        self.assertFormError(response, 'form', 'emails', "One of the emails you entered is invalid.")
+        self.assertFormError(response, 'form', 'invite_emails', "One of the emails you entered is invalid.")
 
         # try again with valid email
-        post_data['emails'] = "norkans7@gmail.com"
+        post_data['invite_emails'] = "norkans7@gmail.com"
         response = self.client.post(url, post_data)
         self.assertRedirect(response, reverse('orgs.org_home'))
 
@@ -454,8 +454,8 @@ class OrgTest(TembaTest):
         invitation.save()
 
         # send another invitation, different group
-        post_data['emails'] = "norkans7@gmail.com"
-        post_data['user_group'] = 'E'
+        post_data['invite_emails'] = "norkans7@gmail.com"
+        post_data['invite_group'] = 'E'
         self.client.post(url, post_data)
 
         # old invite should be updated
@@ -467,8 +467,8 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 2)
 
         # include multiple emails on the form
-        post_data['emails'] = "norbert@temba.com,code@temba.com"
-        post_data['user_group'] = 'A'
+        post_data['invite_emails'] = "norbert@temba.com,code@temba.com"
+        post_data['invite_group'] = 'A'
         self.client.post(url, post_data)
 
         # now 2 new invitations are created and sent
@@ -485,11 +485,12 @@ class OrgTest(TembaTest):
         self.assertEqual(response.context['invites'][1].email, 'norbert@temba.com')
         self.assertEqual(response.context['invites'][2].email, 'norkans7@gmail.com')
 
-        # now we remove ourselves as a admin
+        # finally downgrade the editor to a surveyor and remove ourselves entirely from this org
         response = self.client.post(url, {
-            'editors_%d' % self.editor.pk: 'on',
             'editors_%d' % self.user.pk: 'on',
-            'user_group': 'V'
+            'surveyors_%d' % self.editor.pk: 'on',
+            'invite_emails': "",
+            'invite_group': 'V'
         })
 
         # we should be redirected to chooser page
@@ -498,12 +499,17 @@ class OrgTest(TembaTest):
         # and removed from this org
         self.org.refresh_from_db()
         self.assertEqual(set(self.org.administrators.all()), set())
-        self.assertEqual(set(self.org.editors.all()), {self.user, self.editor})
+        self.assertEqual(set(self.org.editors.all()), {self.user})
         self.assertEqual(set(self.org.viewers.all()), set())
-        self.assertEqual(set(self.org.surveyors.all()), set())
+        self.assertEqual(set(self.org.surveyors.all()), {self.editor})
+
+        # editor will have lost their editor API token, but not their surveyor token
+        self.editor.refresh_from_db()
+        self.assertEqual([t.role.name for t in self.editor.api_tokens.all()], ["Surveyors"])
 
         # and all our API tokens for this org are deleted
-        self.assertFalse(APIToken.objects.filter(user=self.admin).exists())
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.api_tokens.count(), 0)
 
     @patch('temba.utils.email.send_temba_email')
     def test_join(self, mock_send_temba_email):
