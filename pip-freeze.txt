@@ -78,7 +78,7 @@ google==1.07
 httplib2==0.9
 ipython==2.2.0
 iso639==0.1.1
-kombu==3.0.16
+kombu==3.0.35
 nodeenv==0.9.4
 oauthlib==0.6.1
 prettytable==0.7.2
