@@ -14,10 +14,8 @@ def populate_flowsteps_for_broadcast(RelatedBroadcast, RelatedMsg, MsgManager, b
     start_count = len(batch)
 
     for msg_id_batch in chunk_list(set(msg_ids), 1000):
-        # get all the flowsteps that reference these msgs
-        RelatedMsg.objects.filter(msg_id__in=msg_id_batch).values_list('flowstep_id', flat=True)
-
-        broadcast_batch = [RelatedBroadcast(flowstep_id=mid, broadcast_id=broadcast.id) for mid in msg_id_batch]
+        fs_ids = set(RelatedMsg.objects.filter(msg_id__in=msg_id_batch).values_list('flowstep_id', flat=True))
+        broadcast_batch = [RelatedBroadcast(flowstep_id=fs_id, broadcast_id=broadcast.id) for fs_id in fs_ids]
         batch += broadcast_batch
 
     return len(batch) - start_count
@@ -41,6 +39,8 @@ def backfill_flowsteps(FlowStep, Broadcast, MsgManager):
     for broadcast_id_batch in chunk_list(broadcast_ids, 1000):
         broadcasts = Broadcast.objects.filter(id__in=broadcast_id_batch).order_by('id').only('id')
         for broadcast in broadcasts:
+            if i % 1000 == 0:
+                print "Processed %d / %d (batch size %d) in %d" % (i, len(broadcast_ids), len(batch), int(time.time() - start))
             i += 1
 
             # clear any current relations on this broadcast
@@ -50,7 +50,6 @@ def backfill_flowsteps(FlowStep, Broadcast, MsgManager):
             if len(batch) > 1000:
                 for broadcast_batch in chunk_list(batch, 1000):
                     RelatedBroadcast.objects.bulk_create(broadcast_batch)
-                print "%d (%d of %d) in %d" % (broadcast.id, i, len(broadcast_ids)-1, int(time.time() - start))
                 r.set(HIGHPOINT_KEY, broadcast.id)
                 batch = []
 
