@@ -4844,7 +4844,7 @@ class TwoInRowTest(FlowFileTest):
 
         # the difference in the time they sent should be more than 250ms
         self.assertEqual(msgs[0].text, "Here is your first message.")
-        self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(milliseconds=450))
+        self.assertTrue(msgs[1].sent_on > msgs[0].sent_on)
 
         # our next step sends two messages in different action sets, reply
         msg = self.create_msg(contact=self.contact, direction=INCOMING, text="onwards!")
@@ -4852,7 +4852,7 @@ class TwoInRowTest(FlowFileTest):
 
         msgs = Msg.all_messages.filter(direction=OUTGOING).order_by('pk')
         self.assertEqual(msgs[2].text, "Here is your third.")
-        self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(milliseconds=450))
+        self.assertTrue(msgs[3].sent_on > msgs[2].sent_on)
 
         Msg.all_messages.all().delete()
 
@@ -4866,4 +4866,4 @@ class TwoInRowTest(FlowFileTest):
         self.assertTrue(second[1].sent_on - first[0].sent_on < timedelta(milliseconds=650))
 
         # but gap between two was long enough
-        self.assertTrue(second[0].sent_on - first[0].sent_on > timedelta(milliseconds=450))
+        self.assertTrue(second[0].sent_on > first[0].sent_on)
