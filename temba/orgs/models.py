@@ -523,8 +523,6 @@ class Org(SmartModel):
 
         # if we have msgs, then send just those
         if msgs:
-            # sort them by creation date
-            msgs.sort(key=lambda message: message.created_on)
             ids = [m.id for m in msgs]
 
             # trigger syncs for our android channels

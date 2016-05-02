@@ -634,6 +634,7 @@ class Flow(TembaModel):
 
         # send any messages generated
         if msgs:
+            msgs.sort(key=lambda message: message.created_on)
             run.flow.org.trigger_send(msgs)
 
         return handled
@@ -1670,6 +1671,7 @@ class Flow(TembaModel):
         # trigger our messages to be sent
         if msgs:
             # then send them off
+            msgs.sort(key=lambda message: message.created_on)
             msg_ids = [m.id for m in msgs]
             Msg.all_messages.filter(id__in=msg_ids).update(status=PENDING)
 
