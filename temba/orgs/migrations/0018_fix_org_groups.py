@@ -51,8 +51,6 @@ def fix_org_groups(apps, schema_editor):
                 print("Deleted token %s with role %s for user '%s' [%d] in org '%s' [%d]"
                       % (token.key, token.role.name, user.username, user.pk, org.name, org.pk))
 
-    raise ValueError("DOH")
-
 
 class Migration(migrations.Migration):
 
