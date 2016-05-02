@@ -4843,7 +4843,16 @@ class TwoInRowTest(FlowFileTest):
         msgs = Msg.all_messages.all().order_by('pk')
 
         # the difference in the time they sent should be more than 250ms
+        self.assertEqual(msgs[0].text, "Here is your first message.")
         self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(milliseconds=450))
+
+        # our next step sends two messages in different action sets, reply
+        msg = self.create_msg(contact=self.contact, direction=INCOMING, text="onwards!")
+        Flow.find_and_handle(msg)
+
+        msgs = Msg.all_messages.filter(direction=OUTGOING).order_by('pk')
+        self.assertEqual(msgs[2].text, "Here is your third.")
+        self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(milliseconds=450))
 
         Msg.all_messages.all().delete()
 

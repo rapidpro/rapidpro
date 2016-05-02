@@ -583,6 +583,7 @@ class Flow(TembaModel):
 
         start_time = time.time()
         path = []
+        msgs = []
 
         # lookup our next destination
         handled = False
@@ -611,6 +612,9 @@ class Flow(TembaModel):
                 result = Flow.handle_actionset(destination, step, run, msg, started_flows, is_test_contact)
                 add_to_path(path, destination.uuid)
 
+                # add any generated messages to be sent at once
+                msgs += result['msgs']
+
             # if this is a triggered start, we only consider user input on the first step, so clear it now
             if triggered_start:
                 user_input = False
@@ -627,6 +631,10 @@ class Flow(TembaModel):
 
         if handled:
             analytics.gauge('temba.flow_execution', time.time() - start_time)
+
+        # send any messages generated
+        if msgs:
+            run.flow.org.trigger_send(msgs)
 
         return handled
 
@@ -659,11 +667,7 @@ class Flow(TembaModel):
             run.set_completed(final_step=step)
             step = None
 
-        # sync our channels to trigger any messages if we have any
-        if msgs:
-            run.flow.org.trigger_send(msgs)
-
-        return dict(handled=True, destination=destination, step=step)
+        return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg):
@@ -1665,9 +1669,6 @@ class Flow(TembaModel):
 
         # trigger our messages to be sent
         if msgs:
-            # sort all our messages by creation date
-            msgs.sort(key=lambda message: message.created_on)
-
             # then send them off
             msg_ids = [m.id for m in msgs]
             Msg.all_messages.filter(id__in=msg_ids).update(status=PENDING)
