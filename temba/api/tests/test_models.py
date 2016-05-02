@@ -22,9 +22,13 @@ class APITokenTest(TembaTest):
     def setUp(self):
         super(APITokenTest, self).setUp()
 
+        self.create_secondary_org()
+
         self.admins_group = Group.objects.get(name="Administrators")
         self.editors_group = Group.objects.get(name="Editors")
         self.surveyors_group = Group.objects.get(name="Surveyors")
+
+        self.org2.surveyors.add(self.admin)  # our admin can act as surveyor for other org
 
     def test_get_or_create(self):
         token1 = APIToken.get_or_create(self.org, self.admin)
@@ -56,8 +60,8 @@ class APITokenTest(TembaTest):
         self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.user)
 
     def test_get_orgs_for_role(self):
-        orgs = APIToken.get_orgs_for_role(self.admin, self.admins_group)
-        self.assertEqual(list(orgs), [self.org])
+        self.assertEqual(set(APIToken.get_orgs_for_role(self.admin, self.admins_group)), {self.org})
+        self.assertEqual(set(APIToken.get_orgs_for_role(self.admin, self.surveyors_group)), {self.org, self.org2})
 
     def test_get_allowed_roles(self):
         self.assertEqual(set(APIToken.get_allowed_roles(self.org, self.admin)),
@@ -67,11 +71,17 @@ class APITokenTest(TembaTest):
         self.assertEqual(set(APIToken.get_allowed_roles(self.org, self.surveyor)), {self.surveyors_group})
         self.assertEqual(set(APIToken.get_allowed_roles(self.org, self.user)), set())
 
+        # user from another org has no API roles
+        self.assertEqual(set(APIToken.get_allowed_roles(self.org, self.admin2)), set())
+
     def test_get_default_role(self):
         self.assertEqual(APIToken.get_default_role(self.org, self.admin), self.admins_group)
         self.assertEqual(APIToken.get_default_role(self.org, self.editor), self.editors_group)
         self.assertEqual(APIToken.get_default_role(self.org, self.surveyor), self.surveyors_group)
         self.assertIsNone(APIToken.get_default_role(self.org, self.user))
+
+        # user from another org has no API roles
+        self.assertIsNone(APIToken.get_default_role(self.org, self.admin2))
 
 
 class WebHookTest(TembaTest):

@@ -537,7 +537,7 @@ class APIToken(models.Model):
         if not role:
             raise ValueError("User '%s' has no suitable role for API usage" % unicode(user))
         elif role.name not in cls.ROLE_GRANTED_TO:
-            raise ValueError("Role %s is a not valid for API usage" % role.name)
+            raise ValueError("Role %s is not valid for API usage" % role.name)
 
         token = cls.objects.filter(user=user, org=org, role=role).first()
         if not token:
@@ -563,8 +563,9 @@ class APIToken(models.Model):
         """
         group = org.get_user_org_group(user)
 
-        if group.name not in cls.ROLE_GRANTED_TO:  # don't allow creating tokens for Viewers group etc
+        if not group or group.name not in cls.ROLE_GRANTED_TO:  # don't allow creating tokens for Viewers group etc
             return None
+
         return group
 
     @classmethod
@@ -572,17 +573,17 @@ class APIToken(models.Model):
         """
         Gets all of the allowed API roles for the given user
         """
-        user_group = None
-        for group_name in cls.ROLE_GRANTED_TO.keys():
-            if user in getattr(org, group_name.lower()).all():
-                user_group = group_name
+        group = org.get_user_org_group(user)
 
-        role_names = []
-        for role_name, granted_to in cls.ROLE_GRANTED_TO.iteritems():
-            if user_group in granted_to:
-                role_names.append(role_name)
+        if group:
+            role_names = []
+            for role_name, granted_to in cls.ROLE_GRANTED_TO.iteritems():
+                if group.name in granted_to:
+                    role_names.append(role_name)
 
-        return Group.objects.filter(name__in=role_names)
+            return Group.objects.filter(name__in=role_names)
+        else:
+            return []
 
     @classmethod
     def get_role_from_code(cls, code):
@@ -616,7 +617,7 @@ def get_or_create_api_token(user):
     if org:
         try:
             token = APIToken.get_or_create(org, user)
-            return unicode(token)
+            return token.key
         except ValueError:
             pass
 

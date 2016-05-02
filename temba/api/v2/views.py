@@ -131,7 +131,7 @@ class AuthenticateView(SmartFormView):
                     token = APIToken.get_or_create(org, user, role)
                     tokens.append({'org': {'id': org.pk, 'name': org.name}, 'token': token.key})
             else:
-                return HttpResponse(status=403)
+                return HttpResponse(status=404)
 
             return JsonResponse({'tokens': tokens})
         else:

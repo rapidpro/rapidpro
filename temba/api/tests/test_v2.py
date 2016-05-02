@@ -195,6 +195,14 @@ class APITest(TembaTest):
         admins = Group.objects.get(name='Administrators')
         surveyors = Group.objects.get(name='Surveyors')
 
+        # try to authenticate with incorrect password
+        response = self.client.post(url, {'username': "Administrator", 'password': "XXXX", 'role': 'A'})
+        self.assertEqual(response.status_code, 403)
+
+        # try to authenticate with invalid role
+        response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'X'})
+        self.assertEqual(response.status_code, 404)
+
         # authenticate an admin as an admin
         response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'A'})
 
