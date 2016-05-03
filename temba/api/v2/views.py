@@ -26,7 +26,7 @@ from .serializers import BroadcastReadSerializer, CampaignReadSerializer, Campai
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
 from .serializers import LabelReadSerializer, MsgReadSerializer
-from ..models import ApiPermission, SSLPermission
+from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError, CustomCursorPagination
 
 
@@ -150,7 +150,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
-    permission_classes = (SSLPermission, ApiPermission)
+    permission_classes = (SSLPermission, APIPermission)
 
     @non_atomic_requests
     def dispatch(self, request, *args, **kwargs):

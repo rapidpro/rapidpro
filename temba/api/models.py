@@ -54,34 +54,43 @@ EVENT_CHOICES = ((SMS_RECEIVED, "Incoming SMS Message"),
                  (CATEGORIZE, "Flow Categorization"))
 
 
-class ApiPermission(BasePermission):
+class APIPermission(BasePermission):
+    """
+    Verifies that the user has the permission set on the endpoint view
+    """
     def has_permission(self, request, view):
 
         if getattr(view, 'permission', None):
-
+            # no anon access to API endpoints
             if request.user.is_anonymous():
                 return False
 
-            # try to determine group from api token
+            org = request.user.get_org()
+
             if request.auth:
-                group = request.auth.role
-            # otherwise lean on the logged in user
+                role_group = request.auth.role
+                allowed_roles = APIToken.get_allowed_roles(org, request.user)
+
+                # check that user is still allowed to use the token's role
+                if role_group not in allowed_roles:
+                    return False
+            elif org:
+                # user may not have used token authentication
+                role_group = org.get_user_org_group(request.user)
             else:
-                org = request.user.get_org()
-                group = org.get_user_org_group(request.user) if org else None
+                return False
 
-            # if we have a group, check its permissions
-            if group:
-                codename = view.permission.split(".")[-1]
-                return group.permissions.filter(codename=codename)
-
-            return False
+            codename = view.permission.split(".")[-1]
+            return role_group.permissions.filter(codename=codename).exists()
 
         else:  # pragma: no cover
             return True
 
 
 class SSLPermission(BasePermission):  # pragma: no cover
+    """
+    Verifies that the request used SSL if that is required
+    """
     def has_permission(self, request, view):
         if getattr(settings, 'SESSION_COOKIE_SECURE', False):
             return request.is_secure()

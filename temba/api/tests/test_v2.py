@@ -76,6 +76,11 @@ class APITest(TembaTest):
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
+        # same for non-org user
+        self.login(self.non_org_user)
+        response = self.fetchHTML(url, query)
+        self.assertEqual(response.status_code, 403)
+
         # same for plain user
         self.login(self.user)
         response = self.fetchHTML(url, query)
@@ -110,29 +115,46 @@ class APITest(TembaTest):
             self.assertEqual(response.json['detail'], expected_message)
 
     def test_authentication(self):
-        url = reverse('api.v2.contacts') + '.json'
+        def api_request(endpoint, token):
+            response = self.client.get(endpoint + '.json', content_type="application/json",
+                                       HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % token)
+            response.json = json.loads(response.content)
+            return response
+
+        contacts_url = reverse('api.v2.contacts')
+        campaigns_url = reverse('api.v2.campaigns')
 
         # can't fetch endpoint with invalid token
-        response = self.client.get(url, content_type="application/json",
-                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token 1234567890")
-        response.json = json.loads(response.content)
-
+        response = api_request(contacts_url, "1234567890")
         self.assertResponseError(response, None, "Invalid token", status_code=403)
 
-        # can fetch endpoint with valid token
-        response = self.client.get(url, content_type="application/json",
-                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+        token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
+        token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
 
+        # can fetch campaigns endpoint with valid admin token
+        response = api_request(campaigns_url, token1.key)
         self.assertEqual(response.status_code, 200)
 
-        # but not if user is inactive
+        # but not with surveyor token
+        response = api_request(campaigns_url, token2.key)
+        self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
+
+        # but it can be used to access the contacts endpoint
+        response = api_request(contacts_url, token2.key)
+        self.assertEqual(response.status_code, 200)
+
+        # if user loses access to the token's role, don't allow the request
+        self.org.administrators.remove(self.admin)
+        self.org.surveyors.add(self.admin)
+
+        self.assertEqual(api_request(campaigns_url, token1.key).status_code, 403)
+        self.assertEqual(api_request(contacts_url, token2.key).status_code, 200)  # other token unaffected
+
+        # and if user is inactive, disallow the request
         self.admin.is_active = False
         self.admin.save()
 
-        response = self.client.get(url, content_type="application/json",
-                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
-        response.json = json.loads(response.content)
-
+        response = api_request(contacts_url, token2.key)
         self.assertResponseError(response, None, "User inactive or deleted", status_code=403)
 
     @override_settings(SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_HTTPS', 'https'))

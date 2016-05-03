@@ -26,7 +26,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label
 from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
-from ..models import ApiPermission, SSLPermission
+from ..models import APIPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
 from .serializers import ChannelEventSerializer, CampaignReadSerializer, CampaignWriteSerializer
 from .serializers import CampaignEventReadSerializer, CampaignEventWriteSerializer
@@ -247,7 +247,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
-    permission_classes = (SSLPermission, ApiPermission)
+    permission_classes = (SSLPermission, APIPermission)
 
     @non_atomic_gets
     def dispatch(self, request, *args, **kwargs):
