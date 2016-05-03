@@ -39,8 +39,6 @@ def backfill_flowsteps(FlowStep, Broadcast, MsgManager):
     for broadcast_id_batch in chunk_list(broadcast_ids, 1000):
         broadcasts = Broadcast.objects.filter(id__in=broadcast_id_batch).order_by('id').only('id')
         for broadcast in broadcasts:
-            if i % 1000 == 0:
-                print "Processed %d / %d (batch size %d) in %d" % (i, len(broadcast_ids), len(batch), int(time.time() - start))
             i += 1
 
             # clear any current relations on this broadcast
@@ -53,6 +51,8 @@ def backfill_flowsteps(FlowStep, Broadcast, MsgManager):
                 r.set(HIGHPOINT_KEY, broadcast.id)
                 batch = []
 
+        print "Processed %d / %d (batch size %d) in %d" % (i, len(broadcast_ids), len(batch), int(time.time() - start))
+
     for broadcast_batch in chunk_list(batch, 1000):
         RelatedBroadcast.objects.bulk_create(broadcast_batch)
 
@@ -61,7 +61,7 @@ def backfill_flowsteps(FlowStep, Broadcast, MsgManager):
 
 
 def migration_backfill_flowsteps(apps, schema):
-    backfill_flowsteps(apps.get_model('flows', 'FLowStep'),
+    backfill_flowsteps(apps.get_model('flows', 'FlowStep'),
                         apps.get_model('msgs', 'Broadcast'),
                         apps.get_model('msgs', 'Msg').objects)
 
