@@ -15,18 +15,19 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch, Mock
 from smartmin.tests import SmartminTest
+from temba.api.models import APIToken
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
-from temba.middleware import BrandingMiddleware
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, ActionSet
+from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.nexmo import NexmoValidationError
 from temba.orgs.models import UserSettings
-from temba.utils.email import link_components
-from temba.utils import languages, dict_to_struct
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
+from temba.utils.email import link_components
+from temba.utils import languages, dict_to_struct
 from .models import Org, OrgEvent, TopUp, Invitation, Language, DAYFIRST, MONTHFIRST, CURRENT_EXPORT_VERSION
 from .models import CreditAlert, ORG_CREDIT_OVER, ORG_CREDIT_LOW, ORG_CREDIT_EXPIRING
 from .models import UNREAD_FLOW_MSGS, UNREAD_INBOX_MSGS, TopUpCredits
@@ -374,136 +375,141 @@ class OrgTest(TembaTest):
 
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
-        manage_accounts_url = reverse('orgs.org_manage_accounts')
+        url = reverse('orgs.org_manage_accounts')
 
         self.login(self.admin)
 
-        response = self.client.get(manage_accounts_url)
-        self.assertEquals(200, response.status_code)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        # give users an API token and give admin and editor an additional surveyor-role token
+        APIToken.get_or_create(self.org, self.admin)
+        APIToken.get_or_create(self.org, self.editor)
+        APIToken.get_or_create(self.org, self.surveyor)
+        APIToken.get_or_create(self.org, self.admin, role=Group.objects.get(name="Surveyors"))
+        APIToken.get_or_create(self.org, self.editor, role=Group.objects.get(name="Surveyors"))
 
         # we have 19 fields in the form including 16 checkboxes for the four users, an email field, a user group field
         # and 'loc' field.
-        self.assertEquals(19, len(response.context['form'].fields))
-        self.assertTrue('emails' in response.context['form'].fields)
-        self.assertTrue('user_group' in response.context['form'].fields)
-        for user in [self.user, self.editor, self.admin]:
-            self.assertTrue("administrators_%d" % user.pk in response.context['form'].fields)
-            self.assertTrue("editors_%d" % user.pk in response.context['form'].fields)
-            self.assertTrue("viewers_%d" % user.pk in response.context['form'].fields)
-            self.assertTrue("surveyors_%d" % user.pk in response.context['form'].fields)
+        expected_fields = {'invite_emails', 'invite_group', 'loc'}
+        for user in (self.surveyor, self.user, self.editor, self.admin):
+            for group in ('administrators', 'editors', 'viewers', 'surveyors'):
+                expected_fields.add(group + '_%d' % user.pk)
 
-        self.assertFalse(response.context['form'].fields['emails'].initial)
-        self.assertEquals('V', response.context['form'].fields['user_group'].initial)
+        self.assertEqual(set(response.context['form'].fields.keys()), expected_fields)
+        self.assertEqual(response.context['form'].initial, {
+            'administrators_%d' % self.admin.pk: True,
+            'editors_%d' % self.editor.pk: True,
+            'viewers_%d' % self.user.pk: True,
+            'surveyors_%d' % self.surveyor.pk: True
+        })
+        self.assertEqual(response.context['form'].fields['invite_emails'].initial, None)
+        self.assertEqual(response.context['form'].fields['invite_group'].initial, 'V')
 
-        # keep admin as admin, editor as editor, but make user an editor too
+        # keep admin as admin, editor as editor, but make user an editor too, and remove surveyor
         post_data = {
             'administrators_%d' % self.admin.pk: 'on',
             'editors_%d' % self.editor.pk: 'on',
             'editors_%d' % self.user.pk: 'on',
-            'user_group': 'E'
+            'invite_emails': "",
+            'invite_group': "V"
         }
-        response = self.client.post(manage_accounts_url, post_data)
-        self.assertEquals(302, response.status_code)
+        response = self.client.post(url, post_data)
+        self.assertRedirect(response, reverse('orgs.org_home'))
 
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual(set(org.administrators.all()), {self.admin})
-        self.assertEqual(set(org.editors.all()), {self.user, self.editor})
-        self.assertFalse(set(org.viewers.all()), set())
+        self.org.refresh_from_db()
+        self.assertEqual(set(self.org.administrators.all()), {self.admin})
+        self.assertEqual(set(self.org.editors.all()), {self.user, self.editor})
+        self.assertFalse(set(self.org.viewers.all()), set())
+        self.assertEqual(set(self.org.surveyors.all()), set())
 
-        # add to post_data an email to invite as admin
-        post_data['emails'] = "norkans7gmail.com"
-        post_data['user_group'] = 'A'
-        response = self.client.post(manage_accounts_url, post_data)
-        self.assertTrue('emails' in response.context['form'].errors)
-        self.assertEquals("One of the emails you entered is invalid.", response.context['form'].errors['emails'][0])
+        # our surveyor's API token will have been deleted
+        self.assertEqual(self.admin.api_tokens.count(), 2)
+        self.assertEqual(self.editor.api_tokens.count(), 2)
+        self.assertEqual(self.surveyor.api_tokens.count(), 0)
 
-        # now post with right email
-        post_data['emails'] = "norkans7@gmail.com"
-        post_data['user_group'] = 'A'
-        response = self.client.post(manage_accounts_url, post_data)
+        # next we leave existing roles unchanged, but try to invite new user to be admin with invalid email address
+        post_data['invite_emails'] = "norkans7gmail.com"
+        post_data['invite_group'] = 'A'
+        response = self.client.post(url, post_data)
 
-        # an invitation is created and sent by email
-        self.assertEquals(1, Invitation.objects.all().count())
+        self.assertFormError(response, 'form', 'invite_emails', "One of the emails you entered is invalid.")
+
+        # try again with valid email
+        post_data['invite_emails'] = "norkans7@gmail.com"
+        response = self.client.post(url, post_data)
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # an invitation is created
+        invitation = Invitation.objects.get()
+        self.assertEqual(invitation.org, self.org)
+        self.assertEqual(invitation.email, "norkans7@gmail.com")
+        self.assertEqual(invitation.user_group, "A")
+
+        # and sent by email
         self.assertTrue(len(mail.outbox) == 1)
 
-        invitation = Invitation.objects.get()
-
-        self.assertEquals(invitation.org, self.org)
-        self.assertEquals(invitation.email, "norkans7@gmail.com")
-        self.assertEquals(invitation.user_group, "A")
-
         # pretend our invite was acted on
-        Invitation.objects.all().update(is_active=False)
+        invitation.is_active = False
+        invitation.save()
 
         # send another invitation, different group
-        post_data['emails'] = "norkans7@gmail.com"
-        post_data['user_group'] = 'E'
-        self.client.post(manage_accounts_url, post_data)
+        post_data['invite_emails'] = "norkans7@gmail.com"
+        post_data['invite_group'] = 'E'
+        self.client.post(url, post_data)
 
         # old invite should be updated
-        new_invite = Invitation.objects.all().first()
-        self.assertEquals(1, Invitation.objects.all().count())
-        self.assertEquals(invitation.pk, new_invite.pk)
-        self.assertEquals('E', new_invite.user_group)
-        self.assertEquals(2, len(mail.outbox))
-        self.assertTrue(new_invite.is_active)
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.user_group, 'E')
+        self.assertTrue(invitation.is_active)
 
-        # post many emails to the form
-        post_data['emails'] = "norbert@temba.com,code@temba.com"
-        post_data['user_group'] = 'A'
-        self.client.post(manage_accounts_url, post_data)
+        # and new email sent
+        self.assertEqual(len(mail.outbox), 2)
+
+        # include multiple emails on the form
+        post_data['invite_emails'] = "norbert@temba.com,code@temba.com"
+        post_data['invite_group'] = 'A'
+        self.client.post(url, post_data)
 
         # now 2 new invitations are created and sent
-        self.assertEquals(3, Invitation.objects.all().count())
-        self.assertEquals(4, len(mail.outbox))
+        self.assertEqual(Invitation.objects.all().count(), 3)
+        self.assertEqual(len(mail.outbox), 4)
 
-        response = self.client.get(manage_accounts_url)
+        response = self.client.get(url)
 
         # user ordered by email
-        self.assertEqual(response.context['org_users'][0], self.admin)
-        self.assertEqual(response.context['org_users'][1], self.editor)
-        self.assertEqual(response.context['org_users'][2], self.user)
+        self.assertEqual(list(response.context['org_users']), [self.admin, self.editor, self.user])
 
         # invites ordered by email as well
         self.assertEqual(response.context['invites'][0].email, 'code@temba.com')
         self.assertEqual(response.context['invites'][1].email, 'norbert@temba.com')
         self.assertEqual(response.context['invites'][2].email, 'norkans7@gmail.com')
 
-        # Update our users, making the 'user' user a surveyor
-        post_data = {
-            'administrators_%d' % self.admin.pk: 'on',
-            'editors_%d' % self.editor.pk: 'on',
-            'surveyors_%d' % self.user.pk: 'on',
-            'user_group': 'E'
-        }
+        # finally downgrade the editor to a surveyor and remove ourselves entirely from this org
+        response = self.client.post(url, {
+            'editors_%d' % self.user.pk: 'on',
+            'surveyors_%d' % self.editor.pk: 'on',
+            'invite_emails': "",
+            'invite_group': 'V'
+        })
 
-        # successful post redirects
-        response = self.client.post(manage_accounts_url, post_data)
-        self.assertEquals(302, response.status_code)
-
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual(set(org.administrators.all()), {self.admin})
-        self.assertEqual(set(org.editors.all()), {self.editor})
-        self.assertEqual(set(org.surveyors.all()), {self.user})
-
-        # upgrade one of our users to an admin
-        self.org.editors.remove(self.user)
-        self.org.administrators.add(self.user)
-
-        # now remove ourselves as an admin
-        post_data = {
-            'administrators_%d' % self.user.pk: 'on',
-            'editors_%d' % self.editor.pk: 'on',
-            'user_group': 'E'
-        }
-
-        response = self.client.post(manage_accounts_url, post_data)
-
-        # should be redirected to chooser page
+        # we should be redirected to chooser page
         self.assertRedirect(response, reverse('orgs.org_choose'))
 
-        # and should no longer be an admin
-        self.assertFalse(self.admin in self.org.administrators.all())
+        # and removed from this org
+        self.org.refresh_from_db()
+        self.assertEqual(set(self.org.administrators.all()), set())
+        self.assertEqual(set(self.org.editors.all()), {self.user})
+        self.assertEqual(set(self.org.viewers.all()), set())
+        self.assertEqual(set(self.org.surveyors.all()), {self.editor})
+
+        # editor will have lost their editor API token, but not their surveyor token
+        self.editor.refresh_from_db()
+        self.assertEqual([t.role.name for t in self.editor.api_tokens.all()], ["Surveyors"])
+
+        # and all our API tokens for this org are deleted
+        self.admin.refresh_from_db()
+        self.assertEqual(self.admin.api_tokens.count(), 0)
 
     @patch('temba.utils.email.send_temba_email')
     def test_join(self, mock_send_temba_email):
