@@ -4824,6 +4824,11 @@ class FlowBatchTest(FlowFileTest):
         for step in FlowStep.objects.filter(step_type=FlowStep.TYPE_ACTION_SET):
             self.assertEqual(broadcast, step.broadcasts.all().get())
 
+        # make sure that adding a msg more than once doesn't blow up
+        step.add_message(step.messages.all()[0])
+        self.assertEqual(step.messages.all().count(), 1)
+        self.assertEqual(step.broadcasts.all().count(), 1)
+
 
 class TwoInRowTest(FlowFileTest):
 

@@ -2758,9 +2758,8 @@ class FlowStep(models.Model):
         self.messages.add(msg)
 
         # if this msg is part of a broadcast, save that on our flowstep so we can later purge the msg
-        if msg.broadcast_id:
-            RelatedBroadcast = self.broadcasts.through
-            RelatedBroadcast.objects.bulk_create([RelatedBroadcast(flowstep_id=self.id, broadcast_id=msg.broadcast_id)])
+        if msg.broadcast:
+            self.broadcasts.add(msg.broadcast)
 
         # incoming non-IVR messages won't have a type yet so update that
         if not msg.msg_type or msg.msg_type == INBOX:
