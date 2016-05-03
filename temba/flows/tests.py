@@ -4829,6 +4829,7 @@ class FlowBatchTest(FlowFileTest):
         self.assertEqual(step.messages.all().count(), 1)
         self.assertEqual(step.broadcasts.all().count(), 1)
 
+
 class TwoInRowTest(FlowFileTest):
 
     def setUp(self):
