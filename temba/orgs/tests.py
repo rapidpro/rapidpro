@@ -1254,6 +1254,41 @@ class OrgCRUDLTest(TembaTest):
         self.assertTrue(org.administrators.filter(username="john@carmack.com"))
         self.assertTrue(org.administrators.filter(username="tito"))
 
+    @patch("temba.orgs.views.OrgCRUDL.Signup.pre_process")
+    def test_new_signup_with_user_logged_in(self, mock_pre_process):
+        mock_pre_process.return_value = None
+        signup_url = reverse('orgs.org_signup')
+        self.user = self.create_user(username="tito")
+
+        self.login(self.user)
+
+        response = self.client.get(signup_url)
+        self.assertEqual(response.status_code, 200)
+
+        post_data = dict(first_name="Kellan", last_name="Alexander", email="kellan@example.com",
+                         password="HeyThere", name="AlexCom", timezone="Africa/Kigali")
+
+        response = self.client.post(signup_url, post_data)
+        self.assertEqual(response.status_code, 302)
+
+        # should have a new user
+        user = User.objects.get(username="kellan@example.com")
+        self.assertEqual(user.first_name, "Kellan")
+        self.assertEqual(user.last_name, "Alexander")
+        self.assertEqual(user.email, "kellan@example.com")
+        self.assertTrue(user.check_password("HeyThere"))
+        self.assertTrue(user.api_token)  # should be able to generate an API token
+
+        # should have a new org
+        org = Org.objects.get(name="AlexCom")
+        self.assertEqual(org.timezone, "Africa/Kigali")
+
+        # of which our user is an administrator
+        self.assertTrue(org.get_org_admins().filter(pk=user.pk))
+
+        # not the logged in user at the signup time
+        self.assertFalse(org.get_org_admins().filter(pk=self.user.pk))
+
     def test_org_signup(self):
         signup_url = reverse('orgs.org_signup')
         response = self.client.get(signup_url)
