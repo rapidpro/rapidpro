@@ -1218,11 +1218,10 @@ class FlowRunWriteSerializer(WriteSerializer):
                 return self.node['ruleset_type'] in RuleSet.TYPE_WAIT
 
             def get_step_type(self):
-                from temba.flows.models import RULE_SET, ACTION_SET
                 if self.is_ruleset():
-                    return RULE_SET
+                    return FlowStep.TYPE_RULE_SET
                 else:
-                    return ACTION_SET
+                    return FlowStep.TYPE_ACTION_SET
 
         steps = data.get('steps')
         revision = data.get('revision', data.get('version'))

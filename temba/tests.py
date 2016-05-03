@@ -24,7 +24,7 @@ from temba.contacts.models import Contact, ContactGroup, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, RULE_SET, ACTION_SET
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
@@ -323,10 +323,10 @@ class TembaTest(SmartminTest):
     def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
         # look up our destination, we need this in order to set the correct destination_type
-        destination_type = ACTION_SET
+        destination_type = FlowStep.TYPE_ACTION_SET
         action_destination = Flow.get_node(flow, destination, destination_type)
         if not action_destination:
-            destination_type = RULE_SET
+            destination_type = FlowStep.TYPE_RULE_SET
             ruleset_destination = Flow.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 
