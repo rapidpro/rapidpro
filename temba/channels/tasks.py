@@ -50,6 +50,7 @@ def send_msg_task():
         with r.lock('send_msg_%d' % msg.id, timeout=300):
             Channel.send_message(msg)
 
+
 @task(track_started=True, name='check_channels_task')
 def check_channels_task():
     """
