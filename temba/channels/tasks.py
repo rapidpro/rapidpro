@@ -45,10 +45,9 @@ def send_msg_task():
     # send it off
     r = get_redis_connection()
 
-    # acquire a lock both for our msg and our contact to make sure sending is ordered
+    # acquire a lock on our contact to make sure sending is always serialized
     with r.lock('send_contact_%d' % msg.contact, timeout=300):
-        with r.lock('send_msg_%d' % msg.id, timeout=300):
-            Channel.send_message(msg)
+        Channel.send_message(msg)
 
 
 @task(track_started=True, name='check_channels_task')
