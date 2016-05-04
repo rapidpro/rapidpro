@@ -3815,6 +3815,9 @@ class ActionLog(models.Model):
     def simulator_json(self):
         return self.as_json()
 
+    def __unicode__(self):
+        return self.text
+
 
 class FlowStart(SmartModel):
     STATUS_PENDING = 'P'
@@ -4186,6 +4189,15 @@ class AddToGroupAction(Action):
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
                 if group:
+                    # TODO should become a real error (because it should be impossible) and not just a simulator error
+                    if group.is_dynamic:
+                        if run.contact.is_test:
+                            if add:
+                                ActionLog.error(run, _("%s is a dynamic group which we can't add contacts to") % group.name)
+                            else:
+                                ActionLog.error(run, _("%s is a dynamic group which we can't remove contacts from") % group.name)
+                        continue
+
                     group.update_contacts(user, [contact], add)
                     if run.contact.is_test:
                         if add:

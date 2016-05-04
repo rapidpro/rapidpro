@@ -1904,9 +1904,8 @@ class APITest(TembaTest):
         contact5.release(self.user)
         test_contact = Contact.get_test_contact(self.user)
 
-        group = ContactGroup.get_or_create(self.org, self.admin, "Testers")
-        dynamic_group = ContactGroup.get_or_create(self.org, self.admin, "Developers")
-        dynamic_group.update_query("isdeveloper = YES")
+        group = self.create_group("Testers")
+        self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
         flow = self.create_flow()

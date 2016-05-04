@@ -2495,32 +2495,33 @@ class ActionTest(TembaTest):
         self.assertTrue(Msg.all_messages.filter(contact=self.contact, direction='O', text='You chose Blue'))
 
     def test_group_actions(self):
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
+
+        test_contact = Contact.get_test_contact(self.admin)
+        test_msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Blue")
+        test_run = FlowRun.create(self.flow, test_contact.pk)
 
         group = self.create_group("Flow Group", [])
 
+        # check converting to and from json
         action = AddToGroupAction([group, "@step.contact"])
-
         action_json = action.as_json()
         action = AddToGroupAction.from_json(self.org, action_json)
 
-        action.execute(run, None, sms)
+        action.execute(run, None, msg)
 
         # user should now be in the group
-        self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(1, group.contacts.all().count())
+        self.assertEqual(set(group.contacts.all()), {self.contact})
 
         # we should have created a group with the name of the contact
         replace_group = ContactGroup.user_groups.get(name=self.contact.name)
-        self.assertTrue(replace_group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(1, replace_group.contacts.all().count())
+        self.assertEqual(set(replace_group.contacts.all()), {self.contact})
 
         # passing through twice doesn't change anything
-        action.execute(run, None, sms)
+        action.execute(run, None, msg)
 
-        self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(group.contacts.all().count(), 1)
+        self.assertEqual(set(group.contacts.all()), {self.contact})
         self.assertEqual(self.contact.user_groups.all().count(), 2)
 
         # having the group name containing a space doesn't change anything
@@ -2528,40 +2529,69 @@ class ActionTest(TembaTest):
         self.contact.save()
         run.contact = self.contact
 
-        action.execute(run, None, sms)
+        action.execute(run, None, msg)
 
-        self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(group.contacts.all().count(), 1)
-        self.assertEqual(self.contact.user_groups.all().count(), 2)
+        self.assertEqual(set(group.contacts.all()), {self.contact})
+        self.assertEqual(set(replace_group.contacts.all()), {self.contact})
 
+        # with test contact, action logs are also created
+        action.execute(test_run, None, test_msg)
+
+        self.assertEqual(set(group.contacts.all()), {self.contact, test_contact})
+        self.assertEqual(set(replace_group.contacts.all()), {self.contact, test_contact})
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 2)
+
+        # now try remove action
         action = DeleteFromGroupAction([group, "@step.contact"])
         action_json = action.as_json()
         action = DeleteFromGroupAction.from_json(self.org, action_json)
 
-        action.execute(run, None, sms)
+        action.execute(run, None, msg)
 
-        # user should be gone now
-        self.assertFalse(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, group.contacts.all().count())
-        self.assertFalse(replace_group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, replace_group.contacts.all().count())
+        # contact should be removed now
+        self.assertEqual(set(group.contacts.all()), {test_contact})
+        self.assertEqual(set(replace_group.contacts.all()), {test_contact})
 
-        action.execute(run, None, sms)
+        # no change if we run again
+        action.execute(run, None, msg)
 
-        self.assertFalse(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, group.contacts.all().count())
+        self.assertEqual(set(group.contacts.all()), {test_contact})
+        self.assertEqual(set(replace_group.contacts.all()), {test_contact})
 
+        # with test contact, action logs are also created
+        action.execute(test_run, None, test_msg)
+
+        self.assertEqual(set(group.contacts.all()), set())
+        self.assertEqual(set(replace_group.contacts.all()), set())
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 4)
+
+        # try when group is inactive
         action = DeleteFromGroupAction([group])
-        # delete group
         group.is_active = False
         group.save()
 
-        self.assertTrue(action.groups)
-        self.assertTrue(group.pk in [g.pk for g in action.groups])
+        self.assertIn(group, action.groups)
+
         # reading the action should create a new group
         updated_action = DeleteFromGroupAction.from_json(self.org, action.as_json())
         self.assertTrue(updated_action.groups)
         self.assertFalse(group.pk in [g.pk for g in updated_action.groups])
+
+        # try adding a contact to a dynamic group
+        dynamic_group = self.create_group("Dynamic", query="isalive=YES")
+        action = AddToGroupAction([dynamic_group])
+
+        action.execute(run, None, msg)
+
+        # should do nothing
+        self.assertEqual(dynamic_group.contacts.count(), 0)
+
+        # tho if contact is a test contact, log as error
+        action.execute(test_run, None, test_msg)
+
+        self.assertEqual(dynamic_group.contacts.count(), 0)
+
+        self.assertEqual(ActionLog.objects.filter(level='E').count(), 1)
 
     def test_add_label_action(self):
         flow = self.flow
