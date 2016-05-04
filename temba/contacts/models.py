@@ -1724,7 +1724,9 @@ class ContactGroup(TembaModel):
         Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
         """
         if self.group_type != self.TYPE_USER_DEFINED:  # pragma: no cover
-            raise ValueError("Can't add or remove test contacts from system groups")
+            raise ValueError("Can't add or remove contacts from a system group")
+        elif self.is_dynamic:
+            raise ValueError("Can't add or remove contacts from a dynamic group")
 
         changed = set()
         group_contacts = self.contacts.all()
