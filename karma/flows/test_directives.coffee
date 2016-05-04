@@ -87,8 +87,8 @@ describe 'Directives:', ->
       $timeout.flush()
 
       html = ele.html()
-      result = ele.children().isolateScope()
 
+      result = scope.$$childHead
       expect(html).toContain(132) # 132 characters for the counter
       expect(html).toContain(" \\/ 1") # of one message
 
@@ -108,7 +108,7 @@ describe 'Directives:', ->
       scope.$digest()
       $timeout.flush()
 
-      result = ele.children().isolateScope()
+      result = scope.$$childHead
       expect(result.characters).toBe(160)
       expect(result.messages).toBe(0)
       expect(result.message).not.toBe(undefined)
