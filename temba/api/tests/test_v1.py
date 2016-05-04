@@ -19,7 +19,7 @@ from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, SyncEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
-from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, RULE_SET
+from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, FAILED, ERRORED
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, AnonymousOrg
@@ -503,7 +503,7 @@ class APITest(TembaTest):
         ActionSet.objects.get(uuid=flow.entry_uuid).delete()
 
         # and set our entry to be our ruleset
-        flow.entry_type = RULE_SET
+        flow.entry_type = FlowStep.TYPE_RULE_SET
         flow.entry_uuid = RuleSet.objects.get().uuid
         flow.save()
 
