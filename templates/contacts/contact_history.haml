@@ -57,12 +57,15 @@
             -else
               Phone call ({{call.duration|format_seconds}})
 
+        -elif item.call_type
+          -with item as call
+            {{call.get_status_display}}
+
         -elif item.flow
           -with item as run
             .activity-run
               .activity-body
                 .summary
-
                 Started
                 %a{href:'{% url "flows.flow_editor" run.flow.pk%}'}
                   {{run.flow.name}}
