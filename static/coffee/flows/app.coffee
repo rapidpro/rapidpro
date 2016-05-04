@@ -24,7 +24,8 @@ app.config [ '$httpProvider', '$sceDelegateProvider', ($httpProvider, $sceDelega
 #============================================================================
 # Since Django uses {{ }}, we will have angular use [[ ]] instead.
 #============================================================================
-app.config ($interpolateProvider) ->
+app.config [ '$compileProvider', '$interpolateProvider' , ($compileProvider, $interpolateProvider) ->
   $interpolateProvider.startSymbol "[["
   $interpolateProvider.endSymbol "]]"
-
+  $compileProvider.debugInfoEnabled false
+]
