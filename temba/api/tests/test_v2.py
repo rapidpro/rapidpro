@@ -605,6 +605,7 @@ class APITest(TembaTest):
 
         customers = ContactGroup.get_or_create(self.org, self.admin, "Customers")
         developers = ContactGroup.get_or_create(self.org, self.admin, "Developers")
+        developers.update_query("isdeveloper = YES")
         ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
         developers.update_contacts(self.admin, [self.frank], add=True)
@@ -616,13 +617,13 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
         self.assertEqual(response.json['results'], [
-            {'uuid': developers.uuid, 'name': "Developers", 'count': 1},
-            {'uuid': customers.uuid, 'name': "Customers", 'count': 0}
+            {'uuid': developers.uuid, 'name': "Developers", 'query': "isdeveloper = YES", 'count': 1},
+            {'uuid': customers.uuid, 'name': "Customers", 'query': None, 'count': 0}
         ])
 
         # filter by UUID
         response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
-        self.assertEqual(response.json['results'], [{'uuid': customers.uuid, 'name': "Customers", 'count': 0}])
+        self.assertResultsByUUID(response, [customers])
 
     def test_labels(self):
         url = reverse('api.v2.labels')
