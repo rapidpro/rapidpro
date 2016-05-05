@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import json
+import logging
 import numbers
 import phonenumbers
 import pytz
@@ -40,6 +41,8 @@ from temba.utils.queues import push_task
 from temba.values.models import Value
 from twilio import twiml
 from uuid import uuid4
+
+logger = logging.getLogger(__name__)
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
@@ -4189,8 +4192,12 @@ class AddToGroupAction(Action):
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
                 if group:
-                    # TODO should become a real error (because it should be impossible) and not just a simulator error
+                    # TODO should become a failure (because it should be impossible) and not just a simulator error
                     if group.is_dynamic:
+                        # report to sentry
+                        logger.error("Attempt to add/remove contacts on dynamic group '%s' [%d] "
+                                     "in flow '%s' [%d] for org '%s' [%d]"
+                                     % (group.name, group.pk, run.flow.name, run.flow.pk, run.org.name, run.org.pk))
                         if run.contact.is_test:
                             if add:
                                 ActionLog.error(run, _("%s is a dynamic group which we can't add contacts to") % group.name)
