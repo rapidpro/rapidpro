@@ -50,7 +50,7 @@ def send_msg_task():
     r = get_redis_connection()
 
     # acquire a lock on our contact to make sure two sets of msgs aren't being sent at the same time
-    with r.lock('send_contact_%d' % msg.contact, timeout=300):
+    with r.lock('send_contact_%d' % msg_tasks[0].contact, timeout=300):
         # send each of our msgs
         for (i, msg_task) in enumerate(msg_tasks):
             try:
@@ -59,7 +59,7 @@ def send_msg_task():
                 Channel.send_message(msg)
 
                 # if there are more messages to send for this contact, sleep a second before moving on
-                if i+1 < len(msg_tasks):
+                if i + 1 < len(msg_tasks):
                     time.sleep(1)
 
             except:
