@@ -62,7 +62,7 @@ def send_msg_task():
                 if i + 1 < len(msg_tasks):
                     time.sleep(1)
 
-            except:
+            except Exception:  # pragma: no cover
                 logger.error('Error sending msg', exc_info=True)
 
 
@@ -110,7 +110,7 @@ def notify_mage_task(channel_uuid, action):
         mage.refresh_twitter_stream(channel_uuid)
     elif action == MageStreamAction.deactivate:
         mage.deactivate_twitter_stream(channel_uuid)
-    else:
+    else:  # pragma: no cover
         raise ValueError('Invalid action: %s' % action)
 
 
