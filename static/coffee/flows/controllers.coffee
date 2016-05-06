@@ -432,6 +432,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           scope: $scope
         $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
 
+
       else
         resolveObj =
           options: ->

@@ -1115,15 +1115,22 @@ class ContactTest(TembaTest):
         ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_OUT_MISSED,
                             timezone.now(), 5)
 
+        # try adding some failed calls
+        from temba.ivr.models import NO_ANSWER, IVRCall
+        IVRCall.objects.create(contact=self.joe, status=NO_ANSWER, created_by=self.admin,
+                               modified_by=self.admin, channel=self.channel, org=self.org,
+                               contact_urn=self.joe.urns.all().first())
+
         # fetch our contact history
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
 
         # even though there are no messages after it, should still see the recent call
-        self.assertTrue(isinstance(activity[0], ChannelEvent))
+        self.assertTrue(isinstance(activity[0], IVRCall))
+        self.assertTrue(isinstance(activity[1], ChannelEvent))
 
-        # 100 messages, a call, and a flow run
-        self.assertEquals(102, len(activity))
+        # 100 messages, a channel event, a call, and a flow run
+        self.assertEquals(103, len(activity))
         self.assertTrue(response.context['more'])
 
         # fetch page 2
@@ -1138,8 +1145,8 @@ class ContactTest(TembaTest):
         # most recent thing is a message followed by a flow run
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
-        self.assertTrue(isinstance(activity[1], Msg))
-        self.assertTrue(isinstance(activity[2], FlowRun))
+        self.assertTrue(isinstance(activity[2], Msg))
+        self.assertTrue(isinstance(activity[3], FlowRun))
 
         # if a new message comes in
         self.create_msg(direction='I', contact=self.joe, text="Newer message")
@@ -1149,7 +1156,7 @@ class ContactTest(TembaTest):
         # now we'll see the message that just came in first, followed by the call event
         self.assertEquals('Newer message', activity[0].text)
         self.assertTrue(isinstance(activity[0], Msg))
-        self.assertTrue(isinstance(activity[1], ChannelEvent))
+        self.assertTrue(isinstance(activity[1], IVRCall))
 
         # remove 50 messages
         for i in range(50):
@@ -1159,22 +1166,22 @@ class ContactTest(TembaTest):
         for i in range(5):
             self.create_msg(direction='I', contact=self.joe, text="Old Message", created_on=timezone.now() - timedelta(days=8))
 
-        # number of items on the first page should be 65 now
+        # number of items on the first page should be 66 now
         response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.admin)
         activity = response.context['activity']
-        self.assertEquals(65, len(activity))
+        self.assertEquals(66, len(activity))
 
         recent_seconds = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
         response = self.fetch_protected("%s?r=true&rs=%s" % (reverse('contacts.contact_history', args=[self.joe.uuid]), recent_seconds), self.admin)
         activity = response.context['activity']
 
         # with our recent flag on, should not see the 5 older messages
-        self.assertEquals(60, len(activity))
+        self.assertEquals(61, len(activity))
 
         # can view history as super user as well
         response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.superuser)
         activity = response.context['activity']
-        self.assertEquals(65, len(activity))
+        self.assertEquals(66, len(activity))
 
         self.login(self.admin)
         response = self.client.get(reverse('contacts.contact_history', args=['bad-uuid']))
