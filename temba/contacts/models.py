@@ -1465,6 +1465,7 @@ class Contact(TembaModel):
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
         from temba.msgs.models import Broadcast
+
         broadcast = Broadcast.create(self.org, user, text, [self])
         broadcast.send(trigger_send=trigger_send, message_context=message_context)
 

@@ -448,6 +448,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE] },
 
         # all flows
+        { type: 'subflow', name:'Run Flow', verbose_name: 'Run a flow', filter:ALL },
+
         { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', filter:ALL },
         { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', filter:ALL },
         { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', filter:ALL },

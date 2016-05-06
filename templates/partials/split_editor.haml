@@ -27,6 +27,13 @@
       #split-on
         -trans "If the message response.."
 
+    .subflow{ng-if:'formData.rulesetConfig.type == "subflow"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Call out to another flow and return the results to this flow in the @child variable.
+        %input{ng-model:"formData.flow",search:"true",init-text:"[[formData.flow.name]]",name:"flow",placeholder:"Select the flow to run",required:"",init-id:"[[formData.form.id]]",select-server:"/flow/?_format=select2",type:"hidden"}
+
     .expression{ng-if:'formData.rulesetConfig.type == "expression"'}><
       #split-on
         -trans "If the expression "
@@ -45,7 +52,6 @@
         %select{ name:'flowField', required:'true', ng-model:'formData.flowField', ng-options:"field as field.text for field in flowFields"}
         -trans "delimited by a"
         %select.field-delimiter{ name:'fieldDelimiter', ng-model:'formData.fieldDelimiter', required:'true', ng-options: 'delim as delim.text for delim in fieldDelimiterOptions'}
-
 
     .contact-field{ng-if:'formData.rulesetConfig.type == "contact_field"'}><
       #split-on

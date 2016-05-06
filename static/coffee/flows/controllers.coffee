@@ -876,6 +876,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.ruleset = utils.clone(ruleset)
   $scope.removed = []
   flow = Flow.flow
+
+  console.log("RE flow: ", flow)
+
   $scope.flowFields = Flow.getFlowFields(ruleset)
   $scope.fieldIndexOptions = [{text:'first', id: 0},
                               {text:'second', id: 1},
@@ -936,7 +939,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       toRemove.push(rule)
       continue
 
-    # the config is the meta data about our type of operator
+    # the config is the metadata about our type of operator
     rule._config = Flow.getOperatorConfig(rule.test.type)
 
     # we need to parse our dates
@@ -1096,7 +1099,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # limit category names to 36 chars
     return categoryName.substr(0, 36)
 
-
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
@@ -1199,7 +1201,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if not category
       category = {}
 
-    category[flow.base_language] = allCategory
+    category[Flow.flow.base_language] = allCategory
 
     # finally add it to the end of our rule list
     rules.push
@@ -1225,9 +1227,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       rulesetConfig = $scope.formData.rulesetConfig
       contactField = $scope.formData.contactField
       flowField = $scope.formData.flowField
+      flow = $scope.formData.flow
+
+      $log.debug($scope.formData)
+
+      $log.debug(ruleset)
+      $log.debug($scope.formData)
 
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
+
+      if rulesetConfig.type == 'subflow'
+        ruleset.config =
+          flow =
+            id: $scope.formData.flow.id
+            name: $scope.formData.flow.name
 
       # settings for a message form
       if rulesetConfig.type == 'form_field'

@@ -4151,6 +4151,48 @@ class FlowsTest(FlowFileTest):
         # should have one event scheduled for this contact
         self.assertTrue(EventFire.objects.filter(contact=self.contact))
 
+    def test_subflow(self):
+        """
+        Tests that a subflow can be called and the flow is handed back to the parent
+        """
+        child = self.get_flow('subflow')
+        parent = Flow.objects.get(org=self.org, name='Parent Flow')
+        parent.start(groups=[], contacts=[self.contact], restart_participants=True)
+
+        msg = Msg.all_messages.filter(contact=self.contact).first()
+        self.assertEqual("This is a parent flow. What would you like to do?", msg.text)
+
+        # this should launch the child flow
+        self.send_message(parent, "color", assert_reply=False)
+        msg = Msg.all_messages.filter(contact=self.contact).order_by('-created_on').first()
+        self.assertEqual("What color do you like?", msg.text)
+
+        # we should now have two active flows
+        self.assertEqual(2, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+
+        # complete the child flow
+        self.send('Red')
+
+        # now we are back to a single active flow, the parent
+        self.assertEqual(1, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+        active_run = FlowRun.objects.filter(contact=self.contact, is_active=True).first()
+        self.assertEqual(parent.name, active_run.flow.name)
+
+        # we should have a new outbound message from the the parent flow
+        msg = Msg.all_messages.filter(contact=self.contact, direction='O').order_by('-created_on').first()
+        self.assertEqual("You picked Red.", msg.text)
+
+    def test_subflow_no_interaction(self):
+        self.get_flow('subflow-no-pause')
+        parent = Flow.objects.get(org=self.org, name='Flow A')
+        parent.start(groups=[], contacts=[self.contact], restart_participants=True)
+
+        # check we got our three messages, the third populated by the child, but sent form the parent
+        msgs = Msg.all_messages.order_by('created_on')
+        self.assertEqual("Message 1", msgs[0].text)
+        self.assertEqual("Message 2", msgs[1].text)
+        self.assertEqual("Message 3 (FLOW B)", msgs[2].text)
+
     def test_translations_rule_first(self):
 
         # import a rule first flow that already has language dicts

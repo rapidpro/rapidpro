@@ -385,6 +385,15 @@ class FlowFileTest(TembaTest):
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
 
+    def send(self, message, contact=None):
+        if not contact:
+            contact = self.contact
+        if contact.is_test:
+            Contact.set_simulation(True)
+        incoming = self.create_msg(direction=INCOMING, contact=contact, text=message)
+        Flow.find_and_handle(incoming)
+        return Msg.all_messages.filter(response_to=incoming).order_by('pk').first()
+
     def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False,
                      assert_reply=True, assert_handle=True):
         """
