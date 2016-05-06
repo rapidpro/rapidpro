@@ -4186,7 +4186,7 @@ class FlowsTest(FlowFileTest):
         """
         Tests that a subflow can be called and the flow is handed back to the parent
         """
-        child = self.get_flow('subflow')
+        self.get_flow('subflow')
         parent = Flow.objects.get(org=self.org, name='Parent Flow')
         parent.start(groups=[], contacts=[self.contact], restart_participants=True)
 
