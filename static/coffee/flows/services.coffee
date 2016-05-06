@@ -280,8 +280,6 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     Plumb = @
     Plumb.disconnectOutboundConnections(sourceId)
 
-    $('html').scope().plumb = Plumb
-
     # connect to our new target if we have one
     if targetId?
       existing = jsPlumb.getEndpoints(targetId)
