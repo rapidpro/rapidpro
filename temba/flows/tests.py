@@ -38,6 +38,7 @@ from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, No
 from .models import HasStateTest, HasDistrictTest, HasWardTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
+from temba.msgs.models import WIRED
 
 
 class FlowTest(TembaTest):
@@ -4830,10 +4831,11 @@ class FlowBatchTest(FlowFileTest):
         self.assertEqual(step.broadcasts.all().count(), 1)
 
 
-class TwoInRowTest(FlowFileTest):
+class OrderingTest(FlowFileTest):
 
     def setUp(self):
-        super(TwoInRowTest, self).setUp()
+        super(OrderingTest, self).setUp()
+
         self.contact2 = self.create_contact('Ryan Lewis', '+12065552121')
 
         self.channel.delete()
@@ -4841,39 +4843,75 @@ class TwoInRowTest(FlowFileTest):
                                       config=dict(send_url='https://google.com'), uuid='00000000-0000-0000-0000-000000001234')
 
     def tearDown(self):
-        super(TwoInRowTest, self).tearDown()
+        super(OrderingTest, self).tearDown()
 
     def test_two_in_row(self):
-        flow = self.get_flow('two-in-row')
+        flow = self.get_flow('ordering')
+        from temba.channels.tasks import send_msg_task
 
         # start our flow with a contact
-        flow.start([], [self.contact])
+        with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
+            flow.start([], [self.contact])
 
-        # two msgs should have been sent
-        msgs = Msg.all_messages.all().order_by('pk')
+            # check the ordering of when the msgs were sent
+            msgs = Msg.all_messages.filter(status=WIRED).order_by('sent_on')
 
-        # the difference in the time they sent should be more than 250ms
-        self.assertEqual(msgs[0].text, "Here is your first message.")
-        self.assertTrue(msgs[1].sent_on > msgs[0].sent_on)
+            # the four messages should have been sent in order
+            self.assertEqual(msgs[0].text, "Msg1")
+            self.assertEqual(msgs[1].text, "Msg2")
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[2].text, "Msg3")
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[3].text, "Msg4")
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
 
-        # our next step sends two messages in different action sets, reply
-        msg = self.create_msg(contact=self.contact, direction=INCOMING, text="onwards!")
-        Flow.find_and_handle(msg)
+            # send_msg_task should have only been called once
+            self.assertEqual(mock_send_msg.call_count, 1)
 
-        msgs = Msg.all_messages.filter(direction=OUTGOING).order_by('pk')
-        self.assertEqual(msgs[2].text, "Here is your third.")
-        self.assertTrue(msgs[3].sent_on > msgs[2].sent_on)
+        # reply, should get another 4 messages
+        with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
+            msg = self.create_msg(contact=self.contact, direction=INCOMING, text="onwards!")
+            Flow.find_and_handle(msg)
+
+            msgs = Msg.all_messages.filter(direction=OUTGOING, status=WIRED).order_by('sent_on')[4:]
+            self.assertEqual(msgs[0].text, "Ack1")
+            self.assertEqual(msgs[1].text, "Ack2")
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[2].text, "Ack3")
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[3].text, "Ack4")
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
+
+            # again, only one send_msg
+            self.assertEqual(mock_send_msg.call_count, 1)
 
         Msg.all_messages.all().delete()
 
-        # try with multiple contacts, first two messages should go out quickly
-        flow.start([], [self.contact, self.contact2], restart_participants=True)
+        # try with multiple contacts
+        with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
+            flow.start([], [self.contact, self.contact2], restart_participants=True)
 
-        first = Msg.all_messages.filter(text="Here is your first message.").order_by('sent_on')
-        second = Msg.all_messages.filter(text="Here is your second.").order_by('sent_on')
+            # we should have two batches of messages, for for each contact
+            msgs = Msg.all_messages.filter(status=WIRED).order_by('sent_on')
 
-        # all messages went out quickly
-        self.assertTrue(second[1].sent_on - first[0].sent_on < timedelta(milliseconds=650))
+            self.assertEqual(msgs[0].contact, self.contact)
+            self.assertEqual(msgs[0].text, "Msg1")
+            self.assertEqual(msgs[1].text, "Msg2")
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[2].text, "Msg3")
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[3].text, "Msg4")
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
 
-        # but gap between two was long enough
-        self.assertTrue(second[0].sent_on > first[0].sent_on)
+            self.assertEqual(msgs[4].contact, self.contact2)
+            self.assertEqual(msgs[4].text, "Msg1")
+            self.assertTrue(msgs[4].sent_on - msgs[3].sent_on < timedelta(seconds=.500))
+            self.assertEqual(msgs[5].text, "Msg2")
+            self.assertTrue(msgs[5].sent_on - msgs[4].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[6].text, "Msg3")
+            self.assertTrue(msgs[6].sent_on - msgs[5].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[7].text, "Msg4")
+            self.assertTrue(msgs[7].sent_on - msgs[6].sent_on > timedelta(seconds=.750))
+
+            # two batches of messages, one batch for each contact
+            self.assertEqual(mock_send_msg.call_count, 2)
