@@ -878,8 +878,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.removed = []
   flow = Flow.flow
 
-  console.log("RE flow: ", flow)
-
   $scope.flowFields = Flow.getFlowFields(ruleset)
   $scope.fieldIndexOptions = [{text:'first', id: 0},
                               {text:'second', id: 1},
