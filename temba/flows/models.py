@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import json
+import logging
 import numbers
 import phonenumbers
 import pytz
@@ -40,6 +41,8 @@ from temba.utils.queues import push_task
 from temba.values.models import Value
 from twilio import twiml
 from uuid import uuid4
+
+logger = logging.getLogger(__name__)
 
 FLOW_DEFAULT_EXPIRES_AFTER = 60 * 12
 START_FLOW_BATCH_SIZE = 500
@@ -483,7 +486,7 @@ class Flow(TembaModel):
 
         # go and actually handle wherever we are in the flow
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
-        handled = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
+        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -558,8 +561,8 @@ class Flow(TembaModel):
                 step.run.set_completed(final_step=step)
                 continue
 
-            handled = Flow.handle_destination(destination, step, step.run, msg, started_flows,
-                                              user_input=True, triggered_start=triggered_start)
+            (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
+                                                      user_input=True, triggered_start=triggered_start)
 
             if handled:
                 # increment our unread count if this isn't the simulator
@@ -572,7 +575,7 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
-                           started_flows=None, is_test_contact=False, user_input=False, triggered_start=False):
+                           started_flows=None, is_test_contact=False, user_input=False, triggered_start=False, trigger_send=True):
 
         if started_flows is None:
             started_flows = []
@@ -635,11 +638,11 @@ class Flow(TembaModel):
             analytics.gauge('temba.flow_execution', time.time() - start_time)
 
         # send any messages generated
-        if msgs:
+        if msgs and trigger_send:
             msgs.sort(key=lambda message: message.created_on)
             run.flow.org.trigger_send(msgs)
 
-        return handled
+        return handled, msgs
 
     @classmethod
     def handle_actionset(cls, actionset, step, run, msg, started_flows=None, is_test_contact=False):
@@ -1676,8 +1679,9 @@ class Flow(TembaModel):
                     next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
 
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                    Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
-                                            is_test_contact=simulation)
+                    handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
+                                                                 is_test_contact=simulation, trigger_send=False)
+                    run_msgs += step_msgs
 
                 else:
                     run.set_completed(final_step=step)
@@ -1693,7 +1697,8 @@ class Flow(TembaModel):
                 elif not entry_rules.is_pause():
                     # create an empty placeholder message
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
-                    Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact)
+                    handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
+                    run_msgs += step_msgs
 
             if start_msg:
                 step.add_message(start_msg)
@@ -1707,9 +1712,8 @@ class Flow(TembaModel):
         # trigger our messages to be sent
         if msgs:
             # then send them off
-            msgs.sort(key=lambda message: message.created_on)
-            msg_ids = [m.id for m in msgs]
-            Msg.all_messages.filter(id__in=msg_ids).update(status=PENDING)
+            msgs.sort(key=lambda message: (message.contact_id, message.created_on))
+            Msg.all_messages.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
 
             # trigger a sync
             self.org.trigger_send(msgs)
@@ -3873,6 +3877,9 @@ class ActionLog(models.Model):
     def simulator_json(self):
         return self.as_json()
 
+    def __unicode__(self):
+        return self.text
+
 
 class FlowStart(SmartModel):
     STATUS_PENDING = 'P'
@@ -4244,6 +4251,19 @@ class AddToGroupAction(Action):
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
                 if group:
+                    # TODO should become a failure (because it should be impossible) and not just a simulator error
+                    if group.is_dynamic:
+                        # report to sentry
+                        logger.error("Attempt to add/remove contacts on dynamic group '%s' [%d] "
+                                     "in flow '%s' [%d] for org '%s' [%d]"
+                                     % (group.name, group.pk, run.flow.name, run.flow.pk, run.org.name, run.org.pk))
+                        if run.contact.is_test:
+                            if add:
+                                ActionLog.error(run, _("%s is a dynamic group which we can't add contacts to") % group.name)
+                            else:
+                                ActionLog.error(run, _("%s is a dynamic group which we can't remove contacts from") % group.name)
+                        continue
+
                     group.update_contacts(user, [contact], add)
                     if run.contact.is_test:
                         if add:

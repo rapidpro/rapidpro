@@ -597,6 +597,8 @@ class ContactBulkActionSerializer(WriteSerializer):
             self.group_obj = ContactGroup.get_user_group(self.org, value)
             if not self.group_obj:
                 raise serializers.ValidationError("No such group: %s" % value)
+            elif self.group_obj.is_dynamic:
+                raise serializers.ValidationError("Can't add or remove contacts from a dynamic group")
         return value
 
     def validate_group_uuid(self, value):

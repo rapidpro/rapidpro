@@ -780,6 +780,7 @@ class ContactCRUDL(SmartCRUDL):
 
             from temba.flows.models import FlowRun, Flow
             from temba.campaigns.models import EventFire
+            from temba.ivr.models import IVRCall, BUSY, FAILED, NO_ANSWER, CANCELED
 
             def activity_cmp(a, b):
 
@@ -837,30 +838,30 @@ class ContactCRUDL(SmartCRUDL):
             if not recent_seconds:
                 text_messages = text_messages[first_message:first_message + 100]
 
-            activity = []
+            # if we don't know our start time, go back to the beginning
+            if not start_time:
+                start_time = timezone.datetime(2013, 1, 1, tzinfo=pytz.utc)
 
-            if count > 0:
-                # if we don't know our start time, go back to the beginning
-                if not start_time:
-                    start_time = timezone.datetime(2013, 1, 1, tzinfo=pytz.utc)
+            # if we don't know our stop time yet, assume the first message
+            if page == 1:
+                end_time = timezone.now()
+            else:
+                end_time = text_messages[0].created_on
 
-                # if we don't know our stop time yet, assume the first message
-                if page == 1:
-                    end_time = timezone.now()
-                else:
-                    end_time = text_messages[0].created_on
+            context['start_time'] = start_time
 
-                context['start_time'] = start_time
+            # all of our runs and events
+            runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
+            fired = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
 
-                # all of our runs and events
-                runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
-                fired = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
+            # channel events, e.g. missed calls etc
+            events = ChannelEvent.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
 
-                # channel events, e.g. missed calls etc
-                events = ChannelEvent.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+            error_calls = IVRCall.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+            error_calls = error_calls.filter(status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
 
-                # now chain them all together in the same list and sort by time
-                activity = sorted(chain(text_messages, runs, fired, events), cmp=activity_cmp, reverse=True)
+            # now chain them all together in the same list and sort by time
+            activity = sorted(chain(text_messages, runs, fired, events, error_calls), cmp=activity_cmp, reverse=True)
 
             context['activity'] = activity
             return context

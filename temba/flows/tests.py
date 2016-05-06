@@ -38,6 +38,7 @@ from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, No
 from .models import HasStateTest, HasDistrictTest, HasWardTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
 from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
+from temba.msgs.models import WIRED
 
 
 class FlowTest(TembaTest):
@@ -2495,32 +2496,33 @@ class ActionTest(TembaTest):
         self.assertTrue(Msg.all_messages.filter(contact=self.contact, direction='O', text='You chose Blue'))
 
     def test_group_actions(self):
-        sms = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
+        msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
+
+        test_contact = Contact.get_test_contact(self.admin)
+        test_msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Blue")
+        test_run = FlowRun.create(self.flow, test_contact.pk)
 
         group = self.create_group("Flow Group", [])
 
+        # check converting to and from json
         action = AddToGroupAction([group, "@step.contact"])
-
         action_json = action.as_json()
         action = AddToGroupAction.from_json(self.org, action_json)
 
-        action.execute(run, None, sms)
+        action.execute(run, None, msg)
 
         # user should now be in the group
-        self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(1, group.contacts.all().count())
+        self.assertEqual(set(group.contacts.all()), {self.contact})
 
         # we should have created a group with the name of the contact
         replace_group = ContactGroup.user_groups.get(name=self.contact.name)
-        self.assertTrue(replace_group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(1, replace_group.contacts.all().count())
+        self.assertEqual(set(replace_group.contacts.all()), {self.contact})
 
         # passing through twice doesn't change anything
-        action.execute(run, None, sms)
+        action.execute(run, None, msg)
 
-        self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(group.contacts.all().count(), 1)
+        self.assertEqual(set(group.contacts.all()), {self.contact})
         self.assertEqual(self.contact.user_groups.all().count(), 2)
 
         # having the group name containing a space doesn't change anything
@@ -2528,40 +2530,69 @@ class ActionTest(TembaTest):
         self.contact.save()
         run.contact = self.contact
 
-        action.execute(run, None, sms)
+        action.execute(run, None, msg)
 
-        self.assertTrue(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(group.contacts.all().count(), 1)
-        self.assertEqual(self.contact.user_groups.all().count(), 2)
+        self.assertEqual(set(group.contacts.all()), {self.contact})
+        self.assertEqual(set(replace_group.contacts.all()), {self.contact})
 
+        # with test contact, action logs are also created
+        action.execute(test_run, None, test_msg)
+
+        self.assertEqual(set(group.contacts.all()), {self.contact, test_contact})
+        self.assertEqual(set(replace_group.contacts.all()), {self.contact, test_contact})
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 2)
+
+        # now try remove action
         action = DeleteFromGroupAction([group, "@step.contact"])
         action_json = action.as_json()
         action = DeleteFromGroupAction.from_json(self.org, action_json)
 
-        action.execute(run, None, sms)
+        action.execute(run, None, msg)
 
-        # user should be gone now
-        self.assertFalse(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, group.contacts.all().count())
-        self.assertFalse(replace_group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, replace_group.contacts.all().count())
+        # contact should be removed now
+        self.assertEqual(set(group.contacts.all()), {test_contact})
+        self.assertEqual(set(replace_group.contacts.all()), {test_contact})
 
-        action.execute(run, None, sms)
+        # no change if we run again
+        action.execute(run, None, msg)
 
-        self.assertFalse(group.contacts.filter(id=self.contact.pk))
-        self.assertEqual(0, group.contacts.all().count())
+        self.assertEqual(set(group.contacts.all()), {test_contact})
+        self.assertEqual(set(replace_group.contacts.all()), {test_contact})
 
+        # with test contact, action logs are also created
+        action.execute(test_run, None, test_msg)
+
+        self.assertEqual(set(group.contacts.all()), set())
+        self.assertEqual(set(replace_group.contacts.all()), set())
+        self.assertEqual(ActionLog.objects.filter(level='I').count(), 4)
+
+        # try when group is inactive
         action = DeleteFromGroupAction([group])
-        # delete group
         group.is_active = False
         group.save()
 
-        self.assertTrue(action.groups)
-        self.assertTrue(group.pk in [g.pk for g in action.groups])
+        self.assertIn(group, action.groups)
+
         # reading the action should create a new group
         updated_action = DeleteFromGroupAction.from_json(self.org, action.as_json())
         self.assertTrue(updated_action.groups)
         self.assertFalse(group.pk in [g.pk for g in updated_action.groups])
+
+        # try adding a contact to a dynamic group
+        dynamic_group = self.create_group("Dynamic", query="isalive=YES")
+        action = AddToGroupAction([dynamic_group])
+
+        action.execute(run, None, msg)
+
+        # should do nothing
+        self.assertEqual(dynamic_group.contacts.count(), 0)
+
+        # tho if contact is a test contact, log as error
+        action.execute(test_run, None, test_msg)
+
+        self.assertEqual(dynamic_group.contacts.count(), 0)
+
+        self.assertEqual(ActionLog.objects.filter(level='E').count(), 1)
 
     def test_add_label_action(self):
         flow = self.flow
@@ -4872,10 +4903,11 @@ class FlowBatchTest(FlowFileTest):
         self.assertEqual(step.broadcasts.all().count(), 1)
 
 
-class TwoInRowTest(FlowFileTest):
+class OrderingTest(FlowFileTest):
 
     def setUp(self):
-        super(TwoInRowTest, self).setUp()
+        super(OrderingTest, self).setUp()
+
         self.contact2 = self.create_contact('Ryan Lewis', '+12065552121')
 
         self.channel.delete()
@@ -4883,39 +4915,75 @@ class TwoInRowTest(FlowFileTest):
                                       config=dict(send_url='https://google.com'), uuid='00000000-0000-0000-0000-000000001234')
 
     def tearDown(self):
-        super(TwoInRowTest, self).tearDown()
+        super(OrderingTest, self).tearDown()
 
     def test_two_in_row(self):
-        flow = self.get_flow('two-in-row')
+        flow = self.get_flow('ordering')
+        from temba.channels.tasks import send_msg_task
 
         # start our flow with a contact
-        flow.start([], [self.contact])
+        with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
+            flow.start([], [self.contact])
 
-        # two msgs should have been sent
-        msgs = Msg.all_messages.all().order_by('pk')
+            # check the ordering of when the msgs were sent
+            msgs = Msg.all_messages.filter(status=WIRED).order_by('sent_on')
 
-        # the difference in the time they sent should be more than 250ms
-        self.assertEqual(msgs[0].text, "Here is your first message.")
-        self.assertTrue(msgs[1].sent_on > msgs[0].sent_on)
+            # the four messages should have been sent in order
+            self.assertEqual(msgs[0].text, "Msg1")
+            self.assertEqual(msgs[1].text, "Msg2")
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[2].text, "Msg3")
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[3].text, "Msg4")
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
 
-        # our next step sends two messages in different action sets, reply
-        msg = self.create_msg(contact=self.contact, direction=INCOMING, text="onwards!")
-        Flow.find_and_handle(msg)
+            # send_msg_task should have only been called once
+            self.assertEqual(mock_send_msg.call_count, 1)
 
-        msgs = Msg.all_messages.filter(direction=OUTGOING).order_by('pk')
-        self.assertEqual(msgs[2].text, "Here is your third.")
-        self.assertTrue(msgs[3].sent_on > msgs[2].sent_on)
+        # reply, should get another 4 messages
+        with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
+            msg = self.create_msg(contact=self.contact, direction=INCOMING, text="onwards!")
+            Flow.find_and_handle(msg)
+
+            msgs = Msg.all_messages.filter(direction=OUTGOING, status=WIRED).order_by('sent_on')[4:]
+            self.assertEqual(msgs[0].text, "Ack1")
+            self.assertEqual(msgs[1].text, "Ack2")
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[2].text, "Ack3")
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[3].text, "Ack4")
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
+
+            # again, only one send_msg
+            self.assertEqual(mock_send_msg.call_count, 1)
 
         Msg.all_messages.all().delete()
 
-        # try with multiple contacts, first two messages should go out quickly
-        flow.start([], [self.contact, self.contact2], restart_participants=True)
+        # try with multiple contacts
+        with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
+            flow.start([], [self.contact, self.contact2], restart_participants=True)
 
-        first = Msg.all_messages.filter(text="Here is your first message.").order_by('sent_on')
-        second = Msg.all_messages.filter(text="Here is your second.").order_by('sent_on')
+            # we should have two batches of messages, for for each contact
+            msgs = Msg.all_messages.filter(status=WIRED).order_by('sent_on')
 
-        # all messages went out quickly
-        self.assertTrue(second[1].sent_on - first[0].sent_on < timedelta(milliseconds=650))
+            self.assertEqual(msgs[0].contact, self.contact)
+            self.assertEqual(msgs[0].text, "Msg1")
+            self.assertEqual(msgs[1].text, "Msg2")
+            self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[2].text, "Msg3")
+            self.assertTrue(msgs[2].sent_on - msgs[1].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[3].text, "Msg4")
+            self.assertTrue(msgs[3].sent_on - msgs[2].sent_on > timedelta(seconds=.750))
 
-        # but gap between two was long enough
-        self.assertTrue(second[0].sent_on > first[0].sent_on)
+            self.assertEqual(msgs[4].contact, self.contact2)
+            self.assertEqual(msgs[4].text, "Msg1")
+            self.assertTrue(msgs[4].sent_on - msgs[3].sent_on < timedelta(seconds=.500))
+            self.assertEqual(msgs[5].text, "Msg2")
+            self.assertTrue(msgs[5].sent_on - msgs[4].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[6].text, "Msg3")
+            self.assertTrue(msgs[6].sent_on - msgs[5].sent_on > timedelta(seconds=.750))
+            self.assertEqual(msgs[7].text, "Msg4")
+            self.assertTrue(msgs[7].sent_on - msgs[6].sent_on > timedelta(seconds=.750))
+
+            # two batches of messages, one batch for each contact
+            self.assertEqual(mock_send_msg.call_count, 2)

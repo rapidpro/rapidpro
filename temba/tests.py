@@ -239,9 +239,13 @@ class TembaTest(SmartminTest):
 
         return Contact.get_or_create(**kwargs)
 
-    def create_group(self, name, contacts):
-        group = ContactGroup.create(self.org, self.user, name)
-        group.contacts.add(*contacts)
+    def create_group(self, name, contacts=(), query=None):
+        if contacts and query:
+            raise ValueError("Can't provide contact list for a dynamic group")
+
+        group = ContactGroup.create(self.org, self.user, name, query=query)
+        if contacts:
+            group.contacts.add(*contacts)
         return group
 
     def create_msg(self, **kwargs):

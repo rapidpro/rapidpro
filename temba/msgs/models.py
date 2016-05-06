@@ -663,6 +663,10 @@ class Msg(models.Model):
         queued.
         :return:
         """
+        task_msgs = []
+        task_priority = None
+        last_contact = None
+
         # we send in chunks of 1,000 to help with contention
         for msg_chunk in chunk_list(all_msgs, 1000):
             # create a temporary list of our chunk so we can iterate more than once
@@ -686,17 +690,35 @@ class Msg(models.Model):
                 for msg in msgs:
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and \
                             msg.topup and not msg.contact.is_test:
+
+                        # if this is a different contact than our last, and we have msgs for that last contact, queue the task
+                        if task_msgs and last_contact != msg.contact_id:
+                            # if no priority was set, default to DEFAULT
+                            if task_priority is None:
+                                task_priority = DEFAULT_PRIORITY
+
+                            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
+                            task_msgs = []
+                            task_priority = None
+
                         # serialize the model to a dictionary
                         msg.queued_on = queued_on
                         task = msg.as_task_json()
 
-                        task_priority = DEFAULT_PRIORITY
-                        if msg.priority == SMS_BULK_PRIORITY:
+                        # only be low priority if no priority has been set for this task group
+                        if msg.priority == SMS_BULK_PRIORITY and task_priority is None:
                             task_priority = LOW_PRIORITY
                         elif msg.priority == SMS_HIGH_PRIORITY:
                             task_priority = HIGH_PRIORITY
 
-                        push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
+                        task_msgs.append(task)
+                        last_contact = msg.contact_id
+
+        # send our last msgs
+        if task_msgs:
+            if task_priority is None:
+                task_priority = DEFAULT_PRIORITY
+            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, task_priority)
 
     @classmethod
     def process_message(cls, msg):

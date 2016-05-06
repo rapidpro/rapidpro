@@ -599,18 +599,18 @@ class Contact(TembaModel):
           2. A change to the specified contact field
           3. A manual change to a group membership
         """
-        groups_changed = False
+        dynamic_group_change = False
 
         if Contact.NAME in attrs or field or urns:
             # ensure dynamic groups are up to date
-            groups_changed = ContactGroup.update_groups_for_contact(self, field)
+            dynamic_group_change = ContactGroup.reevaluate_dynamic_groups(self, field)
 
         # ensure our campaigns are up to date
         from temba.campaigns.models import EventFire
         if field:
             EventFire.update_events_for_contact_field(self, field.key)
 
-        if groups_changed or group:
+        if group or dynamic_group_change:
             # ensure our campaigns are up to date
             EventFire.update_events_for_contact(self)
 
@@ -1122,9 +1122,6 @@ class Contact(TembaModel):
 
     @classmethod
     def apply_action_label(cls, user, contacts, group, add):
-        if group.is_dynamic:
-            raise ValueError("Can't manually add/remove contacts for a dynamic group")  # should never happen
-
         return group.update_contacts(user, contacts, add)
 
     @classmethod
@@ -1722,11 +1719,18 @@ class ContactGroup(TembaModel):
 
     def update_contacts(self, user, contacts, add):
         """
-        Adds or removes contacts from this group. Returns array of contact ids of contacts whose membership changed
+        Manually adds or removes contacts from this group. Returns array of contact ids of contacts whose membership
+        changed
         """
-        if self.group_type != self.TYPE_USER_DEFINED:  # pragma: no cover
-            raise ValueError("Can't add or remove test contacts from system groups")
+        if self.group_type != self.TYPE_USER_DEFINED or self.is_dynamic:
+            raise ValueError("Can't add or remove contacts from system or dynamic groups")
 
+        return self._update_contacts(user, contacts, add)
+
+    def _update_contacts(self, user, contacts, add):
+        """
+        Adds or removes contacts from this group - used for both non-dynamic and dynamic groups
+        """
         changed = set()
         group_contacts = self.contacts.all()
 
@@ -1782,9 +1786,10 @@ class ContactGroup(TembaModel):
         self.contacts.add(*members)
 
     @classmethod
-    def update_groups_for_contact(cls, contact, field=None):
+    def reevaluate_dynamic_groups(cls, contact, field=None):
         """
-        Updates all dynamic groups effected by a change to a contact. Returns whether any group membership changes.
+        Re-evaluates the given contact's membership of dynamic groups. If field is specified then re-evaluation is only
+        performed for those groups which reference that field. Returns whether any group membership changes.
         """
         qs_args = dict(org=contact.org, is_active=True)
         if field:
@@ -1792,11 +1797,12 @@ class ContactGroup(TembaModel):
 
         group_change = False
         user = get_anonymous_user()
+        affected_dynamic_groups = cls.user_groups.filter(**qs_args).exclude(query=None)
 
-        for group in ContactGroup.user_groups.filter(**qs_args).exclude(query=None):
-            qs, is_complex = Contact.search(group.org, group.query)  # re-run group query
+        for group in affected_dynamic_groups:
+            qs, is_complex = Contact.search(group.org, group.query)  # generate group query
             qualifies = qs.filter(pk=contact.id).count() == 1        # should contact now be in group?
-            changed = group.update_contacts(user, [contact], qualifies)
+            changed = group._update_contacts(user, [contact], qualifies)
 
             if changed:
                 group_change = True
