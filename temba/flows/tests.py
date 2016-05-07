@@ -4213,6 +4213,28 @@ class FlowsTest(FlowFileTest):
         msg = Msg.all_messages.filter(contact=self.contact, direction='O').order_by('-created_on').first()
         self.assertEqual("You picked Red.", msg.text)
 
+    def test_subflow_expired(self):
+        self.get_flow('subflow')
+        parent = Flow.objects.get(org=self.org, name='Parent Flow')
+
+        parent.start(groups=[], contacts=[self.contact], restart_participants=True)
+        self.send_message(parent, "color", assert_reply=False)
+
+        # we should now have two active flows
+        self.assertEqual(2, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+
+        # now expire out of the child flow
+        run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on').first()
+        FlowRun.bulk_exit([run], FlowRun.EXIT_TYPE_EXPIRED)
+
+        # all flows should have finished
+        self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+
+        # and should follow the expiration route
+        msg = Msg.all_messages.all().order_by('-created_on').first()
+        self.assertEqual("You expired out of the subflow", msg.text)
+
+
     def test_subflow_no_interaction(self):
         self.get_flow('subflow-no-pause')
         parent = Flow.objects.get(org=self.org, name='Flow A')

@@ -2508,10 +2508,35 @@ class FlowRun(models.Model):
         if not exited_on:
             exited_on = modified_on
 
+        from .tasks import continue_parent_flows
+
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for batch in chunk_list(runs, 1000):
-            run_objs = FlowRun.objects.filter(pk__in=[r['id'] for r in batch])
+            ids = [r['id'] for r in batch]
+            run_objs = FlowRun.objects.filter(pk__in=ids)
             run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type, modified_on=modified_on)
+
+            # continue the parent flows to continue async
+            continue_parent_flows.delay(ids)
+
+    @classmethod
+    def continue_parent_flow_runs(cls, runs):
+        """
+        Hands flow control back to our parent run if we have one
+        """
+        for run in runs:
+            if run.parent and run.parent.is_active and not run.parent.flow.is_archived:
+                steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
+                step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
+                if step:
+                    ruleset = RuleSet.objects.filter(uuid=step.step_uuid).first()
+                    if ruleset and ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                        msg = step.messages.all().first()
+                        (rule, result) = ruleset.find_matching_rule(step, run, msg)
+                        if rule and rule.destination:
+                            node = Flow.get_node(run.parent.flow, rule.destination, rule.destination_type)
+                            if node:
+                                Flow.handle_destination(node, step, run.parent, msg)
 
     def release(self):
         """
@@ -2555,19 +2580,9 @@ class FlowRun(models.Model):
         self.is_active = False
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
-        # if we have a parent run, hand flow control back up
-        if self.parent and self.parent.is_active and not self.parent.flow.is_archived:
-            steps = self.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
-            step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
-            if step:
-                ruleset = RuleSet.objects.filter(uuid=step.step_uuid).first()
-                if ruleset and ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                    msg = step.messages.all().first()
-                    (rule, result) = ruleset.find_matching_rule(step, self, msg)
-                    if rule.destination:
-                        node = Flow.get_node(self.parent.flow, rule.destination, rule.destination_type)
-                        if node:
-                            Flow.handle_destination(node, step, self.parent, msg)
+        # let our parent know we finished
+        from .tasks import continue_parent_flows
+        continue_parent_flows.delay([self.pk])
 
     def update_expiration(self, point_in_time):
         """
@@ -5125,6 +5140,7 @@ class SubflowTest(Test):
     def evaluate(self, run, sms, context, text):
         if SubflowTest.EXIT_MAP[self.exit_type] == run.exit_type:
             return 1, text
+        return 0, None
 
 
 class TrueTest(Test):
