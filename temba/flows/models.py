@@ -545,7 +545,8 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def find_and_handle(cls, msg, started_flows=None, voice_response=None, triggered_start=False):
+    def find_and_handle(cls, msg, started_flows=None, voice_response=None,
+                        triggered_start=False, resume_parent_run=False):
 
         if started_flows is None:
             started_flows = []
@@ -562,7 +563,8 @@ class Flow(TembaModel):
                 continue
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
-                                                      user_input=True, triggered_start=triggered_start)
+                                                      user_input=True, triggered_start=triggered_start,
+                                                      resume_parent_run=resume_parent_run)
 
             if handled:
                 # increment our unread count if this isn't the simulator
@@ -575,7 +577,8 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
-                           started_flows=None, is_test_contact=False, user_input=False, triggered_start=False, trigger_send=True):
+                           started_flows=None, is_test_contact=False, user_input=False,
+                           triggered_start=False, trigger_send=True, resume_parent_run=False):
 
         if started_flows is None:
             started_flows = []
@@ -603,7 +606,7 @@ class Flow(TembaModel):
                     should_pause = True
 
                 if user_input or not should_pause:
-                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows)
+                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run)
                     add_to_path(path, destination.uuid)
 
                 # if we used this input, then mark our user input as used
@@ -676,21 +679,30 @@ class Flow(TembaModel):
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
     @classmethod
-    def handle_ruleset(cls, ruleset, step, run, msg, started_flows):
+    def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False):
 
         if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-            flow_id = json.loads(ruleset.config).get('flow').get('id')
-            flow = Flow.objects.filter(org=run.org, pk=flow_id).first()
-            message_context = run.flow.build_message_context(run.contact, msg)
 
-            # our extra will be the current flow variables
-            extra = message_context.get('extra', {})
-            extra['flow'] = message_context.get('flow', {})
+            if resume_parent_run:
+                # if we are resuming our parnet run, we want to evaluate our rules
+                # against our child run that we previously spawned
+                run = FlowRun.objects.filter(parent=run).first()
+            else:
+                flow_id = json.loads(ruleset.config).get('flow').get('id')
+                flow = Flow.objects.filter(org=run.org, pk=flow_id).first()
+                message_context = run.flow.build_message_context(run.contact, msg)
 
-            if flow:
-                flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                           extra=extra, parent_run=run, interrupt=False)
-                return dict(handled=True, destination=None, destination_type=None)
+                # our extra will be the current flow variables
+                extra = message_context.get('extra', {})
+                extra['flow'] = message_context.get('flow', {})
+
+                if msg.id > 0:
+                    step.add_message(msg)
+
+                if flow:
+                    flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
+                               extra=extra, parent_run=run, interrupt=False)
+                    return dict(handled=True, destination=None, destination_type=None)
 
         # find a matching rule
         rule, value = ruleset.find_matching_rule(step, run, msg)
@@ -2528,15 +2540,20 @@ class FlowRun(models.Model):
             if run.parent and run.parent.is_active and not run.parent.flow.is_archived:
                 steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
                 step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
+
                 if step:
-                    ruleset = RuleSet.objects.filter(uuid=step.step_uuid).first()
-                    if ruleset and ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                        msg = step.messages.all().first()
-                        (rule, result) = ruleset.find_matching_rule(step, run, msg)
-                        if rule and rule.destination:
-                            node = Flow.get_node(run.parent.flow, rule.destination, rule.destination_type)
-                            if node:
-                                Flow.handle_destination(node, step, run.parent, msg)
+                    # use the last incoming message on this step
+                    msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
+
+                    # if we are routing back to the parent before a msg was sent, we need a placeholder
+                    if not msg:
+                        msg = Msg()
+                        msg.text = ''
+                        msg.org = run.org
+                        msg.contact = run.contact
+
+                    # finally, trigger our parent flow
+                    Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
     def release(self):
         """
