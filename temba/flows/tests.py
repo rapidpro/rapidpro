@@ -4234,7 +4234,6 @@ class FlowsTest(FlowFileTest):
         msg = Msg.all_messages.all().order_by('-created_on').first()
         self.assertEqual("You expired out of the subflow", msg.text)
 
-
     def test_subflow_no_interaction(self):
         self.get_flow('subflow-no-pause')
         parent = Flow.objects.get(org=self.org, name='Flow A')
