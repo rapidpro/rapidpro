@@ -217,7 +217,7 @@ class ContactGroupReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactGroup
-        fields = ('uuid', 'name', 'count')
+        fields = ('uuid', 'name', 'query', 'count')
 
 
 class FlowRunReadSerializer(ReadSerializer):

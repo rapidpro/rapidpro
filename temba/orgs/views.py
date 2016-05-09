@@ -1329,7 +1329,7 @@ class OrgCRUDL(SmartCRUDL):
             obj = super(OrgCRUDL.Grant, self).post_save(obj)
             obj.administrators.add(self.user)
 
-            if not self.request.user.is_anonymous():
+            if not self.request.user.is_anonymous() and self.request.user.has_perm('orgs.org_grant'):
                 obj.administrators.add(self.request.user.pk)
 
             brand = BrandingMiddleware.get_branding_for_host(obj.brand)

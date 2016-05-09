@@ -940,6 +940,7 @@ class ContactTest(TembaTest):
     def test_omnibox(self):
         # add a group with members and an empty group
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+        men = self.create_group("Men", [], "gender=M")
         nobody = self.create_group("Nobody", [])
 
         joe_tel = self.joe.get_urn(TEL_SCHEME)
@@ -957,132 +958,138 @@ class ContactTest(TembaTest):
         self.admin.set_org(self.org)
         self.login(self.admin)
 
-        response = json.loads(self.client.get("%s" % reverse("contacts.contact_omnibox")).content)
-        self.assertEquals(9, len(response['results']))
+        def omnibox_request(query):
+            response = self.client.get("%s?%s" % (reverse("contacts.contact_omnibox"), query))
+            return json.loads(response.content)['results']
 
-        # both groups...
-        self.assertEquals(dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2), response['results'][0])
-        self.assertEquals(dict(id='g-%d' % nobody.pk, text="Nobody", extra=0), response['results'][1])
+        self.assertEqual(omnibox_request(""), [
+            # all 3 groups A-Z
+            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
+            dict(id='g-%d' % men.pk, text="Men", extra=0),
+            dict(id='g-%d' % nobody.pk, text="Nobody", extra=0),
 
-        # all 4 contacts A-Z
-        self.assertEquals(dict(id='c-%d' % self.billy.pk, text="Billy Nophone"), response['results'][2])
-        self.assertEquals(dict(id='c-%d' % self.frank.pk, text="Frank Smith"), response['results'][3])
-        self.assertEquals(dict(id='c-%d' % self.joe.pk, text="Joe Blow"), response['results'][4])
-        self.assertEquals(dict(id='c-%d' % self.voldemort.pk, text="250788383383"), response['results'][5])
+            # all 4 contacts A-Z
+            dict(id='c-%d' % self.billy.pk, text="Billy Nophone"),
+            dict(id='c-%d' % self.frank.pk, text="Frank Smith"),
+            dict(id='c-%d' % self.joe.pk, text="Joe Blow"),
+            dict(id='c-%d' % self.voldemort.pk, text="250788383383"),
 
-        # 3 sendable URNs with names as extra
-        self.assertEquals(dict(id='u-%d' % joe_tel.pk, text="123", extra="Joe Blow", scheme='tel'), response['results'][6])
-        self.assertEquals(dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'), response['results'][7])
-        self.assertEquals(dict(id='u-%d' % voldemort_tel.pk, text="250788383383", extra=None, scheme='tel'), response['results'][8])
+            # 3 sendable URNs with names as extra
+            dict(id='u-%d' % joe_tel.pk, text="123", extra="Joe Blow", scheme='tel'),
+            dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % voldemort_tel.pk, text="250788383383", extra=None, scheme='tel')
+        ])
 
         # apply type filters...
-        response = json.loads(self.client.get("%s?types=g" % reverse("contacts.contact_omnibox")).content)
-        self.assertEquals(2, len(response['results']))
 
-        # just 2 groups
-        self.assertEquals(dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2), response['results'][0])
-        self.assertEquals(dict(id='g-%d' % nobody.pk, text="Nobody", extra=0), response['results'][1])
+        # g = just the 3 groups
+        self.assertEqual(omnibox_request("types=g"), [
+            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
+            dict(id='g-%d' % men.pk, text="Men", extra=0),
+            dict(id='g-%d' % nobody.pk, text="Nobody", extra=0)
+        ])
 
-        response = json.loads(self.client.get("%s?types=c,u" % reverse("contacts.contact_omnibox")).content)
-        self.assertEquals(7, len(response['results']))
+        # s = just the 2 non-dynamic (static) groups
+        self.assertEqual(omnibox_request("types=s"), [
+            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
+            dict(id='g-%d' % nobody.pk, text="Nobody", extra=0)
+        ])
 
-        # all 4 contacts A-Z
-        self.assertEquals(dict(id='c-%d' % self.billy.pk, text="Billy Nophone"), response['results'][0])
-        self.assertEquals(dict(id='c-%d' % self.frank.pk, text="Frank Smith"), response['results'][1])
-        self.assertEquals(dict(id='c-%d' % self.joe.pk, text="Joe Blow"), response['results'][2])
-        self.assertEquals(dict(id='c-%d' % self.voldemort.pk, text="250788383383"), response['results'][3])
-
-        # 3 sendable URNs with names as extra
-        self.assertEquals(dict(id='u-%d' % joe_tel.pk, text="123", extra="Joe Blow", scheme='tel'), response['results'][4])
-        self.assertEquals(dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'), response['results'][5])
-        self.assertEquals(dict(id='u-%d' % voldemort_tel.pk, text="250788383383", extra=None, scheme='tel'), response['results'][6])
+        # c,u = contacts and URNs
+        self.assertEqual(omnibox_request("types=c,u"), [
+            dict(id='c-%d' % self.billy.pk, text="Billy Nophone"),
+            dict(id='c-%d' % self.frank.pk, text="Frank Smith"),
+            dict(id='c-%d' % self.joe.pk, text="Joe Blow"),
+            dict(id='c-%d' % self.voldemort.pk, text="250788383383"),
+            dict(id='u-%d' % joe_tel.pk, text="123", extra="Joe Blow", scheme='tel'),
+            dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % voldemort_tel.pk, text="250788383383", extra=None, scheme='tel')
+        ])
 
         # search for Frank by phone
-        response = json.loads(self.client.get("%s?search=1234" % reverse("contacts.contact_omnibox")).content)
-        self.assertEquals(dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'), response['results'][0])
-        self.assertEquals(1, len(response['results']))
+        self.assertEqual(omnibox_request("search=1234"), [
+            dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel')
+        ])
 
         # search for Joe by twitter - won't return anything because there is no twitter channel
-        response = json.loads(self.client.get("%s?search=blow80" % reverse("contacts.contact_omnibox")).content)
-        self.assertEquals(0, len(response['results']))
+        self.assertEqual(omnibox_request("search=blow80"), [])
 
         # create twitter channel
         Channel.create(self.org, self.user, None, 'TT')
 
         # search for again for Joe by twitter
-        response = json.loads(self.client.get("%s?search=blow80" % reverse("contacts.contact_omnibox")).content)
-        self.assertEquals(dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter'), response['results'][0])
-        self.assertEquals(1, len(response['results']))
+        self.assertEqual(omnibox_request("search=blow80"), [
+            dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
+        ])
 
         # search for Joe again - match on last name and twitter handle
-        response = json.loads(self.client.get("%s?search=BLOW" % reverse("contacts.contact_omnibox")).content)
-        self.assertEquals(dict(id='c-%d' % self.joe.pk, text="Joe Blow"), response['results'][0])
-        self.assertEquals(dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter'), response['results'][1])
-        self.assertEquals(2, len(response['results']))
+        self.assertEqual(omnibox_request("search=BLOW"), [
+            dict(id='c-%d' % self.joe.pk, text="Joe Blow"),
+            dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
+        ])
 
         # make sure our matches are ANDed
-        response = json.loads(self.client.get("%s?search=Joe+o&types=c" % reverse("contacts.contact_omnibox")).content)
-        self.assertEquals(dict(id='c-%d' % self.joe.pk, text="Joe Blow"), response['results'][0])
-        self.assertEquals(1, len(response['results']))
+        self.assertEqual(omnibox_request("search=Joe+o&types=c"), [
+            dict(id='c-%d' % self.joe.pk, text="Joe Blow")
+        ])
+        self.assertEqual(omnibox_request("search=Joe+o&types=g"), [
+            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
+        ])
 
         # lookup by contact ids
-        contact_ids = "%d,%d" % (self.joe.pk, self.frank.pk)
-        response = json.loads(self.client.get("%s?&c=%s" % (reverse("contacts.contact_omnibox"), contact_ids)).content)
-        self.assertEquals(dict(id='c-%d' % self.frank.pk, text="Frank Smith"), response['results'][0])
-        self.assertEquals(dict(id='c-%d' % self.joe.pk, text="Joe Blow"), response['results'][1])
-        self.assertEquals(2, len(response['results']))
+        self.assertEqual(omnibox_request("c=%d,%d" % (self.joe.pk, self.frank.pk)), [
+            dict(id='c-%d' % self.frank.pk, text="Frank Smith"),
+            dict(id='c-%d' % self.joe.pk, text="Joe Blow")
+        ])
 
         # lookup by group id
-        response = json.loads(self.client.get("%s?&g=%d" % (reverse("contacts.contact_omnibox"), joe_and_frank.pk)).content)
-        self.assertEquals(dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2), response['results'][0])
-        self.assertEquals(1, len(response['results']))
+        self.assertEqual(omnibox_request("g=%d" % joe_and_frank.pk), [
+            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2)
+        ])
 
         # lookup by URN ids
-        urn_ids = "%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
-        response = json.loads(self.client.get("%s?&u=%s" % (reverse("contacts.contact_omnibox"), urn_ids)).content)
-        self.assertEquals(dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'), response['results'][0])
-        self.assertEquals(dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter'), response['results'][1])
-        self.assertEquals(2, len(response['results']))
+        urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
+        self.assertEqual(omnibox_request(urn_query), [
+            dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
+        ])
 
         # lookup by message ids
         msg = self.create_msg(direction='I', contact=self.joe, text="some message")
-        response = json.loads(self.client.get("%s?m=%s" % (reverse("contacts.contact_omnibox"), msg.pk)).content)
-        self.assertEquals(dict(id='c-%d' % self.joe.pk, text="Joe Blow"), response['results'][0])
-        self.assertEquals(1, len(response['results']))
+        self.assertEqual(omnibox_request("m=%d" % msg.pk), [
+            dict(id='c-%d' % self.joe.pk, text="Joe Blow")
+        ])
 
         # lookup by label ids
         label = Label.get_or_create(self.org, self.user, "msg label")
-        response = json.loads(self.client.get("%s?l=%s" % (reverse("contacts.contact_omnibox"), label.pk)).content)
-        self.assertEquals(0, len(response['results']))
+        self.assertEqual(omnibox_request("l=%d" % label.pk), [])
 
         msg.labels.add(label)
-        response = json.loads(self.client.get("%s?l=%s" % (reverse("contacts.contact_omnibox"), label.pk)).content)
-        self.assertEquals(dict(id='c-%d' % self.joe.pk, text="Joe Blow"), response['results'][0])
-        self.assertEquals(1, len(response['results']))
+        self.assertEqual(omnibox_request("l=%d" % label.pk), [
+            dict(id='c-%d' % self.joe.pk, text="Joe Blow")
+        ])
 
         with AnonymousOrg(self.org):
-            response = json.loads(self.client.get("%s" % reverse("contacts.contact_omnibox")).content)
-            self.assertEquals(6, len(response['results']))
+            self.assertEqual(omnibox_request(""), [
+                # all 3 groups...
+                dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
+                dict(id='g-%d' % men.pk, text="Men", extra=0),
+                dict(id='g-%d' % nobody.pk, text="Nobody", extra=0),
 
-            # both groups...
-            self.assertEquals(dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2), response['results'][0])
-            self.assertEquals(dict(id='g-%d' % nobody.pk, text="Nobody", extra=0), response['results'][1])
-
-            # all 4 contacts A-Z
-            self.assertEquals(dict(id='c-%d' % self.billy.pk, text="Billy Nophone"), response['results'][2])
-            self.assertEquals(dict(id='c-%d' % self.frank.pk, text="Frank Smith"), response['results'][3])
-            self.assertEquals(dict(id='c-%d' % self.joe.pk, text="Joe Blow"), response['results'][4])
-            self.assertEquals(dict(id='c-%d' % self.voldemort.pk, text=self.voldemort.anon_identifier), response['results'][5])
+                # all 4 contacts A-Z
+                dict(id='c-%d' % self.billy.pk, text="Billy Nophone"),
+                dict(id='c-%d' % self.frank.pk, text="Frank Smith"),
+                dict(id='c-%d' % self.joe.pk, text="Joe Blow"),
+                dict(id='c-%d' % self.voldemort.pk, text=self.voldemort.anon_identifier)
+            ])
 
             # can search by frank id
-            response = self.client.get("%s?search=%d" % (reverse("contacts.contact_omnibox"), self.frank.pk))
-            response = json.loads(response.content)
-            self.assertEquals(dict(id='c-%d' % self.frank.pk, text="Frank Smith"), response['results'][0])
-            self.assertEquals(1, len(response['results']))
+            self.assertEqual(omnibox_request("search=%d" % self.frank.pk), [
+                dict(id='c-%d' % self.frank.pk, text="Frank Smith")
+            ])
 
             # but not by frank number
-            response = json.loads(self.client.get("%s?search=1234" % reverse("contacts.contact_omnibox")).content)
-            self.assertEquals(0, len(response['results']))
+            self.assertEqual(omnibox_request("search=1234"), [])
 
     def test_history(self):
 
@@ -1108,15 +1115,22 @@ class ContactTest(TembaTest):
         ChannelEvent.create(self.channel, self.joe.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_OUT_MISSED,
                             timezone.now(), 5)
 
+        # try adding some failed calls
+        from temba.ivr.models import NO_ANSWER, IVRCall
+        IVRCall.objects.create(contact=self.joe, status=NO_ANSWER, created_by=self.admin,
+                               modified_by=self.admin, channel=self.channel, org=self.org,
+                               contact_urn=self.joe.urns.all().first())
+
         # fetch our contact history
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
 
         # even though there are no messages after it, should still see the recent call
-        self.assertTrue(isinstance(activity[0], ChannelEvent))
+        self.assertTrue(isinstance(activity[0], IVRCall))
+        self.assertTrue(isinstance(activity[1], ChannelEvent))
 
-        # 100 messages, a call, and a flow run
-        self.assertEquals(102, len(activity))
+        # 100 messages, a channel event, a call, and a flow run
+        self.assertEquals(103, len(activity))
         self.assertTrue(response.context['more'])
 
         # fetch page 2
@@ -1131,8 +1145,8 @@ class ContactTest(TembaTest):
         # most recent thing is a message followed by a flow run
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
         activity = response.context['activity']
-        self.assertTrue(isinstance(activity[1], Msg))
-        self.assertTrue(isinstance(activity[2], FlowRun))
+        self.assertTrue(isinstance(activity[2], Msg))
+        self.assertTrue(isinstance(activity[3], FlowRun))
 
         # if a new message comes in
         self.create_msg(direction='I', contact=self.joe, text="Newer message")
@@ -1142,7 +1156,7 @@ class ContactTest(TembaTest):
         # now we'll see the message that just came in first, followed by the call event
         self.assertEquals('Newer message', activity[0].text)
         self.assertTrue(isinstance(activity[0], Msg))
-        self.assertTrue(isinstance(activity[1], ChannelEvent))
+        self.assertTrue(isinstance(activity[1], IVRCall))
 
         # remove 50 messages
         for i in range(50):
@@ -1152,22 +1166,22 @@ class ContactTest(TembaTest):
         for i in range(5):
             self.create_msg(direction='I', contact=self.joe, text="Old Message", created_on=timezone.now() - timedelta(days=8))
 
-        # number of items on the first page should be 65 now
+        # number of items on the first page should be 66 now
         response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.admin)
         activity = response.context['activity']
-        self.assertEquals(65, len(activity))
+        self.assertEquals(66, len(activity))
 
         recent_seconds = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
         response = self.fetch_protected("%s?r=true&rs=%s" % (reverse('contacts.contact_history', args=[self.joe.uuid]), recent_seconds), self.admin)
         activity = response.context['activity']
 
         # with our recent flag on, should not see the 5 older messages
-        self.assertEquals(60, len(activity))
+        self.assertEquals(61, len(activity))
 
         # can view history as super user as well
         response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.superuser)
         activity = response.context['activity']
-        self.assertEquals(65, len(activity))
+        self.assertEquals(66, len(activity))
 
         self.login(self.admin)
         response = self.client.get(reverse('contacts.contact_history', args=['bad-uuid']))

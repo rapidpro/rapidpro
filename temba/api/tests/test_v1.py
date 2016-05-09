@@ -1904,7 +1904,8 @@ class APITest(TembaTest):
         contact5.release(self.user)
         test_contact = Contact.get_test_contact(self.user)
 
-        group = ContactGroup.get_or_create(self.org, self.admin, "Testers")
+        group = self.create_group("Testers")
+        self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
         flow = self.create_flow()
@@ -1945,6 +1946,10 @@ class APITest(TembaTest):
         # try to add to a non-existent group
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='Spammers'))
         self.assertResponseError(response, 'group', "No such group: Spammers")
+
+        # try to add to a dynamic group
+        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='Developers'))
+        self.assertResponseError(response, 'group', "Can't add or remove contacts from a dynamic group")
 
         # add contact 3 to a group by its UUID
         response = self.postJSON(url, dict(contacts=[contact3.uuid], action='add', group_uuid=group.uuid))

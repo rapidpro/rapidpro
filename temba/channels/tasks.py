@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
 import requests
+import logging
+import time
 
 from datetime import timedelta
 from django.conf import settings
@@ -13,6 +15,9 @@ from temba.utils import dict_to_struct
 from temba.utils.queues import pop_task
 from temba.utils.mage import MageClient
 from .models import Channel, Alert, ChannelLog, ChannelCount, AUTH_TOKEN
+
+
+logger = logging.getLogger(__name__)
 
 
 class MageStreamAction(Enum):
@@ -33,21 +38,32 @@ def send_msg_task():
     Pops the next message off of our msg queue to send.
     """
     # pop off the next task
-    cur_task = pop_task(SEND_MSG_TASK)
+    msg_tasks = pop_task(SEND_MSG_TASK)
 
     # it is possible we have no message to send, if so, just return
-    if not cur_task:
+    if not msg_tasks:
         return
 
-    msg = dict_to_struct('MockMsg', cur_task,
-                         datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on', 'next_attempt'])
+    if not isinstance(msg_tasks, list):
+        msg_tasks = [msg_tasks]
 
-    # send it off
     r = get_redis_connection()
 
-    # acquire a lock on our contact to make sure sending is always serialized
-    with r.lock('send_contact_%d' % msg.contact, timeout=300):
-        Channel.send_message(msg)
+    # acquire a lock on our contact to make sure two sets of msgs aren't being sent at the same time
+    with r.lock('send_contact_%d' % msg_tasks[0]['contact'], timeout=300):
+        # send each of our msgs
+        for (i, msg_task) in enumerate(msg_tasks):
+            try:
+                msg = dict_to_struct('MockMsg', msg_task,
+                                     datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on', 'next_attempt'])
+                Channel.send_message(msg)
+
+                # if there are more messages to send for this contact, sleep a second before moving on
+                if i + 1 < len(msg_tasks):
+                    time.sleep(1)
+
+            except Exception:  # pragma: no cover
+                logger.error('Error sending msg', exc_info=True)
 
 
 @task(track_started=True, name='check_channels_task')
@@ -94,7 +110,7 @@ def notify_mage_task(channel_uuid, action):
         mage.refresh_twitter_stream(channel_uuid)
     elif action == MageStreamAction.deactivate:
         mage.deactivate_twitter_stream(channel_uuid)
-    else:
+    else:  # pragma: no cover
         raise ValueError('Invalid action: %s' % action)
 
 
