@@ -24,7 +24,7 @@ DROP INDEX IF EXISTS contacts_contact_org_id_modified_on_inactive;
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0035_auto_20160414_0642'),
+        ('contacts', '0036_reevaluate_dynamic_groups'),
     ]
 
     operations = [
