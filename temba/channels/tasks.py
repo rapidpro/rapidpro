@@ -10,9 +10,9 @@ from django.utils import timezone
 from djcelery_transactions import task
 from enum import Enum
 from redis_cache import get_redis_connection
-from temba.msgs.models import SEND_MSG_TASK
+from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
-from temba.utils.queues import pop_task
+from temba.utils.queues import pop_task, push_task
 from temba.utils.mage import MageClient
 from .models import Channel, Alert, ChannelLog, ChannelCount, AUTH_TOKEN
 
@@ -50,20 +50,24 @@ def send_msg_task():
     r = get_redis_connection()
 
     # acquire a lock on our contact to make sure two sets of msgs aren't being sent at the same time
-    with r.lock('send_contact_%d' % msg_tasks[0]['contact'], timeout=300):
-        # send each of our msgs
-        for (i, msg_task) in enumerate(msg_tasks):
-            try:
+    try:
+        with r.lock('send_contact_%d' % msg_tasks[0]['contact'], timeout=300):
+            # send each of our msgs
+            while msg_tasks:
+                msg_task = msg_tasks.pop(0)
                 msg = dict_to_struct('MockMsg', msg_task,
                                      datetime_fields=['modified_on', 'sent_on', 'created_on', 'queued_on', 'next_attempt'])
                 Channel.send_message(msg)
 
                 # if there are more messages to send for this contact, sleep a second before moving on
-                if i + 1 < len(msg_tasks):
+                if msg_tasks:
                     time.sleep(1)
 
-            except Exception:  # pragma: no cover
-                logger.error('Error sending msg', exc_info=True)
+    finally:  # pragma: no cover
+        # if some msgs weren't sent for some reason, then requeue them for later sending
+        if msg_tasks:
+            # requeue any unsent msgs
+            push_task(msg_tasks[0]['org'], MSG_QUEUE, SEND_MSG_TASK, msg_tasks)
 
 
 @task(track_started=True, name='check_channels_task')
