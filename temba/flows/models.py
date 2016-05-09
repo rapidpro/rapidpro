@@ -2536,8 +2536,8 @@ class FlowRun(models.Model):
         """
         Hands flow control back to our parent run if we have one
         """
+        runs = runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False)
         for run in runs:
-            if run.parent and run.parent.is_active and not run.parent.flow.is_archived:
                 steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
                 step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
 
