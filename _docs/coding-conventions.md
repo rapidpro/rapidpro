@@ -44,11 +44,11 @@ but this is still preferred over having one file containing all forms etc..
 
 ## Convention over Configuration
 
-RapidPro makes heavy use of RapidPro and as such heavily relies on convention
-over configuration. The use of CRUDL objects, automatic permission and
-URL naming greatly reduces the complexity of the system. As opportunity arises
-to create new conventions that yield similar simplifications, we should adopt
-them.
+RapidPro makes heavy use of [Smartmin](https://github.com/nyaruka/smartmin) and 
+as such heavily relies on convention over configuration. The use of CRUDL objects, 
+automatic permission and URL naming greatly reduces the complexity of the system. 
+As opportunity arises to create new conventions that yield similar simplifications, 
+we should adopt them.
 
 ## Code Reviews & Pull Requests
 
