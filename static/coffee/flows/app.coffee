@@ -27,5 +27,5 @@ app.config [ '$httpProvider', '$sceDelegateProvider', ($httpProvider, $sceDelega
 app.config [ '$compileProvider', '$interpolateProvider' , ($compileProvider, $interpolateProvider) ->
   $interpolateProvider.startSymbol "[["
   $interpolateProvider.endSymbol "]]"
-  $compileProvider.debugInfoEnabled false
+  # $compileProvider.debugInfoEnabled false
 ]
