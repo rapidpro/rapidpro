@@ -1022,6 +1022,9 @@ class FlowTest(TembaTest):
         test = ContainsTest(test=dict(base="Green"))
         self.assertTest(True, "GReen", test)
 
+        test = ContainsTest(test=dict(base="Green green GREEN"))
+        self.assertTest(True, "GReen", test)
+
         sms.text = "Blue is my favorite"
         self.assertTest(False, None, test)
 
@@ -1043,16 +1046,26 @@ class FlowTest(TembaTest):
 
         test.test = dict(base="this THAT")
         sms.text = "that and this is good and will match"
+        self.assertTest(True, "that this", test)
+
+        test.test = dict(base="this THAT")
+        sms.text = "this and that is good and will match"
         self.assertTest(True, "this that", test)
 
+        test.test = dict(base="this THAT")
+        sms.text = "this and that and this other thing is good and will match"
+        self.assertTest(True, "this that this", test)
+
+        sms.text = "text"
+
         test = AndTest([TrueTest(), TrueTest()])
-        self.assertTest(True, "that and this is good and will match that and this is good and will match", test)
+        self.assertTest(True, "text text", test)
 
         test = AndTest([TrueTest(), FalseTest()])
         self.assertTest(False, None, test)
 
         test = OrTest([TrueTest(), FalseTest()])
-        self.assertTest(True, "that and this is good and will match", test)
+        self.assertTest(True, "text", test)
 
         test = OrTest([FalseTest(), FalseTest()])
         self.assertTest(False, None, test)
