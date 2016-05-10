@@ -23,7 +23,7 @@ with us on the changes you are making and your approach in implementing them.
 ## Follow Conventions
 
 Once you have gotten the go-ahead on your changes, get to coding! Just make sure
-to follow our [coding conventions](/docs/coding-conventions/). If you are
+to follow our [coding conventions]({{site.baseurl}}/docs/coding-conventions/). If you are
 introducing some new technology or approach not already present in RapidPro
 it is doubly important for you to discuss those changes ahead of time with us
 or your patch may not be approved.
