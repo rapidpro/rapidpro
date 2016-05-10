@@ -6,10 +6,9 @@ from temba.contacts import search
 
 
 def reevaluate_dynamic_groups(apps, schema_editor):
-    Contact = apps.get_model('contacts', 'Contact')
-    ContactGroup = apps.get_model('contacts', 'ContactGroup')
+    from temba.contacts.models import Contact, ContactGroup
 
-    for group in ContactGroup.objects.exclude(query=None).select_related('org'):
+    for group in ContactGroup.all_groups.exclude(query=None).select_related('org'):
         org = group.org
 
         # evaluate group using search query
