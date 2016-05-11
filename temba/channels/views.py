@@ -2125,7 +2125,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_existing_numbers(self, org):
             client = org.get_nexmo_client()
             if client:
-                account_numbers = client.get_numbers()
+                account_numbers = client.get_numbers(size=100)
 
             numbers = []
             for number in account_numbers:
