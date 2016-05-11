@@ -5177,17 +5177,19 @@ class ContainsTest(Test):
         return json
 
     def test_in_words(self, test, words, raw_words):
+        matches = []
         for index, word in enumerate(words):
             if word == test:
-                return raw_words[index]
+                matches.append(index)
+                continue
 
             # words are over 4 characters and start with the same letter
             if len(word) > 4 and len(test) > 4 and word[0] == test[0]:
                 # edit distance of 1 or less is a match
                 if edit_distance(word, test) <= 1:
-                    return raw_words[index]
+                    matches.append(index)
 
-        return None
+        return matches
 
     def evaluate(self, run, sms, context, text):
         # substitute any variables
@@ -5202,15 +5204,19 @@ class ContainsTest(Test):
         raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
 
         # run through each of our tests
-        matches = []
+        matches = set()
+        matched_tests = 0
         for test in tests:
             match = self.test_in_words(test, words, raw_words)
             if match:
-                matches.append(match)
+                matched_tests += 1
+                matches.update(match)
 
         # we are a match only if every test matches
-        if len(matches) == len(tests):
-            return len(tests), " ".join(matches)
+        if matched_tests == len(tests):
+            matches = sorted(list(matches))
+            matched_words = " ".join([raw_words[idx] for idx in matches])
+            return len(tests), matched_words
         else:
             return 0, None
 
@@ -5238,15 +5244,17 @@ class ContainsAnyTest(ContainsTest):
         raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
 
         # run through each of our tests
-        matches = []
+        matches = set()
         for test in tests:
             match = self.test_in_words(test, words, raw_words)
             if match:
-                matches.append(match)
+                matches.update(match)
 
         # we are a match if at least one test matches
-        if len(matches) > 0:
-            return 1, " ".join(matches)
+        if matches:
+            matches = sorted(list(matches))
+            matched_words = " ".join([raw_words[idx] for idx in matches])
+            return 1, matched_words
         else:
             return 0, None
 
