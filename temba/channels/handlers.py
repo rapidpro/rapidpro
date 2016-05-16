@@ -1705,8 +1705,8 @@ class FacebookHandler(View):
 
                 for envelope in entry['messaging']:
                     if 'message' in envelope:
-                        channel_address = envelope['recipient']['id']
-                        if channel_address != int(channel.address):
+                        channel_address = str(envelope['recipient']['id'])
+                        if channel_address != channel.address:
                             return HttpResponse("Msg does not match channel recipient id: %s" % channel.address, status=400)
 
                         content = None

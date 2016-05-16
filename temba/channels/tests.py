@@ -6489,10 +6489,10 @@ class FacebookTest(TembaTest):
               "mid": "external_id"
             },
             "recipient": {
-              "id": 1234
+              "id": "1234"
             },
             "sender": {
-              "id": 5678
+              "id": "5678"
             },
             "timestamp": 1459991487970
           }],
