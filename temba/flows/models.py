@@ -2619,6 +2619,10 @@ class FlowRun(models.Model):
             if self.expires_on < now:
                 self.expire()
 
+        # activity on children is considered activity for parents too``
+        if self.parent:
+            self.parent.update_expiration(point_in_time)
+
     def expire(self):
         self.bulk_exit([self], FlowRun.EXIT_TYPE_EXPIRED)
 
