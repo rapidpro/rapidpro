@@ -1467,7 +1467,10 @@ class BroadcastReadSerializer(ReadSerializer):
     status = serializers.ReadOnlyField()
 
     def get_urns(self, obj):
-        return [urn.urn for urn in obj.urns.all()]
+        if obj.org.is_anon:
+            return []
+        else:
+            return [urn.urn for urn in obj.urns.all()]
 
     def get_contacts(self, obj):
         return [contact.uuid for contact in obj.contacts.all()]
