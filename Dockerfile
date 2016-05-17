@@ -6,6 +6,7 @@ RUN apt-get update && \
   npm \
   nodejs-legacy \
   python \
+  python-setuptools \
   python-pip \
   python-dev \
   build-essential \
@@ -24,6 +25,8 @@ ADD . rapidpro/
 WORKDIR rapidpro
 
 RUN cp temba/settings.py.dev temba/settings.py && \
+  pip install --upgrade pip && \
+  pip install --upgrade setuptools && \
   pip install -r pip-freeze.txt
 
 
