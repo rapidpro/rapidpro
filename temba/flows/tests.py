@@ -1468,8 +1468,6 @@ class FlowTest(TembaTest):
         ward_tuple = HasWardTest('Pillars', 'Bichi').evaluate(run, sms, context, 'bichi')
         self.assertEquals(ward_tuple[1], bichiward)
 
-
-
         self.assertEquals(HasWardTest, Test.from_json(self.org, js).__class__)
 
     def test_global_keywords_trigger_update(self):
