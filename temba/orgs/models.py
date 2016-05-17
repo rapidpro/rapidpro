@@ -1495,18 +1495,6 @@ def get_org_group(obj):
     return org_group
 
 
-def set_role(obj, role):
-    obj._role = role
-
-
-def get_role(obj):
-
-    if not hasattr(obj, '_role'):
-        obj._role = obj.get_org_group()
-
-    return obj._role
-
-
 def _user_has_org_perm(user, org, permission):
     """
     Determines if a user has the given permission in this org
@@ -1538,8 +1526,6 @@ User.is_beta = is_beta_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
-User.get_role = get_role
-User.set_role = set_role
 User.has_org_perm = _user_has_org_perm
 
 
@@ -1617,6 +1603,11 @@ class Invitation(SmartModel):
     host = models.CharField(max_length=32, help_text=_("The host this invitation was created on"))
 
     user_group = models.CharField(max_length=1, choices=USER_GROUPS, default='V', verbose_name=_("User Role"))
+
+    @classmethod
+    def create(cls, org, user, email, user_group, host):
+        return cls.objects.create(org=org, email=email, user_group=user_group, host=host,
+                                  created_by=user, modified_by=user)
 
     def save(self, *args, **kwargs):
         if not self.secret:

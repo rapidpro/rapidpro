@@ -5,16 +5,83 @@ import json
 
 from datetime import timedelta
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
-from temba.channels.models import SyncEvent
+from temba.channels.models import ChannelEvent, SyncEvent
 from temba.contacts.models import Contact, TEL_SCHEME
-from temba.msgs.models import Broadcast, Call
+from temba.msgs.models import Broadcast
 from temba.orgs.models import ALL_EVENTS
 from temba.tests import MockResponse, TembaTest
 from urlparse import parse_qs
-from ..models import WebHookEvent, WebHookResult, SMS_RECEIVED
+from ..models import APIToken, WebHookEvent, WebHookResult, SMS_RECEIVED
+
+
+class APITokenTest(TembaTest):
+    def setUp(self):
+        super(APITokenTest, self).setUp()
+
+        self.create_secondary_org()
+
+        self.admins_group = Group.objects.get(name="Administrators")
+        self.editors_group = Group.objects.get(name="Editors")
+        self.surveyors_group = Group.objects.get(name="Surveyors")
+
+        self.org2.surveyors.add(self.admin)  # our admin can act as surveyor for other org
+
+    def test_get_or_create(self):
+        token1 = APIToken.get_or_create(self.org, self.admin)
+        self.assertEqual(token1.org, self.org)
+        self.assertEqual(token1.user, self.admin)
+        self.assertEqual(token1.role, self.admins_group)
+        self.assertTrue(token1.key)
+        self.assertEqual(unicode(token1), token1.key)
+
+        # tokens for different roles with same user should differ
+        token2 = APIToken.get_or_create(self.org, self.admin, self.admins_group)
+        token3 = APIToken.get_or_create(self.org, self.admin, self.editors_group)
+        token4 = APIToken.get_or_create(self.org, self.admin, self.surveyors_group)
+
+        self.assertEqual(token1, token2)
+        self.assertNotEqual(token1, token3)
+        self.assertNotEqual(token1, token4)
+        self.assertNotEqual(token1.key, token3.key)
+
+        # tokens with same role for different users should differ
+        token5 = APIToken.get_or_create(self.org, self.editor)
+
+        self.assertNotEqual(token3, token5)
+
+        APIToken.get_or_create(self.org, self.surveyor)
+
+        # can't create token for viewer users or other users using viewers role
+        self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.admin, Group.objects.get(name="Viewers"))
+        self.assertRaises(ValueError, APIToken.get_or_create, self.org, self.user)
+
+    def test_get_orgs_for_role(self):
+        self.assertEqual(set(APIToken.get_orgs_for_role(self.admin, self.admins_group)), {self.org})
+        self.assertEqual(set(APIToken.get_orgs_for_role(self.admin, self.surveyors_group)), {self.org, self.org2})
+
+    def test_get_allowed_roles(self):
+        self.assertEqual(set(APIToken.get_allowed_roles(self.org, self.admin)),
+                         {self.admins_group, self.editors_group, self.surveyors_group})
+        self.assertEqual(set(APIToken.get_allowed_roles(self.org, self.editor)),
+                         {self.editors_group, self.surveyors_group})
+        self.assertEqual(set(APIToken.get_allowed_roles(self.org, self.surveyor)), {self.surveyors_group})
+        self.assertEqual(set(APIToken.get_allowed_roles(self.org, self.user)), set())
+
+        # user from another org has no API roles
+        self.assertEqual(set(APIToken.get_allowed_roles(self.org, self.admin2)), set())
+
+    def test_get_default_role(self):
+        self.assertEqual(APIToken.get_default_role(self.org, self.admin), self.admins_group)
+        self.assertEqual(APIToken.get_default_role(self.org, self.editor), self.editors_group)
+        self.assertEqual(APIToken.get_default_role(self.org, self.surveyor), self.surveyors_group)
+        self.assertIsNone(APIToken.get_default_role(self.org, self.user))
+
+        # user from another org has no API roles
+        self.assertIsNone(APIToken.get_default_role(self.org, self.admin2))
 
 
 class WebHookTest(TembaTest):
@@ -43,13 +110,11 @@ class WebHookTest(TembaTest):
     def test_call_deliveries(self):
         self.setupChannel()
         now = timezone.now()
-        call = Call.objects.create(org=self.org,
-                                   channel=self.channel,
-                                   contact=self.joe,
-                                   call_type=Call.TYPE_CALL_IN_MISSED,
-                                   time=now,
-                                   created_by=self.admin,
-                                   modified_by=self.admin)
+        call = ChannelEvent.objects.create(org=self.org,
+                                           channel=self.channel,
+                                           contact=self.joe,
+                                           event_type=ChannelEvent.TYPE_CALL_IN_MISSED,
+                                           time=now)
 
         self.setupChannel()
 
@@ -92,7 +157,7 @@ class WebHookTest(TembaTest):
             self.assertEquals('+250788123123', data['phone'][0])
             self.assertEquals(call.pk, int(data['call'][0]))
             self.assertEquals(0, int(data['duration'][0]))
-            self.assertEquals(call.call_type, data['event'][0])
+            self.assertEquals(call.event_type, data['event'][0])
             self.assertTrue('time' in data)
             self.assertEquals(self.channel.pk, int(data['channel'][0]))
 
@@ -324,7 +389,7 @@ class WebHookTest(TembaTest):
             self.assertTrue(mock.called)
 
             broadcast = Broadcast.objects.get()
-            contact = Contact.get_or_create(self.org, self.admin, name=None, urns=[(TEL_SCHEME, "+250788123123")],
+            contact = Contact.get_or_create(self.org, self.admin, name=None, urns=["tel:+250788123123"],
                                             incoming_channel=self.channel)
             self.assertTrue("I am success", broadcast.text)
             self.assertTrue(contact, broadcast.contacts.all())

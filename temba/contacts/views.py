@@ -22,13 +22,14 @@ from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
-from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.msgs.models import Broadcast, Call, Msg
+from temba.channels.models import ChannelEvent
+from temba.msgs.models import Broadcast, Msg
 from temba.msgs.views import SendMessageForm
+from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages
 from temba.utils.views import BaseActionForm
-from .models import Contact, ContactGroup, ContactField, ContactURN, URN_SCHEME_CHOICES, URN_SCHEME_CONFIG
+from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task
@@ -232,7 +233,7 @@ class ContactForm(forms.ModelForm):
                 first_urn = last_urn is None or urn.scheme != last_urn.scheme
 
                 urn_choice = None
-                for choice in URN_SCHEME_CHOICES:
+                for choice in ContactURN.SCHEME_CHOICES:
                     if choice[0] == urn.scheme:
                         urn_choice = choice
 
@@ -258,14 +259,15 @@ class ContactForm(forms.ModelForm):
     def clean(self):
         country = self.org.get_country_code()
 
-        def validate_urn(key, urn_scheme, urn_path):
-            norm_scheme, norm_path = ContactURN.normalize_urn(urn_scheme, urn_path, country)
-            existing = Contact.from_urn(self.org, norm_scheme, norm_path)
+        def validate_urn(key, scheme, path):
+            normalized = URN.normalize(URN.from_parts(scheme, path), country)
+            existing_urn = ContactURN.lookup(self.org, normalized, normalize=False)
 
-            if existing and existing != self.instance:
+            if existing_urn and existing_urn.contact and existing_urn.contact != self.instance:
                 self._errors[key] = _("Used by another contact")
                 return False
-            elif not ContactURN.validate_urn(norm_scheme, norm_path):
+            # validate but not with country as users are allowed to enter numbers before adding a channel
+            elif not URN.validate(normalized):
                 self._errors[key] = _("Invalid format")
                 return False
             return True
@@ -778,6 +780,7 @@ class ContactCRUDL(SmartCRUDL):
 
             from temba.flows.models import FlowRun, Flow
             from temba.campaigns.models import EventFire
+            from temba.ivr.models import IVRCall, BUSY, FAILED, NO_ANSWER, CANCELED
 
             def activity_cmp(a, b):
 
@@ -835,30 +838,30 @@ class ContactCRUDL(SmartCRUDL):
             if not recent_seconds:
                 text_messages = text_messages[first_message:first_message + 100]
 
-            activity = []
+            # if we don't know our start time, go back to the beginning
+            if not start_time:
+                start_time = timezone.datetime(2013, 1, 1, tzinfo=pytz.utc)
 
-            if count > 0:
-                # if we don't know our start time, go back to the beginning
-                if not start_time:
-                    start_time = timezone.datetime(2013, 1, 1, tzinfo=pytz.utc)
+            # if we don't know our stop time yet, assume the first message
+            if page == 1:
+                end_time = timezone.now()
+            else:
+                end_time = text_messages[0].created_on
 
-                # if we don't know our stop time yet, assume the first message
-                if page == 1:
-                    end_time = timezone.now()
-                else:
-                    end_time = text_messages[0].created_on
+            context['start_time'] = start_time
 
-                context['start_time'] = start_time
+            # all of our runs and events
+            runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
+            fired = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
 
-                # all of our runs and events
-                runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
-                fired = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
+            # channel events, e.g. missed calls etc
+            events = ChannelEvent.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
 
-                # missed calls
-                calls = Call.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+            error_calls = IVRCall.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+            error_calls = error_calls.filter(status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
 
-                # now chain them all together in the same list and sort by time
-                activity = sorted(chain(text_messages, runs, fired, calls), cmp=activity_cmp, reverse=True)
+            # now chain them all together in the same list and sort by time
+            activity = sorted(chain(text_messages, runs, fired, events, error_calls), cmp=activity_cmp, reverse=True)
 
             context['activity'] = activity
             return context
@@ -991,8 +994,7 @@ class ContactCRUDL(SmartCRUDL):
             for field_key, value in self.form.cleaned_data.iteritems():
                 if field_key.startswith('urn__') and value:
                     scheme = field_key.split('__')[1]
-                    # scheme = field_key[7:field_key.rfind('__')]
-                    urns.append((scheme, value))
+                    urns.append(URN.from_parts(scheme, value))
 
             Contact.get_or_create(obj.org, self.request.user, obj.name, urns)
 
@@ -1038,7 +1040,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Update, self).get_context_data(**kwargs)
-            context['schemes'] = URN_SCHEME_CHOICES
+            context['schemes'] = ContactURN.SCHEME_CHOICES
             return context
 
         def post_save(self, obj):
@@ -1053,13 +1055,13 @@ class ContactCRUDL(SmartCRUDL):
                         scheme = parts[1]
 
                         order = int(self.form.data.get('order__' + field_key, "0"))
-                        urns.append((order, (scheme, value)))
+                        urns.append((order, URN.from_parts(scheme, value)))
 
                 new_scheme = self.form.cleaned_data.get('new_scheme', None)
                 new_path = self.form.cleaned_data.get('new_path', None)
 
                 if new_scheme and new_path:
-                    urns.append((len(urns), (new_scheme, new_path)))
+                    urns.append((len(urns), URN.from_parts(new_scheme, new_path)))
 
                 # sort our urns by the supplied order
                 urns = [urn[1] for urn in sorted(urns, key=lambda x: x[0])]

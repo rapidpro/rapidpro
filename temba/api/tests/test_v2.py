@@ -14,10 +14,10 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 from mock import patch
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
-from temba.msgs.models import Broadcast, Call, Label
+from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest
 from temba.values.models import Value
@@ -76,6 +76,11 @@ class APITest(TembaTest):
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
 
+        # same for non-org user
+        self.login(self.non_org_user)
+        response = self.fetchHTML(url, query)
+        self.assertEqual(response.status_code, 403)
+
         # same for plain user
         self.login(self.user)
         response = self.fetchHTML(url, query)
@@ -110,29 +115,46 @@ class APITest(TembaTest):
             self.assertEqual(response.json['detail'], expected_message)
 
     def test_authentication(self):
-        url = reverse('api.v2.contacts') + '.json'
+        def api_request(endpoint, token):
+            response = self.client.get(endpoint + '.json', content_type="application/json",
+                                       HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % token)
+            response.json = json.loads(response.content)
+            return response
+
+        contacts_url = reverse('api.v2.contacts')
+        campaigns_url = reverse('api.v2.campaigns')
 
         # can't fetch endpoint with invalid token
-        response = self.client.get(url, content_type="application/json",
-                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token 1234567890")
-        response.json = json.loads(response.content)
-
+        response = api_request(contacts_url, "1234567890")
         self.assertResponseError(response, None, "Invalid token", status_code=403)
 
-        # can fetch endpoint with valid token
-        response = self.client.get(url, content_type="application/json",
-                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
+        token1 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Administrators"))
+        token2 = APIToken.get_or_create(self.org, self.admin, Group.objects.get(name="Surveyors"))
 
+        # can fetch campaigns endpoint with valid admin token
+        response = api_request(campaigns_url, token1.key)
         self.assertEqual(response.status_code, 200)
 
-        # but not if user is inactive
+        # but not with surveyor token
+        response = api_request(campaigns_url, token2.key)
+        self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
+
+        # but it can be used to access the contacts endpoint
+        response = api_request(contacts_url, token2.key)
+        self.assertEqual(response.status_code, 200)
+
+        # if user loses access to the token's role, don't allow the request
+        self.org.administrators.remove(self.admin)
+        self.org.surveyors.add(self.admin)
+
+        self.assertEqual(api_request(campaigns_url, token1.key).status_code, 403)
+        self.assertEqual(api_request(contacts_url, token2.key).status_code, 200)  # other token unaffected
+
+        # and if user is inactive, disallow the request
         self.admin.is_active = False
         self.admin.save()
 
-        response = self.client.get(url, content_type="application/json",
-                                   HTTP_X_FORWARDED_HTTPS='https', HTTP_AUTHORIZATION="Token %s" % self.admin.api_token)
-        response.json = json.loads(response.content)
-
+        response = api_request(contacts_url, token2.key)
         self.assertResponseError(response, None, "User inactive or deleted", status_code=403)
 
     @override_settings(SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_HTTPS', 'https'))
@@ -194,6 +216,14 @@ class APITest(TembaTest):
 
         admins = Group.objects.get(name='Administrators')
         surveyors = Group.objects.get(name='Surveyors')
+
+        # try to authenticate with incorrect password
+        response = self.client.post(url, {'username': "Administrator", 'password': "XXXX", 'role': 'A'})
+        self.assertEqual(response.status_code, 403)
+
+        # try to authenticate with invalid role
+        response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'X'})
+        self.assertFormError(response, 'form', 'role', "Select a valid choice. X is not one of the available choices.")
 
         # authenticate an admin as an admin
         response = self.client.post(url, {'username': "Administrator", 'password': "Administrator", 'role': 'A'})
@@ -429,10 +459,10 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        call1 = Call.create_call(self.channel, "0788123123", timezone.now(), 0, Call.TYPE_CALL_IN_MISSED)
-        call2 = Call.create_call(self.channel, "0788124124", timezone.now(), 36, Call.TYPE_CALL_IN)
-        call3 = Call.create_call(self.channel, "0788124124", timezone.now(), 0, Call.TYPE_CALL_OUT_MISSED)
-        call4 = Call.create_call(self.channel, "0788123123", timezone.now(), 15, Call.TYPE_CALL_OUT)
+        call1 = ChannelEvent.create(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        call2 = ChannelEvent.create(self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_IN, timezone.now(), 36)
+        call3 = ChannelEvent.create(self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), 0)
+        call4 = ChannelEvent.create(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_OUT, timezone.now(), 15)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
@@ -574,10 +604,13 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         customers = ContactGroup.get_or_create(self.org, self.admin, "Customers")
-        developers = ContactGroup.get_or_create(self.org, self.admin, "Developers")
-        ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+        customers.update_contacts(self.admin, [self.frank], add=True)
 
-        developers.update_contacts(self.admin, [self.frank], add=True)
+        developers = ContactGroup.get_or_create(self.org, self.admin, "Developers")
+        developers.update_query("isdeveloper = YES")
+
+        # group belong to other org
+        ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
@@ -586,13 +619,13 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
         self.assertEqual(response.json['results'], [
-            {'uuid': developers.uuid, 'name': "Developers", 'count': 1},
-            {'uuid': customers.uuid, 'name': "Customers", 'count': 0}
+            {'uuid': developers.uuid, 'name': "Developers", 'query': "isdeveloper = YES", 'count': 0},
+            {'uuid': customers.uuid, 'name': "Customers", 'query': None, 'count': 1}
         ])
 
         # filter by UUID
         response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
-        self.assertEqual(response.json['results'], [{'uuid': customers.uuid, 'name': "Customers", 'count': 0}])
+        self.assertResultsByUUID(response, [customers])
 
     def test_labels(self):
         url = reverse('api.v2.labels')

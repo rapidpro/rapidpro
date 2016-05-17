@@ -29,7 +29,7 @@ from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
-from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision, STARTING, PENDING
+from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, INCOMING, OUTGOING
@@ -38,7 +38,7 @@ from temba.utils import analytics, build_json_response, percentage, datetime_to_
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
 
 logger = logging.getLogger(__name__)
 
@@ -805,7 +805,7 @@ class FlowCRUDL(SmartCRUDL):
             # are there pending starts?
             starting = False
             start = self.object.starts.all().order_by('-created_on')
-            if start.exists() and start[0].status in [STARTING, PENDING]:
+            if start.exists() and start[0].status in [FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING]:
                 starting = True
             context['starting'] = starting
 
@@ -868,7 +868,7 @@ class FlowCRUDL(SmartCRUDL):
             # are there pending starts?
             starting = False
             start = self.object.starts.all().order_by('-created_on')
-            if start.exists() and start[0].status in [STARTING, PENDING]:
+            if start.exists() and start[0].status in [FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING]:
                 starting = True
             context['starting'] = starting
             context['mutable'] = False
@@ -1170,7 +1170,7 @@ class FlowCRUDL(SmartCRUDL):
             # get our latest start, we might warn the user that one is in progress
             start = flow.starts.all().order_by('-created_on')
             pending = None
-            if start.count() and (start[0].status == STARTING or start[0].status == PENDING):
+            if start.count() and (start[0].status == FlowStart.STATUS_STARTING or start[0].status == FlowStart.STATUS_PENDING):
                 pending = start[0].status
 
             # if we have an active call, include that
@@ -1280,7 +1280,7 @@ class FlowCRUDL(SmartCRUDL):
             if new_message or media:
                 try:
                     Msg.create_incoming(None,
-                                        (TEL_SCHEME, test_contact.get_urn(TEL_SCHEME).path),
+                                        test_contact.get_urn(TEL_SCHEME).urn,
                                         new_message,
                                         media=media,
                                         org=user.get_org())
@@ -1371,7 +1371,7 @@ class FlowCRUDL(SmartCRUDL):
                 cleaned = super(FlowCRUDL.Broadcast.BroadcastForm, self).clean()
 
                 # check whether there are any flow starts that are incomplete
-                if FlowStart.objects.filter(flow=self.flow).exclude(status__in=[COMPLETE, FAILED]):
+                if FlowStart.objects.filter(flow=self.flow).exclude(status__in=[FlowStart.STATUS_COMPLETE, FlowStart.STATUS_FAILED]):
                     raise ValidationError(_("This flow is already being started, please wait until that process is complete before starting more contacts."))
 
                 if self.flow.org.is_suspended():

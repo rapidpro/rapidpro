@@ -17,10 +17,10 @@ from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, SyncEvent
-from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
-from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, RULE_SET
-from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED
+from temba.channels.models import Channel, ChannelEvent, SyncEvent
+from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, FlowStep
+from temba.msgs.models import Broadcast, Msg, Label, FAILED, ERRORED
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import datetime_to_json_date
@@ -39,13 +39,11 @@ class APITest(TembaTest):
         self.channel2 = Channel.create(None, self.admin, 'RW', 'A', "Unclaimed Channel",
                                        claim_code="123123123", secret="123456", gcm_id="1234")
 
-        self.call1 = Call.objects.create(contact=self.joe,
-                                         channel=self.channel,
-                                         org=self.org,
-                                         call_type='mt_miss',
-                                         time=timezone.now(),
-                                         created_by=self.admin,
-                                         modified_by=self.admin)
+        self.call1 = ChannelEvent.objects.create(contact=self.joe,
+                                                 channel=self.channel,
+                                                 org=self.org,
+                                                 event_type=ChannelEvent.TYPE_CALL_OUT_MISSED,
+                                                 time=timezone.now())
 
         # this is needed to prevent REST framework from rolling back transaction created around each unit test
         connection.settings_dict['ATOMIC_REQUESTS'] = False
@@ -221,8 +219,8 @@ class APITest(TembaTest):
 
         phones_field = PhoneArrayField(source='test')
 
-        self.assertEqual(phones_field.to_internal_value(['123', '234']), [('tel', '123'), ('tel', '234')])
-        self.assertEqual(phones_field.to_internal_value('123'), [('tel', '123')])  # convert single string to array
+        self.assertEqual(phones_field.to_internal_value(['123', '234']), ['tel:123', 'tel:234'])
+        self.assertEqual(phones_field.to_internal_value('123'), ['tel:123'])  # convert single string to array
         self.assertRaises(ValidationError, phones_field.to_internal_value, {})  # must be a list
         self.assertRaises(ValidationError, phones_field.to_internal_value, ['123'] * 101)  # 100 items max
 
@@ -505,7 +503,7 @@ class APITest(TembaTest):
         ActionSet.objects.get(uuid=flow.entry_uuid).delete()
 
         # and set our entry to be our ruleset
-        flow.entry_type = RULE_SET
+        flow.entry_type = FlowStep.TYPE_RULE_SET
         flow.entry_uuid = RuleSet.objects.get().uuid
         flow.save()
 
@@ -1479,7 +1477,7 @@ class APITest(TembaTest):
 
         # try to update the contact with and un-parseable urn
         response = self.postJSON(url, dict(name='Dr Dre', urns=['tel250788123456']))
-        self.assertResponseError(response, 'urns', "Unable to parse URN: 'tel250788123456'")
+        self.assertResponseError(response, 'urns', "Invalid URN: 'tel250788123456'")
 
         # try to post a new group with a blank name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["  "]))
@@ -1747,7 +1745,7 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
 
         # lookup that contact from an urn
-        contact = Contact.from_urn(self.org, EMAIL_SCHEME, 'snoop@foshizzle.com')
+        contact = Contact.from_urn(self.org, "mailto:snoop@foshizzle.com")
         self.assertEquals('Snoop', contact.first_name(self.org))
 
         # find it via the api
@@ -1906,7 +1904,8 @@ class APITest(TembaTest):
         contact5.release(self.user)
         test_contact = Contact.get_test_contact(self.user)
 
-        group = ContactGroup.get_or_create(self.org, self.admin, "Testers")
+        group = self.create_group("Testers")
+        self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
         flow = self.create_flow()
@@ -1947,6 +1946,10 @@ class APITest(TembaTest):
         # try to add to a non-existent group
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='Spammers'))
         self.assertResponseError(response, 'group', "No such group: Spammers")
+
+        # try to add to a dynamic group
+        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='Developers'))
+        self.assertResponseError(response, 'group', "Can't add or remove contacts from a dynamic group")
 
         # add contact 3 to a group by its UUID
         response = self.postJSON(url, dict(contacts=[contact3.uuid], action='add', group_uuid=group.uuid))
@@ -2192,9 +2195,9 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
 
         # add some incoming messages and a flow message
-        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test2")
+        msg2 = Msg.create_incoming(self.channel, 'tel:0788123123', "test2")
         msg3 = Msg.create_incoming(self.channel, None, "test3", contact=self.joe)  # no URN
-        msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test4 (سلم)")
+        msg4 = Msg.create_incoming(self.channel, 'tel:0788123123', "test4 (سلم)")
 
         flow = self.create_flow()
         flow.start([], [contact])
@@ -2365,9 +2368,9 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 405)  # because endpoint doesn't support GET
 
         # create some messages to act on
-        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #1')
-        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #2')
-        msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #3')
+        msg1 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #1')
+        msg2 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #2')
+        msg3 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #3')
         msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")
 
         # add label by name to messages 1, 2 and 4

@@ -2,10 +2,10 @@ from __future__ import absolute_import, unicode_literals
 
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, ANDROID
+from temba.channels.models import Channel, ChannelEvent, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import FlowRun, ACTION_SET, RULE_SET
-from temba.msgs.models import Broadcast, Msg, Label, Call, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
+from temba.flows.models import FlowRun, FlowStep
+from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
@@ -62,15 +62,15 @@ class BroadcastReadSerializer(ReadSerializer):
         fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
 
 
-class CallReadSerializer(ReadSerializer):
-    TYPES = ReadSerializer.extract_constants(Call.TYPE_CONFIG)
+class ChannelEventReadSerializer(ReadSerializer):
+    TYPES = ReadSerializer.extract_constants(ChannelEvent.TYPE_CONFIG)
 
     type = serializers.SerializerMethodField()
     contact = serializers.SerializerMethodField()
     channel = serializers.SerializerMethodField()
 
     def get_type(self, obj):
-        return self.TYPES.get(obj.call_type)
+        return self.TYPES.get(obj.event_type)
 
     def get_contact(self, obj):
         return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
@@ -79,7 +79,7 @@ class CallReadSerializer(ReadSerializer):
         return {'uuid': obj.channel.uuid, 'name': obj.channel.name}
 
     class Meta:
-        model = Call
+        model = ChannelEvent
         fields = ('id', 'type', 'contact', 'channel', 'time', 'duration', 'created_on')
 
 
@@ -217,13 +217,13 @@ class ContactGroupReadSerializer(ReadSerializer):
 
     class Meta:
         model = ContactGroup
-        fields = ('uuid', 'name', 'count')
+        fields = ('uuid', 'name', 'query', 'count')
 
 
 class FlowRunReadSerializer(ReadSerializer):
     NODE_TYPES = {
-        RULE_SET: 'ruleset',
-        ACTION_SET: 'actionset'
+        FlowStep.TYPE_RULE_SET: 'ruleset',
+        FlowStep.TYPE_ACTION_SET: 'actionset'
     }
     EXIT_TYPES = {
         FlowRun.EXIT_TYPE_COMPLETED: 'completed',

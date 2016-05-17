@@ -9,11 +9,11 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, SEND
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME
+from temba.channels.models import Channel, ChannelEvent, SEND
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Call, Broadcast, Label, INCOMING
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING
 from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
@@ -94,7 +94,7 @@ class PhoneArrayField(serializers.ListField):
     """
     def to_internal_value(self, data):
         if isinstance(data, basestring):
-            return [(TEL_SCHEME, data)]
+            return [URN.from_tel(data)]
 
         elif isinstance(data, list):
             if len(data) > 100:
@@ -104,7 +104,7 @@ class PhoneArrayField(serializers.ListField):
             for phone in data:
                 if not isinstance(phone, basestring):
                     raise serializers.ValidationError("Invalid phone: %s" % str(phone))
-                urns.append((TEL_SCHEME, phone))
+                urns.append(URN.from_tel(phone))
 
             return urns
         else:
@@ -395,7 +395,7 @@ class ContactWriteSerializer(WriteSerializer):
 
     def __init__(self, *args, **kwargs):
         super(ContactWriteSerializer, self).__init__(*args, **kwargs)
-        self.urn_tuples = None
+        self.parsed_urns = None
         self.group_objs = None
 
     def validate_uuid(self, value):
@@ -415,24 +415,22 @@ class ContactWriteSerializer(WriteSerializer):
             except Exception:
                 raise serializers.ValidationError("Invalid phone number: '%s'" % value)
 
-            self.urn_tuples = [(TEL_SCHEME, phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164))]
+            e164_number = phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
+            self.parsed_urns = [URN.from_tel(e164_number)]
         return value
 
     def validate_urns(self, value):
         if value is not None:
-            self.urn_tuples = []
+            self.parsed_urns = []
             for urn in value:
                 try:
-                    parsed = ContactURN.parse_urn(urn)
+                    normalized = URN.normalize(urn)
+                    if not URN.validate(normalized):
+                        raise ValueError()
                 except ValueError:
-                    raise serializers.ValidationError("Unable to parse URN: '%s'" % urn)
-
-                norm_scheme, norm_path = ContactURN.normalize_urn(parsed.scheme, parsed.path)
-
-                if not ContactURN.validate_urn(norm_scheme, norm_path):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
 
-                self.urn_tuples.append((norm_scheme, norm_path))
+                self.parsed_urns.append(normalized)
 
         return value
 
@@ -479,14 +477,14 @@ class ContactWriteSerializer(WriteSerializer):
         if data.get('group_uuids') is not None and data.get('groups') is not None:
             raise serializers.ValidationError("Parameter groups is deprecated and can't be used together with group_uuids")
 
-        if self.org.is_anon and self.instance and self.urn_tuples is not None:
+        if self.org.is_anon and self.instance and self.parsed_urns is not None:
             raise serializers.ValidationError("Cannot update contact URNs on anonymous organizations")
 
-        if self.urn_tuples is not None:
+        if self.parsed_urns is not None:
             # look up these URNs, keeping track of the contacts that are connected to them
             urn_contacts = set()
-            for urn_tuple in self.urn_tuples:
-                urn = ContactURN.objects.filter(org=self.org, urn__exact="%s:%s" % urn_tuple).first()
+            for parsed_urn in self.parsed_urns:
+                urn = ContactURN.objects.filter(org=self.org, urn__exact=parsed_urn).first()
                 if urn and urn.contact:
                     urn_contacts.add(urn.contact)
 
@@ -519,15 +517,15 @@ class ContactWriteSerializer(WriteSerializer):
         changed = []
 
         if self.instance:
-            if self.urn_tuples is not None:
-                self.instance.update_urns(self.user, self.urn_tuples)
+            if self.parsed_urns is not None:
+                self.instance.update_urns(self.user, self.parsed_urns)
 
             # update our name and language
             if name != self.instance.name:
                 self.instance.name = name
                 changed.append('name')
         else:
-            self.instance = Contact.get_or_create(self.org, self.user, name, urns=self.urn_tuples, language=language)
+            self.instance = Contact.get_or_create(self.org, self.user, name, urns=self.parsed_urns, language=language)
 
         # Contact.get_or_create doesn't nullify language so do that here
         if 'language' in self.validated_data and language is None:
@@ -599,6 +597,8 @@ class ContactBulkActionSerializer(WriteSerializer):
             self.group_obj = ContactGroup.get_user_group(self.org, value)
             if not self.group_obj:
                 raise serializers.ValidationError("No such group: %s" % value)
+            elif self.group_obj.is_dynamic:
+                raise serializers.ValidationError("Can't add or remove contacts from a dynamic group")
         return value
 
     def validate_group_uuid(self, value):
@@ -1220,11 +1220,10 @@ class FlowRunWriteSerializer(WriteSerializer):
                 return self.node['ruleset_type'] in RuleSet.TYPE_WAIT
 
             def get_step_type(self):
-                from temba.flows.models import RULE_SET, ACTION_SET
                 if self.is_ruleset():
-                    return RULE_SET
+                    return FlowStep.TYPE_RULE_SET
                 else:
-                    return ACTION_SET
+                    return FlowStep.TYPE_ACTION_SET
 
         steps = data.get('steps')
         revision = data.get('revision', data.get('version'))
@@ -1377,7 +1376,8 @@ class FlowRunStartSerializer(WriteSerializer):
 
             if channel:
                 # check our numbers for validity
-                for tel, phone in value:
+                for urn in value:
+                    tel, phone = URN.to_parts(urn)
                     try:
                         normalized = phonenumbers.parse(phone, country)
                         if not phonenumbers.is_possible_number(normalized):
@@ -1488,23 +1488,22 @@ class BroadcastCreateSerializer(WriteSerializer):
     channel = ChannelField(required=False)
 
     def validate_urns(self, value):
-        urn_tuples = []
+        urns = []
         if value:
             # if we have tel URNs, we may need a country to normalize by
             country = self.org.get_country_code()
 
             for urn in value:
                 try:
-                    parsed = ContactURN.parse_urn(urn)
+                    normalized = URN.normalize(urn, country)
                 except ValueError, e:
                     raise serializers.ValidationError(e.message)
 
-                norm_scheme, norm_path = ContactURN.normalize_urn(parsed.scheme, parsed.path, country)
-                if not ContactURN.validate_urn(norm_scheme, norm_path):
+                if not URN.validate(normalized, country):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
-                urn_tuples.append((norm_scheme, norm_path))
+                urns.append(normalized)
 
-        return urn_tuples
+        return urns
 
     def validate_contacts(self, value):
         if value:
@@ -1583,23 +1582,22 @@ class MsgCreateSerializer(WriteSerializer):
         return []
 
     def validate_urn(self, value):
-        urn_tuples = []
+        urns = []
         if value:
             # if we have tel URNs, we may need a country to normalize by
             country = self.org.get_country_code()
 
             for urn in value:
                 try:
-                    parsed = ContactURN.parse_urn(urn)
+                    normalized = URN.normalize(urn, country)
                 except ValueError, e:
                     raise serializers.ValidationError(e.message)
 
-                norm_scheme, norm_path = ContactURN.normalize_urn(parsed.scheme, parsed.path, country)
-                if not ContactURN.validate_urn(norm_scheme, norm_path):
+                if not URN.validate(normalized, country):
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
-                urn_tuples.append((norm_scheme, norm_path))
+                urns.append(normalized)
 
-        return urn_tuples
+        return urns
 
     def validate(self, data):
         urns = data.get('urn', [])
@@ -1622,8 +1620,9 @@ class MsgCreateSerializer(WriteSerializer):
 
             # check our numbers for validity
             country = channel.country
-            for tel, phone in phones:
+            for urn in phones:
                 try:
+                    tel, phone = URN.to_parts(urn)
                     normalized = phonenumbers.parse(phone, country.code)
                     if not phonenumbers.is_possible_number(normalized):
                         raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
@@ -1672,8 +1671,9 @@ class MsgCreateResultSerializer(ReadSerializer):
         fields = ('messages', 'sms')
 
 
-class CallSerializer(ReadSerializer):
+class ChannelEventSerializer(ReadSerializer):
     call = serializers.SerializerMethodField()
+    call_type = serializers.SerializerMethodField()
     contact = serializers.SerializerMethodField('get_contact_uuid')
     created_on = DateTimeField(source='time')
     phone = serializers.SerializerMethodField()
@@ -1701,8 +1701,11 @@ class CallSerializer(ReadSerializer):
     def get_call(self, obj):
         return obj.pk
 
+    def get_call_type(self, obj):
+        return obj.event_type
+
     class Meta:
-        model = Call
+        model = ChannelEvent
         fields = ('call', 'contact', 'relayer', 'relayer_phone', 'phone', 'created_on', 'duration', 'call_type')
 
 
