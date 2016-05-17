@@ -108,3 +108,8 @@ docs/_build/
 # PyBuilder
 target/
 textit
+
+# Vagrant/Ansible
+.vagrant/
+ansible/vendor/
+ansible/site.retry

@@ -87,17 +87,25 @@ class AssetTest(TembaTest):
         message_export_task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
                                                                 created_by=self.admin, modified_by=self.admin)
 
-        # create asset and request again with correct type
-        message_export_task.do_export()
-
+        # try as anon
         response = self.client.get(reverse('assets.stream',
                                            kwargs=dict(type='message_export', pk=message_export_task.pk)))
-
         self.assertLoginRedirect(response)
 
         self.login(self.admin)
 
-        # check direct download stream
+        # try with invalid object id
+        response = self.client.get(reverse('assets.stream', kwargs=dict(type='message_export', pk=1234567890)))
+        self.assertEqual(response.status_code, 404)
+
+        # try before asset is generated
+        response = self.client.get(reverse('assets.stream',
+                                           kwargs=dict(type='message_export', pk=message_export_task.pk)))
+        self.assertEqual(response.status_code, 404)
+
+        # create asset and request again
+        message_export_task.do_export()
+
         response = self.client.get(reverse('assets.stream',
                                            kwargs=dict(type='message_export', pk=message_export_task.pk)))
         self.assertEqual(response.status_code, 200)

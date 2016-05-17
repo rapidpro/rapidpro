@@ -12,6 +12,7 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
@@ -46,10 +47,10 @@ CATEGORIZE = 'categorize'
 EVENT_CHOICES = ((SMS_RECEIVED, "Incoming SMS Message"),
                  (SMS_SENT, "Outgoing SMS Sent"),
                  (SMS_DELIVERED, "Outgoing SMS Delivered to Recipient"),
-                 (Call.TYPE_OUT, "Outgoing Call"),
-                 (Call.TYPE_OUT_MISSED, "Missed Outgoing Call"),
-                 (Call.TYPE_IN, "Incoming Call"),
-                 (Call.TYPE_IN_MISSED, "Missed Incoming Call"),
+                 (Call.TYPE_CALL_OUT, "Outgoing Call"),
+                 (Call.TYPE_CALL_OUT_MISSED, "Missed Outgoing Call"),
+                 (Call.TYPE_CALL_IN, "Incoming Call"),
+                 (Call.TYPE_CALL_IN_MISSED, "Missed Incoming Call"),
                  (RELAYER_ALARM, "Channel Alarm"),
                  (FLOW, "Flow Step Reached"),
                  (CATEGORIZE, "Flow Categorization"))
@@ -260,9 +261,7 @@ class WebHookEvent(SmartModel):
             return
 
         # if the org doesn't care about this type of message, ignore it
-        if (event == 'mo_sms' and not org.is_notified_of_mo_sms()) or \
-            (event == 'mt_sent' and not org.is_notified_of_mt_sms()) or \
-            (event == 'mt_dlvd' and not org.is_notified_of_mt_sms()):
+        if (event == SMS_RECEIVED and not org.is_notified_of_mo_sms()) or (event == SMS_SENT and not org.is_notified_of_mt_sms()) or (event == SMS_DELIVERED and not org.is_notified_of_mt_sms()):
             return
 
         api_user = get_api_user()
@@ -326,7 +325,7 @@ class WebHookEvent(SmartModel):
         org = channel.org
 
         # no-op if no webhook configured
-        if not org or not org.get_webhook_url(): # pragma: no cover
+        if not org or not org.get_webhook_url():  # pragma: no cover
             return
 
         if not org.is_notified_of_alarms():
@@ -366,7 +365,7 @@ class WebHookEvent(SmartModel):
         # look up the endpoint for this channel
         result = dict(url=self.org.get_webhook_url(), data=urlencode(post_data, doseq=True))
 
-        if not self.org.get_webhook_url(): # pragma: no cover
+        if not self.org.get_webhook_url():  # pragma: no cover
             result['status_code'] = 0
             result['message'] = "No webhook registered for this org, ignoring event"
             self.status = FAILED
@@ -505,7 +504,7 @@ class WebHookResult(SmartModel):
                                      modified_by=api_user)
 
         # keep only the most recent 100 events for each org
-        for old_event in WebHookEvent.objects.filter(org=event.org, status__in=['C', 'F']).order_by('-created_on')[100:]: # pragma: no cover
+        for old_event in WebHookEvent.objects.filter(org=event.org, status__in=['C', 'F']).order_by('-created_on')[100:]:  # pragma: no cover
             old_event.delete()
 
 
@@ -513,6 +512,14 @@ class APIToken(models.Model):
     """
     Our API token, ties in orgs
     """
+    ROLE_ADMIN = 'A'
+    ROLE_EDITOR = 'E'
+    ROLE_SURVEYOR = 'S'
+
+    ROLE_CHOICES = ((ROLE_ADMIN, _("Administrator")),
+                    (ROLE_EDITOR, _("Editor")),
+                    (ROLE_SURVEYOR, _("Surveyor")))
+
     key = models.CharField(max_length=40, primary_key=True)
 
     user = models.ForeignKey(User, related_name='api_tokens')
@@ -530,14 +537,14 @@ class APIToken(models.Model):
         takes a single character role (A, E, S, etc) and maps it to a UserGroup.
         """
 
-        if role == 'A':
+        if role == cls.ROLE_ADMIN:
             valid_orgs = Org.objects.filter(administrators__in=[user])
             role = Group.objects.get(name='Administrators')
-        elif role == 'E':
+        elif role == cls.ROLE_EDITOR:
             # admins can authenticate as editors
             valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]))
             role = Group.objects.get(name='Editors')
-        elif role == 'S':
+        elif role == cls.ROLE_SURVEYOR:
             # admins and editors can authenticate as surveyors
             valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]) | Q(surveyors__in=[user]))
             role = Group.objects.get(name='Surveyors')

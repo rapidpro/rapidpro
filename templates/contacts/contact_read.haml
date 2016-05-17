@@ -157,6 +157,9 @@
 
 -block extra-less
   -compress css
+
+    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/videojs.less', media:'all'}
+
     {% lessblock %}
       :plain
 
@@ -274,11 +277,20 @@
               color: @flat-darkwhite;
               padding: 5px;
 
+              &.boost {
+                font-size:18px;
+                margin-left:-3px;
+              }
+
               &.icon-bubble-right, &.icon-bubble-check {
                 color: @color-status-green;
               }
 
               &.icon-bubble-user {
+                color: @color-primary;
+              }
+
+              &.icon-bubble-user, &.user {
                 color: @color-primary;
               }
 
@@ -299,9 +311,11 @@
             .activity-message {
 
               .activity-body {
+
                 .text {
                   display: inline-block;
                 }
+
                 .channel {
                   display:inline-block;
                   font-size:11px;
@@ -535,7 +549,9 @@
       clearTimeout(scheduledRefresh);
       $.get('/contact/history/{{contact.uuid}}/?r=true&rs={{recent_seconds}}', function(data){
           $('.history tr.recent').remove();
-          $('.history').prepend(data);
+          if (data.strip().length > 0) {
+            $('.history').prepend(data);
+          }
           scheduledRefresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
       });
     }

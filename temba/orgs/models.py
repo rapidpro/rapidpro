@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
+from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
@@ -350,76 +351,109 @@ class Org(SmartModel):
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
-    def get_channel(self, scheme, role):
+    def get_channel(self, scheme, country_code, role):
         """
         Gets a channel for this org which supports the given scheme and role
         """
         from temba.channels.models import SEND, CALL
 
-        channel = self.channels.filter(is_active=True, scheme=scheme,
-                                       role__contains=role).order_by('-pk').first()
+        channel = self.channels.filter(is_active=True, scheme=scheme, role__contains=role).order_by('-pk')
+        if country_code:
+            channel = channel.filter(country=country_code)
+
+        channel = channel.first()
+
+        # no channel? try without country
+        if not channel and country_code:
+            channel = self.channels.filter(is_active=True, scheme=scheme,
+                                           role__contains=role).order_by('-pk').first()
 
         if channel and (role == SEND or role == CALL):
             return channel.get_delegate(role)
         else:
             return channel
 
-    def get_send_channel(self, scheme=None, contact_urn=None):
+    def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import SEND
+        from temba.contacts.models import ContactURN
 
         if not scheme and not contact_urn:
             raise ValueError("Must specify scheme or contact URN")
 
         if contact_urn:
-            scheme = contact_urn.scheme
+            if contact_urn:
+                scheme = contact_urn.scheme
 
-            # if URN has a previously used channel that is still active, use that
-            if contact_urn.channel and contact_urn.channel.is_active:
-                previous_sender = self.get_channel_delegate(contact_urn.channel, SEND)
-                if previous_sender:
-                    return previous_sender
+                # if URN has a previously used channel that is still active, use that
+                if contact_urn.channel and contact_urn.channel.is_active and role == SEND:
+                    previous_sender = self.get_channel_delegate(contact_urn.channel, role)
+                    if previous_sender:
+                        return previous_sender
 
-            if contact_urn.scheme == TEL_SCHEME:
+            if scheme == TEL_SCHEME:
+                path = contact_urn.path
+
                 # we don't have a channel for this contact yet, let's try to pick one from the same carrier
                 # we need at least one digit to overlap to infer a channel
-                contact_number = contact_urn.path.strip('+')
+                contact_number = path.strip('+')
                 prefix = 1
                 channel = None
 
-                # filter the (possibly) pre-fetched channels in Python to reduce database hits as this method is called
-                # for every message in a broadcast
-                senders = [r for r in self.channels.all() if SEND in r.role and not r.parent_id and r.is_active and r.address]
-                senders.sort(key=lambda r: r.id)
+                # try to use only a channel in the same country
+                if not country_code:
+                    country_code = ContactURN.derive_country_from_tel(path)
 
-                for r in senders:
-                    channel_number = r.address.strip('+')
+                channels = []
+                if country_code:
+                    for c in self.channels.all():
+                        if c.country == country_code:
+                            channels.append(c)
+
+                # no country specific channel, try to find any channel at all
+                if not channels:
+                    channels = [c for c in self.channels.all()]
+
+                # filter based on rule and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
+                senders = []
+                for c in channels:
+                    if c.is_active and c.address and role in c.role and not c.parent_id:
+                        senders.append(c)
+                senders.sort(key=lambda chan: chan.id)
+
+                for sender in senders:
+                    channel_number = sender.address.strip('+')
 
                     for idx in range(prefix, len(channel_number)):
                         if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
                             prefix = idx
-                            channel = r
+                            channel = sender
                         else:
                             break
 
                 if channel:
                     return self.get_channel_delegate(channel, SEND)
 
-        return self.get_channel(scheme, SEND)
+        # get any send channel without any country or URN hints
+        return self.get_channel(scheme, country_code, role)
 
-    def get_receive_channel(self, scheme):
+    def get_send_channel(self, scheme=None, contact_urn=None, country_code=None):
+        from temba.channels.models import SEND
+        return self.get_channel_for_role(SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+
+    def get_receive_channel(self, scheme, contact_urn=None, country_code=None):
         from temba.channels.models import RECEIVE
-        return self.get_channel(scheme, RECEIVE)
+        return self.get_channel_for_role(RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
-    def get_call_channel(self):
+    def get_call_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import CALL
-        return self.get_channel(TEL_SCHEME, CALL)
+        return self.get_channel_for_role(CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
-    def get_answer_channel(self):
+    def get_answer_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import ANSWER
-        return self.get_channel(TEL_SCHEME, ANSWER)
+        return self.get_channel_for_role(ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_channel_delegate(self, channel, role):
         """
@@ -447,6 +481,19 @@ class Org(SmartModel):
 
         setattr(self, cache_attr, schemes)
         return schemes
+
+    def normalize_contact_tels(self):
+        """
+        Attempts to normalize any contacts which don't have full e164 phone numbers
+        """
+        from temba.contacts.models import ContactURN, TEL_SCHEME
+
+        # do we have an org-level country code? if so, try to normalize any numbers not starting with +
+        country_code = self.get_country_code()
+        if country_code:
+            urns = ContactURN.objects.filter(org=self, scheme=TEL_SCHEME).exclude(path__startswith="+")
+            for urn in urns:
+                urn.ensure_number_normalization(country_code)
 
     def get_webhook_url(self):
         """
@@ -508,15 +555,6 @@ class Org(SmartModel):
         config = self.config_json()
         config.update(nexmo_config)
         self.config = json.dumps(config)
-
-        # update the mo and dl URL for our account
-        client = NexmoClient(api_key, api_secret)
-
-        mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
-        dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
-
-        from temba.settings import TEMBA_HOST
-        client.update_account('http://%s%s' % (TEMBA_HOST, mo_path), 'http://%s%s' % (TEMBA_HOST, dl_path))
 
         # clear all our channel configurations
         self.save(update_fields=['config'])
@@ -628,7 +666,7 @@ class Org(SmartModel):
             account_sid = config.get(ACCOUNT_SID, None)
             auth_token = config.get(ACCOUNT_TOKEN, None)
             if account_sid and auth_token:
-                return TwilioClient(account_sid, auth_token)
+                return TwilioClient(account_sid, auth_token, org=self)
         return None
 
     def get_nexmo_client(self):
@@ -659,15 +697,15 @@ class Org(SmartModel):
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
                     return country.alpha2
-            except KeyError as ke:
+            except KeyError:
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
 
-        # if that isn't set, there may be a TEL channel we can get it from
-        from temba.contacts.models import TEL_SCHEME
-        channel = self.get_receive_channel(TEL_SCHEME)
-        if channel:
-            return channel.country.code
+        # if that isn't set and we only have have one country set for our channels, use that
+        countries = self.channels.filter(is_active=True).exclude(country=None).order_by('country')
+        countries = countries.distinct('country').values_list('country', flat=True)
+        if len(countries) == 1:
+            return countries[0]
 
         return None
 
@@ -701,7 +739,7 @@ class Org(SmartModel):
         if is_alias:
             query = dict(name__iexact=name, boundary__level=level)
             query['__'.join(['boundary'] + ['parent'] * level)] = self.country
-        else :
+        else:
             query = dict(name__iexact=name, level=level)
             query['__'.join(['parent'] * level)] = self.country
 
@@ -874,7 +912,7 @@ class Org(SmartModel):
 
             try:
                 self.import_app(json.loads(org_example), user)
-            except Exception as e:
+            except Exception:
                 import traceback
                 logger = logging.getLogger(__name__)
                 msg = 'Failed creating sample flows'
@@ -1123,7 +1161,7 @@ class Org(SmartModel):
             stripe.api_key = get_stripe_credentials()[1]
             customer = stripe.Customer.retrieve(self.stripe_customer)
             return customer
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
             return None
 
@@ -1136,10 +1174,6 @@ class Org(SmartModel):
 
         # adds credits to this org
         stripe.api_key = get_stripe_credentials()[1]
-
-        # our stripe customer and the card to use
-        stripe_customer = None
-        stripe_card = None
 
         # our actual customer object
         customer = self.get_stripe_customer()
@@ -1380,6 +1414,21 @@ class Org(SmartModel):
         self.create_sample_flows(brand.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
+    def save_media(self, file, extension):
+        """
+        Saves the given file data with the extension and returns an absolute url to the result
+        """
+        random_file = str(uuid4())
+        random_dir = random_file[0:4]
+
+        filename = '%s/%s' % (random_dir, random_file)
+        if extension:
+            filename = '%s.%s' % (filename, extension)
+
+        path = '%s/%d/media/%s' % (settings.STORAGE_ROOT_DIR, self.pk, filename)
+        location = default_storage.save(path, file)
+        return "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, location)
+
     @classmethod
     def create_user(cls, email, password):
         user = User.objects.create_user(username=email, email=email, password=password)
@@ -1585,7 +1634,7 @@ class Invitation(SmartModel):
         """
         Generates a [length] characters alpha numeric secret
         """
-        letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ" # avoid things that could be mistaken ex: 'I' and '1'
+        letters = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"  # avoid things that could be mistaken ex: 'I' and '1'
         return ''.join([random.choice(letters) for _ in range(length)])
 
     def send_invitation(self):
@@ -1679,7 +1728,7 @@ class TopUp(SmartModel):
         try:
             stripe.api_key = get_stripe_credentials()[1]
             return stripe.Charge.retrieve(self.stripe_charge)
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
             return None
 

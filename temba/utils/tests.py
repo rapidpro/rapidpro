@@ -5,7 +5,6 @@ from __future__ import absolute_import, unicode_literals
 import json
 import pytz
 
-from django.test.testcases import TestCase
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings

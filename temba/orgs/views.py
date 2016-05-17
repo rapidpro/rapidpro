@@ -33,12 +33,11 @@ from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
-from temba.nexmo import NexmoClient
-from temba.orgs.models import get_stripe_credentials
+from temba.nexmo import NexmoClient, NexmoValidationError
+from temba.orgs.models import get_stripe_credentials, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
-from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings
@@ -426,8 +425,8 @@ class UserSettingsCRUDL(SmartCRUDL):
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
-               'twilio_connect', 'twilio_account', 'nexmo_account', 'nexmo_connect', 'export', 'import',
-               'plivo_connect', 'service', 'surveyor')
+               'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect', 'export',
+               'import', 'plivo_connect', 'service', 'surveyor')
 
     model = Org
 
@@ -626,6 +625,45 @@ class OrgCRUDL(SmartCRUDL):
             response['Temba-Success'] = self.get_success_url()
             return response
 
+    class NexmoConfiguration(InferOrgMixin, OrgPermsMixin, SmartReadView):
+
+        def get(self, request, *args, **kwargs):
+            org = self.get_object()
+
+            nexmo_client = org.get_nexmo_client()
+            if not nexmo_client:
+                return HttpResponseRedirect(reverse("orgs.org_nexmo_connect"))
+
+            nexmo_uuid = org.nexmo_uuid()
+            mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
+            dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
+            try:
+                from temba.settings import TEMBA_HOST
+                nexmo_client.update_account('http://%s%s' % (TEMBA_HOST, mo_path),
+                                            'http://%s%s' % (TEMBA_HOST, dl_path))
+
+                return HttpResponseRedirect(reverse("channels.channel_claim_nexmo"))
+
+            except NexmoValidationError:
+                return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.NexmoConfiguration, self).get_context_data(**kwargs)
+
+            from temba.settings import TEMBA_HOST
+            org = self.get_object()
+            config = org.config_json()
+            context['nexmo_api_key'] = config[NEXMO_KEY]
+            context['nexmo_api_secret'] = config[NEXMO_SECRET]
+
+            nexmo_uuid = config.get(NEXMO_UUID, None)
+            mo_path = reverse('handlers.nexmo_handler', args=['receive', nexmo_uuid])
+            dl_path = reverse('handlers.nexmo_handler', args=['status', nexmo_uuid])
+            context['mo_path'] = 'https://%s%s' % (TEMBA_HOST, mo_path)
+            context['dl_path'] = 'https://%s%s' % (TEMBA_HOST, dl_path)
+
+            return context
+
     class NexmoAccount(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         fields = ()
         submit_button_name = "Disconnect Nexmo"
@@ -668,7 +706,7 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = NexmoConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_nexmo'
+        success_url = '@orgs.org_nexmo_configuration'
         field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
         success_message = "Nexmo Account successfully connected."
 
@@ -677,7 +715,9 @@ class OrgCRUDL(SmartCRUDL):
             api_secret = form.cleaned_data['api_secret']
 
             org = self.get_object()
+
             org.connect_nexmo(api_key, api_secret)
+
             org.save()
 
             response = self.render_to_response(self.get_context_data(form=form,
@@ -1101,8 +1141,6 @@ class OrgCRUDL(SmartCRUDL):
         permission = False
 
         def pre_process(self, request, *args, **kwargs):
-            secret = self.kwargs.get('secret')
-
             org = self.get_object()
             if not org:
                 messages.info(request, _("Your invitation link is invalid. Please contact your organization administrator."))
@@ -1396,11 +1434,16 @@ class OrgCRUDL(SmartCRUDL):
             data = self.form.cleaned_data
 
             webhook_events = 0
-            if data['mt_sms']: webhook_events = MT_SMS_EVENTS
-            if data['mo_sms']: webhook_events |= MO_SMS_EVENTS
-            if data['mt_call']: webhook_events |= MT_CALL_EVENTS
-            if data['mo_call']: webhook_events |= MO_CALL_EVENTS
-            if data['alarm']: webhook_events |= ALARM_EVENTS
+            if data['mt_sms']:
+                webhook_events = MT_SMS_EVENTS
+            if data['mo_sms']:
+                webhook_events |= MO_SMS_EVENTS
+            if data['mt_call']:
+                webhook_events |= MT_CALL_EVENTS
+            if data['mo_call']:
+                webhook_events |= MO_CALL_EVENTS
+            if data['alarm']:
+                webhook_events |= ALARM_EVENTS
 
             analytics.track(self.request.user.username, 'temba.org_configured_webhook')
 
@@ -1707,7 +1750,7 @@ class OrgCRUDL(SmartCRUDL):
             self.org = self.derive_org()
             return self.request.user.has_perm('orgs.org_country') or self.has_org_perm('orgs.org_country')
 
-    class ClearCache(SmartUpdateView): # pragma: no cover
+    class ClearCache(SmartUpdateView):  # pragma: no cover
         fields = ('id',)
         success_message = None
         success_url = 'id@orgs.org_update'

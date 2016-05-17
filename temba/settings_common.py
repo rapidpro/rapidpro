@@ -371,6 +371,7 @@ PERMISSIONS = {
                  'languages',
                  'manage',
                  'manage_accounts',
+                 'nexmo_configuration',
                  'nexmo_account',
                  'nexmo_connect',
                  'plivo_connect',
@@ -421,6 +422,7 @@ PERMISSIONS = {
                          'create_bulk_sender',
                          'create_caller',
                          'errors',
+                         'facebook_welcome',
                          'search_nexmo',
                          'search_numbers',
                          ),
@@ -502,12 +504,13 @@ GROUP_PERMISSIONS = {
     "Beta": (
     ),
     "Surveyors": (
-        'orgs.org_surveyor',
-        'orgs.org_api',
         'contacts.contact_api',
         'contacts.contactfield_api',
+        'flows.flow_api',
         'locations.adminboundary_api',
-        'flows.flow_api'
+        'orgs.org_api',
+        'orgs.org_surveyor',
+        'msgs.msg_api',
     ),
     "Granters": (
         'orgs.org_grant',
@@ -576,6 +579,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_manage_accounts',
         'orgs.org_nexmo_account',
         'orgs.org_nexmo_connect',
+        'orgs.org_nexmo_configuration',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
         'orgs.org_twilio_account',
@@ -621,6 +625,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
+        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_nexmo',
@@ -740,6 +745,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
+        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_numbers',
@@ -1020,6 +1026,8 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
+CURSOR_PAGINATION_OFFSET_CUTOFF = 1000000
+
 
 # -----------------------------------------------------------------------------------
 # Aggregator settings
