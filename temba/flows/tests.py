@@ -4226,6 +4226,9 @@ class FlowsTest(FlowFileTest):
         msg = Msg.all_messages.filter(contact=self.contact, direction='O').order_by('-created_on').first()
         self.assertEqual("You picked Red.", msg.text)
 
+        # should only have one response msg
+        self.assertEqual(1, Msg.all_messages.filter(text='You picked Red.', contact=self.contact, direction='O').count())
+
     def test_subflow_expired(self):
         self.get_flow('subflow')
         parent = Flow.objects.get(org=self.org, name='Parent Flow')

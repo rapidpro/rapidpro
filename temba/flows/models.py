@@ -602,7 +602,7 @@ class Flow(TembaModel):
                 should_pause = False
 
                 # if we are a ruleset against @step or we have a webhook we wait
-                if destination.is_pause():
+                if destination.is_pause() or msg.status == HANDLED:
                     should_pause = True
 
                 if user_input or not should_pause:
@@ -636,6 +636,8 @@ class Flow(TembaModel):
             # if any one of our destinations handled us, consider it handled
             if result.get('handled', False):
                 handled = True
+
+            resume_parent_run = False
 
         if handled:
             analytics.gauge('temba.flow_execution', time.time() - start_time)
@@ -683,11 +685,7 @@ class Flow(TembaModel):
 
         if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
 
-            if resume_parent_run:
-                # if we are resuming our parnet run, we want to evaluate our rules
-                # against our child run that we previously spawned
-                run = FlowRun.objects.filter(parent=run).first()
-            else:
+            if not resume_parent_run:
                 flow_id = json.loads(ruleset.config).get('flow').get('id')
                 flow = Flow.objects.filter(org=run.org, pk=flow_id).first()
                 message_context = run.flow.build_message_context(run.contact, msg)
@@ -5159,7 +5157,11 @@ class SubflowTest(Test):
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
 
     def evaluate(self, run, sms, context, text):
-        if SubflowTest.EXIT_MAP[self.exit_type] == run.exit_type:
+
+        # lookup the subflow run
+        subflow_run = FlowRun.objects.filter(parent=run).first()
+
+        if subflow_run and SubflowTest.EXIT_MAP[self.exit_type] == subflow_run.exit_type:
             return 1, text
         return 0, None
 
