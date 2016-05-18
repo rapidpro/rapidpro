@@ -566,6 +566,12 @@ class ContactTest(TembaTest):
         label.toggle_label([msg1, msg2, msg3], add=True)
         group = self.create_group("Just Joe", [self.joe])
 
+        # create a dynamic group and put joe in it
+        ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
+        dynamic_group = self.create_group("Dynamic", query="gender is M")
+        self.joe.set_field(self.admin, 'gender', "M")
+        self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
+
         self.clear_cache()
 
         msg_counts = SystemLabel.get_counts(self.org)
@@ -578,8 +584,9 @@ class ContactTest(TembaTest):
                                           ContactGroup.TYPE_BLOCKED: 0,
                                           ContactGroup.TYPE_FAILED: 0})
 
-        self.assertEqual(3, label.msgs.count())
-        self.assertEqual(1, group.contacts.count())
+        self.assertEqual(set(label.msgs.all()), {msg1, msg2, msg3})
+        self.assertEqual(set(group.contacts.all()), {self.joe})
+        self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
 
         self.joe.fail()
 
@@ -594,7 +601,8 @@ class ContactTest(TembaTest):
         self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
                                           ContactGroup.TYPE_BLOCKED: 0,
                                           ContactGroup.TYPE_FAILED: 1})
-        self.assertEqual(1, group.contacts.count())
+        self.assertEqual(set(group.contacts.all()), {self.joe})
+        self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
 
         self.joe.block(self.user)
 
@@ -610,8 +618,9 @@ class ContactTest(TembaTest):
                                           ContactGroup.TYPE_BLOCKED: 1,
                                           ContactGroup.TYPE_FAILED: 0})
 
-        # and removed from the single user group
-        self.assertEqual(0, ContactGroup.user_groups.get(pk=group.pk).contacts.count())
+        # and removed from the non-dynamic user group
+        self.assertEqual(set(group.contacts.all()), set())
+        self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
 
         # but his messages are unchanged
         self.assertEqual(2, Msg.all_messages.filter(contact=self.joe, visibility='V').count())
@@ -672,7 +681,8 @@ class ContactTest(TembaTest):
         self.assertEqual(0, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
         # and he shouldn't be in any groups
-        self.assertEqual(0, ContactGroup.user_groups.get(pk=group.pk).contacts.count())
+        self.assertEqual(set(group.contacts.all()), set())
+        self.assertEqual(set(dynamic_group.contacts.all()), set())
 
         # or have any URNs
         self.assertEqual(0, ContactURN.objects.filter(contact=self.joe).count())

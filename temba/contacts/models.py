@@ -1151,18 +1151,25 @@ class Contact(TembaModel):
             changed.append(contact.pk)
         return changed
 
+    def clear_static_groups(self, user):
+        """
+        Removes this contact from all non-dynamic groups
+        """
+        dynamic_only = list(self.user_groups.exclude(query=None))
+        self.update_groups(user, dynamic_only)
+
     def block(self, user):
         """
-        Blocks this contact removing it from all groups
+        Blocks this contact removing it from all non-dynamic groups
         """
         if self.is_test:
             raise ValueError("Can't block a test contact")
 
+        self.clear_static_groups(user)
+
         self.is_blocked = True
         self.modified_by = user
         self.save(update_fields=('is_blocked', 'modified_on', 'modified_by'))
-
-        self.update_groups(user, [])
 
     def unblock(self, user):
         """
@@ -1174,7 +1181,7 @@ class Contact(TembaModel):
 
     def fail(self, permanently=False):
         """
-        Fails this contact. If permanently then contact is removed from all groups.
+        Fails this contact. If permanently then contact is removed from all non-dynamic groups.
         """
         if self.is_test:
             raise ValueError("Can't fail a test contact")
@@ -1183,7 +1190,7 @@ class Contact(TembaModel):
         self.save(update_fields=['is_failed'])
 
         if permanently:
-            self.update_groups(get_anonymous_user(), [])
+            self.clear_static_groups(get_anonymous_user())
 
     def unfail(self):
         """
@@ -1196,15 +1203,15 @@ class Contact(TembaModel):
         """
         Releases (i.e. deletes) this contact, provided it is currently not deleted
         """
-        self.is_active = False
-        self.modified_by = user
-        self.save(update_fields=('is_active', 'modified_on', 'modified_by'))
-
         # detach all contact's URNs
         self.update_urns(user, [])
 
-        # remove contact from all groups
-        self.update_groups(user, [])
+        self.clear_static_groups(user)
+
+        # manually remove from dynamic groups
+        for group in self.user_groups.exclude(query=None):
+            group.contacts.remove(self)
+            Value.invalidate_cache(group=group)
 
         # release all messages with this contact
         for msg in self.msgs.all():
@@ -1217,6 +1224,10 @@ class Contact(TembaModel):
         # remove all flow runs and steps
         for run in self.runs.all():
             run.release()
+
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=('is_active', 'modified_on', 'modified_by'))
 
     @classmethod
     def bulk_cache_initialize(cls, org, contacts, for_show_only=False):
