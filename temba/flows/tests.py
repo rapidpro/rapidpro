@@ -4214,7 +4214,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, self.contact.msgs.all().count())
         self.assertEquals('You are not in the enrolled group.', self.contact.msgs.all()[0].text)
 
-        enrolled_group = ContactGroup.create(self.org, self.user, "Enrolled")
+        enrolled_group = ContactGroup.create_static(self.org, self.user, "Enrolled")
         enrolled_group.update_contacts(self.user, [self.contact], True)
 
         runs_started = flow.start_msg_flow([self.contact.id])

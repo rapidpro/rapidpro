@@ -1081,7 +1081,7 @@ class Contact(TembaModel):
 
         # group org is same as org of any contact in that group
         group_org = contacts[0].org
-        group = ContactGroup.create(group_org, user, group_name, task)
+        group = ContactGroup.create_static(group_org, user, group_name, task)
 
         num_creates = 0
         for contact in contacts:
@@ -1668,7 +1668,18 @@ class ContactGroup(TembaModel):
         """
         Returns the user group with the passed in name
         """
-        return ContactGroup.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
+        return cls.user_groups.filter(name__iexact=cls.clean_name(name), org=org).first()
+
+    @classmethod
+    def get_user_groups(cls, org, dynamic=None):
+        """
+        Gets all user groups for the given org - optionally filtering by dynamic vs static
+        """
+        groups = cls.user_groups.filter(org=org, is_active=True)
+        if dynamic is not None:
+            groups = groups.filter(query=None) if dynamic is False else groups.exclude(query=None)
+
+        return groups
 
     @classmethod
     def get_or_create(cls, org, user, name, group_id=None):
@@ -1686,7 +1697,26 @@ class ContactGroup(TembaModel):
         return cls.create(org, user, name)
 
     @classmethod
-    def create(cls, org, user, name, task=None, query=None):
+    def create_static(cls, org, user, name, task=None):
+        return cls._create(org, user, name, task)
+
+    @classmethod
+    def create_dynamic(cls, org, user, name, query):
+        group = cls._create(org, user, name)
+
+        # determine which contact fields this dynamic group filters on
+        for match in regex.finditer(r'\w+', query, regex.V0):
+            field = ContactField.objects.filter(org=org, key=match.group(), is_active=True).first()
+            if field:
+                group.query_fields.add(field)
+
+        # determine group membership
+        members = group._get_dynamic_members()
+        group.contacts.add(*list(members))
+        return group
+
+    @classmethod
+    def _create(cls, org, user, name, task=None, query=None):
         full_group_name = cls.clean_name(name)
 
         if not cls.is_valid_name(full_group_name):
@@ -1701,12 +1731,8 @@ class ContactGroup(TembaModel):
             existing = cls.get_user_group(org, full_group_name)
             count += 1
 
-        group = ContactGroup.user_groups.create(name=full_group_name, org=org, import_task=task,
-                                                created_by=user, modified_by=user)
-        if query:
-            group.update_query(query)
-
-        return group
+        return cls.user_groups.create(org=org, name=full_group_name, query=query,
+                                      import_task=task, created_by=user, modified_by=user)
 
     @classmethod
     def clean_name(cls, name):
@@ -1775,25 +1801,21 @@ class ContactGroup(TembaModel):
 
         return changed
 
-    def update_query(self, query):
+    def _get_dynamic_members(self):
         """
-        Updates the query for a dynamic contact group. For now this is only called when group is created and we don't
-        support updating the queries of existing groups.
+        For dynamic groups, this returns the set of contacts who belong in this group
         """
-        self.query = query
-        self.save()
+        if not self.is_dynamic:
+            raise ValueError("Can only be called on dynamic groups")
 
-        self.query_fields.clear()
+        members, is_complex = Contact.search(self.org, self.query)
+        return members
 
-        for match in regex.finditer(r'\w+', self.query, regex.V0):
-            field = ContactField.objects.filter(key=match.group(), org=self.org, is_active=True).first()
-            if field:
-                self.query_fields.add(field)
-
-        qs, complex_query = Contact.search(self.org, self.query)
-        members = list(qs)
-        self.contacts.clear()
-        self.contacts.add(*members)
+    def _check_dynamic_membership(self, contact):
+        """
+        For dynamic groups, determines whether the given contact belongs in the group
+        """
+        return self._get_dynamic_members().filter(pk=contact.id).count() == 1
 
     @classmethod
     def reevaluate_dynamic_groups(cls, contact, field=None):
@@ -1810,8 +1832,7 @@ class ContactGroup(TembaModel):
         affected_dynamic_groups = cls.user_groups.filter(**qs_args).exclude(query=None)
 
         for group in affected_dynamic_groups:
-            qs, is_complex = Contact.search(group.org, group.query)  # generate group query
-            qualifies = qs.filter(pk=contact.id).count() == 1        # should contact now be in group?
+            qualifies = group._check_dynamic_membership(contact)
             changed = group._update_contacts(user, [contact], qualifies)
 
             if changed:

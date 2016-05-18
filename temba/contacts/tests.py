@@ -219,7 +219,7 @@ class ContactGroupCRUDLTest(_CRUDLTest):
         self.assertEqual(group_1.name, 'first')
 
     def test_update(self):
-        group = ContactGroup.create(self.org, self.user, "one")
+        group = ContactGroup.create_static(self.org, self.user, "one")
 
         update_url = reverse('contacts.contactgroup_update', args=[group.pk])
         self.login(self.user)
@@ -258,11 +258,33 @@ class ContactGroupTest(TembaTest):
 
     def test_create(self):
         # exception if group name is blank
-        self.assertRaises(ValueError, ContactGroup.create, self.org, self.admin, "   ")
+        self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin, "   ")
 
-        ContactGroup.create(self.org, self.admin, " group one ")
-        self.assertEquals(1, ContactGroup.user_groups.count())
-        self.assertTrue(ContactGroup.user_groups.get(org=self.org, name="group one"))
+        # create static group
+        group1 = ContactGroup.create_static(self.org, self.admin, " group one ")
+
+        self.assertEqual(group1.org, self.org)
+        self.assertEqual(group1.name, "group one")
+        self.assertEqual(group1.created_by, self.admin)
+
+        # create dynamic group
+        age = ContactField.get_or_create(self.org, self.admin, 'age')
+        gender = ContactField.get_or_create(self.org, self.admin, 'gender')
+        group2 = ContactGroup.create_dynamic(self.org, self.admin, "Group two",
+                                             query='(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+
+        self.assertEqual(group2.query, '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+        self.assertEqual(set(group2.query_fields.all()), {age, gender})
+
+        self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {group1, group2})
+        self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=False)), {group1})
+        self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=True)), {group2})
+
+        # dynamic group should not have remove to group button
+        self.login(self.admin)
+        filter_url = reverse('contacts.contact_filter', args=[group2.pk])
+        response = self.client.get(filter_url)
+        self.assertFalse('unlabel' in response.context['actions'])
 
     def test_is_valid_name(self):
         self.assertTrue(ContactGroup.is_valid_name('x'))
@@ -276,7 +298,7 @@ class ContactGroupTest(TembaTest):
         self.assertFalse(ContactGroup.is_valid_name('x' * 65))
 
     def test_member_count(self):
-        group = ContactGroup.create(self.org, self.user, "Cool kids")
+        group = self.create_group("Cool kids")
 
         # add contacts via the related field
         group.contacts.add(self.joe, self.frank)
@@ -369,25 +391,8 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(all_contacts.get_member_count(), 3)
         self.assertEqual(ContactGroupCount.objects.filter(group=all_contacts).count(), 1)
 
-    def test_update_query(self):
-        age = ContactField.get_or_create(self.org, self.admin, 'age')
-        gender = ContactField.get_or_create(self.org, self.admin, 'gender')
-        group = ContactGroup.create(self.org, self.admin, "Group 1")
-
-        group.update_query('(age < 18 and gender = "male") or (age > 18 and gender = "female")')
-        self.assertEqual([age, gender], list(ContactGroup.user_groups.get(pk=group.id).query_fields.all().order_by('key')))
-
-        group.update_query('height > 100')
-        self.assertEqual(0, ContactGroup.user_groups.get(pk=group.id).query_fields.count())
-
-        # dynamic group should not have remove to group button
-        self.login(self.admin)
-        filter_url = reverse('contacts.contact_filter', args=[group.pk])
-        response = self.client.get(filter_url)
-        self.assertFalse('unlabel' in response.context['actions'])
-
     def test_delete(self):
-        group = ContactGroup.create(self.org, self.user, "one")
+        group = self.create_group("one")
 
         self.login(self.admin)
 
@@ -395,7 +400,7 @@ class ContactGroupTest(TembaTest):
         self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
         self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
 
-        group = ContactGroup.create(self.org, self.user, "one")
+        group = self.create_group("one")
         delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
 
         trigger = Trigger.objects.create(org=self.org, keyword="join", created_by=self.admin, modified_by=self.admin)
@@ -1816,9 +1821,10 @@ class ContactTest(TembaTest):
         self.assertContains(response, 'Rwama Category')
 
         # try to push into a dynamic group
+        self.login(self.admin)
+        group = self.create_group('Dynamo', query='dynamo')
+
         with self.assertRaises(ValueError):
-            self.login(self.admin)
-            group = ContactGroup.create(self.org, self.admin, 'Dynamo', query='dynamo')
             post_data = dict()
             post_data['action'] = 'label'
             post_data['label'] = group.pk
@@ -2830,9 +2836,6 @@ class ContactTest(TembaTest):
         self.assertEquals(urn.path, '456')
 
     def test_update_handling(self):
-        def create_dynamic_group(name, query):
-            return ContactGroup.create(self.org, self.user, name, query=query)
-
         bob = self.create_contact("Bob", "111222")
         bob.name = 'Bob Marley'
         bob.save()
@@ -2861,8 +2864,8 @@ class ContactTest(TembaTest):
             joined_field = ContactField.get_or_create(self.org, self.admin, 'joined', "Join Date", value_type='D')
 
             # create groups based on name or URN (checks that contacts are added correctly on contact create)
-            joes_group = create_dynamic_group("People called Joe", 'name has joe')
-            _123_group = create_dynamic_group("People with number containing '123'", 'tel has "123"')
+            joes_group = self.create_group("People called Joe", query='name has joe')
+            _123_group = self.create_group("People with number containing '123'", query='tel has "123"')
 
             self.mary = self.create_contact("Mary", "123456")
             self.mary.set_field(self.user, 'gender', "Female")
@@ -2880,8 +2883,8 @@ class ContactTest(TembaTest):
             self.frank.set_field(self.user, 'joined', '1/1/2014')
 
             # create more groups based on fields (checks that contacts are added correctly on group create)
-            men_group = create_dynamic_group("Girls", 'gender = "male" AND age >= 18')
-            women_group = create_dynamic_group("Girls", 'gender = "female" AND age >= 18')
+            men_group = self.create_group("Girls", query='gender = "male" AND age >= 18')
+            women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
 
             joe_flow = self.create_flow()
             joes_campaign = Campaign.create(self.org, self.admin, "Joe Reminders", joes_group)

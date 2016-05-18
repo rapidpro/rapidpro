@@ -109,7 +109,7 @@ class Trigger(SmartModel):
                         group = ContactGroup.get_user_group(org, group_spec['name'])
 
                     if not group:
-                        group = ContactGroup.create(org, user, group_spec['name'])
+                        group = ContactGroup.create_static(org, user, group_spec['name'])
 
                     if not group.is_active:
                         group.is_active = True

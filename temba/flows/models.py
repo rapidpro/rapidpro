@@ -4149,7 +4149,7 @@ class AddToGroupAction(Action):
                     if group:
                         groups.append(group)
                     else:
-                        groups.append(ContactGroup.create(org, org.get_user(), g))
+                        groups.append(ContactGroup.create_static(org, org.get_user(), g))
         return groups
 
     def as_json(self):
@@ -4184,7 +4184,7 @@ class AddToGroupAction(Action):
                         if not group:
 
                             try:
-                                group = ContactGroup.create(contact.org, user, name=value)
+                                group = ContactGroup.create_static(contact.org, user, name=value)
                                 if run.contact.is_test:
                                     ActionLog.info(run, _("Group '%s' created") % value)
                             except ValueError:

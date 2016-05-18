@@ -85,7 +85,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         num_bases = len(base_names)
         for g in range(0, count):
             name = '%s %d' % (base_names[g % num_bases], g + 1)
-            group = ContactGroup.create(self.org, self.user, name)
+            group = ContactGroup.create_static(self.org, self.user, name)
             group.contacts.add(*contacts[(g % num_bases)::num_bases])
             groups.append(ContactGroup.user_groups.get(pk=group.pk))
         return groups

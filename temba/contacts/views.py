@@ -309,10 +309,11 @@ class UpdateContactForm(ContactForm):
 
         choices += [(l.iso_code, l.name) for l in self.instance.org.languages.all().order_by('orgs', 'name')]
 
-        self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'), initial=self.instance.language, choices=choices)
+        self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'),
+                                                    initial=self.instance.language, choices=choices)
 
         self.fields['groups'].initial = self.instance.user_groups.all()
-        self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
+        self.fields['groups'].queryset = ContactGroup.get_user_groups(self.user.get_org(), dynamic=False)
         self.fields['groups'].help_text = _("The groups which this contact belongs to")
 
 

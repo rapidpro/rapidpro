@@ -1255,7 +1255,7 @@ class BroadcastCRUDLTest(TembaTest):
         # but editors can
         self.login(self.editor)
 
-        just_joe = ContactGroup.create(self.org, self.user, "Just Joe")
+        just_joe = self.create_group("Just Joe")
         just_joe.contacts.add(self.joe)
         post_data = dict(omnibox="g-%d,c-%d,n-0780000001" % (just_joe.pk, self.frank.pk),
                          text="Hey Joe, where you goin' with that gun in your hand?")
