@@ -135,7 +135,7 @@ def check_messages_task():
     Also takes care of flipping Contacts from Failed to Normal and back based on their status.
     """
     from django.utils import timezone
-    from .models import INCOMING, OUTGOING, PENDING, QUEUED, ERRORED, FAILED, WIRED, SENT, DELIVERED
+    from .models import INCOMING, OUTGOING, PENDING, FAILED, WIRED, SENT, DELIVERED
     from temba.orgs.models import Org
     from temba.channels.tasks import send_msg_task
 

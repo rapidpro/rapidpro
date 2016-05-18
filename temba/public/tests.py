@@ -14,7 +14,7 @@ class PublicTest(SmartminTest):
         self.user = self.create_user("tito")
 
     def test_index(self):
-        home_url = reverse('public.public_index');
+        home_url = reverse('public.public_index')
         response = self.client.get(home_url, follow=True)
         self.assertEquals(response.request['PATH_INFO'], '/')
 
@@ -23,7 +23,7 @@ class PublicTest(SmartminTest):
         post_data = dict()
         response = self.client.post(lead_create_url, post_data, follow=True)
         self.assertEquals(response.request['PATH_INFO'], '/')
-        self.assertTrue(response.context['errors']);
+        self.assertTrue(response.context['errors'])
         self.assertEquals(response.context['error_msg'], 'This field is required.')
 
         post_data['email'] = 'wrong_email_format'

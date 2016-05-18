@@ -1,0 +1,28 @@
+/**
+ * videojs-vjsdownload
+ * @version 1.0.2
+ * @copyright 2016 7Ds7
+ * @license Apache-2.0
+ */
+.video-js.vjs-vjsdownload .vjs-button.vjs-vjsdownload {
+    cursor: pointer;
+    display: block;
+    font-family: VideoJs
+}
+
+.video-js.vjs-vjsdownload .vjs-button.vjs-vjsdownload:before {
+    content: '\e901';
+    top: 2px;
+    font-family: 'temba';
+}
+
+.video-js.vjs-vjsdownload .vjs-button.vjs-vjsdownload:after {
+    display: block;
+    content: ' ';
+    width: 4px;
+    height: 4px;
+    background-color: white;
+    position: relative;
+    top: -3px;
+    left: calc(50% - 2px)
+}

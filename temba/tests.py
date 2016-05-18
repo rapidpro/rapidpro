@@ -115,7 +115,7 @@ class TembaTest(SmartminTest):
 
         # a single Android channel
         self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
-                                      secret="12345", gcm_id="123")
+                                      device="Nexus 5X", secret="12345", gcm_id="123")
 
         # reset our simulation to False
         Contact.set_simulation(False)
@@ -173,7 +173,7 @@ class TembaTest(SmartminTest):
         """
         If a test has written files to storage, it should remove them by calling this
         """
-        shutil.rmtree('media/test_orgs', ignore_errors=True)
+        shutil.rmtree('%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
     def import_file(self, filename, site='http://rapidpro.io', substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
@@ -580,13 +580,17 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
 
 class MockResponse(object):
 
-    def __init__(self, status_code, text, method='GET', url='http://foo.com/'):
+    def __init__(self, status_code, text, method='GET', url='http://foo.com/', headers=None):
         self.text = text
         self.content = text
         self.status_code = status_code
+        self.headers = headers if headers else {}
 
         # mock up a request object on our response as well
         self.request = dict_to_struct('MockRequest', dict(method=method, url=url))
+
+    def add_header(self, key, value):
+        self.headers[key] = value
 
     def json(self):
         return json.loads(self.text)
@@ -621,9 +625,10 @@ class MockRequestValidator(RequestValidator):
         return True
 
 
-class MockTwilioClient(TwilioClient):  # pragma: no cover
+class MockTwilioClient(TwilioClient):
 
-    def __init__(self, sid, token):
+    def __init__(self, sid, token, org=None):
+        self.org = org
         self.applications = MockTwilioClient.MockApplications()
         self.calls = MockTwilioClient.MockCalls()
         self.accounts = MockTwilioClient.MockAccounts()

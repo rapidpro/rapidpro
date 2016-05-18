@@ -40,7 +40,6 @@ from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
 from temba.utils.models import TembaModel, generate_uuid
 from urllib import quote_plus
 from xml.sax.saxutils import quoteattr, escape
-from uuid import uuid4
 
 AFRICAS_TALKING = 'AT'
 ANDROID = 'A'
@@ -108,7 +107,7 @@ CHANNEL_SETTINGS = {
     CHIKKA: dict(scheme='tel', max_length=160),
     CLICKATELL: dict(scheme='tel', max_length=420),
     EXTERNAL: dict(max_length=160),
-    FACEBOOK: dict(scheme='facebook', max_length=1600),
+    FACEBOOK: dict(scheme='facebook', max_length=320),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),
@@ -265,18 +264,13 @@ class Channel(TembaModel):
         if 'uuid' not in create_args:
             create_args['uuid'] = generate_uuid()
 
-        return cls.objects.create(**create_args)
+        channel = cls.objects.create(**create_args)
 
-    @classmethod
-    def derive_country_from_phone(cls, phone, country=None):
-        """
-        Given a phone number in E164 returns the two letter country code for it.  ex: +250788383383 -> RW
-        """
-        try:
-            parsed = phonenumbers.parse(phone, country)
-            return phonenumbers.region_code_for_number(parsed)
-        except Exception:
-            return None
+        # normalize any telephone numbers that we may now have a clue as to country
+        if org:
+            org.normalize_contact_tels()
+
+        return channel
 
     @classmethod
     def add_telegram_channel(cls, org, user, auth_token):
@@ -506,13 +500,6 @@ class Channel(TembaModel):
 
     @classmethod
     def add_facebook_channel(cls, org, user, page_name, page_id, page_access_token):
-        # subscribe to messaging events
-        response = requests.post('https://graph.facebook.com/v2.5/me/subscribed_apps',
-                                 params=dict(access_token=page_access_token))
-
-        if response.status_code != 200 or not response.json()['success']:
-            raise Exception("Unable to subscribe for delivery of events: %s" % (response.content))
-
         return Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
                               config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
                               secret=Channel.generate_secret())
@@ -675,12 +662,6 @@ class Channel(TembaModel):
             return self.org.get_verboice_client()
         return None
 
-    def ensure_normalized_contacts(self):
-        from temba.contacts.models import ContactURN
-        urns = ContactURN.objects.filter(org=self.org, path__startswith="+")
-        for urn in urns:
-            urn.ensure_number_normalization(self)
-
     def supports_ivr(self):
         return CALL in self.role or ANSWER in self.role
 
@@ -714,7 +695,7 @@ class Channel(TembaModel):
                 normalized = phonenumbers.parse(self.address, str(self.country))
                 fmt = phonenumbers.PhoneNumberFormat.E164 if e164 else phonenumbers.PhoneNumberFormat.INTERNATIONAL
                 return phonenumbers.format_number(normalized, fmt)
-            except NumberParseException as e:
+            except NumberParseException:
                 # the number may be alphanumeric in the case of short codes
                 pass
 
@@ -867,8 +848,10 @@ class Channel(TembaModel):
         """
         Claims this channel for the given org/user
         """
+        from temba.contacts.models import ContactURN
+
         if not self.country:
-            self.country = Channel.derive_country_from_phone(phone)
+            self.country = ContactURN.derive_country_from_tel(phone)
 
         self.alert_email = user.email
         self.org = org
@@ -876,6 +859,8 @@ class Channel(TembaModel):
         self.claim_code = None
         self.address = phone
         self.save()
+
+        org.normalize_contact_tels()
 
     def release(self, trigger_sync=True, notify_mage=True):
         """
@@ -894,7 +879,7 @@ class Channel(TembaModel):
                 client.delete_application(params=dict(app_id=self.config_json()[PLIVO_APP_ID]))
 
             # delete Twilio SMS application
-            if self.channel_type == TWILIO:
+            elif self.channel_type == TWILIO:
                 client = self.org.get_twilio_client()
                 number_update_args = dict()
 
@@ -911,6 +896,12 @@ class Channel(TembaModel):
                         matching = client.phone_numbers.list(phone_number=self.address)
                         if matching:
                             client.phone_numbers.update(matching[0].sid, **number_update_args)
+
+            # unsubscribe from facebook events for this page
+            elif self.channel_type == FACEBOOK:
+                page_access_token = self.config_json()[AUTH_TOKEN]
+                requests.delete('https://graph.facebook.com/v2.5/me/subscribed_apps',
+                                params=dict(access_token=page_access_token))
 
         # save off our org and gcm id before nullifying
         org = self.org
@@ -966,7 +957,8 @@ class Channel(TembaModel):
         if self.channel_type == ANDROID:
             if getattr(settings, 'GCM_API_KEY', None):
                 from .tasks import sync_channel_task
-                if not gcm_id: gcm_id = self.gcm_id
+                if not gcm_id:
+                    gcm_id = self.gcm_id
                 if gcm_id:
                     sync_channel_task.delay(gcm_id, channel_id=self.pk)
 
@@ -975,11 +967,11 @@ class Channel(TembaModel):
             raise Exception("Trigger sync called on non Android channel. [%d]" % self.pk)
 
     @classmethod
-    def sync_channel(cls, gcm_id, channel=None): # pragma: no cover
+    def sync_channel(cls, gcm_id, channel=None):  # pragma: no cover
         try:
             gcm = GCM(settings.GCM_API_KEY)
             gcm.plaintext_request(registration_id=gcm_id, data=dict(msg='sync'))
-        except GCMNotRegisteredException as e:
+        except GCMNotRegisteredException:
             if channel:
                 # this gcm id is invalid now, clear it out
                 channel.gcm_id = None
@@ -1749,7 +1741,7 @@ class Channel(TembaModel):
             try:
                 response = requests.get(url, headers=TEMBA_HEADERS, timeout=5)
                 response_qs = urlparse.parse_qs(response.text)
-            except Exception as e:
+            except Exception:
                 failed = True
 
             if not failed and response.status_code != 200 and response.status_code != 201:
@@ -2054,15 +2046,15 @@ class Channel(TembaModel):
 
         if channel.channel_type == TWILIO_MESSAGING_SERVICE:
             messaging_service_sid = channel.config['messaging_service_sid']
-            message = client.messages.create(to=msg.urn_path,
-                                             messaging_service_sid=messaging_service_sid,
-                                             body=text,
-                                             status_callback=callback_url)
+            client.messages.create(to=msg.urn_path,
+                                   messaging_service_sid=messaging_service_sid,
+                                   body=text,
+                                   status_callback=callback_url)
         else:
-            message = client.messages.create(to=msg.urn_path,
-                                             from_=channel.address,
-                                             body=text,
-                                             status_callback=callback_url)
+            client.messages.create(to=msg.urn_path,
+                                   from_=channel.address,
+                                   body=text,
+                                   status_callback=callback_url)
 
         Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
         ChannelLog.log_success(msg, "Successfully delivered message")
@@ -2489,7 +2481,7 @@ class Channel(TembaModel):
         url = "https://" + settings.TEMBA_HOST + "/api/v1/twilio/?action=callback&id=%d" % sms_id
         return url
 
-    def __unicode__(self): # pragma: no cover
+    def __unicode__(self):  # pragma: no cover
         if self.name:
             return self.name
         elif self.device:
@@ -2754,7 +2746,8 @@ class SyncEvent(SmartModel):
 
 @receiver(pre_save, sender=SyncEvent)
 def pre_save(sender, instance, **kwargs):
-    if kwargs['raw']: return
+    if kwargs['raw']:
+        return
 
     if not instance.pk:
         last_sync_event = SyncEvent.objects.filter(channel=instance.channel).order_by('-created_on').first()
@@ -2787,9 +2780,7 @@ class Alert(SmartModel):
     def check_power_alert(cls, sync):
         alert_user = get_alert_user()
 
-        if (sync.power_status == STATUS_DISCHARGING or
-            sync.power_status == STATUS_UNKNOWN or
-            sync.power_status == STATUS_NOT_CHARGING) and int(sync.power_level) < 25:
+        if sync.power_status in (STATUS_DISCHARGING, STATUS_UNKNOWN, STATUS_NOT_CHARGING) and int(sync.power_level) < 25:
 
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
 

@@ -6,8 +6,8 @@ import urllib
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
-from django.db.models import Q, Prefetch
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.db.models import Prefetch
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, status, pagination
 from rest_framework.decorators import api_view, permission_classes
@@ -23,8 +23,8 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DELETED
-from temba.utils import JsonResponse, json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
+from temba.msgs.models import Broadcast, Msg, Call, Label
+from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
 from ..models import ApiPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
@@ -683,10 +683,10 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
         archived = self.request.query_params.get('archived', None)
         if archived is not None:
-            visibility = ARCHIVED if str_to_bool(archived) else VISIBLE
+            visibility = Msg.VISIBILITY_ARCHIVED if str_to_bool(archived) else Msg.VISIBILITY_VISIBLE
             queryset = queryset.filter(visibility=visibility)
         else:
-            queryset = queryset.exclude(visibility=DELETED)
+            queryset = queryset.exclude(visibility=Msg.VISIBILITY_DELETED)
 
         queryset = queryset.select_related('org', 'contact', 'contact_urn').prefetch_related('labels')
         return queryset.order_by('-created_on').distinct()
@@ -725,7 +725,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                           dict(name='after', required=False,
                                help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='relayer', required=False,
-                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854") ]
+                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854")]
 
         return spec
 

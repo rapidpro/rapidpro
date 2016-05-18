@@ -34,6 +34,14 @@ MANAGERS = ADMINS
 POSTGIS_VERSION = (2, 1)
 
 # -----------------------------------------------------------------------------------
+# postgres
+# -----------------------------------------------------------------------------------
+
+POSTGRES_PASSWORD = os.getenv('POSTGRES_ENV_TEMBAPASSWD')
+POSTGRES_HOST = os.getenv('POSTGRES_PORT_5432_TCP_ADDR')
+POSTGRES_PORT = int(os.getenv('POSTGRES_PORT_5432_TCP_PORT'))
+
+# -----------------------------------------------------------------------------------
 # set the mail settings, override these in your settings.py
 # if your site was at http://temba.io, it might look like this:
 # -----------------------------------------------------------------------------------
@@ -363,6 +371,7 @@ PERMISSIONS = {
                  'languages',
                  'manage',
                  'manage_accounts',
+                 'nexmo_configuration',
                  'nexmo_account',
                  'nexmo_connect',
                  'plivo_connect',
@@ -413,6 +422,7 @@ PERMISSIONS = {
                          'create_bulk_sender',
                          'create_caller',
                          'errors',
+                         'facebook_welcome',
                          'search_nexmo',
                          'search_numbers',
                          ),
@@ -494,12 +504,13 @@ GROUP_PERMISSIONS = {
     "Beta": (
     ),
     "Surveyors": (
-        'orgs.org_surveyor',
-        'orgs.org_api',
         'contacts.contact_api',
         'contacts.contactfield_api',
+        'flows.flow_api',
         'locations.adminboundary_api',
-        'flows.flow_api'
+        'orgs.org_api',
+        'orgs.org_surveyor',
+        'msgs.msg_api',
     ),
     "Granters": (
         'orgs.org_grant',
@@ -568,6 +579,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_manage_accounts',
         'orgs.org_nexmo_account',
         'orgs.org_nexmo_connect',
+        'orgs.org_nexmo_configuration',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
         'orgs.org_twilio_account',
@@ -613,6 +625,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
+        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_nexmo',
@@ -732,6 +745,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
+        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_numbers',
@@ -950,8 +964,8 @@ CELERY_TASK_MAP = {
 # -----------------------------------------------------------------------------------
 djcelery.setup_loader()
 
-REDIS_HOST = 'localhost'
-REDIS_PORT = 6379
+REDIS_HOST = os.getenv('REDIS_PORT_6379_TCP_ADDR')
+REDIS_PORT = int(os.getenv('REDIS_PORT_6379_TCP_PORT'))
 
 # we use a redis db of 10 for testing so that we maintain caches for dev
 REDIS_DB = 10 if TESTING else 15
@@ -1012,6 +1026,8 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
+CURSOR_PAGINATION_OFFSET_CUTOFF = 1000000
+
 
 # -----------------------------------------------------------------------------------
 # Aggregator settings

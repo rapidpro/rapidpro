@@ -118,7 +118,7 @@ class Campaign(SmartModel):
                                                              label=event_spec['relative_to']['label'])
 
                     # create our message flow for message events
-                    if event_spec['event_type'] == MESSAGE_EVENT:
+                    if event_spec['event_type'] == CampaignEvent.TYPE_MESSAGE:
                         event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
                                                                    event_spec['offset'],
                                                                    event_spec['unit'],
@@ -202,36 +202,43 @@ class Campaign(SmartModel):
         return self.name
 
 
-FLOW_EVENT = 'F'
-MESSAGE_EVENT = 'M'
-EVENT_TYPES = ((FLOW_EVENT, "Flow Event"),
-               (MESSAGE_EVENT, "Message Event"))
-
-MINUTES = 'M'
-HOURS = 'H'
-DAYS = 'D'
-WEEKS = 'W'
-
-UNIT_CHOICES = ((MINUTES, "Minutes"),
-                (HOURS, "Hours"),
-                (DAYS, "Days"),
-                (WEEKS, "Weeks"))
-
-
 class CampaignEvent(SmartModel):
+    """
+    An event within a campaign that can send a message to a contact or start them in a flow
+    """
+    TYPE_FLOW = 'F'
+    TYPE_MESSAGE = 'M'
+
+    # single char flag, human readable name, API readable name
+    TYPE_CONFIG = ((TYPE_FLOW, _("Flow Event"), 'flow'),
+                   (TYPE_MESSAGE, _("Message Event"), 'message'))
+
+    TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
+
+    UNIT_MINUTES = 'M'
+    UNIT_HOURS = 'H'
+    UNIT_DAYS = 'D'
+    UNIT_WEEKS = 'W'
+
+    UNIT_CONFIG = ((UNIT_MINUTES, _("Minutes"), 'minutes'),
+                   (UNIT_HOURS, _("Hours"), 'hours'),
+                   (UNIT_DAYS, _("Days"), 'days'),
+                   (UNIT_WEEKS, _("Weeks"), 'weeks'))
+
+    UNIT_CHOICES = [(u[0], u[1]) for u in UNIT_CONFIG]
 
     campaign = models.ForeignKey(Campaign, related_name='events',
                                  help_text="The campaign this event is part of")
     offset = models.IntegerField(default=0,
                                  help_text="The offset in days from our date (positive is after, negative is before)")
-    unit = models.CharField(max_length=1, choices=UNIT_CHOICES, default=DAYS,
+    unit = models.CharField(max_length=1, choices=UNIT_CHOICES, default=UNIT_DAYS,
                             help_text="The unit for the offset for this event")
     relative_to = models.ForeignKey(ContactField, related_name='campaigns',
                                     help_text="The field our offset is relative to")
 
     flow = models.ForeignKey(Flow, help_text="The flow that will be triggered")
 
-    event_type = models.CharField(max_length=1, choices=EVENT_TYPES, default=FLOW_EVENT,
+    event_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW,
                                   help_text='The type of this event')
 
     # when sending single message events, we store the message here (as well as on the flow) for convenience
@@ -250,7 +257,7 @@ class CampaignEvent(SmartModel):
         flow = Flow.create_single_message(org, user, message)
 
         return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
-                                  event_type=MESSAGE_EVENT, message=message, flow=flow, delivery_hour=delivery_hour,
+                                  event_type=cls.TYPE_MESSAGE, message=message, flow=flow, delivery_hour=delivery_hour,
                                   created_by=user, modified_by=user)
 
     @classmethod
@@ -259,7 +266,7 @@ class CampaignEvent(SmartModel):
             raise ValueError("Org mismatch")
 
         return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
-                                  event_type=FLOW_EVENT, flow=flow, delivery_hour=delivery_hour,
+                                  event_type=cls.TYPE_FLOW, flow=flow, delivery_hour=delivery_hour,
                                   created_by=user, modified_by=user)
 
     @classmethod
@@ -279,7 +286,7 @@ class CampaignEvent(SmartModel):
         """
         Updates our flow name to include our Event id, keeps flow names from colliding. No-op for non-message events.
         """
-        if self.event_type != MESSAGE_EVENT:
+        if self.event_type != self.TYPE_MESSAGE:
             return
 
         self.flow.name = "Single Message (%d)" % self.pk
@@ -298,11 +305,11 @@ class CampaignEvent(SmartModel):
         # by default our offset is in minutes
         offset = self.offset
 
-        if self.unit == HOURS:
+        if self.unit == self.UNIT_HOURS:
             offset = self.offset * 60
-        elif self.unit == DAYS:
+        elif self.unit == self.UNIT_DAYS:
             offset = self.offset * 60 * 24
-        elif self.unit == WEEKS:
+        elif self.unit == self.UNIT_WEEKS:
             offset = self.offset * 60 * 24 * 7
 
         # if there is a specified hour, use that
@@ -319,19 +326,19 @@ class CampaignEvent(SmartModel):
         if date_value:
             date_value = date_value.replace(second=0, microsecond=0)
 
-        if not self.relative_to.is_active: # pragma: no cover
+        if not self.relative_to.is_active:  # pragma: no cover
             return None
 
         # try to parse it to a datetime
         try:
             if date_value:
-                if self.unit == MINUTES:
+                if self.unit == self.UNIT_MINUTES:
                     delta = timedelta(minutes=self.offset)
-                elif self.unit == HOURS:
+                elif self.unit == self.UNIT_HOURS:
                     delta = timedelta(hours=self.offset)
-                elif self.unit == DAYS:
+                elif self.unit == self.UNIT_DAYS:
                     delta = timedelta(days=self.offset)
-                elif self.unit == WEEKS:
+                elif self.unit == self.UNIT_WEEKS:
                     delta = timedelta(weeks=self.offset)
 
                 scheduled = date_value + delta

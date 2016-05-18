@@ -54,10 +54,8 @@ def export_flow_results_task(id):
 
 
 @task(track_started=True, name='start_flow_task')
-def start_flow_task(id):
-    logger = start_flow_task.get_logger()
-
-    flow_start = FlowStart.objects.get(pk=id)
+def start_flow_task(start_id):
+    flow_start = FlowStart.objects.get(pk=start_id)
     flow_start.start()
 
 
@@ -116,7 +114,6 @@ def calculate_flow_stats_task(flow_id):
     runs_started = flow.runs.filter(contact__is_test=False).count()
 
     if runs_started != runs_started_cached:
-        logger = calculate_flow_stats_task.get_logger()
         Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
 
 
