@@ -603,11 +603,8 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        customers = ContactGroup.get_or_create(self.org, self.admin, "Customers")
-        customers.update_contacts(self.admin, [self.frank], add=True)
-
-        developers = ContactGroup.get_or_create(self.org, self.admin, "Developers")
-        developers.update_query("isdeveloper = YES")
+        customers = self.create_group("Customers", [self.frank])
+        developers = self.create_group("Developers", query="isdeveloper = YES")
 
         # group belong to other org
         ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
