@@ -988,6 +988,15 @@ class ContactTest(TembaTest):
             self.assertTrue(contact in Contact.search(self.org, '%d' % contact.pk)[0])
             self.assertTrue(contact in Contact.search(self.org, '%010d' % contact.pk)[0])
 
+        # syntactically invalid queries should return no results
+        self.assertEqual(q('name > trey'), 0)  # unrecognized non-field operator
+        self.assertEqual(q('profession > trey'), 0)  # unrecognized text-field operator
+        self.assertEqual(q('age has 4'), 0)  # unrecognized decimal-field operator
+        self.assertEqual(q('age = x'), 0)  # unparseable decimal-field comparison
+        self.assertEqual(q('join_date has 30/1/2014'), 0)  # unrecognized date-field operator
+        self.assertEqual(q('join_date > xxxxx'), 0)  # unparseable date-field comparison
+        self.assertEqual(q('home > kigali'), 0)  # unrecognized location-field operator
+
     def test_omnibox(self):
         # add a group with members and an empty group
         joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])

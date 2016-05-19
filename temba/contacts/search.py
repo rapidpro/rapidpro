@@ -150,7 +150,7 @@ def generate_queryset(lexer, identifier, comparator, value):
             q = generate_datetime_field_comparison(field, comparator, value, lexer.org)
         elif field.value_type == Value.TYPE_STATE or field.value_type == Value.TYPE_DISTRICT:
             q = generate_location_field_comparison(field, comparator, value)
-        else:
+        else:  # pragma: no cover
             raise SearchException("Unrecognized contact field type '%s'" % field.value_type)
 
     return lexer.base_queryset.filter(q)
