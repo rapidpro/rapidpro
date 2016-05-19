@@ -435,7 +435,8 @@
               node:'ruleset', drop-scope:'actions rules', ng-dblclick:'$event.stopPropagation()',
               class:'rule-node', ng-attr-id:'[[ruleset.uuid]]',
               ng-class:"{recents:ruleset._showMessages}",
-              ng-style:"{left:ruleset.x, top:ruleset.y}"}
+              ng-style:"{left:ruleset.x, top:ruleset.y}",
+              ng-click:'clickRuleset(ruleset)'}
 
           .active{ng-show:'ruleset._active > 0', ng-click:'broadcastToStep(ruleset.uuid)'}
             [[ruleset._active|number]]
@@ -444,7 +445,7 @@
             -trans "Flow Start"
 
 
-          .rule-header{ng-click:'clickRuleset(ruleset)'}
+          .rule-header
             .title.wait-message{ng-show:'ruleset.ruleset_type=="wait_message"'}
               -trans "Wait for "
               [[ruleset.label]]
@@ -493,12 +494,20 @@
             .title.passive.expression{ng-show:'ruleset.ruleset_type=="expression"'}
               -trans "Split by Expression"
 
+            .title.passive.subflow-header{ng-show:'ruleset.ruleset_type=="subflow"'}
+              -trans "Run Flow"
+
             .remove-warning
               Remove Rules?
 
             .remove.icon-close{ ng-click: 'confirmRemoveRuleset($event, ruleset); $event.stopPropagation()' }
 
-          %table{style:'width:100%;', ruleset:"ruleset", ng-click:'clickRuleset(ruleset)'}
+          .div
+            .ruleset-body{ng-show:'ruleset.ruleset_type=="subflow"'}
+              -trans "Run flow "
+              [[ruleset.config.flow.name]]
+
+          %table{style:'width:100%;', ruleset:"ruleset"}
             %tr.rules
               %td.rule{valign:'bottom', ng-repeat:'category in ruleset._categories', ng-attr-id:'[[category.source]]',
                        ng-class:'{ missing: category._missingTranslation }'}
@@ -518,9 +527,6 @@
                 .visited{ng-show:'category._visited && category.target'}
                   .count{ng-mouseover:'showRecentMessages()', ng-mouseleave:'hideRecentMessages();'}
                     [[category._visited|number]]
-
-
-
 
         .note{ng-dblclick:'$event.stopPropagation();', ng-repeat:'note in flow.metadata.notes', note:'note'}
           %a.close{ng-click:'removeNote(note);'}

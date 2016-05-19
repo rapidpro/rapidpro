@@ -902,6 +902,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   formData.fieldIndex = Flow.getFieldSelection($scope.fieldIndexOptions, config.field_index, true)
   formData.fieldDelimiter = Flow.getFieldSelection($scope.fieldDelimiterOptions, config.field_delimiter, true)
+  formData.flow = ruleset.config.flow
 
   # default webhook action
   if not $scope.ruleset.webhook_action
@@ -1014,10 +1015,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       if not operator.voice
         return false
 
-    if operator.type == "true"
-      return false
-
-    return true
+    return operator.show
 
   $scope.isVisibleRulesetType = (rulesetConfig) ->
     valid = flow.flow_type in rulesetConfig.filter
@@ -1101,7 +1099,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
-      if not rule._config.operands == 0
+      if rule._config.type == 'subflow'
+        continue
+      else if not rule._config.operands == 0
         if not rule.category or not rule.category._base
           complete = false
           break
@@ -1229,9 +1229,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       flow = $scope.formData.flow
 
       $log.debug($scope.formData)
-
       $log.debug(ruleset)
-      $log.debug($scope.formData)
 
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
@@ -1266,6 +1264,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       if ruleset.ruleset_type != 'webhook'
         ruleset.webhook = null
         ruleset.webhook_action = null
+
+      console.log(ruleset)
 
       # update our rules accordingly
       $scope.updateRules(ruleset, rulesetConfig)
