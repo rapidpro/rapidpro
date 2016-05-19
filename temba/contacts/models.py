@@ -381,8 +381,9 @@ class Contact(TembaModel):
     UUID = 'uuid'
 
     # reserved contact fields
-    RESERVED_FIELDS = [NAME, FIRST_NAME, PHONE, LANGUAGE,
-                       'created_by', 'modified_by', 'org', UUID, 'groups'] + [c[0] for c in IMPORT_HEADERS]
+    RESERVED_FIELDS = [
+        NAME, FIRST_NAME, PHONE, LANGUAGE, 'created_by', 'modified_by', 'org', UUID, 'groups', 'is', 'has'
+    ] + [c[0] for c in IMPORT_HEADERS]
 
     @classmethod
     def get_contacts(cls, org, blocked=False):
