@@ -902,7 +902,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   formData.fieldIndex = Flow.getFieldSelection($scope.fieldIndexOptions, config.field_index, true)
   formData.fieldDelimiter = Flow.getFieldSelection($scope.fieldDelimiterOptions, config.field_delimiter, true)
-  formData.flow = ruleset.config.flow
+
+  if ruleset.config
+    formData.flow = ruleset.config.flow
 
   # default webhook action
   if not $scope.ruleset.webhook_action
