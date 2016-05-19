@@ -1144,20 +1144,7 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ('read', 'update', 'create', 'delete', 'list')
-
-    class List(OrgPermsMixin, SmartListView):
-        pass
-
-    class Read(OrgObjPermsMixin, SmartReadView):
-        fields = ('name', 'contacts')
-
-        def get_context_data(self, **kwargs):
-            context = super(ContactGroupCRUDL.Read, self).get_context_data(**kwargs)
-            group = self.object
-            broadcasts = Broadcast.objects.filter(groups=group.id).order_by('-created_on')
-            context['broadcasts'] = broadcasts
-            return context
+    actions = ('create', 'update', 'delete')
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
@@ -1167,26 +1154,22 @@ class ContactGroupCRUDL(SmartCRUDL):
         submit_button_name = _("Create")
 
         def save(self, obj):
-            obj.org = self.request.user.get_org()
-            self.object = ContactGroup.get_or_create(obj.org, self.request.user, obj.name)
+            org = self.request.user.get_org()
+            user = self.request.user
+            name = self.form.cleaned_data.get('name')
+            query = self.form.cleaned_data.get('group_query')
+            preselected_contacts = self.form.cleaned_data.get('preselected_contacts')
 
-        def post_save(self, obj, *args, **kwargs):
-            obj = super(ContactGroupCRUDL.Create, self).post_save(self.object, *args, **kwargs)
-            data = self.form.cleaned_data
-
-            # static group with initial contact ids
-            if data['preselected_contacts']:
-                preselected_ids = [int(c_id) for c_id in data['preselected_contacts'].split(',') if c_id.isdigit()]
-                preselected_contacts = Contact.objects.filter(pk__in=preselected_ids, org=obj.org, is_active=True)
+            if query:
+                self.object = ContactGroup.create_dynamic(org, user, name, query)
+            else:
+                self.object = ContactGroup.create_static(org, user, name)
 
                 if preselected_contacts:
-                    obj.update_contacts(self.request.user, preselected_contacts, True)
+                    preselected_ids = [int(c_id) for c_id in preselected_contacts.split(',') if c_id.isdigit()]
+                    contacts = Contact.objects.filter(org=org, pk__in=preselected_ids, is_active=True)
 
-            # dynamic group with a query
-            elif data['group_query']:
-                obj.update_query(data['group_query'])
-
-            return obj
+                    self.object.update_contacts(user, contacts, add=True)
 
         def get_form_kwargs(self):
             kwargs = super(ContactGroupCRUDL.Create, self).get_form_kwargs()

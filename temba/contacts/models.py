@@ -1694,25 +1694,25 @@ class ContactGroup(TembaModel):
         if existing:
             return existing
 
-        return cls.create(org, user, name)
+        return cls.create_static(org, user, name)
 
     @classmethod
     def create_static(cls, org, user, name, task=None):
-        return cls._create(org, user, name, task)
+        """
+        Creates a static group whose members will be manually added and removed
+        """
+        return cls._create(org, user, name, task=task)
 
     @classmethod
     def create_dynamic(cls, org, user, name, query):
-        group = cls._create(org, user, name)
+        """
+        Creates a dynamic group with the given query, e.g. gender=M
+        """
+        if not query:
+            raise ValueError("Query cannot be empty for a dynamic group")
 
-        # determine which contact fields this dynamic group filters on
-        for match in regex.finditer(r'\w+', query, regex.V0):
-            field = ContactField.objects.filter(org=org, key=match.group(), is_active=True).first()
-            if field:
-                group.query_fields.add(field)
-
-        # determine group membership
-        members = group._get_dynamic_members()
-        group.contacts.add(*list(members))
+        group = cls._create(org, user, name, query=query)
+        group.update_query(query)
         return group
 
     @classmethod
@@ -1771,7 +1771,7 @@ class ContactGroup(TembaModel):
         group_contacts = self.contacts.all()
 
         for contact in contacts:
-            if add and (contact.is_blocked or not contact.is_active):
+            if add and (contact.is_blocked or not contact.is_active):  # pragma: no cover
                 raise ValueError("Blocked or deleted contacts can't be added to groups")
 
             contact_changed = False
@@ -1801,11 +1801,54 @@ class ContactGroup(TembaModel):
 
         return changed
 
-    def _get_dynamic_members(self):
+    def update_query(self, query):
+        """
+        Updates the query for a dynamic group
+        """
+        if not self.is_dynamic:
+            raise ValueError("Can only update query for a dynamic group")
+
+        self.query = query
+        self.save(update_fields=('query',))
+
+        self.query_fields.clear()
+
+        for match in regex.finditer(r'\w+', self.query, regex.V0):
+            field = ContactField.objects.filter(key=match.group(), org=self.org, is_active=True).first()
+            if field:
+                self.query_fields.add(field)
+
+        members = list(self._evaluate_dynamic_members())
+        self.contacts.clear()
+        self.contacts.add(*members)
+
+    @classmethod
+    def reevaluate_dynamic_groups(cls, contact, field=None):
+        """
+        Re-evaluates the given contact's membership of dynamic groups. If field is specified then re-evaluation is only
+        performed for those groups which reference that field. Returns whether any group membership changes.
+        """
+        user = get_anonymous_user()
+        affected_dynamic_groups = cls.get_user_groups(contact.org, dynamic=True)
+
+        if field:
+            affected_dynamic_groups = affected_dynamic_groups.filter(query_fields=field)
+
+        group_change = False
+        for group in affected_dynamic_groups:
+            qualifies = group._check_dynamic_membership(contact)
+            changed = group._update_contacts(user, [contact], qualifies)
+
+            if changed:
+                group_change = True
+
+        return group_change
+
+    def _evaluate_dynamic_members(self):
         """
         For dynamic groups, this returns the set of contacts who belong in this group
         """
-        if not self.is_dynamic:
+        if not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can only be called on dynamic groups")
 
         members, is_complex = Contact.search(self.org, self.query)
@@ -1815,30 +1858,7 @@ class ContactGroup(TembaModel):
         """
         For dynamic groups, determines whether the given contact belongs in the group
         """
-        return self._get_dynamic_members().filter(pk=contact.id).count() == 1
-
-    @classmethod
-    def reevaluate_dynamic_groups(cls, contact, field=None):
-        """
-        Re-evaluates the given contact's membership of dynamic groups. If field is specified then re-evaluation is only
-        performed for those groups which reference that field. Returns whether any group membership changes.
-        """
-        qs_args = dict(org=contact.org, is_active=True)
-        if field:
-            qs_args['query_fields__pk'] = field.id
-
-        group_change = False
-        user = get_anonymous_user()
-        affected_dynamic_groups = cls.user_groups.filter(**qs_args).exclude(query=None)
-
-        for group in affected_dynamic_groups:
-            qualifies = group._check_dynamic_membership(contact)
-            changed = group._update_contacts(user, [contact], qualifies)
-
-            if changed:
-                group_change = True
-
-        return group_change
+        return self._evaluate_dynamic_members().filter(pk=contact.pk).count() == 1
 
     @classmethod
     def get_system_group_queryset(cls, org, group_type):

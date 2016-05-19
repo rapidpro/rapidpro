@@ -139,115 +139,6 @@ class ContactCRUDLTest(_CRUDLTest):
         self.assertEqual(0, ContactURN.objects.filter(contact=object).count())  # check no attached URNs
 
 
-class ContactGroupCRUDLTest(_CRUDLTest):
-    def setUp(self):
-        from temba.contacts.views import ContactGroupCRUDL
-
-        super(ContactGroupCRUDLTest, self).setUp()
-        self.crudl = ContactGroupCRUDL
-        self.user = self.create_user("tito")
-        self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.user, modified_by=self.user)
-        self.org.administrators.add(self.user)
-        self.org.initialize()
-
-        self.user.set_org(self.org)
-        self.channel = Channel.create(self.org, self.user, 'RW', 'A', "Test Channel", "0785551212",
-                                      secret="12345", gcm_id="123")
-
-        self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=["tel:123"])
-        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=["tel:1234"])
-
-    def getCreatePostData(self):
-        return dict(name="My Group")
-
-    def getUpdatePostData(self):
-        return dict(name="My Updated Group", contacts="%s" % self.frank.pk, join_keyword="updated", join_response="Thanks for joining the group")
-
-    def getManager(self):
-        return ContactGroup.user_groups
-
-    def testDelete(self):
-        obj = self.getTestObject()
-        self._do_test_view('delete', obj, post_data=dict())
-        self.assertIsNone(self.getCRUDL().model.user_groups.filter(pk=obj.pk).first())
-        self.assertFalse(self.getCRUDL().model.all_groups.get(pk=obj.pk).is_active)
-
-    def test_create(self):
-        create_url = reverse('contacts.contactgroup_create')
-        self.login(self.user)
-
-        # clear our current groups
-        ContactGroup.user_groups.filter(org=self.org).delete()
-
-        # try to create a contact group whose name is only whitespace
-        response = self.client.post(create_url, dict(name="  "))
-        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
-
-        # try to create a contact group whose name begins with reserved character
-        response = self.client.post(create_url, dict(name="+People"))
-        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
-
-        response = self.client.post(create_url, dict(name="first  "))
-        self.assertNoFormErrors(response)
-        group = ContactGroup.user_groups.get(org=self.org, name="first")
-
-        # create a group with preselected contacts
-        self.client.post(create_url, dict(name="Joe and Frank", preselected_contacts=','.join([unicode(self.joe.pk),
-                                                                                               unicode(self.frank.pk)])))
-        group = ContactGroup.user_groups.get(org=self.org, name="Joe and Frank")
-        self.assertEquals(group.get_member_count(), 2)
-
-        # now one with a query
-        self.client.post(create_url, dict(name="Frank", group_query='frank'))
-        group = ContactGroup.user_groups.get(org=self.org, name="Frank")
-        self.assertEquals(group.get_member_count(), 1)
-
-        # try to create another with the same name, fails
-        response = self.client.post(create_url, dict(name="First"))
-        self.assertFormError(response, 'form', 'name', "Name is used by another group")
-        self.assertEquals(3, ContactGroup.user_groups.filter(org=self.org).count())
-
-        # direct calls are the same thing
-        existing_group = ContactGroup.get_or_create(self.org, self.user, "  FIRST")
-        self.assertEquals('first', existing_group.name)
-
-        # try existing group by Id should not modify the existing group
-        group_1 = ContactGroup.get_or_create(self.org, self.user, "Kigali", existing_group.pk)
-        self.assertEqual(group_1.pk, existing_group.pk)
-        self.assertEqual(group_1.name, existing_group.name)
-        self.assertNotEqual(group_1.name, 'Kigali')
-        self.assertEqual(group_1.name, 'first')
-
-    def test_update(self):
-        group = ContactGroup.create_static(self.org, self.user, "one")
-
-        update_url = reverse('contacts.contactgroup_update', args=[group.pk])
-        self.login(self.user)
-
-        # try to update name to only whitespace
-        response = self.client.post(update_url, dict(name="   "))
-        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
-
-        # try to update name to start with reserved character
-        response = self.client.post(update_url, dict(name="+People"))
-        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
-
-        response = self.client.post(update_url, dict(name="new name   "))
-        self.assertNoFormErrors(response)
-        ContactGroup.user_groups.get(org=self.org, name="new name")
-
-        # create a dynamic group based on frank
-        self.client.post(reverse('contacts.contactgroup_create'), dict(name="Frank", group_query='frank'))
-        group = ContactGroup.user_groups.get(org=self.org, name='Frank')
-        self.assertEquals(1, group.get_member_count())
-
-        # now update that group to joe
-        self.client.post(reverse('contacts.contactgroup_update', args=[group.pk]), dict(name='Frank', query='joe'))
-        group = ContactGroup.user_groups.filter(org=self.org, name='Frank').first()
-        self.assertEquals(1, group.get_member_count())
-        self.assertIsNotNone(group.contacts.filter(name='Joe Blow').first())
-
-
 class ContactGroupTest(TembaTest):
     def setUp(self):
         super(ContactGroupTest, self).setUp()
@@ -256,35 +147,78 @@ class ContactGroupTest(TembaTest):
         self.frank = Contact.get_or_create(self.org, self.admin, name="Frank Smith", urns=["tel:1234"])
         self.mary = Contact.get_or_create(self.org, self.admin, name="Mary Mo", urns=["tel:345"])
 
-    def test_create(self):
+    def test_create_static(self):
+        group = ContactGroup.create_static(self.org, self.admin, " group one ")
+
+        self.assertEqual(group.org, self.org)
+        self.assertEqual(group.name, "group one")
+        self.assertEqual(group.created_by, self.admin)
+
+        # can't call update_query on a static group
+        self.assertRaises(ValueError, group.update_query, "gender=M")
+
         # exception if group name is blank
         self.assertRaises(ValueError, ContactGroup.create_static, self.org, self.admin, "   ")
 
-        # create static group
-        group1 = ContactGroup.create_static(self.org, self.admin, " group one ")
-
-        self.assertEqual(group1.org, self.org)
-        self.assertEqual(group1.name, "group one")
-        self.assertEqual(group1.created_by, self.admin)
-
-        # create dynamic group
-        age = ContactField.get_or_create(self.org, self.admin, 'age')
+    def test_create_dynamic(self):
+        age = ContactField.get_or_create(self.org, self.admin, 'age', value_type=Value.TYPE_DECIMAL)
         gender = ContactField.get_or_create(self.org, self.admin, 'gender')
-        group2 = ContactGroup.create_dynamic(self.org, self.admin, "Group two",
-                                             query='(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+        self.joe.set_field(self.admin, 'age', 17)
+        self.joe.set_field(self.admin, 'gender', "male")
+        self.mary.set_field(self.admin, 'age', 21)
+        self.mary.set_field(self.admin, 'gender', "female")
 
-        self.assertEqual(group2.query, '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
-        self.assertEqual(set(group2.query_fields.all()), {age, gender})
+        group = ContactGroup.create_dynamic(self.org, self.admin, "Group two",
+                                            '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
 
-        self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {group1, group2})
-        self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=False)), {group1})
-        self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=True)), {group2})
+        self.assertEqual(group.query, '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+        self.assertEqual(set(group.query_fields.all()), {age, gender})
+        self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
+
+        # update group query
+        group.update_query('age > 18')
+
+        group.refresh_from_db()
+        self.assertEqual(group.query, 'age > 18')
+        self.assertEqual(set(group.query_fields.all()), {age})
+        self.assertEqual(set(group.contacts.all()), {self.mary})
+
+        # can't create a dynamic group with empty query
+        self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
+
+        # can't call update_contacts on a dynamic group
+        self.assertRaises(ValueError, group.update_contacts, self.admin, [self.joe], True)
 
         # dynamic group should not have remove to group button
         self.login(self.admin)
-        filter_url = reverse('contacts.contact_filter', args=[group2.pk])
+        filter_url = reverse('contacts.contact_filter', args=[group.pk])
         response = self.client.get(filter_url)
         self.assertFalse('unlabel' in response.context['actions'])
+
+    def test_get_or_create(self):
+        group = ContactGroup.get_or_create(self.org, self.user, " first ")
+        self.assertEqual(group.name, "first")
+        self.assertFalse(group.is_dynamic)
+
+        # name look up is case insensitive
+        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "  FIRST"), group)
+
+        # fetching by id shouldn't modify original group
+        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", group.pk), group)
+
+        group.refresh_from_db()
+        self.assertEqual(group.name, "first")
+
+    def test_get_user_groups(self):
+        static = ContactGroup.create_static(self.org, self.admin, "Static")
+        dynamic = ContactGroup.create_dynamic(self.org, self.admin, "Dynamic", "gender=M")
+        deleted = ContactGroup.create_static(self.org, self.admin, "Deleted")
+        deleted.is_active = False
+        deleted.save()
+
+        self.assertEqual(set(ContactGroup.get_user_groups(self.org)), {static, dynamic})
+        self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=False)), {static})
+        self.assertEqual(set(ContactGroup.get_user_groups(self.org, dynamic=True)), {dynamic})
 
     def test_is_valid_name(self):
         self.assertTrue(ContactGroup.is_valid_name('x'))
@@ -434,6 +368,108 @@ class ContactGroupTest(TembaTest):
         self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=trigger.pk).is_active)
         self.assertFalse(Trigger.objects.get(pk=second_trigger.pk).is_active)
+
+
+class ContactGroupCRUDLTest(TembaTest):
+    def setUp(self):
+        super(ContactGroupCRUDLTest, self).setUp()
+
+        self.joe = Contact.get_or_create(self.org, self.user, name="Joe Blow", urns=["tel:123"])
+        self.frank = Contact.get_or_create(self.org, self.user, name="Frank Smith", urns=["tel:1234"])
+
+        self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
+        self.dynamic_group = self.create_group("Dynamic", query="joe")
+
+    def test_create(self):
+        url = reverse('contacts.contactgroup_create')
+
+        # can't create group as viewer
+        self.login(self.user)
+        response = self.client.post(url, dict(name="Spammers"))
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        # try to create a contact group whose name is only whitespace
+        response = self.client.post(url, dict(name="  "))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # try to create a contact group whose name begins with reserved character
+        response = self.client.post(url, dict(name="+People"))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # try to create with name that's already taken
+        response = self.client.post(url, dict(name="Customers"))
+        self.assertFormError(response, 'form', 'name', "Name is used by another group")
+
+        # create with valid name (that will be trimmed)
+        response = self.client.post(url, dict(name="first  "))
+        self.assertNoFormErrors(response)
+        ContactGroup.user_groups.get(org=self.org, name="first")
+
+        # create a group with preselected contacts
+        self.client.post(url, dict(name="Everybody", preselected_contacts='%d,%d' % (self.joe.pk, self.frank.pk)))
+        group = ContactGroup.user_groups.get(org=self.org, name="Everybody")
+        self.assertEqual(set(group.contacts.all()), {self.joe, self.frank})
+
+        # create a dynamic group using a query
+        self.client.post(url, dict(name="Frank", group_query="frank"))
+        group = ContactGroup.user_groups.get(org=self.org, name="Frank", query="frank")
+        self.assertEqual(set(group.contacts.all()), {self.frank})
+
+    def test_update(self):
+        url = reverse('contacts.contactgroup_update', args=[self.joe_and_frank.pk])
+
+        # can't create group as viewer
+        self.login(self.user)
+        response = self.client.post(url, dict(name="Spammers"))
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        # try to update name to only whitespace
+        response = self.client.post(url, dict(name="   "))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # try to update name to start with reserved character
+        response = self.client.post(url, dict(name="+People"))
+        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+
+        # update with valid name (that will be trimmed)
+        response = self.client.post(url, dict(name="new name   "))
+        self.assertNoFormErrors(response)
+
+        self.joe_and_frank.refresh_from_db()
+        self.assertEqual(self.joe_and_frank.name, "new name")
+
+        # now try a dynamic group
+        url = reverse('contacts.contactgroup_update', args=[self.dynamic_group.pk])
+
+        # update both name and query
+        self.client.post(url, dict(name='Frank', query='frank'))
+        self.assertNoFormErrors(response)
+
+        self.dynamic_group.refresh_from_db()
+        self.assertEqual(self.dynamic_group.name, "Frank")
+        self.assertEqual(self.dynamic_group.query, "frank")
+        self.assertEqual(set(self.dynamic_group.contacts.all()), {self.frank})
+
+    def test_delete(self):
+        url = reverse('contacts.contactgroup_delete', args=[self.joe_and_frank.pk])
+
+        # can't delete group as viewer
+        self.login(self.user)
+        response = self.client.post(url)
+        self.assertLoginRedirect(response)
+
+        # can as admin user
+        self.login(self.admin)
+        response = self.client.post(url)
+        self.assertRedirect(response, reverse('contacts.contact_list'))
+
+        self.joe_and_frank.refresh_from_db()
+        self.assertFalse(self.joe_and_frank.is_active)
+        self.assertFalse(self.joe_and_frank.contacts.all())
 
 
 class ContactTest(TembaTest):

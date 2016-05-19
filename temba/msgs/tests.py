@@ -10,8 +10,8 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
-from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
+from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
+from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
