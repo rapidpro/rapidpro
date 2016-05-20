@@ -9,10 +9,9 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
-from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
-from temba.channels.models import ChannelLog
-from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
+from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
@@ -1266,7 +1265,7 @@ class BroadcastCRUDLTest(TembaTest):
         # but editors can
         self.login(self.editor)
 
-        just_joe = ContactGroup.create(self.org, self.user, "Just Joe")
+        just_joe = self.create_group("Just Joe")
         just_joe.contacts.add(self.joe)
         post_data = dict(omnibox="g-%d,c-%d,n-0780000001" % (just_joe.pk, self.frank.pk),
                          text="Hey Joe, where you goin' with that gun in your hand?")

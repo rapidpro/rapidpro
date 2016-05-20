@@ -94,7 +94,7 @@ class Campaign(SmartModel):
 
                 # all else fails, create the objects from scratch
                 if not group:
-                    group = ContactGroup.create(org, user, campaign_spec['group']['name'])
+                    group = ContactGroup.create_static(org, user, campaign_spec['group']['name'])
 
                 if not campaign:
                     campaign_name = Campaign.get_unique_name(org, name)

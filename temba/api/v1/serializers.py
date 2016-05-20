@@ -551,7 +551,7 @@ class ContactWriteSerializer(WriteSerializer):
 
         # update our contact's groups
         if self.group_objs is not None:
-            self.instance.update_groups(self.user, self.group_objs)
+            self.instance.update_static_groups(self.user, self.group_objs)
 
         return self.instance
 
