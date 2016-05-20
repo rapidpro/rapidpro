@@ -2218,6 +2218,7 @@ class TestStripeCredits(TembaTest):
         self.assertTrue('Visa' in email.body)
         self.assertTrue('$20' in email.body)
 
+
 class ParsingTest(TembaTest):
 
     def test_parse_decimal(self):
@@ -2229,7 +2230,3 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_decimal(""), None)
         self.assertEqual(self.org.parse_decimal("NaN"), None)
         self.assertEqual(self.org.parse_decimal("Infinity"), None)
-
-
-
-
