@@ -605,7 +605,7 @@ class ContactTest(TembaTest):
         msg3 = self.create_msg(text="Test 3", direction='I', contact=self.joe, msg_type='I', status='H', visibility='A')
         label = Label.get_or_create(self.org, self.user, "Interesting")
         label.toggle_label([msg1, msg2, msg3], add=True)
-        group = self.create_group("Just Joe", [self.joe])
+        static_group = self.create_group("Just Joe", [self.joe])
 
         # create a dynamic group and put joe in it
         ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
@@ -626,7 +626,7 @@ class ContactTest(TembaTest):
                                           ContactGroup.TYPE_FAILED: 0})
 
         self.assertEqual(set(label.msgs.all()), {msg1, msg2, msg3})
-        self.assertEqual(set(group.contacts.all()), {self.joe})
+        self.assertEqual(set(static_group.contacts.all()), {self.joe})
         self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
 
         self.joe.fail()
@@ -642,7 +642,7 @@ class ContactTest(TembaTest):
         self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
                                           ContactGroup.TYPE_BLOCKED: 0,
                                           ContactGroup.TYPE_FAILED: 1})
-        self.assertEqual(set(group.contacts.all()), {self.joe})
+        self.assertEqual(set(static_group.contacts.all()), {self.joe})
         self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
 
         self.joe.block(self.user)
@@ -659,9 +659,9 @@ class ContactTest(TembaTest):
                                           ContactGroup.TYPE_BLOCKED: 1,
                                           ContactGroup.TYPE_FAILED: 0})
 
-        # and removed from the non-dynamic user group
-        self.assertEqual(set(group.contacts.all()), set())
-        self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
+        # and removed from all groups
+        self.assertEqual(set(static_group.contacts.all()), set())
+        self.assertEqual(set(dynamic_group.contacts.all()), set())
 
         # but his messages are unchanged
         self.assertEqual(2, Msg.all_messages.filter(contact=self.joe, visibility='V').count())
@@ -683,6 +683,10 @@ class ContactTest(TembaTest):
         self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
                                           ContactGroup.TYPE_BLOCKED: 0,
                                           ContactGroup.TYPE_FAILED: 1})
+
+        # he should be back in the dynamic group
+        self.assertEqual(set(static_group.contacts.all()), set())
+        self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
 
         self.joe.unfail()
 
@@ -722,7 +726,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, msg_counts[SystemLabel.TYPE_ARCHIVED])
 
         # and he shouldn't be in any groups
-        self.assertEqual(set(group.contacts.all()), set())
+        self.assertEqual(set(static_group.contacts.all()), set())
         self.assertEqual(set(dynamic_group.contacts.all()), set())
 
         # or have any URNs
@@ -752,27 +756,59 @@ class ContactTest(TembaTest):
         self.assertRaises(ValueError, test_contact.block, self.user)
         self.assertRaises(ValueError, test_contact.fail)
 
-    def test_update_groups(self):
+    def test_user_groups(self):
+        # create some static groups
         spammers = self.create_group("Spammers", [])
         testers = self.create_group("Testers", [])
 
-        self.joe.update_groups(self.user, [spammers, testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers})
+        # create a dynamic group and put joe in it
+        ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
+        dynamic = self.create_group("Dynamic", query="gender is M")
+        self.joe.set_field(self.admin, 'gender', "M")
+        self.assertEqual(set(dynamic.contacts.all()), {self.joe})
 
-        self.joe.update_groups(self.user, [testers])
-        self.assertEqual(set(self.joe.user_groups.all()), {testers})
+        self.joe.update_static_groups(self.user, [spammers, testers])
+        self.assertEqual(set(self.joe.user_groups.all()), {spammers, testers, dynamic})
 
-        self.joe.update_groups(self.user, [])
+        self.joe.update_static_groups(self.user, [])
+        self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
+
+        self.joe.update_static_groups(self.user, [testers])
+        self.assertEqual(set(self.joe.user_groups.all()), {testers, dynamic})
+
+        # blocking removes contact from all groups
+        self.joe.block(self.user)
         self.assertEqual(set(self.joe.user_groups.all()), set())
 
         # can't add blocked contacts to a group
-        self.joe.block(self.user)
-        self.assertRaises(ValueError, self.joe.update_groups, self.user, [spammers])
+        self.assertRaises(ValueError, self.joe.update_static_groups, self.user, [spammers])
+
+        # unblocking potentially puts contact back in dynamic groups
+        self.joe.unblock(self.user)
+        self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
+
+        self.joe.update_static_groups(self.user, [testers])
+
+        # failing doesn't affect groups
+        self.joe.fail()
+        self.assertEqual(set(self.joe.user_groups.all()), {testers, dynamic})
+
+        # unless it's permanent
+        self.joe.fail(permanently=True)
+        self.assertEqual(set(self.joe.user_groups.all()), set())
+
+        # and unfailing potentially puts contact back in dynamic groups
+        self.joe.unfail()
+        self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
+
+        self.joe.update_static_groups(self.user, [testers])
+
+        # releasing removes contacts from all groups
+        self.joe.release(self.user)
+        self.assertEqual(set(self.joe.user_groups.all()), set())
 
         # can't add deleted contacts to a group
-        self.joe.unblock(self.user)
-        self.joe.release(self.user)
-        self.assertRaises(ValueError, self.joe.update_groups, self.user, [spammers])
+        self.assertRaises(ValueError, self.joe.update_static_groups, self.user, [spammers])
 
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
@@ -2892,7 +2928,7 @@ class ContactTest(TembaTest):
         self.assertTrue(bob.modified_on > old_modified_on)
 
         old_modified_on = bob.modified_on
-        bob.update_groups(self.user, [group])
+        bob.update_static_groups(self.user, [group])
 
         bob.refresh_from_db()
         self.assertTrue(bob.modified_on > old_modified_on)

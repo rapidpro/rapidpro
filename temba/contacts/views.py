@@ -1037,7 +1037,7 @@ class ContactCRUDL(SmartCRUDL):
 
             new_groups = self.form.cleaned_data.get('groups')
             if new_groups is not None:
-                obj.update_groups(self.request.user, new_groups)
+                obj.update_static_groups(self.request.user, new_groups)
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Update, self).get_context_data(**kwargs)
