@@ -2675,7 +2675,7 @@ class APITest(TembaTest):
         with AnonymousOrg(self.org):
             # URNs shouldn't be included
             response = self.fetchJSON(url, 'id=%d' % broadcast4.pk)
-            self.assertEqual(response.json['results'][0]['urns'], [])
+            self.assertEqual(response.json['results'][0]['urns'], None)
 
     def test_api_campaigns(self):
         url = reverse('api.v1.campaigns')

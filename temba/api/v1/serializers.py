@@ -1468,7 +1468,7 @@ class BroadcastReadSerializer(ReadSerializer):
 
     def get_urns(self, obj):
         if obj.org.is_anon:
-            return []
+            return None
         else:
             return [urn.urn for urn in obj.urns.all()]
 
