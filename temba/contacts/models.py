@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import datetime
 import json
+import logging
 import os
 import phonenumbers
 import regex
@@ -30,6 +31,8 @@ from temba.values.models import Value
 from temba.locations.models import STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from uuid import uuid4
 
+
+logger = logging.getLogger(__name__)
 
 # phone number for every org's test contact
 OLD_TEST_CONTACT_TEL = '12065551212'
@@ -1043,7 +1046,7 @@ class Contact(TembaModel):
             try:
                 import_params = json.loads(task.import_params)
             except Exception:
-                pass
+                logger.error("Failed to parse JSON for contact import #d" % task.pk, exc_info=True)
 
         # this file isn't good enough, lets write it to local disk
         from django.conf import settings
