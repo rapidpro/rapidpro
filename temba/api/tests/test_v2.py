@@ -19,7 +19,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
-from temba.tests import TembaTest
+from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from ..models import APIToken
 from ..v2.serializers import format_datetime
@@ -324,6 +324,11 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'before=%s' % format_datetime(bcast2.created_on))
         self.assertResultsById(response, [bcast2, bcast1])
 
+        with AnonymousOrg(self.org):
+            # URNs shouldn't be included
+            response = self.fetchJSON(url, 'id=%d' % bcast1.pk)
+            self.assertEqual(response.json['results'][0]['urns'], None)
+
     def test_campaigns(self):
         url = reverse('api.v2.campaigns')
 
@@ -603,11 +608,8 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        customers = ContactGroup.get_or_create(self.org, self.admin, "Customers")
-        customers.update_contacts(self.admin, [self.frank], add=True)
-
-        developers = ContactGroup.get_or_create(self.org, self.admin, "Developers")
-        developers.update_query("isdeveloper = YES")
+        customers = self.create_group("Customers", [self.frank])
+        developers = self.create_group("Developers", query="isdeveloper = YES")
 
         # group belong to other org
         ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")

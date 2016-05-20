@@ -4241,7 +4241,7 @@ class AddToGroupAction(Action):
                     if group:
                         groups.append(group)
                     else:
-                        groups.append(ContactGroup.create(org, org.get_user(), g))
+                        groups.append(ContactGroup.create_static(org, org.get_user(), g))
         return groups
 
     def as_json(self):
@@ -4276,7 +4276,7 @@ class AddToGroupAction(Action):
                         if not group:
 
                             try:
-                                group = ContactGroup.create(contact.org, user, name=value)
+                                group = ContactGroup.create_static(contact.org, user, name=value)
                                 if run.contact.is_test:
                                     ActionLog.info(run, _("Group '%s' created") % value)
                             except ValueError:
@@ -5511,7 +5511,7 @@ class HasWardTest(Test):
         state_name, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
         if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
             state = org.parse_location(state_name, STATE_LEVEL)
-            district = org.parse_location(district_name, DISTRICT_LEVEL, state.first())
+            district = org.parse_location(district_name, DISTRICT_LEVEL, state[0])
             if district:
                 ward = org.parse_location(text, WARD_LEVEL, district[0])
                 if ward:
