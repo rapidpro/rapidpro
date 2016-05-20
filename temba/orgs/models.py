@@ -730,10 +730,16 @@ class Org(SmartModel):
         return str_to_datetime(date_string, self.get_tzinfo(), self.get_dayfirst())
 
     def parse_decimal(self, decimal_string):
+        parsed = None
+
         try:
-            return Decimal(decimal_string)
+            parsed = Decimal(decimal_string)
+            if not parsed.is_finite() or parsed > Decimal('999999999999999999999999'):
+                parsed = None
         except Exception:
-            return None
+            pass
+
+        return parsed
 
     def generate_location_query(self, name, level, is_alias=False):
         if is_alias:

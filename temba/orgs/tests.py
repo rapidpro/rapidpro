@@ -5,6 +5,7 @@ import json
 from context_processors import GroupPermWrapper
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
+from decimal import Decimal
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
@@ -2216,3 +2217,16 @@ class TestStripeCredits(TembaTest):
         self.assertTrue('Rudolph' in email.body)
         self.assertTrue('Visa' in email.body)
         self.assertTrue('$20' in email.body)
+
+
+class ParsingTest(TembaTest):
+
+    def test_parse_decimal(self):
+        self.assertEqual(self.org.parse_decimal("Not num"), None)
+        self.assertEqual(self.org.parse_decimal("00.123"), Decimal("0.123"))
+        self.assertEqual(self.org.parse_decimal("6e33"), None)
+        self.assertEqual(self.org.parse_decimal("6e5"), Decimal("600000"))
+        self.assertEqual(self.org.parse_decimal("9999999999999999999999999"), None)
+        self.assertEqual(self.org.parse_decimal(""), None)
+        self.assertEqual(self.org.parse_decimal("NaN"), None)
+        self.assertEqual(self.org.parse_decimal("Infinity"), None)
