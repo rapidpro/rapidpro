@@ -19,7 +19,7 @@ from mock import patch
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
-from temba.locations.models import AdminBoundary
+from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
 from temba.msgs.models import OUTGOING
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
@@ -1461,6 +1461,12 @@ class FlowTest(TembaTest):
         js = dict(state='Kano', district='Ajingi', type='ward')
         self.assertEquals(HasWardTest('Kano', 'Ajingi').as_json(), js)
         self.assertEquals(ward_tuple[1], None)
+
+        # get with hierarchy by aliases
+        BoundaryAlias.objects.create(name='Pillars', boundary=kano, org=self.org,
+                                     created_by=self.admin, modified_by=self.admin)
+        ward_tuple = HasWardTest('Pillars', 'Bichi').evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], bichiward)
 
         self.assertEquals(HasWardTest, Test.from_json(self.org, js).__class__)
 

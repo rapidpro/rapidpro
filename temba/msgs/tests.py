@@ -9,8 +9,8 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
-from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
@@ -564,6 +564,9 @@ class MsgTest(TembaTest):
         msg1.status = 'F'
         msg1.save()
 
+        # create a log for it
+        log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
+
         # check that our contact updates accordingly
         check_messages_task()
         self.assertTrue(Contact.objects.get(pk=msg1.contact.pk).is_failed)
@@ -592,6 +595,13 @@ class MsgTest(TembaTest):
 
         self.assertEquals(response.context['object_list'].count(), 3)
         self.assertEquals(response.context['actions'], ['resend'])
+
+        self.assertContains(response, reverse('channels.channellog_read', args=[log.id]))
+
+        # make the org anonymous
+        with AnonymousOrg(self.org):
+            response = self.fetch_protected(failed_url, self.admin)
+            self.assertNotContains(response, reverse('channels.channellog_read', args=[log.id]))
 
         # let's resend some messages
         self.client.post(failed_url, dict(action='resend', objects=msg2.pk), follow=True)
