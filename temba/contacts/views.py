@@ -562,8 +562,8 @@ class ContactCRUDL(SmartCRUDL):
             # configure import params with current org and timezone
             org = self.derive_org()
             params = dict(org_id=org.id, timezone=org.timezone, extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
-            task.import_params = json.dumps(params)
-            task.save()
+            params_dump = json.dumps(params)
+            ImportTask.objects.filter(pk=task.pk).update(import_params=params_dump)
             return task
 
         def get_form_kwargs(self):
