@@ -104,7 +104,7 @@ app.directive "choropleth", ["$http", "$log", ($http, $log) ->
 
     clickFeature = (e) ->
       if e.target.feature
-        if e.target.feature.properties.level == 1
+        if e.target.feature.zoomable
           # reset the highlight style
           scope.features.resetStyle(e.target)
 
