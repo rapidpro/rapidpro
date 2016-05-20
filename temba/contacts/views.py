@@ -408,6 +408,18 @@ class ContactCRUDL(SmartCRUDL):
         model = ImportTask
         form_class = CustomizeForm
 
+        def pre_process(self, request, *args, **kwargs):
+            pre_process = super(ContactCRUDL.Customize, self).pre_process(request, *args, **kwargs)
+            if pre_process is not None:
+                return pre_process
+
+            self.headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
+
+            if not self.headers:
+                task = self.get_object()
+                self.post_save(task)
+                return HttpResponseRedirect(reverse("contacts.contact_import") + "?task=%d" % task.pk)
+
         def create_column_controls(self, column_headers):
             """
             Adds fields to the form for extra columns found in the spreadsheet. Returns a list of dictionaries
@@ -471,7 +483,6 @@ class ContactCRUDL(SmartCRUDL):
             form = super(ContactCRUDL.Customize, self).get_form(form_class)
             form.fields.clear()
 
-            self.headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
             self.column_controls = self.create_column_controls(self.headers)
 
             return form
@@ -550,10 +561,6 @@ class ContactCRUDL(SmartCRUDL):
             params = dict(org_id=org.id, timezone=org.timezone, extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
             task.import_params = json.dumps(params)
             task.save()
-
-            headers = Contact.get_org_import_file_headers(task.csv_file.file, org)
-            if not headers and not task.done():
-                task.start()
             return task
 
         def get_form_kwargs(self):
@@ -601,10 +608,7 @@ class ContactCRUDL(SmartCRUDL):
             return None
 
         def get_success_url(self):
-            if Contact.get_org_import_file_headers(self.object.csv_file, self.derive_org()):
-                return reverse("contacts.contact_customize", args=[self.object.pk])
-
-            return reverse("contacts.contact_import") + "?task=%d" % self.object.pk
+            return reverse("contacts.contact_customize", args=[self.object.pk])
 
     class Omnibox(OrgPermsMixin, SmartListView):
 
