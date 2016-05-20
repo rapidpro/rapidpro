@@ -1749,6 +1749,12 @@ class SystemLabelTest(TembaTest):
         Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
                          schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
 
+        # create a broadcast with a test contact to make sure they aren't included
+        test_bcast = Broadcast.create(self.org, self.user, "Test Broadcast", [Contact.get_test_contact(self.admin)])
+
+        # this will create some test outgoing messages as well
+        test_bcast.send()
+
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 4, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,
                                                             SystemLabel.TYPE_SENT: 0, SystemLabel.TYPE_FAILED: 0,

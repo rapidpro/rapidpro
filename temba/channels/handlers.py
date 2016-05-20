@@ -134,8 +134,6 @@ class TwilioHandler(View):
             elif status == 'failed':
                 sms.fail()
 
-            sms.broadcast.update()
-
             return HttpResponse("", status=200)
 
         # this is an incoming message that is being received by Twilio
@@ -249,8 +247,6 @@ class AfricasTalkingHandler(View):
             elif status == 'Rejected' or status == 'Failed':
                 sms.fail()
 
-            sms.broadcast.update()
-
             return HttpResponse("SMS Status Updated")
 
         # this is a new incoming message
@@ -308,9 +304,6 @@ class ZenviaHandler(View):
                 sms.status_sent()
             else:
                 sms.fail()
-
-            # update our broadcast status
-            sms.broadcast.update()
 
             return HttpResponse("SMS Status Updated")
 
@@ -381,8 +374,6 @@ class ExternalHandler(View):
                 sms.status_sent()
             elif action == 'failed':
                 sms.fail()
-
-            sms.broadcast.update()
 
             return HttpResponse("SMS Status Updated")
 
@@ -590,9 +581,6 @@ class InfobipHandler(View):
                         'REJECTED', 'INVALID_MESSAGE_FORMAT']:
             sms.fail()
 
-        if sms.broadcast:
-            sms.broadcast.update()
-
         return HttpResponse("SMS Status Updated")
 
     def get(self, request, *args, **kwargs):
@@ -663,7 +651,6 @@ class Hub9Handler(View):
             elif status != -1:
                 sms.status_sent()
 
-            sms.broadcast.update()
             return HttpResponse("000")
 
         # An MO message
@@ -715,7 +702,6 @@ class HighConnectionHandler(View):
             elif status in [2, 11, 12, 13, 14, 15, 16]:
                 sms.fail()
 
-            sms.broadcast.update()
             return HttpResponse(json.dumps(dict(msg="Status Updated")))
 
         # An MO message
@@ -778,7 +764,6 @@ class BlackmynaHandler(View):
             elif status in [2, 16]:
                 sms.fail()
 
-            sms.broadcast.update()
             return HttpResponse("")
 
         # An MO message
@@ -896,8 +881,6 @@ class NexmoHandler(View):
                 sms.status_sent()
             elif status == 'expired' or status == 'failed':
                 sms.fail()
-
-            sms.broadcast.update()
 
             return HttpResponse("SMS Status Updated")
 
@@ -1097,9 +1080,6 @@ class KannelHandler(View):
             elif status == FAILED:
                 for sms_obj in sms:
                     sms_obj.fail()
-
-            # disabled for performance reasons
-            # sms.first().broadcast.update()
 
             return HttpResponse("SMS Status Updated")
 
