@@ -413,12 +413,15 @@ class ContactCRUDL(SmartCRUDL):
             if pre_process is not None:
                 return pre_process
 
-            self.headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
+            headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
 
-            if not self.headers:
+            if not headers:
                 task = self.get_object()
                 self.post_save(task)
                 return HttpResponseRedirect(reverse("contacts.contact_import") + "?task=%d" % task.pk)
+
+            self.headers = headers
+            return None
 
         def create_column_controls(self, column_headers):
             """
