@@ -3201,6 +3201,26 @@ class YoTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, "ybs_autocreate_status=ERROR&ybs_autocreate_message=" +
+                                                 "256794224665%3ABLACKLISTED")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as a failure
+                msg = bcast.get_messages()[0]
+                self.assertEquals(FAILED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+                # contact should also be failed
+                joe.refresh_from_db()
+                self.assertTrue(joe.is_failed)
+
         finally:
             settings.SEND_MESSAGES = False
 
