@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timezone import is_aware
 from django.http import HttpResponse
-from itertools import islice, chain
+from itertools import islice
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
 MAX_UTC_OFFSET = 14 * 60 * 60  # max offset postgres supports for a timezone
