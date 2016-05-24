@@ -107,7 +107,7 @@ CHANNEL_SETTINGS = {
     CHIKKA: dict(scheme='tel', max_length=160),
     CLICKATELL: dict(scheme='tel', max_length=420),
     EXTERNAL: dict(max_length=160),
-    FACEBOOK: dict(scheme='facebook', max_length=1600),
+    FACEBOOK: dict(scheme='facebook', max_length=320),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),

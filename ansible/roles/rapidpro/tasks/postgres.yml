@@ -1,0 +1,31 @@
+---
+
+- name: Postgresql | Create db
+  become: yes
+  become_user: postgres
+  postgresql_db: |
+    name=temba
+
+- name: Postgresql | Create db test
+  become: yes
+  become_user: postgres
+  postgresql_db: |
+    name=test
+
+- name: Postgresql | Create User
+  become: yes
+  become_user: postgres
+  postgresql_user: |
+    db=temba
+    name=temba
+    password=temba
+    role_attr_flags=SUPERUSER
+
+- name: Postgresql | Add extensions
+  become: yes
+  become_user: postgres
+  postgresql_ext: name={{ item }} db=temba
+  with_items:
+    - postgis
+    - postgis_topology
+    - hstore
