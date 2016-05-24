@@ -432,7 +432,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           scope: $scope
         $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
 
-
       else
         resolveObj =
           options: ->
@@ -905,6 +904,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   if ruleset.config
     formData.flow = ruleset.config.flow
+  else
+    formData.flow = {}
 
   # default webhook action
   if not $scope.ruleset.webhook_action
@@ -953,11 +954,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # set the operands
     else if rule.test.type != "between"
 
-      if rule.test.test and rule._config.localized
-        rule.test._base = rule.test.test[flow.base_language]
-      else
-        rule.test =
-          _base: rule.test.test
+      if rule.test.test 
+        if rule._config.localized
+          rule.test._base = rule.test.test[flow.base_language]
+        else
+          rule.test =
+            _base: rule.test.test
 
     # and finally the category name
     rule.category._base = rule.category[flow.base_language]
@@ -1133,6 +1135,47 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # start with an empty list of rules
     rules = []
 
+    # subflow rulesets have their own kind of rules
+    if ruleset.ruleset_type == 'subflow'
+      $log.debug(ruleset.rules)
+
+      needs_completed = true
+      needs_expired = true
+      
+      # see which subflow rules we already have
+      for rule in ruleset.rules
+        if rule.type == 'subflow'
+          if rule.test.exit_type == 'completed'
+            needs_completed = false
+            rules.push(rule)
+          if rule.test.exit_type == 'expired'
+            needs_expired = false
+            rules.push(rule)
+
+      # if we don't have a completed rule add it
+      if needs_completed
+        rule =
+          uuid: uuid(),
+          type: 'subflow'
+          test: 
+            type: 'subflow'
+            exit_type: 'completed'
+          category: {}
+        rule['category'][Flow.flow.base_language] = 'Completed'
+        rules.push(rule)
+
+      # if we don't have an expired rule, add it
+      if needs_expired
+        rule =
+          uuid: uuid(),
+          type: 'subflow'
+          test: 
+            type: 'subflow'
+            exit_type: 'expired'
+          category: {}
+        rule['category'][Flow.flow.base_language] = 'Expired'
+        rules.push(rule)
+
     # create rules off of an IVR menu configuration
     if ruleset.ruleset_type == 'wait_digit'
       for option in $scope.numbers
@@ -1204,25 +1247,27 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     category[Flow.flow.base_language] = allCategory
 
-    # finally add it to the end of our rule list
-    rules.push
-      _config: Flow.getOperatorConfig("true")
-      test:
-        test: "true"
-        type: "true"
-      destination: destination
-      uuid: ruleId
-      category: category
+    # for all rules that require a catch all, append a true rule
+    if ruleset.ruleset_type != 'subflow'
+      rules.push
+        _config: Flow.getOperatorConfig("true")
+        test:
+          test: "true"
+          type: "true"
+        destination: destination
+        uuid: ruleId
+        category: category
 
     $scope.ruleset.rules = rules
 
-  $scope.okRules = ->
+  $scope.okRules = (splitEditor) ->
 
     # close our dialog
     stopWatching()
     $modalInstance.close ""
 
     $timeout ->
+
       # changes from the user
       ruleset = $scope.ruleset
       rulesetConfig = $scope.formData.rulesetConfig
@@ -1230,17 +1275,23 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       flowField = $scope.formData.flowField
       flow = $scope.formData.flow
 
-      $log.debug($scope.formData)
-      $log.debug(ruleset)
-
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
 
       if rulesetConfig.type == 'subflow'
+        # configure our subflow settings
+        flow = splitEditor.flow.selected[0]
         ruleset.config =
-          flow =
-            id: $scope.formData.flow.id
-            name: $scope.formData.flow.name
+          flow:
+            name: flow.text
+            id: flow.id
+
+        # remove any non subflow actions
+        rules = []
+        for rule in ruleset.rules
+          if rule.type == 'subflow'
+            rules.push(rule)
+        ruleset.rules = rules
 
       # settings for a message form
       if rulesetConfig.type == 'form_field'
@@ -1266,8 +1317,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       if ruleset.ruleset_type != 'webhook'
         ruleset.webhook = null
         ruleset.webhook_action = null
-
-      console.log(ruleset)
 
       # update our rules accordingly
       $scope.updateRules(ruleset, rulesetConfig)

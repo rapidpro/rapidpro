@@ -160,5 +160,5 @@
   <!--[[splitEditor]]-->
   %button{ng-click:"cancel()",class:"btn btn-secondary"}
     -trans "Cancel"
-  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid',ng-click:"okRules()",class:"btn btn-primary"}
+  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid',ng-click:"okRules(splitEditor)",class:"btn btn-primary"}
     -trans "Ok"
