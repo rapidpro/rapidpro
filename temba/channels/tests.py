@@ -3202,6 +3202,10 @@ class YoTest(TembaTest):
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
+                # contact should not be failed
+                joe.refresh_from_db()
+                self.assertFalse(joe.is_failed)
+
                 self.clear_cache()
 
             with patch('requests.get') as mock:
