@@ -763,8 +763,8 @@ class Flow(TembaModel):
         # in chunks of 1000, remove any values or flowsteps associated with these runs
         # we keep Runs around for auditing purposes
         for chunk in chunk_list(run_ids, 1000):
-            Value.objects.filter(run__in=run_ids).delete()
-            FlowStep.objects.filter(run__in=run_ids).delete()
+            Value.objects.filter(run__in=chunk).delete()
+            FlowStep.objects.filter(run__in=chunk).delete()
 
         # clear all our cached stats
         self.clear_props_cache()

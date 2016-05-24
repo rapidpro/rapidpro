@@ -1727,8 +1727,8 @@ class BulkExportTest(TembaTest):
     def test_export_import(self):
 
         def assert_object_counts():
-            self.assertEquals(8, Flow.objects.filter(org=self.org, is_archived=False, flow_type='F').count())
-            self.assertEquals(2, Flow.objects.filter(org=self.org, is_archived=False, flow_type='M').count())
+            self.assertEquals(8, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type='F').count())
+            self.assertEquals(2, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type='M').count())
             self.assertEquals(1, Campaign.objects.filter(org=self.org, is_archived=False).count())
             self.assertEquals(4, CampaignEvent.objects.filter(campaign__org=self.org, event_type='F').count())
             self.assertEquals(2, CampaignEvent.objects.filter(campaign__org=self.org, event_type='M').count())
@@ -1780,11 +1780,11 @@ class BulkExportTest(TembaTest):
         trigger = Trigger.objects.filter(keyword='patient').first()
         self.assertEquals(Flow.objects.filter(name='Register Patient').first(), trigger.flow)
 
-        # our old campaign message flow should be gone now
-        self.assertIsNone(Flow.objects.filter(pk=message_flow.pk).first())
+        # our old campaign message flow should be inactive now
+        self.assertTrue(Flow.objects.filter(pk=message_flow.pk, is_active=False))
 
         # find our new message flow, and see that the original message is there
-        message_flow = Flow.objects.filter(flow_type='M').order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
