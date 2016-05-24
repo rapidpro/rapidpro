@@ -507,9 +507,6 @@
               -trans "Run flow "
               [[ruleset.config.flow.name]]
 
-              .testing{ng-repeat:'rule in ruleset.rules'}
-                [[rule.test]]
-
           %table{style:'width:100%;', ruleset:"ruleset"}
             %tr.rules
               %td.rule{valign:'bottom', ng-repeat:'category in ruleset._categories', ng-attr-id:'[[category.source]]',
