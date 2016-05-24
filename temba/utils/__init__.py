@@ -461,10 +461,11 @@ def chunk_list(iterable, size):
     Splits a very large list into evenly sized chunks.
     Returns an iterator of lists that are no more than the size passed in.
     """
-    source_iter = iter(iterable)
-    while True:
-        chunk_iter = islice(source_iter, size)
-        yield chain([chunk_iter.next()], chunk_iter)
+    it = iter(iterable)
+    item = list(islice(it, size))
+    while item:
+        yield item
+        item = list(islice(it, size))
 
 
 def print_max_mem_usage(msg=None):
