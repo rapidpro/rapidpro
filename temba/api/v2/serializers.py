@@ -35,12 +35,9 @@ class ReadSerializer(serializers.ModelSerializer):
 # ============================================================
 
 class BroadcastReadSerializer(ReadSerializer):
-    STATUSES = ReadSerializer.extract_constants(STATUS_CONFIG)
-
     urns = serializers.SerializerMethodField()
     contacts = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
 
     def get_urns(self, obj):
         if obj.org.is_anon:
@@ -54,12 +51,9 @@ class BroadcastReadSerializer(ReadSerializer):
     def get_groups(self, obj):
         return [{'uuid': g.uuid, 'name': g.name} for g in obj.groups.all()]
 
-    def get_status(self, obj):
-        return self.STATUSES.get(obj.status)
-
     class Meta:
         model = Broadcast
-        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
+        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on')
 
 
 class ChannelEventReadSerializer(ReadSerializer):
