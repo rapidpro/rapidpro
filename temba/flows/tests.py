@@ -1468,6 +1468,15 @@ class FlowTest(TembaTest):
         ward_tuple = HasWardTest('Pillars', 'Bichi').evaluate(run, sms, context, 'bichi')
         self.assertEquals(ward_tuple[1], bichiward)
 
+        # misconfigured flows should ignore the state and district if wards are unique by name
+        ward_tuple = HasWardTest('Bichi', 'Kano').evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], bichiward)
+
+        # misconfigured flows should not match if wards not unique
+        AdminBoundary.objects.create(osm_id='3710379', name='Bichi', level=3, parent=apapa)
+        ward_tuple = HasWardTest('Bichi', 'Kano').evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], None)
+
         self.assertEquals(HasWardTest, Test.from_json(self.org, js).__class__)
 
     def test_global_keywords_trigger_update(self):
