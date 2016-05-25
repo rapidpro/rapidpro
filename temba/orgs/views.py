@@ -3,7 +3,6 @@ from __future__ import absolute_import, unicode_literals
 import json
 import logging
 import plivo
-import regex
 import six
 
 from collections import OrderedDict
@@ -29,6 +28,7 @@ from django.views.generic import View
 from operator import attrgetter
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartReadView, SmartUpdateView, SmartListView, SmartTemplateView
 from datetime import timedelta
+from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
@@ -892,16 +892,34 @@ class OrgCRUDL(SmartCRUDL):
 
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
-        class InviteForm(forms.ModelForm):
-            emails = forms.CharField(label=_("Invite people to your organization"), required=False)
-            user_group = forms.ChoiceField(choices=(('A', _("Administrators")),
-                                                    ('E', _("Editors")),
-                                                    ('V', _("Viewers")),
-                                                    ('S', _("Surveyors"))),
-                                           required=True, initial='V', label=_("User group"))
+        class AccountsForm(forms.ModelForm):
+            invite_emails = forms.CharField(label=_("Invite people to your organization"), required=False)
+            invite_group = forms.ChoiceField(choices=(('A', _("Administrators")),
+                                                      ('E', _("Editors")),
+                                                      ('V', _("Viewers")),
+                                                      ('S', _("Surveyors"))),
+                                             required=True, initial='V', label=_("User group"))
 
-            def clean_emails(self):
-                emails = self.cleaned_data['emails'].lower().strip()
+            def add_user_group_fields(self, groups, users):
+                fields_by_user = {}
+
+                for user in users:
+                    fields = []
+                    field_mapping = []
+
+                    for group in groups:
+                        check_field = forms.BooleanField(required=False)
+                        field_name = "%s_%d" % (group.lower(), user.pk)
+
+                        field_mapping.append((field_name, check_field))
+                        fields.append(field_name)
+
+                    self.fields = OrderedDict(self.fields.items() + field_mapping)
+                    fields_by_user[user] = fields
+                return fields_by_user
+
+            def clean_invite_emails(self):
+                emails = self.cleaned_data['invite_emails'].lower().strip()
                 if emails:
                     email_list = emails.split(',')
                     for email in email_list:
@@ -913,56 +931,37 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Invitation
-                fields = ('emails', 'user_group')
+                fields = ('invite_emails', 'invite_group')
 
-        form_class = InviteForm
+        form_class = AccountsForm
         success_url = "@orgs.org_home"
         success_message = ""
-        GROUP_LEVELS = ('administrators', 'editors', 'viewers', 'surveyors')
+        ORG_GROUPS = ('Administrators', 'Editors', 'Viewers', 'Surveyors')
+
+        @staticmethod
+        def org_group_set(org, group_name):
+            return getattr(org, group_name.lower())
 
         def derive_title(self):
             return _("Manage %(name)s Accounts") % {'name': self.get_object().name}
 
-        def add_check_fields(self, form, objects, org_id, field_dict):
-            for obj in objects:
-                fields = []
-
-                field_mapping = []
-                for grp_level in self.GROUP_LEVELS:
-                    check_field = forms.BooleanField(required=False)
-                    field_name = "%s_%d" % (grp_level, obj.id)
-
-                    field_mapping.append((field_name, check_field))
-                    fields.append(field_name)
-
-                # as of django 1.7 we can't insert into fields, construct a new OrderedDict
-                form.fields = OrderedDict(form.fields.items() + field_mapping)
-                field_dict[obj] = fields
-
         def derive_initial(self):
-            self.org_users = self.get_object().get_org_users()
+            initial = super(OrgCRUDL.ManageAccounts, self).derive_initial()
 
-            initial = dict()
-            for grp_level in self.GROUP_LEVELS:
-                if grp_level == 'administrators':
-                    assigned_users = self.get_object().get_org_admins()
-                if grp_level == 'editors':
-                    assigned_users = self.get_object().get_org_editors()
-                if grp_level == 'viewers':
-                    assigned_users = self.get_object().get_org_viewers()
-                if grp_level == 'surveyors':
-                    assigned_users = self.get_object().get_org_surveyors()
+            org = self.get_object()
+            for group in self.ORG_GROUPS:
+                users_in_group = self.org_group_set(org, group).all()
 
-                for obj in assigned_users:
-                    key = "%s_%d" % (grp_level, obj.id)
-                    initial[key] = True
+                for user in users_in_group:
+                    initial['%s_%d' % (group.lower(), user.pk)] = True
 
             return initial
 
         def get_form(self, form_class):
             form = super(OrgCRUDL.ManageAccounts, self).get_form(form_class)
-            self.group_fields = dict()
-            self.add_check_fields(form, self.org_users, self.get_object().pk, self.group_fields)
+
+            self.org_users = self.get_object().get_org_users()
+            self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
 
             return form
 
@@ -970,71 +969,56 @@ class OrgCRUDL(SmartCRUDL):
             obj = super(OrgCRUDL.ManageAccounts, self).post_save(obj)
 
             cleaned_data = self.form.cleaned_data
-            user = self.request.user
             org = self.get_object()
 
-            user_group = cleaned_data['user_group']
+            invite_emails = cleaned_data['invite_emails'].lower().strip()
+            invite_group = cleaned_data['invite_group']
+            invite_host = self.request.branding['host']
 
-            emails = cleaned_data['emails'].lower().strip()
-            email_list = emails.split(',')
-
-            host = self.request.branding['host']
-
-            if emails:
-                for email in email_list:
-
+            if invite_emails:
+                for email in invite_emails.split(','):
                     # if they already have an invite, update it
                     invites = Invitation.objects.filter(email=email, org=org).order_by('-pk')
                     invitation = invites.first()
 
                     if invitation:
+                        invites.exclude(pk=invitation.pk).delete()  # remove any old invites
 
-                        # remove any old invites
-                        invites.exclude(pk=invitation.pk).delete()
-
-                        invitation.user_group = user_group
+                        invitation.user_group = invite_group
                         invitation.is_active = True
                         invitation.save()
                     else:
-                        invitation = Invitation.objects.create(email=email,
-                                                               org=org,
-                                                               host=host,
-                                                               user_group=user_group,
-                                                               created_by=user,
-                                                               modified_by=user)
+                        invitation = Invitation.create(org, self.request.user, email, invite_group, invite_host)
 
                     invitation.send_invitation()
 
-            # remove all the org users
-            org = self.get_object()
-            for user in org.get_org_admins():
-                org.administrators.remove(user)
-            for user in org.get_org_editors():
-                org.editors.remove(user)
-            for user in org.get_org_viewers():
-                org.viewers.remove(user)
-            for user in org.get_org_surveyors():
-                org.surveyors.remove(user)
+            current_groups = {}
+            new_groups = {}
 
-            # now update the org accounts
-            for field in self.form.fields:
-                if self.form.cleaned_data[field]:
-                    matcher = regex.match("(\w+)_(\d+)", field, regex.V0)
-                    if matcher:
-                        user_type = matcher.group(1)
-                        user_id = matcher.group(2)
-                        user = User.objects.get(pk=user_id)
-                        if user_type == 'administrators':
-                            self.get_object().administrators.add(user)
-                        if user_type == 'editors':
-                            self.get_object().editors.add(user)
-                        if user_type == 'viewers':
-                            self.get_object().viewers.add(user)
-                        if user_type == 'surveyors':
-                            self.get_object().surveyors.add(user)
+            for group in self.ORG_GROUPS:
+                # gather up existing users with their groups
+                for user in self.org_group_set(org, group).all():
+                    current_groups[user] = group
 
-            # update our org users after we've removed them
-            self.org_users = self.get_object().get_org_users()
+                # parse form fields to get new roles
+                for field in self.form.cleaned_data:
+                    if field.startswith(group.lower() + '_') and self.form.cleaned_data[field]:
+                        user = User.objects.get(pk=field.split('_')[1])
+                        new_groups[user] = group
+
+            for user in current_groups.keys():
+                current_group = current_groups.get(user)
+                new_group = new_groups.get(user)
+
+                if current_group != new_group:
+                    if current_group:
+                        self.org_group_set(org, current_group).remove(user)
+                    if new_group:
+                        self.org_group_set(org, new_group).add(user)
+
+                    # when a user's role changes, delete any API tokens they're no longer allowed to have
+                    api_roles = APIToken.get_allowed_roles(org, user)
+                    APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles).delete()
 
             return obj
 
@@ -1043,19 +1027,16 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             context['org'] = org
             context['org_users'] = self.org_users
-            context['group_fields'] = self.group_fields
+            context['group_fields'] = self.fields_by_users
             context['invites'] = Invitation.objects.filter(org=org, is_active=True).order_by('email')
 
             return context
 
         def get_success_url(self):
-            # if we are no longer part of this form, redirect to the chooser
-            if self.request.user not in self.org_users:
-                return reverse('orgs.org_choose')
+            still_in_org = self.request.user in self.get_object().get_org_users()
 
-            # otherwise, back to our home page
-            else:
-                return reverse('orgs.org_home')
+            # if current user no longer belongs to this org, redirect to org chooser
+            return reverse('orgs.org_home') if still_in_org else reverse('orgs.org_choose')
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
@@ -1348,7 +1329,7 @@ class OrgCRUDL(SmartCRUDL):
             obj = super(OrgCRUDL.Grant, self).post_save(obj)
             obj.administrators.add(self.user)
 
-            if not self.request.user.is_anonymous():
+            if not self.request.user.is_anonymous() and self.request.user.has_perm('orgs.org_grant'):
                 obj.administrators.add(self.request.user.pk)
 
             brand = BrandingMiddleware.get_branding_for_host(obj.brand)

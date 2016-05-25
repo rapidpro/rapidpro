@@ -7,7 +7,6 @@ import requests
 import xml.etree.ElementTree as ET
 
 from datetime import datetime
-
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files import File
@@ -18,8 +17,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN
-from temba.contacts.models import Contact, ContactURN, TEL_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN, TELEGRAM
+from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
@@ -56,7 +55,7 @@ class TwilioHandler(View):
 
         # Twilio sometimes sends un-normalized numbers
         if not to_number.startswith('+') and to_country:
-            to_number, valid = ContactURN.normalize_number(to_number, to_country)
+            to_number, valid = URN.normalize_number(to_number, to_country)
 
         # see if it's a twilio call being initiated
         if to_number and call_sid and direction == 'inbound' and status == 'ringing':
@@ -77,11 +76,13 @@ class TwilioHandler(View):
                 from temba.ivr.models import IVRCall
 
                 # find a contact for the one initiating us
-                contact_urn = ContactURN.get_or_create(channel.org, TEL_SCHEME, from_number, channel)
-                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, from_number)])
+                urn = URN.from_tel(from_number)
+                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], incoming_channel=channel)
+                urn_obj = contact.urn_objects[urn]
+
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
-                call = IVRCall.create_incoming(channel, contact, contact_urn, flow, channel.created_by)
+                call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
                 call.update_status(request.POST.get('CallStatus', None),
                                    request.POST.get('CallDuration', None))
                 call.save()
@@ -133,8 +134,6 @@ class TwilioHandler(View):
             elif status == 'failed':
                 sms.fail()
 
-            sms.broadcast.update()
-
             return HttpResponse("", status=200)
 
         # this is an incoming message that is being received by Twilio
@@ -153,15 +152,16 @@ class TwilioHandler(View):
                 raise ValidationError("Invalid request signature")
 
             body = request.POST['Body']
+            urn = URN.from_tel(request.POST['From'])
 
             # process any attached media
             for i in range(int(request.POST.get('NumMedia', 0))):
                 media_url = client.download_media(request.POST['MediaUrl%d' % i])
                 path = media_url.partition(':')[2]
-                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), path, media=media_url)
+                Msg.create_incoming(channel, urn, path, media=media_url)
 
             if body:
-                Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), body)
+                Msg.create_incoming(channel, urn, body)
 
             return HttpResponse("", status=201)
 
@@ -200,7 +200,7 @@ class TwilioMessagingServiceHandler(View):
                 # raise an exception that things weren't properly signed
                 raise ValidationError("Invalid request signature")
 
-            Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), request.POST['Body'])
+            Msg.create_incoming(channel, URN.from_tel(request.POST['From']), request.POST['Body'])
 
             return HttpResponse("", status=201)
 
@@ -247,8 +247,6 @@ class AfricasTalkingHandler(View):
             elif status == 'Rejected' or status == 'Failed':
                 sms.fail()
 
-            sms.broadcast.update()
-
             return HttpResponse("SMS Status Updated")
 
         # this is a new incoming message
@@ -256,7 +254,7 @@ class AfricasTalkingHandler(View):
             if 'from' not in request.POST or 'text' not in request.POST:
                 return HttpResponse("Missing from or text parameters", status=400)
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.POST['from']), request.POST['text'])
+            sms = Msg.create_incoming(channel, URN.from_tel(request.POST['from']), request.POST['text'])
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -307,9 +305,6 @@ class ZenviaHandler(View):
             else:
                 sms.fail()
 
-            # update our broadcast status
-            sms.broadcast.update()
-
             return HttpResponse("SMS Status Updated")
 
         # this is a new incoming message
@@ -323,10 +318,8 @@ class ZenviaHandler(View):
             sms_date = datetime.strptime(request.REQUEST['date'], "%d/%m/%Y %H:%M:%S")
             brazil_date = pytz.timezone('America/Sao_Paulo').localize(sms_date)
 
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['from']),
-                                      request.REQUEST['msg'],
-                                      date=brazil_date)
+            urn = URN.from_tel(request.REQUEST['from'])
+            sms = Msg.create_incoming(channel, urn, request.REQUEST['msg'], date=brazil_date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -382,8 +375,6 @@ class ExternalHandler(View):
             elif action == 'failed':
                 sms.fail()
 
-            sms.broadcast.update()
-
             return HttpResponse("SMS Status Updated")
 
         # this is a new incoming message
@@ -401,7 +392,8 @@ class ExternalHandler(View):
             if date:
                 date = json_date_to_datetime(date)
 
-            sms = Msg.create_incoming(channel, (channel.scheme, sender), text, date=date)
+            urn = URN.from_parts(channel.scheme, sender)
+            sms = Msg.create_incoming(channel, urn, text, date=date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -456,9 +448,6 @@ class TelegramHandler(View):
                     return '%s:%s' % (content_type, channel.org.save_media(File(temp), extension))
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg
-        from temba.channels.models import TELEGRAM
-
         channel_uuid = kwargs['uuid']
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TELEGRAM).exclude(org=None).first()
 
@@ -469,7 +458,8 @@ class TelegramHandler(View):
 
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
-        existing_contact = Contact.from_urn(channel.org, TELEGRAM_SCHEME, telegram_id)
+        urn = URN.from_telegram(telegram_id)
+        existing_contact = Contact.from_urn(channel.org, urn)
 
         # if the contact doesn't exist, try to create one
         if not existing_contact and not channel.org.is_anon:
@@ -486,14 +476,14 @@ class TelegramHandler(View):
                 name = username
 
             if name:
-                Contact.get_or_create(channel.org, channel.created_by, name, [(TELEGRAM_SCHEME, telegram_id)])
+                Contact.get_or_create(channel.org, channel.created_by, name, urns=[urn])
 
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
 
         def create_media_message(file_id):
             media_url = TelegramHandler.download_file(channel, file_id)
             url = media_url.partition(':')[2]
-            msg = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), url, date=msg_date, media=media_url)
+            msg = Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
             return HttpResponse("Message Accepted: %d" % msg.id)
 
         if 'sticker' in body['message']:
@@ -517,7 +507,7 @@ class TelegramHandler(View):
                 if 'title' in body['message']['venue']:
                     msg_text = '%s (%s)' % (msg_text, body['message']['venue']['title'])
             media_url = 'geo:%s' % location
-            msg = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), msg_text, date=msg_date, media=media_url)
+            msg = Msg.create_incoming(channel, urn, msg_text, date=msg_date, media=media_url)
             return HttpResponse("Message Accepted: %d" % msg.id)
 
         if 'photo' in body['message']:
@@ -540,7 +530,7 @@ class TelegramHandler(View):
 
         # skip if there is no message block (could be a sticker or voice)
         if 'text' in body['message']:
-            msg = Msg.create_incoming(channel, (TELEGRAM_SCHEME, telegram_id), body['message']['text'], date=msg_date)
+            msg = Msg.create_incoming(channel, urn, body['message']['text'], date=msg_date)
             return HttpResponse("Message Accepted: %d" % msg.id)
 
         return HttpResponse("No message, ignored.")
@@ -591,9 +581,6 @@ class InfobipHandler(View):
                         'REJECTED', 'INVALID_MESSAGE_FORMAT']:
             sms.fail()
 
-        if sms.broadcast:
-            sms.broadcast.update()
-
         return HttpResponse("SMS Status Updated")
 
     def get(self, request, *args, **kwargs):
@@ -619,7 +606,7 @@ class InfobipHandler(View):
         if channel.address != '+' + request.REQUEST['receiver']:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
-        sms = Msg.create_incoming(channel, (TEL_SCHEME, request.REQUEST['sender']), request.REQUEST['text'])
+        sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['sender']), request.REQUEST['text'])
 
         return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -664,7 +651,6 @@ class Hub9Handler(View):
             elif status != -1:
                 sms.status_sent()
 
-            sms.broadcast.update()
             return HttpResponse("000")
 
         # An MO message
@@ -673,8 +659,7 @@ class Hub9Handler(View):
             if channel.address != '+' + to_number:
                 return HttpResponse("Channel with number '%s' not found." % to_number, status=404)
 
-            from_number = '+' + from_number
-            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            Msg.create_incoming(channel, URN.from_tel('+' + from_number), message)
             return HttpResponse("000")
 
         return HttpResponse("Unreconized action: %s" % action, status=404)
@@ -717,7 +702,6 @@ class HighConnectionHandler(View):
             elif status in [2, 11, 12, 13, 14, 15, 16]:
                 sms.fail()
 
-            sms.broadcast.update()
             return HttpResponse(json.dumps(dict(msg="Status Updated")))
 
         # An MO message
@@ -737,7 +721,7 @@ class HighConnectionHandler(View):
             if to_number is None or from_number is None or message is None:
                 return HttpResponse("Missing TO, FROM or MESSAGE parameters", status=400)
 
-            msg = Msg.create_incoming(channel, (TEL_SCHEME, from_number), message, date=received)
+            msg = Msg.create_incoming(channel, URN.from_tel(from_number), message, date=received)
             return HttpResponse(json.dumps(dict(msg="Msg received", id=msg.id)))
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
@@ -780,7 +764,6 @@ class BlackmynaHandler(View):
             elif status in [2, 16]:
                 sms.fail()
 
-            sms.broadcast.update()
             return HttpResponse("")
 
         # An MO message
@@ -796,7 +779,7 @@ class BlackmynaHandler(View):
             if channel.address != to_number:
                 return HttpResponse("Invalid to number [%s], expecting [%s]" % (to_number, channel.address), status=400)
 
-            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            Msg.create_incoming(channel, URN.from_tel(from_number), message)
             return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
@@ -830,7 +813,7 @@ class SMSCentralHandler(View):
             if from_number is None or message is None:
                 return HttpResponse("Missing mobile or message parameters", status=400)
 
-            Msg.create_incoming(channel, (TEL_SCHEME, from_number), message)
+            Msg.create_incoming(channel, URN.from_tel(from_number), message)
             return HttpResponse("")
 
         return HttpResponse("Unrecognized action: %s" % action, status=400)
@@ -899,14 +882,12 @@ class NexmoHandler(View):
             elif status == 'expired' or status == 'failed':
                 sms.fail()
 
-            sms.broadcast.update()
-
             return HttpResponse("SMS Status Updated")
 
         # this is a new incoming message
         elif action == 'receive':
-            number = '+%s' % request.REQUEST['msisdn']
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, number), request.REQUEST['text'])
+            urn = URN.from_tel('+%s' % request.REQUEST['msisdn'])
+            sms = Msg.create_incoming(channel, urn, request.REQUEST['text'])
             sms.external_id = request.REQUEST['messageId']
             sms.save(update_fields=['external_id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -1031,10 +1012,7 @@ class VumiHandler(View):
             sms_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, body['from_addr']),
-                                      body['content'],
-                                      date=gmt_date)
+            sms = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), body['content'], date=gmt_date)
 
             # use an update so there is no race with our handling
             Msg.all_messages.filter(pk=sms.id).update(external_id=body['message_id'])
@@ -1103,9 +1081,6 @@ class KannelHandler(View):
                 for sms_obj in sms:
                     sms_obj.fail()
 
-            # disabled for performance reasons
-            # sms.first().broadcast.update()
-
             return HttpResponse("SMS Status Updated")
 
         # this is a new incoming message
@@ -1117,10 +1092,8 @@ class KannelHandler(View):
             sms_date = datetime.utcfromtimestamp(int(request.REQUEST['ts']))
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['sender']),
-                                      request.REQUEST['message'],
-                                      date=gmt_date)
+            urn = URN.from_tel(request.REQUEST['sender'])
+            sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
 
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -1239,10 +1212,7 @@ class ClickatellHandler(View):
             elif charset == 'ISO-8859-1':
                 text = text.encode('iso-8859-1', 'ignore').decode('iso-8859-1').encode('utf-8')
 
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['from']),
-                                      text,
-                                      date=gmt_date)
+            sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['from']), text, date=gmt_date)
 
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
@@ -1348,9 +1318,7 @@ class PlivoHandler(View):
             if channel.address != channel_address:
                 return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
 
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['From']),
-                                      request.REQUEST['Text'])
+            sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['From']), request.REQUEST['Text'])
 
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
 
@@ -1445,7 +1413,7 @@ class StartHandler(View):
         if text is None:
             text = ""
 
-        Msg.create_incoming(channel, (TEL_SCHEME, sender_el.text), text)
+        Msg.create_incoming(channel, URN.from_tel(sender_el.text), text)
 
         # Start expects an XML response
         xml_response = """<answer type="async"><state>Accepted</state></answer>"""
@@ -1516,10 +1484,8 @@ class ChikkaHandler(View):
             sms_date = datetime.utcfromtimestamp(float(request.REQUEST['timestamp']))
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
-            sms = Msg.create_incoming(channel,
-                                      (TEL_SCHEME, request.REQUEST['mobile_number']),
-                                      request.REQUEST['message'],
-                                      date=gmt_date)
+            urn = URN.from_tel(request.REQUEST['mobile_number'])
+            sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
 
             # save our request id in case of replies
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['request_id'])
@@ -1586,7 +1552,7 @@ class JasminHandler(View):
             if request.POST['coding'] == '0':
                 content = gsm7.decode(request.POST['content'], 'replace')[0]
 
-            sms = Msg.create_incoming(channel, (TEL_SCHEME, request.POST['from']), content)
+            sms = Msg.create_incoming(channel, URN.from_tel(request.POST['from']), content)
             Msg.all_messages.filter(pk=sms.id).update(external_id=request.POST['id'])
             return HttpResponse('ACK/Jasmin')
 
@@ -1657,7 +1623,7 @@ class MbloxHandler(View):
                                     status=400)
 
             msg_date = parse_datetime(body['received_at'])
-            msg = Msg.create_incoming(channel, (TEL_SCHEME, body['from']), body['body'], date=msg_date)
+            msg = Msg.create_incoming(channel, URN.from_tel(body['from']), body['body'], date=msg_date)
             Msg.all_messages.filter(pk=msg.id).update(external_id=body['id'])
             return HttpResponse("SMS Accepted: %d" % msg.id)
 
@@ -1719,8 +1685,8 @@ class FacebookHandler(View):
 
                 for envelope in entry['messaging']:
                     if 'message' in envelope:
-                        channel_address = envelope['recipient']['id']
-                        if channel_address != int(channel.address):
+                        channel_address = str(envelope['recipient']['id'])
+                        if channel_address != channel.address:
                             return HttpResponse("Msg does not match channel recipient id: %s" % channel.address, status=400)
 
                         content = None
@@ -1738,7 +1704,8 @@ class FacebookHandler(View):
                         if content:
                             # does this contact already exist?
                             sender_id = envelope['sender']['id']
-                            contact = Contact.from_urn(channel.org, FACEBOOK_SCHEME, sender_id)
+                            urn = URN.from_facebook(sender_id)
+                            contact = Contact.from_urn(channel.org, urn)
 
                             # if not, let's go create it
                             if not contact:
@@ -1760,12 +1727,11 @@ class FacebookHandler(View):
                                         import traceback
                                         traceback.print_exc()
 
-                                contact = Contact.get_or_create(channel.org, channel.created_by, incoming_channel=channel,
-                                                                name=name, urns=[(FACEBOOK_SCHEME, sender_id)])
+                                contact = Contact.get_or_create(channel.org, channel.created_by,
+                                                                name=name, urns=[urn], incoming_channel=channel)
 
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
-                            msg = Msg.create_incoming(channel, (FACEBOOK_SCHEME, sender_id),
-                                                      content, date=msg_date, contact=contact)
+                            msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             msgs.append(msg)
 

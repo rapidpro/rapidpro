@@ -3,14 +3,15 @@ from __future__ import absolute_import, unicode_literals
 import requests
 
 from datetime import timedelta
-from django.utils.translation import ugettext_lazy as _
 from django.http import HttpResponse
 from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
 from smartmin.views import SmartTemplateView, SmartReadView, SmartListView
-from temba.api.models import WebHookEvent, WebHookResult
+from temba.channels.models import ChannelEvent
 from temba.orgs.views import OrgPermsMixin
 from urlparse import parse_qs
+from .models import WebHookEvent, WebHookResult
 
 
 def webhook_status_processor(request):
@@ -153,10 +154,10 @@ class WebHookSimulatorView(SmartTemplateView):
         fields.append(dict(name="duration", help="The duration of the call (always 0 for missed calls)", default="0"))
         fields.append(dict(name="time", help="When this event was received by the channel in ECMA-162 format", default="2013-01-21T22:34:00.123"))
 
-        mo_call = dict(event="mo_call", title="Sent when your channel receives an incoming call that was picked up", fields=fields, color='blue')
-        mo_miss = dict(event="mo_miss", title="Sent when your channel receives an incoming call that was missed", fields=fields, color='blue')
-        mt_call = dict(event="mt_call", title="Sent when your channel places an outgoing call that was connected", fields=fields, color='blue')
-        mt_miss = dict(event="mt_miss", title="Sent when your channel places an outgoing call that was not connected", fields=fields, color='blue')
+        mo_call = dict(event=ChannelEvent.TYPE_CALL_IN, title="Sent when your channel receives an incoming call that was picked up", fields=fields, color='blue')
+        mo_miss = dict(event=ChannelEvent.TYPE_CALL_IN_MISSED, title="Sent when your channel receives an incoming call that was missed", fields=fields, color='blue')
+        mt_call = dict(event=ChannelEvent.TYPE_CALL_OUT, title="Sent when your channel places an outgoing call that was connected", fields=fields, color='blue')
+        mt_miss = dict(event=ChannelEvent.TYPE_CALL_OUT_MISSED, title="Sent when your channel places an outgoing call that was not connected", fields=fields, color='blue')
 
         endpoints.append(mo_call)
         endpoints.append(mo_miss)

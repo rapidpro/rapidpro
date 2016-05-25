@@ -58,12 +58,12 @@ class NexmoClient(object):
         response = self._fire_get(path, {})
         return response['value']
 
-    def get_numbers(self, pattern=None):
+    def get_numbers(self, pattern=None, size=10):
         path = "/account/numbers/%s/%s" % (self.api_key, self.api_secret)
         params = dict()
         if pattern:
             params['pattern'] = str(pattern).strip('+')
-
+        params['size'] = size
         response = self._fire_get(path, params)
 
         if int(response.get('count', 0)):

@@ -1721,6 +1721,7 @@ class Channel(TembaModel):
     @classmethod
     def send_yo_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, SENT
+        from temba.contacts.models import Contact
 
         # build our message dict
         params = dict(origin=channel.address.lstrip('+'),
@@ -1732,6 +1733,8 @@ class Channel(TembaModel):
         log_params['password'] = 'x' * len(log_params['password'])
 
         start = time.time()
+        failed = False
+        fatal = False
 
         for send_url in [YO_API_URL_1, YO_API_URL_2, YO_API_URL_3]:
             url = send_url + '?' + urlencode(params)
@@ -1751,6 +1754,12 @@ class Channel(TembaModel):
             if not failed and response_qs.get('ybs_autocreate_status', [''])[0] != 'OK':
                 failed = True
 
+            # check if we failed permanently (they blocked us)
+            if failed and response_qs.get('ybs_autocreate_message', [''])[0].find('BLACKLISTED') >= 0:
+                Contact.objects.get(id=msg.contact).fail(permanently=True)
+                fatal = True
+                break
+
             # if we sent the message, then move on
             if not failed:
                 break
@@ -1761,7 +1770,8 @@ class Channel(TembaModel):
                                 method='GET',
                                 request='',
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                fatal=fatal)
 
         Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start)
 
@@ -2597,6 +2607,80 @@ class ChannelCount(models.Model):
 
     class Meta:
         index_together = ['channel', 'count_type', 'day']
+
+
+class ChannelEvent(models.Model):
+    """
+    An event other than a message that occurs between a channel and a contact. Can be used to trigger flows etc.
+    """
+    TYPE_UNKNOWN = 'unknown'
+    TYPE_CALL_OUT = 'mt_call'
+    TYPE_CALL_OUT_MISSED = 'mt_miss'
+    TYPE_CALL_IN = 'mo_call'
+    TYPE_CALL_IN_MISSED = 'mo_miss'
+
+    # single char flag, human readable name, API readable name
+    TYPE_CONFIG = ((TYPE_UNKNOWN, _("Unknown Call Type"), 'unknown'),
+                   (TYPE_CALL_OUT, _("Outgoing Call"), 'call-out'),
+                   (TYPE_CALL_OUT_MISSED, _("Missed Outgoing Call"), 'call-out-missed'),
+                   (TYPE_CALL_IN, _("Incoming Call"), 'call-in'),
+                   (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'))
+
+    TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
+
+    CALL_TYPES = {TYPE_CALL_OUT, TYPE_CALL_OUT_MISSED, TYPE_CALL_IN, TYPE_CALL_IN_MISSED}
+
+    org = models.ForeignKey(Org, verbose_name=_("Org"),
+                            help_text=_("The org this event is connected to"))
+    channel = models.ForeignKey(Channel, verbose_name=_("Channel"),
+                                help_text=_("The channel on which this event took place"))
+    event_type = models.CharField(max_length=16, choices=TYPE_CHOICES, verbose_name=_("Event Type"),
+                                  help_text=_("The type of event"))
+    contact = models.ForeignKey('contacts.Contact', verbose_name=_("Contact"), related_name='channel_events',
+                                help_text=_("The contact associated with this event"))
+    contact_urn = models.ForeignKey('contacts.ContactURN', null=True, verbose_name=_("URN"), related_name='channel_events',
+                                    help_text=_("The contact URN associated with this event"))
+    time = models.DateTimeField(verbose_name=_("Time"),
+                                help_text=_("When this event took place"))
+    duration = models.IntegerField(default=0, verbose_name=_("Duration"),
+                                   help_text=_("Duration in seconds if event is a call"))
+    created_on = models.DateTimeField(verbose_name=_("Created On"), default=timezone.now,
+                                      help_text=_("When this event was created"))
+    is_active = models.BooleanField(default=True,
+                                    help_text="Whether this item is active, use this instead of deleting")
+
+    @classmethod
+    def create(cls, channel, urn, event_type, date, duration=0):
+        from temba.api.models import WebHookEvent
+        from temba.contacts.models import Contact
+        from temba.triggers.models import Trigger
+
+        org = channel.org
+        user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)  # TODO lookup by name for latest django-guardian
+
+        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+        contact_urn = contact.urn_objects[urn]
+
+        event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
+                                   time=date, duration=duration, event_type=event_type)
+
+        if event_type in cls.CALL_TYPES:
+            analytics.gauge('temba.call_%s' % event.get_event_type_display().lower().replace(' ', '_'))
+
+            WebHookEvent.trigger_call_event(event)
+
+        if event_type == cls.TYPE_CALL_IN_MISSED:
+            Trigger.catch_triggers(event, Trigger.TYPE_MISSED_CALL, channel)
+
+        return event
+
+    @classmethod
+    def get_all(cls, org):
+        return cls.objects.filter(org=org, is_active=True)
+
+    def release(self):
+        self.is_active = False
+        self.save(update_fields=('is_active',))
 
 
 class SendException(Exception):
