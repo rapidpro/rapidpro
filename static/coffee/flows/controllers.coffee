@@ -946,6 +946,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       # lets rip out the delta parameter and use it as our test instead
       rule.test._base = rule.test.test.slice(15, -1)
 
+
+    # set operands for has ward rule
+    else if rule.test.type == "ward"
+      rule.test =
+        state: rule.test.state
+        district: rule.test.district
+
     # set the operands
     else if rule.test.type != "between"
 
