@@ -369,8 +369,8 @@ class Contact(TembaModel):
     is_test = models.BooleanField(verbose_name=_("Is Test"), default=False,
                                   help_text=_("Whether this contact is for simulation"))
 
-    is_failed = models.BooleanField(verbose_name=_("Is Failed"), default=False,
-                                    help_text=_("Whether we cannot send messages to this contact"))
+    is_stopped = models.BooleanField(verbose_name=_("Is Stopped"), default=False,
+                                     help_text=_("Whether this contact has opted out of receiving messages"))
 
     language = models.CharField(max_length=3, verbose_name=_("Language"), null=True, blank=True,
                                 help_text=_("The preferred language for this contact"))
@@ -389,8 +389,8 @@ class Contact(TembaModel):
     ] + [c[0] for c in IMPORT_HEADERS]
 
     @classmethod
-    def get_contacts(cls, org, blocked=False):
-        return Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=blocked)
+    def get_contacts(cls, org, blocked=False, stopped=False):
+        return Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=blocked, is_stopped=stopped)
 
     @property
     def anon_identifier(self):
@@ -845,7 +845,7 @@ class Contact(TembaModel):
         from temba.contacts import search
 
         if not base_queryset:
-            base_queryset = Contact.objects.filter(org=org, is_blocked=False, is_active=True, is_test=False)
+            base_queryset = Contact.objects.filter(org=org, is_active=True, is_test=False, is_blocked=False, is_stopped=False)
 
         return search.contact_search(org, query, base_queryset)
 
@@ -1155,6 +1155,15 @@ class Contact(TembaModel):
             changed.append(contact.pk)
         return changed
 
+    @classmethod
+    def apply_action_unstop(cls, user, contacts):
+        changed = []
+
+        for contact in contacts:
+            contact.unstop(user)
+            changed.append(contact.pk)
+        return changed
+
     def block(self, user):
         """
         Blocks this contact removing it from all non-dynamic groups
@@ -1178,26 +1187,28 @@ class Contact(TembaModel):
 
         self.reevaluate_dynamic_groups()
 
-    def fail(self, permanently=False):
+    def stop(self, user):
         """
-        Fails this contact. If permanently then contact is removed from all groups.
+        Marks this contact has stopped, removing them from all groups.
         """
         if self.is_test:
-            raise ValueError("Can't fail a test contact")
+            raise ValueError("Can't stop a test contact")
 
-        self.is_failed = True
-        self.save(update_fields=['is_failed'])
+        self.is_stopped = True
+        self.modified_by = user
+        self.save(update_fields=['is_stopped', 'modified_on', 'modified_by'])
 
-        if permanently:
-            self.clear_all_groups(get_anonymous_user())
+        self.clear_all_groups(get_anonymous_user())
 
-    def unfail(self):
+    def unstop(self, user):
         """
-        Un-fails this contact, provided it is currently failed
+        Unstops this contact, re-adding them to any dynamic groups they belong to
         """
-        self.is_failed = False
-        self.save(update_fields=['is_failed'])
+        self.is_stopped = False
+        self.modified_by = user
+        self.save(update_fields=['is_stopped', 'modified_on', 'modified_by'])
 
+        # re-add them to any dynamic groups they would belong to
         self.reevaluate_dynamic_groups()
 
     def release(self, user):
@@ -1652,12 +1663,12 @@ class ContactGroup(TembaModel):
 
     TYPE_ALL = 'A'
     TYPE_BLOCKED = 'B'
-    TYPE_FAILED = 'F'
+    TYPE_STOPPED = 'S'
     TYPE_USER_DEFINED = 'U'
 
     TYPE_CHOICES = ((TYPE_ALL, "All Contacts"),
                     (TYPE_BLOCKED, "Blocked Contacts"),
-                    (TYPE_FAILED, "Failed Contacts"),
+                    (TYPE_STOPPED, "Stopped Contacts"),
                     (TYPE_USER_DEFINED, "User Defined Groups"))
 
     name = models.CharField(verbose_name=_("Name"), max_length=MAX_NAME_LEN,
@@ -1817,8 +1828,8 @@ class ContactGroup(TembaModel):
         group_contacts = self.contacts.all()
 
         for contact in contacts:
-            if add and (contact.is_blocked or not contact.is_active):  # pragma: no cover
-                raise ValueError("Blocked or deleted contacts can't be added to groups")
+            if add and (contact.is_blocked or contact.is_stopped or not contact.is_active):  # pragma: no cover
+                raise ValueError("Blocked, failed and deleted contacts can't be added to groups")
 
             contact_changed = False
 

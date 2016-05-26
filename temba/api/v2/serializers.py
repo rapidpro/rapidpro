@@ -153,7 +153,7 @@ class ContactReadSerializer(ReadSerializer):
     groups = serializers.SerializerMethodField()
     fields = serializers.SerializerMethodField('get_contact_fields')
     blocked = serializers.SerializerMethodField()
-    failed = serializers.SerializerMethodField()
+    stopped = serializers.SerializerMethodField()
 
     def get_name(self, obj):
         return obj.name if obj.is_active else None
@@ -187,8 +187,8 @@ class ContactReadSerializer(ReadSerializer):
     def get_blocked(self, obj):
         return obj.is_blocked if obj.is_active else None
 
-    def get_failed(self, obj):
-        return obj.is_failed if obj.is_active else None
+    def get_stopped(self, obj):
+        return obj.is_stopped if obj.is_active else None
 
     class Meta:
         model = Contact
