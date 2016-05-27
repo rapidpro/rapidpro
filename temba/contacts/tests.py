@@ -115,6 +115,19 @@ class ContactCRUDLTest(_CRUDLTest):
         self.client.post(unblock_url, dict(id=self.joe.id))
         self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=False))
 
+        response = self.client.get(read_url)
+        unstop_url = reverse('contacts.contact_unstop', args=[self.joe.id])
+        self.assertFalse(unstop_url in response)
+
+        # stop the contact
+        self.joe.stop(self.user)
+        self.assertFalse(Contact.objects.filter(pk=self.joe.id, is_stopped=False))
+        response = self.client.get(read_url)
+        self.assertContains(response, unstop_url)
+
+        self.client.post(unstop_url, dict(id=self.joe.id))
+        self.assertTrue(Contact.objects.filter(pk=self.joe.id, is_stopped=False))
+
         # ok, what about deleting?
         response = self.client.get(read_url)
         delete_url = reverse('contacts.contact_delete', args=[self.joe.id])
