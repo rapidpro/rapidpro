@@ -1105,7 +1105,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     else if rule._config.operands == 1 and not rule.test._base
       complete = false
 
-    else if rule._config.type == 'between' and (not rule.test.min or not rule.test.min)
+    else if rule._config.type == 'between' and (not rule.test.min or not rule.test.max)
       complete = false
 
     else if rule._config.type == 'ward' and (not rule.test.state or not rule.test.district)
