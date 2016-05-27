@@ -1565,7 +1565,7 @@ class Channel(TembaModel):
         start = response.text.find("<id>")
         end = response.text.find("</id>")
         if end > start > 0:
-            external_id = response.text[start+4:end]
+            external_id = response.text[start + 4:end]
 
         Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
 
