@@ -342,7 +342,7 @@ class ContactReadSerializer(ReadSerializer):
         return obj.is_blocked if obj.is_active else None
 
     def get_failed(self, obj):
-        return obj.is_failed if obj.is_active else None
+        return obj.is_stopped if obj.is_active else None
 
     def get_groups(self, obj):
         if not obj.is_active:

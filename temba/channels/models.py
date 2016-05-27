@@ -1659,9 +1659,10 @@ class Channel(TembaModel):
             # this is a fatal failure, don't retry
             fatal = response.status_code == 400
 
-            # if this is fatal due to the user opting out, fail this contact permanently
+            # if this is fatal due to the user opting out, stop them
             if response.text and response.text.find('has opted out') >= 0:
-                Contact.objects.get(id=msg.contact).fail(permanently=True)
+                contact = Contact.objects.get(id=msg.contact)
+                contact.stop(contact.modified_by)
                 fatal = True
 
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -1756,7 +1757,8 @@ class Channel(TembaModel):
 
             # check if we failed permanently (they blocked us)
             if failed and response_qs.get('ybs_autocreate_message', [''])[0].find('BLACKLISTED') >= 0:
-                Contact.objects.get(id=msg.contact).fail(permanently=True)
+                contact = Contact.objects.get(id=msg.contact)
+                contact.stop(contact.modified_by)
                 fatal = True
                 break
 
@@ -2119,9 +2121,10 @@ class Channel(TembaModel):
                         fatal = True
                         break
 
-            # if message can never be sent, fail contact permanently
+            # if message can never be sent, stop them contact
             if fatal:
-                Contact.objects.get(id=msg.contact).fail(permanently=True)
+                contact = Contact.objects.get(id=msg.contact)
+                contact.stop(contact.modified_by)
 
             raise SendException(str(e),
                                 'https://api.twitter.com/1.1/direct_messages/new.json',
