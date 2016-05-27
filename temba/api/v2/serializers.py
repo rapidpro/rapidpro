@@ -192,7 +192,7 @@ class ContactReadSerializer(ReadSerializer):
 
     class Meta:
         model = Contact
-        fields = ('uuid', 'name', 'language', 'urns', 'groups', 'fields', 'blocked', 'failed',
+        fields = ('uuid', 'name', 'language', 'urns', 'groups', 'fields', 'blocked', 'stopped',
                   'created_on', 'modified_on')
 
 

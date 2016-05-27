@@ -1829,7 +1829,7 @@ class ContactGroup(TembaModel):
 
         for contact in contacts:
             if add and (contact.is_blocked or contact.is_stopped or not contact.is_active):  # pragma: no cover
-                raise ValueError("Blocked, failed and deleted contacts can't be added to groups")
+                raise ValueError("Blocked, stopped and deleted contacts can't be added to groups")
 
             contact_changed = False
 
