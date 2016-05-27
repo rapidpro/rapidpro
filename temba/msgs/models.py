@@ -21,8 +21,8 @@ from django.utils.translation import ugettext, ugettext_lazy as _
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
-from temba.channels.models import Channel, ANDROID, SEND, CALL
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
+from temba.channels.models import Channel, ChannelEvent, ANDROID, SEND, CALL
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils.email import send_template_email
@@ -155,17 +155,20 @@ class Broadcast(models.Model):
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
 
-    groups = models.ManyToManyField(ContactGroup, verbose_name=_("Groups"),
+    groups = models.ManyToManyField(ContactGroup, verbose_name=_("Groups"), related_name='addressed_broadcasts',
                                     help_text=_("The groups to send the message to"))
 
-    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"),
+    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='addressed_broadcasts',
                                       help_text=_("Individual contacts included in this message"))
 
-    urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"),
+    urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"), related_name='addressed_broadcasts',
                                   help_text=_("Individual URNs included in this message"))
 
+    recipients = models.ManyToManyField(ContactURN, verbose_name=_("Recipients"), related_name='broadcasts',
+                                        help_text=_("The URNs which received this message"))
+
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
-                                          help_text=_("Number of contacts to receive this broadcast"))
+                                          help_text=_("Number of urns which received this broadcast"))
 
     text = models.TextField(max_length=640, verbose_name=_("Text"),
                             help_text=_("The message to send out"))
@@ -228,6 +231,9 @@ class Broadcast(models.Model):
 
         self.recipient_count = len(contact_ids)
         self.save(update_fields=('recipient_count',))
+
+        # cache on object for use in subsequent send(..) calls
+        delattr(self, '_recipient_cache')
 
     def update_recipients(self, recipients):
         """
@@ -360,8 +366,11 @@ class Broadcast(models.Model):
         Contact.bulk_cache_initialize(self.org, contacts)
         recipients = list(urns) + list(contacts)
 
+        RelatedRecipient = Broadcast.recipients.through
+
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
+        recipient_batch = []
 
         # our priority is based on the number of recipients
         priority = SMS_NORMAL_PRIORITY
@@ -426,10 +435,13 @@ class Broadcast(models.Model):
             # only add it to our batch if it was legit
             if msg:
                 batch.append(msg)
+                # keep track of this URN as a recipient
+                recipient_batch.append(RelatedRecipient(contacturn_id=msg.contact_urn_id, broadcast_id=self.id))
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
                 Msg.all_messages.bulk_create(batch)
+                RelatedRecipient.objects.bulk_create(recipient_batch)
 
                 # send any messages
                 if trigger_send:
@@ -439,10 +451,12 @@ class Broadcast(models.Model):
                     created_on = created_on + timedelta(seconds=1)
 
                 batch = []
+                recipient_batch = []
 
         # commit any remaining objects
         if batch:
             Msg.all_messages.bulk_create(batch)
+            RelatedRecipient.objects.bulk_create(recipient_batch)
 
             if trigger_send:
                 self.org.trigger_send(Msg.current_messages.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
@@ -636,6 +650,10 @@ class Msg(models.Model):
         queued.
         :return:
         """
+        task_msgs = []
+        task_priority = None
+        last_contact = None
+
         # we send in chunks of 1,000 to help with contention
         for msg_chunk in chunk_list(all_msgs, 1000):
             # create a temporary list of our chunk so we can iterate more than once
@@ -656,29 +674,38 @@ class Msg(models.Model):
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
-                seen_contact_ids = set()
                 for msg in msgs:
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and \
                             msg.topup and not msg.contact.is_test:
+
+                        # if this is a different contact than our last, and we have msgs for that last contact, queue the task
+                        if task_msgs and last_contact != msg.contact_id:
+                            # if no priority was set, default to DEFAULT
+                            if task_priority is None:
+                                task_priority = DEFAULT_PRIORITY
+
+                            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
+                            task_msgs = []
+                            task_priority = None
+
                         # serialize the model to a dictionary
                         msg.queued_on = queued_on
                         task = msg.as_task_json()
 
-                        # if we've already seen this contact in our current 500ms batch, then pause
-                        # to make sure ordering remains the same
-                        if msg.contact_id in seen_contact_ids:
-                            time.sleep(.5)
-                            seen_contact_ids = set()
-
-                        seen_contact_ids.add(msg.contact_id)
-
-                        task_priority = DEFAULT_PRIORITY
-                        if msg.priority == SMS_BULK_PRIORITY:
+                        # only be low priority if no priority has been set for this task group
+                        if msg.priority == SMS_BULK_PRIORITY and task_priority is None:
                             task_priority = LOW_PRIORITY
                         elif msg.priority == SMS_HIGH_PRIORITY:
                             task_priority = HIGH_PRIORITY
 
-                        push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
+                        task_msgs.append(task)
+                        last_contact = msg.contact_id
+
+        # send our last msgs
+        if task_msgs:
+            if task_priority is None:
+                task_priority = DEFAULT_PRIORITY
+            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
 
     @classmethod
     def process_message(cls, msg):
@@ -1134,6 +1161,10 @@ class Msg(models.Model):
 
         msg = Msg.all_messages.create(**msg_args)
 
+        # if this contact is currently stopped, unstop them
+        if contact.is_stopped:
+            contact.unstop(user)
+
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
@@ -1323,8 +1354,9 @@ class Msg(models.Model):
             if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
                 contact_urn = recipient
-        elif isinstance(recipient, tuple) and len(recipient) == 2:
-            if recipient[0] in resolved_schemes:
+        elif isinstance(recipient, basestring):
+            scheme, path = URN.to_parts(recipient)
+            if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
         else:  # pragma: no cover
@@ -1468,75 +1500,6 @@ class Msg(models.Model):
         ordering = ['-created_on', '-pk']
 
 
-class Call(SmartModel):  # TODO rename to ChannelEvent and move to channels app
-    """
-    An event that has occurred on a channel which may be used as a trigger
-    """
-    TYPE_UNKNOWN = 'unk'
-    TYPE_CALL_OUT = 'mt_call'
-    TYPE_CALL_OUT_MISSED = 'mt_miss'
-    TYPE_CALL_IN = 'mo_call'
-    TYPE_CALL_IN_MISSED = 'mo_miss'
-
-    # single char flag, human readable name, API readable name
-    TYPE_CONFIG = ((TYPE_UNKNOWN, _("Unknown Call Type"), 'unknown'),
-                   (TYPE_CALL_IN, _("Incoming Call"), 'call-in'),
-                   (TYPE_CALL_IN_MISSED, _("Missed Incoming Call"), 'call-in-missed'),
-                   (TYPE_CALL_OUT, _("Outgoing Call"), 'call-out'),
-                   (TYPE_CALL_OUT_MISSED, _("Missed Outgoing Call"), 'call-out-missed'))
-
-    TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
-
-    org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The org this call is connected to"))
-
-    channel = models.ForeignKey(Channel, null=True, verbose_name=_("Channel"),
-                                help_text=_("The channel where this call took place"))
-    contact = models.ForeignKey(Contact, verbose_name=_("Contact"), related_name='calls',
-                                help_text=_("The phone number for this call"))
-    time = models.DateTimeField(verbose_name=_("Time"), help_text=_("When this call took place"))
-    duration = models.IntegerField(default=0, verbose_name=_("Duration"),
-                                   help_text=_("The duration of this call in seconds, if appropriate"))
-    call_type = models.CharField(max_length=16, choices=TYPE_CHOICES,
-                                 verbose_name=_("Call Type"), help_text=_("The type of call"))
-
-    @classmethod
-    def create_call(cls, channel, phone, date, duration, call_type, user=None):
-        from temba.api.models import WebHookEvent
-        from temba.triggers.models import Trigger
-
-        if not user:
-            user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
-
-        contact = Contact.get_or_create(channel.org, user, name=None, urns=[(TEL_SCHEME, phone)],
-                                        incoming_channel=channel)
-
-        call = Call.objects.create(channel=channel,
-                                   org=channel.org,
-                                   contact=contact,
-                                   time=date,
-                                   duration=duration,
-                                   call_type=call_type,
-                                   created_by=user,
-                                   modified_by=user)
-
-        analytics.gauge('temba.call_%s' % call.get_call_type_display().lower().replace(' ', '_'))
-
-        WebHookEvent.trigger_call_event(call)
-
-        if call_type == Call.TYPE_CALL_IN_MISSED:
-            Trigger.catch_triggers(call, Trigger.TYPE_MISSED_CALL, channel)
-
-        return call
-
-    @classmethod
-    def get_calls(cls, org):
-        return Call.objects.filter(org=org)
-
-    def release(self):
-        self.is_active = False
-        self.save(update_fields=('is_active',))
-
-
 STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,' \
              'cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,' \
              'how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,' \
@@ -1634,7 +1597,7 @@ class SystemLabel(models.Model):
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
-            qs = Call.objects.filter(is_active=True)
+            qs = ChannelEvent.objects.filter(is_active=True, event_type__in=ChannelEvent.CALL_TYPES)
         else:
             raise ValueError("Invalid label type: %s" % label_type)
 
