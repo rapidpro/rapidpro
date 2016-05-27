@@ -1560,7 +1560,14 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        # parse out our id, this is XML but we only care about the id
+        external_id = None
+        start = response.text.find("<id>")
+        end = response.text.find("</id>")
+        if end > start > 0:
+            external_id = response.text[start + 4:end]
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",

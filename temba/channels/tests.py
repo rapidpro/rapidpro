@@ -6036,7 +6036,9 @@ class StartMobileTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, '')
+                mock.return_value = MockResponse(200,
+                                                 """<status date='Wed, 25 May 2016 17:29:56 +0300'>
+                                                 <id>380502535130309161501</id><state>Accepted</state></status>""")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
@@ -6045,6 +6047,7 @@ class StartMobileTest(TembaTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
+                self.assertEqual(msg.external_id, "380502535130309161501")
 
                 self.assertEqual('http://bulk.startmobile.com.ua/clients.php', mock.call_args[0][0])
                 self.clear_cache()
