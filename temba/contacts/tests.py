@@ -19,7 +19,6 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast
-from temba.msgs.tasks import check_messages_task
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
@@ -283,7 +282,7 @@ class ContactGroupTest(TembaTest):
         Contact.objects.all().delete()  # start with none
 
         counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 0, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
+        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 0, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0})
 
         self.create_contact("Hannibal", number="0783835001")
         face = self.create_contact("Face", number="0783835002")
@@ -291,31 +290,31 @@ class ContactGroupTest(TembaTest):
         murdock = self.create_contact("Murdock", number="0783835004")
 
         counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 4, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
+        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 4, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0})
 
         # call methods twice to check counts don't change twice
         murdock.block(self.user)
         murdock.block(self.user)
         face.block(self.user)
-        ba.fail()
-        ba.fail()
+        ba.stop(self.user)
+        ba.stop(self.user)
 
         counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 2, ContactGroup.TYPE_BLOCKED: 2, ContactGroup.TYPE_FAILED: 1})
+        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 1, ContactGroup.TYPE_BLOCKED: 2, ContactGroup.TYPE_STOPPED: 1})
 
         murdock.release(self.user)
         murdock.release(self.user)
         face.unblock(self.user)
         face.unblock(self.user)
-        ba.unfail()
-        ba.unfail()
+        ba.unstop(self.user)
+        ba.unstop(self.user)
 
         # squash all our counts, this shouldn't affect our overall counts, but we should now only have 3
         squash_contactgroupcounts()
         self.assertEqual(ContactGroupCount.objects.all().count(), 3)
 
         counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_FAILED: 0})
+        self.assertEqual(counts, {ContactGroup.TYPE_ALL: 3, ContactGroup.TYPE_BLOCKED: 0, ContactGroup.TYPE_STOPPED: 0})
 
         # rebuild just our system contact group
         all_contacts = ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
@@ -623,33 +622,33 @@ class ContactTest(TembaTest):
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
                                           ContactGroup.TYPE_BLOCKED: 0,
-                                          ContactGroup.TYPE_FAILED: 0})
+                                          ContactGroup.TYPE_STOPPED: 0})
 
         self.assertEqual(set(label.msgs.all()), {msg1, msg2, msg3})
         self.assertEqual(set(static_group.contacts.all()), {self.joe})
         self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
 
-        self.joe.fail()
+        self.joe.stop(self.user)
 
-        # check that joe is now failed
+        # check that joe is now stopped
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertTrue(self.joe.is_failed)
+        self.assertTrue(self.joe.is_stopped)
         self.assertFalse(self.joe.is_blocked)
         self.assertTrue(self.joe.is_active)
 
-        # and added to failed group
+        # and added to stopped group
         contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
                                           ContactGroup.TYPE_BLOCKED: 0,
-                                          ContactGroup.TYPE_FAILED: 1})
-        self.assertEqual(set(static_group.contacts.all()), {self.joe})
-        self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
+                                          ContactGroup.TYPE_STOPPED: 1})
+        self.assertEqual(set(static_group.contacts.all()), set())
+        self.assertEqual(set(dynamic_group.contacts.all()), set())
 
         self.joe.block(self.user)
 
-        # check that joe is now blocked and failed
+        # check that joe is now blocked and stopped
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertTrue(self.joe.is_failed)
+        self.assertTrue(self.joe.is_stopped)
         self.assertTrue(self.joe.is_blocked)
         self.assertTrue(self.joe.is_active)
 
@@ -657,7 +656,7 @@ class ContactTest(TembaTest):
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
                                           ContactGroup.TYPE_BLOCKED: 1,
-                                          ContactGroup.TYPE_FAILED: 0})
+                                          ContactGroup.TYPE_STOPPED: 1})
 
         # and removed from all groups
         self.assertEqual(set(static_group.contacts.all()), set())
@@ -672,48 +671,52 @@ class ContactTest(TembaTest):
 
         self.joe.unblock(self.user)
 
-        # check that joe is now unblocked but still failed
+        # check that joe is now unblocked but still stopped
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertTrue(self.joe.is_failed)
+        self.assertTrue(self.joe.is_stopped)
         self.assertFalse(self.joe.is_blocked)
         self.assertTrue(self.joe.is_active)
 
         # and that he's been removed from the blocked group, and put back in the all and failed groups
         contact_counts = ContactGroup.get_system_group_counts(self.org)
-        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
+        self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
                                           ContactGroup.TYPE_BLOCKED: 0,
-                                          ContactGroup.TYPE_FAILED: 1})
+                                          ContactGroup.TYPE_STOPPED: 1})
 
         # he should be back in the dynamic group
         self.assertEqual(set(static_group.contacts.all()), set())
-        self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
+        self.assertEqual(set(dynamic_group.contacts.all()), set())
 
-        self.joe.unfail()
+        self.joe.unstop(self.user)
 
         # check that joe is now no longer failed
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertFalse(self.joe.is_failed)
+        self.assertFalse(self.joe.is_stopped)
         self.assertFalse(self.joe.is_blocked)
         self.assertTrue(self.joe.is_active)
 
-        # and that he's been removed from the failed group
+        # and that he's been removed from the stopped group
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 4,
                                           ContactGroup.TYPE_BLOCKED: 0,
-                                          ContactGroup.TYPE_FAILED: 0})
+                                          ContactGroup.TYPE_STOPPED: 0})
+
+        # back in the dynamic group
+        self.assertEqual(set(static_group.contacts.all()), set())
+        self.assertEqual(set(dynamic_group.contacts.all()), {self.joe})
 
         self.joe.release(self.user)
 
         # check that joe is no longer active
         self.joe = Contact.objects.get(pk=self.joe.pk)
-        self.assertFalse(self.joe.is_failed)
+        self.assertFalse(self.joe.is_stopped)
         self.assertFalse(self.joe.is_blocked)
         self.assertFalse(self.joe.is_active)
 
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
                                           ContactGroup.TYPE_BLOCKED: 0,
-                                          ContactGroup.TYPE_FAILED: 0})
+                                          ContactGroup.TYPE_STOPPED: 0})
 
         # joe's messages should be inactive, blank and have no labels
         self.assertEqual(0, Msg.all_messages.filter(contact=self.joe, visibility='V').count())
@@ -734,12 +737,12 @@ class ContactTest(TembaTest):
 
         # blocking and failing an inactive contact won't change groups
         self.joe.block(self.user)
-        self.joe.fail()
+        self.joe.stop(self.user)
 
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
                                           ContactGroup.TYPE_BLOCKED: 0,
-                                          ContactGroup.TYPE_FAILED: 0})
+                                          ContactGroup.TYPE_STOPPED: 0})
 
         # we don't let users undo releasing a contact... but if we have to do it for some reason
         self.joe.is_active = True
@@ -749,12 +752,12 @@ class ContactTest(TembaTest):
         contact_counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(contact_counts, {ContactGroup.TYPE_ALL: 3,
                                           ContactGroup.TYPE_BLOCKED: 1,
-                                          ContactGroup.TYPE_FAILED: 1})
+                                          ContactGroup.TYPE_STOPPED: 1})
 
         # don't allow blocking or failing of test contacts
         test_contact = Contact.get_test_contact(self.user)
         self.assertRaises(ValueError, test_contact.block, self.user)
-        self.assertRaises(ValueError, test_contact.fail)
+        self.assertRaises(ValueError, test_contact.stop, self.user)
 
     def test_user_groups(self):
         # create some static groups
@@ -789,16 +792,12 @@ class ContactTest(TembaTest):
 
         self.joe.update_static_groups(self.user, [testers])
 
-        # failing doesn't affect groups
-        self.joe.fail()
-        self.assertEqual(set(self.joe.user_groups.all()), {testers, dynamic})
-
-        # unless it's permanent
-        self.joe.fail(permanently=True)
+        # stopping removes people from groups
+        self.joe.stop(self.admin)
         self.assertEqual(set(self.joe.user_groups.all()), set())
 
-        # and unfailing potentially puts contact back in dynamic groups
-        self.joe.unfail()
+        # and unstopping potentially puts contact back in dynamic groups
+        self.joe.unstop(self.admin)
         self.assertEqual(set(self.joe.user_groups.all()), {dynamic})
 
         self.joe.update_static_groups(self.user, [testers])
@@ -1705,31 +1704,47 @@ class ContactTest(TembaTest):
         self.assertEquals(len(self.just_joe.contacts.all()), 0)
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 1)
 
-        # shouldn't be any contacts on the failed page
-        response = self.client.get(reverse('contacts.contact_failed'))
+        # shouldn't be any contacts on the stopped page
+        response = self.client.get(reverse('contacts.contact_stopped'))
         self.assertEquals(0, len(response.context['object_list']))
 
-        # create a failed message for joe
-        sms = Msg.create_outgoing(self.org, self.admin, self.frank, "Failed Outgoing")
-        sms.status = 'F'
-        sms.save()
+        # mark frank as stopped
+        self.frank.stop(self.user)
 
-        check_messages_task()
+        stopped_url = reverse('contacts.contact_stopped')
 
-        response = self.client.get(reverse('contacts.contact_failed'))
+        response = self.client.get(stopped_url)
         self.assertEquals(1, len(response.context['object_list']))
         self.assertEquals(1, response.context['object_list'].count())  # from cache
 
-        # having another message that is successful removes us from the list though
-        sms = Msg.create_outgoing(self.org, self.admin, self.frank, "Delivered Outgoing")
-        sms.status = 'D'
-        sms.save()
+        # receiving an incoming message removes us from stopped
+        Msg.create_incoming(self.channel, str(self.frank.get_urn('tel')), "Incoming message")
 
-        check_messages_task()
-
-        response = self.client.get(reverse('contacts.contact_failed'))
+        response = self.client.get(stopped_url)
         self.assertEquals(0, len(response.context['object_list']))
         self.assertEquals(0, response.context['object_list'].count())  # from cache
+
+        self.frank.refresh_from_db()
+        self.assertFalse(self.frank.is_stopped)
+
+        # mark frank stopped again
+        self.frank.stop(self.user)
+
+        # have the user unstop them
+        post_data = dict()
+        post_data['action'] = 'unstop'
+        post_data['objects'] = self.frank.id
+        self.client.post(stopped_url, post_data, follow=True)
+
+        response = self.client.get(stopped_url)
+        self.assertEquals(0, len(response.context['object_list']))
+        self.assertEquals(0, response.context['object_list'].count())  # from cache
+
+        self.frank.refresh_from_db()
+        self.assertFalse(self.frank.is_stopped)
+
+        # add him back to joe and frank
+        self.joe_and_frank.contacts.add(self.frank)
 
         # Now let's visit the archived contacts page
         blocked_url = reverse('contacts.contact_blocked')

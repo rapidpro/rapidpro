@@ -249,7 +249,6 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
      * **groups** - the groups that received the broadcast (array of objects)
      * **text** - the message text (string)
      * **created_on** - when this broadcast was either created (datetime) (filterable as `before` and `after`).
-     * **status** - the status of the broadcast (one of "initializing", "queued", "wired", "sent", "delivered", "errored", "failed", "resent").
 
     Example:
 
@@ -267,8 +266,7 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
                     "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
                     "groups": [],
                     "text": "hello world",
-                    "created_on": "2013-03-02T17:28:12.123Z",
-                    "status": "queued"
+                    "created_on": "2013-03-02T17:28:12.123Z"
                 },
                 ...
     """

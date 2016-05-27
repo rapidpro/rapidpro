@@ -897,7 +897,7 @@ class Org(SmartModel):
                                created_by=self.created_by, modified_by=self.modified_by)
         self.all_groups.create(name='Blocked Contacts', group_type=ContactGroup.TYPE_BLOCKED,
                                created_by=self.created_by, modified_by=self.modified_by)
-        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_FAILED,
+        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_STOPPED,
                                created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self, api_url):

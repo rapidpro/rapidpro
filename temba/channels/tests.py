@@ -3202,9 +3202,9 @@ class YoTest(TembaTest):
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
-                # contact should not be failed
+                # contact should not be stopped
                 joe.refresh_from_db()
-                self.assertFalse(joe.is_failed)
+                self.assertFalse(joe.is_stopped)
 
                 self.clear_cache()
 
@@ -3221,9 +3221,9 @@ class YoTest(TembaTest):
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
-                # contact should also be failed
+                # contact should also be stopped
                 joe.refresh_from_db()
-                self.assertTrue(joe.is_failed)
+                self.assertTrue(joe.is_stopped)
 
         finally:
             settings.SEND_MESSAGES = False
@@ -3940,9 +3940,9 @@ class VumiTest(TembaTest):
                 self.assertTrue(msg.next_attempt > timezone.now())
                 self.assertEquals(1, mock.call_count)
 
-                # Joe shouldn't be failed and should still be in a group
+                # Joe shouldn't be stopped and should still be in a group
                 joe = Contact.objects.get(id=joe.id)
-                self.assertFalse(joe.is_failed)
+                self.assertFalse(joe.is_stopped)
                 self.assertTrue(ContactGroup.user_groups.filter(contacts=joe))
 
                 self.clear_cache()
@@ -3964,9 +3964,9 @@ class VumiTest(TembaTest):
                 self.assertTrue(msg.next_attempt < timezone.now())
                 self.assertEquals(1, mock.call_count)
 
-                # could should now be failed as well and in no groups
+                # could should now be stopped as well and in no groups
                 joe = Contact.objects.get(id=joe.id)
-                self.assertTrue(joe.is_failed)
+                self.assertTrue(joe.is_stopped)
                 self.assertFalse(ContactGroup.user_groups.filter(contacts=joe))
 
         finally:
@@ -5717,7 +5717,7 @@ class TwitterTest(TembaTest):
 
                 # should not fail the contact
                 contact = Contact.objects.get(pk=joe.pk)
-                self.assertFalse(contact.is_failed)
+                self.assertFalse(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 1)
 
                 # should record the right error
@@ -5735,14 +5735,14 @@ class TwitterTest(TembaTest):
                 self.assertEquals(FAILED, msg.status)
                 self.assertEquals(2, msg.error_count)
 
-                # should fail the contact permanently (i.e. removed from groups)
+                # should be stopped
                 contact = Contact.objects.get(pk=joe.pk)
-                self.assertTrue(contact.is_failed)
+                self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 
                 self.clear_cache()
 
-            joe.is_failed = False
+            joe.is_stopped = False
             joe.save()
             testers.update_contacts(self.user, [joe], add=True)
 
@@ -5760,12 +5760,12 @@ class TwitterTest(TembaTest):
 
                 # should fail the contact permanently (i.e. removed from groups)
                 contact = Contact.objects.get(pk=joe.pk)
-                self.assertTrue(contact.is_failed)
+                self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 
                 self.clear_cache()
 
-            joe.is_failed = False
+            joe.is_stopped = False
             joe.save()
             testers.update_contacts(self.user, [joe], add=True)
 
@@ -5782,7 +5782,7 @@ class TwitterTest(TembaTest):
 
                 # should fail the contact permanently (i.e. removed from groups)
                 contact = Contact.objects.get(pk=joe.pk)
-                self.assertTrue(contact.is_failed)
+                self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 
                 self.clear_cache()
@@ -5809,7 +5809,7 @@ class MageHandlerTest(TembaTest):
         Creates a contact as if it were created in Mage, i.e. no event/group triggering or cache updating
         """
         contact = Contact.objects.create(org=self.org, name=name, is_active=True, is_blocked=False,
-                                         uuid=uuid.uuid4(), is_failed=False,
+                                         uuid=uuid.uuid4(), is_stopped=False,
                                          modified_by=self.user, created_by=self.user,
                                          modified_on=timezone.now(), created_on=timezone.now())
         urn = ContactURN.objects.create(org=self.org, contact=contact,
