@@ -970,7 +970,7 @@ class ContactTest(TembaTest):
         self.assertEqual(q('join_date >= xxxx'), 0)  # invalid date
 
         self.assertEqual(q('state is "Eastern Province"'), 90)
-        self.assertEqual(q('HOME is Kayônza'), 30)
+        self.assertEqual(q('HOME is Kayônza'), 30)  # value with non-ascii character
         self.assertEqual(q('ward is kageyo'), 30)
         self.assertEqual(q('home has ga'), 60)
 
