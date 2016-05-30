@@ -900,20 +900,16 @@ class ContactTest(TembaTest):
 
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, self.admin, 'join_date', "Join Date", value_type='D')
-        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
         ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
+        ContactField.get_or_create(self.org, self.admin, 'ward', "Home Ward", value_type='W')
         ContactField.get_or_create(self.org, self.admin, 'profession', "Profession", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
 
-        africa = AdminBoundary.objects.create(osm_id='R001', name='Africa', level=0)
-        rwanda = AdminBoundary.objects.create(osm_id='R002', name='Rwanda', level=1, parent=africa)
-        AdminBoundary.objects.create(osm_id='R003', name='Gatsibo', level=2, parent=rwanda)
-        AdminBoundary.objects.create(osm_id='R004', name='Kayonza', level=2, parent=rwanda)
-        AdminBoundary.objects.create(osm_id='R005', name='Kigali', level=2, parent=rwanda)
-
-        locations = ['Gatsibo', 'Kayonza', 'Kigali']
         names = ['Trey', 'Mike', 'Paige', 'Fish']
+        districts = ['Gatsibo', 'Kayônza', 'Rwamagana']
+        wards = ['Kageyo', 'Kabara', 'Bukure']
         date_format = get_datetime_format(True)[0]
 
         # create some contacts
@@ -927,11 +923,9 @@ class ContactTest(TembaTest):
             # some field data so we can do some querying
             contact.set_field(self.user, 'age', '%s' % i)
             contact.set_field(self.user, 'join_date', '%s' % join_date)
-            contact.set_field(self.user, 'state', "Rwanda")
-            index = (i + 2) % len(locations)
-            with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
-                mock_parse_location.return_value = AdminBoundary.objects.filter(name__iexact=locations[index])
-                contact.set_field(self.user, 'home', locations[index])
+            contact.set_field(self.user, 'state', "Eastern Province")
+            contact.set_field(self.user, 'home', districts[i % len(districts)])
+            contact.set_field(self.user, 'ward', wards[i % len(wards)])
 
             if i % 3 == 0:
                 contact.set_field(self.user, 'profession', "Farmer")  # only some contacts have any value for this
@@ -975,9 +969,10 @@ class ContactTest(TembaTest):
         self.assertEqual(q('join_date >= 30/1/2014'), 61)
         self.assertEqual(q('join_date >= xxxx'), 0)  # invalid date
 
-        self.assertEqual(q('home is Kayonza'), 30)
-        self.assertEqual(q('HOME is "kigali"'), 30)
-        self.assertEqual(q('home has k'), 60)
+        self.assertEqual(q('state is "Eastern Province"'), 90)
+        self.assertEqual(q('HOME is Kayônza'), 30)
+        self.assertEqual(q('ward is kageyo'), 30)
+        self.assertEqual(q('home has ga'), 60)
 
         self.assertEqual(q('home is ""'), 0)
         self.assertEqual(q('profession = ""'), 60)
@@ -994,8 +989,8 @@ class ContactTest(TembaTest):
         # boolean combinations
         self.assertEqual(q('name is trey or name is mike'), 46)
         self.assertEqual(q('name is trey and age < 20'), 3)
-        self.assertEqual(q('(home is gatsibo or home is "kigali")'), 60)
-        self.assertEqual(q('(home is gatsibo or home is "kigali") and name is mike'), 15)
+        self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 60)
+        self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is mike'), 16)
         self.assertEqual(q('name is MIKE and profession = ""'), 15)
 
         # invalid queries - which revert to simple name/phone matches

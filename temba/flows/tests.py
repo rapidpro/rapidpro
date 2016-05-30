@@ -993,8 +993,8 @@ class FlowTest(TembaTest):
         district_test = HasDistrictTest("Kigali City")
         district_test = HasDistrictTest.from_json(self.org, district_test.as_json())
 
-        sms.text = "Kigali"
-        self.assertTest(True, AdminBoundary.objects.get(name="Kigali"), district_test)
+        sms.text = "Nyarugenge"
+        self.assertTest(True, AdminBoundary.objects.get(name="Nyarugenge"), district_test)
 
         sms.text = "Rwamagana"
         self.assertTest(False, None, district_test)
@@ -1006,7 +1006,7 @@ class FlowTest(TembaTest):
         sms.text = "Kigali City"
         self.assertTest(False, None, state_test)
 
-        sms.text = "Kigali"
+        sms.text = "Nyarugenge"
         self.assertTest(False, None, district_test)
 
     def test_tests(self):
