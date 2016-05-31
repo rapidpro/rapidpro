@@ -407,7 +407,7 @@ class WebHookEvent(SmartModel):
                                        headers=headers).prepare()
             result['url'] = prepped.url
             result['request'] = prepped_request_to_str(prepped)
-            r = s.send(prepped)
+            r = s.send(prepped, timeout=5)
 
             result['status_code'] = r.status_code
             result['body'] = r.text.strip()
