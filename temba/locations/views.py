@@ -35,8 +35,7 @@ class BoundaryCRUDL(SmartCRUDL):
             if not response:
                 org = request.user.get_org()
                 if not org.country:
-                    messages.warning(request, _(
-                        "You must select a country for your organization."))
+                    messages.warning(request, _("You must select a country for your organization."))
                     return HttpResponseRedirect(reverse('orgs.org_home'))
 
             return None
@@ -79,16 +78,14 @@ class BoundaryCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
 
             def update_boundary_aliases(boundary):
-                level_boundary = AdminBoundary.objects.filter(
-                    osm_id=boundary['osm_id']).first()
+                level_boundary = AdminBoundary.objects.filter(osm_id=boundary['osm_id']).first()
                 if level_boundary:
                     boundary_aliases = boundary.get('aliases', '')
                     update_aliases(level_boundary, boundary_aliases)
 
             def update_aliases(boundary, new_aliases):
                 # for now, nuke and recreate all aliases
-                BoundaryAlias.objects.filter(
-                    boundary=boundary, org=org).delete()
+                BoundaryAlias.objects.filter(boundary=boundary, org=org).delete()
                 for new_alias in new_aliases.split('\n'):
                     if new_alias:
                         BoundaryAlias.objects.create(boundary=boundary, org=org, name=new_alias.strip(),
@@ -105,8 +102,7 @@ class BoundaryCRUDL(SmartCRUDL):
 
             # this can definitely be optimized
             for state in json_list:
-                state_boundary = AdminBoundary.objects.filter(
-                    osm_id=state['osm_id']).first()
+                state_boundary = AdminBoundary.objects.filter(osm_id=state['osm_id']).first()
                 state_aliases = state.get('aliases', '')
                 if state_boundary:
                     update_aliases(state_boundary, state_aliases)
@@ -137,8 +133,7 @@ class BoundaryCRUDL(SmartCRUDL):
                     for top in boundaries:
                         if top['osm_id'] == child['parent_osm_id']:
                             current_top = top
-                            match = '%s %s' % (
-                                current_top['name'], current_top['aliases'])
+                            match = '%s %s' % (current_top['name'], current_top['aliases'])
                             current_top['match'] = match
 
                 children = current_top.get('children', [])
@@ -153,13 +148,11 @@ class BoundaryCRUDL(SmartCRUDL):
                                                              'aliases'], child['name'], child['aliases'], match)
 
                     sub_children.append(sub_child)
-                    child['match'] = '%s %s %s' % (child['match'], sub_child[
-                                                   'name'], sub_child['aliases'])
+                    child['match'] = '%s %s %s' % (child['match'], sub_child['name'], sub_child['aliases'])
 
                 child['children'] = sub_children
                 children.append(child)
                 current_top['children'] = children
-                current_top['match'] = '%s %s' % (
-                    current_top['match'], child['match'])
+                current_top['match'] = '%s %s' % (current_top['match'], child['match'])
 
             return build_json_response(boundaries)
