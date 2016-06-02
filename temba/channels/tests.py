@@ -1466,6 +1466,25 @@ class ChannelTest(TembaTest):
 
                 self.assertEquals('MTN', channel.address)
 
+                # add a canada number
+                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"type":"mobile-lvn","country":"CA","msisdn":"15797884540"}] }')
+                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
+
+                # make sure our number appears on the claim page
+                response = self.client.get(claim_nexmo)
+                self.assertFalse('account_trial' in response.context)
+                self.assertContains(response, '579-788-4540')
+
+                # claim it
+                response = self.client.post(claim_nexmo, dict(country='CA', phone_number='15797884540'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='+15797884540').first())
+
+                # as is our old one
+                self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='MTN').first())
+
     def test_claim_plivo(self):
         self.login(self.admin)
 
