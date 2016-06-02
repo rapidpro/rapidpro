@@ -858,11 +858,6 @@ AUTHENTICATION_BACKENDS = (
 ANONYMOUS_USER_ID = -1
 
 # -----------------------------------------------------------------------------------
-# Async tasks with django-celery, for testing we use a memory test backend
-# -----------------------------------------------------------------------------------
-BROKER_BACKEND = 'memory'
-
-# -----------------------------------------------------------------------------------
 # Our test runner is standard but with ability to exclude apps
 # -----------------------------------------------------------------------------------
 TEST_RUNNER = 'temba.tests.ExcludeTestRunner'
