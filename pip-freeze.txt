@@ -1,7 +1,7 @@
 -e git+https://github.com/nyaruka/smartmin.git@d3a3ce4382ff6f015d8d5a55591d1cc344af83b5#egg=smartmin
 Django==1.8.5
 coverage==4.0.3
-django-celery==3.1.16
+django-celery==3.1.17
 django-compressor==1.5
 django-debug-toolbar==1.2.2
 django-digest==1.13
@@ -12,7 +12,7 @@ flake8==2.5.4
 gunicorn==19.3.0
 pisa==3.0.33
 raven==4.0.4
-celery[redis]==3.1.18
+celery[redis]==3.1.23
 python-gcm==0.1.5
 hamlpy==0.82.2
 django-redis==3.1.5
@@ -78,7 +78,7 @@ google==1.07
 httplib2==0.9
 ipython==2.2.0
 iso639==0.1.1
-kombu==3.0.16
+kombu==3.0.35
 nodeenv==0.9.4
 oauthlib==0.6.1
 prettytable==0.7.2
