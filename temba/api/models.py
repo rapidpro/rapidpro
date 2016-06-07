@@ -149,10 +149,12 @@ class WebHookEvent(SmartModel):
         # we might not have an sms (or channel) yet
         channel = None
         text = None
+        contact_urn = contact.get_urn()
 
         if event:
             text = event.text
             channel = event.channel
+            contact_urn = event.contact_urn
 
         if channel:
             channel_id = channel.pk
@@ -175,6 +177,8 @@ class WebHookEvent(SmartModel):
                     text=text,
                     step=unicode(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    contact=contact.uuid,
+                    urn=unicode(contact_urn),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
                     time=json_time)
@@ -276,6 +280,8 @@ class WebHookEvent(SmartModel):
         json_time = time.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(sms=msg.pk,
                     phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    contact=msg.contact.uuid,
+                    urn=unicode(msg.contact_urn),
                     text=msg.text,
                     time=json_time,
                     status=msg.status,
@@ -315,6 +321,8 @@ class WebHookEvent(SmartModel):
         json_time = call.time.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(call=call.pk,
                     phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    contact=call.contact.uuid,
+                    urn=unicode(call.contact_urn),
                     duration=call.duration,
                     time=json_time)
         hook_event = WebHookEvent.objects.create(org=org,
