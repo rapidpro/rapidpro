@@ -42,7 +42,7 @@
           "actions": [
             {
               "msg": {
-                "eng": "You picked @child.color.category."
+                "eng": "@flow.subflow.category: You picked @child.color.category."
               }, 
               "type": "reply"
             }

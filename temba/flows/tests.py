@@ -4215,6 +4215,11 @@ class FlowsTest(FlowFileTest):
         # this should launch the child flow
         self.send_message(parent, "color", assert_reply=False)
         msg = Msg.all_messages.filter(contact=self.contact).order_by('-created_on').first()
+
+        subflow_ruleset = RuleSet.objects.filter(flow=parent, ruleset_type='subflow').first()
+
+        # should have one step on the subflow ruleset
+        self.assertEqual(1, FlowStep.objects.filter(step_uuid=subflow_ruleset.uuid).count())
         self.assertEqual("What color do you like?", msg.text)
 
         # we should now have two active flows
@@ -4223,6 +4228,9 @@ class FlowsTest(FlowFileTest):
         # complete the child flow
         self.send('Red')
 
+        # should still only have one step on our subflow ruleset
+        self.assertEqual(1, FlowStep.objects.filter(step_uuid=subflow_ruleset.uuid).count())
+
         # now we are back to a single active flow, the parent
         self.assertEqual(1, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
         active_run = FlowRun.objects.filter(contact=self.contact, is_active=True).first()
@@ -4230,10 +4238,10 @@ class FlowsTest(FlowFileTest):
 
         # we should have a new outbound message from the the parent flow
         msg = Msg.all_messages.filter(contact=self.contact, direction='O').order_by('-created_on').first()
-        self.assertEqual("You picked Red.", msg.text)
+        self.assertEqual("Complete: You picked Red.", msg.text)
 
         # should only have one response msg
-        self.assertEqual(1, Msg.all_messages.filter(text='You picked Red.', contact=self.contact, direction='O').count())
+        self.assertEqual(1, Msg.all_messages.filter(text='Complete: You picked Red.', contact=self.contact, direction='O').count())
 
     def test_subflow_expired(self):
         self.get_flow('subflow')
