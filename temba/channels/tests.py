@@ -3762,6 +3762,23 @@ class NexmoTest(TembaTest):
                 self.clear_cache()
 
             with patch('requests.get') as mock:
+                mock.return_value = MockResponse(401, "Invalid API token", method='POST')
+
+                # clear out our channel log
+                ChannelLog.objects.all().delete()
+
+                # then send it
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check status
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+
+                # and that we have a decent log
+                log = ChannelLog.objects.get(msg=msg)
+                self.assertEqual(log.description, "Failed sending message: Invalid API token")
+
+            with patch('requests.get') as mock:
                 # this hackery is so that we return a different thing on the second call as the first
                 def return_valid(url, params):
                     called = getattr(return_valid, 'called', False)
