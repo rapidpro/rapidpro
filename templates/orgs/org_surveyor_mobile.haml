@@ -7,20 +7,114 @@
     {% lessblock %}
       :plain
         body {
-          // background: @color-primary;
+          padding: 0;
         }
 
-        .help-block {
-          display:none;
+        .create-account {
+          .header {
+            background: @color-primary;
+            color: white;
+            padding: 20px;
+            .title {
+              padding-bottom:10px;
+              font-size:20px;
+              font-weight:500;
+            }
+          }
+
+          .content {
+            margin-top:10px;
+            padding: 20px;
+
+            form {
+              text-align: center;
+
+              label, p.help-block {
+                display:none;
+              }
+
+              .fields {
+                input {
+                  background-color:transparent;
+                  border: 0px solid;
+                  border-bottom: 1px solid #ddd;
+                  -webkit-box-shadow: none;
+                  -moz-box-shadow: none;
+                  box-shadow: none;
+                  outline: none;
+                  padding-left:1px;
+                  font-size:16px;
+                  width:98%;
+                  margin-top:8px;
+
+
+                }
+              }
+
+              .error {
+                width: inherit;
+                text-align: left;
+                font-size: 14px;
+              }
+
+              .errorlist {
+                li {
+
+                  width: 100%;
+                }
+              }
+
+              textarea:focus, input:focus{
+                outline: none;
+                border-bottom: 1px solid @color-primary;
+              }
+
+              input[type="submit"] {
+                margin-top:20px;
+                font-weight:500;
+                color: #999;
+                width:100%;
+              }
+            }
+          }
         }
+
     {% endlessblock %}
 
 
 -block body
-  Create Account
+  .create-account
 
-  %form
-    %input{placeholder:'Email Address'}
+    .header
+      -if step == 1
+        .title
+          Create Account
+        .details
+          Enter the password you were provided to continue. If you don't have one, request
+          one from your project leader.
+      -elif step == 2
+        .title
+          Welcome
+        .details
+          You have been invited to be a surveyor for {{org.name}}. Enter your account details below to create your account.
+          This is the email address you will use to login to Surveyor.
+
+    .content
+      %form{method:'POST' }
+        {% csrf_token %}
+
+        .fields
+          -if step == 1
+            {% render_field 'surveyor_password' %}
+
+          -elif step == 2
+            {% render_field 'surveyor_password' %}
+            {% render_field 'first_name' %}
+            {% render_field 'last_name' %}
+            {% render_field 'email' %}
+            {% render_field 'password' %}
+
+        %input.btn.btn-secondary.btn-tiny{type:'submit', value:'CONTINUE'}
 
   
 
