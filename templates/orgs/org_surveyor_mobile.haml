@@ -1,0 +1,28 @@
+-extends "smartmin/update.html"
+
+-load i18n smartmin temba compress
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        body {
+          // background: @color-primary;
+        }
+
+        .help-block {
+          display:none;
+        }
+    {% endlessblock %}
+
+
+-block body
+  Create Account
+
+  %form
+    %input{placeholder:'Email Address'}
+
+  
+
+
+
