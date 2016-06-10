@@ -2,8 +2,8 @@ from __future__ import absolute_import, unicode_literals
 
 import logging
 
-from urlparse import parse_qs
 from base64 import b64decode
+from urlparse import parse_qs
 
 from django.conf import settings
 from django.http import HttpResponseServerError
@@ -134,14 +134,14 @@ class CustomCursorPagination(CursorPagination):
         # nearly-unique index. (Eg millisecond precision creation timestamps)
         # We guard against malicious users attempting to cause expensive database
         # queries, by having a hard cap on the maximum possible size of the offset.
-        OFFSET_CUTOFF = getattr(settings, 'CURSOR_PAGINATION_OFFSET_CUTOFF', 1000)
+        offset_cutoff = getattr(settings, 'CURSOR_PAGINATION_OFFSET_CUTOFF', 1000)
 
         try:
             querystring = b64decode(encoded.encode('ascii')).decode('ascii')
             tokens = parse_qs(querystring, keep_blank_values=True)
 
             offset = tokens.get('o', ['0'])[0]
-            offset = _positive_int(offset, cutoff=OFFSET_CUTOFF)
+            offset = _positive_int(offset, cutoff=offset_cutoff)
 
             reverse = tokens.get('r', ['0'])[0]
             reverse = bool(int(reverse))

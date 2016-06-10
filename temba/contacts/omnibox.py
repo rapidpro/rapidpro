@@ -23,7 +23,7 @@ def omnibox_query(org, **kwargs):
     group_ids = kwargs.get('g', None)    # groups with ids
     urn_ids = kwargs.get('u', None)      # URNs with ids
     search = kwargs.get('search', None)  # search of groups, contacts and URNs
-    types = kwargs.get('types', None)    # limit search to types (g | c | u)
+    types = kwargs.get('types', None)    # limit search to types (g | s | c | u)
     simulation = kwargs.get('simulation', 'false') == 'true'
 
     # these lookups return a Contact queryset
@@ -109,10 +109,16 @@ def omnibox_mixed_search(org, search, types):
     union_queries = []
     query_component = namedtuple('query_component', 'clauses params')
 
-    if 'g' in types:
-        clauses = ["""SELECT 1 AS type, g.id AS id, g.name AS text, NULL AS owner, NULL AS scheme
-                      FROM contacts_contactgroup g
-                      WHERE g.is_active = TRUE AND g.group_type = 'U' AND g.org_id = %s"""]
+    if 'g' in types or 's' in types:
+        group_query = """SELECT 1 AS type, g.id AS id, g.name AS text, NULL AS owner, NULL AS scheme
+                         FROM contacts_contactgroup g
+                         WHERE g.is_active = TRUE AND g.group_type = 'U' AND g.org_id = %s"""
+
+        # do we include non-static groups?
+        if 'g' not in types:
+            group_query += " AND g.query IS NULL"
+
+        clauses = [group_query]
         params = [org.pk]
         if search_terms:
             add_search('name', clauses, params)

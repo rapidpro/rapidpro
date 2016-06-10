@@ -545,6 +545,14 @@
       https://{{ domain }}{% url 'handlers.verboice_handler' 'status' object.uuid %}
 
   -elif object.channel_type == 'FB'
+    :javascript
+      function setFBWelcome(){
+        var modal = new Modax('{% trans "Welcome Message" %}', '{% url "channels.channel_facebook_welcome" object.id %}');
+        modal.setIcon('icon-facebook-official');
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      }
+
     %h4
       -blocktrans
         To finish configuring your Facebook connection you'll need to set the following webhook URL on your application
@@ -569,6 +577,17 @@
 
     %code
       {{ channel.secret }}
+
+    %hr
+
+    .span2
+      %button.btn.btn-primary{ href: "#", onClick:"setFBWelcome()" }
+        -trans "Set Welcome Message"
+
+    .span9
+      -blocktrans
+        You can set a message to be displayed when a Facebook user opens a chat with your page. This will appear automatically
+        and gives you an opportunity to welcome the user and give them instructions on how to interact with your page.
 
   -elif object.channel_type == 'HX'
     %h4
