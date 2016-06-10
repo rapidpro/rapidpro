@@ -1389,7 +1389,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_template_names(self):
             if 'android' in self.request.META.get('HTTP_X_REQUESTED_WITH', '') \
                     or 'mobile' in self.request.REQUEST \
-                    or 'Android' in self.request.META.get('HTTP_USER_AGENT'):
+                    or 'Android' in self.request.META.get('HTTP_USER_AGENT', ''):
                 return ['orgs/org_surveyor_mobile.haml']
             else:
                 return super(OrgCRUDL.Surveyor, self).get_template_names()

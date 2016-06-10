@@ -416,7 +416,7 @@ class OrgTest(TembaTest):
             'invite_group': "V"
         }
         response = self.client.post(url, post_data)
-        self.assertRedirect(response, reverse('orgs.org_home'))
+        self.assertRedirect(response, reverse('orgs.org_manage_accounts'))
 
         self.org.refresh_from_db()
         self.assertEqual(set(self.org.administrators.all()), {self.admin})
@@ -439,7 +439,7 @@ class OrgTest(TembaTest):
         # try again with valid email
         post_data['invite_emails'] = "norkans7@gmail.com"
         response = self.client.post(url, post_data)
-        self.assertRedirect(response, reverse('orgs.org_home'))
+        self.assertRedirect(response, reverse('orgs.org_manage_accounts'))
 
         # an invitation is created
         invitation = Invitation.objects.get()
