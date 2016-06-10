@@ -4199,7 +4199,7 @@ class VumiUssdTest(TembaTest):
                 response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
                 self.assertEqual(response.status_code, 200)
-                self.assertTrue(self.create_contact("Joe", "+250788383383").is_failed)
+                self.assertTrue(self.create_contact("Joe", "+250788383383").is_stopped)
 
                 self.clear_cache()
         finally:

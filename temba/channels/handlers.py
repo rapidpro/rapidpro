@@ -988,7 +988,7 @@ class VumiHandler(View):
                 message.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=SENT)
             if status == 'nack':
                 if body.get('nack_reason') == "Unknown address.":
-                    message[0].contact.fail(permanently=True)
+                    message[0].contact.stop(get_anonymous_user())
                 # TODO: deal with other nack_reasons after VUMI hands them over
             elif status == 'delivery_report':
                 message = message.first()
