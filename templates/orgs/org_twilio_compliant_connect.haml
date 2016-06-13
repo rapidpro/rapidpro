@@ -1,0 +1,53 @@
+-extends "smartmin/form.html"
+
+-load compress temba
+
+-block title-icon
+  .title-icon
+    %span.glyph.icon-channel-twilio
+
+-block title-text
+  .title-text
+    %h1 Connect Twilio Compliant API
+
+-block pre-form
+  .connect-help
+    %p
+      To connect a Twilio Compliant API you will need to provide us your Twilio Compliant API Account SID and corresponding auth token.
+
+-block extra-script
+  {{block.super}}
+  :javascript
+    $(document).ready(function() {
+      $("form.smartmin-form").attr('autocomplete', 'off');
+    });
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        .connect-help {
+          margin-bottom: 25px;
+          width: 600;
+        }
+
+        .form-horizontal {
+
+          .control-label {
+            display:none;
+          }
+
+          .controls {
+            margin-left: 0px;
+          }
+
+          .form-actions {
+            padding-left: 0px
+          }
+        }
+
+        a:hover {
+          text-decoration: none;
+        }
+
+    {% endlessblock %}
