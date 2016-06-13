@@ -523,8 +523,8 @@ class UpdateTwitterForm(UpdateChannelForm):
 
 class UpdateKannelForm(UpdateChannelForm):
     send_url = forms.URLField(max_length=1024, label=_("Send URL"),
-                         help_text=_("The publicly accessible URL for your Kannel instance for sending. "
-                                     "ex: https://kannel.macklemore.co/cgi-bin/sendsms"))
+                              help_text=_("The publicly accessible URL for your Kannel instance for sending. "
+                                          "ex: https://kannel.macklemore.co/cgi-bin/sendsms"))
     username = forms.CharField(max_length=64, required=False,
                                help_text=_("The username to use to authenticate to Kannel, if left blank we "
                                            "will generate one for you"))
@@ -536,8 +536,8 @@ class UpdateKannelForm(UpdateChannelForm):
     verify_ssl = forms.BooleanField(initial=True, required=False, label=_("Verify SSL"),
                                     help_text=_("Whether to verify the SSL connection (recommended)"))
     use_national = forms.BooleanField(initial=False, required=False, label=_("Use National Numbers"),
-                                          help_text=_("Use only the national number (no country code) when "
-                                                      "sending (not recommended)"))
+                                      help_text=_("Use only the national number (no country code) when "
+                                                  "sending (not recommended)"))
 
     class Meta(UpdateChannelForm.Meta):
         fields = 'name', 'address', 'country', 'alert_email',
