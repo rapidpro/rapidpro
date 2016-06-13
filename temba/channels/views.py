@@ -486,7 +486,12 @@ class UpdateChannelForm(forms.ModelForm):
         self.add_config_fields()
 
     def add_config_fields(self):
-        pass
+        try:
+            config = json.loads(self.object.config)
+            for key in self.Meta.config_fields:
+                self.initial[key] = config[key]
+        except ValueError:
+            pass
 
     class Meta:
         model = Channel
@@ -514,6 +519,30 @@ class UpdateTwitterForm(UpdateChannelForm):
         readonly = ('address',)
         labels = {'address': _('Handle')}
         helps = {'address': _('Twitter handle of this channel')}
+
+
+class UpdateKannelForm(UpdateChannelForm):
+    send_url = forms.URLField(max_length=1024, label=_("Send URL"),
+                         help_text=_("The publicly accessible URL for your Kannel instance for sending. "
+                                     "ex: https://kannel.macklemore.co/cgi-bin/sendsms"))
+    username = forms.CharField(max_length=64, required=False,
+                               help_text=_("The username to use to authenticate to Kannel, if left blank we "
+                                           "will generate one for you"))
+    password = forms.CharField(max_length=64, required=False,
+                               help_text=_("The password to use to authenticate to Kannel, if left blank we "
+                                           "will generate one for you"))
+    encoding = forms.ChoiceField(ENCODING_CHOICES, label=_("Encoding"),
+                                 help_text=_("What encoding to use for outgoing messages"))
+    verify_ssl = forms.BooleanField(initial=True, required=False, label=_("Verify SSL"),
+                                    help_text=_("Whether to verify the SSL connection (recommended)"))
+    use_national = forms.BooleanField(initial=False, required=False, label=_("Use National Numbers"),
+                                          help_text=_("Use only the national number (no country code) when "
+                                                      "sending (not recommended)"))
+
+    class Meta(UpdateChannelForm.Meta):
+        fields = 'name', 'address', 'country', 'alert_email',
+        readonly = []
+        config_fields = ('send_url', 'username', 'password', 'encoding', 'verify_ssl', 'use_national',)
 
 
 class ChannelCRUDL(SmartCRUDL):
@@ -832,6 +861,8 @@ class ChannelCRUDL(SmartCRUDL):
                 return UpdateNexmoForm
             elif scheme == TWITTER_SCHEME:
                 return UpdateTwitterForm
+            elif channel_type == KANNEL:
+                return UpdateKannelForm
             else:
                 return UpdateChannelForm
 
@@ -844,7 +875,8 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.config:
                 config = json.loads(obj.config)
                 for field in self.form.Meta.config_fields:
-                    config[field] = bool(self.form.cleaned_data[field])
+                    # config[field] = bool(self.form.cleaned_data[field])
+                    config[field] = self.form.cleaned_data[field]
                 obj.config = json.dumps(config)
             return obj
 
