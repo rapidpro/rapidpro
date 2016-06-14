@@ -57,7 +57,7 @@ PLIVO = 'PL'
 SHAQODOON = 'SQ'
 SMSCENTRAL = 'SC'
 TWILIO = 'T'
-TWILIO_COMPLIANT_API = 'TCA'
+TWIML_API = 'TW'
 TWITTER = 'TT'
 VERBOICE = 'VB'
 VUMI = 'VM'
@@ -124,6 +124,7 @@ CHANNEL_SETTINGS = {
     TELEGRAM: dict(scheme='telegram', max_length=1600),
     TWILIO: dict(scheme='tel', max_length=1600),
     TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
+    TWIML_API: dict(scheme='tel', max_length=1600),
     TWITTER: dict(scheme='twitter', max_length=10000),
     VERBOICE: dict(scheme='tel', max_length=1600),
     VUMI: dict(scheme='tel', max_length=1600),
@@ -464,6 +465,10 @@ class Channel(TembaModel):
             twilio_sid = twilio_phone.sid
 
         return Channel.create(org, user, country, TWILIO, name=phone, address=phone_number, role=role, bod=twilio_sid)
+
+    @classmethod
+    def add_twiml_api_channel(cls, org, user):
+        return Channel.create(org, user, None, TWIML_API, name="TwiML API", address=None)
 
     @classmethod
     def add_twilio_messaging_service_channel(cls, org, user, messaging_service_sid, country):

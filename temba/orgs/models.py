@@ -86,8 +86,8 @@ APPLICATION_SID = 'APPLICATION_SID'
 ACCOUNT_SID = 'ACCOUNT_SID'
 ACCOUNT_TOKEN = 'ACCOUNT_TOKEN'
 
-TWILIO_COMPLIANT_API_ACCOUNT_SID = 'TWILIO_COMPLIANT_API_ACCOUNT_SID'
-TWILIO_COMPLIANT_API_ACCOUNT_TOKEN = 'TWILIO_COMPLIANT_API_ACCOUNT_TOKEN'
+TWIML_API_ACCOUNT_SID = 'TWIML_API_ACCOUNT_SID'
+TWIML_API_ACCOUNT_TOKEN = 'TWIML_API_ACCOUNT_TOKEN'
 
 NEXMO_KEY = 'NEXMO_KEY'
 NEXMO_SECRET = 'NEXMO_SECRET'
@@ -597,17 +597,17 @@ class Org(SmartModel):
         self.save(update_fields=['config'])
         self.clear_channel_caches()
 
-    def connect_twilio_compliant_api(self, account_sid, account_token):
+    def connect_twiml_api(self, account_sid, account_token):
         app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), self.pk)
         app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
 
         # the the twiml to run when the voice app fails
         fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
 
-        twilio_compliant_api_config = {TWILIO_COMPLIANT_API_ACCOUNT_SID: account_sid, TWILIO_COMPLIANT_API_ACCOUNT_TOKEN: account_token}
+        twiml_api_config = {TWIML_API_ACCOUNT_SID: account_sid, TWIML_API_ACCOUNT_TOKEN: account_token}
 
         config = self.config_json()
-        config.update(twilio_compliant_api_config)
+        config.update(twiml_api_config)
         self.config = json.dumps(config)
 
         # clear all our channel configurations
@@ -636,11 +636,11 @@ class Org(SmartModel):
                 return True
         return False
 
-    def is_connected_to_twilio_compliant_api(self):
+    def is_connected_to_twiml_api(self):
         if self.config:
             config = self.config_json()
-            account_sid = config.get(TWILIO_COMPLIANT_API_ACCOUNT_SID, None)
-            account_token = config.get(TWILIO_COMPLIANT_API_ACCOUNT_TOKEN, None)
+            account_sid = config.get(TWIML_API_ACCOUNT_SID, None)
+            account_token = config.get(TWIML_API_ACCOUNT_TOKEN, None)
             if account_sid and account_token:
                 return True
         return False
@@ -680,17 +680,17 @@ class Org(SmartModel):
             # clear all our channel configurations
             self.clear_channel_caches()
 
-    def remove_twilio_compliant_api_account(self):
+    def remove_twiml_api_account(self):
         if self.config:
             config = self.config_json()
-            config[TWILIO_COMPLIANT_API_ACCOUNT_SID] = ''
-            config[TWILIO_COMPLIANT_API_ACCOUNT_TOKEN] = ''
+            config[TWIML_API_ACCOUNT_SID] = ''
+            config[TWIML_API_ACCOUNT_TOKEN] = ''
             self.config = json.dumps(config)
             self.save()
 
             # release any twilio compliant api channels
-            from temba.channels.models import TWILIO_COMPLIANT_API
-            channels = self.channels.filter(is_active=True, channel_type=TWILIO_COMPLIANT_API)
+            from temba.channels.models import TWIML_API
+            channels = self.channels.filter(is_active=True, channel_type=TWIML_API)
             for channel in channels:
                 channel.release()
 

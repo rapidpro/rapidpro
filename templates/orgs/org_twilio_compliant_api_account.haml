@@ -13,36 +13,36 @@
     %h1 Disconnect Twilio Compliant API
 
 -block summary
-  -if object.is_connected_to_twilio_compliant_api
+  -if object.is_connected_to_twiml_api
     Connected to Twilio Compliant API Account {{account_sid}}
   -else
     Disconnected from Twilio Compliant API
 
 -block post-form
-  -if object.is_connected_to_twilio_compliant_api and request.META.HTTP_X_FORMAX
+  -if object.is_connected_to_twiml_api and request.META.HTTP_X_FORMAX
     If you no longer want it connected, you can
-    %a{href:'javascript:confirmTwilioCompliantApiDisconnect();'}
+    %a{href:'javascript:confirmTwimlApiDisconnect();'}
       disconnect your Twilio Compliant API Account
 
   - if org_perms.channels.channel_delete
-    .disconnect-twilio-compliant-api.hide
+    .disconnect-twiml-api.hide
       .title
         -trans "Disconnect Twilio Compliant API"
       .body
         -blocktrans
           Disconnecting your Twilio Compliant API will also remove any Twilio Complaint API channels connected to it. Are you sure you want to proceed?
-    %a#disconnect-twilio-compliant-api-form.posterize{href:'{% url "orgs.org_twilio_compliant_api_account" %}?disconnect=true'}
+    %a#disconnect-twiml-api-form.posterize{href:'{% url "orgs.org_twiml_api_account" %}?disconnect=true'}
 
 -block form-buttons
   .form-actions
-    -if config.TWILIO_COMPLIANT_API_ACCOUNT_SID and config.TWILIO_COMPLAINT_API_ACCOUNT_TOKEN
+    -if config.TWIML_API_ACCOUNT_SID and config.TWIML_API_ACCOUNT_TOKEN
       %input.btn.btn-danger{type:"submit", value:"={ submit_button_name }"}
     -else
-      %a.btn.btn-primary{href:"{% url 'orgs.org_twilio_compliant_api_connect'%}"}
+      %a.btn.btn-primary{href:"{% url 'orgs.org_twiml_api_connect'%}"}
         Connect Twilio Compliant API
 
 -block extra-script
   :javascript
-    function confirmTwilioCompliantApiDisconnect() {
-      removalConfirmation("disconnect-twilio-compliant-api", "Disconnect");
+    function confirmTwimlApiDisconnect() {
+      removalConfirmation("disconnect-twiml-api", "Disconnect");
     }

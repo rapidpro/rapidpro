@@ -29,7 +29,7 @@ from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, 
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING
 from temba.msgs.views import InboxView
-from temba.orgs.models import Org, ACCOUNT_SID
+from temba.orgs.models import Org, ACCOUNT_SID, TWIML_API_ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
 from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_code
@@ -518,7 +518,7 @@ class UpdateTwitterForm(UpdateChannelForm):
 
 class ChannelCRUDL(SmartCRUDL):
     model = Channel
-    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
+    actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio', 'claim_twiml_api',
                'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
@@ -2076,6 +2076,63 @@ class ChannelCRUDL(SmartCRUDL):
 
             # add this channel
             return Channel.add_twilio_channel(user.get_org(), user, phone_number, country)
+
+    class ClaimTwimlApi(BaseClaimNumber):
+
+        def __init__(self, *args):
+            super(ChannelCRUDL.ClaimTwimlApi, self).__init__(*args)
+            self.account = None
+            self.client = None
+
+        def get_context_data(self, **kwargs):
+            context = super(ChannelCRUDL.ClaimTwimlApi, self).get_context_data(**kwargs)
+            return context
+
+        def pre_process(self, *args, **kwargs):
+            org = self.request.user.get_org()
+            account_sid = org.config_json()[TWIML_API_ACCOUNT_SID]
+            if not account_sid:
+              return HttpResponseRedirect(reverse('channels.channel_claim'))
+            else:
+              self.account = account_sid
+
+        def get_search_countries_tuple(self):
+            return TWILIO_SEARCH_COUNTRIES
+
+        def get_supported_countries_tuple(self):
+            return TWILIO_SUPPORTED_COUNTRIES
+
+        def get_search_url(self):
+            return reverse('channels.channel_search_numbers')
+
+        def get_claim_url(self):
+            return reverse('channels.channel_claim_twiml_api')
+
+        def get_existing_numbers(self, org):
+            client = org.get_twilio_client()
+            if client:
+                twilio_account_numbers = client.phone_numbers.list()
+                twilio_short_codes = client.sms.short_codes.list()
+
+            numbers = []
+            for number in twilio_account_numbers:
+                parsed = phonenumbers.parse(number.phone_number, None)
+                numbers.append(dict(number=phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.INTERNATIONAL),
+                                    country=region_code_for_number(parsed)))
+
+            org_country = timezone_to_country_code(org.timezone)
+            for number in twilio_short_codes:
+                numbers.append(dict(number=number.short_code, country=org_country))
+
+            return numbers
+
+        def is_valid_country(self, country_code):
+            return country_code in TWILIO_SUPPORTED_COUNTRY_CODES
+
+        def claim_number(self, user, phone_number, country):
+            analytics.track(user.username, 'temba.channel_claim_twiml_api')
+            # add this channel
+            return Channel.add_twiml_api_channel(user.get_org(), user)
 
     class ClaimNexmo(BaseClaimNumber):
         class ClaimNexmoForm(forms.Form):

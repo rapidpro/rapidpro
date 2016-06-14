@@ -425,7 +425,7 @@ class UserSettingsCRUDL(SmartCRUDL):
 class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
-               'twilio_connect', 'twilio_compliant_api_connect', 'twilio_account', 'twilio_compliant_api_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect', 'export',
+               'twilio_connect', 'twiml_api_connect', 'twilio_account', 'twiml_api_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect', 'export',
                'import', 'plivo_connect', 'service', 'surveyor')
 
     model = Org
@@ -1489,7 +1489,7 @@ class OrgCRUDL(SmartCRUDL):
                 client = org.get_twilio_client()
                 if client:
                     formax.add_section('twilio', reverse('orgs.org_twilio_account'), icon='icon-channel-twilio')
-                formax.add_section('twilio-compliant-api-channel', reverse('orgs.org_twilio_compliant_api_account'), icon='icon-channel-twilio')
+                formax.add_section('twiml-api-channel', reverse('orgs.org_twiml_api_account'), icon='icon-channel-twilio')
 
             if self.has_org_perm('orgs.org_profile'):
                 formax.add_section('user', reverse('orgs.user_edit'), icon='icon-user', action='redirect')
@@ -1583,7 +1583,7 @@ class OrgCRUDL(SmartCRUDL):
                 org.connect_twilio(account_sid, account_token)
                 return super(OrgCRUDL.TwilioAccount, self).form_valid(form)
 
-    class TwilioCompliantApiAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+    class TwimlApiAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         success_message = ''
 
@@ -1593,7 +1593,7 @@ class OrgCRUDL(SmartCRUDL):
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
-                super(OrgCRUDL.TwilioCompliantApiAccount.TwilioKeys, self).clean()
+                super(OrgCRUDL.TwimlApiAccount.TwilioKeys, self).clean()
                 if self.cleaned_data.get('disconnect', 'false') == 'false':
                     account_sid = self.cleaned_data.get('account_sid', None)
                     account_token = self.cleaned_data.get('account_token', None)
@@ -1612,18 +1612,18 @@ class OrgCRUDL(SmartCRUDL):
         form_class = TwilioKeys
 
         def get_context_data(self, **kwargs):
-            context = super(OrgCRUDL.TwilioCompliantApiAccount, self).get_context_data(**kwargs)
+            context = super(OrgCRUDL.TwimlApiAccount, self).get_context_data(**kwargs)
             config = json.loads(self.object.config)
-            account_sid = config['TWILIO_COMPLIANT_API_ACCOUNT_SID']
+            account_sid = config['TWIML_API_ACCOUNT_SID']
             sid_length = len(account_sid)
             context['account_sid'] = '%s%s' % ('\u066D' * (sid_length - 16), account_sid[-16:])
             return context
 
         def derive_initial(self):
-            initial = super(OrgCRUDL.TwilioCompliantApiAccount, self).derive_initial()
+            initial = super(OrgCRUDL.TwimlApiAccount, self).derive_initial()
             config = json.loads(self.object.config)
-            initial['account_sid'] = config['TWILIO_COMPLIANT_API_ACCOUNT_SID']
-            initial['account_token'] = config['TWILIO_COMPLIANT_API_ACCOUNT_TOKEN']
+            initial['account_sid'] = config['TWIML_API_ACCOUNT_SID']
+            initial['account_token'] = config['TWIML_API_ACCOUNT_TOKEN']
             initial['disconnect'] = 'false'
             return initial
 
@@ -1632,7 +1632,7 @@ class OrgCRUDL(SmartCRUDL):
             if disconnect:
                 user = self.request.user
                 org = user.get_org()
-                org.remove_twilio_compliant_api_account()
+                org.remove_twiml_api_account()
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             else:
 
@@ -1641,12 +1641,12 @@ class OrgCRUDL(SmartCRUDL):
                 account_sid = form.cleaned_data['account_sid']
                 account_token = form.cleaned_data['account_token']
 
-                org.connect_twilio_compliant_api(account_sid, account_token)
-                return super(OrgCRUDL.TwilioCompliantApiAccount, self).form_valid(form)
+                org.connect_twiml_api(account_sid, account_token)
+                return super(OrgCRUDL.TwimlApiAccount, self).form_valid(form)
 
-    class TwilioCompliantApiConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class TwimlApiConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
 
-        class TwilioCompliantApiConnectForm(forms.Form):
+        class TwimlApiConnectForm(forms.Form):
             account_sid = forms.CharField(help_text=_("Your Twilio Compliant API Account SID"))
             account_token = forms.CharField(help_text=_("Your Twilio Compliant API Auth Token"))
 
@@ -1662,9 +1662,9 @@ class OrgCRUDL(SmartCRUDL):
 
                 return self.cleaned_data
 
-        form_class = TwilioCompliantApiConnectForm
+        form_class = TwimlApiConnectForm
         submit_button_name = "Save"
-        success_url = '@channels.channel_claim_twilio_compliant_api'
+        success_url = '@channels.channel_claim_twiml_api'
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Compliant API successfully connected."
 
@@ -1673,7 +1673,7 @@ class OrgCRUDL(SmartCRUDL):
             account_token = form.cleaned_data['account_token']
 
             org = self.get_object()
-            url = org.connect_twilio_compliant_api(account_sid, account_token)
+            url = org.connect_twiml_api(account_sid, account_token)
             org.save()
 
             response = self.render_to_response(self.get_context_data(form=form,

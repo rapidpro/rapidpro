@@ -252,11 +252,11 @@
                 -blocktrans
                   You can connect a messaging service from your Twilio account to benefit from <a href="https://www.twilio.com/copilot">Twilio Copilot features</a></br>
 
-    -if not user_org.is_connected_to_twilio_compliant_api
-      .claim-row.twilio-compliant-api-channel
+    -if not user_org.is_connected_to_twiml_api
+      .claim-row.twiml-api-channel
         .row
           .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-twilio-compliant-api{href:"#"}
+            %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-twiml-api{href:"#"}
               .btn-container
                 .claim-glyph.icon-channel-twilio
                 %p.claim-text
@@ -266,7 +266,7 @@
             .claim-description
               %div
                 -blocktrans
-                  Connect to a Twilio Compliant API such as <a href=https://github.com/dwilkie/adhearsion-twilio>adhearsion-twilio</a>. You can use this to migrate away from Twilio and save on Twilio fees.
+                  Connect to a TwiML API. You can use this to migrate away from Twilio and save on Twilio fees.
 
     -if not user_org.is_connected_to_nexmo
       .claim-row.nexmo-channel{class:"{% if recommended_channel == 'nexmo' %}recommended{% endif %}"}
@@ -635,9 +635,9 @@
       });
     {% endif %}
 
-    {% if not user_org.is_connected_to_twilio_compliant_api %}
-      $(".connect-twilio-compliant-api").live('click', function() {
-        var modal = new Modax('{% trans "Connect Twilio Compliant API" %}', '{% url "orgs.org_twilio_compliant_api_connect" %}');
+    {% if not user_org.is_connected_to_twiml_api %}
+      $(".connect-twiml-api").live('click', function() {
+        var modal = new Modax('{% trans "Connect Twilio Compliant API" %}', '{% url "orgs.org_twiml_api_connect" %}');
         modal.setIcon("icon-channel-twilio");
         modal.setListeners({onCompleted: function() {
         },
