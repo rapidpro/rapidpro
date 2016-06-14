@@ -8,13 +8,21 @@
       :plain
         body {
           padding: 0;
+          font-size: 16px;
+        }
+
+        .attn {
+          font-weight: bold;
+          font-size:110%;
         }
 
         .create-account {
-          .header {
-            background: @color-primary;
+          #header {
+            margin: 0;
             color: white;
             padding: 20px;
+            height: inherit;
+
             .title {
               padding-bottom:10px;
               font-size:20px;
@@ -43,7 +51,7 @@
                   box-shadow: none;
                   outline: none;
                   padding-left:1px;
-                  font-size:16px;
+                  font-size:18px;
                   width:98%;
                   margin-top:8px;
 
@@ -73,6 +81,8 @@
                 margin-top:20px;
                 font-weight:500;
                 color: #999;
+                font-size:16px;
+                padding:8px;
                 width:100%;
               }
             }
@@ -81,23 +91,25 @@
 
     {% endlessblock %}
 
-
 -block body
   .create-account
 
-    .header
+    #header
       -if step == 1
-        .title
-          Create Account
-        .details
-          Enter the password you were provided to continue. If you don't have one, request
-          one from your project leader.
+          .details
+          -blocktrans
+            Enter the password you were provided to continue. If you don't have one, request
+            one from your project leader.
       -elif step == 2
-        .title
-          Welcome
-        .details
-          You have been invited to be a surveyor for {{org.name}}. Enter your account details below to create your account.
-          This is the email address you will use to login to Surveyor.
+          .details
+          -blocktrans
+            You have been invited to be a surveyor for 
+
+          <span class='attn'>{{org.name}}</span>. 
+
+          -blocktrans
+            Enter your adetails below to create your account.
+            This is the email address you will use to login to Surveyor.
 
     .content
       %form{method:'POST' }

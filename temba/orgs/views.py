@@ -1329,6 +1329,10 @@ class OrgCRUDL(SmartCRUDL):
             context = super(OrgCRUDL.Surveyor, self).get_context_data()
             context['form'] = self.form
             context['step'] = self.get_step()
+
+            if hasattr(self.form, 'cleaned_data'):
+                context['org'] = self.form.cleaned_data.get('org', None)
+
             for key, field in self.form.fields.iteritems():
                 context[key] = field
 
@@ -1360,7 +1364,8 @@ class OrgCRUDL(SmartCRUDL):
             else:
 
                 # create our user
-                user = Org.create_user(self.form.cleaned_data['email'],
+                username = self.form.cleaned_data['email']
+                user = Org.create_user(username,
                                        self.form.cleaned_data['password'])
 
                 user.first_name = self.form.cleaned_data['first_name']
@@ -1374,11 +1379,10 @@ class OrgCRUDL(SmartCRUDL):
                 org = self.form.cleaned_data['org']
                 org.surveyors.add(user)
 
-                response = HttpResponse('%s?success' % self.get_success_url())
                 surveyors_group = Group.objects.get(name="Surveyors")
-                response['Token'] = APIToken.get_or_create(org, user, role=surveyors_group)
-                response['Email'] = self.form.cleaned_data['email']
-                return response
+                token = APIToken.get_or_create(org, user, role=surveyors_group)
+                response = dict(url=self.get_success_url(), token=token, user=username, org=org.name)
+                return HttpResponseRedirect('%(url)s?org=%(org)s&token=%(token)s&user=%(user)s' % response)
 
         def form_invalid(self, form):
             return super(OrgCRUDL.Surveyor, self).form_invalid(form)
