@@ -645,6 +645,49 @@ class OrgTest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertEquals(reverse('orgs.org_surveyor'), response._request.path)
 
+    def test_surveyor(self):
+        self.client.logout()
+        url = '%s?mobile=true' % reverse('orgs.org_surveyor')
+
+        # try creating a surveyor account with a bogus password
+        post_data = dict(surveyor_password='badpassword')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'Invalid surveyor password, please check with your project leader and try again.')
+
+        # save a surveyor password
+        self.org.surveyor_password = 'nyaruka'
+        self.org.save()
+
+        # now lets try again
+        post_data = dict(surveyor_password='nyaruka')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'Enter your details below to create your account.')
+
+        # now try creating an account on the second step without and surveyor_password
+        post_data = dict(first_name='Marshawn', last_name='Lynch',
+                         password='beastmode24', email='beastmode@seahawks.com')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'Enter your details below to create your account.')
+
+        # now do the same but with a valid surveyor_password
+        post_data = dict(first_name='Marshawn', last_name='Lynch',
+                         password='beastmode24', email='beastmode@seahawks.com',
+                         surveyor_password='nyaruka')
+        response = self.client.post(url, post_data)
+        self.assertTrue('token' in response.url)
+        self.assertTrue('beastmode' in response.url)
+        self.assertTrue('Temba' in response.url)
+
+        # finally make sure our login works
+        success = self.client.login(username='beastmode@seahawks.com', password='beastmode24')
+        self.assertTrue(success)
+
+        # and that we only have the surveyor role
+        self.assertIsNotNone(self.org.surveyors.filter(username='beastmode@seahawks.com').first())
+        self.assertIsNone(self.org.administrators.filter(username='beastmode@seahawks.com').first())
+        self.assertIsNone(self.org.editors.filter(username='beastmode@seahawks.com').first())
+        self.assertIsNone(self.org.viewers.filter(username='beastmode@seahawks.com').first())
+
     def test_choose(self):
         self.client.logout()
 
