@@ -598,8 +598,7 @@ class Org(SmartModel):
         self.clear_channel_caches()
 
     def connect_twiml_api(self, account_sid, account_token):
-        app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), self.pk)
-        app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
+        app_url = "https://%s%s" % (settings.TEMBA_HOST, reverse('handlers.twilio_handler'))
 
         # the the twiml to run when the voice app fails
         fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
