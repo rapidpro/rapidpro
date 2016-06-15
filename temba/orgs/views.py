@@ -12,7 +12,7 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
@@ -423,7 +423,7 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 
 class OrgCRUDL(SmartCRUDL):
-    actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'create_login', 'choose',
+    actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'accounts', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect', 'export',
                'import', 'plivo_connect', 'service', 'surveyor')
@@ -890,6 +890,13 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(self.get_success_url())
             return super(OrgCRUDL.Update, self).post(request, *args, **kwargs)
 
+    class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        success_url = "@orgs.org_home"
+        success_message = ""
+        submit_button_name = _("Save Changes")
+        title = 'User Accounts'
+        fields = ('surveyor_password',)
+
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class AccountsForm(forms.ModelForm):
@@ -934,16 +941,15 @@ class OrgCRUDL(SmartCRUDL):
                 fields = ('invite_emails', 'invite_group')
 
         form_class = AccountsForm
-        success_url = "@orgs.org_home"
+        success_url = "@orgs.org_manage_accounts"
         success_message = ""
+        submit_button_name = _("Save Changes")
         ORG_GROUPS = ('Administrators', 'Editors', 'Viewers', 'Surveyors')
+        title = 'Manage User Accounts'
 
         @staticmethod
         def org_group_set(org, group_name):
             return getattr(org, group_name.lower())
-
-        def derive_title(self):
-            return _("Manage %(name)s Accounts") % {'name': self.get_object().name}
 
         def derive_initial(self):
             initial = super(OrgCRUDL.ManageAccounts, self).derive_initial()
@@ -1036,7 +1042,7 @@ class OrgCRUDL(SmartCRUDL):
             still_in_org = self.request.user in self.get_object().get_org_users()
 
             # if current user no longer belongs to this org, redirect to org chooser
-            return reverse('orgs.org_home') if still_in_org else reverse('orgs.org_choose')
+            return reverse('orgs.org_manage_accounts') if still_in_org else reverse('orgs.org_choose')
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
@@ -1272,9 +1278,125 @@ class OrgCRUDL(SmartCRUDL):
             context['org'] = self.get_object()
             return context
 
-    class Surveyor(InferOrgMixin, OrgPermsMixin, SmartReadView):
+    class Surveyor(SmartFormView):
+
+        class PasswordForm(forms.Form):
+            surveyor_password = forms.CharField(widget=forms.PasswordInput(attrs={'placeholder': 'Password'}))
+
+            def clean_surveyor_password(self):
+                password = self.cleaned_data['surveyor_password']
+                org = Org.objects.filter(surveyor_password=password).first()
+                if not org:
+                    raise forms.ValidationError(_("Invalid surveyor password, please check with your project leader and try again."))
+                self.cleaned_data['org'] = org
+                return password
+
+        class RegisterForm(PasswordForm):
+            surveyor_password = forms.CharField(widget=forms.HiddenInput())
+            first_name = forms.CharField(help_text=_("Your first name"), widget=forms.TextInput(attrs={'placeholder': 'First Name'}))
+            last_name = forms.CharField(help_text=_("Your last name"), widget=forms.TextInput(attrs={'placeholder': 'Last Name'}))
+            email = forms.EmailField(help_text=_("Your email address"), widget=forms.TextInput(attrs={'placeholder': 'Email'}))
+            password = forms.CharField(widget=forms.PasswordInput(attrs={'placeholder': 'Password'}),
+                                       help_text=_("Your password, at least eight letters please"))
+
+            def __init__(self, *args, **kwargs):
+                super(OrgCRUDL.Surveyor.RegisterForm, self).__init__(*args, **kwargs)
+
+            def clean_email(self):
+                email = self.cleaned_data['email']
+                if email:
+                    if User.objects.filter(username__iexact=email):
+                        raise forms.ValidationError(_("That email address is already used"))
+
+                return email.lower()
+
+            def clean_password(self):
+                password = self.cleaned_data['password']
+                if password:
+                    if not len(password) >= 8:
+                        raise forms.ValidationError(_("Passwords must contain at least 8 letters."))
+                return password
+
+        permission = None
+        form_class = PasswordForm
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.Surveyor, self).derive_initial()
+            initial['surveyor_password'] = self.request.REQUEST.get('surveyor_password', '')
+            return initial
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Surveyor, self).get_context_data()
+            context['form'] = self.form
+            context['step'] = self.get_step()
+
+            if hasattr(self.form, 'cleaned_data'):
+                context['org'] = self.form.cleaned_data.get('org', None)
+
+            for key, field in self.form.fields.iteritems():
+                context[key] = field
+
+            return context
+
+        def get_success_url(self):
+            return reverse('orgs.org_surveyor')
+
+        def get_form_class(self):
+            if self.get_step() == 2:
+                return OrgCRUDL.Surveyor.RegisterForm
+            else:
+                return OrgCRUDL.Surveyor.PasswordForm
+
+        def get_step(self):
+            return 2 if 'first_name' in self.request.REQUEST else 1
+
+        def form_valid(self, form):
+            if self.get_step() == 1:
+
+                org = self.form.cleaned_data.get('org', None)
+
+                self.form = OrgCRUDL.Surveyor.RegisterForm(initial=self.derive_initial())
+                context = self.get_context_data()
+                context['step'] = 2
+                context['org'] = org
+
+                return self.render_to_response(context)
+            else:
+
+                # create our user
+                username = self.form.cleaned_data['email']
+                user = Org.create_user(username,
+                                       self.form.cleaned_data['password'])
+
+                user.first_name = self.form.cleaned_data['first_name']
+                user.last_name = self.form.cleaned_data['last_name']
+                user.save()
+
+                # log the user in
+                user = authenticate(username=user.username, password=self.form.cleaned_data['password'])
+                login(self.request, user)
+
+                org = self.form.cleaned_data['org']
+                org.surveyors.add(user)
+
+                surveyors_group = Group.objects.get(name="Surveyors")
+                token = APIToken.get_or_create(org, user, role=surveyors_group)
+                response = dict(url=self.get_success_url(), token=token, user=username, org=org.name)
+                return HttpResponseRedirect('%(url)s?org=%(org)s&token=%(token)s&user=%(user)s' % response)
+
+        def form_invalid(self, form):
+            return super(OrgCRUDL.Surveyor, self).form_invalid(form)
+
         def derive_title(self):
             return _('Welcome!')
+
+        def get_template_names(self):
+            if 'android' in self.request.META.get('HTTP_X_REQUESTED_WITH', '') \
+                    or 'mobile' in self.request.REQUEST \
+                    or 'Android' in self.request.META.get('HTTP_USER_AGENT', ''):
+                return ['orgs/org_surveyor_mobile.haml']
+            else:
+                return super(OrgCRUDL.Surveyor, self).get_template_names()
 
     class Grant(SmartCreateView):
         title = _("Create Organization Account")
@@ -1507,7 +1629,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_pro():
-                formax.add_section('manageaccount', reverse('orgs.org_manage_accounts'), icon='icon-users', action='redirect')
+                formax.add_section('accounts', reverse('orgs.org_accounts'), icon='icon-users', action='redirect')
 
     class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 

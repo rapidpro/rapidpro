@@ -208,6 +208,9 @@ class Org(SmartModel):
     brand = models.CharField(max_length=128, default=settings.DEFAULT_BRAND, verbose_name=_("Brand"),
                              help_text=_("The brand used in emails"))
 
+    surveyor_password = models.CharField(null=True, max_length=128, default=None,
+                                         help_text='A password that allows users to register as surveyors')
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
