@@ -209,7 +209,7 @@ class Org(SmartModel):
                              help_text=_("The brand used in emails"))
 
     surveyor_password = models.CharField(null=True, max_length=128, default=None,
-                                         help_text='A password that allows users to register as surveyors')
+                                         help_text=_('A password that allows users to register as surveyors'))
 
     @classmethod
     def get_unique_slug(cls, name):

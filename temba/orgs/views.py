@@ -891,6 +891,22 @@ class OrgCRUDL(SmartCRUDL):
             return super(OrgCRUDL.Update, self).post(request, *args, **kwargs)
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        class PasswordForm(forms.ModelForm):
+            surveyor_password = forms.CharField(max_length=128)
+
+            def clean_surveyor_password(self):
+                password = self.cleaned_data.get('surveyor_password', '')
+                existing = Org.objects.filter(surveyor_password=password).exclude(pk=self.instance.pk).first()
+                if existing:
+                    raise forms.ValidationError(_('This password is not valid. Choose a new password and try again.'))
+                return password
+
+            class Meta:
+                model = Org
+                fields = ('surveyor_password',)
+
+        form_class = PasswordForm
         success_url = "@orgs.org_home"
         success_message = ""
         submit_button_name = _("Save Changes")
