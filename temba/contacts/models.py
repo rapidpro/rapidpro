@@ -382,10 +382,11 @@ class Contact(TembaModel):
     LANGUAGE = 'language'
     PHONE = 'phone'
     UUID = 'uuid'
+    GROUPS = 'groups'
 
     # reserved contact fields
     RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, 'created_by', 'modified_by', 'org', UUID, 'groups', 'is', 'has'
+        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
     ] + [c[0] for c in IMPORT_HEADERS]
 
     @classmethod
