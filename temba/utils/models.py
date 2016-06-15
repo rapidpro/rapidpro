@@ -70,7 +70,7 @@ class ChunkIterator(object):
                     empty_values = set([cf.key.lower() for cf in self._contact_fields])
                     for value in cid_to_values[obj.contact_id]:
                         obj.contact.set_cached_field_value(value.contact_field.key.lower(), value)
-                        empty_values.remove(value.contact_field.key.lower())
+                        empty_values.discard(value.contact_field.key.lower())
 
                     # set empty values for anything remaining
                     for empty in empty_values:
