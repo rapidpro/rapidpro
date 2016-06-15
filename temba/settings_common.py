@@ -370,7 +370,6 @@ PERMISSIONS = {
                  'nexmo_connect',
                  'plivo_connect',
                  'profile',
-                 'register',
                  'service',
                  'signup',
                  'surveyor',

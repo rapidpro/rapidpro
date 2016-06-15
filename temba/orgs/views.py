@@ -423,7 +423,7 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 
 class OrgCRUDL(SmartCRUDL):
-    actions = ('signup', 'register', 'home', 'webhook', 'edit', 'join', 'grant', 'accounts', 'create_login', 'choose',
+    actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'accounts', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect', 'export',
                'import', 'plivo_connect', 'service', 'surveyor')
@@ -1458,9 +1458,6 @@ class OrgCRUDL(SmartCRUDL):
             obj.initialize(brand=brand, topup_size=self.get_welcome_size())
 
             return obj
-
-    class Register(SmartFormView):
-        pass
 
     class Signup(Grant):
         title = _("Sign Up")
