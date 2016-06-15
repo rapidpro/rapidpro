@@ -2810,6 +2810,7 @@ class RuleSet(models.Model):
     TYPE_WAIT_GPS = 'wait_gps'
 
     TYPE_WEBHOOK = 'webhook'
+    TYPE_RESTHOOK = 'resthook'
     TYPE_FLOW_FIELD = 'flow_field'
     TYPE_FORM_FIELD = 'form_field'
     TYPE_CONTACT_FIELD = 'contact_field'
@@ -2825,6 +2826,7 @@ class RuleSet(models.Model):
                     (TYPE_WAIT_DIGIT, "Wait for digit"),
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
                     (TYPE_WEBHOOK, "Webhook"),
+                    (TYPE_RESTHOOK, "Zapier"),
                     (TYPE_FLOW_FIELD, "Split on flow field"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
                     (TYPE_EXPRESSION, "Split by expression"))

@@ -12,6 +12,7 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models
 from django.utils import timezone
+from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
@@ -98,12 +99,53 @@ class SSLPermission(BasePermission):  # pragma: no cover
             return True
 
 
+class Resthook(SmartModel):
+    """
+    Represents a hook that a user creates on an organization. Outside apps can integrate by subscribing
+    to this particular resthook.
+    """
+    org = models.ForeignKey(Org,
+                            help_text=_("The organization this resthook belongs to"))
+    slug = models.SlugField(help_text=_("A simple label for this event"))
+
+    def release(self, user):
+        # release any active subscribers
+        for s in self.subscribers.filter(is_active=True):
+            s.release()
+
+        # then ourselves
+        self.is_active = False
+        self.modified_by = user
+        self.modified_on = timezone.now()
+        self.save(update_fields=['is_active', 'modified_on', 'modified_by'])
+
+
+class ResthookSubscriber(SmartModel):
+    """
+    Represents a subscriber on a specific resthook within one of our flows.
+    """
+    resthook = models.ForeignKey(Resthook, related_name='subscribers',
+                                 help_text=_("The resthook being subscribed to"))
+    target_url = models.URLField(help_text=_("The URL that we will call when our ruleset is reached"))
+
+    def as_json(self):
+        return dict(id=self.id, resthook=self.resthook.slug, target_url=self.url, created_on=self.created_on)
+
+    def release(self, user):
+        self.is_active = False
+        self.modified_by = user
+        self.modified_on = timezone.now()
+        self.save(update_fields=['is_active', 'modified_on', 'modified_by'])
+
+
 class WebHookEvent(SmartModel):
     """
     Represents an event that needs to be sent to the web hook for a channel.
     """
     org = models.ForeignKey(Org,
                             help_text="The organization that this event was triggered for")
+    resthook = models.ForeignKey(Resthook, null=True,
+                                 help_text="The associated resthook to this event. (optional)")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default='P',
                               help_text="The state this event is currently in")
     channel = models.ForeignKey(Channel, null=True, blank=True,
@@ -111,12 +153,10 @@ class WebHookEvent(SmartModel):
     event = models.CharField(max_length=16, choices=EVENT_CHOICES,
                              help_text="The event type for this event")
     data = models.TextField(help_text="The JSON encoded data that will be POSTED to the web hook")
-
     try_count = models.IntegerField(default=0,
                                     help_text="The number of times this event has been tried")
     next_attempt = models.DateTimeField(null=True, blank=True,
                                         help_text="When this event will be retried")
-
     action = models.CharField(max_length=8, default='POST', help_text='What type of HTTP event is it')
 
     def fire(self):

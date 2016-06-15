@@ -1,10 +1,12 @@
 from __future__ import absolute_import, unicode_literals
 
+import json
 from rest_framework import serializers
+from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import FlowRun, FlowStep
+from temba.flows.models import FlowRun, FlowStep, RuleSet
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
@@ -28,6 +30,26 @@ class ReadSerializer(serializers.ModelSerializer):
 
     def save(self, **kwargs):  # pragma: no cover
         raise ValueError("Can't call save on a read serializer")
+
+
+class WriteSerializer(serializers.Serializer):
+    """
+    The normal REST framework way is to have the view decide if it's an update on existing instance or a create for a
+    new instance. Since our logic for that gets relatively complex, we have the serializer make that call.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user')
+        self.org = kwargs.pop('org') if 'org' in kwargs else self.user.get_org()
+
+        super(WriteSerializer, self).__init__(*args, **kwargs)
+        self.instance = None
+
+    def run_validation(self, data=serializers.empty):
+        if not isinstance(data, dict):
+            raise serializers.ValidationError(detail={'non_field_errors': ["Request body should be a single JSON object"]})
+
+        return super(WriteSerializer, self).run_validation(data)
 
 
 # ============================================================
@@ -334,3 +356,68 @@ class MsgReadSerializer(ReadSerializer):
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
                   'direction', 'type', 'status', 'archived', 'visibility', 'text', 'labels',
                   'created_on', 'sent_on', 'modified_on')
+
+
+class ResthookReadSerializer(ReadSerializer):
+    resthook = serializers.SerializerMethodField()
+    subscribers = serializers.SerializerMethodField()
+
+    def get_resthook(self, obj):
+        return obj.slug
+
+    def get_subscribers(self, obj):
+        return [s.as_json() for s in obj.subscribers.filter(is_active=True)]
+
+    class Meta:
+        model = RuleSet
+        fields = ('resthook', 'subscribers', 'created_on')
+
+
+class ResthookWriteSerializer(WriteSerializer):
+    resthook = serializers.SlugField()
+    target_url = serializers.URLField()
+
+    def get_resthook(self, slug):
+        return Resthook.objects.filter(is_active=True, org=self.org, slug=slug).first()
+
+    def validate_resthook(self, value):
+        if value:
+            resthook = self.get_resthook(value)
+            if not resthook:
+                raise serializers.ValidationError("No resthook with slug: %s" % value)
+        return value
+
+    def validate(self, data):
+        resthook = self.get_resthook(data.get('resthook'))
+        target_url = data.get('target_url')
+
+        # make sure this combination doesn't already exist
+        if ResthookSubscriber.objects.filter(is_actie=True, resthook=resthook, target_url=target_url):
+            raise serializers.ValidationError("URL is already subscribed to this event.")
+
+        return data
+
+    def save(self):
+        resthook = self.get_resthook(self.validated_data['resthook'])
+        target_url = self.get_ruleset(self.validated_data['target_url'])
+
+        self.instance = ResthookSubscriber.objects.create(resthook=resthook, target_url=target_url,
+                                                          created_by=self.user, modified_by=self.user)
+
+    class Meta:
+        fields = ('resthook', 'target_url')
+
+
+class WebHookEventReadSerializer(ReadSerializer):
+    resthook = serializers.SerializerMethodField()
+    data = serializers.SerializerMethodField()
+
+    def get_resthook(self, obj):
+        return obj.resthook.slug
+
+    def get_data(self, obj):
+        return json.loads(obj.data)
+
+    class Meta:
+        model = WebHookEvent
+        fields = ('resthook', 'data', 'created_on')
