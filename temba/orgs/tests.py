@@ -678,6 +678,20 @@ class OrgTest(TembaTest):
         self.assertTrue('beastmode' in response.url)
         self.assertTrue('Temba' in response.url)
 
+        # try with a login that already exists
+        post_data = dict(first_name='Resused', last_name='Email',
+                         password='mypassword1', email='beastmode@seahawks.com',
+                         surveyor_password='nyaruka')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'That email address is already used')
+
+        # try with a login that already exists
+        post_data = dict(first_name='Short', last_name='Password',
+                         password='short', email='thomasrawls@seahawks.com',
+                         surveyor_password='nyaruka')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'Passwords must contain at least 8 letters')
+
         # finally make sure our login works
         success = self.client.login(username='beastmode@seahawks.com', password='beastmode24')
         self.assertTrue(success)
