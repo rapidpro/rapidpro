@@ -374,6 +374,27 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_suspended())
 
+    def test_accounts(self):
+        url = reverse('orgs.org_accounts')
+        self.login(self.admin)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'If you use the RapidPro Surveyor application to run flows offline')
+
+        Org.objects.create(name="Another Org", timezone="Africa/Kigali", country=self.country,
+                           brand='rapidpro.io', created_by=self.user, modified_by=self.user,
+                           surveyor_password='nyaruka')
+
+        response = self.client.post(url, dict(surveyor_password='nyaruka'))
+        self.org.refresh_from_db()
+        self.assertContains(response, 'This password is not valid. Choose a new password and try again.')
+        self.assertIsNone(self.org.surveyor_password)
+
+        # now try again, but with a unique password
+        response = self.client.post(url, dict(surveyor_password='unique password'))
+        self.org.refresh_from_db()
+        self.assertEqual('unique password', self.org.surveyor_password)
+
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
         url = reverse('orgs.org_manage_accounts')
