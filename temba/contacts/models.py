@@ -573,6 +573,9 @@ class Contact(TembaModel):
                 existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
                                              'location_value', 'category', 'modified_on'])
 
+                # remove any others on the same field that may exist
+                Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
+
             # otherwise, create a new value for it
             else:
                 category = loc_value.name if loc_value else None
