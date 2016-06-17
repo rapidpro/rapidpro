@@ -3,15 +3,15 @@ from __future__ import absolute_import, unicode_literals
 import requests
 
 from datetime import timedelta
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
-from smartmin.views import SmartTemplateView, SmartReadView, SmartListView
+from smartmin.views import SmartTemplateView, SmartReadView, SmartListView, SmartView
 from temba.channels.models import ChannelEvent
 from temba.orgs.views import OrgPermsMixin
 from urlparse import parse_qs
-from .models import WebHookEvent, WebHookResult
+from .models import WebHookEvent, WebHookResult, APIToken
 
 
 def webhook_status_processor(request):
@@ -33,6 +33,17 @@ def webhook_status_processor(request):
             status['webhook_errors_count'] = failed.count()
 
     return status
+
+
+class RefreshAPITokenView(OrgPermsMixin, SmartView, View):
+    """
+    Simple view that refreshes the API token for the user/org when POSTed to
+    """
+    permission = 'api.apitoken_refresh'
+
+    def post(self, request, *args, **kwargs):
+        token = APIToken.get_or_create(request.user.get_org(), request.user, refresh=True)
+        return JsonResponse(dict(token=token.key))
 
 
 class WebHookEventMixin(OrgPermsMixin):

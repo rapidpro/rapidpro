@@ -314,6 +314,8 @@ PERMISSIONS = {
           'delete',  # can delete an object,
           'list'),   # can view a list of the objects
 
+    'api.apitoken': ('refresh',),
+
     'campaigns.campaign': ('api',
                            'archived',
                            ),
@@ -528,6 +530,7 @@ GROUP_PERMISSIONS = {
         'orgs.topup_update',
     ),
     "Administrators": (
+        'api.apitoken_refresh',
         'api.webhookevent_list',
         'api.webhookevent_read',
 
@@ -661,6 +664,7 @@ GROUP_PERMISSIONS = {
 
     ),
     "Editors": (
+        'api.apitoken_refresh',
         'api.webhookevent_list',
         'api.webhookevent_read',
 
