@@ -12,7 +12,7 @@ urlpatterns = [
     url(r'^api/$', RedirectView.as_view(pattern_name='api.v1', permanent=False), name='api'),
     url(r'^api/v1', include('temba.api.v1.urls')),
     url(r'^api/v2', include('temba.api.v2.urls')),
-    url(r'^api/apitoken_refresh/$', RefreshAPITokenView.as_view(), name='api.apitoken_refresh'),
+    url(r'^api/apitoken/refresh/$', RefreshAPITokenView.as_view(), name='api.apitoken_refresh'),
 
     url(r'^webhooks', include([
         url(r'^/log/$', WebHookEventListView.as_view(), name='api.log'),

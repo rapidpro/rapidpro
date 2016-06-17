@@ -546,7 +546,7 @@ class APIToken(models.Model):
     role = models.ForeignKey(Group)
 
     @classmethod
-    def get_or_create(cls, org, user, role=None, refresh=True):
+    def get_or_create(cls, org, user, role=None, refresh=False):
         """
         Gets or creates an API token for this user
         """
@@ -569,7 +569,7 @@ class APIToken(models.Model):
         if not tokens:
             token = cls.objects.create(user=user, org=org, role=role)
         else:
-            token = token.first()
+            token = tokens.first()
 
         return token
 
