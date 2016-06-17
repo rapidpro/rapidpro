@@ -395,6 +395,45 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertEqual('unique password', self.org.surveyor_password)
 
+    def test_refresh_tokens(self):
+        self.login(self.admin)
+        url = reverse('orgs.org_home')
+        response = self.client.get(url)
+
+        # admin should have a token
+        token = APIToken.objects.get(user=self.admin)
+
+        # and it should be on the page
+        self.assertContains(response, token.key)
+
+        # let's refresh it
+        self.client.post(reverse('api.apitoken_refresh'))
+
+        # visit our account page again
+        response = self.client.get(url)
+
+        # old token no longer there
+        self.assertNotContains(response, token.key)
+
+        # old token now inactive
+        token.refresh_from_db()
+        self.assertFalse(token.is_active)
+
+        # there is a new token for this user
+        new_token = APIToken.objects.get(user=self.admin, is_active=True)
+        self.assertNotEqual(new_token.key, token.key)
+        self.assertContains(response, new_token.key)
+
+        # can't refresh if logged in as viewer
+        self.login(self.user)
+        response = self.client.post(reverse('api.apitoken_refresh'))
+        self.assertLoginRedirect(response)
+
+        # or just not an org user
+        self.login(self.non_org_user)
+        response = self.client.post(reverse('api.apitoken_refresh'))
+        self.assertLoginRedirect(response)
+
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
         url = reverse('orgs.org_manage_accounts')
@@ -446,9 +485,9 @@ class OrgTest(TembaTest):
         self.assertEqual(set(self.org.surveyors.all()), set())
 
         # our surveyor's API token will have been deleted
-        self.assertEqual(self.admin.api_tokens.count(), 2)
-        self.assertEqual(self.editor.api_tokens.count(), 2)
-        self.assertEqual(self.surveyor.api_tokens.count(), 0)
+        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 2)
+        self.assertEqual(self.editor.api_tokens.filter(is_active=True).count(), 2)
+        self.assertEqual(self.surveyor.api_tokens.filter(is_active=True).count(), 0)
 
         # next we leave existing roles unchanged, but try to invite new user to be admin with invalid email address
         post_data['invite_emails'] = "norkans7gmail.com"
@@ -527,11 +566,11 @@ class OrgTest(TembaTest):
 
         # editor will have lost their editor API token, but not their surveyor token
         self.editor.refresh_from_db()
-        self.assertEqual([t.role.name for t in self.editor.api_tokens.all()], ["Surveyors"])
+        self.assertEqual([t.role.name for t in self.editor.api_tokens.filter(is_active=True)], ["Surveyors"])
 
-        # and all our API tokens for this org are deleted
+        # and all our API tokens for the admin are deleted
         self.admin.refresh_from_db()
-        self.assertEqual(self.admin.api_tokens.count(), 0)
+        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
 
     @patch('temba.utils.email.send_temba_email')
     def test_join(self, mock_send_temba_email):

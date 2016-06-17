@@ -533,6 +533,8 @@ class APIToken(models.Model):
                        "Editors": ("Administrators", "Editors"),
                        "Surveyors": ("Administrators", "Editors", "Surveyors")}
 
+    is_active = models.BooleanField(default=True)
+
     key = models.CharField(max_length=40, primary_key=True)
 
     user = models.ForeignKey(User, related_name='api_tokens')
@@ -544,7 +546,7 @@ class APIToken(models.Model):
     role = models.ForeignKey(Group)
 
     @classmethod
-    def get_or_create(cls, org, user, role=None):
+    def get_or_create(cls, org, user, role=None, refresh=True):
         """
         Gets or creates an API token for this user
         """
@@ -556,9 +558,18 @@ class APIToken(models.Model):
         elif role.name not in cls.ROLE_GRANTED_TO:
             raise ValueError("Role %s is not valid for API usage" % role.name)
 
-        token = cls.objects.filter(user=user, org=org, role=role).first()
-        if not token:
+        tokens = cls.objects.filter(is_active=True, user=user, org=org, role=role)
+
+        # if we are refreshing the token, clear existing ones
+        if refresh and tokens:
+            for token in tokens:
+                token.release()
+            tokens = None
+
+        if not tokens:
             token = cls.objects.create(user=user, org=org, role=role)
+        else:
+            token = token.first()
 
         return token
 
@@ -616,11 +627,12 @@ class APIToken(models.Model):
         unique = uuid.uuid4()
         return hmac.new(unique.bytes, digestmod=sha1).hexdigest()
 
+    def release(self):
+        self.is_active = False
+        self.save()
+
     def __unicode__(self):
         return self.key
-
-    class Meta:
-        unique_together = ('user', 'org', 'role')
 
 
 def get_or_create_api_token(user):

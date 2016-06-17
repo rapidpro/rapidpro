@@ -1040,7 +1040,8 @@ class OrgCRUDL(SmartCRUDL):
 
                     # when a user's role changes, delete any API tokens they're no longer allowed to have
                     api_roles = APIToken.get_allowed_roles(org, user)
-                    APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles).delete()
+                    for token in APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles):
+                        token.release()
 
             return obj
 
