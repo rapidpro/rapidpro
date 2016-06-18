@@ -252,22 +252,6 @@
                 -blocktrans
                   You can connect a messaging service from your Twilio account to benefit from <a href="https://www.twilio.com/copilot">Twilio Copilot features</a></br>
 
-    -if not user_org.is_connected_to_twiml_api
-      .claim-row.twiml-api-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-twiml-api{href:"#"}
-              .btn-container
-                .claim-glyph.icon-channel-twilio
-                %p.claim-text
-                  -trans "Connect Twilio Compliant API"
-
-          .span9
-            .claim-description
-              %div
-                -blocktrans
-                  Connect to a TwiML API. You can use this to migrate away from Twilio and save on Twilio fees.
-
     -if not user_org.is_connected_to_nexmo
       .claim-row.nexmo-channel{class:"{% if recommended_channel == 'nexmo' %}recommended{% endif %}"}
         .recommendation.hide
@@ -367,6 +351,20 @@
                 Connect your <a href="http://www.kannel.org/" target="_blank">Kannel</a> instance, we'll walk you through
                 the steps necessary to get your SMSC connection working in a few minutes.
 
+    .claim-row.twiml-channel
+      .row
+        .span3
+          %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_twiml_api' %}"}
+            .btn-container
+              .claim-glyph.icon-channel-twilio
+              %p.claim-text
+                -trans "TwiML API"
+
+        .span9
+          .claim-description
+            %div
+              -blocktrans
+                Connect to a TwiML API. You can use this to migrate away from Twilio and save on Twilio fees.
     .claim-row.jasmin-channel
       .row
         .span3
@@ -623,21 +621,6 @@
     {% if not user_org.is_connected_to_twilio %}
       $(".connect-twilio").live('click', function() {
         var modal = new Modax('{% trans "Connect Twilio" %}', '{% url "orgs.org_twilio_connect" %}');
-        modal.setIcon("icon-channel-twilio");
-        modal.setListeners({onCompleted: function() {
-        },
-        onFormLoaded: function() {
-          form = modal.ele.find("form");
-          form.attr('autocomplete', 'off');
-        }});
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
-
-    {% if not user_org.is_connected_to_twiml_api %}
-      $(".connect-twiml-api").live('click', function() {
-        var modal = new Modax('{% trans "Connect Twilio Compliant API" %}', '{% url "orgs.org_twiml_api_connect" %}');
         modal.setIcon("icon-channel-twilio");
         modal.setListeners({onCompleted: function() {
         },

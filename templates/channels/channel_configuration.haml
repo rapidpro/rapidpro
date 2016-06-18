@@ -49,7 +49,7 @@
 
     %hr
 
-    %h4 
+    %h4
       -trans "Delivery URL"
 
     %p
@@ -638,6 +638,20 @@
 
     %code
       https://{{ domain }}{% url 'handlers.chikka_handler' object.uuid %}
+
+
+  -elif object.channel_type == 'TW'
+    %h4
+      -blocktrans
+        To finish configuring your connection you'll need to set the following status callback URL in your Adhearsion Application
+
+    %hr
+
+    %h4
+      -trans "Status Callback URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.twilio_handler' %}
 
   -elif object.channel_type == 'EX'
     %h4

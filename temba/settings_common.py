@@ -375,8 +375,6 @@ PERMISSIONS = {
                  'trial',
                  'twilio_account',
                  'twilio_connect',
-                 'twiml_api_account',
-                 'twiml_api_connect',
                  'webhook',
                  ),
 
@@ -581,8 +579,6 @@ GROUP_PERMISSIONS = {
         'orgs.org_profile',
         'orgs.org_twilio_account',
         'orgs.org_twilio_connect',
-        'orgs.org_twiml_api_account',
-        'orgs.org_twiml_api_connect',
         'orgs.org_webhook',
         'orgs.topup_list',
         'orgs.topup_read',

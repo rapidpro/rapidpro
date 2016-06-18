@@ -61,11 +61,11 @@ class TwilioHandler(View):
         if to_number and call_sid and direction == 'inbound' and status == 'ringing':
 
             # find a channel that knows how to answer twilio calls
-            channel = Channel.objects.filter(address=to_number, channel_type='T', role__contains='A', is_active=True).exclude(org=None).first()
+            channel = Channel.objects.filter(address=to_number, channel_type__in=['T', 'TW'], role__contains='A', is_active=True).exclude(org=None).first()
             if not channel:
                 raise Exception("No active answering channel found for number: %s" % to_number)
 
-            client = channel.org.get_twilio_client()
+            client = channel.org.get_twilio_ivr_client()
             validator = RequestValidator(client.auth[1])
             signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
 

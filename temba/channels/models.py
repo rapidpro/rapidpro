@@ -178,6 +178,7 @@ class Channel(TembaModel):
                     (TELEGRAM, "Telegram"),
                     (TWILIO, "Twilio"),
                     (TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
+                    (TWIML_API, "TwiML API"),
                     (TWITTER, "Twitter"),
                     (VERBOICE, "Verboice"),
                     (VUMI, "Vumi"),
@@ -308,6 +309,10 @@ class Channel(TembaModel):
                                     scheme='tel', parent=None):
         return Channel.create(org, user, country, channel_type, name=address, address=address,
                               config=config, role=role, scheme=scheme, parent=parent)
+
+    @classmethod
+    def add_twiml_api_channel(cls, org, user, country, address, config):
+        return Channel.create(org, user, country, TWIML_API, name=address, address=address, config=config, role = CALL + ANSWER, scheme='tel', parent=None)
 
     @classmethod
     def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
@@ -465,10 +470,6 @@ class Channel(TembaModel):
             twilio_sid = twilio_phone.sid
 
         return Channel.create(org, user, country, TWILIO, name=phone, address=phone_number, role=role, bod=twilio_sid)
-
-    @classmethod
-    def add_twiml_api_channel(cls, org, user):
-        return Channel.create(org, user, None, TWIML_API, name="TwiML API", address=None)
 
     @classmethod
     def add_twilio_messaging_service_channel(cls, org, user, messaging_service_sid, country):
@@ -666,6 +667,15 @@ class Channel(TembaModel):
             return self.org.get_twilio_client()
         if self.channel_type == VERBOICE:
             return self.org.get_verboice_client()
+        if self.channel_type == TWIML_API:
+            return self.org.get_twiml_api_client()
+        return None
+
+    def get_twilio_ivr_client(self):
+        if self.channel_type == TWILIO:
+            return self.org.get_twilio_client()
+        if self.channel_type == TWIML_API:
+            return self.org.get_twiml_api_client()
         return None
 
     def supports_ivr(self):

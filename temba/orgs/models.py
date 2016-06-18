@@ -86,9 +86,6 @@ APPLICATION_SID = 'APPLICATION_SID'
 ACCOUNT_SID = 'ACCOUNT_SID'
 ACCOUNT_TOKEN = 'ACCOUNT_TOKEN'
 
-TWIML_API_ACCOUNT_SID = 'TWIML_API_ACCOUNT_SID'
-TWIML_API_ACCOUNT_TOKEN = 'TWIML_API_ACCOUNT_TOKEN'
-
 NEXMO_KEY = 'NEXMO_KEY'
 NEXMO_SECRET = 'NEXMO_SECRET'
 NEXMO_UUID = 'NEXMO_UUID'
@@ -597,23 +594,6 @@ class Org(SmartModel):
         self.save(update_fields=['config'])
         self.clear_channel_caches()
 
-    def connect_twiml_api(self, account_sid, account_token):
-        app_url = "https://%s%s" % (settings.TEMBA_HOST, reverse('handlers.twilio_handler'))
-
-        # the the twiml to run when the voice app fails
-        fallback_url = "https://" + settings.AWS_BUCKET_DOMAIN + "/voice_unavailable.xml"
-
-        twiml_api_config = {TWIML_API_ACCOUNT_SID: account_sid, TWIML_API_ACCOUNT_TOKEN: account_token}
-
-        config = self.config_json()
-        config.update(twiml_api_config)
-        self.config = json.dumps(config)
-
-        # clear all our channel configurations
-        self.save(update_fields=['config'])
-        self.clear_channel_caches()
-        return app_url
-
     def is_connected_to_nexmo(self):
         if self.config:
             config = self.config_json()
@@ -632,15 +612,6 @@ class Org(SmartModel):
             account_token = config.get(ACCOUNT_TOKEN, None)
             application_sid = config.get(APPLICATION_SID, None)
             if account_sid and account_token and application_sid:
-                return True
-        return False
-
-    def is_connected_to_twiml_api(self):
-        if self.config:
-            config = self.config_json()
-            account_sid = config.get(TWIML_API_ACCOUNT_SID, None)
-            account_token = config.get(TWIML_API_ACCOUNT_TOKEN, None)
-            if account_sid and account_token:
                 return True
         return False
 
@@ -679,23 +650,6 @@ class Org(SmartModel):
             # clear all our channel configurations
             self.clear_channel_caches()
 
-    def remove_twiml_api_account(self):
-        if self.config:
-            config = self.config_json()
-            config[TWIML_API_ACCOUNT_SID] = ''
-            config[TWIML_API_ACCOUNT_TOKEN] = ''
-            self.config = json.dumps(config)
-            self.save()
-
-            # release any twilio compliant api channels
-            from temba.channels.models import TWIML_API
-            channels = self.channels.filter(is_active=True, channel_type=TWIML_API)
-            for channel in channels:
-                channel.release()
-
-            # clear all our channel configurations
-            self.clear_channel_caches()
-
     def get_verboice_client(self):
         from temba.ivr.clients import VerboiceClient
         channel = self.get_call_channel()
@@ -713,6 +667,20 @@ class Org(SmartModel):
             auth_token = config.get(ACCOUNT_TOKEN, None)
             if account_sid and auth_token:
                 return TwilioClient(account_sid, auth_token, org=self)
+        return None
+
+    def get_twiml_api_client(self):
+        from temba.ivr.clients import TwilioClient
+        channel = self.get_call_channel()
+        from temba.channels.models import TWIML_API
+        if channel.channel_type == TWIML_API:
+
+          config = channel.config_json()
+          account_sid = config.get(ACCOUNT_SID)
+          account_token = config.get(ACCOUNT_TOKEN)
+          send_url = config.get('send_url')
+
+          return TwilioClient(account_sid, account_token, org=self, base=send_url)
         return None
 
     def get_nexmo_client(self):
