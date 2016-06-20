@@ -453,7 +453,7 @@ class Flow(TembaModel):
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
-        if text or media_url:
+        if text is not None or media_url:
 
             # we don't have text for media, so lets use the media value there too
             if media_url and ':' in media_url:
@@ -513,7 +513,11 @@ class Flow(TembaModel):
                 # nest all of our previous verbs in our gather
                 for verb in voice_response.verbs:
                     gather.append(verb)
+
                 voice_response = response
+
+                # append a redirect at the end in case the user sends #
+                voice_response.append(twiml.Redirect(url=callback + "?empty=1"))
 
         return voice_response
 
@@ -2566,7 +2570,6 @@ class FlowRun(models.Model):
             media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
             text = recording_url
 
-        print 'Creating outgoing ivr'
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
                                   response_to=response_to, media=media,
                                   status=DELIVERED, msg_type=IVR)
