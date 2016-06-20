@@ -48,11 +48,19 @@ class CallHandler(View):
 
             call.save()
 
-            hangup = 'hangup' == request.POST.get('Digits', None)
+            # figure out if this is a callback due to an empty gather
+            is_empty = '1' == request.GET.get('empty', '0')
+            user_response = request.POST.copy()
+
+            # if the user pressed dash, then record no digits as the input
+            if is_empty:
+                user_response['Digits'] = ''
+
+            hangup = 'hangup' == user_response.get('Digits', None)
 
             if call.status == IN_PROGRESS or hangup:
                 if call.is_flow():
-                    response = Flow.handle_call(call, request.POST, hangup=hangup)
+                    response = Flow.handle_call(call, user_response, hangup=hangup)
                     return HttpResponse(unicode(response))
             else:
 
