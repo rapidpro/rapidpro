@@ -52,7 +52,7 @@ class CallHandler(View):
             is_empty = '1' == request.GET.get('empty', '0')
             user_response = request.POST.copy()
 
-            # if the user pressed dash, then record no digits as the input
+            # if the user pressed pound, then record no digits as the input
             if is_empty:
                 user_response['Digits'] = ''
 
