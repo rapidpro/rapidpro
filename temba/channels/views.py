@@ -2079,19 +2079,20 @@ class ChannelCRUDL(SmartCRUDL):
             return Channel.add_twilio_channel(user.get_org(), user, phone_number, country)
 
     class ClaimTwimlApi(OrgPermsMixin, SmartFormView):
+
         class TwimlApiClaimForm(forms.Form):
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
-                                                    help_text=_("The country this phone number is used in"))
+                                        help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                                 help_text=_("The phone number with country code or short code you are connecting. "))
+                                     help_text=_("The phone number with country code or short code you are connecting."))
 
             url = forms.URLField(max_length=1024, label=_("TwiML REST API Host"),
                                  help_text=_("The publicly accessible URL for your TwiML REST API instance "
                                              "ex: https://api.twilio.com"))
             account_sid = forms.CharField(max_length=64, required=False,
-                                       help_text=_("The Account SID to use to authenticate to the TwiML REST API"))
+                                          help_text=_("The Account SID to use to authenticate to the TwiML REST API"))
             account_token = forms.CharField(max_length=64, required=False,
-                                       help_text=_("The Account Token to use to authenticate to the TwiML REST API"))
+                                            help_text=_("The Account Token to use to authenticate to the TwiML REST API"))
 
         title = _("Connect TwiML REST API")
         success_url = "id@channels.channel_configuration"
@@ -2106,11 +2107,9 @@ class ChannelCRUDL(SmartCRUDL):
             number = data['number']
             url = data['url']
 
-            config = {
-                        SEND_URL: url,
-                        ACCOUNT_SID: data.get('account_sid', None),
-                        ACCOUNT_TOKEN: data.get('account_token', None),
-                     }
+            config = {SEND_URL: url,
+                      ACCOUNT_SID: data.get('account_sid', None),
+                      ACCOUNT_TOKEN: data.get('account_token', None)}
 
             self.object = Channel.add_twiml_api_channel(org, self.request.user, country, number, config)
 

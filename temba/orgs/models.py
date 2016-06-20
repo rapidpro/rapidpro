@@ -674,13 +674,11 @@ class Org(SmartModel):
         channel = self.get_call_channel()
         from temba.channels.models import TWIML_API
         if channel.channel_type == TWIML_API:
-
-          config = channel.config_json()
-          account_sid = config.get(ACCOUNT_SID)
-          account_token = config.get(ACCOUNT_TOKEN)
-          send_url = config.get('send_url')
-
-          return TwilioClient(account_sid, account_token, org=self, base=send_url)
+            config = channel.config_json()
+            account_sid = config.get(ACCOUNT_SID)
+            account_token = config.get(ACCOUNT_TOKEN)
+            send_url = config.get('send_url')
+            return TwilioClient(account_sid, account_token, org=self, base=send_url)
         return None
 
     def get_nexmo_client(self):

@@ -312,7 +312,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_twiml_api_channel(cls, org, user, country, address, config):
-        return Channel.create(org, user, country, TWIML_API, name=address, address=address, config=config, role = CALL + ANSWER, scheme='tel', parent=None)
+        return Channel.create(org, user, country, TWIML_API, name=address, address=address, config=config, role=CALL + ANSWER, scheme='tel', parent=None)
 
     @classmethod
     def add_plivo_channel(cls, org, user, country, phone_number, auth_id, auth_token):
