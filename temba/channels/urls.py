@@ -5,10 +5,13 @@ from .handlers import TwilioHandler, VerboiceHandler, AfricasTalkingHandler, Zen
 from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, TelegramHandler, ChikkaHandler
-from .handlers import TwilioMessagingServiceHandler
-from .views import ChannelCRUDL, ChannelLogCRUDL
+from .handlers import TwilioMessagingServiceHandler, JasminHandler, MbloxHandler, FacebookHandler
+from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
+
 
 urlpatterns = [
+    url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),
+
     url(r'^channels/', include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
 
     url(r'^handlers', include([
@@ -35,6 +38,9 @@ urlpatterns = [
         url(r'^/mage/(?P<action>handle_message|follow_notification)$', MageHandler.as_view(), name='handlers.mage_handler'),
         url(r'^/telegram/(?P<uuid>[a-z0-9\-]+)/?$', TelegramHandler.as_view(), name='handlers.telegram_handler'),
         url(r'^/chikka/(?P<uuid>[a-z0-9\-]+)/?$', ChikkaHandler.as_view(), name='handlers.chikka_handler'),
+        url(r'^/jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', JasminHandler.as_view(), name='handlers.jasmin_handler'),
+        url(r'^/mblox/(?P<uuid>[a-z0-9\-]+)/?$', MbloxHandler.as_view(), name='handlers.mblox_handler'),
+        url(r'^/facebook/(?P<uuid>[a-z0-9\-]+)/?$', FacebookHandler.as_view(), name='handlers.facebook_handler'),
     ])),
 
     # for backwards compatibility these channel handlers are exposed at /api/v1 as well

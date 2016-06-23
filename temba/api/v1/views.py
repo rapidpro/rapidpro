@@ -6,8 +6,8 @@ import urllib
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
-from django.db.models import Q, Prefetch
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.db.models import Prefetch
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, status, pagination
 from rest_framework.decorators import api_view, permission_classes
@@ -15,20 +15,20 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView
-from temba.api.models import get_or_create_api_token, APIToken
+from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, Call, Label, ARCHIVED, VISIBLE, DELETED
-from temba.utils import JsonResponse, json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
+from temba.msgs.models import Broadcast, Msg, Label
+from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
-from ..models import ApiPermission, SSLPermission
+from ..models import APIPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
-from .serializers import CallSerializer, CampaignReadSerializer, CampaignWriteSerializer
+from .serializers import ChannelEventSerializer, CampaignReadSerializer, CampaignWriteSerializer
 from .serializers import CampaignEventReadSerializer, CampaignEventWriteSerializer
 from .serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
@@ -67,7 +67,7 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(FieldEndpoint.get_write_explorer())
 
         endpoints.append(MessageEndpoint.get_read_explorer())
-        #endpoints.append(MessageEndpoint.get_write_explorer())
+        # endpoints.append(MessageEndpoint.get_write_explorer())
 
         endpoints.append(MessageBulkActionEndpoint.get_write_explorer())
 
@@ -84,7 +84,7 @@ class ApiExplorerView(SmartTemplateView):
         endpoints.append(FlowRunEndpoint.get_read_explorer())
         endpoints.append(FlowRunEndpoint.get_write_explorer())
 
-        #endpoints.append(FlowResultsEndpoint.get_read_explorer())
+        # endpoints.append(FlowResultsEndpoint.get_read_explorer())
 
         endpoints.append(CampaignEndpoint.get_read_explorer())
         endpoints.append(CampaignEndpoint.get_write_explorer())
@@ -116,23 +116,21 @@ class AuthenticateEndpoint(SmartFormView):
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('email')
         password = form.cleaned_data.get('password')
-        role = form.cleaned_data.get('role')
+        role_code = form.cleaned_data.get('role')
 
         user = authenticate(username=username, password=password)
         if user and user.is_active:
             login(self.request, user)
 
+            role = APIToken.get_role_from_code(role_code)
             orgs = []
 
-            valid_orgs, role = APIToken.get_orgs_for_role(user, role)
             if role:
-                for org in valid_orgs:
-                    user.set_org(org)
-                    user.set_role(role)
-                    token = get_or_create_api_token(user)
+                valid_orgs = APIToken.get_orgs_for_role(user, role)
 
-                    if token:
-                        orgs.append(dict(id=org.pk, name=org.name, token=token))
+                for org in valid_orgs:
+                    token = APIToken.get_or_create(org, user, role)
+                    orgs.append(dict(id=org.pk, name=org.name, token=token.key))
             else:
                 return HttpResponse(status=403)
 
@@ -249,7 +247,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
-    permission_classes = (SSLPermission, ApiPermission)
+    permission_classes = (SSLPermission, APIPermission)
 
     @non_atomic_gets
     def dispatch(self, request, *args, **kwargs):
@@ -466,7 +464,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        return queryset.order_by('-created_on').prefetch_related('urns', 'contacts', 'groups')
+        return queryset.order_by('-created_on').select_related('org').prefetch_related('urns', 'contacts', 'groups')
 
     @classmethod
     def get_read_explorer(cls):
@@ -683,10 +681,10 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
         archived = self.request.query_params.get('archived', None)
         if archived is not None:
-            visibility = ARCHIVED if str_to_bool(archived) else VISIBLE
+            visibility = Msg.VISIBILITY_ARCHIVED if str_to_bool(archived) else Msg.VISIBILITY_VISIBLE
             queryset = queryset.filter(visibility=visibility)
         else:
-            queryset = queryset.exclude(visibility=DELETED)
+            queryset = queryset.exclude(visibility=Msg.VISIBILITY_DELETED)
 
         queryset = queryset.select_related('org', 'contact', 'contact_urn').prefetch_related('labels')
         return queryset.order_by('-created_on').distinct()
@@ -725,7 +723,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                           dict(name='after', required=False,
                                help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='relayer', required=False,
-                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854") ]
+                               help="Only return messages that were received or sent by these channels. (repeatable)  ex: 515,854")]
 
         return spec
 
@@ -968,9 +966,9 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
             ...
 
     """
-    permission = 'msgs.call_api'
-    model = Call
-    serializer_class = CallSerializer
+    permission = 'channels.channelevent_api'
+    model = ChannelEvent
+    serializer_class = ChannelEventSerializer
     cache_counts = True
 
     def get_queryset(self):
@@ -998,7 +996,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
 
         call_types = splitting_getlist(self.request, 'call_type')
         if call_types:
-            queryset = queryset.filter(call_type__in=call_types)
+            queryset = queryset.filter(event_type__in=call_types)
 
         phones = splitting_getlist(self.request, 'phone')
         if phones:
@@ -1021,18 +1019,18 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
                     url=reverse('api.v1.calls'),
                     slug='call-list',
                     request="after=2013-01-01T00:00:00.000&phone=%2B250788123123")
-        spec['fields'] = [ dict(name='call', required=False,
-                                help="One or more call ids to filter by.  ex: 2335,2320"),
-                           dict(name='call_type', required=False,
-                                help="One or more types of calls to filter by. (repeatable)  ex: mo_miss"),
-                           dict(name='phone', required=False,
-                                help="One or more phone numbers to filter by in E164 format. (repeatable) ex: +250788123123"),
-                           dict(name='before', required=False,
-                                help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='relayer', required=False,
-                                help="Only return messages that were received or sent by these channels.  ex: 515,854") ]
+        spec['fields'] = [dict(name='call', required=False,
+                               help="One or more call ids to filter by.  ex: 2335,2320"),
+                          dict(name='call_type', required=False,
+                               help="One or more types of calls to filter by. (repeatable)  ex: mo_miss"),
+                          dict(name='phone', required=False,
+                               help="One or more phone numbers to filter by in E164 format. (repeatable) ex: +250788123123"),
+                          dict(name='before', required=False,
+                               help="Only return messages before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only return messages after this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='relayer', required=False,
+                               help="Only return messages that were received or sent by these channels.  ex: 515,854")]
 
         return spec
 
@@ -1187,16 +1185,16 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
                     url=reverse('api.v1.channels'),
                     slug='channel-list',
                     request="after=2013-01-01T00:00:00.000&country=RW")
-        spec['fields'] = [ dict(name='relayer', required=False,
-                                help="One or more channel ids to filter by. (repeatable)  ex: 235,124"),
-                           dict(name='phone', required=False,
-                                help="One or more phone number to filter by. (repeatable)  ex: +250788123123,+250788456456"),
-                           dict(name='before', required=False,
-                                help="Only return channels which were last seen before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return channels which were last seen after this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='country', required=False,
-                                help="Only channels which are active in countries with these country codes. (repeatable) ex: RW") ]
+        spec['fields'] = [dict(name='relayer', required=False,
+                               help="One or more channel ids to filter by. (repeatable)  ex: 235,124"),
+                          dict(name='phone', required=False,
+                               help="One or more phone number to filter by. (repeatable)  ex: +250788123123,+250788456456"),
+                          dict(name='before', required=False,
+                               help="Only return channels which were last seen before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only return channels which were last seen after this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='country', required=False,
+                               help="Only channels which are active in countries with these country codes. (repeatable) ex: RW")]
 
         return spec
 
@@ -1208,12 +1206,12 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
                     slug='channel-claim',
                     request='{ "claim_code": "AOIFUGQUF", "phone": "+250788123123", "name": "Rwanda MTN Channel" }')
 
-        spec['fields'] = [ dict(name='claim_code', required=True,
-                                help="The 9 character claim code displayed by the Android application after startup.  ex: FJUQOGIEF"),
-                           dict(name='phone', required=True,
-                                help="The phone number of the channel.  ex: +250788123123"),
-                           dict(name='name', required=False,
-                                help="A friendly name you want to assign to this channel.  ex: MTN Rwanda") ]
+        spec['fields'] = [dict(name='claim_code', required=True,
+                               help="The 9 character claim code displayed by the Android application after startup.  ex: FJUQOGIEF"),
+                          dict(name='phone', required=True,
+                               help="The phone number of the channel.  ex: +250788123123"),
+                          dict(name='name', required=False,
+                               help="A friendly name you want to assign to this channel.  ex: MTN Rwanda")]
         return spec
 
     @classmethod
@@ -1223,16 +1221,16 @@ class ChannelEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
                     url=reverse('api.v1.channels'),
                     slug='channel-delete',
                     request="after=2013-01-01T00:00:00.000&country=RW")
-        spec['fields'] = [ dict(name='relayer', required=False,
-                                help="Only delete channels with these ids. (repeatable)  ex: 235,124"),
-                           dict(name='phone', required=False,
-                                help="Only delete channels with these phones numbers. (repeatable)  ex: +250788123123,+250788456456"),
-                           dict(name='before', required=False,
-                                help="Only delete channels which were last seen before this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only delete channels which were last seen after this date.  ex: 2012-01-28T18:00:00.000"),
-                           dict(name='country', required=False,
-                                help="Only delete channels which are active in countries with these country codes. (repeatable) ex: RW") ]
+        spec['fields'] = [dict(name='relayer', required=False,
+                               help="Only delete channels with these ids. (repeatable)  ex: 235,124"),
+                          dict(name='phone', required=False,
+                               help="Only delete channels with these phones numbers. (repeatable)  ex: +250788123123,+250788456456"),
+                          dict(name='before', required=False,
+                               help="Only delete channels which were last seen before this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only delete channels which were last seen after this date.  ex: 2012-01-28T18:00:00.000"),
+                          dict(name='country', required=False,
+                               help="Only delete channels which are active in countries with these country codes. (repeatable) ex: RW")]
 
         return spec
 
@@ -1514,9 +1512,9 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
                           dict(name='group_uuids', required=False,
                                help="One or more group UUIDs to filter by. (repeatable) ex: 6685e933-26e1-4363-a468-8f7268ab63a9"),
                           dict(name='after', required=False,
-                                help="only contacts which have changed on this date or after.  ex: 2012-01-28T18:00:00.000"),
+                               help="only contacts which have changed on this date or after.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='before', required=False,
-                                help="only contacts which have changed on this date or before. ex: 2012-01-28T18:00:00.000")]
+                               help="only contacts which have changed on this date or before. ex: 2012-01-28T18:00:00.000")]
 
         return spec
 
@@ -2108,14 +2106,14 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                     slug='run-post',
                     request='{ "flow_uuid":"f5901b62-ba76-4003-9c62-72fdacc1b7b7" , "phone": ["+250788222222", "+250788111111"], "extra": { "item_id": "ONEZ", "item_price":"$3.99" } }')
 
-        spec['fields'] = [ dict(name='flow_uuid', required=True,
-                                help="The uuid of the flow to start the contact(s) on, the flow cannot be archived"),
-                           dict(name='phone', required=True,
-                                help="A JSON array of one or more strings, each a phone number in E164 format"),
-                           dict(name='contact', required=False,
-                                help="A JSON array of one or more strings, each a contact UUID"),
-                           dict(name='extra', required=False,
-                                help="A dictionary of key/value pairs to include as the @extra parameters in the flow (max of twenty values of 255 chars or less)") ]
+        spec['fields'] = [dict(name='flow_uuid', required=True,
+                               help="The uuid of the flow to start the contact(s) on, the flow cannot be archived"),
+                          dict(name='phone', required=True,
+                               help="A JSON array of one or more strings, each a phone number in E164 format"),
+                          dict(name='contact', required=False,
+                               help="A JSON array of one or more strings, each a contact UUID"),
+                          dict(name='extra', required=False,
+                               help="A dictionary of key/value pairs to include as the @extra parameters in the flow (max of twenty values of 255 chars or less)")]
         return spec
 
 
@@ -2395,13 +2393,13 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
                     request="after=2013-01-01T00:00:00.000")
 
         spec['fields'] = [dict(name='uuid', required=False,
-                                help="One or more event UUIDs to filter by. (repeatable) ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfabc"),
+                               help="One or more event UUIDs to filter by. (repeatable) ex: 6a6d7531-6b44-4c45-8c33-957ddd8dfabc"),
                           dict(name='campaign_uuid', required=False,
-                                help="One or more campaign UUIDs to filter by. (repeatable) ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
+                               help="One or more campaign UUIDs to filter by. (repeatable) ex: f14e4ff0-724d-43fe-a953-1d16aefd1c00"),
                           dict(name='before', required=False,
-                                help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
+                               help="Only return flows which were created before this date.  ex: 2012-01-28T18:00:00.000"),
                           dict(name='after', required=False,
-                                help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000")]
+                               help="Only return flows which were created after this date.  ex: 2012-01-28T18:00:00.000")]
         return spec
 
     @classmethod
@@ -2813,17 +2811,16 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
                     url=reverse('api.v1.flows'),
                     slug='flow-list',
                     request="after=2013-01-01T00:00:00.000")
-        spec['fields'] = [ dict(name='flow', required=False,
-                                help="One or more flow ids to filter by. (repeatable) ex: 234235,230420"),
-                           dict(name='before', required=False,
-                                help="Only return flows which were created before this date. ex: 2012-01-28T18:00:00.000"),
-                           dict(name='after', required=False,
-                                help="Only return flows which were created after this date. ex: 2012-01-28T18:00:00.000"),
-                           dict(name='label', required=False,
-                                help="Only return flows with this label. (repeatable) ex: Polls"),
-                           dict(name='archived', required=False,
-                                help="Filter returned flows based on whether they are archived. ex: Y")
-                           ]
+        spec['fields'] = [dict(name='flow', required=False,
+                               help="One or more flow ids to filter by. (repeatable) ex: 234235,230420"),
+                          dict(name='before', required=False,
+                               help="Only return flows which were created before this date. ex: 2012-01-28T18:00:00.000"),
+                          dict(name='after', required=False,
+                               help="Only return flows which were created after this date. ex: 2012-01-28T18:00:00.000"),
+                          dict(name='label', required=False,
+                               help="Only return flows with this label. (repeatable) ex: Polls"),
+                          dict(name='archived', required=False,
+                               help="Filter returned flows based on whether they are archived. ex: Y")]
 
         return spec
 

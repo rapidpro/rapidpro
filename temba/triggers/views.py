@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.db.models import Min
 from smartmin.views import SmartCRUDL, SmartListView, SmartCreateView, SmartTemplateView, SmartUpdateView
-from temba.contacts.models import ContactGroup, URN_SCHEMES_SUPPORTING_FOLLOW
+from temba.contacts.models import ContactGroup, ContactURN
 from temba.contacts.fields import OmniboxField
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
@@ -175,7 +175,7 @@ class RegisterTriggerForm(BaseTriggerForm):
                 # we must get groups for this org only
                 group = ContactGroup.get_user_group(self.user.get_org(), value)
                 if not group:
-                    group = ContactGroup.create(self.user.get_org(), self.user, name=value)
+                    group = ContactGroup.create_static(self.user.get_org(), self.user, name=value)
                 return group
 
             return super(RegisterTriggerForm.AddNewGroupChoiceField, self).clean(value)
@@ -183,8 +183,12 @@ class RegisterTriggerForm(BaseTriggerForm):
     keyword = forms.CharField(max_length=16, required=True,
                               help_text=_("The first word of the message text"))
 
-    action_join_group = AddNewGroupChoiceField(ContactGroup.user_groups.filter(pk__lt=0), required=True, label=_("Group to Join"),
-                                   help_text=_("The group the contact will join when they send the above keyword"))
+    action_join_group = AddNewGroupChoiceField(
+        ContactGroup.user_groups.filter(pk__lt=0),
+        required=True,
+        label=_("Group to Join"),
+        help_text=_("The group the contact will join when they send the above keyword")
+    )
 
     response = forms.CharField(widget=forms.Textarea(attrs=dict(rows=3)), required=False, label=_("Response"),
                                help_text=_("The message to send in response after they join the group (optional)"))
@@ -254,7 +258,7 @@ class FollowTriggerForm(BaseTriggerForm):
         super(FollowTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 scheme__in=URN_SCHEMES_SUPPORTING_FOLLOW)
+                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_FOLLOW)
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('channel', 'flow')
@@ -319,7 +323,7 @@ class TriggerCRUDL(SmartCRUDL):
             add_section('trigger-missedcall', 'triggers.trigger_missed_call', 'icon-phone')
             add_section('trigger-catchall', 'triggers.trigger_catchall', 'icon-bubble')
 
-            if URN_SCHEMES_SUPPORTING_FOLLOW.intersection(org_schemes):
+            if ContactURN.SCHEMES_SUPPORTING_FOLLOW.intersection(org_schemes):
                 add_section('trigger-follow', 'triggers.trigger_follow', 'icon-user-restore')
 
     class Update(ModalMixin, OrgMixin, SmartUpdateView):
@@ -435,7 +439,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super(TriggerCRUDL.BaseList, self).get_context_data(**kwargs)
             context['org_has_triggers'] = Trigger.objects.filter(org=self.request.user.get_org()).count()
-            context['folders']= self.get_folders()
+            context['folders'] = self.get_folders()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
             return context
@@ -625,7 +629,7 @@ class TriggerCRUDL(SmartCRUDL):
         def pre_save(self, obj, *args, **kwargs):
             obj = super(TriggerCRUDL.InboundCall, self).pre_save(obj, *args, **kwargs)
             obj.org = self.request.user.get_org()
-            obj.trigger_type=Trigger.TYPE_INBOUND_CALL
+            obj.trigger_type = Trigger.TYPE_INBOUND_CALL
             return obj
 
         def get_form_kwargs(self):

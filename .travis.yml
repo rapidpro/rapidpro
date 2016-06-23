@@ -4,18 +4,19 @@ python:
 services:
 - redis-server
 addons:
-  postgresql: '9.3'
+  postgresql: '9.4'
 sudo: false
 cache:
   directories:
   - $HOME/.cache/pip
+matrix:
+  fast_finish: true
 install:
 - pip install --upgrade pip
 - pip --version
 - pip install -r pip-freeze.txt --upgrade
 - pip install coveralls
 - npm install
-
 before_script:
 - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
 - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
@@ -28,6 +29,7 @@ script:
 - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
 - coverage run manage.py test --noinput --verbosity=2
 - flake8
+- python manage.py makemigrations --dry-run | grep 'No changes detected' || (echo 'There are changes which require migrations.' && exit 1)
 after_success:
 - coverage report -i
 - coveralls

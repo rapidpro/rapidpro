@@ -1,8 +1,21 @@
-from urllib import urlencode
-from urlparse import urljoin
-from django.utils.translation import ugettext_lazy as _
+from __future__ import unicode_literals
+
 import requests
+import six
+
+from django.utils.translation import ugettext_lazy as _
 from temba.utils.gsm7 import is_gsm7
+from urlparse import urljoin
+
+
+class NexmoValidationError(Exception):
+
+    def __unicode__(self):  # pragma: no cover
+        return self.message
+
+    def __str__(self):
+        return six.text_type(self.__unicode__())
+
 
 class NexmoClient(object):
     """
@@ -21,7 +34,7 @@ class NexmoClient(object):
         if 'error-code' in json and json.get('error-code', '200') != '200':
             code = json.get('error-code')
             message = json.get('error-code-label', "No more details available.")
-            raise Exception(_("Nexmo Error # %s: %s") % (code, message))
+            raise NexmoValidationError(_("Nexmo Error # %s: %s") % (code, message))
 
         return json
 
@@ -45,12 +58,12 @@ class NexmoClient(object):
         response = self._fire_get(path, {})
         return response['value']
 
-    def get_numbers(self, pattern=None):
+    def get_numbers(self, pattern=None, size=10):
         path = "/account/numbers/%s/%s" % (self.api_key, self.api_secret)
         params = dict()
         if pattern:
             params['pattern'] = str(pattern).strip('+')
-
+        params['size'] = size
         response = self._fire_get(path, params)
 
         if int(response.get('count', 0)):
@@ -108,7 +121,7 @@ class NexmoClient(object):
         try:
             self.get_balance()
             return True
-        except Exception as e:
+        except Exception:
             return False
 
 
@@ -127,7 +140,7 @@ def __main__():
 
     print "CH Numbers: %s" % n.search_numbers('CH', None)
 
-    #print "Buying %s: %s" % (seattle_numbers[0]['msisdn'], n.buy_number('US', seattle_numbers[0]['msisdn']))
+    # print "Buying %s: %s" % (seattle_numbers[0]['msisdn'], n.buy_number('US', seattle_numbers[0]['msisdn']))
 
     # update the MO for one of our numbers
     print "Updating Number %s: %s" % (numbers[0]['msisdn'], n.update_number('US', numbers[0]['msisdn'], 'http://rapidpro.io'))

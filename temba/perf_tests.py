@@ -7,9 +7,9 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
-from temba.channels.models import Channel, ChannelLog
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
+from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
 from temba.utils import dict_to_struct
 from temba.values.models import Value
 from temba.utils.profiler import SegmentProfiler
@@ -85,7 +85,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         num_bases = len(base_names)
         for g in range(0, count):
             name = '%s %d' % (base_names[g % num_bases], g + 1)
-            group = ContactGroup.create(self.org, self.user, name)
+            group = ContactGroup.create_static(self.org, self.user, name)
             group.contacts.add(*contacts[(g % num_bases)::num_bases])
             groups.append(ContactGroup.user_groups.get(pk=group.pk))
         return groups
@@ -117,8 +117,10 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             text = '%s %d' % (base_text, m + 1)
             contact = contacts[m % len(contacts)]
             contact_urn = contact.urn_objects.values()[0]
-            msg = Msg.all_messages.create(contact=contact, contact_urn=contact_urn, org=self.org, channel=channel, text=text,
-                                     direction=INCOMING, status=PENDING, created_on=date, queued_on=date)
+            msg = Msg.all_messages.create(contact=contact, contact_urn=contact_urn,
+                                          org=self.org, channel=channel,
+                                          text=text, direction=INCOMING, status=PENDING,
+                                          created_on=date, queued_on=date)
             messages.append(msg)
         return messages
 
@@ -141,16 +143,19 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
     def _create_calls(self, count, channel, contacts):
         """
-        Creates the given number of calls
+        Creates the given number of missed call events
         """
         calls = []
         date = timezone.now()
         for c in range(0, count):
             duration = random.randint(10, 30)
             contact = contacts[c % len(contacts)]
-            calls.append(Call(channel=channel, org=self.org, contact=contact, time=date, duration=duration,
-                              call_type='mo_call', created_by=self.user, modified_by=self.user))
-        Call.objects.bulk_create(calls)
+            contact_urn = contact.urn_objects.values()[0]
+            calls.append(ChannelEvent(channel=channel, org=self.org, event_type='mt_miss',
+                                      contact=contact, contact_urn=contact_urn,
+                                      time=date, duration=duration,
+                                      created_by=self.user, modified_by=self.user))
+        ChannelEvent.objects.bulk_create(calls)
         return calls
 
     def _create_runs(self, count, flow, contacts):
@@ -288,13 +293,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.clear_cache()
 
         with SegmentProfiler("Fetch first page of contacts from API", self,
-                             assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
+                             assert_queries=API_INITIAL_REQUEST_QUERIES + 7, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.v1.contacts'))
 
         # query count now cached
 
         with SegmentProfiler("Fetch second page of contacts from API", self,
-                             assert_queries=API_REQUEST_QUERIES+6, assert_tx=0, force_profile=True):
+                             assert_queries=API_REQUEST_QUERIES + 6, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json?page=2' % reverse('api.v1.contacts'))
 
     def test_api_groups(self):
@@ -305,7 +310,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.clear_cache()
 
         with SegmentProfiler("Fetch first page of groups from API", self,
-                             assert_queries=API_INITIAL_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
+                             assert_queries=API_INITIAL_REQUEST_QUERIES + 2, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.v1.contactgroups'))
 
     def test_api_messages(self):
@@ -319,13 +324,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.clear_cache()
 
         with SegmentProfiler("Fetch first page of messages from API", self,
-                             assert_queries=API_INITIAL_REQUEST_QUERIES+3, assert_tx=0, force_profile=True):
+                             assert_queries=API_INITIAL_REQUEST_QUERIES + 3, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.v1.messages'))
 
         # query count now cached
 
         with SegmentProfiler("Fetch second page of messages from API", self,
-                             assert_queries=API_REQUEST_QUERIES+2, assert_tx=0, force_profile=True):
+                             assert_queries=API_REQUEST_QUERIES + 2, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json?page=2' % reverse('api.v1.messages'))
 
     def test_api_runs(self):
@@ -337,13 +342,13 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         self.clear_cache()
 
         with SegmentProfiler("Fetch first page of flow runs from API", self,
-                             assert_queries=API_INITIAL_REQUEST_QUERIES+7, assert_tx=0, force_profile=True):
+                             assert_queries=API_INITIAL_REQUEST_QUERIES + 7, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json' % reverse('api.v1.runs'))
 
         # query count, terminal nodes and category nodes for the flow all now cached
 
         with SegmentProfiler("Fetch second page of flow runs from API", self,
-                             assert_queries=API_REQUEST_QUERIES+4, assert_tx=0, force_profile=True):
+                             assert_queries=API_REQUEST_QUERIES + 4, assert_tx=0, force_profile=True):
             self._fetch_json('%s.json?page=2' % reverse('api.v1.runs'))
 
         with SegmentProfiler("Create new flow runs via API endpoint", self, assert_tx=1, force_profile=True):

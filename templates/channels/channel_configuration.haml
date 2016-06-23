@@ -1,9 +1,20 @@
 -extends "smartmin/read.haml"
--load i18n
+-load i18n channels
 
 -block title
-  %h2 {{ object.get_channel_type_display }} {% trans "Configuration" %}
-  %h3 {{ object.get_address_display }}
+  .medium-help.float-left{class:'{{object|channel_icon}}'}
+  %h2.font_normalize.header-margin.title
+    {{ object.get_channel_type_display }} Configuration
+
+    .number
+      {{ object.get_address_display }}
+      -if object.get_country_display
+        ({{ object.get_country_display }})
+
+      -if object.channel_type == 'A'
+        \- {{ channel.device }}
+        -if channel.os
+          (v{{channel.os}})
 
 -block content
   -if object.channel_type == 'AT'
@@ -485,6 +496,41 @@
           omit-empty = true
           accepted-smsc = YOUR-SMSC
 
+  -elif object.channel_type == 'JS'
+    %h4
+      -blocktrans
+        As a last step you'll need to configure Jasmin to call the following URL for MO (incoming) messages.
+
+    %hr
+
+    %h4
+      -trans "Push Message URL"
+
+    %p
+      -blocktrans
+        This endpoint will be called by Jasmin when new messages are received to your number, it must be configured
+        to be called as a POST
+
+    %code
+      https://{{ domain }}{% url 'handlers.jasmin_handler' 'receive' object.uuid %}
+
+  -elif object.channel_type == 'MB'
+    %h4
+      -blocktrans
+        As a last step you'll need to set the following callback URL on your Mblox account:
+
+    %hr
+
+    %h4
+      -trans "Callback URL"
+
+    %p
+      -blocktrans
+        This endpoint will be called by Mblox when new messages are received to your number and for delivery reports.
+
+    %code
+      https://{{ domain }}{% url 'handlers.mblox_handler' object.uuid %}
+
   -elif object.channel_type == 'VB'
     %h4
       -blocktrans
@@ -498,6 +544,50 @@
     %code
       https://{{ domain }}{% url 'handlers.verboice_handler' 'status' object.uuid %}
 
+  -elif object.channel_type == 'FB'
+    :javascript
+      function setFBWelcome(){
+        var modal = new Modax('{% trans "Welcome Message" %}', '{% url "channels.channel_facebook_welcome" object.id %}');
+        modal.setIcon('icon-facebook-official');
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      }
+
+    %h4
+      -blocktrans
+        To finish configuring your Facebook connection you'll need to set the following webhook URL on your application
+        page, use the verify token below when updating it. Make sure to check all boxes to subscribe to all incoming
+        Facebook events.
+
+    .important
+      %p
+        -blocktrans
+          It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application.
+
+    %hr
+
+    %h4
+      -trans "Webhook URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.facebook_handler' object.uuid %}
+
+    %h4
+      -trans "Verify Token"
+
+    %code
+      {{ channel.secret }}
+
+    %hr
+
+    .span2
+      %button.btn.btn-primary{ href: "#", onClick:"setFBWelcome()" }
+        -trans "Set Welcome Message"
+
+    .span9
+      -blocktrans
+        You can set a message to be displayed when a Facebook user opens a chat with your page. This will appear automatically
+        and gives you an opportunity to welcome the user and give them instructions on how to interact with your page.
 
   -elif object.channel_type == 'HX'
     %h4
@@ -690,5 +780,20 @@
       -webkit-border-radius: 0px;
       -moz-border-radius: 0px;
       border-radius: 0px;
+    }
+
+    .important {
+      background-color: #efefef;
+      border: 1px solid #ccc;
+      padding: 10px 10px 0px 10px;
+      margin-bottom: 10px;
+    }
+
+    .device .number {
+      padding-left:5px;
+    }
+
+    .title .number {
+      font-size:20px;
     }
 

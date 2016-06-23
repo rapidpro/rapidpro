@@ -48,11 +48,11 @@ class Schedule(SmartModel):
     def get_broadcast(self):
         if hasattr(self, 'broadcast'):
             return self.broadcast
-        
+
     def get_trigger(self):
         if hasattr(self, 'trigger'):
             return self.trigger
-        
+
     def get_org_timezone(self):
         org = None
 
@@ -157,7 +157,7 @@ class Schedule(SmartModel):
         if self.repeat_days:
             bitmask_number = bin(self.repeat_days)
             for i in range(7):
-                power = bin(pow(2, i+1))
+                power = bin(pow(2, i + 1))
                 if bin(int(bitmask_number, 2) & int(power, 2)) == power:
                     days.append(str(int(power, 2)))
         return days

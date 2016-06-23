@@ -9,6 +9,7 @@ import plivo
 import pycountry
 import pytz
 import time
+import requests
 
 from datetime import datetime, timedelta
 from django import forms
@@ -25,8 +26,9 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, URN_SCHEME_CHOICES
-from temba.msgs.models import Broadcast, Call, Msg, QUEUED, PENDING
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING
+from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
@@ -34,11 +36,11 @@ from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_co
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
-from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL
+from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
+from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN, FACEBOOK
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
-from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON
-from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, AUTH_TOKEN, CHIKKA
+from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX
+from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, CHIKKA, AUTH_TOKEN
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       CHIKKA: "icon-channel-external",
@@ -51,7 +53,8 @@ RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       PLIVO: "icon-channel-plivo",
                       CLICKATELL: "icon-channel-clickatell",
                       TWITTER: "icon-twitter",
-                      TELEGRAM: "icon-telegram"}
+                      TELEGRAM: "icon-telegram",
+                      FACEBOOK: "icon-facebook-official"}
 
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
 SESSION_TWITTER_SECRET = 'twitter_oauth_token_secret'
@@ -70,19 +73,19 @@ TWILIO_SUPPORTED_COUNTRIES = (('AU', _("Australia")),
                               ('AT', _("Austria")),
                               ('BE', _("Belgium")),
                               ('CA', _("Canada")),
-                              ('CL', _("Chile")), #Beta
-                              ('CZ', _("Czech Republic")), #Beta
-                              ('DK', _("Denmark")), #Beta
+                              ('CL', _("Chile")),  # Beta
+                              ('CZ', _("Czech Republic")),  # Beta
+                              ('DK', _("Denmark")),  # Beta
                               ('EE', _("Estonia")),
                               ('FI', _("Finland")),
-                              ('FR', _("France")), #Beta
+                              ('FR', _("France")),  # Beta
                               ('DE', _("Germany")),
                               ('HK', _("Hong Kong")),
-                              ('HU', _("Hungary")), #Beta
+                              ('HU', _("Hungary")),  # Beta
                               ('IE', _("Ireland")),
-                              ('IL', _("Israel")), #Beta
+                              ('IL', _("Israel")),  # Beta
                               ('LT', _("Lithuania")),
-                              ('MX', _("Mexico")), #Beta
+                              ('MX', _("Mexico")),  # Beta
                               ('NO', _("Norway")),
                               ('PL', _("Poland")),
                               ('ES', _("Spain")),
@@ -163,6 +166,7 @@ PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370
 # list of codes and countries sorted by country name
 ALL_COUNTRIES = sorted(((code, name) for code, name in COUNTRIES.items()), key=lambda x: x[1])
 
+
 def get_channel_icon(channel_type):
     return RELAYER_TYPE_ICONS.get(channel_type, "icon-channel-external")
 
@@ -194,6 +198,10 @@ def channel_status_processor(request):
         # as is telegram
         if not send_channel:
             send_channel = org.get_send_channel(scheme=TELEGRAM_SCHEME)
+
+        # and facebook
+        if not send_channel:
+            send_channel = org.get_send_channel(scheme=FACEBOOK_SCHEME)
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
@@ -275,9 +283,9 @@ def sync(request, channel_id):
     if not channel.secret or not channel.org:
         return HttpResponse(json.dumps(dict(cmds=[channel.build_registration_command()])), content_type='application/javascript')
 
-    #print "\n\nSECRET: '%s'" % channel.secret
-    #print "TS: %s" % request_time
-    #print "BODY: '%s'\n\n" % request.body
+    # print "\n\nSECRET: '%s'" % channel.secret
+    # print "TS: %s" % request_time
+    # print "BODY: '%s'\n\n" % request.body
 
     # check that the request isn't too old (15 mins)
     now = time.time()
@@ -292,7 +300,7 @@ def sync(request, channel_id):
 
     if request_signature != signature:
         return HttpResponse(status=401,
-                            content='{ "error_id": 1, "error": "Invalid signature: \'%(request)s\'", "cmds":[] }' % {'request':request_signature})
+                            content='{ "error_id": 1, "error": "Invalid signature: \'%(request)s\'", "cmds":[] }' % {'request': request_signature})
 
     # update our last seen on our channel
     channel.last_seen = timezone.now()
@@ -308,7 +316,6 @@ def sync(request, channel_id):
         print "==GOT SYNC"
         print json.dumps(client_updates, indent=2)
 
-        incoming_count = 0
         if 'cmds' in client_updates:
             cmds = client_updates['cmds']
 
@@ -321,8 +328,7 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.all_messages.filter(pk=cmd['msg_id'],
-                                                 org=channel.org)
+                        msg = Msg.all_messages.filter(pk=cmd['msg_id'], org=channel.org)
                         if msg:
                             msg = msg[0]
                             handled = msg.update(cmd)
@@ -334,7 +340,7 @@ def sync(request, channel_id):
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
 
-                        msg = Msg.create_incoming(channel, (TEL_SCHEME, tel), cmd['msg'], date=date)
+                        msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
                         if msg:
                             extra = dict(msg_id=msg.id)
                             handled = True
@@ -351,11 +357,8 @@ def sync(request, channel_id):
                         # ignore these events on our side as they have no purpose and break a lot of our
                         # assumptions
                         if cmd['phone']:
-                            Call.create_call(channel=channel,
-                                             phone=cmd['phone'],
-                                             date=date,
-                                             duration=duration,
-                                             call_type=cmd['type'])
+                            urn = URN.from_parts(TEL_SCHEME, cmd['phone'])
+                            ChannelEvent.create(channel, urn, cmd['type'], date, duration)
                         handled = True
 
                     elif keyword == 'gcm':
@@ -521,7 +524,8 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
-               'claim_twilio_messaging_service', 'claim_zenvia')
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook',
+               'facebook_welcome')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -530,6 +534,12 @@ class ChannelCRUDL(SmartCRUDL):
         """
         def has_permission(self, request, *args, **kwargs):
             org = self.derive_org()
+
+            # can this user break anonymity? then we are fine
+            if self.get_user().has_perm('contacts.contact_break_anon'):
+                return True
+
+            # otherwise if this org is anon, no go
             if not org or org.is_anon:
                 return False
             else:
@@ -985,15 +995,15 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
 
-            if not org: # pragma: no cover
+            if not org:  # pragma: no cover
                 raise Exception(_("No org for this user, cannot claim"))
 
             data = form.cleaned_data
-            self.object = Channel.add_zenvia_channel(org, self.request.user,
-                                                     phone=data['shortcode'], account=data['account'], code=data['code'])
-
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
+            self.object = Channel.add_zenvia_channel(org,
+                                                     self.request.user,
+                                                     phone=data['shortcode'],
+                                                     account=data['account'],
+                                                     code=data['code'])
 
             return super(ChannelCRUDL.ClaimZenvia, self).form_valid(form)
 
@@ -1053,14 +1063,11 @@ class ChannelCRUDL(SmartCRUDL):
             self.object.config = json.dumps(config)
             self.object.save()
 
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
-
             return super(ChannelCRUDL.ClaimKannel, self).form_valid(form)
 
     class ClaimExternal(OrgPermsMixin, SmartFormView):
         class EXClaimForm(forms.Form):
-            scheme = forms.ChoiceField(choices=URN_SCHEME_CHOICES, label=_("URN Type"),
+            scheme = forms.ChoiceField(choices=ContactURN.SCHEME_CHOICES, label=_("URN Type"),
                                        help_text=_("The type of URNs handled by this channel"))
 
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"), required=False,
@@ -1135,9 +1142,6 @@ class ChannelCRUDL(SmartCRUDL):
             self.object = Channel.add_config_external_channel(org, self.request.user, country, address, EXTERNAL,
                                                               config, role, scheme, parent=channel)
 
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
-
             return super(ChannelCRUDL.ClaimExternal, self).form_valid(form)
 
     class ClaimAuthenticatedExternal(OrgPermsMixin, SmartFormView):
@@ -1188,10 +1192,8 @@ class ChannelCRUDL(SmartCRUDL):
             self.object = Channel.add_authenticated_external_channel(org, self.request.user,
                                                                      self.get_submitted_country(data),
                                                                      data['number'], data['username'],
-                                                                     data['password'], self.channel_type)
-
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
+                                                                     data['password'], self.channel_type,
+                                                                     data.get('url'))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
@@ -1214,6 +1216,40 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimM3tech(ClaimAuthenticatedExternal):
         title = _("Connect M3 Tech")
         channel_type = M3TECH
+
+    class ClaimJasmin(ClaimAuthenticatedExternal):
+        class JasminForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
+                                     help_text=_("The short code or phone number you are connecting."))
+            url = forms.URLField(label=_("URL"),
+                                 help_text=_("The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"))
+            username = forms.CharField(label=_("Username"),
+                                       help_text=_("The username to be used to authenticate to Jasmin"))
+            password = forms.CharField(label=_("Password"),
+                                       help_text=_("The password to be used to authenticate to Jasmin"))
+
+        title = _("Connect Jasmin")
+        channel_type = JASMIN
+        form_class = JasminForm
+        fields = ('country', 'number', 'url', 'username', 'password')
+
+    class ClaimMblox(ClaimAuthenticatedExternal):
+        class MBloxForm(forms.Form):
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"),
+                                        help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=4, label=_("Number"),
+                                     help_text=_("The short code or phone number you are connecting."))
+            username = forms.CharField(label=_("Username"),
+                                       help_text=_("The username for your MBlox REST API service"))
+            password = forms.CharField(label=_("API Token"),
+                                       help_text=_("The API token for your MBlox REST API service"))
+
+        title = _("Connect MBlox")
+        channel_type = MBLOX
+        form_class = MBloxForm
+        fields = ('country', 'number', 'username', 'password')
 
     class ClaimChikka(ClaimAuthenticatedExternal):
         class ChikkaForm(forms.Form):
@@ -1258,7 +1294,7 @@ class ChannelCRUDL(SmartCRUDL):
                     import telegram
                     bot = telegram.Bot(token=auth_token)
                     bot.getMe()
-                except telegram.TelegramError as e:
+                except telegram.TelegramError:
                     raise ValidationError(_("Your authentication token is invalid, please check and try again"))
 
                 return self.cleaned_data['auth_token']
@@ -1307,7 +1343,7 @@ class ChannelCRUDL(SmartCRUDL):
             password = forms.CharField(label=_("Password"),
                                        help_text=_("The password provided by the provider to use their API"))
             channel = forms.CharField(label=_("Channel Name"),
-                                           help_text=_("The Verboice channel that will be handling your calls"))
+                                      help_text=_("The Verboice channel that will be handling your calls"))
 
         title = _("Connect Verboice")
         channel_type = VERBOICE
@@ -1326,10 +1362,7 @@ class ChannelCRUDL(SmartCRUDL):
                                                               dict(username=data['username'],
                                                                    password=data['password'],
                                                                    channel=data['channel']),
-                                                              role=CALL+ANSWER)
-
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
+                                                              role=CALL + ANSWER)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
@@ -1389,9 +1422,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                    username=data['username'],
                                                                    password=data['password']))
 
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
-
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimVumi(ClaimAuthenticatedExternal):
@@ -1425,9 +1455,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                    access_token=str(uuid4()),
                                                                    transport_name=data['transport_name'],
                                                                    conversation_key=data['conversation_key']))
-
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
@@ -1474,9 +1501,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                                    username=data['username'],
                                                                    password=data['password']))
 
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
-
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
     class ClaimAfricasTalking(OrgPermsMixin, SmartFormView):
@@ -1499,7 +1523,7 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
 
-            if not org: # pragma: no cover
+            if not org:  # pragma: no cover
                 raise Exception(_("No org for this user, cannot claim"))
 
             data = form.cleaned_data
@@ -1507,9 +1531,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                               country=data['country'],
                                                               phone=data['shortcode'], username=data['username'],
                                                               api_key=data['api_key'], is_shared=data['is_shared'])
-
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
 
             return super(ChannelCRUDL.ClaimAfricasTalking, self).form_valid(form)
 
@@ -1547,16 +1568,13 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
             org = self.request.user.get_org()
 
-            if not org: # pragma: no cover
+            if not org:  # pragma: no cover
                 raise Exception(_("No org for this user, cannot claim"))
 
             data = form.cleaned_data
             self.object = Channel.add_twilio_messaging_service_channel(org, self.request.user,
                                                                        messaging_service_sid=data['messaging_service_sid'],
                                                                        country=data['country'])
-
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
 
             return super(ChannelCRUDL.ClaimTwilioMessagingService, self).form_valid(form)
 
@@ -1567,8 +1585,15 @@ class ChannelCRUDL(SmartCRUDL):
 
             # if this is an external channel, build an example URL
             if self.object.channel_type == EXTERNAL:
-                context['example_url'] = Channel.build_send_url(self.object.config_json()[SEND_URL],
-                          {'to': '+250788123123', 'text': "Love is patient. Love is kind", 'from': self.object.address, 'id': '1241244', 'channel': str(self.object.id)})
+                send_url = self.object.config_json()[SEND_URL]
+                example_payload = {
+                    'to': '+250788123123',
+                    'text': "Love is patient. Love is kind",
+                    'from': self.object.address,
+                    'id': '1241244',
+                    'channel': str(self.object.id)
+                }
+                context['example_url'] = Channel.build_send_url(send_url, example_payload)
 
             context['domain'] = settings.HOSTNAME
 
@@ -1597,32 +1622,17 @@ class ChannelCRUDL(SmartCRUDL):
             self.object = Channel.objects.filter(claim_code=self.form.cleaned_data['claim_code']).first()
 
             country = self.object.country
-            phone_country = Channel.derive_country_from_phone(self.form.cleaned_data['phone_number'],
-                                                              str(self.object.country))
+            phone_country = ContactURN.derive_country_from_tel(self.form.cleaned_data['phone_number'],
+                                                               str(self.object.country))
 
             # always prefer the country of the phone number they are entering if we have one
             if phone_country and phone_country != country:
-                country = phone_country
                 self.object.country = phone_country
-
-            # get all other channels with a country
-            other_channels = org.channels.filter(is_active=True).exclude(pk=self.object.pk)
-            with_countries = other_channels.exclude(country=None).exclude(country="")
-
-            # are there any that have a different country?
-            other_countries = with_countries.exclude(country=country).first()
-            if other_countries:
-                form._errors['claim_code'] = form.error_class([_("Sorry, you can only add numbers for the "
-                                                                 "same country (%s)" % other_countries.country)])
-                return self.form_invalid(form)
 
             analytics.track(self.request.user.username, 'temba.channel_create')
 
             self.object.claim(org, self.request.user, self.form.cleaned_data['phone_number'])
             self.object.save()
-
-            # make sure all contacts added before the channel are normalized
-            self.object.ensure_normalized_contacts()
 
             # trigger a sync
             self.object.trigger_sync()
@@ -1696,6 +1706,78 @@ class ChannelCRUDL(SmartCRUDL):
 
             context['twitter_auth_url'] = auth['auth_url']
             return context
+
+    class ClaimFacebook(OrgPermsMixin, SmartFormView):
+        class FacebookForm(forms.Form):
+            page_access_token = forms.CharField(min_length=100, required=True,
+                                                help_text=_("The Page Access Token for your Application"))
+
+            def clean_page_access_token(self):
+                token = self.cleaned_data['page_access_token']
+
+                # hit the FB graph, see if we can load the page attributes
+                response = requests.get('https://graph.facebook.com/v2.5/me', params=dict(access_token=token))
+                response_json = response.json()
+                if response.status_code != 200:
+                    default_error = _("Invalid page access token, please check it and try again.")
+                    raise ValidationError(response_json.get('error', default_error).get('message', default_error))
+
+                self.cleaned_data['page'] = response_json
+                return token
+
+        form_class = FacebookForm
+
+        def form_valid(self, form):
+            super(ChannelCRUDL.ClaimFacebook, self).form_valid(form)
+            page = form.cleaned_data['page']
+            channel = Channel.add_facebook_channel(self.request.user.get_org(), self.request.user,
+                                                   page['name'], page['id'], form.cleaned_data['page_access_token'])
+
+            return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
+
+    class FacebookWelcome(ModalMixin, OrgPermsMixin, SmartUpdateView):
+        class WelcomeForm(forms.ModelForm):
+            message = forms.CharField(max_length=160, widget=forms.Textarea, label=_("Welcome Message"), required=False,
+                                      help_text=_("This message will appear when a user first interacts with your page."))
+
+            class Meta:
+                model = Channel
+                fields = 'id', 'message'
+
+        form_class = WelcomeForm
+        success_url = 'id@channels.channel_configuration'
+
+        def form_valid(self, form):
+            welcome_message = form.cleaned_data['message'].strip()
+
+            # fire our post to facebook to update their welcome message
+            url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % self.object.address
+            payload = dict(setting_type='call_to_actions',
+                           thread_state='new_thread',
+                           call_to_actions=[])
+
+            # set our welcome message if we have one
+            if welcome_message:
+                payload['call_to_actions'].append(dict(message=dict(text=welcome_message)))
+
+            response = requests.post(url, json.dumps(payload),
+                                     params=dict(access_token=self.object.config_json()[AUTH_TOKEN]),
+                                     headers={'Content-Type': 'application/json'})
+            if response.status_code == 200:
+                messages.info(self.request, _("Your welcome message has been updated."))
+            else:
+                messages.info(self.request, _("We encountered an error updating your welcome message: %s" % str(response.content)))
+
+            if 'HTTP_X_PJAX' not in self.request.META:
+                return HttpResponseRedirect(self.get_success_url())
+            else:  # pragma: no cover
+                response = self.render_to_response(
+                    self.get_context_data(form=form,
+                                          success_url=self.get_success_url(),
+                                          success_script=getattr(self, 'success_script', None)))
+                response['Temba-Success'] = self.get_success_url()
+                response['REDIRECT'] = self.get_success_url()
+                return response
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")
@@ -1920,11 +2002,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             # try to claim the number from twilio
             try:
-                channel = self.claim_number(self.request.user,
-                                            data['phone_number'], data['country'])
-
-                # make sure all contacts added before the channel are normalized
-                channel.ensure_normalized_contacts()
+                self.claim_number(self.request.user, data['phone_number'], data['country'])
                 self.remove_api_credentials_from_session()
 
                 return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
@@ -2047,7 +2125,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_existing_numbers(self, org):
             client = org.get_nexmo_client()
             if client:
-                account_numbers = client.get_numbers()
+                account_numbers = client.get_numbers(size=100)
 
             numbers = []
             for number in account_numbers:
@@ -2231,9 +2309,7 @@ class ChannelCRUDL(SmartCRUDL):
             return client
 
         def form_valid(self, form, *args, **kwargs):
-            org = self.request.user.get_org()
             data = form.cleaned_data
-
             client = self.get_valid_client()
 
             results_numbers = []
@@ -2251,6 +2327,28 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(numbers))
             except Exception as e:
                 return HttpResponse(json.dumps(dict(error=str(e))))
+
+
+class ChannelEventCRUDL(SmartCRUDL):
+    model = ChannelEvent
+    actions = ('calls',)
+
+    class Calls(InboxView):
+        title = _("Calls")
+        fields = ('contact', 'event_type', 'channel', 'time')
+        default_order = '-time'
+        search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
+        system_label = SystemLabel.TYPE_CALLS
+        select_related = ('contact', 'channel')
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r'^calls/$'
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(ChannelEventCRUDL.Calls, self).get_context_data(*args, **kwargs)
+            context['actions'] = []
+            return context
 
 
 class ChannelLogCRUDL(SmartCRUDL):

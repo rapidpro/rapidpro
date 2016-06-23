@@ -2,14 +2,12 @@ from __future__ import unicode_literals
 
 import json
 import logging
-import time
-import traceback
-from datetime import datetime, timedelta
-from uuid import uuid4
-
 import pytz
 import regex
-from redis_cache import get_redis_connection
+import time
+import traceback
+
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.cache import cache
@@ -21,9 +19,10 @@ from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
 from temba_expressions.evaluator import EvaluationContext, DateStyle
+from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from temba.contacts.models import Contact, ContactGroup, ContactURN, TEL_SCHEME
-from temba.channels.models import Channel, ANDROID, SEND, CALL
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
+from temba.channels.models import Channel, ChannelEvent, ANDROID, SEND, CALL
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils.email import send_template_email
@@ -31,6 +30,7 @@ from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_l
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
+from uuid import uuid4
 from .handler import MessageHandler
 
 logger = logging.getLogger(__name__)
@@ -59,10 +59,6 @@ RESENT = 'R'
 
 INCOMING = 'I'
 OUTGOING = 'O'
-
-VISIBLE = 'V'
-ARCHIVED = 'A'
-DELETED = 'D'
 
 INBOX = 'I'
 FLOW = 'F'
@@ -96,6 +92,7 @@ STATUS_CONFIG = (
     (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
     (RESENT, _("Resent message"), 'resent'),   # we retried this message
 )
+
 
 def get_message_handlers():
     """
@@ -158,17 +155,20 @@ class Broadcast(models.Model):
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
 
-    groups = models.ManyToManyField(ContactGroup, verbose_name=_("Groups"),
+    groups = models.ManyToManyField(ContactGroup, verbose_name=_("Groups"), related_name='addressed_broadcasts',
                                     help_text=_("The groups to send the message to"))
 
-    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"),
+    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name='addressed_broadcasts',
                                       help_text=_("Individual contacts included in this message"))
 
-    urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"),
+    urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"), related_name='addressed_broadcasts',
                                   help_text=_("Individual URNs included in this message"))
 
+    recipients = models.ManyToManyField(ContactURN, verbose_name=_("Recipients"), related_name='broadcasts',
+                                        help_text=_("The URNs which received this message"))
+
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
-                                          help_text=_("Number of contacts to receive this broadcast"))
+                                          help_text=_("Number of urns which received this broadcast"))
 
     text = models.TextField(max_length=640, verbose_name=_("Text"),
                             help_text=_("The message to send out"))
@@ -201,7 +201,8 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
-    purged = models.BooleanField(default=False, help_text="If the messages for this broadcast have been purged")
+    purged = models.NullBooleanField(default=False,
+                                     help_text="If the messages for this broadcast have been purged")
 
     @classmethod
     def create(cls, org, user, text, recipients, channel=None, **kwargs):
@@ -230,6 +231,9 @@ class Broadcast(models.Model):
 
         self.recipient_count = len(contact_ids)
         self.save(update_fields=('recipient_count',))
+
+        # cache on object for use in subsequent send(..) calls
+        delattr(self, '_recipient_cache')
 
     def update_recipients(self, recipients):
         """
@@ -362,8 +366,11 @@ class Broadcast(models.Model):
         Contact.bulk_cache_initialize(self.org, contacts)
         recipients = list(urns) + list(contacts)
 
+        RelatedRecipient = Broadcast.recipients.through
+
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
+        recipient_batch = []
 
         # our priority is based on the number of recipients
         priority = SMS_NORMAL_PRIORITY
@@ -428,10 +435,13 @@ class Broadcast(models.Model):
             # only add it to our batch if it was legit
             if msg:
                 batch.append(msg)
+                # keep track of this URN as a recipient
+                recipient_batch.append(RelatedRecipient(contacturn_id=msg.contact_urn_id, broadcast_id=self.id))
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
                 Msg.all_messages.bulk_create(batch)
+                RelatedRecipient.objects.bulk_create(recipient_batch)
 
                 # send any messages
                 if trigger_send:
@@ -441,10 +451,12 @@ class Broadcast(models.Model):
                     created_on = created_on + timedelta(seconds=1)
 
                 batch = []
+                recipient_batch = []
 
         # commit any remaining objects
         if batch:
             Msg.all_messages.bulk_create(batch)
+            RelatedRecipient.objects.bulk_create(recipient_batch)
 
             if trigger_send:
                 self.org.trigger_send(Msg.current_messages.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
@@ -519,10 +531,14 @@ class Msg(models.Model):
     """
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
 
+    VISIBILITY_VISIBLE = 'V'
+    VISIBILITY_ARCHIVED = 'A'
+    VISIBILITY_DELETED = 'D'
+
     # single char flag, human readable name, API readable name
-    VISIBILITY_CONFIG = ((VISIBLE, _("Visible"), 'visible'),
-                         (ARCHIVED, _("Archived"), 'archived'),
-                         (DELETED, _("Deleted"), 'deleted'))
+    VISIBILITY_CONFIG = ((VISIBILITY_VISIBLE, _("Visible"), 'visible'),
+                         (VISIBILITY_ARCHIVED, _("Archived"), 'archived'),
+                         (VISIBILITY_DELETED, _("Deleted"), 'deleted'))
 
     VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
 
@@ -532,6 +548,13 @@ class Msg(models.Model):
     MSG_TYPES = ((INBOX, _("Inbox Message")),
                  (FLOW, _("Flow Message")),
                  (IVR, _("IVR Message")))
+
+    MEDIA_GPS = 'geo'
+    MEDIA_IMAGE = 'image'
+    MEDIA_VIDEO = 'video'
+    MEDIA_AUDIO = 'audio'
+
+    MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
@@ -583,7 +606,7 @@ class Msg(models.Model):
     labels = models.ManyToManyField('Label', related_name='msgs', verbose_name=_("Labels"),
                                     help_text=_("Any labels on this message"))
 
-    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBLE, db_index=True,
+    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE, db_index=True,
                                   verbose_name=_("Visibility"),
                                   help_text=_("The current visibility of this message, either visible, archived or deleted"))
 
@@ -608,10 +631,11 @@ class Msg(models.Model):
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
                               help_text="The topup that this message was deducted from")
 
-    recording_url = models.URLField(null=True, blank=True, max_length=255,
-                                    help_text=_("The url for any recording associated with this message"))
+    media = models.URLField(null=True, blank=True, max_length=255,
+                            help_text=_("The media associated with this message if any"))
 
-    purged = models.BooleanField(default=False, help_text="If this message has been purged")
+    purged = models.NullBooleanField(default=False,
+                                     help_text="If this message has been purged")
 
     all_messages = models.Manager()
     current_messages = models.Manager()
@@ -626,6 +650,10 @@ class Msg(models.Model):
         queued.
         :return:
         """
+        task_msgs = []
+        task_priority = None
+        last_contact = None
+
         # we send in chunks of 1,000 to help with contention
         for msg_chunk in chunk_list(all_msgs, 1000):
             # create a temporary list of our chunk so we can iterate more than once
@@ -649,17 +677,35 @@ class Msg(models.Model):
                 for msg in msgs:
                     if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and \
                             msg.topup and not msg.contact.is_test:
+
+                        # if this is a different contact than our last, and we have msgs for that last contact, queue the task
+                        if task_msgs and last_contact != msg.contact_id:
+                            # if no priority was set, default to DEFAULT
+                            if task_priority is None:
+                                task_priority = DEFAULT_PRIORITY
+
+                            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
+                            task_msgs = []
+                            task_priority = None
+
                         # serialize the model to a dictionary
                         msg.queued_on = queued_on
                         task = msg.as_task_json()
 
-                        task_priority = DEFAULT_PRIORITY
-                        if msg.priority == SMS_BULK_PRIORITY:
+                        # only be low priority if no priority has been set for this task group
+                        if msg.priority == SMS_BULK_PRIORITY and task_priority is None:
                             task_priority = LOW_PRIORITY
                         elif msg.priority == SMS_HIGH_PRIORITY:
                             task_priority = HIGH_PRIORITY
 
-                        push_task(msg.org, MSG_QUEUE, SEND_MSG_TASK, task, priority=task_priority)
+                        task_msgs.append(task)
+                        last_contact = msg.contact_id
+
+        # send our last msgs
+        if task_msgs:
+            if task_priority is None:
+                task_priority = DEFAULT_PRIORITY
+            push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
 
     @classmethod
     def process_message(cls, msg):
@@ -669,7 +715,7 @@ class Msg(models.Model):
         handlers = get_message_handlers()
 
         if msg.contact.is_blocked:
-            msg.visibility = ARCHIVED
+            msg.visibility = Msg.VISIBILITY_ARCHIVED
             msg.modified_on = timezone.now()
             msg.save(update_fields=['visibility', 'modified_on'])
         else:
@@ -710,9 +756,9 @@ class Msg(models.Model):
         messages = Msg.all_messages.filter(org=org)
 
         if is_archived:
-            messages = messages.filter(visibility=ARCHIVED)
+            messages = messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)
         else:
-            messages = messages.filter(visibility=VISIBLE)
+            messages = messages.filter(visibility=Msg.VISIBILITY_VISIBLE)
 
         if direction:
             messages = messages.filter(direction=direction)
@@ -730,7 +776,7 @@ class Msg(models.Model):
         """
         one_week_ago = timezone.now() - timedelta(days=7)
         failed_messages = Msg.current_messages.filter(created_on__lte=one_week_ago, direction=OUTGOING,
-                                             status__in=[QUEUED, PENDING, ERRORED])
+                                                      status__in=[QUEUED, PENDING, ERRORED])
 
         failed_broadcasts = list(failed_messages.order_by('broadcast').values('broadcast').distinct())
 
@@ -749,9 +795,9 @@ class Msg(models.Model):
         unread_count = cache.get(key, None)
 
         if unread_count is None:
-            unread_count = Msg.current_messages.filter(org=org, visibility=VISIBLE, direction=INCOMING, msg_type=INBOX,
-                                              contact__is_test=False, created_on__gt=org.msg_last_viewed, labels=None).count()
-
+            unread_count = Msg.current_messages.filter(org=org, visibility=Msg.VISIBILITY_VISIBLE, direction=INCOMING,
+                                                       msg_type=INBOX, contact__is_test=False,
+                                                       created_on__gt=org.msg_last_viewed, labels=None).count()
             cache.set(key, unread_count, 900)
 
         return unread_count
@@ -792,7 +838,7 @@ class Msg(models.Model):
         else:
             msg.status = ERRORED
             msg.modified_on = timezone.now()
-            msg.next_attempt = timezone.now() + timedelta(minutes=5*msg.error_count)
+            msg.next_attempt = timezone.now() + timedelta(minutes=5 * msg.error_count)
 
             if isinstance(msg, Msg):
                 msg.save(update_fields=('status', 'modified_on', 'next_attempt', 'error_count'))
@@ -803,7 +849,7 @@ class Msg(models.Model):
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
             pipe = r.pipeline()
             pipe.srem(timezone.now().strftime(MSG_SENT_KEY), str(msg.id))
-            pipe.srem((timezone.now()-timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
+            pipe.srem((timezone.now() - timedelta(days=1)).strftime(MSG_SENT_KEY), str(msg.id))
             pipe.execute()
 
             if channel:
@@ -849,6 +895,7 @@ class Msg(models.Model):
         return dict(direction=self.direction,
                     text=self.text,
                     id=self.id,
+                    media=self.media,
                     created_on=self.created_on.strftime('%x %X'),
                     model="msg")
 
@@ -868,21 +915,21 @@ class Msg(models.Model):
         else:
             def next_part(text):
                 if len(text) <= max_length:
-                    return (text, None)
+                    return text, None
 
                 else:
                     # search for a space to split on, up to 140 characters in
                     index = max_length
-                    while index > max_length-20:
+                    while index > max_length - 20:
                         if text[index] == ' ':
                             break
-                        index = index - 1
+                        index -= 1
 
                     # couldn't find a good split, oh well, 160 it is
-                    if index == max_length-20:
-                        return (text[:max_length], text[max_length:])
+                    if index == max_length - 20:
+                        return text[:max_length], text[max_length:]
                     else:
-                        return (text[:index], text[index+1:])
+                        return text[:index], text[index + 1:]
 
             parts = []
             rest = text
@@ -891,6 +938,38 @@ class Msg(models.Model):
                 parts.append(part)
 
             return parts
+
+    def get_media_path(self):
+
+        if self.media:
+            # TODO: remove after migration msgs.0053
+            if self.media.startswith('http'):
+                return self.media
+
+            if ':' in self.media:
+                return self.media.split(':', 1)[1]
+
+    def get_media_type(self):
+
+        if self.media:
+            # TODO: remove after migration msgs.0053
+            if self.media.startswith('http'):
+                return 'audio'
+
+        if self.media and ':' in self.media:
+            type = self.media.split(':', 1)[0]
+            if type == 'application/octet-stream':
+                return 'audio'
+            return type.split('/', 1)[0]
+
+    def is_media_type_audio(self):
+        return Msg.MEDIA_AUDIO == self.get_media_type()
+
+    def is_media_type_video(self):
+        return Msg.MEDIA_VIDEO == self.get_media_type()
+
+    def is_media_type_image(self):
+        return Msg.MEDIA_IMAGE == self.get_media_type()
 
     def reply(self, text, user, trigger_send=False, message_context=None):
         return self.contact.send(text, user, trigger_send=trigger_send, message_context=message_context,
@@ -1028,7 +1107,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, recording_url=None, msg_type=None, topup=None):
+                        status=PENDING, media=None, msg_type=None, topup=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1061,7 +1140,8 @@ class Msg(models.Model):
             topup_id = org.decrement_credit()
 
         # we limit text messages to 640 characters
-        text = text[:640]
+        if text:
+            text = text[:640]
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
@@ -1073,13 +1153,17 @@ class Msg(models.Model):
                         queued_on=timezone.now(),
                         direction=INCOMING,
                         msg_type=msg_type,
-                        recording_url=recording_url,
+                        media=media,
                         status=status)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
         msg = Msg.all_messages.create(**msg_args)
+
+        # if this contact is currently stopped, unstop them
+        if contact.is_stopped:
+            contact.unstop(user)
 
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
@@ -1140,7 +1224,7 @@ class Msg(models.Model):
     @classmethod
     def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
-                        recording_url=None, topup_id=None, msg_type=INBOX):
+                        media=None, topup_id=None, msg_type=INBOX):
 
         if not org or not user:  # pragma: no cover
             raise ValueError("Trying to create outgoing message with no org or user")
@@ -1188,15 +1272,13 @@ class Msg(models.Model):
             same_msgs = Msg.current_messages.filter(contact_urn=contact_urn,
                                                     contact__is_test=False,
                                                     channel=channel,
-                                                    recording_url=recording_url,
+                                                    media=media,
                                                     text=text,
                                                     direction=OUTGOING,
                                                     created_on__gte=created_on - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
-
-            channel_id = channel.pk if channel else None
 
             if same_msg_count >= 10:
                 analytics.gauge('temba.msg_loop_caught')
@@ -1242,7 +1324,7 @@ class Msg(models.Model):
                         response_to=response_to,
                         msg_type=msg_type,
                         priority=priority,
-                        recording_url=recording_url,
+                        media=media,
                         has_template_error=len(errors) > 0)
 
         if topup_id is not None:
@@ -1272,8 +1354,9 @@ class Msg(models.Model):
             if recipient.scheme in resolved_schemes:
                 contact = recipient.contact
                 contact_urn = recipient
-        elif isinstance(recipient, tuple) and len(recipient) == 2:
-            if recipient[0] in resolved_schemes:
+        elif isinstance(recipient, basestring):
+            scheme, path = URN.to_parts(recipient)
+            if scheme in resolved_schemes:
                 contact = Contact.get_or_create(org, user, urns=[recipient])
                 contact_urn = contact.urn_objects[recipient]
         else:  # pragma: no cover
@@ -1322,7 +1405,7 @@ class Msg(models.Model):
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only archive incoming non-test messages")
 
-        self.visibility = ARCHIVED
+        self.visibility = Msg.VISIBILITY_ARCHIVED
         self.modified_on = timezone.now()
         self.save(update_fields=('visibility', 'modified_on'))
 
@@ -1331,13 +1414,13 @@ class Msg(models.Model):
         """
         Archives all incoming messages for the given contacts
         """
-        msgs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, contact__in=contacts)
+        msgs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, contact__in=contacts)
         msg_ids = list(msgs.values_list('pk', flat=True))
 
         # update modified on in small batches to avoid long table lock, and having too many non-unique values for
         # modified_on which is the primary ordering for the API
         for batch in chunk_list(msg_ids, 100):
-            Msg.all_messages.filter(pk__in=batch).update(visibility=ARCHIVED, modified_on=timezone.now())
+            Msg.all_messages.filter(pk__in=batch).update(visibility=Msg.VISIBILITY_ARCHIVED, modified_on=timezone.now())
 
     def restore(self):
         """
@@ -1346,7 +1429,7 @@ class Msg(models.Model):
         if self.direction != INCOMING or self.contact.is_test:
             raise ValueError("Can only restore incoming non-test messages")
 
-        self.visibility = VISIBLE
+        self.visibility = Msg.VISIBILITY_VISIBLE
         self.modified_on = timezone.now()
 
         self.save(update_fields=('visibility', 'modified_on'))
@@ -1355,7 +1438,7 @@ class Msg(models.Model):
         """
         Releases (i.e. deletes) this message
         """
-        self.visibility = DELETED
+        self.visibility = Msg.VISIBILITY_DELETED
         self.text = ""
         self.modified_on = timezone.now()
 
@@ -1416,78 +1499,13 @@ class Msg(models.Model):
     class Meta:
         ordering = ['-created_on', '-pk']
 
-class Call(SmartModel):
-    """
-    Call represents a inbound, outobound, or missed call on an Android Channel. When such an event occurs
-    on an Android Phone with the Channel application installed, the calls are relayed to the server much
-    the same way incoming messages are.
 
-    Note: These are not related to calls made for voice-based flows.
-    """
-    TYPE_UNKNOWN = 'unk'
-    TYPE_OUT = 'mt_call'
-    TYPE_OUT_MISSED = 'mt_miss'
-    TYPE_IN = 'mo_call'
-    TYPE_IN_MISSED = 'mo_miss'
-
-    CALL_TYPES = ((TYPE_UNKNOWN, _("Unknown Call Type")),
-                  (TYPE_IN, _("Incoming Call")),
-                  (TYPE_IN_MISSED, _("Missed Incoming Call")),
-                  (TYPE_OUT, _("Outgoing Call")),
-                  (TYPE_OUT_MISSED, _("Missed Outgoing Call")))
-
-    org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The org this call is connected to"))
-
-    channel = models.ForeignKey(Channel,
-                                null=True, verbose_name=_("Channel"),
-                                help_text=_("The channel where this call took place"))
-    contact = models.ForeignKey(Contact, verbose_name=_("Contact"), related_name='calls',
-                                help_text=_("The phone number for this call"))
-    time = models.DateTimeField(verbose_name=_("Time"), help_text=_("When this call took place"))
-    duration = models.IntegerField(default=0, verbose_name=_("Duration"),
-                                   help_text=_("The duration of this call in seconds, if appropriate"))
-    call_type = models.CharField(max_length=16, choices=CALL_TYPES,
-                                 verbose_name=_("Call Type"), help_text=_("The type of call"))
-
-    @classmethod
-    def create_call(cls, channel, phone, date, duration, call_type, user=None):
-        from temba.api.models import WebHookEvent
-        from temba.triggers.models import Trigger
-
-        if not user:
-            user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
-
-        contact = Contact.get_or_create(channel.org, user, name=None, urns=[(TEL_SCHEME, phone)],
-                                        incoming_channel=channel)
-
-        call = Call.objects.create(channel=channel,
-                                   org=channel.org,
-                                   contact=contact,
-                                   time=date,
-                                   duration=duration,
-                                   call_type=call_type,
-                                   created_by=user,
-                                   modified_by=user)
-
-        analytics.gauge('temba.call_%s' % call.get_call_type_display().lower().replace(' ', '_'))
-
-        WebHookEvent.trigger_call_event(call)
-
-        if call_type == Call.TYPE_IN_MISSED:
-            Trigger.catch_triggers(call, Trigger.TYPE_MISSED_CALL, channel)
-
-        return call
-
-    @classmethod
-    def get_calls(cls, org):
-        return Call.objects.filter(org=org)
-
-    def release(self):
-        self.is_active = False
-        self.save(update_fields=('is_active',))
-
-
-STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,who,whom,why,will,with,would,yet,you,your'.split(',')
+STOP_WORDS = 'a,able,about,across,after,all,almost,also,am,among,an,and,any,are,as,at,be,because,been,but,by,can,' \
+             'cannot,could,dear,did,do,does,either,else,ever,every,for,from,get,got,had,has,have,he,her,hers,him,his,' \
+             'how,however,i,if,in,into,is,it,its,just,least,let,like,likely,may,me,might,most,must,my,neither,no,nor,' \
+             'not,of,off,often,on,only,or,other,our,own,rather,said,say,says,she,should,since,so,some,than,that,the,' \
+             'their,them,then,there,these,they,this,tis,to,too,twas,us,wants,was,we,were,what,when,where,which,while,' \
+             'who,whom,why,will,with,would,yet,you,your'.split(',')
 
 
 class SystemLabel(models.Model):
@@ -1565,21 +1583,21 @@ class SystemLabel(models.Model):
         """
         # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=INBOX)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=VISIBLE, msg_type=FLOW)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW)
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=ARCHIVED)
+            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(PENDING, QUEUED))
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status__in=(WIRED, SENT, DELIVERED))
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=VISIBLE, status=FAILED)
+            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
-            qs = Call.objects.filter(is_active=True)
+            qs = ChannelEvent.objects.filter(is_active=True, event_type__in=ChannelEvent.CALL_TYPES)
         else:
             raise ValueError("Invalid label type: %s" % label_type)
 
@@ -1592,6 +1610,30 @@ class SystemLabel(models.Model):
                 qs = qs.exclude(contact__is_test=True)
 
         return qs
+
+    @classmethod
+    def recalculate_counts(cls, org, label_types=None):
+        """
+        Recalculates the system label counts for the passed in org, updating them in our database
+        """
+        if label_types is None:
+            label_types = [cls.TYPE_INBOX, cls.TYPE_FLOWS, cls.TYPE_ARCHIVED, cls.TYPE_OUTBOX, cls.TYPE_SENT,
+                           cls.TYPE_FAILED, cls.TYPE_SCHEDULED, cls.TYPE_CALLS]
+
+        counts_by_type = {}
+
+        # for each type
+        for label_type in label_types:
+            count = cls.get_queryset(org, label_type).count()
+            counts_by_type[label_type] = count
+
+            # delete existing counts
+            cls.objects.filter(org=org, label_type=label_type).delete()
+
+            # and create our new count
+            cls.objects.create(org=org, label_type=label_type, count=count)
+
+        return counts_by_type
 
     @classmethod
     def get_counts(cls, org, label_types=None):
@@ -1676,7 +1718,7 @@ class Label(TembaModel):
             return folder
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
-                                       created_by=user, modified_by=user)
+                                         created_by=user, modified_by=user)
 
     @classmethod
     def get_hierarchy(cls, org):
@@ -1780,7 +1822,7 @@ class MsgIterator(object):
 
     def _setup(self):
         for i in xrange(0, len(self._ids), self.max_obj_num):
-            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i+self.max_obj_num])
+            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
                 chunk_queryset = chunk_queryset.order_by(*self._order_by)

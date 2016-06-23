@@ -2,11 +2,10 @@ from __future__ import unicode_literals
 
 from django.utils import timezone
 from djcelery_transactions import task
-from temba.utils.queues import pop_task
-from temba.contacts.models import Contact
 from temba.msgs.models import Broadcast, Msg
 from temba.flows.models import FlowStatsCache
 from temba.utils.email import send_simple_email
+from temba.utils.queues import pop_task
 from redis_cache import get_redis_connection
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount
 
@@ -55,10 +54,8 @@ def export_flow_results_task(id):
 
 
 @task(track_started=True, name='start_flow_task')
-def start_flow_task(id):
-    logger = start_flow_task.get_logger()
-
-    flow_start = FlowStart.objects.get(pk=id)
+def start_flow_task(start_id):
+    flow_start = FlowStart.objects.get(pk=start_id)
     flow_start.start()
 
 
@@ -87,6 +84,7 @@ def start_msg_flow_batch_task():
                               started_flows=started_flows, start_msg=start_msg,
                               extra=extra, flow_start=flow_start)
 
+
 @task(track_started=True, name="check_flow_stats_accuracy_task")
 def check_flow_stats_accuracy_task(flow_id):
     logger = check_flow_stats_accuracy_task.get_logger()
@@ -105,6 +103,7 @@ def check_flow_stats_accuracy_task(flow_id):
 
         calculate_flow_stats_task.delay(flow.pk)
 
+
 @task(track_started=True, name="calculate_flow_stats")
 def calculate_flow_stats_task(flow_id):
     r = get_redis_connection()
@@ -115,8 +114,8 @@ def calculate_flow_stats_task(flow_id):
     runs_started = flow.runs.filter(contact__is_test=False).count()
 
     if runs_started != runs_started_cached:
-        logger = calculate_flow_stats_task.get_logger()
         Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
+
 
 @task(track_started=True, name="squash_flowruncounts")
 def squash_flowruncounts():
@@ -126,6 +125,7 @@ def squash_flowruncounts():
     if not r.get(key):
         with r.lock(key, timeout=900):
             FlowRunCount.squash_counts()
+
 
 @task(track_started=True, name="delete_flow_results_task")
 def delete_flow_results_task(flow_id):

@@ -324,14 +324,16 @@ PERMISSIONS = {
     'contacts.contact': ('api',
                          'block',
                          'blocked',
+                         'break_anon',
                          'customize',
                          'export',
-                         'failed',
+                         'stopped',
                          'filter',
                          'history',
                          'import',
                          'omnibox',
                          'unblock',
+                         'unstop',
                          'update_fields'
                          ),
 
@@ -362,6 +364,7 @@ PERMISSIONS = {
                  'languages',
                  'manage',
                  'manage_accounts',
+                 'nexmo_configuration',
                  'nexmo_account',
                  'nexmo_connect',
                  'plivo_connect',
@@ -387,11 +390,14 @@ PERMISSIONS = {
                          'claim_chikka',
                          'claim_clickatell',
                          'claim_external',
+                         'claim_facebook',
                          'claim_high_connection',
                          'claim_hub9',
                          'claim_infobip',
+                         'claim_jasmin',
                          'claim_kannel',
                          'claim_m3tech',
+                         'claim_mblox',
                          'claim_nexmo',
                          'claim_plivo',
                          'claim_shaqodoon',
@@ -409,9 +415,13 @@ PERMISSIONS = {
                          'create_bulk_sender',
                          'create_caller',
                          'errors',
+                         'facebook_welcome',
                          'search_nexmo',
                          'search_numbers',
                          ),
+
+    'channels.channelevent': ('api',
+                              'calls'),
 
     'flows.flow': ('activity',
                    'activity_list',
@@ -463,8 +473,6 @@ PERMISSIONS = {
                        'send',
                        ),
 
-    'msgs.call': ('api',),
-
     'msgs.label': ('api', 'create', 'create_folder'),
 
     'orgs.topup': ('manage',),
@@ -490,12 +498,13 @@ GROUP_PERMISSIONS = {
     "Beta": (
     ),
     "Surveyors": (
-        'orgs.org_surveyor',
-        'orgs.org_api',
         'contacts.contact_api',
         'contacts.contactfield_api',
+        'flows.flow_api',
         'locations.adminboundary_api',
-        'flows.flow_api'
+        'orgs.org_api',
+        'orgs.org_surveyor',
+        'msgs.msg_api',
     ),
     "Granters": (
         'orgs.org_grant',
@@ -503,6 +512,7 @@ GROUP_PERMISSIONS = {
     "Customer Support": (
         'auth.user_list',
         'auth.user_update',
+        'contacts.contact_break_anon',
         'flows.flow_editor',
         'flows.flow_json',
         'flows.flow_read',
@@ -530,14 +540,15 @@ GROUP_PERMISSIONS = {
         'contacts.contact_customize',
         'contacts.contact_delete',
         'contacts.contact_export',
-        'contacts.contact_failed',
         'contacts.contact_filter',
         'contacts.contact_history',
         'contacts.contact_import',
         'contacts.contact_list',
         'contacts.contact_omnibox',
         'contacts.contact_read',
+        'contacts.contact_stopped',
         'contacts.contact_unblock',
+        'contacts.contact_unstop',
         'contacts.contact_update',
         'contacts.contact_update_fields',
         'contacts.contactfield.*',
@@ -563,6 +574,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_manage_accounts',
         'orgs.org_nexmo_account',
         'orgs.org_nexmo_connect',
+        'orgs.org_nexmo_configuration',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
         'orgs.org_twilio_account',
@@ -583,10 +595,13 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
+        'channels.channel_claim_facebook',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
+        'channels.channel_claim_jasmin',
         'channels.channel_claim_kannel',
+        'channels.channel_claim_mblox',
         'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
@@ -605,11 +620,13 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
+        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_nexmo',
         'channels.channel_search_numbers',
         'channels.channel_update',
+        'channels.channelevent.*',
         'channels.channellog_list',
         'channels.channellog_read',
 
@@ -623,7 +640,6 @@ GROUP_PERMISSIONS = {
 
         'msgs.broadcast.*',
         'msgs.broadcastschedule.*',
-        'msgs.call.*',
         'msgs.label.*',
         'msgs.msg_api',
         'msgs.msg_archive',
@@ -656,14 +672,15 @@ GROUP_PERMISSIONS = {
         'contacts.contact_customize',
         'contacts.contact_delete',
         'contacts.contact_export',
-        'contacts.contact_failed',
         'contacts.contact_filter',
         'contacts.contact_history',
         'contacts.contact_import',
         'contacts.contact_list',
         'contacts.contact_omnibox',
         'contacts.contact_read',
+        'contacts.contact_stopped',
         'contacts.contact_unblock',
+        'contacts.contact_unstop',
         'contacts.contact_update',
         'contacts.contact_update_fields',
         'contacts.contactfield.*',
@@ -699,10 +716,13 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
+        'channels.channel_claim_facebook',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
+        'channels.channel_claim_jasmin',
         'channels.channel_claim_kannel',
+        'channels.channel_claim_mblox',
         'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
         'channels.channel_claim_shaqodoon',
@@ -721,10 +741,12 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
+        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_numbers',
         'channels.channel_update',
+        'channels.channelevent.*',
 
         'reports.report.*',
 
@@ -736,7 +758,6 @@ GROUP_PERMISSIONS = {
 
         'msgs.broadcast.*',
         'msgs.broadcastschedule.*',
-        'msgs.call.*',
         'msgs.label.*',
         'msgs.msg_api',
         'msgs.msg_archive',
@@ -763,11 +784,11 @@ GROUP_PERMISSIONS = {
 
         'contacts.contact_blocked',
         'contacts.contact_export',
-        'contacts.contact_failed',
         'contacts.contact_filter',
         'contacts.contact_history',
         'contacts.contact_list',
         'contacts.contact_read',
+        'contacts.contact_stopped',
 
         'locations.adminboundary_boundaries',
         'locations.adminboundary_geometry',
@@ -782,6 +803,7 @@ GROUP_PERMISSIONS = {
 
         'channels.channel_list',
         'channels.channel_read',
+        'channels.channelevent_calls',
 
         'flows.flow_activity',
         'flows.flow_archived',
@@ -803,7 +825,6 @@ GROUP_PERMISSIONS = {
 
         'msgs.broadcast_schedule_list',
         'msgs.broadcast_schedule_read',
-        'msgs.call_list',
         'msgs.msg_archived',
         'msgs.msg_export',
         'msgs.msg_failed',
@@ -921,6 +942,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'squash_topupcredits',
         'schedule': timedelta(seconds=300),
     },
+    "squash-contactgroupcounts": {
+        'task': 'squash_contactgroupcounts',
+        'schedule': timedelta(seconds=300),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
@@ -997,6 +1022,8 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
+CURSOR_PAGINATION_OFFSET_CUTOFF = 1000000
+
 
 # -----------------------------------------------------------------------------------
 # Aggregator settings

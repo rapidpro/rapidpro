@@ -1,0 +1,15 @@
+---
+
+- name: NPM | Node symlink
+  become: yes
+  file: |
+    src=/usr/bin/nodejs
+    dest=/usr/bin/node
+    state=link
+
+- name: NPM | Ensure nodejs packages are present
+  become: yes
+  npm: name={{ item }} global=yes
+  with_items:
+    - less
+    - coffee-script

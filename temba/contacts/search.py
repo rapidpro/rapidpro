@@ -61,10 +61,10 @@ def contact_search(org, query, base_queryset):
     :param base_queryset: the base query set which queries operate on
     :return: a tuple of the contact query set, a boolean whether query was complex
     """
-    from .models import URN_SCHEME_CHOICES
+    from .models import ContactURN
     global PROPERTY_ALIASES
     if not PROPERTY_ALIASES:
-        PROPERTY_ALIASES = {scheme: 'urns__path' for scheme, label in URN_SCHEME_CHOICES}
+        PROPERTY_ALIASES = {scheme: 'urns__path' for scheme, label in ContactURN.SCHEME_CHOICES}
 
     try:
         return contact_search_complex(org, query, base_queryset), True
@@ -136,11 +136,13 @@ def generate_queryset(lexer, identifier, comparator, value):
     else:
         from temba.contacts.models import ContactField
         try:
-            field = ContactField.objects.get(org=lexer.org, key=identifier)
+            field = ContactField.objects.get(org_id=lexer.org.id, key=identifier)
         except ObjectDoesNotExist:
             raise SearchException("Unrecognized contact field identifier %s" % identifier)
 
-        if field.value_type == Value.TYPE_TEXT:
+        if comparator.lower() in ('=', 'is') and value == "":
+            q = generate_empty_field_test(field)
+        elif field.value_type == Value.TYPE_TEXT:
             q = generate_text_field_comparison(field, comparator, value)
         elif field.value_type == Value.TYPE_DECIMAL:
             q = generate_decimal_field_comparison(field, comparator, value)
@@ -148,7 +150,7 @@ def generate_queryset(lexer, identifier, comparator, value):
             q = generate_datetime_field_comparison(field, comparator, value, lexer.org)
         elif field.value_type == Value.TYPE_STATE or field.value_type == Value.TYPE_DISTRICT:
             q = generate_location_field_comparison(field, comparator, value)
-        else:
+        else:  # pragma: no cover
             raise SearchException("Unrecognized contact field type '%s'" % field.value_type)
 
     return lexer.base_queryset.filter(q)
@@ -162,12 +164,17 @@ def generate_non_field_comparison(relation, comparator, value):
     return Q(**{'%s__%s' % (relation, lookup): value})
 
 
+def generate_empty_field_test(field):
+    contacts_with_field = field.org.org_contacts.filter(Q(**{'values__contact_field__id': field.id}))
+    return ~Q(**{'pk__in': contacts_with_field})
+
+
 def generate_text_field_comparison(field, comparator, value):
     lookup = TEXT_LOOKUP_ALIASES.get(comparator, None)
     if not lookup:
         raise SearchException("Unsupported comparator %s for text field" % comparator)
 
-    return Q(**{'values__contact_field__key': field.key, 'values__string_value__%s' % lookup: value})
+    return Q(**{'values__contact_field__id': field.id, 'values__string_value__%s' % lookup: value})
 
 
 def generate_decimal_field_comparison(field, comparator, value):
@@ -180,7 +187,7 @@ def generate_decimal_field_comparison(field, comparator, value):
     except Exception:
         raise SearchException("Can't convert '%s' to a decimal" % unicode(value))
 
-    return Q(**{'values__contact_field__key': field.key, 'values__decimal_value__%s' % lookup: value})
+    return Q(**{'values__contact_field__id': field.id, 'values__decimal_value__%s' % lookup: value})
 
 
 def generate_datetime_field_comparison(field, comparator, value, org):
@@ -200,19 +207,19 @@ def generate_datetime_field_comparison(field, comparator, value, org):
 
     if lookup == '<equal>':  # check if datetime is between date and date + 1d, i.e. anytime in that 24 hour period
         return Q(**{
-            'values__contact_field__key': field.key,
+            'values__contact_field__id': field.id,
             'values__datetime_value__gte': value,
             'values__datetime_value__lt': value + timedelta(days=1)})
     elif lookup == 'lte':  # check if datetime is less then date + 1d, i.e. that day and all previous
         return Q(**{
-            'values__contact_field__key': field.key,
+            'values__contact_field__id': field.id,
             'values__datetime_value__lt': value + timedelta(days=1)})
     elif lookup == 'gt':  # check if datetime is greater than or equal to date + 1d, i.e. day after and subsequent
         return Q(**{
-            'values__contact_field__key': field.key,
+            'values__contact_field__id': field.id,
             'values__datetime_value__gte': value + timedelta(days=1)})
     else:
-        return Q(**{'values__contact_field__key': field.key, 'values__datetime_value__%s' % lookup: value})
+        return Q(**{'values__contact_field__id': field.id, 'values__datetime_value__%s' % lookup: value})
 
 
 def generate_location_field_comparison(field, comparator, value):
@@ -221,11 +228,11 @@ def generate_location_field_comparison(field, comparator, value):
         raise SearchException("Unsupported comparator %s for location field" % comparator)
 
     return Q(**{
-        'values__contact_field__key': field.key,
+        'values__contact_field__id': field.id,
         'values__location_value__name__%s' % lookup: value})
 
 
-#################################### Lexer definition ####################################
+# ================================== Lexer definition ==================================
 
 tokens = ('BINOP', 'COMPARATOR', 'TEXT', 'STRING')
 
@@ -264,7 +271,7 @@ def t_error(t):
     raise SearchException("Invalid character %s" % t.value[0])
 
 
-#################################### Parser definition ####################################
+# ================================== Parser definition ==================================
 
 precedence = (
     (str('left'), str('BINOP')),
@@ -300,7 +307,7 @@ def p_error(p):
     raise SearchException(message)
 
 
-#################################### Module initialization ####################################
+# ================================== Module initialization ==================================
 
 # initalize the PLY library for lexing and parsing
 search_lexer = lex.lex()

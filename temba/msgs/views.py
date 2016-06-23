@@ -16,15 +16,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
+from temba.channels.models import Channel, SEND
 from temba.contacts.fields import OmniboxField
-from temba.contacts.models import ContactGroup, TEL_SCHEME
+from temba.contacts.models import ContactGroup, URN
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.channels.models import Channel, SEND
 from temba.utils import analytics
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
-from .models import Broadcast, Call, ExportMessagesTask, Label, Msg, Schedule, SystemLabel, VISIBLE
+from .models import Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 
 
 def send_message_auto_complete_processor(request):
@@ -87,9 +87,9 @@ class SendMessageForm(Form):
         return cleaned
 
 
-class MsgListView(OrgPermsMixin, SmartListView):
+class InboxView(OrgPermsMixin, SmartListView):
     """
-    Base class for message list views with message folders and labels listed by the side
+    Base class for inbox views with message folders and labels listed by the side
     """
     refresh = 10000
     add_button = True
@@ -103,7 +103,7 @@ class MsgListView(OrgPermsMixin, SmartListView):
             self.queryset = SystemLabel.get_queryset(org, self.system_label)
 
     def get_queryset(self, **kwargs):
-        queryset = super(MsgListView, self).get_queryset(**kwargs)
+        queryset = super(InboxView, self).get_queryset(**kwargs)
 
         # if we are searching, limit to last 90
         if 'search' in self.request.REQUEST:
@@ -121,14 +121,14 @@ class MsgListView(OrgPermsMixin, SmartListView):
         if hasattr(self, 'system_label') and 'search' not in self.request.REQUEST:
             self.object_list.count = lambda: counts[self.system_label]
 
-        context = super(MsgListView, self).get_context_data(**kwargs)
+        context = super(InboxView, self).get_context_data(**kwargs)
 
         folders = [dict(count=counts[SystemLabel.TYPE_INBOX], label=_("Inbox"), url=reverse('msgs.msg_inbox')),
                    dict(count=counts[SystemLabel.TYPE_FLOWS], label=_("Flows"), url=reverse('msgs.msg_flow')),
                    dict(count=counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse('msgs.msg_archived')),
                    dict(count=counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse('msgs.msg_outbox')),
                    dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse('msgs.msg_sent')),
-                   dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse('msgs.call_list')),
+                   dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse('channels.channelevent_calls')),
                    dict(count=counts[SystemLabel.TYPE_SCHEDULED], label=_("Schedules"), url=reverse('msgs.broadcast_schedule_list')),
                    dict(count=counts[SystemLabel.TYPE_FAILED], label=_("Failed"), url=reverse('msgs.msg_failed'))]
 
@@ -192,7 +192,7 @@ class BroadcastCRUDL(SmartCRUDL):
     class Update(OrgObjPermsMixin, SmartUpdateView):
         form_class = BroadcastForm
         fields = ('message', 'omnibox')
-        field_config = {'restrict':{'label':''}, 'omnibox':{'label':''}, 'message':{'label':'', 'help':''},}
+        field_config = {'restrict': {'label': ''}, 'omnibox': {'label': ''}, 'message': {'label': '', 'help': ''}}
         success_message = ''
         success_url = 'msgs.broadcast_schedule_list'
 
@@ -222,7 +222,7 @@ class BroadcastCRUDL(SmartCRUDL):
             broadcast.save()
             return broadcast
 
-    class ScheduleList(MsgListView):
+    class ScheduleList(InboxView):
         refresh = 30000
         title = _("Scheduled Messages")
         fields = ('contacts', 'msgs', 'sent', 'status')
@@ -481,13 +481,14 @@ class MsgCRUDL(SmartCRUDL):
                 export_sms_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
-                    messages.info(self.request, _("We are preparing your export. ") +
-                                                _("We will e-mail you at %s when it is ready.") % self.request.user.username)
+                    messages.info(self.request, _("We are preparing your export. We will e-mail you at %s when "
+                                                  "it is ready.") % self.request.user.username)
 
                 else:
                     export = ExportMessagesTask.objects.get(id=export.pk)
                     dl_url = reverse('assets.download', kwargs=dict(type='message_export', pk=export.pk))
-                    messages.info(self.request, _("Export complete, you can find it here: %s (production users will get an email)") % dl_url)
+                    messages.info(self.request, _("Export complete, you can find it here: %s (production users "
+                                                  "will get an email)") % dl_url)
 
             try:
                 messages.success(self.request, self.derive_success_message())
@@ -521,9 +522,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def form_valid(self, *args, **kwargs):
             data = self.form.cleaned_data
-            handled = Msg.create_incoming(data['channel'],
-                                          (TEL_SCHEME, data['urn']),
-                                          data['text'],
+            handled = Msg.create_incoming(data['channel'], URN.from_tel(data['urn']), data['text'],
                                           user=self.request.user)
 
             kwargs = self.get_form_kwargs()
@@ -540,12 +539,12 @@ class MsgCRUDL(SmartCRUDL):
             context['base_template'] = 'msgs/msg_test_frame.html'
             return self.render_to_response(Context(context))
 
-        def get_form_kwargs(self ,*args, **kwargs):
+        def get_form_kwargs(self, *args, **kwargs):
             kwargs = super(MsgCRUDL.Test, self).get_form_kwargs(*args, **kwargs)
             kwargs['org'] = self.request.user.get_org()
             return kwargs
 
-    class Inbox(MsgActionMixin, MsgListView):
+    class Inbox(MsgActionMixin, InboxView):
         title = _("Inbox")
         template_name = 'msgs/message_box.haml'
         system_label = SystemLabel.TYPE_INBOX
@@ -568,7 +567,7 @@ class MsgCRUDL(SmartCRUDL):
             context['org'] = self.request.user.get_org()
             return context
 
-    class Flow(MsgActionMixin, MsgListView):
+    class Flow(MsgActionMixin, InboxView):
         title = _("Flow Messages")
         template_name = 'msgs/message_box.haml'
         system_label = SystemLabel.TYPE_FLOWS
@@ -582,7 +581,7 @@ class MsgCRUDL(SmartCRUDL):
             context['actions'] = ['label']
             return context
 
-    class Archived(MsgActionMixin, MsgListView):
+    class Archived(MsgActionMixin, InboxView):
         title = _("Archived")
         template_name = 'msgs/msg_archived.haml'
         system_label = SystemLabel.TYPE_ARCHIVED
@@ -596,7 +595,7 @@ class MsgCRUDL(SmartCRUDL):
             context['actions'] = ['restore', 'label', 'delete']
             return context
 
-    class Outbox(MsgActionMixin, MsgListView):
+    class Outbox(MsgActionMixin, InboxView):
         title = _("Outbox Messages")
         template_name = 'msgs/message_box.haml'
         system_label = SystemLabel.TYPE_OUTBOX
@@ -610,7 +609,7 @@ class MsgCRUDL(SmartCRUDL):
             context['actions'] = []
             return context
 
-    class Sent(MsgActionMixin, MsgListView):
+    class Sent(MsgActionMixin, InboxView):
         title = _("Sent Messages")
         template_name = 'msgs/message_box.haml'
         system_label = SystemLabel.TYPE_SENT
@@ -624,7 +623,7 @@ class MsgCRUDL(SmartCRUDL):
             context['actions'] = []
             return context
 
-    class Failed(MsgActionMixin, MsgListView):
+    class Failed(MsgActionMixin, InboxView):
         title = _("Failed Outgoing Messages")
         template_name = 'msgs/msg_failed.haml'
         success_message = ''
@@ -639,7 +638,7 @@ class MsgCRUDL(SmartCRUDL):
             context['actions'] = ['resend']
             return context
 
-    class Filter(MsgActionMixin, MsgListView):
+    class Filter(MsgActionMixin, InboxView):
         template_name = 'msgs/msg_filter.haml'
 
         def derive_title(self, *args, **kwargs):
@@ -692,7 +691,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Filter, self).get_queryset(**kwargs)
-            qs = self.derive_label().filter_messages(qs).filter(visibility=VISIBLE)
+            qs = self.derive_label().filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
 
             return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
 
@@ -818,26 +817,3 @@ class LabelCRUDL(SmartCRUDL):
         redirect_url = "@msgs.msg_inbox"
         cancel_url = "@msgs.msg_inbox"
         success_message = ''
-
-
-class CallCRUDL(SmartCRUDL):
-    model = Call
-    actions = ('list',)
-
-    class List(MsgListView):
-        fields = ('call_type', 'contact', 'channel', 'time')
-        default_order = '-time'
-        search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
-        system_label = SystemLabel.TYPE_CALLS
-
-        def get_queryset(self, **kwargs):
-            qs = super(CallCRUDL.List, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').select_related('contact')
-
-        def get_contact(self, obj):
-            return obj.contact.get_display(self.org)
-
-        def get_context_data(self, *args, **kwargs):
-            context = super(CallCRUDL.List, self).get_context_data(*args, **kwargs)
-            context['actions'] = []
-            return context

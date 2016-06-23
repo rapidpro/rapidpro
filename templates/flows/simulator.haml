@@ -6,6 +6,23 @@
       %img{ src: "{{STATIC_URL}}images/loader-bars.gif" }
     .simulator-hidden
     .simulator-footer
+
+      .media-button.gps-button.hide
+        %a.btn.btn-primary
+          GPS
+
+      .media-button.photo-button.hide
+        %a.btn.btn-primary
+          Photo
+
+      .media-button.video-button.hide
+        %a.btn.btn-primary
+          Video
+
+      .media-button.audio-button.hide
+        %a.btn.btn-primary
+          Audio
+
       .imessage
         %textarea
         %span.send-message{style:"padding-left:2px"} Send
@@ -15,5 +32,14 @@
 :css
   .simulator-content {
     background: url('{{STATIC_URL}}/images/simulator_bg.png') top center no-repeat;
+  }
+
+  .media-button {
+    text-align: center;
+  }
+
+  .media-button .btn {
+    padding: 2px 12px;
+    margin-top: 3px;
   }
 

@@ -2,10 +2,9 @@ from __future__ import unicode_literals
 
 import ttag
 
-from datetime import timedelta
 from django import template
-from django.utils import timezone
 from django.utils.safestring import mark_safe
+from temba.channels.models import ChannelEvent
 from ttag.helpers import AsTag
 
 
@@ -14,18 +13,25 @@ register = template.Library()
 
 @register.filter
 def as_icon(contact_event):
+
     icon = 'icon-bubble-dots-2 green'
     direction = getattr(contact_event, 'direction', 'O')
     msg_type = getattr(contact_event, 'msg_type', 'I')
+    media_type = getattr(contact_event, 'media', None)
+
+    if media_type and ':' in media_type:
+        media_type = media_type.split(':', 1)[0].split('/', 1)[0]
 
     if hasattr(contact_event, 'status'):
         status = contact_event.status
-    elif hasattr(contact_event, 'call_type'):
-        status = contact_event.call_type
+    elif isinstance(contact_event, ChannelEvent):
+        status = contact_event.event_type
     else:
         status = None
 
-    if msg_type == 'V':
+    if media_type == 'image':
+        icon = 'icon-photo_camera primary boost'
+    elif msg_type == 'V':
         icon = 'icon-phone'
     elif direction == 'I':
         icon = 'icon-bubble-user primary'
@@ -37,14 +43,15 @@ def as_icon(contact_event):
         icon = 'icon-bubble-right green'
     elif status in ['E', 'F']:
         icon = 'icon-bubble-notification red'
-    elif status == 'mo_call':
+    elif status == ChannelEvent.TYPE_CALL_IN:
         icon = 'icon-call-incoming green'
-    elif status == 'mo_miss':
+    elif status == ChannelEvent.TYPE_CALL_IN_MISSED:
         icon = 'icon-call-incoming red'
-    elif status == 'mt_call':
+    elif status == ChannelEvent.TYPE_CALL_OUT:
         icon = 'icon-call-outgoing green'
-    elif status == 'mt_miss':
+    elif status == ChannelEvent.TYPE_CALL_OUT_MISSED:
         icon = 'icon-call-outgoing red'
+
     return mark_safe('<span class="glyph %s"></span>' % icon)
 
 

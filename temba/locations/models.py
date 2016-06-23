@@ -25,8 +25,7 @@ class AdminBoundary(MPTTModel, models.Model):
     name = models.CharField(max_length=128,
                             help_text="The name of our administrative boundary")
 
-    level = models.IntegerField(
-        help_text="The level of the boundary, 0 for country, 1 for state, 2 for district, 3 for ward")
+    level = models.IntegerField(help_text="The level of the boundary, 0 for country, 1 for state, 2 for district, 3 for ward")
 
     parent = TreeForeignKey('self', null=True, blank=True, related_name='children', db_index=True,
                             help_text="The parent to this political boundary if any")
@@ -58,6 +57,7 @@ class AdminBoundary(MPTTModel, models.Model):
 
     def get_geojson_feature(self):
         return geojson.Feature(properties=dict(name=self.name, osm_id=self.osm_id, id=self.pk, level=self.level),
+                               zoomable=True if self.children.all() else False,
                                geometry=None if not self.simplified_geometry else geojson.loads(self.simplified_geometry.geojson))
 
     def get_geojson(self):
@@ -68,6 +68,19 @@ class AdminBoundary(MPTTModel, models.Model):
         for child in self.children.all():
             children.append(child.get_geojson_feature())
         return AdminBoundary.get_geojson_dump(children)
+
+    def update(self, **kwargs):
+        AdminBoundary.objects.filter(id=self.id).update(**kwargs)
+
+        # if our name changed, update the category on any of our values
+        name = kwargs.get('name', self.name)
+        if name != self.name:
+            from temba.values.models import Value
+            Value.objects.filter(location_value=self).update(category=name)
+
+        # update our object values so that self is up to date
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def __unicode__(self):
         return "%s" % self.name
