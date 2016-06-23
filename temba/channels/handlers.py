@@ -17,8 +17,8 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN, TELEGRAM
-from temba.contacts.models import Contact, URN
+from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN, TELEGRAM, TWIML_API
+from temba.contacts.models import Contact, URN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
@@ -201,6 +201,45 @@ class TwilioMessagingServiceHandler(View):
                 raise ValidationError("Invalid request signature")
 
             Msg.create_incoming(channel, URN.from_tel(request.POST['From']), request.POST['Body'])
+
+            return HttpResponse("", status=201)
+
+        return HttpResponse("Not Handled, unknown action", status=400)
+
+
+class TwimlAPIHandler(View):
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(TwimlAPIHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from twilio.util import RequestValidator
+        from temba.msgs.models import Msg
+
+        signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
+        url = "https://" + settings.HOSTNAME + "%s" % request.get_full_path()
+
+        action = kwargs['action']
+        channel_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TWIML_API).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+
+        if action == 'receive':
+
+            org = channel.org
+            client = org.get_twiml_client(channel=channel)
+            validator = RequestValidator(client.auth[1])
+
+            if not validator.validate(url, request.POST, signature):
+                # raise an exception that things weren't properly signed
+                raise ValidationError("Invalid request signature")
+
+            Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), request.POST['Body'])
 
             return HttpResponse("", status=201)
 
