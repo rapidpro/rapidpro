@@ -43,7 +43,7 @@ from twython import TwythonError
 from urllib import urlencode
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, CHIKKA, TELEGRAM
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
-from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
+from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN, TWIML_API
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
@@ -4872,6 +4872,133 @@ class TwilioMessagingServiceTest(TembaTest):
         org_config[APPLICATION_SID] = 'twilio_sid'
         self.org.config = json.dumps(org_config)
         self.org.save()
+
+        joe = self.create_contact("Joe", "+250788383383")
+        bcast = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('twilio.rest.resources.Messages.create') as mock:
+                mock.return_value = "Sent"
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check the status of the message is now sent
+                msg = bcast.get_messages()[0]
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                self.clear_cache()
+
+            with patch('twilio.rest.resources.Messages.create') as mock:
+                mock.side_effect = Exception("Failed to send message")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as an error
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+            # check that our channel log works as well
+            self.login(self.admin)
+
+            response = self.client.get(reverse('channels.channellog_list') + "?channel=%d" % (self.channel.pk))
+
+            # there should be two log items for the two times we sent
+            self.assertEquals(2, len(response.context['channellog_list']))
+
+            # of items on this page should be right as well
+            self.assertEquals(2, response.context['paginator'].count)
+
+            # the counts on our relayer should be correct as well
+            self.channel = Channel.objects.get(id=self.channel.pk)
+            self.assertEquals(1, self.channel.get_error_log_count())
+            self.assertEquals(1, self.channel.get_success_log_count())
+
+            # view the detailed information for one of them
+            response = self.client.get(reverse('channels.channellog_read', args=[ChannelLog.objects.all()[1].pk]))
+
+            # check that it contains the log of our exception
+            self.assertContains(response, "Failed to send message")
+
+            # delete our error entry
+            ChannelLog.objects.filter(is_error=True).delete()
+
+            # our counts should be right
+            # the counts on our relayer should be correct as well
+            self.channel = Channel.objects.get(id=self.channel.pk)
+            self.assertEquals(0, self.channel.get_error_log_count())
+            self.assertEquals(1, self.channel.get_success_log_count())
+
+        finally:
+            settings.SEND_MESSAGES = False
+
+
+class TwimlAPITest(TembaTest):
+
+    def setUp(self):
+        super(TwimlAPITest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'BR', 'TW', '8299999999', '8299999999',
+                                      config=dict(ACCOUNT_SID="ACe54dc36bfd2a3b483b7ed854b2dd40c1", ACCOUNT_TOKEN='0b14d47901387c03f92253a4e4449d5e', SEND_URL='https://api.twilio.com'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_receive(self):
+        # twilio test credentials
+        account_sid = "ACe54dc36bfd2a3b483b7ed854b2dd40c1"
+        account_token = "0b14d47901387c03f92253a4e4449d5e"
+        send_url = "https://api.twilio.com"
+
+        self.channel.org.config = json.dumps({ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token,
+                                              SEND_URL: send_url})
+        self.channel.org.save()
+
+        post_data = dict(to='+558299999999', From='+250788383383', Body="Hello World")
+        twiml_api_url = reverse('handlers.twiml_api_handler', args=['receive', self.channel.uuid])
+
+        try:
+            self.client.post(twiml_api_url, post_data)
+            self.fail("Invalid signature, should have failed")
+        except ValidationError:
+            pass
+
+        # this time sign it appropriately, should work
+        client = self.org.get_twiml_client()
+        validator = RequestValidator(client.auth[1])
+        signature = validator.compute_signature(
+            'https://' + settings.HOSTNAME + '/handlers/twiml_api/receive/' + self.channel.uuid,
+            post_data
+        )
+        response = self.client.post(twiml_api_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        self.assertEquals(201, response.status_code)
+
+        # and we should have a new message
+        msg1 = Msg.all_messages.get()
+        self.assertEquals("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg1.direction)
+        self.assertEquals(self.org, msg1.org)
+        self.assertEquals(self.channel, msg1.channel)
+        self.assertEquals("Hello World", msg1.text)
+
+    def test_send(self):
+        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
+        channel_config = Channel.objects.filter(org=self.org, channel_type=TWIML_API).first()
+        config = channel_config.config
+        # config[ACCOUNT_SID] = 'ACe54dc36bfd2a3b483b7ed854b2dd40c1'
+        # config[ACCOUNT_TOKEN] = '0b14d47901387c03f92253a4e4449d5e'
+        # config[SEND_URL] = 'https://api.twilio.com'
+        # self.org.config = json.dumps(config)
+        # self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
         bcast = joe.send("Test message", self.admin, trigger_send=False)

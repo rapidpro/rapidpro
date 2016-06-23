@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from mock import patch
-from temba.channels.models import TWILIO, CALL, ANSWER, SEND
+from temba.channels.models import TWILIO, CALL, ANSWER, SEND, Channel, SEND_URL
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.msgs.models import Msg, IVR
@@ -315,6 +315,8 @@ class IVRTests(FlowFileTest):
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_flow(self):
+        from temba.orgs.models import ACCOUNT_TOKEN, ACCOUNT_SID
+
         # should be able to create an ivr flow
         self.assertTrue(self.org.supports_ivr())
         self.assertTrue(self.admin.groups.filter(name="Beta"))
@@ -329,6 +331,16 @@ class IVRTests(FlowFileTest):
         self.org.save()
         self.assertTrue(self.org.is_connected_to_twilio())
         self.assertIsNotNone(self.org.get_twilio_client())
+
+        # no twiml api config yet
+        self.assertIsNone(self.org.get_twiml_client())
+
+        # twiml api config
+        config = {SEND_URL: 'https://api.twilio.com',
+                  ACCOUNT_SID: 'TEST_SID',
+                  ACCOUNT_TOKEN: 'TEST_TOKEN'}
+        Channel.add_twiml_api_channel(self.org, self.org.get_user(), 'BR', '8299990000', config)
+        self.assertIsNotNone(self.org.get_twiml_client())
 
         # import an ivr flow
         self.import_file('call-me-maybe')
