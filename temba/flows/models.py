@@ -459,7 +459,7 @@ class Flow(TembaModel):
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
-        if text or media_url:
+        if text is not None or media_url:
 
             # we don't have text for media, so lets use the media value there too
             if media_url and ':' in media_url:
@@ -519,7 +519,11 @@ class Flow(TembaModel):
                 # nest all of our previous verbs in our gather
                 for verb in voice_response.verbs:
                     gather.append(verb)
+
                 voice_response = response
+
+                # append a redirect at the end in case the user sends #
+                voice_response.append(twiml.Redirect(url=callback + "?empty=1"))
 
         return voice_response
 
@@ -826,8 +830,8 @@ class Flow(TembaModel):
         # in chunks of 1000, remove any values or flowsteps associated with these runs
         # we keep Runs around for auditing purposes
         for chunk in chunk_list(run_ids, 1000):
-            Value.objects.filter(run__in=run_ids).delete()
-            FlowStep.objects.filter(run__in=run_ids).delete()
+            Value.objects.filter(run__in=chunk).delete()
+            FlowStep.objects.filter(run__in=chunk).delete()
 
         # clear all our cached stats
         self.clear_props_cache()
@@ -5511,11 +5515,12 @@ class HasWardTest(Test):
         state_name, missing_state = Msg.substitute_variables(self.state, sms.contact, context, org=run.flow.org)
         if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
             state = org.parse_location(state_name, STATE_LEVEL)
-            district = org.parse_location(district_name, DISTRICT_LEVEL, state[0])
-            if district:
-                ward = org.parse_location(text, WARD_LEVEL, district[0])
-                if ward:
-                    return 1, ward[0]
+            if state:
+                district = org.parse_location(district_name, DISTRICT_LEVEL, state[0])
+                if district:
+                    ward = org.parse_location(text, WARD_LEVEL, district[0])
+                    if ward:
+                        return 1, ward[0]
 
         # parse location when district contraint is not provided or available
         ward = org.parse_location(text, WARD_LEVEL)

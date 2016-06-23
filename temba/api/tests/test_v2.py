@@ -308,8 +308,7 @@ class APITest(TembaTest):
             'contacts': [{'uuid': self.joe.uuid, 'name': self.joe.name}],
             'groups': [{'uuid': reporters.uuid, 'name': reporters.name}],
             'text': "Hello 4",
-            'created_on': format_datetime(bcast4.created_on),
-            'status': "failed"
+            'created_on': format_datetime(bcast4.created_on)
         })
 
         # filter by id
@@ -515,20 +514,22 @@ class APITest(TembaTest):
         contact1 = self.create_contact("Ann", "0788000001", language='fre')
         contact2 = self.create_contact("Bob", "0788000002")
         contact3 = self.create_contact("Cat", "0788000003")
-        contact4 = self.create_contact("Don", "0788000004")
+        contact4 = self.create_contact("Don", "0788000004", language='fre')
 
         contact1.set_field(self.user, 'nickname', "Annie", label="Nick name")
+        contact4.set_field(self.user, 'nickname', "Donnie", label="Nick name")
 
-        contact1.fail()
+        contact1.stop(self.user)
         contact2.block(self.user)
         contact3.release(self.user)
 
         # put some contacts in a group
         group = ContactGroup.get_or_create(self.org, self.admin, "Customers")
         group.update_contacts(self.user, [self.joe], add=True)  # add contacts separately for predictable modified_on
-        group.update_contacts(self.user, [contact1], add=True)  # ordering
+        group.update_contacts(self.user, [contact4], add=True)  # ordering
 
         contact1.refresh_from_db()
+        contact4.refresh_from_db()
         self.joe.refresh_from_db()
 
         # no filtering
@@ -537,18 +538,19 @@ class APITest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertResultsByUUID(response, [contact1, self.joe, contact2, contact4, self.frank])
+        print response
+        self.assertResultsByUUID(response, [contact4, self.joe, contact2, contact1, self.frank])
         self.assertEqual(response.json['results'][0], {
-            'uuid': contact1.uuid,
-            'name': "Ann",
+            'uuid': contact4.uuid,
+            'name': "Don",
             'language': "fre",
-            'urns': ["tel:+250788000001"],
+            'urns': ["tel:+250788000004"],
             'groups': [{'uuid': group.uuid, 'name': group.name}],
-            'fields': {'nickname': "Annie"},
+            'fields': {'nickname': "Donnie"},
             'blocked': False,
-            'failed': True,
-            'created_on': format_datetime(contact1.created_on),
-            'modified_on': format_datetime(contact1.modified_on)
+            'stopped': False,
+            'created_on': format_datetime(contact4.created_on),
+            'modified_on': format_datetime(contact4.modified_on)
         })
 
         # filter by UUID
@@ -561,23 +563,23 @@ class APITest(TembaTest):
 
         # filter by group name
         response = self.fetchJSON(url, 'group=Customers')
-        self.assertResultsByUUID(response, [contact1, self.joe])
+        self.assertResultsByUUID(response, [contact4, self.joe])
 
         # filter by group UUID
         response = self.fetchJSON(url, 'group=%s' % group.uuid)
-        self.assertResultsByUUID(response, [contact1, self.joe])
+        self.assertResultsByUUID(response, [contact4, self.joe])
 
         # filter by invalid group
         response = self.fetchJSON(url, 'group=invalid')
         self.assertResultsByUUID(response, [])
 
         # filter by before
-        response = self.fetchJSON(url, 'before=%s' % format_datetime(contact4.modified_on))
-        self.assertResultsByUUID(response, [contact4, self.frank])
+        response = self.fetchJSON(url, 'before=%s' % format_datetime(contact1.modified_on))
+        self.assertResultsByUUID(response, [contact1, self.frank])
 
         # filter by after
         response = self.fetchJSON(url, 'after=%s' % format_datetime(self.joe.modified_on))
-        self.assertResultsByUUID(response, [contact1, self.joe])
+        self.assertResultsByUUID(response, [contact4, self.joe])
 
     def test_fields(self):
         url = reverse('api.v2.fields')

@@ -1466,6 +1466,25 @@ class ChannelTest(TembaTest):
 
                 self.assertEquals('MTN', channel.address)
 
+                # add a canada number
+                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"type":"mobile-lvn","country":"CA","msisdn":"15797884540"}] }')
+                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
+
+                # make sure our number appears on the claim page
+                response = self.client.get(claim_nexmo)
+                self.assertFalse('account_trial' in response.context)
+                self.assertContains(response, '579-788-4540')
+
+                # claim it
+                response = self.client.post(claim_nexmo, dict(country='CA', phone_number='15797884540'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='+15797884540').first())
+
+                # as is our old one
+                self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='MTN').first())
+
     def test_claim_plivo(self):
         self.login(self.admin)
 
@@ -3201,6 +3220,30 @@ class YoTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+                # contact should not be stopped
+                joe.refresh_from_db()
+                self.assertFalse(joe.is_stopped)
+
+                self.clear_cache()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, "ybs_autocreate_status=ERROR&ybs_autocreate_message=" +
+                                                 "256794224665%3ABLACKLISTED")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # message should be marked as a failure
+                msg = bcast.get_messages()[0]
+                self.assertEquals(FAILED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+                # contact should also be stopped
+                joe.refresh_from_db()
+                self.assertTrue(joe.is_stopped)
+
         finally:
             settings.SEND_MESSAGES = False
 
@@ -3719,6 +3762,23 @@ class NexmoTest(TembaTest):
                 self.clear_cache()
 
             with patch('requests.get') as mock:
+                mock.return_value = MockResponse(401, "Invalid API token", method='POST')
+
+                # clear out our channel log
+                ChannelLog.objects.all().delete()
+
+                # then send it
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check status
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+
+                # and that we have a decent log
+                log = ChannelLog.objects.get(msg=msg)
+                self.assertEqual(log.description, "Failed sending message: Invalid API token")
+
+            with patch('requests.get') as mock:
                 # this hackery is so that we return a different thing on the second call as the first
                 def return_valid(url, params):
                     called = getattr(return_valid, 'called', False)
@@ -3916,9 +3976,9 @@ class VumiTest(TembaTest):
                 self.assertTrue(msg.next_attempt > timezone.now())
                 self.assertEquals(1, mock.call_count)
 
-                # Joe shouldn't be failed and should still be in a group
+                # Joe shouldn't be stopped and should still be in a group
                 joe = Contact.objects.get(id=joe.id)
-                self.assertFalse(joe.is_failed)
+                self.assertFalse(joe.is_stopped)
                 self.assertTrue(ContactGroup.user_groups.filter(contacts=joe))
 
                 self.clear_cache()
@@ -3940,9 +4000,9 @@ class VumiTest(TembaTest):
                 self.assertTrue(msg.next_attempt < timezone.now())
                 self.assertEquals(1, mock.call_count)
 
-                # could should now be failed as well and in no groups
+                # could should now be stopped as well and in no groups
                 joe = Contact.objects.get(id=joe.id)
-                self.assertTrue(joe.is_failed)
+                self.assertTrue(joe.is_stopped)
                 self.assertFalse(ContactGroup.user_groups.filter(contacts=joe))
 
         finally:
@@ -5693,7 +5753,7 @@ class TwitterTest(TembaTest):
 
                 # should not fail the contact
                 contact = Contact.objects.get(pk=joe.pk)
-                self.assertFalse(contact.is_failed)
+                self.assertFalse(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 1)
 
                 # should record the right error
@@ -5711,14 +5771,14 @@ class TwitterTest(TembaTest):
                 self.assertEquals(FAILED, msg.status)
                 self.assertEquals(2, msg.error_count)
 
-                # should fail the contact permanently (i.e. removed from groups)
+                # should be stopped
                 contact = Contact.objects.get(pk=joe.pk)
-                self.assertTrue(contact.is_failed)
+                self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 
                 self.clear_cache()
 
-            joe.is_failed = False
+            joe.is_stopped = False
             joe.save()
             testers.update_contacts(self.user, [joe], add=True)
 
@@ -5736,12 +5796,12 @@ class TwitterTest(TembaTest):
 
                 # should fail the contact permanently (i.e. removed from groups)
                 contact = Contact.objects.get(pk=joe.pk)
-                self.assertTrue(contact.is_failed)
+                self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 
                 self.clear_cache()
 
-            joe.is_failed = False
+            joe.is_stopped = False
             joe.save()
             testers.update_contacts(self.user, [joe], add=True)
 
@@ -5758,7 +5818,7 @@ class TwitterTest(TembaTest):
 
                 # should fail the contact permanently (i.e. removed from groups)
                 contact = Contact.objects.get(pk=joe.pk)
-                self.assertTrue(contact.is_failed)
+                self.assertTrue(contact.is_stopped)
                 self.assertEqual(contact.user_groups.count(), 0)
 
                 self.clear_cache()
@@ -5785,7 +5845,7 @@ class MageHandlerTest(TembaTest):
         Creates a contact as if it were created in Mage, i.e. no event/group triggering or cache updating
         """
         contact = Contact.objects.create(org=self.org, name=name, is_active=True, is_blocked=False,
-                                         uuid=uuid.uuid4(), is_failed=False,
+                                         uuid=uuid.uuid4(), is_stopped=False,
                                          modified_by=self.user, created_by=self.user,
                                          modified_on=timezone.now(), created_on=timezone.now())
         urn = ContactURN.objects.create(org=self.org, contact=contact,
@@ -6012,7 +6072,9 @@ class StartMobileTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, '')
+                mock.return_value = MockResponse(200,
+                                                 """<status date='Wed, 25 May 2016 17:29:56 +0300'>
+                                                 <id>380502535130309161501</id><state>Accepted</state></status>""")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
@@ -6021,6 +6083,7 @@ class StartMobileTest(TembaTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
+                self.assertEqual(msg.external_id, "380502535130309161501")
 
                 self.assertEqual('http://bulk.startmobile.com.ua/clients.php', mock.call_args[0][0])
                 self.clear_cache()

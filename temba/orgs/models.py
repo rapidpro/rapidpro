@@ -208,6 +208,9 @@ class Org(SmartModel):
     brand = models.CharField(max_length=128, default=settings.DEFAULT_BRAND, verbose_name=_("Brand"),
                              help_text=_("The brand used in emails"))
 
+    surveyor_password = models.CharField(null=True, max_length=128, default=None,
+                                         help_text=_('A password that allows users to register as surveyors'))
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -897,7 +900,7 @@ class Org(SmartModel):
                                created_by=self.created_by, modified_by=self.modified_by)
         self.all_groups.create(name='Blocked Contacts', group_type=ContactGroup.TYPE_BLOCKED,
                                created_by=self.created_by, modified_by=self.modified_by)
-        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_FAILED,
+        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_STOPPED,
                                created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self, api_url):

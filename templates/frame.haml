@@ -137,6 +137,7 @@
   <![endif]-->
 
 -load smartmin
+{% block body %}
 %body#pageBody{style:'width:100%'}
   <!-- Header -->
   #print-header
@@ -334,6 +335,6 @@
           $("#posterizer").submit();
         });
       });
-
+{% endblock body %}
 
 </html>

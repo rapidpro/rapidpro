@@ -556,20 +556,14 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['actions'], ['label'])
 
     def test_failed(self):
-        from temba.msgs.tasks import check_messages_task
         failed_url = reverse('msgs.msg_failed')
 
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
-        self.assertFalse(msg1.contact.is_failed)
         msg1.status = 'F'
         msg1.save()
 
         # create a log for it
         log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
-
-        # check that our contact updates accordingly
-        check_messages_task()
-        self.assertTrue(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
         # create broadcast and fail the only message
         broadcast = Broadcast.create(self.org, self.admin, "message number 2", [self.joe])
@@ -618,13 +612,6 @@ class MsgTest(TembaTest):
         self.assertEquals(msg2.text, resent_msg.text)
         self.assertEquals(msg2.contact, resent_msg.contact)
         self.assertEquals(PENDING, resent_msg.status)
-
-        # finally check that the contact status gets flipped back
-        resent_msg.status = 'D'
-        resent_msg.save()
-
-        check_messages_task()
-        self.assertFalse(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
     @patch('temba.utils.email.send_temba_email')
     def test_message_export(self, mock_send_temba_email):

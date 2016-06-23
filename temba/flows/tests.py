@@ -650,9 +650,18 @@ class FlowTest(TembaTest):
         age = ContactField.get_or_create(self.org, self.admin, 'age', "Age")
         self.contact.set_field(self.admin, 'age', 36)
 
+        # insert a duplicate age field, this can happen due to races
+        Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
+
         with self.assertNumQueries(52):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age])
+
+        # try setting the field again
+        self.contact.set_field(self.admin, 'age', 36)
+
+        # only one present now
+        self.assertEqual(Value.objects.filter(contact=self.contact, contact_field=age).count(), 1)
 
         tz = pytz.timezone(self.org.timezone)
         sheet_runs, sheet_contacts = workbook.sheets()
@@ -993,8 +1002,8 @@ class FlowTest(TembaTest):
         district_test = HasDistrictTest("Kigali City")
         district_test = HasDistrictTest.from_json(self.org, district_test.as_json())
 
-        sms.text = "Kigali"
-        self.assertTest(True, AdminBoundary.objects.get(name="Kigali"), district_test)
+        sms.text = "Nyarugenge"
+        self.assertTest(True, AdminBoundary.objects.get(name="Nyarugenge"), district_test)
 
         sms.text = "Rwamagana"
         self.assertTest(False, None, district_test)
@@ -1006,7 +1015,7 @@ class FlowTest(TembaTest):
         sms.text = "Kigali City"
         self.assertTest(False, None, state_test)
 
-        sms.text = "Kigali"
+        sms.text = "Nyarugenge"
         self.assertTest(False, None, district_test)
 
     def test_tests(self):
@@ -1467,6 +1476,15 @@ class FlowTest(TembaTest):
                                      created_by=self.admin, modified_by=self.admin)
         ward_tuple = HasWardTest('Pillars', 'Bichi').evaluate(run, sms, context, 'bichi')
         self.assertEquals(ward_tuple[1], bichiward)
+
+        # misconfigured flows should ignore the state and district if wards are unique by name
+        ward_tuple = HasWardTest('Bichi', 'Kano').evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], bichiward)
+
+        # misconfigured flows should not match if wards not unique
+        AdminBoundary.objects.create(osm_id='3710379', name='Bichi', level=3, parent=apapa)
+        ward_tuple = HasWardTest('Bichi', 'Kano').evaluate(run, sms, context, 'bichi')
+        self.assertEquals(ward_tuple[1], None)
 
         self.assertEquals(HasWardTest, Test.from_json(self.org, js).__class__)
 
@@ -2678,6 +2696,8 @@ class ActionTest(TembaTest):
                                                    headers={'User-agent': "RapidPro"},
                                                    data={'run': run.pk,
                                                          'phone': u'+250788382382',
+                                                         'contact': self.contact.uuid,
+                                                         'urn': u'tel:+250788382382',
                                                          'text': None,
                                                          'flow': self.flow.pk,
                                                          'relayer': -1,
@@ -2701,6 +2721,8 @@ class ActionTest(TembaTest):
                                                    headers={'User-agent': 'RapidPro'},
                                                    data={'run': run.pk,
                                                          'phone': u'+250788382382',
+                                                         'contact': self.contact.uuid,
+                                                         'urn': u'tel:+250788382382',
                                                          'text': "Green is my favorite",
                                                          'flow': self.flow.pk,
                                                          'relayer': msg.channel.pk,

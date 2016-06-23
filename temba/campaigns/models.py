@@ -106,7 +106,7 @@ class Campaign(SmartModel):
                 # we want to nuke old single message flows
                 for event in campaign.events.all():
                     if event.flow.flow_type == Flow.MESSAGE:
-                        event.flow.delete()
+                        event.flow.release()
 
                 # and all of the events, we'll recreate these
                 campaign.events.all().delete()

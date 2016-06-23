@@ -96,6 +96,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
     Base class for contact list views with contact folders and groups listed by the side
     """
     add_button = True
+    paginate_by = 50
 
     def pre_process(self, request, *args, **kwargs):
         if hasattr(self, 'system_group'):
@@ -132,8 +133,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
         context = super(ContactListView, self).get_context_data(**kwargs)
 
         folders = [dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
-                   dict(count=counts[ContactGroup.TYPE_FAILED], label=_("Failed"), url=reverse('contacts.contact_failed')),
-                   dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
+                   dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked')),
+                   dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse('contacts.contact_stopped')),
+                   ]
 
         groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
@@ -156,7 +158,8 @@ class ContactActionForm(BaseActionForm):
                        ('unlabel', _("Remove from Group")),
                        ('unblock', _("Unblock Contacts")),
                        ('block', _("Block Contacts")),
-                       ('delete', _("Delete Contacts")))
+                       ('delete', _("Delete Contacts")),
+                       ('unstop', _("Unstop Contacts")))
 
     model = Contact
     label_model = ContactGroup
@@ -319,8 +322,8 @@ class UpdateContactForm(ContactForm):
 
 class ContactCRUDL(SmartCRUDL):
     model = Contact
-    actions = ('create', 'update', 'failed', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
-               'customize', 'update_fields', 'export', 'block', 'unblock', 'delete', 'history')
+    actions = ('create', 'update', 'stopped', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
+               'customize', 'update_fields', 'export', 'block', 'unblock', 'unstop', 'delete', 'history')
 
     class Export(OrgPermsMixin, SmartXlsView):
 
@@ -758,6 +761,10 @@ class ContactCRUDL(SmartCRUDL):
                     links.append(dict(title=_('Unblock'), style='btn-primary', js_class='posterize',
                                       href=reverse('contacts.contact_unblock', args=(self.object.pk,))))
 
+                if self.has_org_perm("contacts.contact_unstop") and self.object.is_stopped:
+                    links.append(dict(title=_('Unstop'), style='btn-primary', js_class='posterize',
+                                      href=reverse('contacts.contact_unstop', args=(self.object.pk,))))
+
                 if self.has_org_perm("contacts.contact_delete"):
                     links.append(dict(title=_('Delete'), style='btn-primary',
                                       js_class='contact-delete-button', href='#'))
@@ -914,14 +921,14 @@ class ContactCRUDL(SmartCRUDL):
             context['actions'] = ('unblock', 'delete') if self.has_org_perm("contacts.contact_delete") else ('unblock',)
             return context
 
-    class Failed(ContactActionMixin, ContactListView):
-        title = _("Failed Contacts")
-        template_name = 'contacts/contact_failed.haml'
-        system_group = ContactGroup.TYPE_FAILED
+    class Stopped(ContactActionMixin, ContactListView):
+        title = _("Stopped Contacts")
+        template_name = 'contacts/contact_stopped.haml'
+        system_group = ContactGroup.TYPE_STOPPED
 
         def get_context_data(self, *args, **kwargs):
-            context = super(ContactCRUDL.Failed, self).get_context_data(*args, **kwargs)
-            context['actions'] = ['block']
+            context = super(ContactCRUDL.Stopped, self).get_context_data(*args, **kwargs)
+            context['actions'] = ['block', 'unstop']
             return context
 
     class Filter(ContactActionMixin, ContactListView):
@@ -979,7 +986,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
-        exclude = ('is_active', 'uuid', 'language', 'org', 'fields', 'is_blocked', 'is_failed',
+        exclude = ('is_active', 'uuid', 'language', 'org', 'fields', 'is_blocked', 'is_stopped',
                    'created_by', 'modified_by', 'is_test', 'channel')
         success_message = ''
         submit_button_name = _("Create")
@@ -1008,7 +1015,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
-        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_failed',
+        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_stopped',
                    'created_by', 'modified_by', 'is_test', 'channel')
         success_url = 'uuid@contacts.contact_read'
         success_message = ''
@@ -1079,7 +1086,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactFieldForm
-        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_failed',
+        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_stopped',
                    'created_by', 'modified_by', 'is_test', 'channel')
         success_url = 'uuid@contacts.contact_read'
         success_message = ''
@@ -1134,6 +1141,18 @@ class ContactCRUDL(SmartCRUDL):
 
         def save(self, obj):
             obj.unblock(self.request.user)
+            return obj
+
+    class Unstop(OrgPermsMixin, SmartUpdateView):
+        """
+        Unstops this contact
+        """
+        fields = ()
+        success_url = 'uuid@contacts.contact_read'
+        success_message = _("Contact unstopped")
+
+        def save(self, obj):
+            obj.unstop(self.request.user)
             return obj
 
     class Delete(OrgPermsMixin, SmartUpdateView):

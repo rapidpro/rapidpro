@@ -952,7 +952,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       rule.test._base = rule.test.test.slice(15, -1)
 
     # set the operands
-    else if rule.test.type != "between"
+    else if rule.test.type != "between" and rule.test.type != "ward"
 
       if rule.test.test 
         if rule._config.localized
@@ -1100,23 +1100,30 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # limit category names to 36 chars
     return categoryName.substr(0, 36)
 
+  $scope.isRuleComplete = (rule) ->
+    complete = true
+    if not rule.category or not rule.category._base
+      complete = false
+
+    else if rule._config.operands == 1 and not rule.test._base
+      complete = false
+
+    else if rule._config.type == 'between' and (not rule.test.min or not rule.test.max)
+      complete = false
+
+    else if rule._config.type == 'ward' and (not rule.test.state or not rule.test.district)
+      complete = false
+
+    return complete
+
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
       if rule._config.type == 'subflow'
         continue
-      else if not rule._config.operands == 0
-        if not rule.category or not rule.category._base
-          complete = false
-          break
-      else if rule._config.operands == 1
-        if not rule.category or not rule.category._base or not rule.test._base
-          complete = false
-          break
-      else if rule._config.operands == 2
-        if not rule.category or not rule.category._base or not rule.test.min or not rule.test.min
-          complete = false
-          break
+      complete = complete and $scope.isRuleComplete(rule)
+      if not complete
+        break
 
     if complete
       # we insert this to keep our true rule at the end

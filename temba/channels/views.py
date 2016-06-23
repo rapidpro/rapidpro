@@ -1974,12 +1974,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
 
-            # can't add a channel from a different country
-            other_countries = org.channels.exclude(country=None).exclude(is_active=False).exclude(country=data['country']).first()
-            if other_countries:
-                form._errors['phone_number'] = form.error_class([_("Sorry, you can only add numbers for the same country (%s)" % other_countries.country)])
-                return self.form_invalid(form)
-
             # no number parse for short codes
             if len(data['phone_number']) > 6:
                 phone = phonenumbers.parse(data['phone_number'])

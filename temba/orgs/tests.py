@@ -374,6 +374,66 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertTrue(self.org.is_suspended())
 
+    def test_accounts(self):
+        url = reverse('orgs.org_accounts')
+        self.login(self.admin)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'If you use the RapidPro Surveyor application to run flows offline')
+
+        Org.objects.create(name="Another Org", timezone="Africa/Kigali", country=self.country,
+                           brand='rapidpro.io', created_by=self.user, modified_by=self.user,
+                           surveyor_password='nyaruka')
+
+        response = self.client.post(url, dict(surveyor_password='nyaruka'))
+        self.org.refresh_from_db()
+        self.assertContains(response, 'This password is not valid. Choose a new password and try again.')
+        self.assertIsNone(self.org.surveyor_password)
+
+        # now try again, but with a unique password
+        response = self.client.post(url, dict(surveyor_password='unique password'))
+        self.org.refresh_from_db()
+        self.assertEqual('unique password', self.org.surveyor_password)
+
+    def test_refresh_tokens(self):
+        self.login(self.admin)
+        url = reverse('orgs.org_home')
+        response = self.client.get(url)
+
+        # admin should have a token
+        token = APIToken.objects.get(user=self.admin)
+
+        # and it should be on the page
+        self.assertContains(response, token.key)
+
+        # let's refresh it
+        self.client.post(reverse('api.apitoken_refresh'))
+
+        # visit our account page again
+        response = self.client.get(url)
+
+        # old token no longer there
+        self.assertNotContains(response, token.key)
+
+        # old token now inactive
+        token.refresh_from_db()
+        self.assertFalse(token.is_active)
+
+        # there is a new token for this user
+        new_token = APIToken.objects.get(user=self.admin, is_active=True)
+        self.assertNotEqual(new_token.key, token.key)
+        self.assertContains(response, new_token.key)
+
+        # can't refresh if logged in as viewer
+        self.login(self.user)
+        response = self.client.post(reverse('api.apitoken_refresh'))
+        self.assertLoginRedirect(response)
+
+        # or just not an org user
+        self.login(self.non_org_user)
+        response = self.client.post(reverse('api.apitoken_refresh'))
+        self.assertLoginRedirect(response)
+
     @override_settings(SEND_EMAILS=True)
     def test_manage_accounts(self):
         url = reverse('orgs.org_manage_accounts')
@@ -416,7 +476,7 @@ class OrgTest(TembaTest):
             'invite_group': "V"
         }
         response = self.client.post(url, post_data)
-        self.assertRedirect(response, reverse('orgs.org_home'))
+        self.assertRedirect(response, reverse('orgs.org_manage_accounts'))
 
         self.org.refresh_from_db()
         self.assertEqual(set(self.org.administrators.all()), {self.admin})
@@ -425,9 +485,9 @@ class OrgTest(TembaTest):
         self.assertEqual(set(self.org.surveyors.all()), set())
 
         # our surveyor's API token will have been deleted
-        self.assertEqual(self.admin.api_tokens.count(), 2)
-        self.assertEqual(self.editor.api_tokens.count(), 2)
-        self.assertEqual(self.surveyor.api_tokens.count(), 0)
+        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 2)
+        self.assertEqual(self.editor.api_tokens.filter(is_active=True).count(), 2)
+        self.assertEqual(self.surveyor.api_tokens.filter(is_active=True).count(), 0)
 
         # next we leave existing roles unchanged, but try to invite new user to be admin with invalid email address
         post_data['invite_emails'] = "norkans7gmail.com"
@@ -439,7 +499,7 @@ class OrgTest(TembaTest):
         # try again with valid email
         post_data['invite_emails'] = "norkans7@gmail.com"
         response = self.client.post(url, post_data)
-        self.assertRedirect(response, reverse('orgs.org_home'))
+        self.assertRedirect(response, reverse('orgs.org_manage_accounts'))
 
         # an invitation is created
         invitation = Invitation.objects.get()
@@ -506,11 +566,11 @@ class OrgTest(TembaTest):
 
         # editor will have lost their editor API token, but not their surveyor token
         self.editor.refresh_from_db()
-        self.assertEqual([t.role.name for t in self.editor.api_tokens.all()], ["Surveyors"])
+        self.assertEqual([t.role.name for t in self.editor.api_tokens.filter(is_active=True)], ["Surveyors"])
 
-        # and all our API tokens for this org are deleted
+        # and all our API tokens for the admin are deleted
         self.admin.refresh_from_db()
-        self.assertEqual(self.admin.api_tokens.count(), 0)
+        self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
 
     @patch('temba.utils.email.send_temba_email')
     def test_join(self, mock_send_temba_email):
@@ -644,6 +704,63 @@ class OrgTest(TembaTest):
         response = self.client.post('/users/login/', {'username': 'surveyor@gmail.com', 'password': 'password'}, follow=True)
         self.assertEquals(200, response.status_code)
         self.assertEquals(reverse('orgs.org_surveyor'), response._request.path)
+
+    def test_surveyor(self):
+        self.client.logout()
+        url = '%s?mobile=true' % reverse('orgs.org_surveyor')
+
+        # try creating a surveyor account with a bogus password
+        post_data = dict(surveyor_password='badpassword')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'Invalid surveyor password, please check with your project leader and try again.')
+
+        # save a surveyor password
+        self.org.surveyor_password = 'nyaruka'
+        self.org.save()
+
+        # now lets try again
+        post_data = dict(surveyor_password='nyaruka')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'Enter your details below to create your account.')
+
+        # now try creating an account on the second step without and surveyor_password
+        post_data = dict(first_name='Marshawn', last_name='Lynch',
+                         password='beastmode24', email='beastmode@seahawks.com')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'Enter your details below to create your account.')
+
+        # now do the same but with a valid surveyor_password
+        post_data = dict(first_name='Marshawn', last_name='Lynch',
+                         password='beastmode24', email='beastmode@seahawks.com',
+                         surveyor_password='nyaruka')
+        response = self.client.post(url, post_data)
+        self.assertTrue('token' in response.url)
+        self.assertTrue('beastmode' in response.url)
+        self.assertTrue('Temba' in response.url)
+
+        # try with a login that already exists
+        post_data = dict(first_name='Resused', last_name='Email',
+                         password='mypassword1', email='beastmode@seahawks.com',
+                         surveyor_password='nyaruka')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'That email address is already used')
+
+        # try with a login that already exists
+        post_data = dict(first_name='Short', last_name='Password',
+                         password='short', email='thomasrawls@seahawks.com',
+                         surveyor_password='nyaruka')
+        response = self.client.post(url, post_data)
+        self.assertContains(response, 'Passwords must contain at least 8 letters')
+
+        # finally make sure our login works
+        success = self.client.login(username='beastmode@seahawks.com', password='beastmode24')
+        self.assertTrue(success)
+
+        # and that we only have the surveyor role
+        self.assertIsNotNone(self.org.surveyors.filter(username='beastmode@seahawks.com').first())
+        self.assertIsNone(self.org.administrators.filter(username='beastmode@seahawks.com').first())
+        self.assertIsNone(self.org.editors.filter(username='beastmode@seahawks.com').first())
+        self.assertIsNone(self.org.viewers.filter(username='beastmode@seahawks.com').first())
 
     def test_choose(self):
         self.client.logout()
@@ -1727,8 +1844,8 @@ class BulkExportTest(TembaTest):
     def test_export_import(self):
 
         def assert_object_counts():
-            self.assertEquals(8, Flow.objects.filter(org=self.org, is_archived=False, flow_type='F').count())
-            self.assertEquals(2, Flow.objects.filter(org=self.org, is_archived=False, flow_type='M').count())
+            self.assertEquals(8, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type='F').count())
+            self.assertEquals(2, Flow.objects.filter(org=self.org, is_active=True, is_archived=False, flow_type='M').count())
             self.assertEquals(1, Campaign.objects.filter(org=self.org, is_archived=False).count())
             self.assertEquals(4, CampaignEvent.objects.filter(campaign__org=self.org, event_type='F').count())
             self.assertEquals(2, CampaignEvent.objects.filter(campaign__org=self.org, event_type='M').count())
@@ -1780,11 +1897,11 @@ class BulkExportTest(TembaTest):
         trigger = Trigger.objects.filter(keyword='patient').first()
         self.assertEquals(Flow.objects.filter(name='Register Patient').first(), trigger.flow)
 
-        # our old campaign message flow should be gone now
-        self.assertIsNone(Flow.objects.filter(pk=message_flow.pk).first())
+        # our old campaign message flow should be inactive now
+        self.assertTrue(Flow.objects.filter(pk=message_flow.pk, is_active=False))
 
         # find our new message flow, and see that the original message is there
-        message_flow = Flow.objects.filter(flow_type='M').order_by('pk').first()
+        message_flow = Flow.objects.filter(flow_type='M', is_active=True).order_by('pk').first()
         action_set = Flow.objects.get(pk=message_flow.pk).action_sets.order_by('-y').first()
         actions = action_set.get_actions_dict()
         self.assertEquals("Hi there, just a quick reminder that you have an appointment at The Clinic at @contact.next_appointment. If you can't make it please call 1-888-THE-CLINIC.", actions[0]['msg']['base'])
