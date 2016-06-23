@@ -673,14 +673,18 @@ class Org(SmartModel):
         from temba.channels.models import SEND_URL, TWIML_API
         from temba.ivr.clients import TwilioClient
         channel = self.channels.filter(channel_type=TWIML_API).first()
-        config = channel.config_json()
+
+        try:
+            config = channel.config_json()
+        except:
+            config = None
 
         if config:
             account_sid = config.get(ACCOUNT_SID, None)
             auth_token = config.get(ACCOUNT_TOKEN, None)
-            twiml_api = config.get(SEND_URL, None)
+            base = config.get(SEND_URL, None)
             if account_sid and auth_token:
-                return TwilioClient(account_sid, auth_token, org=self, twiml_api=twiml_api)
+                return TwilioClient(account_sid, auth_token, org=self, base=base)
         return None
 
     def get_nexmo_client(self):
@@ -1104,9 +1108,9 @@ class Org(SmartModel):
         Calculates the oldest non-expired topup that still has credits
         """
         non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by('expires_on')
-        active_topups = non_expired_topups.annotate(used_credits=Sum('topupcredits__used'))\
-                                          .filter(credits__gt=0)\
-                                          .filter(Q(used_credits__lt=F('credits')) | Q(used_credits=None))
+        active_topups = non_expired_topups.annotate(used_credits=Sum('topupcredits__used')) \
+            .filter(credits__gt=0) \
+            .filter(Q(used_credits__lt=F('credits')) | Q(used_credits=None))
 
         return active_topups.first()
 
@@ -1547,7 +1551,6 @@ User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
 User.has_org_perm = _user_has_org_perm
-
 
 USER_GROUPS = (('A', _("Administrator")),
                ('E', _("Editor")),

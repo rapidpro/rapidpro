@@ -232,7 +232,7 @@ class TwimlAPIHandler(View):
         if action == 'receive':
 
             org = channel.org
-            client = org.get_twiml_client(channel=channel)
+            client = org.get_twiml_client()
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
