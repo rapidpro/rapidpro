@@ -50,7 +50,6 @@ from .views import TWILIO_SUPPORTED_COUNTRIES
 
 
 class ChannelTest(TembaTest):
-
     def setUp(self):
         super(ChannelTest, self).setUp()
 
@@ -441,9 +440,9 @@ class ChannelTest(TembaTest):
 
         # simulate a sync in back in two hours
         post_data = dict(cmds=[
-                         # device details status
-                         dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60",
-                              net="UMTS", pending=[], retry=[])])
+            # device details status
+            dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60",
+                 net="UMTS", pending=[], retry=[])])
         self.sync(channel, post_data)
         sync_event = SyncEvent.objects.all()[0]
         sync_event.created_on = timezone.now() - timedelta(hours=2)
@@ -508,7 +507,6 @@ class ChannelTest(TembaTest):
 
         ts = int(time.time())
         if not signature:
-
             # sign the request
             key = str(channel.secret) + str(ts)
             signature = hmac.new(key=key, msg=bytes(post_data), digestmod=hashlib.sha256).digest()
@@ -635,16 +633,16 @@ class ChannelTest(TembaTest):
 
     def test_read(self):
         post_data = dict(cmds=[
-                         # device details status
-                         dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60",
-                              net="UMTS", pending=[], retry=[])])
+            # device details status
+            dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60",
+                 net="UMTS", pending=[], retry=[])])
 
         # now send the channel's updates
         self.sync(self.tel_channel, post_data)
         post_data = dict(cmds=[
-                         # device details status
-                         dict(cmd="status", p_sts="FUL", p_src="AC", p_lvl="100",
-                              net="WIFI", pending=[], retry=[])])
+            # device details status
+            dict(cmd="status", p_sts="FUL", p_src="AC", p_lvl="100",
+                 net="WIFI", pending=[], retry=[])])
 
         # now send the channel's updates
         self.sync(self.tel_channel, post_data)
@@ -1223,7 +1221,6 @@ class ChannelTest(TembaTest):
         self.assertEquals('T', twilio_channel.channel_type)
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.update') as mock_numbers:
-
             # our twilio channel removal should fail on bad auth
             mock_numbers.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure', code=20003)
             self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
@@ -1533,7 +1530,6 @@ class ChannelTest(TembaTest):
 
         with patch('temba.channels.views.plivo.RestAPI.get_account') as mock_plivo_get_account:
             with patch('temba.channels.views.plivo.RestAPI.create_application') as mock_plivo_create_application:
-
                 with patch('temba.channels.models.plivo.RestAPI.get_number') as mock_plivo_get_number:
                     with patch('temba.channels.models.plivo.RestAPI.buy_phone_number') as mock_plivo_buy_phone_number:
                         mock_plivo_get_account.return_value = (200, MockResponse(200, json.dumps(dict())))
@@ -2064,7 +2060,6 @@ class ChannelTest(TembaTest):
 
 
 class ChannelBatchTest(TembaTest):
-
     def test_time_utils(self):
         from temba.utils import datetime_to_ms, ms_to_datetime
         now = timezone.now()
@@ -2075,7 +2070,6 @@ class ChannelBatchTest(TembaTest):
 
 
 class ChannelEventTest(TembaTest):
-
     def test_create(self):
         now = timezone.now()
         event = ChannelEvent.create(self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, 300)
@@ -2092,7 +2086,6 @@ class ChannelEventTest(TembaTest):
 
 
 class ChannelEventCRUDLTest(TembaTest):
-
     def test_calls(self):
         now = timezone.now()
         ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, 600)
@@ -2109,7 +2102,6 @@ class ChannelEventCRUDLTest(TembaTest):
 
 
 class SyncEventTest(SmartminTest):
-
     def setUp(self):
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
         self.user = self.create_user("tito")
@@ -2135,7 +2127,6 @@ class SyncEventTest(SmartminTest):
 
 
 class ChannelAlertTest(TembaTest):
-
     def test_no_alert_email(self):
         # set our last seen to a while ago
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
@@ -2703,7 +2694,6 @@ class ChannelAlertTest(TembaTest):
 
 
 class CountTest(TembaTest):
-
     def assertDailyCount(self, channel, assert_count, count_type, day):
         calculated_count = ChannelCount.get_day_count(channel, count_type, day)
         self.assertEquals(assert_count, calculated_count)
@@ -2779,7 +2769,6 @@ class CountTest(TembaTest):
 
 
 class AfricasTalkingTest(TembaTest):
-
     def setUp(self):
         super(AfricasTalkingTest, self).setUp()
 
@@ -2895,7 +2884,6 @@ class AfricasTalkingTest(TembaTest):
 
 
 class ExternalTest(TembaTest):
-
     def setUp(self):
         super(ExternalTest, self).setUp()
 
@@ -3190,8 +3178,8 @@ class YoTest(TembaTest):
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "ybs_autocreate_status=ERROR&ybs_autocreate_message=" +
-                                                      "YBS+AutoCreate+Subsystem%3A+Access+denied" +
-                                                      "+due+to+wrong+authorization+code")
+                                                 "YBS+AutoCreate+Subsystem%3A+Access+denied" +
+                                                 "+due+to+wrong+authorization+code")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
@@ -3230,7 +3218,6 @@ class YoTest(TembaTest):
 
 
 class ShaqodoonTest(TembaTest):
-
     def setUp(self):
         from temba.channels.models import USERNAME, PASSWORD, KEY
 
@@ -3298,7 +3285,6 @@ class ShaqodoonTest(TembaTest):
 
 
 class M3TechTest(TembaTest):
-
     def setUp(self):
         from temba.channels.models import USERNAME, PASSWORD
 
@@ -3401,7 +3387,6 @@ class M3TechTest(TembaTest):
 
 
 class KannelTest(TembaTest):
-
     def setUp(self):
         super(KannelTest, self).setUp()
 
@@ -3597,7 +3582,6 @@ class KannelTest(TembaTest):
 
 
 class NexmoTest(TembaTest):
-
     def setUp(self):
         super(NexmoTest, self).setUp()
 
@@ -3757,6 +3741,7 @@ class NexmoTest(TembaTest):
                     else:
                         return MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id': 12}])),
                                             method='POST')
+
                 mock.side_effect = return_valid
 
                 # manually send it off
@@ -3784,7 +3769,6 @@ class NexmoTest(TembaTest):
 
 
 class VumiTest(TembaTest):
-
     def setUp(self):
         super(VumiTest, self).setUp()
 
@@ -3821,7 +3805,7 @@ class VumiTest(TembaTest):
     def test_delivery_reports(self):
 
         sms = self.create_msg(direction='O', text='Outgoing message', contact=self.trey, status=WIRED,
-                              external_id=unicode(uuid.uuid4()),)
+                              external_id=unicode(uuid.uuid4()), )
 
         data = dict(event_type='delivery_report',
                     event_id=unicode(uuid.uuid4()),
@@ -3974,7 +3958,6 @@ class VumiTest(TembaTest):
 
 
 class ZenviaTest(TembaTest):
-
     def setUp(self):
         super(ZenviaTest, self).setUp()
 
@@ -4073,7 +4056,6 @@ class ZenviaTest(TembaTest):
 
 
 class InfobipTest(TembaTest):
-
     def setUp(self):
         super(InfobipTest, self).setUp()
 
@@ -4178,7 +4160,6 @@ class InfobipTest(TembaTest):
 
 
 class BlackmynaTest(TembaTest):
-
     def setUp(self):
         super(BlackmynaTest, self).setUp()
 
@@ -4315,7 +4296,6 @@ class BlackmynaTest(TembaTest):
 
 
 class SMSCentralTest(TembaTest):
-
     def setUp(self):
         super(SMSCentralTest, self).setUp()
 
@@ -4395,7 +4375,6 @@ class SMSCentralTest(TembaTest):
 
 
 class Hub9Test(TembaTest):
-
     def setUp(self):
         super(Hub9Test, self).setUp()
 
@@ -4502,7 +4481,6 @@ class Hub9Test(TembaTest):
 
 
 class HighConnectionTest(TembaTest):
-
     def setUp(self):
         super(HighConnectionTest, self).setUp()
 
@@ -4594,7 +4572,6 @@ class HighConnectionTest(TembaTest):
 
 
 class TwilioTest(TembaTest):
-
     def setUp(self):
         super(TwilioTest, self).setUp()
 
@@ -4815,7 +4792,6 @@ class TwilioTest(TembaTest):
 
 
 class TwilioMessagingServiceTest(TembaTest):
-
     def setUp(self):
         super(TwilioMessagingServiceTest, self).setUp()
 
@@ -4943,26 +4919,24 @@ class TwilioMessagingServiceTest(TembaTest):
 
 
 class TwimlAPITest(TembaTest):
-
     def setUp(self):
         super(TwimlAPITest, self).setUp()
 
         self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'BR', 'TW', '8299999999', '8299999999',
-                                      config=dict(ACCOUNT_SID="ACe54dc36bfd2a3b483b7ed854b2dd40c1", ACCOUNT_TOKEN='0b14d47901387c03f92253a4e4449d5e', SEND_URL='https://api.twilio.com'),
+        self.channel = Channel.create(self.org, self.user, 'US', 'TW', None, None,
+                                      config=dict(ACCOUNT_SID="ACd0394bd0efbc9d6b03c823d85358efc0", ACCOUNT_TOKEN='18e6572a1ec74d9486b29ad8812c5d80', SEND_URL='https://api.twilio.com'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):
-        # twilio test credentials
-        account_sid = "ACe54dc36bfd2a3b483b7ed854b2dd40c1"
-        account_token = "0b14d47901387c03f92253a4e4449d5e"
+        account_sid = "ACd0394bd0efbc9d6b03c823d85358efc0"
+        account_token = "18e6572a1ec74d9486b29ad8812c5d80"
         send_url = "https://api.twilio.com"
 
-        self.channel.org.config = json.dumps({ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token,
-                                              SEND_URL: send_url})
-        self.channel.org.save()
+        self.channel.config = json.dumps({ACCOUNT_SID: account_sid, ACCOUNT_TOKEN: account_token,
+                                          SEND_URL: send_url})
+        self.channel.save()
 
-        post_data = dict(to='+558299999999', From='+250788383383', Body="Hello World")
+        post_data = dict(From='+250788383300', Body="Hello World")
         twiml_api_url = reverse('handlers.twiml_api_handler', args=['receive', self.channel.uuid])
 
         try:
@@ -4971,7 +4945,6 @@ class TwimlAPITest(TembaTest):
         except ValidationError:
             pass
 
-        # this time sign it appropriately, should work
         client = self.org.get_twiml_client()
         validator = RequestValidator(client.auth[1])
         signature = validator.compute_signature(
@@ -4984,21 +4957,15 @@ class TwimlAPITest(TembaTest):
 
         # and we should have a new message
         msg1 = Msg.all_messages.get()
-        self.assertEquals("+250788383383", msg1.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals("+250788383300", msg1.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg1.direction)
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
 
     def test_send(self):
-        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
         channel_config = Channel.objects.filter(org=self.org, channel_type=TWIML_API).first()
         config = channel_config.config
-        # config[ACCOUNT_SID] = 'ACe54dc36bfd2a3b483b7ed854b2dd40c1'
-        # config[ACCOUNT_TOKEN] = '0b14d47901387c03f92253a4e4449d5e'
-        # config[SEND_URL] = 'https://api.twilio.com'
-        # self.org.config = json.dumps(config)
-        # self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
         bcast = joe.send("Test message", self.admin, trigger_send=False)
@@ -5070,7 +5037,6 @@ class TwimlAPITest(TembaTest):
 
 
 class ClickatellTest(TembaTest):
-
     def setUp(self):
         super(ClickatellTest, self).setUp()
 
@@ -5344,7 +5310,6 @@ class ClickatellTest(TembaTest):
 
 
 class TelegramTest(TembaTest):
-
     def setUp(self):
         super(TelegramTest, self).setUp()
 
@@ -5392,12 +5357,10 @@ class TelegramTest(TembaTest):
         self.assertEqual(msg1.contact.name, 'Nic Pottier')
 
         def test_file_message(data, file_path, content_type, extension):
-
             Msg.all_messages.all().delete()
 
             with patch('requests.post') as post:
                 with patch('requests.get') as get:
-
                     post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
                     get.return_value = MockResponse(200, "Fake image bits", headers={"Content-Type": content_type})
 
@@ -5654,7 +5617,6 @@ class TelegramTest(TembaTest):
 
 
 class PlivoTest(TembaTest):
-
     def setUp(self):
         super(PlivoTest, self).setUp()
 
@@ -5767,7 +5729,6 @@ class PlivoTest(TembaTest):
 
 
 class TwitterTest(TembaTest):
-
     def setUp(self):
         super(TwitterTest, self).setUp()
 
@@ -5919,7 +5880,6 @@ class TwitterTest(TembaTest):
 
 
 class MageHandlerTest(TembaTest):
-
     def setUp(self):
         super(MageHandlerTest, self).setUp()
 
@@ -6084,7 +6044,6 @@ class MageHandlerTest(TembaTest):
 
 
 class StartMobileTest(TembaTest):
-
     def setUp(self):
         super(StartMobileTest, self).setUp()
 
@@ -6209,7 +6168,6 @@ class StartMobileTest(TembaTest):
 
 
 class ChikkaTest(TembaTest):
-
     def setUp(self):
         super(ChikkaTest, self).setUp()
 
@@ -6353,7 +6311,6 @@ class ChikkaTest(TembaTest):
 
 
 class JasminTest(TembaTest):
-
     def setUp(self):
         super(JasminTest, self).setUp()
 
@@ -6462,7 +6419,6 @@ class JasminTest(TembaTest):
 
 
 class MbloxTest(TembaTest):
-
     def setUp(self):
         super(MbloxTest, self).setUp()
 
@@ -6582,7 +6538,6 @@ class MbloxTest(TembaTest):
 
 
 class FacebookTest(TembaTest):
-
     def setUp(self):
         super(FacebookTest, self).setUp()
 
