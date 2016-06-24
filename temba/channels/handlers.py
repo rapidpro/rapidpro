@@ -239,7 +239,7 @@ class TwimlAPIHandler(View):
                 # raise an exception that things weren't properly signed
                 raise ValidationError("Invalid request signature")
 
-            Msg.create_incoming(channel, (TEL_SCHEME, request.POST['From']), request.POST['Body'])
+            Msg.create_incoming(channel, URN.from_tel(request.POST['From']), request.POST['Body'])
 
             return HttpResponse("", status=201)
 
