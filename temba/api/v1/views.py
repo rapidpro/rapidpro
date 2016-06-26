@@ -1851,7 +1851,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
     run has the following attributes:
 
-    * **uuid** - the UUID of the run (string) (filterable: ```uuid``` repeatable)
+    * **run** - the id of the run (integer) (filterable: ```run``` repeatable)
     * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` repeatable)
     * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` repeatable)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
@@ -1875,7 +1875,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "previous": null,
             "results": [
             {
-                "uuid": "988e040c-33ff-4917-a36e-8cfa6a5ac731",
+                "run": 10150051,
                 "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-03-02T17:28:12",
@@ -2032,7 +2032,6 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             queryset = queryset.filter(org=org)
 
         # other queries on the runs themselves...
-
         runs = splitting_getlist(self.request, 'run')
         if runs:
             queryset = queryset.filter(pk__in=runs)
