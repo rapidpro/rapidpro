@@ -79,9 +79,9 @@ class Trigger(SmartModel):
         """
         return dict(trigger_type=self.trigger_type,
                     keyword=self.keyword,
-                    flow=dict(id=self.flow.pk, name=self.flow.name),
-                    groups=[dict(id=group.pk, name=group.name) for group in self.groups.all()],
-                    channel=self.channel.pk if self.channel else None)
+                    flow=dict(uuid=self.flow.uuid, name=self.flow.name),
+                    groups=[dict(uuid=group.uuid, name=group.name) for group in self.groups.all()],
+                    channel=self.channel.uuid if self.channel else None)
 
     @classmethod
     def import_triggers(cls, exported_json, org, user, same_site=False):
@@ -103,7 +103,7 @@ class Trigger(SmartModel):
                     group = None
 
                     if same_site:
-                        group = ContactGroup.user_groups.filter(org=org, pk=group_spec['id']).first()
+                        group = ContactGroup.user_groups.filter(org=org, uuid=group_spec['uuid']).first()
 
                     if not group:
                         group = ContactGroup.get_user_group(org, group_spec['name'])
@@ -117,7 +117,7 @@ class Trigger(SmartModel):
 
                     groups.append(group)
 
-                flow = Flow.objects.get(org=org, pk=trigger_spec['flow']['id'], is_active=True)
+                flow = Flow.objects.get(org=org, uuid=trigger_spec['flow']['uuid'], is_active=True)
 
                 # see if that trigger already exists
                 trigger = Trigger.objects.filter(org=org, trigger_type=trigger_spec['trigger_type'])
@@ -138,7 +138,7 @@ class Trigger(SmartModel):
                     # if we have a channel resolve it
                     channel = trigger_spec.get('channel', None)  # older exports won't have a channel
                     if channel:
-                        channel = Channel.objects.filter(pk=channel, org=org).first()
+                        channel = Channel.objects.filter(uuid=channel, org=org).first()
 
                     trigger = Trigger.objects.create(org=org, trigger_type=trigger_spec['trigger_type'],
                                                      keyword=trigger_spec['keyword'], flow=flow,

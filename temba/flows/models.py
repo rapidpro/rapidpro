@@ -262,14 +262,14 @@ class Flow(TembaModel):
         flow = Flow.create(org, user, name, base_language=base_language)
 
         uuid = unicode(uuid4())
-        actions = [dict(type='add_group', group=dict(id=group.pk, name=group.name)),
+        actions = [dict(type='add_group', group=dict(uuid=group.uuid, name=group.name)),
                    dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
         if response:
             actions += [dict(type='reply', msg={base_language: response})]
 
         if start_flow:
-            actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
+            actions += [dict(type='flow', flow=dict(uuid=start_flow.uuid, name=start_flow.name))]
 
         action_sets = [dict(x=100, y=0, uuid=uuid, actions=actions)]
         flow.update(dict(entry=uuid, base_language=base_language,
@@ -299,7 +299,7 @@ class Flow(TembaModel):
                     for action in action_set.get('actions', []):
                         action_type = action['type']
                         if action_type == StartFlowAction.TYPE or action_type == TriggerFlowAction.TYPE:
-                            other_flows.add(action['name'].strip())
+                            other_flows.add(action['flow']['name'].strip())
 
                 if len(other_flows):
                     raise FlowReferenceException(other_flows)
@@ -328,14 +328,13 @@ class Flow(TembaModel):
             raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
 
         created_flows = []
-        flow_id_map = dict()
+        flow_uuid_map = dict()
+
+        if export_version < CURRENT_EXPORT_VERSION:
+            exported_json = FlowRevision.migrate_export(org, exported_json, export_version)
 
         # create all the flow containers first
         for flow_spec in exported_json['flows']:
-
-            # migrate our flow definition forward if necessary
-            if export_version < CURRENT_EXPORT_VERSION:
-                flow_spec = FlowRevision.migrate_definition(flow_spec, export_version)
 
             FlowRevision.validate_flow_definition(flow_spec)
 
@@ -349,7 +348,7 @@ class Flow(TembaModel):
             if flow_type != Flow.MESSAGE:
                 # check if we can find that flow by id first
                 if same_site:
-                    flow = Flow.objects.filter(org=org, is_active=True, id=flow_spec['metadata']['id']).first()
+                    flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec['metadata']['uuid']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(org, name, ignore=flow)
@@ -365,30 +364,32 @@ class Flow(TembaModel):
                                        expires_after_minutes=flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
 
                 created_flows.append(dict(flow=flow, flow_spec=flow_spec))
-                flow_id_map[flow_spec['metadata']['id']] = flow.pk
+
+                if 'uuid' in flow_spec['metadata']:
+                    flow_uuid_map[flow_spec['metadata']['uuid']] = flow.uuid
 
         # now let's update our flow definitions with any referenced flows
         def remap_flow(element):
             # first map our id accordingly
-            if element['id'] in flow_id_map:
-                element['id'] = flow_id_map[element['id']]
+            if element['uuid'] in flow_uuid_map:
+                element['uuid'] = flow_uuid_map[element['uuid']]
 
-            existing_flow = Flow.objects.filter(id=element['id'], org=org, is_active=True).first()
+            existing_flow = Flow.objects.filter(uuid=element['uuid'], org=org, is_active=True).first()
             if not existing_flow:
                 existing_flow = Flow.objects.filter(org=org, name=element['name'], is_active=True).first()
                 if existing_flow:
-                    element['id'] = existing_flow.pk
+                    element['uuid'] = existing_flow.uuid
 
         for created in created_flows:
+            for ruleset in created['flow_spec'][Flow.RULE_SETS]:
+                if ruleset['ruleset_type'] == RuleSet.TYPE_SUBFLOW:
+                    remap_flow(ruleset['config']['flow'])
+
             for actionset in created['flow_spec'][Flow.ACTION_SETS]:
                 for action in actionset['actions']:
                     if action['type'] in ['flow', 'trigger-flow']:
-                        remap_flow(action)
-
-            for ruleset in created['flow_spec'][Flow.RULE_SETS]:
-                if ruleset['ruleset_type'] == 'subflow':
-                    remap_flow(ruleset['config']['flow'])
-
+                        remap_flow(action['flow'])
+            remap_flow(created['flow_spec']['metadata'])
             created['flow'].import_definition(created['flow_spec'])
 
         # remap our flow ids according to how they were resolved
@@ -396,16 +397,18 @@ class Flow(TembaModel):
             for campaign in exported_json['campaigns']:
                 for event in campaign['events']:
                     if 'flow' in event:
-                        flow_id = event['flow']['id']
-                        if flow_id in flow_id_map:
-                            event['flow']['id'] = flow_id_map[flow_id]
+                        flow_uuid = event['flow']['uuid']
+                        if flow_uuid in flow_uuid_map:
+                            event['flow']['uuid'] = flow_uuid_map[flow_uuid]
 
         if 'triggers' in exported_json:
             for trigger in exported_json['triggers']:
                 if 'flow' in trigger:
-                    flow_id = trigger['flow']['id']
-                    if flow_id in flow_id_map:
-                        trigger['flow']['id'] = flow_id_map[flow_id]
+                    flow_uuid = trigger['flow']['uuid']
+                    if flow_uuid in flow_uuid_map:
+                        trigger['flow']['uuid'] = flow_uuid_map[flow_uuid]
+
+        return exported_json
 
     @classmethod
     def copy(cls, flow, user):
@@ -690,8 +693,8 @@ class Flow(TembaModel):
         if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
 
             if not resume_parent_run:
-                flow_id = json.loads(ruleset.config).get('flow').get('id')
-                flow = Flow.objects.filter(org=run.org, pk=flow_id).first()
+                flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
                 message_context = run.flow.build_message_context(run.contact, msg)
 
                 # our extra will be the current flow variables
@@ -796,6 +799,9 @@ class Flow(TembaModel):
 
             flow_context['__default__'] = "\n".join(values)
         return flow_context
+
+    def as_select2(self):
+        return dict(id=self.uuid, text=self.name)
 
     def release(self):
         """
@@ -1912,34 +1918,37 @@ class Flow(TembaModel):
             actionsets.append(actionset.as_json())
 
         def lookup_action_contacts(action, contacts, groups):
+
             if 'contact' in action:
-                contacts.append(action['contact']['id'])
+                contacts.append(action['contact']['uuid'])
 
             if 'contacts' in action:
                 for contact in action['contacts']:
-                    contacts.append(contact['id'])
+                    contacts.append(contact['uuid'])
 
             if 'group' in action:
                 g = action['group']
                 if isinstance(g, dict):
-                    groups.append(g['id'])
+                    if 'uuid' in g:
+                        groups.append(g['uuid'])
 
             if 'groups' in action:
                 for group in action['groups']:
                     if isinstance(group, dict):
-                        groups.append(group['id'])
+                        if 'uuid' in groups:
+                            groups.append(group['uuid'])
 
         def replace_action_contacts(action, contacts, groups):
 
             if 'contact' in action:
-                contact = contacts.get(action['contact']['id'], None)
+                contact = contacts.get(action['contact']['uuid'], None)
                 if contact:
                     action['contact'] = contact.as_json()
 
             if 'contacts' in action:
                 expanded_contacts = []
                 for contact in action['contacts']:
-                    contact = contacts.get(contact['id'], None)
+                    contact = contacts.get(contact['uuid'], None)
                     if contact:
                         expanded_contacts.append(contact.as_json())
 
@@ -1949,9 +1958,10 @@ class Flow(TembaModel):
                 # variable substitution
                 group = action['group']
                 if isinstance(group, dict):
-                    group = groups.get(action['group']['id'], None)
-                    if group:
-                        action['group'] = dict(id=group.id, name=group.name)
+                    if 'uuid' in group:
+                        group = groups.get(group['uuid'], None)
+                        if group:
+                            action['group'] = dict(uuid=group.uuid, name=group.name)
 
             if 'groups' in action:
                 expanded_groups = []
@@ -1961,9 +1971,10 @@ class Flow(TembaModel):
                     if not isinstance(group, dict):
                         expanded_groups.append(group)
                     else:
-                        group = groups.get(group['id'], None)
-                        if group:
-                            expanded_groups.append(dict(id=group.id, name=group.name))
+                        if 'uuid' in group:
+                            group = groups.get(group['uuid'], None)
+                            if group:
+                                expanded_groups.append(dict(uuid=group.uuid, name=group.name))
 
                 action['groups'] = expanded_groups
 
@@ -1976,8 +1987,8 @@ class Flow(TembaModel):
                     lookup_action_contacts(action, contacts, groups)
 
             # load them all
-            contacts = dict((_.pk, _) for _ in Contact.all().filter(org=self.org, pk__in=contacts))
-            groups = dict((_.pk, _) for _ in ContactGroup.user_groups.filter(org=self.org, pk__in=groups))
+            contacts = dict((_.uuid, _) for _ in Contact.all().filter(org=self.org, uuid__in=contacts))
+            groups = dict((_.uuid, _) for _ in ContactGroup.user_groups.filter(org=self.org, uuid__in=groups))
 
             # and replace them
             for actionset in actionsets:
@@ -2007,7 +2018,7 @@ class Flow(TembaModel):
         flow[Flow.METADATA][Flow.NAME] = self.name
         flow[Flow.METADATA][Flow.SAVED_ON] = datetime_to_str(self.saved_on)
         flow[Flow.METADATA][Flow.REVISION] = revision.revision if revision else 1
-        flow[Flow.METADATA][Flow.ID] = self.pk
+        flow[Flow.METADATA][Flow.UUID] = self.uuid
         flow[Flow.METADATA][Flow.EXPIRES] = self.expires_after_minutes
 
         return flow
@@ -2382,6 +2393,8 @@ class Flow(TembaModel):
             import logging
             logger = logging.getLogger(__name__)
             logger.exception(unicode(e))
+            import traceback
+            traceback.print_exc(e)
             raise e
 
     def __unicode__(self):
@@ -3282,16 +3295,38 @@ class FlowRevision(SmartModel):
                 validate_localization(rule['category'])
 
     @classmethod
-    def migrate_definition(cls, json_flow, version, to_version=None):
+    def migrate_export(cls, org, exported_json, version, to_version=None):
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
 
         from temba.flows import flow_migrations
+        while version < to_version and version < CURRENT_EXPORT_VERSION:
 
+            migrate_fn = getattr(flow_migrations, 'migrate_export_to_version_%d' % (version + 1), None)
+            if migrate_fn:
+                exported_json = migrate_fn(exported_json, org)
+            else:
+                flows = []
+                for json_flow in exported_json.get('flows', []):
+                    migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
+                    if migrate_fn:
+                        json_flow = migrate_fn(json_flow, org)
+                    flows.append(json_flow)
+                exported_json['flows'] = flows
+
+            version += 1
+
+        return exported_json
+
+    @classmethod
+    def migrate_definition(cls, org, json_flow, version, to_version=None):
+        if not to_version:
+            to_version = CURRENT_EXPORT_VERSION
+        from temba.flows import flow_migrations
         while version < to_version and version < CURRENT_EXPORT_VERSION:
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
-                json_flow = migrate_fn(json_flow)
+                json_flow = migrate_fn(json_flow, org)
             version += 1
 
         return json_flow
@@ -3309,7 +3344,7 @@ class FlowRevision(SmartModel):
 
         # migrate our definition if necessary
         if self.spec_version < CURRENT_EXPORT_VERSION:
-            definition = FlowRevision.migrate_definition(definition, self.spec_version, self.flow)
+            definition = FlowRevision.migrate_definition(self.flow.org, definition, self.spec_version)
         return definition
 
     def as_json(self, include_definition=False):
@@ -4204,7 +4239,7 @@ class AddToGroupAction(Action):
     TYPE = 'add_group'
     GROUP = 'group'
     GROUPS = 'groups'
-    ID = 'id'
+    UUID = 'uuid'
     NAME = 'name'
 
     def __init__(self, groups):
@@ -4227,15 +4262,10 @@ class AddToGroupAction(Action):
         groups = []
         for g in group_data:
             if isinstance(g, dict):
-                group_id = g.get(AddToGroupAction.ID, None)
+                group_uuid = g.get(AddToGroupAction.UUID, None)
                 group_name = g.get(AddToGroupAction.NAME)
 
-                try:
-                    group_id = int(group_id)
-                except Exception:
-                    group_id = None
-
-                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_id)
+                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_uuid)
                 groups.append(group)
             else:
                 if g and g[0] == '@':
@@ -4252,7 +4282,7 @@ class AddToGroupAction(Action):
         groups = []
         for g in self.groups:
             if isinstance(g, ContactGroup):
-                groups.append(dict(id=g.pk, name=g.name))
+                groups.append(dict(uuid=g.uuid, name=g.name))
             else:
                 groups.append(g)
 
@@ -4547,6 +4577,7 @@ class VariableContactAction(Action):
     VARIABLES = 'variables'
     PHONE = 'phone'
     NAME = 'name'
+    UUID = 'uuid'
     ID = 'id'
 
     def __init__(self, groups, contacts, variables):
@@ -4559,10 +4590,10 @@ class VariableContactAction(Action):
         # we actually instantiate our contacts here
         groups = []
         for group_data in json_obj.get(VariableContactAction.GROUPS):
-            group_id = group_data.get(VariableContactAction.ID, None)
+            group_uuid = group_data.get(VariableContactAction.UUID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_id)
+            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_uuid)
             groups.append(group)
 
         return groups
@@ -4573,9 +4604,9 @@ class VariableContactAction(Action):
         for contact in json_obj.get(VariableContactAction.CONTACTS):
             name = contact.get(VariableContactAction.NAME, None)
             phone = contact.get(VariableContactAction.PHONE, None)
-            contact_id = contact.get(VariableContactAction.ID, None)
+            contact_uuid = contact.get(VariableContactAction.UUID, None)
 
-            contact = Contact.objects.filter(pk=contact_id, org=org).first()
+            contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
             if not contact and phone:
                 contact = Contact.get_or_create(org, org.created_by, name=None, urns=[(TEL_SCHEME, phone)])
 
@@ -4644,8 +4675,10 @@ class TriggerFlowAction(VariableContactAction):
 
     @classmethod
     def from_json(cls, org, json_obj):
-        flow_pk = json_obj.get(cls.ID)
-        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, pk=flow_pk).first()
+        flow_json = json_obj.get('flow')
+        uuid = flow_json.get('uuid')
+        flow = Flow.objects.filter(org=org, is_active=True,
+                                   is_archived=False, uuid=uuid).first()
 
         # it is possible our flow got deleted
         if not flow:
@@ -4661,7 +4694,7 @@ class TriggerFlowAction(VariableContactAction):
         contact_ids = [dict(id=_.pk) for _ in self.contacts]
         group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
-        return dict(type=TriggerFlowAction.TYPE, id=self.flow.pk, name=self.flow.name,
+        return dict(type=TriggerFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name),
                     contacts=contact_ids, groups=group_ids, variables=variables)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
@@ -4745,16 +4778,19 @@ class StartFlowAction(Action):
     Action that starts the contact into another flow
     """
     TYPE = 'flow'
-    ID = 'id'
+    FLOW = 'flow'
     NAME = 'name'
+    UUID = 'uuid'
 
     def __init__(self, flow):
         self.flow = flow
 
     @classmethod
     def from_json(cls, org, json_obj):
-        flow_pk = json_obj.get(cls.ID)
-        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, pk=flow_pk).first()
+        flow_obj = json_obj.get(cls.FLOW)
+        flow_uuid = flow_obj.get(cls.UUID)
+
+        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, uuid=flow_uuid).first()
 
         # it is possible our flow got deleted
         if not flow:
@@ -4763,7 +4799,7 @@ class StartFlowAction(Action):
             return StartFlowAction(flow)
 
     def as_json(self):
-        return dict(type=StartFlowAction.TYPE, id=self.flow.pk, name=self.flow.name)
+        return dict(type=StartFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
     def execute(self, run, actionset_uuid, msg, started_flows, offline_on=None):
         message_context = run.flow.build_message_context(run.contact, msg)
@@ -4950,8 +4986,8 @@ class SendAction(VariableContactAction):
         return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables)
 
     def as_json(self):
-        contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
+        contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
+        group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
 

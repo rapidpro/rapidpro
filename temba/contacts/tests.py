@@ -216,7 +216,7 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "  FIRST"), group)
 
         # fetching by id shouldn't modify original group
-        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", group.pk), group)
+        self.assertEqual(ContactGroup.get_or_create(self.org, self.user, "Kigali", group.uuid), group)
 
         group.refresh_from_db()
         self.assertEqual(group.name, "first")
@@ -1067,15 +1067,15 @@ class ContactTest(TembaTest):
 
         self.assertEqual(omnibox_request(""), [
             # all 3 groups A-Z
-            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
-            dict(id='g-%d' % men.pk, text="Men", extra=0),
-            dict(id='g-%d' % nobody.pk, text="Nobody", extra=0),
+            dict(id='g-%s' % joe_and_frank.uuid, text="Joe and Frank", extra=2),
+            dict(id='g-%s' % men.uuid, text="Men", extra=0),
+            dict(id='g-%s' % nobody.uuid, text="Nobody", extra=0),
 
             # all 4 contacts A-Z
-            dict(id='c-%d' % self.billy.pk, text="Billy Nophone"),
-            dict(id='c-%d' % self.frank.pk, text="Frank Smith"),
-            dict(id='c-%d' % self.joe.pk, text="Joe Blow"),
-            dict(id='c-%d' % self.voldemort.pk, text="250788383383"),
+            dict(id='c-%s' % self.billy.uuid, text="Billy Nophone"),
+            dict(id='c-%s' % self.frank.uuid, text="Frank Smith"),
+            dict(id='c-%s' % self.joe.uuid, text="Joe Blow"),
+            dict(id='c-%s' % self.voldemort.uuid, text="250788383383"),
 
             # 3 sendable URNs with names as extra
             dict(id='u-%d' % joe_tel.pk, text="123", extra="Joe Blow", scheme='tel'),
@@ -1087,23 +1087,23 @@ class ContactTest(TembaTest):
 
         # g = just the 3 groups
         self.assertEqual(omnibox_request("types=g"), [
-            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
-            dict(id='g-%d' % men.pk, text="Men", extra=0),
-            dict(id='g-%d' % nobody.pk, text="Nobody", extra=0)
+            dict(id='g-%s' % joe_and_frank.uuid, text="Joe and Frank", extra=2),
+            dict(id='g-%s' % men.uuid, text="Men", extra=0),
+            dict(id='g-%s' % nobody.uuid, text="Nobody", extra=0)
         ])
 
         # s = just the 2 non-dynamic (static) groups
         self.assertEqual(omnibox_request("types=s"), [
-            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
-            dict(id='g-%d' % nobody.pk, text="Nobody", extra=0)
+            dict(id='g-%s' % joe_and_frank.uuid, text="Joe and Frank", extra=2),
+            dict(id='g-%s' % nobody.uuid, text="Nobody", extra=0)
         ])
 
         # c,u = contacts and URNs
         self.assertEqual(omnibox_request("types=c,u"), [
-            dict(id='c-%d' % self.billy.pk, text="Billy Nophone"),
-            dict(id='c-%d' % self.frank.pk, text="Frank Smith"),
-            dict(id='c-%d' % self.joe.pk, text="Joe Blow"),
-            dict(id='c-%d' % self.voldemort.pk, text="250788383383"),
+            dict(id='c-%s' % self.billy.uuid, text="Billy Nophone"),
+            dict(id='c-%s' % self.frank.uuid, text="Frank Smith"),
+            dict(id='c-%s' % self.joe.uuid, text="Joe Blow"),
+            dict(id='c-%s' % self.voldemort.uuid, text="250788383383"),
             dict(id='u-%d' % joe_tel.pk, text="123", extra="Joe Blow", scheme='tel'),
             dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'),
             dict(id='u-%d' % voldemort_tel.pk, text="250788383383", extra=None, scheme='tel')
@@ -1127,27 +1127,27 @@ class ContactTest(TembaTest):
 
         # search for Joe again - match on last name and twitter handle
         self.assertEqual(omnibox_request("search=BLOW"), [
-            dict(id='c-%d' % self.joe.pk, text="Joe Blow"),
+            dict(id='c-%s' % self.joe.uuid, text="Joe Blow"),
             dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
         ])
 
         # make sure our matches are ANDed
         self.assertEqual(omnibox_request("search=Joe+o&types=c"), [
-            dict(id='c-%d' % self.joe.pk, text="Joe Blow")
+            dict(id='c-%s' % self.joe.uuid, text="Joe Blow")
         ])
         self.assertEqual(omnibox_request("search=Joe+o&types=g"), [
-            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
+            dict(id='g-%s' % joe_and_frank.uuid, text="Joe and Frank", extra=2),
         ])
 
         # lookup by contact ids
-        self.assertEqual(omnibox_request("c=%d,%d" % (self.joe.pk, self.frank.pk)), [
-            dict(id='c-%d' % self.frank.pk, text="Frank Smith"),
-            dict(id='c-%d' % self.joe.pk, text="Joe Blow")
+        self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [
+            dict(id='c-%s' % self.frank.uuid, text="Frank Smith"),
+            dict(id='c-%s' % self.joe.uuid, text="Joe Blow")
         ])
 
         # lookup by group id
-        self.assertEqual(omnibox_request("g=%d" % joe_and_frank.pk), [
-            dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2)
+        self.assertEqual(omnibox_request("g=%s" % joe_and_frank.uuid), [
+            dict(id='g-%s' % joe_and_frank.uuid, text="Joe and Frank", extra=2)
         ])
 
         # lookup by URN ids
@@ -1160,7 +1160,7 @@ class ContactTest(TembaTest):
         # lookup by message ids
         msg = self.create_msg(direction='I', contact=self.joe, text="some message")
         self.assertEqual(omnibox_request("m=%d" % msg.pk), [
-            dict(id='c-%d' % self.joe.pk, text="Joe Blow")
+            dict(id='c-%s' % self.joe.uuid, text="Joe Blow")
         ])
 
         # lookup by label ids
@@ -1169,26 +1169,26 @@ class ContactTest(TembaTest):
 
         msg.labels.add(label)
         self.assertEqual(omnibox_request("l=%d" % label.pk), [
-            dict(id='c-%d' % self.joe.pk, text="Joe Blow")
+            dict(id='c-%s' % self.joe.uuid, text="Joe Blow")
         ])
 
         with AnonymousOrg(self.org):
             self.assertEqual(omnibox_request(""), [
                 # all 3 groups...
-                dict(id='g-%d' % joe_and_frank.pk, text="Joe and Frank", extra=2),
-                dict(id='g-%d' % men.pk, text="Men", extra=0),
-                dict(id='g-%d' % nobody.pk, text="Nobody", extra=0),
+                dict(id='g-%s' % joe_and_frank.uuid, text="Joe and Frank", extra=2),
+                dict(id='g-%s' % men.uuid, text="Men", extra=0),
+                dict(id='g-%s' % nobody.uuid, text="Nobody", extra=0),
 
                 # all 4 contacts A-Z
-                dict(id='c-%d' % self.billy.pk, text="Billy Nophone"),
-                dict(id='c-%d' % self.frank.pk, text="Frank Smith"),
-                dict(id='c-%d' % self.joe.pk, text="Joe Blow"),
-                dict(id='c-%d' % self.voldemort.pk, text=self.voldemort.anon_identifier)
+                dict(id='c-%s' % self.billy.uuid, text="Billy Nophone"),
+                dict(id='c-%s' % self.frank.uuid, text="Frank Smith"),
+                dict(id='c-%s' % self.joe.uuid, text="Joe Blow"),
+                dict(id='c-%s' % self.voldemort.uuid, text=self.voldemort.anon_identifier)
             ])
 
             # can search by frank id
             self.assertEqual(omnibox_request("search=%d" % self.frank.pk), [
-                dict(id='c-%d' % self.frank.pk, text="Frank Smith")
+                dict(id='c-%s' % self.frank.uuid, text="Frank Smith")
             ])
 
             # but not by frank number

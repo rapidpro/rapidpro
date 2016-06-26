@@ -154,8 +154,6 @@ class BroadcastForm(forms.ModelForm):
             if 'omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0:
                 self.errors['__all__'] = self.error_class([_("At least one recipient is required")])
                 return False
-            else:
-                print "omni: '%s'" % self.data['omnibox']
 
         return valid
 
@@ -202,8 +200,8 @@ class BroadcastCRUDL(SmartCRUDL):
             return args
 
         def derive_initial(self):
-            selected = ['g-%d' % _.pk for _ in self.object.groups.all()]
-            selected += ['c-%d' % _.pk for _ in self.object.contacts.all()]
+            selected = ['g-%s' % _.uuid for _ in self.object.groups.all()]
+            selected += ['c-%s' % _.uuid for _ in self.object.contacts.all()]
             selected = ','.join(selected)
             message = self.object.text
             return dict(message=message, omnibox=selected)
@@ -743,6 +741,7 @@ class LabelCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         paginate_by = None
+        default_order = ('name',)
 
         def derive_queryset(self, **kwargs):
             return Label.label_objects.filter(org=self.request.user.get_org())

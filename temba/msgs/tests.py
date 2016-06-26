@@ -930,7 +930,7 @@ class BroadcastTest(TembaTest):
         self.login(self.admin)
 
         # try with no channel
-        post_data = dict(text="some text", omnibox="c-%d" % self.joe.pk)
+        post_data = dict(text="some text", omnibox="c-%s" % self.joe.uuid)
         response = self.client.post(send_url, post_data, follow=True)
         self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
 
@@ -940,7 +940,7 @@ class BroadcastTest(TembaTest):
 
         test_contact = Contact.get_test_contact(self.admin)
 
-        post_data = dict(text="you simulator display this", omnibox="c-%d,c-%d,c-%d" % (self.joe.pk, self.frank.pk, test_contact.pk))
+        post_data = dict(text="you simulator display this", omnibox="c-%s,c-%s,c-%s" % (self.joe.uuid, self.frank.uuid, test_contact.uuid))
         self.client.post(send_url + "?simulation=true", post_data)
         self.assertEquals(Broadcast.objects.all().count(), 1)
         self.assertEquals(Broadcast.objects.all()[0].groups.all().count(), 0)
@@ -958,7 +958,7 @@ class BroadcastTest(TembaTest):
         response = self.client.get(send_url)
         self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
 
-        post_data = dict(text="message #1", omnibox="g-%d,c-%d,c-%d" % (self.joe_and_frank.pk, self.joe.pk, self.lucy.pk))
+        post_data = dict(text="message #1", omnibox="g-%s,c-%s,c-%s" % (self.joe_and_frank.uuid, self.joe.uuid, self.lucy.uuid))
         self.client.post(send_url, post_data, follow=True)
         broadcast = Broadcast.objects.get(text="message #1")
         self.assertEquals(1, broadcast.groups.count())
@@ -976,14 +976,14 @@ class BroadcastTest(TembaTest):
         response = self.client.get(send_url)
         self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
 
-        post_data = dict(text="message #2", omnibox='g-%d,c-%d' % (self.joe_and_frank.pk, self.kevin.pk))
+        post_data = dict(text="message #2", omnibox='g-%s,c-%s' % (self.joe_and_frank.uuid, self.kevin.uuid))
         self.client.post(send_url, post_data, follow=True)
         broadcast = Broadcast.objects.get(text="message #2")
         self.assertEquals(broadcast.groups.count(), 1)
         self.assertEquals(broadcast.contacts.count(), 1)
 
         # directly on user page
-        post_data = dict(text="contact send", from_contact=True, omnibox="c-%d" % self.kevin.pk)
+        post_data = dict(text="contact send", from_contact=True, omnibox="c-%s" % self.kevin.uuid)
         response = self.client.post(send_url, post_data)
         self.assertRedirect(response, reverse('contacts.contact_read', args=[self.kevin.uuid]))
         self.assertEquals(Broadcast.objects.all().count(), 3)
@@ -1005,7 +1005,7 @@ class BroadcastTest(TembaTest):
         self.assertIn("At least one recipient is required", response.content)
         self.assertEquals('application/json', response._headers.get('content-type')[1])
 
-        post_data = dict(text="this is a test message", omnibox="c-%d" % self.kevin.pk, _format="json")
+        post_data = dict(text="this is a test message", omnibox="c-%s" % self.kevin.uuid, _format="json")
         response = self.client.post(send_url, post_data, follow=True)
         self.assertIn("success", response.content)
 
@@ -1241,12 +1241,12 @@ class BroadcastCRUDLTest(TembaTest):
         url = reverse('msgs.broadcast_send')
 
         # can't send if you're not logged in
-        response = self.client.post(url, dict(text="Test", omnibox="c-%d" % self.joe.pk))
+        response = self.client.post(url, dict(text="Test", omnibox="c-%s" % self.joe.uuid))
         self.assertLoginRedirect(response)
 
         # or just a viewer user
         self.login(self.user)
-        response = self.client.post(url, dict(text="Test", omnibox="c-%d" % self.joe.pk))
+        response = self.client.post(url, dict(text="Test", omnibox="c-%s" % self.joe.uuid))
         self.assertLoginRedirect(response)
 
         # but editors can
@@ -1254,7 +1254,7 @@ class BroadcastCRUDLTest(TembaTest):
 
         just_joe = self.create_group("Just Joe")
         just_joe.contacts.add(self.joe)
-        post_data = dict(omnibox="g-%d,c-%d,n-0780000001" % (just_joe.pk, self.frank.pk),
+        post_data = dict(omnibox="g-%s,c-%s,n-0780000001" % (just_joe.uuid, self.frank.uuid),
                          text="Hey Joe, where you goin' with that gun in your hand?")
         response = self.client.post(url + '?_format=json', post_data)
 
@@ -1273,7 +1273,7 @@ class BroadcastCRUDLTest(TembaTest):
 
     def test_update(self):
         self.login(self.editor)
-        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%s" % self.joe.uuid,
                                                               text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
         url = reverse('msgs.broadcast_update', args=[broadcast.pk])
@@ -1281,7 +1281,7 @@ class BroadcastCRUDLTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(response.context['form'].fields.keys(), ['message', 'omnibox', 'loc'])
 
-        response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%d" % self.frank.pk))
+        response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%s" % self.frank.uuid))
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
@@ -1298,9 +1298,9 @@ class BroadcastCRUDLTest(TembaTest):
         self.login(self.editor)
 
         # send some messages - one immediately, one scheduled
-        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%s" % self.joe.uuid,
                                                               text="See you later"))
-        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%s" % self.joe.uuid,
                                                               text="Lunch reminder", schedule=True))
 
         scheduled = Broadcast.objects.exclude(schedule=None).first()
@@ -1310,7 +1310,7 @@ class BroadcastCRUDLTest(TembaTest):
 
     def test_schedule_read(self):
         self.login(self.editor)
-        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%s" % self.joe.uuid,
                                                               text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 

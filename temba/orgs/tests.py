@@ -193,7 +193,7 @@ class OrgTest(TembaTest):
         with patch('stripe.Charge.retrieve') as stripe:
             stripe.return_value = ''
             response = self.client.get(reverse('orgs.topup_read', args=[TopUp.objects.filter(org=self.org).first().pk]))
-            self.assertContains(response, '1000 Credits')
+            self.assertContains(response, '1,000 Credits')
 
     def test_user_update(self):
         update_url = reverse('orgs.user_edit')
@@ -240,7 +240,7 @@ class OrgTest(TembaTest):
         # while we are suspended, we can't send broadcasts
         send_url = reverse('msgs.broadcast_send')
         mark = self.create_contact('Mark', number='+12065551212')
-        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%d" % mark.pk)
+        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%s" % mark.uuid)
         response = self.client.post(send_url, post_data, follow=True)
 
         self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
@@ -248,7 +248,7 @@ class OrgTest(TembaTest):
 
         # we also can't start flows
         flow = self.create_flow()
-        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants='on')
         response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
 
         self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
@@ -275,7 +275,7 @@ class OrgTest(TembaTest):
 
         # unsuspend our org and start a flow
         self.org.set_restored()
-        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants='on')
         response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
         self.assertEqual(1, FlowRun.objects.all().count())
 
@@ -1782,7 +1782,7 @@ class BulkExportTest(TembaTest):
         definition = flow.as_json()
         actions = definition[Flow.ACTION_SETS][0]['actions']
         self.assertEquals(1, len(actions))
-        self.assertEquals('Triggered Flow', actions[0]['name'])
+        self.assertEquals('Triggered Flow', actions[0]['flow']['name'])
 
     def test_missing_flows_on_import(self):
         # import a flow that starts a missing flow

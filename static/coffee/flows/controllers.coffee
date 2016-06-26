@@ -869,6 +869,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.showFlip = ->
     return actionset.actions.length < 2
 
+  $scope.get_action_id = (action) ->
+    return action.id
+
   #-----------------------------------------------------------------
   # Rule editor
   #-----------------------------------------------------------------
