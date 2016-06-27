@@ -358,7 +358,11 @@ def sync(request, channel_id):
                         # assumptions
                         if cmd['phone']:
                             urn = URN.from_parts(TEL_SCHEME, cmd['phone'])
-                            ChannelEvent.create(channel, urn, cmd['type'], date, duration)
+                            try:
+                                ChannelEvent.create(channel, urn, cmd['type'], date, duration)
+                            except ValueError:
+                                # in some cases Android passes us invalid URNs, in those cases just ignore them
+                                pass
                         handled = True
 
                     elif keyword == 'gcm':
