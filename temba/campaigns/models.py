@@ -175,7 +175,7 @@ class Campaign(SmartModel):
                                delivery_hour=event.delivery_hour,
                                message=event.message,
                                flow=dict(uuid=event.flow.uuid, name=event.flow.name),
-                               relative_to=dict(label=event.relative_to.label, key=event.relative_to.key, id=event.relative_to.pk)))
+                               relative_to=dict(label=event.relative_to.label, key=event.relative_to.key)))
         definition['events'] = events
         return definition
 

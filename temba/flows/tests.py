@@ -29,7 +29,7 @@ from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
-from .flow_migrations import migrate_to_version_8, migrate_to_version_9
+from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, get_flow_user
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
@@ -4544,8 +4544,27 @@ class FlowMigrationTest(FlowFileTest):
                              start_flow_id=start_flow.pk,
                              previous_flow_id=previous_flow.pk)
 
-        flow_json = self.get_flow_json('migrate_to_9', substitutions)
-        flow_json = migrate_to_version_9(flow_json, self.org)
+        exported_json = json.loads(self.get_import_json('migrate_to_9', substitutions))
+        exported_json = migrate_export_to_version_9(exported_json, self.org, True)
+
+        # our campaign events shouldn't have ids
+        campaign = exported_json['campaigns'][0]
+        event = campaign['events'][0]
+
+        # campaigns should have uuids
+        self.assertIn('uuid', campaign)
+        self.assertNotIn('id', campaign)
+
+        # our event flow should be a uuid
+        self.assertIn('flow', event)
+        self.assertIn('uuid', event['flow'])
+        self.assertNotIn('id', event['flow'])
+
+        # our relative field should not have an id
+        self.assertNotIn('id', event['relative_to'])
+
+        # evaluate that the flow json is migrated properly
+        flow_json = exported_json['flows'][0]
 
         # check that contacts migrated properly
         send_action = flow_json['action_sets'][0]['actions'][1]
@@ -4553,32 +4572,48 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals(1, len(send_action['groups']))
 
         for contact in send_action['contacts']:
-            self.assertTrue('uuid' in contact)
-            self.assertTrue('id' not in contact)
+            self.assertIn('uuid', contact)
+            self.assertNotIn('id', contact)
 
         for group in send_action['groups']:
-            self.assertTrue('uuid' in group)
-            self.assertTrue('id' not in contact)
+            self.assertIn('uuid', group)
+            self.assertNotIn('id', contact)
 
         action_set = flow_json['action_sets'][1]
         actions = action_set['actions']
 
         for action in actions[0:2]:
-            self.assertTrue(action['type'] in ('del_group', 'add_group'))
-            self.assertTrue('uuid' in action['groups'][0])
-            self.assertTrue('id' not in action['groups'][0])
+            self.assertIn(action['type'], ('del_group', 'add_group'))
+            self.assertIn('uuid', action['groups'][0])
+            self.assertNotIn('id', action['groups'][0])
 
         for action in actions[2:4]:
-            self.assertTrue(action['type'] in ('trigger-flow', 'flow'))
-            self.assertTrue('flow' in action)
-            self.assertTrue('uuid' in action['flow'])
-            self.assertTrue('name' in action['flow'])
-            self.assertTrue('id' not in action)
-            self.assertTrue('name' not in action)
+            self.assertIn(action['type'], ('trigger-flow', 'flow'))
+            self.assertIn('flow', action)
+            self.assertIn('uuid', action['flow'])
+            self.assertIn('name', action['flow'])
+            self.assertNotIn('id', action)
+            self.assertNotIn('name', action)
 
         # we also switch flow ids to uuids in the metadata
-        self.assertTrue('uuid' in flow_json['metadata'])
-        self.assertTrue('id' not in flow_json['metadata'])
+        self.assertIn('uuid', flow_json['metadata'])
+        self.assertNotIn('id', flow_json['metadata'])
+
+        # import the same thing again, should have the same uuids
+        new_exported_json = json.loads(self.get_import_json('migrate_to_9', substitutions))
+        new_exported_json = migrate_export_to_version_9(new_exported_json, self.org, True)
+        self.assertEqual(flow_json['metadata']['uuid'], new_exported_json['flows'][0]['metadata']['uuid'])
+
+        # but when done as a different site, it should be unique
+        new_exported_json = json.loads(self.get_import_json('migrate_to_9', substitutions))
+        new_exported_json = migrate_export_to_version_9(new_exported_json, self.org, False)
+        self.assertNotEqual(flow_json['metadata']['uuid'], new_exported_json['flows'][0]['metadata']['uuid'])
+
+        # can also just import a single flow
+        exported_json = json.loads(self.get_import_json('migrate_to_9', substitutions))
+        flow_json = migrate_to_version_9(exported_json['flows'][0], self.org)
+        self.assertIn('uuid', flow_json['metadata'])
+        self.assertNotIn('id', flow_json['metadata'])
 
     def test_migrate_to_8(self):
         # file uses old style expressions

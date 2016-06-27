@@ -8,7 +8,7 @@ from temba.utils.expressions import migrate_template
 from uuid import uuid4
 
 
-def migrate_export_to_version_9(exported_json, org):
+def migrate_export_to_version_9(exported_json, org, same_site=False):
     """
     Migrates remaining ids to uuids. Changes to uuids for  Flows, Groups,
     Contacts and Channels inside of Actions, Triggers, Campaigns, Events
@@ -18,6 +18,7 @@ def migrate_export_to_version_9(exported_json, org):
     group_id_map = {}
     contact_id_map = {}
     campaign_id_map = {}
+    campaign_event_id_map = {}
 
     def get_uuid(id_map, obj_id):
         uuid = id_map.get(obj_id, None)
@@ -26,13 +27,15 @@ def migrate_export_to_version_9(exported_json, org):
             id_map[obj_id] = uuid
         return uuid
 
-    def replace_with_uuid(ele, manager, id_map, nested_name=None):
+    def replace_with_uuid(ele, manager, id_map, nested_name=None, obj=None):
         obj_id = ele.pop('id', None)
-        obj_name = ele.pop('name')
+        obj_name = ele.pop('name', None)
 
-        obj = None
-        if obj_id:
-            obj = manager.filter(pk=obj_id, org=org).first()
+        if same_site and not obj and obj_id:
+            try:
+                obj = manager.filter(pk=obj_id, org=org).first()
+            except:
+                pass
 
         # nest it if we were given a nested name
         if nested_name:
@@ -41,11 +44,15 @@ def migrate_export_to_version_9(exported_json, org):
 
         if obj:
             ele['uuid'] = obj.uuid
-            ele['name'] = obj.name
+
+            if obj.name:
+                ele['name'] = obj.name
         else:
             if obj_id:
                 ele['uuid'] = get_uuid(id_map, obj_id)
-            ele['name'] = obj_name
+
+            if obj_name:
+                ele['name'] = obj_name
 
     def remap_flow(ele, nested_name=None):
         from temba.flows.models import Flow
@@ -58,6 +65,13 @@ def migrate_export_to_version_9(exported_json, org):
     def remap_campaign(ele):
         from temba.campaigns.models import Campaign
         replace_with_uuid(ele, Campaign.objects, campaign_id_map)
+
+    def remap_campaign_event(ele):
+        from temba.campaigns.models import CampaignEvent
+        event = None
+        if same_site:
+            event = CampaignEvent.objects.filter(pk=ele['id'], campaign__org=org).first()
+        replace_with_uuid(ele, CampaignEvent.objects, campaign_event_id_map, obj=event)
 
     def remap_contact(ele):
         from temba.contacts.models import Contact
@@ -100,6 +114,9 @@ def migrate_export_to_version_9(exported_json, org):
         remap_campaign(campaign)
         remap_group(campaign['group'])
         for event in campaign.get('events', []):
+            remap_campaign_event(event)
+            if 'id' in event['relative_to']:
+                del event['relative_to']['id']
             if 'flow' in event:
                 remap_flow(event['flow'])
 

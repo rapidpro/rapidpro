@@ -326,6 +326,16 @@ class Org(SmartModel):
         if data_site and site:
             same_site = urlparse(data_site).netloc == urlparse(site).netloc
 
+        # see if our export needs to be updated
+        export_version = data.get('version', 0)
+        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
+        if export_version < EARLIEST_IMPORT_VERSION:
+            raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
+
+        if export_version < CURRENT_EXPORT_VERSION:
+            from temba.flows.models import FlowRevision
+            data = FlowRevision.migrate_export(self, data, same_site, export_version)
+
         # we need to import flows first, they will resolve to
         # the appropriate ids and update our definition accordingly
         Flow.import_flows(data, self, user, same_site)

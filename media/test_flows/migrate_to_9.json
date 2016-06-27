@@ -1,5 +1,33 @@
 {
-  "campaigns": [], 
+  "campaigns": [
+    {
+      "events": [
+        {
+          "event_type": "M",
+          "relative_to": {
+            "id": 1134,
+            "key": "next_appointment",
+            "label": "Next Show"
+          },
+          "flow": {
+            "name": "Single Message",
+            "id": 2814
+          },
+          "offset": -1,
+          "delivery_hour": -1,
+          "message": "Hi there, your next show is @contact.next_show. Don't miss it!",
+          "id": 9959,
+          "unit": "H"
+        }
+      ],
+      "group": {
+        "name": "Pending Appointments",
+        "id": 2308
+      },
+      "id": 405,
+      "name": "Appointment Schedule"
+    }
+  ],
   "version": 9, 
   "site": "https://app.rapidpro.io", 
   "flows": [

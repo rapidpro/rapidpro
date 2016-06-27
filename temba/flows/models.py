@@ -322,16 +322,8 @@ class Flow(TembaModel):
         """
         Import flows from our flow export file
         """
-        export_version = exported_json.get('version', 0)
-        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
-        if export_version < EARLIEST_IMPORT_VERSION:
-            raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
-
         created_flows = []
         flow_uuid_map = dict()
-
-        if export_version < CURRENT_EXPORT_VERSION:
-            exported_json = FlowRevision.migrate_export(org, exported_json, export_version)
 
         # create all the flow containers first
         for flow_spec in exported_json['flows']:
@@ -3295,7 +3287,7 @@ class FlowRevision(SmartModel):
                 validate_localization(rule['category'])
 
     @classmethod
-    def migrate_export(cls, org, exported_json, version, to_version=None):
+    def migrate_export(cls, org, exported_json, same_site, version, to_version=None):
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
 
@@ -3304,7 +3296,7 @@ class FlowRevision(SmartModel):
 
             migrate_fn = getattr(flow_migrations, 'migrate_export_to_version_%d' % (version + 1), None)
             if migrate_fn:
-                exported_json = migrate_fn(exported_json, org)
+                exported_json = migrate_fn(exported_json, org, same_site)
             else:
                 flows = []
                 for json_flow in exported_json.get('flows', []):
