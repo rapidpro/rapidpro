@@ -1125,11 +1125,16 @@ class Msg(models.Model):
         if not contact:
             contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
             contact_urn = contact.urn_objects[urn]
-        else:
+
+        # derive our contact URN object if we can
+        if not contact_urn and urn:
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
+        else:
+            contact_urn = None
 
         # check our URN's affinity
-        contact_urn.update_affinity(channel)
+        if contact_urn:
+            contact_urn.update_affinity(channel)
 
         existing = Msg.all_messages.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:

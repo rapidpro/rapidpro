@@ -565,7 +565,6 @@ class ContactTest(TembaTest):
         self.assertIsNone(snoop.urns.all().first().channel)
         snoop = Contact.get_or_create(self.org, self.user, channel=self.channel, urns=['tel:456'])
         self.assertEquals(1, snoop.urns.all().count())
-        self.assertEqual(snoop.urns.all().first().channel, self.channel)
 
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
