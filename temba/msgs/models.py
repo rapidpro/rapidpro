@@ -1123,10 +1123,13 @@ class Msg(models.Model):
             date = timezone.now()  # no date?  set it to now
 
         if not contact:
-            contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+            contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
             contact_urn = contact.urn_objects[urn]
         else:
-            contact_urn = None
+            contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
+
+        # check our URN's affinity
+        contact_urn.update_affinity(channel)
 
         existing = Msg.all_messages.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:
