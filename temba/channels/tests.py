@@ -1881,6 +1881,9 @@ class ChannelTest(TembaTest):
             # incoming
             dict(cmd="call", phone="2505551212", type='mt', dur=10, ts=date),
 
+            # incoming, invalid URN
+            dict(cmd="call", phone="*", type='mt', dur=10, ts=date),
+
             # outgoing
             dict(cmd="call", phone="+250788383383", type='mo', dur=5, ts=date),
 
