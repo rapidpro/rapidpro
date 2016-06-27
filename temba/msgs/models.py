@@ -1122,15 +1122,12 @@ class Msg(models.Model):
         if not date:
             date = timezone.now()  # no date?  set it to now
 
+        contact_urn = None
         if not contact:
             contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
             contact_urn = contact.urn_objects[urn]
-
-        # derive our contact URN object if we can
-        if not contact_urn and urn:
+        elif urn:
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
-        else:
-            contact_urn = None
 
         # check our URN's affinity
         if contact_urn:
