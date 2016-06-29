@@ -1881,6 +1881,9 @@ class ChannelTest(TembaTest):
             # incoming
             dict(cmd="call", phone="2505551212", type='mt', dur=10, ts=date),
 
+            # incoming, invalid URN
+            dict(cmd="call", phone="*", type='mt', dur=10, ts=date),
+
             # outgoing
             dict(cmd="call", phone="+250788383383", type='mo', dur=5, ts=date),
 
@@ -6495,6 +6498,28 @@ class MbloxTest(TembaTest):
 
 class FacebookTest(TembaTest):
 
+    TEST_INCOMING = """
+    {
+        "entry": [{
+          "id": "208685479508187",
+          "messaging": [{
+            "message": {
+              "text": "hello world",
+              "mid": "external_id"
+            },
+            "recipient": {
+              "id": "1234"
+            },
+            "sender": {
+              "id": "5678"
+            },
+            "timestamp": 1459991487970
+          }],
+          "time": 1459991487970
+        }]
+    }
+    """
+
     def setUp(self):
         super(FacebookTest, self).setUp()
 
@@ -6541,29 +6566,38 @@ class FacebookTest(TembaTest):
         msg.refresh_from_db()
         self.assertEqual(msg.status, DELIVERED)
 
+    def test_affinity(self):
+        data = json.loads(FacebookTest.TEST_INCOMING)
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(200, '{"first_name": "Ben","last_name": "Haggerty"}')
+
+            callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+            # check the channel affinity for our URN
+            urn = ContactURN.objects.get(urn='facebook:5678')
+            self.assertEqual(self.channel, urn.channel)
+
+            # create another facebook channel
+            channel2 = Channel.create(self.org, self.user, None, 'FB', None, '1234',
+                                      config={AUTH_TOKEN: 'auth'},
+                                      uuid='00000000-0000-0000-0000-000000012345')
+
+            # have to change the message so we don't treat it as a duplicate
+            data['entry'][0]['messaging'][0]['message']['text'] = '2nd Message'
+            data['entry'][0]['messaging'][0]['message']['mid'] = 'external_id_2'
+
+            callback_url = reverse('handlers.facebook_handler', args=[channel2.uuid])
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+            urn = ContactURN.objects.get(urn='facebook:5678')
+            self.assertEqual(channel2, urn.channel)
+
     def test_receive(self):
-        data = """
-        {
-        "entry": [{
-          "id": 208685479508187,
-          "messaging": [{
-            "message": {
-              "text": "hello world",
-              "mid": "external_id"
-            },
-            "recipient": {
-              "id": "1234"
-            },
-            "sender": {
-              "id": "5678"
-            },
-            "timestamp": 1459991487970
-          }],
-          "time": 1459991487970
-        }]
-        }
-        """
-        data = json.loads(data)
+        data = json.loads(FacebookTest.TEST_INCOMING)
         callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
 
         with patch('requests.get') as mock_get:

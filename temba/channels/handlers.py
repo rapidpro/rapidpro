@@ -77,7 +77,7 @@ class TwilioHandler(View):
 
                 # find a contact for the one initiating us
                 urn = URN.from_tel(from_number)
-                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], incoming_channel=channel)
+                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
                 urn_obj = contact.urn_objects[urn]
 
                 flow = Trigger.find_flow_for_inbound_call(contact)
@@ -1728,7 +1728,7 @@ class FacebookHandler(View):
                                         traceback.print_exc()
 
                                 contact = Contact.get_or_create(channel.org, channel.created_by,
-                                                                name=name, urns=[urn], incoming_channel=channel)
+                                                                name=name, urns=[urn], channel=channel)
 
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
                             msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)

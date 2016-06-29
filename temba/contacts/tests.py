@@ -528,12 +528,11 @@ class ContactTest(TembaTest):
 
         # incoming channel with no urns
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=None)
+            Contact.get_or_create(self.org, self.user, channel=self.channel, name='Joe', urns=None)
 
         # incoming channel with two urns
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=['tel:123',
-                                                                                                        'tel:456'])
+            Contact.get_or_create(self.org, self.user, channel=self.channel, name='Joe', urns=['tel:123', 'tel:456'])
 
         # missing scheme
         with self.assertRaises(ValueError):
@@ -564,9 +563,8 @@ class ContactTest(TembaTest):
         Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=['tel:456'])
 
         self.assertIsNone(snoop.urns.all().first().channel)
-        snoop = Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, urns=['tel:456'])
+        snoop = Contact.get_or_create(self.org, self.user, channel=self.channel, urns=['tel:456'])
         self.assertEquals(1, snoop.urns.all().count())
-        self.assertEqual(snoop.urns.all().first().channel, self.channel)
 
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
