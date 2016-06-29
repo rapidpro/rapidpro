@@ -273,7 +273,7 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def export_definitions(cls, flows, fail_on_dependencies=True):
+    def export_definitions(cls, flows):
         """
         Builds a json definition fit for export
         """
@@ -281,25 +281,11 @@ class Flow(TembaModel):
         exported_flows = []
 
         for flow in flows:
-
             # only export current versions
             flow.ensure_current_version()
 
             # get our json with group names
-            flow_definition = flow.as_json(expand_contacts=True)
-            if fail_on_dependencies:
-                # if the flow references other flows, don't allow export yet
-                other_flows = set()
-                for action_set in flow_definition.get('action_sets', []):
-                    for action in action_set.get('actions', []):
-                        action_type = action['type']
-                        if action_type == StartFlowAction.TYPE or action_type == TriggerFlowAction.TYPE:
-                            other_flows.add(action['name'].strip())
-
-                if len(other_flows):
-                    raise FlowReferenceException(other_flows)
-
-            exported_flows.append(flow_definition)
+            exported_flows.append(flow.as_json(expand_contacts=True))
 
         # get all non-schedule based triggers that are active for these flows
         triggers = set()
