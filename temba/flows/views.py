@@ -29,7 +29,7 @@ from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
-from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision
+from temba.flows.models import Flow, FlowRun, FlowRevision
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, INCOMING, OUTGOING
@@ -327,7 +327,7 @@ class PartialTemplate(SmartTemplateView):
 
 
 class FlowCRUDL(SmartCRUDL):
-    actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results',
+    actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter',
                'completion', 'revisions', 'recent_messages')
 
@@ -840,9 +840,9 @@ class FlowCRUDL(SmartCRUDL):
                                   posterize=True,
                                   href=reverse('flows.flow_copy', args=[self.get_object().id])))
 
-            if self.has_org_perm('flows.flow_export'):
+            if self.has_org_perm('orgs.org_export'):
                 links.append(dict(title=_("Export"),
-                                  href=reverse('flows.flow_export', args=[self.get_object().id])))
+                                  href='%s?flow=%s' % (reverse('orgs.org_export'), self.get_object().id)))
 
             if self.has_org_perm('flows.flow_revisions'):
                 links.append(dict(divider=True)),
@@ -879,22 +879,6 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_template_names(self):
             return "flows/flow_editor.haml"
-
-    class Export(OrgPermsMixin, SmartReadView):
-
-        def derive_title(self):
-            return _("Export Flow")
-
-        def render_to_response(self, context, **response_kwargs):
-            try:
-                flow = self.get_object()
-                definition = Flow.export_definitions(flows=[flow], fail_on_dependencies=True)
-                response = HttpResponse(json.dumps(definition, indent=2), content_type='application/javascript')
-                response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(flow.name)
-                return response
-            except FlowReferenceException as e:
-                context['other_flow_names'] = e.flow_names
-                return super(FlowCRUDL.Export, self).render_to_response(context, **response_kwargs)
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):

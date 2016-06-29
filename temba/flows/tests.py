@@ -3980,46 +3980,6 @@ class FlowsTest(FlowFileTest):
         trigger.refresh_from_db()
         self.assertFalse(trigger.is_active)
 
-    def test_flow_export(self):
-        flow = self.get_flow('favorites')
-
-        # now let's export it
-        self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_export', args=[flow.pk]))
-        modified_on = flow.modified_on
-        self.assertEquals(200, response.status_code)
-
-        definition = json.loads(response.content)
-        self.assertEqual(CURRENT_EXPORT_VERSION, definition.get('version', 0))
-        self.assertEqual(1, len(definition.get('flows', [])))
-
-        # try importing it and see that we have an updated flow
-        Flow.import_flows(definition, self.org, self.admin)
-        flow = Flow.objects.filter(name="%s" % flow.name).first()
-        self.assertIsNotNone(flow)
-        self.assertNotEqual(modified_on, flow.modified_on)
-
-        # don't allow exports that reference other flows
-        new_mother = self.get_flow('new_mother')
-        flow = self.get_flow('references_other_flows',
-                             substitutions=dict(START_FLOW=new_mother.pk,
-                                                TRIGGER_FLOW=self.get_flow('pain_flow').pk))
-        response = self.client.get(reverse('flows.flow_export', args=[flow.pk]))
-        self.assertContains(response, "Sorry, this flow cannot be exported")
-        self.assertContains(response, "New Mother")
-        self.assertContains(response, "Pain Flow")
-
-        # now try importing it into a completey different org
-        trey = self.create_user("Trey Anastasio")
-        trey_org = Org.objects.create(name="Gotta Jiboo", timezone="Africa/Kigali", created_by=trey, modified_by=trey)
-        trey_org.administrators.add(trey)
-
-        response = self.client.get(reverse('flows.flow_export', args=[new_mother.pk]))
-        definition = json.loads(response.content)
-
-        Flow.import_flows(definition, trey_org, trey)
-        self.assertIsNotNone(Flow.objects.filter(org=trey_org, name="New Mother").first())
-
     def test_start_flow_action(self):
         self.import_file('flow-starts')
         parent = Flow.objects.get(name='Parent Flow')

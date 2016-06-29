@@ -53,11 +53,6 @@ class FlowException(Exception):
         super(FlowException, self).__init__(*args, **kwargs)
 
 
-class FlowReferenceException(Exception):
-    def __init__(self, flow_names):
-        self.flow_names = flow_names
-
-
 FLOW_LOCK_TTL = 60  # 1 minute
 FLOW_LOCK_KEY = 'org:%d:lock:flow:%d:%s'
 
