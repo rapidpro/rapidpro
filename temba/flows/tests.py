@@ -4538,11 +4538,13 @@ class FlowMigrationTest(FlowFileTest):
         group = self.create_group("Phans", [])
         previous_flow = self.create_flow()
         start_flow = self.create_flow()
+        label = Label.get_or_create(self.org, self.admin, 'My label')
 
         substitutions = dict(group_id=group.pk,
                              contact_id=self.contact.pk,
                              start_flow_id=start_flow.pk,
-                             previous_flow_id=previous_flow.pk)
+                             previous_flow_id=previous_flow.pk,
+                             label_id=label.pk)
 
         exported_json = json.loads(self.get_import_json('migrate_to_9', substitutions))
         exported_json = migrate_export_to_version_9(exported_json, self.org, True)
@@ -4578,6 +4580,11 @@ class FlowMigrationTest(FlowFileTest):
         for group in send_action['groups']:
             self.assertIn('uuid', group)
             self.assertNotIn('id', contact)
+
+        label_action = flow_json['action_sets'][0]['actions'][2]
+        for label in label_action.get('labels'):
+            self.assertNotIn('id', label)
+            self.assertIn('uuid', label)
 
         action_set = flow_json['action_sets'][1]
         actions = action_set['actions']

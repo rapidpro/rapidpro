@@ -747,7 +747,7 @@ class LabelCRUDL(SmartCRUDL):
             return Label.label_objects.filter(org=self.request.user.get_org())
 
         def render_to_response(self, context, **response_kwargs):
-            results = [dict(id=l.pk, text=l.name) for l in context['object_list']]
+            results = [dict(id=l.uuid, text=l.name) for l in context['object_list']]
             return HttpResponse(json.dumps(results), content_type='application/javascript')
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):

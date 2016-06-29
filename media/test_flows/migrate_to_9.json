@@ -43,7 +43,7 @@
             {
               "msg": {
                 "base": "Hi there!"
-              }, 
+              },
               "type": "reply"
             },
             {
@@ -66,10 +66,18 @@
               }, 
               "action": "GET", 
               "type": "send"
+            },
+            {
+              "labels": [
+                {
+                  "name": "this label",
+                  "id": label_id
+                }
+              ],
+             "type": "add_label"
             }
           ]
-        }, 
-
+        },
         {
           "y": 142, 
           "x": 166, 

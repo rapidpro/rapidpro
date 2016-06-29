@@ -133,7 +133,6 @@ app.directive "select2", ["$timeout", ($timeout) ->
   }
 ]
 
-
 app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
   link = (scope, element, attrs, form) ->
 
@@ -147,7 +146,9 @@ app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
     if scope.ngModel
       initLabels = []
       for label in scope.ngModel
-        initLabels.push(label)
+        initLabels.push
+          id: label.uuid
+          text: label.name
 
       select2.data(initLabels)
 

@@ -19,6 +19,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=False):
     contact_id_map = {}
     campaign_id_map = {}
     campaign_event_id_map = {}
+    label_id_map = {}
 
     def get_uuid(id_map, obj_id):
         uuid = id_map.get(obj_id, None)
@@ -85,17 +86,24 @@ def migrate_export_to_version_9(exported_json, org, same_site=False):
             if channel:
                 ele['channel'] = channel.uuid
 
+    def remap_label(ele):
+        from temba.msgs.models import Label
+        replace_with_uuid(ele, Label.label_objects, label_id_map)
+
     for flow in exported_json.get('flows', []):
         for action_set in flow['action_sets']:
             for action in action_set['actions']:
                 if action['type'] in ('add_group', 'del_group', 'send'):
-                    # print action
                     for group_json in action.get('groups', []):
                         remap_group(group_json)
                     for contact_json in action.get('contacts', []):
                         remap_contact(contact_json)
                 if action['type'] in ('trigger-flow', 'flow'):
                     remap_flow(action, 'flow')
+                if action['type'] == 'add_label':
+                    for label in action.get('labels', []):
+                        remap_label(label)
+
         metadata = flow['metadata']
         if 'id' in metadata:
             if metadata.get('id', None):

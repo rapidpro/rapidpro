@@ -1452,16 +1452,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         if label.id == msgLabel
           found = true
           labels.push
-            id: label.id
+            uuid: label.id
             name: label.text
 
       if not found
         labels.push
-          id: msgLabel.id
+          uuid: msgLabel.id
           name: msgLabel.text
 
     $scope.action.labels = labels
-
 
     $scope.action.type = 'add_label'
     Flow.saveAction(actionset, $scope.action)

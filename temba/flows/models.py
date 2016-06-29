@@ -4353,7 +4353,7 @@ class AddLabelAction(Action):
     """
     TYPE = 'add_label'
     LABELS = 'labels'
-    ID = 'id'
+    UUID = 'uuid'
     NAME = 'name'
 
     def __init__(self, labels):
@@ -4364,29 +4364,24 @@ class AddLabelAction(Action):
         labels_data = json_obj.get(AddLabelAction.LABELS)
 
         labels = []
-        for l_data in labels_data:
-            if isinstance(l_data, dict):
-                label_id = l_data.get(AddLabelAction.ID, None)
-                label_name = l_data.get(AddLabelAction.NAME)
+        for label_data in labels_data:
+            if isinstance(label_data, dict):
+                label_uuid = label_data.get(AddLabelAction.UUID, None)
+                label_name = label_data.get(AddLabelAction.NAME)
 
-                try:
-                    label_id = int(label_id)
-                except (TypeError, ValueError):
-                    label_id = 0
-
-                if label_id and Label.label_objects.filter(org=org, id=label_id).first():
-                    label = Label.label_objects.filter(org=org, id=label_id).first()
+                if label_uuid and Label.label_objects.filter(org=org, uuid=label_uuid).first():
+                    label = Label.label_objects.filter(org=org, uuid=label_uuid).first()
                     if label:
                         labels.append(label)
                 else:
                     labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
-            elif isinstance(l_data, basestring):
-                if l_data and l_data[0] == '@':
+            elif isinstance(label_data, basestring):
+                if label_data and label_data[0] == '@':
                     # label name is a variable substitution
-                    labels.append(l_data)
+                    labels.append(label_data)
                 else:
-                    labels.append(Label.get_or_create(org, org.get_user(), l_data))
+                    labels.append(Label.get_or_create(org, org.get_user(), label_data))
             else:
                 raise ValueError("Label data must be a dict or string")
 
@@ -4396,7 +4391,7 @@ class AddLabelAction(Action):
         labels = []
         for action_label in self.labels:
             if isinstance(action_label, Label):
-                labels.append(dict(id=action_label.pk, name=action_label.name))
+                labels.append(dict(uuid=action_label.uuid, name=action_label.name))
             else:
                 labels.append(action_label)
 
