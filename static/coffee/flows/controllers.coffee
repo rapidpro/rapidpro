@@ -1472,7 +1472,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.saveGroups = (actionType, omnibox) ->
 
     $scope.action.type = actionType
-    $scope.action.groups = omnibox.groups
+
+    groups = []
+    for group in omnibox.groups
+      groups.push
+        uuid: group.id
+        name: group.name
+
+    $scope.action.groups = groups
 
     # add our list of variables
     for variable in omnibox.variables

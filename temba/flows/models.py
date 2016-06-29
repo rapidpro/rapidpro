@@ -1927,7 +1927,7 @@ class Flow(TembaModel):
             if 'groups' in action:
                 for group in action['groups']:
                     if isinstance(group, dict):
-                        if 'uuid' in groups:
+                        if 'uuid' in group:
                             groups.append(group['uuid'])
 
         def replace_action_contacts(action, contacts, groups):
