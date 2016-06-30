@@ -2668,7 +2668,7 @@ class ChannelEvent(models.Model):
         org = channel.org
         user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)  # TODO lookup by name for latest django-guardian
 
-        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+        contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
         contact_urn = contact.urn_objects[urn]
 
         event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,
