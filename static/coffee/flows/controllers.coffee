@@ -1144,7 +1144,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     # subflow rulesets have their own kind of rules
     if ruleset.ruleset_type == 'subflow'
-      $log.debug(ruleset.rules)
 
       needs_completed = true
       needs_expired = true
@@ -1291,7 +1290,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         ruleset.config =
           flow:
             name: flow.text
-            id: flow.id
+            uuid: flow.id
 
         # remove any non subflow actions
         rules = []
@@ -1546,7 +1545,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.flow = 
       uuid: flow.id
       name: flow.text
-      
+
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
