@@ -53,11 +53,6 @@ class FlowException(Exception):
         super(FlowException, self).__init__(*args, **kwargs)
 
 
-class FlowReferenceException(Exception):
-    def __init__(self, flow_names):
-        self.flow_names = flow_names
-
-
 FLOW_LOCK_TTL = 60  # 1 minute
 FLOW_LOCK_KEY = 'org:%d:lock:flow:%d:%s'
 
@@ -278,7 +273,7 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def export_definitions(cls, flows, fail_on_dependencies=True):
+    def export_definitions(cls, flows):
         """
         Builds a json definition fit for export
         """
@@ -286,25 +281,11 @@ class Flow(TembaModel):
         exported_flows = []
 
         for flow in flows:
-
             # only export current versions
             flow.ensure_current_version()
 
             # get our json with group names
-            flow_definition = flow.as_json(expand_contacts=True)
-            if fail_on_dependencies:
-                # if the flow references other flows, don't allow export yet
-                other_flows = set()
-                for action_set in flow_definition.get('action_sets', []):
-                    for action in action_set.get('actions', []):
-                        action_type = action['type']
-                        if action_type == StartFlowAction.TYPE or action_type == TriggerFlowAction.TYPE:
-                            other_flows.add(action['flow']['name'].strip())
-
-                if len(other_flows):
-                    raise FlowReferenceException(other_flows)
-
-            exported_flows.append(flow_definition)
+            exported_flows.append(flow.as_json(expand_contacts=True))
 
         # get all non-schedule based triggers that are active for these flows
         triggers = set()
@@ -1868,6 +1849,12 @@ class Flow(TembaModel):
                     for group in action.groups:
                         if not isinstance(group, unicode):
                             groups.add(group)
+
+        for ruleset in self.rule_sets.all():
+            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                flow = Flow.objects.filter(uuid=ruleset.config_json()['flow']['uuid']).first()
+                if flow:
+                    flows.add(flow)
 
         # add any campaigns that use our groups
         from temba.campaigns.models import Campaign
