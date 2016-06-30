@@ -869,9 +869,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.showFlip = ->
     return actionset.actions.length < 2
 
-  $scope.get_action_id = (action) ->
-    return action.id
-
   #-----------------------------------------------------------------
   # Rule editor
   #-----------------------------------------------------------------
@@ -1546,8 +1543,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.type = 'flow'
 
     flow = flow[0]
-    $scope.action.id = flow.id
-    $scope.action.name = flow.text
+    $scope.action.flow = 
+      uuid: flow.id
+      name: flow.text
+      
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
