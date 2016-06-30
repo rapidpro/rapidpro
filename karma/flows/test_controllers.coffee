@@ -216,7 +216,7 @@ describe 'Controllers:', ->
 
         splitEditor =
           flow:
-            selected:[{id: 123, text: 'Child Flow'}]
+            selected:[{id: 'cf785f12-658a-4821-ae62-7735ea5c6cef', text: 'Child Flow'}]
         
         modalScope.okRules(splitEditor)
 
@@ -229,7 +229,7 @@ describe 'Controllers:', ->
       expect(ruleset.rules.length).toBe(2)
       config = JSON.stringify(ruleset.config)
 
-      expect(JSON.stringify(ruleset.config)).toBe('{"flow":{"name":"Child Flow","id":123}}')
+      expect(JSON.stringify(ruleset.config)).toBe('{"flow":{"name":"Child Flow","uuid":"cf785f12-658a-4821-ae62-7735ea5c6cef"}}')
 
     it 'should filter action options based on flow type', ->
 
