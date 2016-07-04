@@ -342,6 +342,19 @@ class Org(SmartModel):
         Campaign.import_campaigns(data, self, user, same_site)
         Trigger.import_triggers(data, self, user, same_site)
 
+    def export(self, request, flows=[], campaigns=[]):
+        exported_campaigns = []
+        for campaign in campaigns:
+            for flow in campaign.get_flows():
+                flows.add(flow)
+            exported_campaigns.append(campaign.as_json())
+
+        from temba.flows.models import Flow
+        definition = Flow.export_definitions(flows)
+        definition['campaigns'] = exported_campaigns
+        definition['site'] = request.branding['link']
+        return definition
+
     def config_json(self):
         if self.config:
             return json.loads(self.config)

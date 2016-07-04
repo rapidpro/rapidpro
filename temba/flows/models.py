@@ -277,13 +277,12 @@ class Flow(TembaModel):
         """
         Builds a json definition fit for export
         """
-        exported_triggers = []
         exported_flows = []
+        exported_triggers = []
 
         for flow in flows:
             # only export current versions
             flow.ensure_current_version()
-
             # get our json with group names
             exported_flows.append(flow.as_json(expand_contacts=True))
 
@@ -296,7 +295,9 @@ class Flow(TembaModel):
             exported_triggers.append(trigger.as_json())
 
         from temba.orgs.models import CURRENT_EXPORT_VERSION
-        return dict(version=CURRENT_EXPORT_VERSION, flows=exported_flows, triggers=exported_triggers)
+        return dict(version=CURRENT_EXPORT_VERSION,
+                    flows=exported_flows,
+                    triggers=exported_triggers)
 
     @classmethod
     def import_flows(cls, exported_json, org, user, same_site=False):
@@ -1828,6 +1829,29 @@ class Flow(TembaModel):
                 send_actions.append(action)
 
         return send_actions
+
+    def get_subflows(self, flows=None):
+        """
+        Returns all subflows of this flow on down the dependency tree
+        """
+        if not flows:
+            flows = set()
+
+        if self in flows:
+            return flows
+
+        children = set()
+        for ruleset in self.rule_sets.all():
+            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                flow = Flow.objects.filter(uuid=ruleset.config_json()['flow']['uuid']).first()
+                if flow:
+                    children.add(flow)
+        flows.update(children)
+
+        for child in children:
+            flows = child.get_subflows(flows)
+
+        return flows
 
     def get_dependencies(self, dependencies=None):
 

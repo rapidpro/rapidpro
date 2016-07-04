@@ -492,19 +492,8 @@ class OrgCRUDL(SmartCRUDL):
             flows = set(Flow.objects.filter(id__in=self.request.REQUEST.getlist('flows'), org=self.get_object(), is_active=True))
             campaigns = Campaign.objects.filter(id__in=self.request.REQUEST.getlist('campaigns'), org=self.get_object())
 
-            # add in all the flows our campaign depends on
-            exported_campaigns = []
-            for campaign in campaigns:
-                # don't export single message flows, those get recreated on each import
-                for flow in campaign.get_flows():
-                    flows.add(flow)
-                exported_campaigns.append(campaign.as_json())
-
-            definition = Flow.export_definitions(flows)
-            definition['campaigns'] = exported_campaigns
-            definition['site'] = request.branding['link']
-
-            response = HttpResponse(json.dumps(definition, indent=2), content_type='application/javascript')
+            export = self.export(self.request, flows, campaigns)
+            response = HttpResponse(json.dumps(export, indent=2), content_type='application/javascript')
             response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(self.get_object().name)
             return response
 
