@@ -1679,29 +1679,40 @@ class FacebookHandler(View):
 
         # iterate through our entries, handling them
         for entry in body.get('entry'):
-            # this is an incoming message
+            # this is a messaging notification
             if 'messaging' in entry:
                 msgs = []
 
                 for envelope in entry['messaging']:
-                    if 'message' in envelope:
+                    if 'message' in envelope or 'postback' in envelope:
+                        # ignore echos
+                        if 'message' in envelope and envelope['message'].get('is_echo'):
+                            continue
+
+                        # check that the recipient is correct for this channel
                         channel_address = str(envelope['recipient']['id'])
                         if channel_address != channel.address:
-                            return HttpResponse("Msg does not match channel recipient id: %s" % channel.address, status=400)
+                            return HttpResponse("Msg ignored for recipient id: %s" % channel.address, status=200)
 
                         content = None
-                        if 'text' in envelope['message']:
-                            content = envelope['message']['text']
-                        elif 'attachments' in envelope['message']:
-                            urls = []
-                            for attachment in envelope['message']['attachments']:
-                                if 'url' in attachment['payload']:
-                                    urls.append(attachment['payload']['url'])
+                        postback = None
 
-                            content = '\n'.join(urls)
+                        if 'message' in envelope:
+                            if 'text' in envelope['message']:
+                                content = envelope['message']['text']
+                            elif 'attachments' in envelope['message']:
+                                urls = []
+                                for attachment in envelope['message']['attachments']:
+                                    if 'url' in attachment['payload']:
+                                        urls.append(attachment['payload']['url'])
 
-                        # if we have some content, create the msg
-                        if content:
+                                content = '\n'.join(urls)
+
+                        elif 'postback' in envelope:
+                            postback = envelope['postback']['payload']
+
+                        # if we have some content, load the contact
+                        if content or postback:
                             # does this contact already exist?
                             sender_id = envelope['sender']['id']
                             urn = URN.from_facebook(sender_id)
@@ -1730,10 +1741,16 @@ class FacebookHandler(View):
                                 contact = Contact.get_or_create(channel.org, channel.created_by,
                                                                 name=name, urns=[urn], channel=channel)
 
+                        # we received a new message, create and handle it
+                        if content:
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
                             msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             msgs.append(msg)
+
+                        # a contact pressed "Get Started", trigger any new conversation triggers
+                        elif postback == Channel.GET_STARTED:
+                            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:

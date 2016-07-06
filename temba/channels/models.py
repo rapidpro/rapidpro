@@ -182,6 +182,8 @@ class Channel(TembaModel):
                     (YO, "Yo!"),
                     (ZENVIA, "Zenvia"))
 
+    GET_STARTED = 'get_started'
+
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
 
@@ -500,9 +502,11 @@ class Channel(TembaModel):
 
     @classmethod
     def add_facebook_channel(cls, org, user, page_name, page_id, page_access_token):
-        return Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
-                              config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
-                              secret=Channel.generate_secret())
+        channel = Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
+                                 config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
+                                 secret=Channel.generate_secret())
+
+        return channel
 
     @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
@@ -617,6 +621,23 @@ class Channel(TembaModel):
             return Channel.objects.none()
 
         return self.org.channels.filter(parent=self, is_active=True, org=self.org).order_by('-role')
+
+    def set_fb_call_to_action_payload(self, payload):
+        # register for get_started events
+        url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % self.address
+        body = dict(setting_type='call_to_actions', thread_state='new_thread', call_to_actions=[])
+
+        # if we have a payload, set it, otherwise, clear it
+        if payload:
+            body['call_to_actions'].append(dict(payload=payload))
+
+        access_token = self.config_json()[AUTH_TOKEN]
+
+        response = requests.post(url, json.dumps(body),
+                                 params=dict(access_token=access_token),
+                                 headers={'Content-Type': 'application/json'})
+
+        print response.text
 
     def get_delegate(self, role):
         """
