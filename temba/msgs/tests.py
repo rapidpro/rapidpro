@@ -9,9 +9,9 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
-from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import ContactField, ContactURN, TEL_SCHEME
-from temba.msgs.models import Msg, Contact, ContactGroup, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
+from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
 from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
@@ -556,17 +556,14 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['actions'], ['label'])
 
     def test_failed(self):
-        from temba.msgs.tasks import check_messages_task
         failed_url = reverse('msgs.msg_failed')
 
         msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "message number 1")
-        self.assertFalse(msg1.contact.is_failed)
         msg1.status = 'F'
         msg1.save()
 
-        # check that our contact updates accordingly
-        check_messages_task()
-        self.assertTrue(Contact.objects.get(pk=msg1.contact.pk).is_failed)
+        # create a log for it
+        log = ChannelLog.objects.create(channel=msg1.channel, msg=msg1, is_error=True, description="Failed")
 
         # create broadcast and fail the only message
         broadcast = Broadcast.create(self.org, self.admin, "message number 2", [self.joe])
@@ -593,6 +590,13 @@ class MsgTest(TembaTest):
         self.assertEquals(response.context['object_list'].count(), 3)
         self.assertEquals(response.context['actions'], ['resend'])
 
+        self.assertContains(response, reverse('channels.channellog_read', args=[log.id]))
+
+        # make the org anonymous
+        with AnonymousOrg(self.org):
+            response = self.fetch_protected(failed_url, self.admin)
+            self.assertNotContains(response, reverse('channels.channellog_read', args=[log.id]))
+
         # let's resend some messages
         self.client.post(failed_url, dict(action='resend', objects=msg2.pk), follow=True)
 
@@ -608,13 +612,6 @@ class MsgTest(TembaTest):
         self.assertEquals(msg2.text, resent_msg.text)
         self.assertEquals(msg2.contact, resent_msg.contact)
         self.assertEquals(PENDING, resent_msg.status)
-
-        # finally check that the contact status gets flipped back
-        resent_msg.status = 'D'
-        resent_msg.save()
-
-        check_messages_task()
-        self.assertFalse(Contact.objects.get(pk=msg1.contact.pk).is_failed)
 
     @patch('temba.utils.email.send_temba_email')
     def test_message_export(self, mock_send_temba_email):
@@ -1255,7 +1252,7 @@ class BroadcastCRUDLTest(TembaTest):
         # but editors can
         self.login(self.editor)
 
-        just_joe = ContactGroup.create(self.org, self.user, "Just Joe")
+        just_joe = self.create_group("Just Joe")
         just_joe.contacts.add(self.joe)
         post_data = dict(omnibox="g-%d,c-%d,n-0780000001" % (just_joe.pk, self.frank.pk),
                          text="Hey Joe, where you goin' with that gun in your hand?")
@@ -1738,6 +1735,12 @@ class SystemLabelTest(TembaTest):
         bcast1 = Broadcast.create(self.org, self.user, "Broadcast 1", [contact1, contact2])
         Broadcast.create(self.org, self.user, "Broadcast 2", [contact1, contact2],
                          schedule=Schedule.create_schedule(timezone.now(), 'D', self.user))
+
+        # create a broadcast with a test contact to make sure they aren't included
+        test_bcast = Broadcast.create(self.org, self.user, "Test Broadcast", [Contact.get_test_contact(self.admin)])
+
+        # this will create some test outgoing messages as well
+        test_bcast.send()
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 4, SystemLabel.TYPE_FLOWS: 0,
                                                             SystemLabel.TYPE_ARCHIVED: 0, SystemLabel.TYPE_OUTBOX: 0,

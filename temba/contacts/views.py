@@ -23,7 +23,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
 from temba.channels.models import ChannelEvent
-from temba.msgs.models import Broadcast, Msg
+from temba.msgs.models import Msg
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
@@ -96,6 +96,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
     Base class for contact list views with contact folders and groups listed by the side
     """
     add_button = True
+    paginate_by = 50
 
     def pre_process(self, request, *args, **kwargs):
         if hasattr(self, 'system_group'):
@@ -132,8 +133,9 @@ class ContactListView(OrgPermsMixin, SmartListView):
         context = super(ContactListView, self).get_context_data(**kwargs)
 
         folders = [dict(count=counts[ContactGroup.TYPE_ALL], label=_("All Contacts"), url=reverse('contacts.contact_list')),
-                   dict(count=counts[ContactGroup.TYPE_FAILED], label=_("Failed"), url=reverse('contacts.contact_failed')),
-                   dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked'))]
+                   dict(count=counts[ContactGroup.TYPE_BLOCKED], label=_("Blocked"), url=reverse('contacts.contact_blocked')),
+                   dict(count=counts[ContactGroup.TYPE_STOPPED], label=_("Stopped"), url=reverse('contacts.contact_stopped')),
+                   ]
 
         groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
@@ -156,7 +158,8 @@ class ContactActionForm(BaseActionForm):
                        ('unlabel', _("Remove from Group")),
                        ('unblock', _("Unblock Contacts")),
                        ('block', _("Block Contacts")),
-                       ('delete', _("Delete Contacts")))
+                       ('delete', _("Delete Contacts")),
+                       ('unstop', _("Unstop Contacts")))
 
     model = Contact
     label_model = ContactGroup
@@ -309,17 +312,18 @@ class UpdateContactForm(ContactForm):
 
         choices += [(l.iso_code, l.name) for l in self.instance.org.languages.all().order_by('orgs', 'name')]
 
-        self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'), initial=self.instance.language, choices=choices)
+        self.fields['language'] = forms.ChoiceField(required=False, label=_('Language'),
+                                                    initial=self.instance.language, choices=choices)
 
         self.fields['groups'].initial = self.instance.user_groups.all()
-        self.fields['groups'].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
+        self.fields['groups'].queryset = ContactGroup.get_user_groups(self.user.get_org(), dynamic=False)
         self.fields['groups'].help_text = _("The groups which this contact belongs to")
 
 
 class ContactCRUDL(SmartCRUDL):
     model = Contact
-    actions = ('create', 'update', 'failed', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
-               'customize', 'update_fields', 'export', 'block', 'unblock', 'delete', 'history')
+    actions = ('create', 'update', 'stopped', 'list', 'import', 'read', 'filter', 'blocked', 'omnibox',
+               'customize', 'update_fields', 'export', 'block', 'unblock', 'unstop', 'delete', 'history')
 
     class Export(OrgPermsMixin, SmartXlsView):
 
@@ -408,6 +412,21 @@ class ContactCRUDL(SmartCRUDL):
         model = ImportTask
         form_class = CustomizeForm
 
+        def pre_process(self, request, *args, **kwargs):
+            pre_process = super(ContactCRUDL.Customize, self).pre_process(request, *args, **kwargs)
+            if pre_process is not None:
+                return pre_process
+
+            headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
+
+            if not headers:
+                task = self.get_object()
+                self.post_save(task)
+                return HttpResponseRedirect(reverse("contacts.contact_import") + "?task=%d" % task.pk)
+
+            self.headers = headers
+            return None
+
         def create_column_controls(self, column_headers):
             """
             Adds fields to the form for extra columns found in the spreadsheet. Returns a list of dictionaries
@@ -471,7 +490,6 @@ class ContactCRUDL(SmartCRUDL):
             form = super(ContactCRUDL.Customize, self).get_form(form_class)
             form.fields.clear()
 
-            self.headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
             self.column_controls = self.create_column_controls(self.headers)
 
             return form
@@ -548,12 +566,8 @@ class ContactCRUDL(SmartCRUDL):
             # configure import params with current org and timezone
             org = self.derive_org()
             params = dict(org_id=org.id, timezone=org.timezone, extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
-            task.import_params = json.dumps(params)
-            task.save()
-
-            headers = Contact.get_org_import_file_headers(task.csv_file.file, org)
-            if not headers and not task.done():
-                task.start()
+            params_dump = json.dumps(params)
+            ImportTask.objects.filter(pk=task.pk).update(import_params=params_dump)
             return task
 
         def get_form_kwargs(self):
@@ -601,10 +615,7 @@ class ContactCRUDL(SmartCRUDL):
             return None
 
         def get_success_url(self):
-            if Contact.get_org_import_file_headers(self.object.csv_file, self.derive_org()):
-                return reverse("contacts.contact_customize", args=[self.object.pk])
-
-            return reverse("contacts.contact_import") + "?task=%d" % self.object.pk
+            return reverse("contacts.contact_customize", args=[self.object.pk])
 
     class Omnibox(OrgPermsMixin, SmartListView):
 
@@ -749,6 +760,10 @@ class ContactCRUDL(SmartCRUDL):
                 if self.has_org_perm("contacts.contact_unblock") and self.object.is_blocked:
                     links.append(dict(title=_('Unblock'), style='btn-primary', js_class='posterize',
                                       href=reverse('contacts.contact_unblock', args=(self.object.pk,))))
+
+                if self.has_org_perm("contacts.contact_unstop") and self.object.is_stopped:
+                    links.append(dict(title=_('Unstop'), style='btn-primary', js_class='posterize',
+                                      href=reverse('contacts.contact_unstop', args=(self.object.pk,))))
 
                 if self.has_org_perm("contacts.contact_delete"):
                     links.append(dict(title=_('Delete'), style='btn-primary',
@@ -906,14 +921,14 @@ class ContactCRUDL(SmartCRUDL):
             context['actions'] = ('unblock', 'delete') if self.has_org_perm("contacts.contact_delete") else ('unblock',)
             return context
 
-    class Failed(ContactActionMixin, ContactListView):
-        title = _("Failed Contacts")
-        template_name = 'contacts/contact_failed.haml'
-        system_group = ContactGroup.TYPE_FAILED
+    class Stopped(ContactActionMixin, ContactListView):
+        title = _("Stopped Contacts")
+        template_name = 'contacts/contact_stopped.haml'
+        system_group = ContactGroup.TYPE_STOPPED
 
         def get_context_data(self, *args, **kwargs):
-            context = super(ContactCRUDL.Failed, self).get_context_data(*args, **kwargs)
-            context['actions'] = ['block']
+            context = super(ContactCRUDL.Stopped, self).get_context_data(*args, **kwargs)
+            context['actions'] = ['block', 'unstop']
             return context
 
     class Filter(ContactActionMixin, ContactListView):
@@ -971,7 +986,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
-        exclude = ('is_active', 'uuid', 'language', 'org', 'fields', 'is_blocked', 'is_failed',
+        exclude = ('is_active', 'uuid', 'language', 'org', 'fields', 'is_blocked', 'is_stopped',
                    'created_by', 'modified_by', 'is_test', 'channel')
         success_message = ''
         submit_button_name = _("Create")
@@ -1000,7 +1015,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateContactForm
-        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_failed',
+        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_stopped',
                    'created_by', 'modified_by', 'is_test', 'channel')
         success_url = 'uuid@contacts.contact_read'
         success_message = ''
@@ -1036,7 +1051,7 @@ class ContactCRUDL(SmartCRUDL):
 
             new_groups = self.form.cleaned_data.get('groups')
             if new_groups is not None:
-                obj.update_groups(self.request.user, new_groups)
+                obj.update_static_groups(self.request.user, new_groups)
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Update, self).get_context_data(**kwargs)
@@ -1071,7 +1086,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class UpdateFields(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactFieldForm
-        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_failed',
+        exclude = ('is_active', 'uuid', 'org', 'fields', 'is_blocked', 'is_stopped',
                    'created_by', 'modified_by', 'is_test', 'channel')
         success_url = 'uuid@contacts.contact_read'
         success_message = ''
@@ -1128,6 +1143,18 @@ class ContactCRUDL(SmartCRUDL):
             obj.unblock(self.request.user)
             return obj
 
+    class Unstop(OrgPermsMixin, SmartUpdateView):
+        """
+        Unstops this contact
+        """
+        fields = ()
+        success_url = 'uuid@contacts.contact_read'
+        success_message = _("Contact unstopped")
+
+        def save(self, obj):
+            obj.unstop(self.request.user)
+            return obj
+
     class Delete(OrgPermsMixin, SmartUpdateView):
         """
         Delete this contact (can't be undone)
@@ -1143,20 +1170,7 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ('read', 'update', 'create', 'delete', 'list')
-
-    class List(OrgPermsMixin, SmartListView):
-        pass
-
-    class Read(OrgObjPermsMixin, SmartReadView):
-        fields = ('name', 'contacts')
-
-        def get_context_data(self, **kwargs):
-            context = super(ContactGroupCRUDL.Read, self).get_context_data(**kwargs)
-            group = self.object
-            broadcasts = Broadcast.objects.filter(groups=group.id).order_by('-created_on')
-            context['broadcasts'] = broadcasts
-            return context
+    actions = ('create', 'update', 'delete')
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
@@ -1166,26 +1180,22 @@ class ContactGroupCRUDL(SmartCRUDL):
         submit_button_name = _("Create")
 
         def save(self, obj):
-            obj.org = self.request.user.get_org()
-            self.object = ContactGroup.get_or_create(obj.org, self.request.user, obj.name)
+            org = self.request.user.get_org()
+            user = self.request.user
+            name = self.form.cleaned_data.get('name')
+            query = self.form.cleaned_data.get('group_query')
+            preselected_contacts = self.form.cleaned_data.get('preselected_contacts')
 
-        def post_save(self, obj, *args, **kwargs):
-            obj = super(ContactGroupCRUDL.Create, self).post_save(self.object, *args, **kwargs)
-            data = self.form.cleaned_data
-
-            # static group with initial contact ids
-            if data['preselected_contacts']:
-                preselected_ids = [int(c_id) for c_id in data['preselected_contacts'].split(',') if c_id.isdigit()]
-                preselected_contacts = Contact.objects.filter(pk__in=preselected_ids, org=obj.org, is_active=True)
+            if query:
+                self.object = ContactGroup.create_dynamic(org, user, name, query)
+            else:
+                self.object = ContactGroup.create_static(org, user, name)
 
                 if preselected_contacts:
-                    obj.update_contacts(self.request.user, preselected_contacts, True)
+                    preselected_ids = [int(c_id) for c_id in preselected_contacts.split(',') if c_id.isdigit()]
+                    contacts = Contact.objects.filter(org=org, pk__in=preselected_ids, is_active=True)
 
-            # dynamic group with a query
-            elif data['group_query']:
-                obj.update_query(data['group_query'])
-
-            return obj
+                    self.object.update_contacts(user, contacts, add=True)
 
         def get_form_kwargs(self):
             kwargs = super(ContactGroupCRUDL.Create, self).get_form_kwargs()

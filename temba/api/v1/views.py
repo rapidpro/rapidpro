@@ -464,7 +464,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        return queryset.order_by('-created_on').prefetch_related('urns', 'contacts', 'groups')
+        return queryset.order_by('-created_on').select_related('org').prefetch_related('urns', 'contacts', 'groups')
 
     @classmethod
     def get_read_explorer(cls):

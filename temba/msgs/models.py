@@ -1161,6 +1161,10 @@ class Msg(models.Model):
 
         msg = Msg.all_messages.create(**msg_args)
 
+        # if this contact is currently stopped, unstop them
+        if contact.is_stopped:
+            contact.unstop(user)
+
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 

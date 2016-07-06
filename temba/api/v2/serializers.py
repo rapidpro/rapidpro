@@ -35,16 +35,13 @@ class ReadSerializer(serializers.ModelSerializer):
 # ============================================================
 
 class BroadcastReadSerializer(ReadSerializer):
-    STATUSES = ReadSerializer.extract_constants(STATUS_CONFIG)
-
     urns = serializers.SerializerMethodField()
     contacts = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
-    status = serializers.SerializerMethodField()
 
     def get_urns(self, obj):
         if obj.org.is_anon:
-            return []
+            return None
         else:
             return [urn.urn for urn in obj.urns.all()]
 
@@ -54,12 +51,9 @@ class BroadcastReadSerializer(ReadSerializer):
     def get_groups(self, obj):
         return [{'uuid': g.uuid, 'name': g.name} for g in obj.groups.all()]
 
-    def get_status(self, obj):
-        return self.STATUSES.get(obj.status)
-
     class Meta:
         model = Broadcast
-        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on', 'status')
+        fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on')
 
 
 class ChannelEventReadSerializer(ReadSerializer):
@@ -153,7 +147,7 @@ class ContactReadSerializer(ReadSerializer):
     groups = serializers.SerializerMethodField()
     fields = serializers.SerializerMethodField('get_contact_fields')
     blocked = serializers.SerializerMethodField()
-    failed = serializers.SerializerMethodField()
+    stopped = serializers.SerializerMethodField()
 
     def get_name(self, obj):
         return obj.name if obj.is_active else None
@@ -187,12 +181,12 @@ class ContactReadSerializer(ReadSerializer):
     def get_blocked(self, obj):
         return obj.is_blocked if obj.is_active else None
 
-    def get_failed(self, obj):
-        return obj.is_failed if obj.is_active else None
+    def get_stopped(self, obj):
+        return obj.is_stopped if obj.is_active else None
 
     class Meta:
         model = Contact
-        fields = ('uuid', 'name', 'language', 'urns', 'groups', 'fields', 'blocked', 'failed',
+        fields = ('uuid', 'name', 'language', 'urns', 'groups', 'fields', 'blocked', 'stopped',
                   'created_on', 'modified_on')
 
 

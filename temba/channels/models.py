@@ -1659,9 +1659,10 @@ class Channel(TembaModel):
             # this is a fatal failure, don't retry
             fatal = response.status_code == 400
 
-            # if this is fatal due to the user opting out, fail this contact permanently
+            # if this is fatal due to the user opting out, stop them
             if response.text and response.text.find('has opted out') >= 0:
-                Contact.objects.get(id=msg.contact).fail(permanently=True)
+                contact = Contact.objects.get(id=msg.contact)
+                contact.stop(contact.modified_by)
                 fatal = True
 
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -1721,6 +1722,7 @@ class Channel(TembaModel):
     @classmethod
     def send_yo_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, SENT
+        from temba.contacts.models import Contact
 
         # build our message dict
         params = dict(origin=channel.address.lstrip('+'),
@@ -1732,6 +1734,8 @@ class Channel(TembaModel):
         log_params['password'] = 'x' * len(log_params['password'])
 
         start = time.time()
+        failed = False
+        fatal = False
 
         for send_url in [YO_API_URL_1, YO_API_URL_2, YO_API_URL_3]:
             url = send_url + '?' + urlencode(params)
@@ -1751,6 +1755,13 @@ class Channel(TembaModel):
             if not failed and response_qs.get('ybs_autocreate_status', [''])[0] != 'OK':
                 failed = True
 
+            # check if we failed permanently (they blocked us)
+            if failed and response_qs.get('ybs_autocreate_message', [''])[0].find('BLACKLISTED') >= 0:
+                contact = Contact.objects.get(id=msg.contact)
+                contact.stop(contact.modified_by)
+                fatal = True
+                break
+
             # if we sent the message, then move on
             if not failed:
                 break
@@ -1761,7 +1772,8 @@ class Channel(TembaModel):
                                 method='GET',
                                 request='',
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                fatal=fatal)
 
         Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start)
 
@@ -2109,9 +2121,10 @@ class Channel(TembaModel):
                         fatal = True
                         break
 
-            # if message can never be sent, fail contact permanently
+            # if message can never be sent, stop them contact
             if fatal:
-                Contact.objects.get(id=msg.contact).fail(permanently=True)
+                contact = Contact.objects.get(id=msg.contact)
+                contact.stop(contact.modified_by)
 
             raise SendException(str(e),
                                 'https://api.twitter.com/1.1/direct_messages/new.json',
