@@ -25,7 +25,6 @@ from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
-from .serializers import FlowWriteSerializer
 from .serializers import LabelReadSerializer, MsgReadSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError, CustomCursorPagination
