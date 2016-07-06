@@ -1803,29 +1803,6 @@ class Flow(TembaModel):
 
         return send_actions
 
-    def get_subflows(self, flows=None):
-        """
-        Returns all subflows of this flow on down the dependency tree
-        """
-        if not flows:
-            flows = set()
-
-        if self in flows:
-            return flows
-
-        children = set()
-        for ruleset in self.rule_sets.all():
-            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                flow = Flow.objects.filter(uuid=ruleset.config_json()['flow']['uuid']).first()
-                if flow:
-                    children.add(flow)
-        flows.update(children)
-
-        for child in children:
-            flows = child.get_subflows(flows)
-
-        return flows
-
     def get_dependencies(self, dependencies=None):
 
         if not dependencies:

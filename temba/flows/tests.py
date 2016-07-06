@@ -4159,12 +4159,6 @@ class FlowsTest(FlowFileTest):
         # should have one event scheduled for this contact
         self.assertTrue(EventFire.objects.filter(contact=self.contact))
 
-    def test_get_subflows(self):
-        self.get_flow('subflow')
-        parent = Flow.objects.get(org=self.org, name='Parent Flow')
-        child = Flow.objects.get(org=self.org, name='Child Flow')
-        self.assertEqual(set([child]), parent.get_subflows())
-
     def test_subflow(self):
         """
         Tests that a subflow can be called and the flow is handed back to the parent
