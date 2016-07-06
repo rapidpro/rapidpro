@@ -1370,42 +1370,6 @@ class ChannelTest(TembaTest):
                 # assert we subscribed to events
                 self.assertEqual(mock_post.call_count, 1)
 
-            # try to set the welcome message (this try fails)
-            welcome_url = reverse('channels.channel_facebook_welcome', args=[channel.id])
-            with patch('requests.post') as mock_post:
-                mock_post.return_value = MockResponse(400, json.dumps(dict(success=False)))
-
-                response = self.client.post(welcome_url, dict(id=channel.id, message="Test Message"), follow=True)
-                self.assertEqual(response.status_code, 200)
-                self.assertContains(response, 'error')
-
-                # assert our facebook endpoint was called
-                self.assertEqual(mock_post.call_count, 1)
-
-            # try with success
-            with patch('requests.post') as mock_post:
-                mock_post.return_value = MockResponse(200, json.dumps(dict(success=True)))
-
-                response = self.client.post(welcome_url, dict(id=channel.id, message="Test Message"), follow=True)
-                self.assertEqual(response.status_code, 200)
-                self.assertNotContains(response, 'error')
-
-                # assert our facebook endpoint was called
-                self.assertEqual(mock_post.call_count, 1)
-                self.assertEqual(json.loads(mock_post.call_args[0][1])['call_to_actions'], [dict(message=dict(text="Test Message"))])
-
-            # try removing it
-            with patch('requests.post') as mock_post:
-                mock_post.return_value = MockResponse(200, json.dumps(dict(success=True)))
-
-                response = self.client.post(welcome_url, dict(id=channel.id, message=""), follow=True)
-                self.assertEqual(response.status_code, 200)
-                self.assertNotContains(response, 'error')
-
-                # assert our facebook endpoint was called
-                self.assertEqual(mock_post.call_count, 1)
-                self.assertEqual(json.loads(mock_post.call_args[0][1])['call_to_actions'], [])
-
             # release the channel
             with patch('requests.delete') as mock_delete:
                 mock_delete.return_value = MockResponse(200, json.dumps(dict(success=True)))
