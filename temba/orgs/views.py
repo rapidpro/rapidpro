@@ -492,7 +492,14 @@ class OrgCRUDL(SmartCRUDL):
             flows = set(Flow.objects.filter(id__in=self.request.REQUEST.getlist('flows'), org=self.get_object(), is_active=True))
             campaigns = Campaign.objects.filter(id__in=self.request.REQUEST.getlist('campaigns'), org=self.get_object())
 
-            export = self.export(self.request, flows, campaigns)
+            # by default we include the triggers for the requested flows
+            dependencies = None
+            for flow in flows:
+                dependencies = flow.get_dependencies(dependencies)
+
+            triggers = dependencies['triggers']
+
+            export = self.get_object().export_definitions(request.branding['link'], flows, campaigns, triggers)
             response = HttpResponse(json.dumps(export, indent=2), content_type='application/javascript')
             response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(self.get_object().name)
             return response

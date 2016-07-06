@@ -273,33 +273,6 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def export_definitions(cls, flows):
-        """
-        Builds a json definition fit for export
-        """
-        exported_flows = []
-        exported_triggers = []
-
-        for flow in flows:
-            # only export current versions
-            flow.ensure_current_version()
-            # get our json with group names
-            exported_flows.append(flow.as_json(expand_contacts=True))
-
-        # get all non-schedule based triggers that are active for these flows
-        triggers = set()
-        for flow in flows:
-            triggers.update(flow.get_dependencies()['triggers'])
-
-        for trigger in triggers:
-            exported_triggers.append(trigger.as_json())
-
-        from temba.orgs.models import CURRENT_EXPORT_VERSION
-        return dict(version=CURRENT_EXPORT_VERSION,
-                    flows=exported_flows,
-                    triggers=exported_triggers)
-
-    @classmethod
     def import_flows(cls, exported_json, org, user, same_site=False):
         """
         Import flows from our flow export file
@@ -1858,9 +1831,6 @@ class Flow(TembaModel):
         if not dependencies:
             dependencies = dict(flows=set(), groups=set(), campaigns=set(), triggers=set())
 
-        if self in dependencies['flows']:
-            return dependencies
-
         flows = set()
         groups = set()
 
@@ -1882,7 +1852,7 @@ class Flow(TembaModel):
 
         # add any campaigns that use our groups
         from temba.campaigns.models import Campaign
-        campaigns = Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True)
+        campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
         for campaign in campaigns:
             flows.update(list(campaign.get_flows()))
 
@@ -1892,8 +1862,11 @@ class Flow(TembaModel):
 
         dependencies['flows'].update(flows)
         dependencies['groups'].update(groups)
-        dependencies['campaigns'].update(set(campaigns))
+        dependencies['campaigns'].update(campaigns)
         dependencies['triggers'].update(triggers)
+
+        if self in dependencies['flows']:
+            return dependencies
 
         for flow in flows:
             dependencies = flow.get_dependencies(dependencies)

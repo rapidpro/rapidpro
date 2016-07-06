@@ -46,6 +46,7 @@ def api(request, format=None):
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
+     * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/groups](/api/v2/groups) - to list contact groups
      * [/api/v2/labels](/api/v2/labels) - to list message labels
@@ -62,6 +63,7 @@ def api(request, format=None):
         'channels': reverse('api.v2.channels', request=request),
         'channel_events': reverse('api.v2.channel_events', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
+        'definitions': reverse('api.v2.definitions', request=request),
         'fields': reverse('api.v2.fields', request=request),
         'groups': reverse('api.v2.groups', request=request),
         'labels': reverse('api.v2.labels', request=request),
@@ -86,6 +88,7 @@ class ApiExplorerView(SmartTemplateView):
             ChannelsEndpoint.get_read_explorer(),
             ChannelEventsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
+            DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_read_explorer(),
             LabelsEndpoint.get_read_explorer(),
@@ -775,195 +778,137 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
+class DefinitionsEndpoint(BaseAPIView):
     """
-    This endpoint returns a flow definition given a flow uuid. Posting to it allows creation
-    or updating of existing flows. This endpoint should be considered to only have alpha-level
-    support and is subject to modification or removal.
+    This endpoint exports flows, campaigns, and triggers and optionally will determine
+    the dependency graph for the provided uuids.
 
-    ## Getting a flow definition
+    ## Getting Definitions
 
-    Returns a flow definition in standard export format
+    Returns json export for all items requested
 
-      * **uuid** - the UUID of the flow (string, repeatable)
-      * **subflows** - include all subflows (boolean, optional)
-
-    Example:
-
-        GET /api/v1/flow_definition.json?uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c0b
-
-    Response is a list of flow definitions
-      {
-        version: 8,
-        flows: [{
-          metadata: {
-            "name": "Water Point Survey",
-            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
-            "saved_on": "2015-09-23T00:25:50.709164Z",
-            "revision":28,
-            "expires":7880,
-            "id":12712,
-          },
-          "version": 7,
-          "flow_type": "S",
-          "base_language": "eng",
-          "entry": "87929095-7d13-4003-8ee7-4c668b736419",
-          "action_sets": [
-            {
-              "y": 0,
-              "x": 100,
-              "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-              "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
-              "actions": [
-                {
-                  "msg": {
-                    "eng": "What is your name?"
-                  },
-                  "type": "reply"
-                }
-              ]
-            },
-            ...
-          ],
-          "rule_sets": [
-            {
-              "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-              "webhook_action": null,
-              "rules": [
-                {
-                  "test": {
-                    "test": "true",
-                    "type": "true"
-                  },
-                  "category": {
-                    "eng": "All Responses"
-                  },
-                  "destination": null,
-                  "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
-                  "destination_type": null
-                }
-              ],
-              "webhook": null,
-              "ruleset_type": "wait_message",
-              "label": "Name",
-              "operand": "@step.value",
-              "finished_key": null,
-              "y": 162,
-              "x": 62,
-              "config": {}
-            },
-            ...
-          ]
-          }
-        }]
-      }
-
-    ## Saving a flow definition
-
-    By making a ```POST``` request to the endpoint you can create or update an existing flow
-
-    * **metadata** - contains the name and uuid (optional) for the flow
-    * **version** - the flow spec version for the definition being submitted
-    * **base_language** - the default language code to use for the flow
-    * **flow_type** - the type of the flow (F)low, (V)oice, (S)urvey
-    * **action_sets** - the actions in the flow
-    * **rule_sets** - the rules in the flow
-    * **entry** - the uuid for the action_set or rule_set the flow starts at
+      * **flow_uuid** - the UUID of the flow to export (string, repeatable)
+      * **campaign_uuid** - the UUID of the campaign to export (string, repeatable)
+      * **dependencies** - whether to include dependencies (boolean, default: false)
 
     Example:
 
-        POST /api/v1/flow_definition.json
+        GET /api/v2/definitions.json?flow_uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c0b
+
+    Response is a collection of definitions
+
         {
-          "metadata": {
-            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
-            "name": "Registration Flow"
-          },
-          "version": 7,
-          "flow_type": "S",
-          "base_language": "eng",
-          "entry": "87929095-7d13-4003-8ee7-4c668b736419",
-          "action_sets": [
-            {
-              "y": 0,
-              "x": 100,
-              "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-              "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
-              "actions": [
-                {
-                  "msg": {
-                    "eng": "What is your name?"
-                  },
-                  "type": "reply"
-                }
-              ]
+          version: 8,
+          campaigns: [],
+          triggers: [],
+          flows: [{
+            metadata: {
+              "name": "Water Point Survey",
+              "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
+              "saved_on": "2015-09-23T00:25:50.709164Z",
+              "revision":28,
+              "expires":7880,
+              "id":12712,
             },
-            ...
-          ],
-          "rule_sets": [
-            {
-              "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-              "webhook_action": null,
-              "rules": [
-                {
-                  "test": {
-                    "test": "true",
-                    "type": "true"
-                  },
-                  "category": {
-                    "eng": "All Responses"
-                  },
-                  "destination": null,
-                  "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
-                  "destination_type": null
-                }
-              ],
-              "webhook": null,
-              "ruleset_type": "wait_message",
-              "label": "Name",
-              "operand": "@step.value",
-              "finished_key": null,
-              "y": 162,
-              "x": 62,
-              "config": {}
-            },
-            ...
-          ]
+            "version": 7,
+            "flow_type": "S",
+            "base_language": "eng",
+            "entry": "87929095-7d13-4003-8ee7-4c668b736419",
+            "action_sets": [
+              {
+                "y": 0,
+                "x": 100,
+                "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
+                "actions": [
+                  {
+                    "msg": {
+                      "eng": "What is your name?"
+                    },
+                    "type": "reply"
+                  }
+                ]
+              },
+              ...
+            ],
+            "rule_sets": [
+              {
+                "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                "webhook_action": null,
+                "rules": [
+                  {
+                    "test": {
+                      "test": "true",
+                      "type": "true"
+                    },
+                      "category": {
+                      "eng": "All Responses"
+                    },
+                    "destination": null,
+                    "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
+                    "destination_type": null
+                  }
+                ],
+                "webhook": null,
+                "ruleset_type": "wait_message",
+                "label": "Name",
+                "operand": "@step.value",
+                "finished_key": null,
+                "y": 162,
+                "x": 62,
+                "config": {}
+              },
+              ...
+            ]
+            }
+          }]
         }
     """
-    permission = 'flows.flow_api'
-    model = Flow
-    write_serializer_class = FlowWriteSerializer
+    permission = 'orgs.org_api'
 
     def get(self, request, *args, **kwargs):
 
-        uuids = splitting_getlist(self.request, 'uuid')
-        if uuids:
-            flows = Flow.objects.filter(uuid__in=uuids, org=self.request.user.get_org())
+        org = self.request.user.get_org()
 
-        to_export = []
+        flows = []
+        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+        if flow_uuids:
+            flows = Flow.objects.filter(uuid__in=flow_uuids, org=org)
+
+        # any fetched campaigns
+        campaigns = []
+        campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
+        if campaign_uuids:
+            campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org)
+
+        # get any dependencies on our flows and campaigns
+        depends = self.request.GET.get('dependencies', False)
+        dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
         for flow in flows:
+            if depends:
+                dependencies = flow.get_dependencies(dependencies=dependencies)
 
-            # add ourselves
-            to_export.append(flow)
+        # make sure our requested items are included flows we requested are included
+        to_export = dict(flows=dependencies['flows'],
+                         campaigns=dependencies['campaigns'],
+                         triggers=dependencies['triggers'])
 
-            # and our subflows if necessary
-            if self.request.GET.get('subflows', False):
-                to_export += flow.get_subflows()
+        # add in our primary requested flows
+        to_export['flows'].update(flows)
 
-        if to_export:
+        export = self.request.user.get_org().export_definitions(self.request.branding['link'], **to_export)
 
-            # we follow the standard export format
-            export = self.request.user.get_org().export(self.request, flows=to_export)
+        return Response(export, status=status.HTTP_200_OK)
 
-            del export['campaigns']
-            del export['triggers']
-
-            return Response(export, status=status.HTTP_200_OK)
-        else:
-            return Response(dict(error="Invalid flow uuid"), status=status.HTTP_400_BAD_REQUEST)
-
-    def render_write_response(self, flow, context):
-        return Response(flow.as_json(), status=status.HTTP_201_CREATED)
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "Definitions",
+            'url': reverse('api.v2.definitions'),
+            'slug': 'org-definitions',
+            'request': ""
+        }
 
 
 class FieldsEndpoint(ListAPIMixin, BaseAPIView):

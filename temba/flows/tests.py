@@ -4163,7 +4163,7 @@ class FlowsTest(FlowFileTest):
         self.get_flow('subflow')
         parent = Flow.objects.get(org=self.org, name='Parent Flow')
         child = Flow.objects.get(org=self.org, name='Child Flow')
-        self.assertEqual([child], parent.get_subflows())
+        self.assertEqual(set([child]), parent.get_subflows())
 
     def test_subflow(self):
         """

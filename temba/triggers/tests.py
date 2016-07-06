@@ -844,7 +844,7 @@ class TriggerTest(TembaTest):
         trigger.groups.add(group)
 
         # export everything
-        export = Flow.export_definitions([flow])
+        export = self.org.export_definitions('http://rapidpro.io', **flow.get_dependencies())
 
         # remove our trigger
         Trigger.objects.all().delete()
