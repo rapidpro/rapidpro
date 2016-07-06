@@ -633,11 +633,9 @@ class Channel(TembaModel):
 
         access_token = self.config_json()[AUTH_TOKEN]
 
-        response = requests.post(url, json.dumps(body),
-                                 params=dict(access_token=access_token),
-                                 headers={'Content-Type': 'application/json'})
-
-        print response.text
+        requests.post(url, json.dumps(body),
+                      params=dict(access_token=access_token),
+                      headers={'Content-Type': 'application/json'})
 
     def get_delegate(self, role):
         """
