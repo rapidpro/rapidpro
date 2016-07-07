@@ -493,7 +493,7 @@ class OrgCRUDL(SmartCRUDL):
             campaigns = Campaign.objects.filter(id__in=self.request.REQUEST.getlist('campaigns'), org=self.get_object())
 
             # by default we include the triggers for the requested flows
-            dependencies = None
+            dependencies = dict(flows=set(), campaigns=set(), groups=set(), triggers=set())
             for flow in flows:
                 dependencies = flow.get_dependencies(dependencies)
 

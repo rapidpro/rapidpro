@@ -4,10 +4,9 @@ from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
+from temba.flows.models import FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
-from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
@@ -29,34 +28,6 @@ class ReadSerializer(serializers.ModelSerializer):
 
     def save(self, **kwargs):  # pragma: no cover
         raise ValueError("Can't call save on a read serializer")
-
-
-class WriteSerializer(serializers.Serializer):
-    """
-    The normal REST framework way is to have the view decide if it's an update on existing instance or a create for a
-    new instance. Since our logic for that gets relatively complex, we have the serializer make that call.
-    """
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        self.org = kwargs.pop('org') if 'org' in kwargs else self.user.get_org()
-
-        super(WriteSerializer, self).__init__(*args, **kwargs)
-
-        self.instance = None
-
-    def run_validation(self, data=serializers.empty):
-        if not isinstance(data, dict):
-            raise serializers.ValidationError(detail={'non_field_errors': ["Request body should be a single JSON object"]})
-
-        return super(WriteSerializer, self).run_validation(data)
-
-
-class DateTimeField(serializers.DateTimeField):
-    """
-    For backward compatibility, datetime fields are limited to millisecond accuracy
-    """
-    def to_representation(self, value):
-        return format_datetime(value)
 
 
 class UUIDField(serializers.CharField):
@@ -247,141 +218,6 @@ class ContactGroupReadSerializer(ReadSerializer):
     class Meta:
         model = ContactGroup
         fields = ('uuid', 'name', 'query', 'count')
-
-
-class FlowReadSerializer(ReadSerializer):
-    uuid = serializers.ReadOnlyField()
-    archived = serializers.ReadOnlyField(source='is_archived')
-    expires = serializers.ReadOnlyField(source='expires_after_minutes')
-    labels = serializers.SerializerMethodField()
-    rulesets = serializers.SerializerMethodField()
-    runs = serializers.SerializerMethodField()
-    completed_runs = serializers.SerializerMethodField()
-    participants = serializers.SerializerMethodField()
-    created_on = DateTimeField()
-    flow = serializers.ReadOnlyField(source='id')  # deprecated, use uuid
-
-    def get_runs(self, obj):
-        return obj.get_total_runs()
-
-    def get_labels(self, obj):
-        return [l.name for l in obj.labels.all()]
-
-    def get_completed_runs(self, obj):
-        return obj.get_completed_runs()
-
-    def get_participants(self, obj):
-        return None
-
-    def get_rulesets(self, obj):
-        rulesets = list()
-
-        obj.ensure_current_version()
-
-        for ruleset in obj.rule_sets.all().order_by('y'):
-
-            # backwards compat for old response types
-            response_type = 'C'
-            if ruleset.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
-                response_type = 'K'
-            elif ruleset.ruleset_type == RuleSet.TYPE_WAIT_DIGIT:
-                response_type = 'M'
-            elif ruleset.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
-                response_type = 'R'
-            elif len(ruleset.get_rules()) == 1:
-                response_type = 'O'
-
-            rulesets.append(dict(node=ruleset.uuid,
-                                 label=ruleset.label,
-                                 ruleset_type=ruleset.ruleset_type,
-                                 response_type=response_type,  # deprecated
-                                 id=ruleset.id))  # deprecated
-        return rulesets
-
-    class Meta:
-        model = Flow
-        fields = ('uuid', 'archived', 'expires', 'name', 'labels', 'runs', 'completed_runs', 'participants', 'rulesets',
-                  'created_on', 'flow')
-
-
-class FlowWriteSerializer(WriteSerializer):
-    version = serializers.IntegerField(required=True)
-    metadata = serializers.DictField(required=False)
-    base_language = serializers.CharField(required=False, min_length=3, max_length=3)
-    flow_type = serializers.CharField(required=False, max_length=1)
-    action_sets = serializers.ListField(required=False)
-    rule_sets = serializers.ListField(required=False)
-    entry = UUIDField(required=False)
-
-    # old versions had different top level elements
-    uuid = UUIDField(required=False)
-    definition = serializers.DictField(required=False)
-    name = serializers.CharField(required=False)
-    id = serializers.IntegerField(required=False)
-
-    def validate_version(self, value):
-        if value > CURRENT_EXPORT_VERSION or value < EARLIEST_IMPORT_VERSION:
-            raise serializers.ValidationError("Flow version %s not supported" % value)
-        return value
-
-    def validate_flow_type(self, value):
-        if value and value not in [choice[0] for choice in Flow.FLOW_TYPES]:
-            raise serializers.ValidationError("Invalid flow type: %s" % value)
-        return value
-
-    def validate(self, data):
-        version = data.get('version')
-
-        if version < 7:
-            if not data.get('name'):
-                raise serializers.ValidationError("This field is required for version %s" % version)
-            if not data.get('definition'):
-                data['definition'] = dict(action_sets=[], rule_sets=[])
-
-        if version >= 7:
-            # only required starting at version 7
-            metadata = data.get('metadata')
-            if metadata:
-                if 'name' not in metadata:
-                    raise serializers.ValidationError("Name is missing from metadata")
-
-                uuid = metadata.get('uuid', None)
-                if uuid and not Flow.objects.filter(org=self.org, is_active=True, uuid=uuid).exists():
-                    raise serializers.ValidationError("No such flow with UUID: %s" % uuid)
-            else:
-                raise serializers.ValidationError("Metadata field is required for version %s" % version)
-
-        return data
-
-    def save(self):
-        """
-        Update our flow
-        """
-        flow_json = self.validated_data
-
-        # first, migrate our definition forward if necessary
-        version = flow_json.get('version', CURRENT_EXPORT_VERSION)
-        if version < CURRENT_EXPORT_VERSION:
-            flow_json = FlowRevision.migrate_definition(self.org, flow_json, version, CURRENT_EXPORT_VERSION)
-
-        # previous to version 7, uuid could be supplied on the outer element
-        uuid = flow_json.get('metadata').get('uuid', flow_json.get('uuid', None))
-        name = flow_json.get('metadata').get('name')
-
-        if uuid:
-            flow = Flow.objects.filter(org=self.org, uuid=uuid).first()
-            flow.name = name
-            flow_type = flow_json.get('flow_type', None)
-            if flow_type:
-                flow.flow_type = flow_type
-
-            flow.save()
-        else:
-            flow_type = flow_json.get('flow_type', Flow.FLOW)
-            flow = Flow.create(self.org, self.user, name, flow_type)
-
-        flow.update(flow_json, self.user, force=True)
-        return flow
 
 
 class FlowRunReadSerializer(ReadSerializer):

@@ -788,7 +788,7 @@ class DefinitionsEndpoint(BaseAPIView):
 
       * **flow_uuid** - the UUID of the flow to export (string, repeatable)
       * **campaign_uuid** - the UUID of the campaign to export (string, repeatable)
-      * **dependencies** - whether to include dependencies (boolean, default: false)
+      * **dependencies** - whether to include dependencies (boolean, default: true)
 
     Example:
 
@@ -867,12 +867,13 @@ class DefinitionsEndpoint(BaseAPIView):
 
     def get(self, request, *args, **kwargs):
 
+        depends = self.request.GET.get('dependencies', 'true').lower() == 'true'
         org = self.request.user.get_org()
 
-        flows = []
+        flows = set()
         flow_uuids = splitting_getlist(self.request, 'flow_uuid')
         if flow_uuids:
-            flows = Flow.objects.filter(uuid__in=flow_uuids, org=org)
+            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
 
         # any fetched campaigns
         campaigns = []
@@ -880,8 +881,12 @@ class DefinitionsEndpoint(BaseAPIView):
         if campaign_uuids:
             campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org)
 
+            if depends:
+                for campaign in campaigns:
+                    for event in campaign.events.filter(event_type=CampaignEvent.TYPE_FLOW, is_active=True).exclude(flow=None):
+                        flows.add(event.flow)
+
         # get any dependencies on our flows and campaigns
-        depends = self.request.GET.get('dependencies', False)
         dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
         for flow in flows:
             if depends:
