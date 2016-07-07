@@ -6560,6 +6560,84 @@ class FacebookTest(TembaTest):
             urn = ContactURN.objects.get(urn='facebook:5678')
             self.assertEqual(channel2, urn.channel)
 
+    def test_ignored_webhooks(self):
+        TEST_PAYLOAD = """{
+          "object": "page",
+          "entry": [{
+            "id": "208685479508187",
+            "time": 1459991487970,
+            "messaging": []
+          }]
+        }"""
+
+        READ_ENTRY = """
+        {
+          "sender":{ "id":"1001" },
+          "recipient":{ "id":"%s" },
+          "timestamp":1458668856463,
+          "read":{
+            "watermark":1458668856253,
+            "seq":38
+          }
+        }
+        """
+
+        ECHO_ENTRY = """{
+          "sender": {"id": "1001"},
+          "recipient": {"id": "%s"},
+          "timestamp": 1467905036620,
+          "message": {
+            "is_echo": true,
+            "app_id": 1077392885670130,
+            "mid": "mid.1467905036543:c721a8364e45388954",
+            "seq": 4,
+            "text": "Echo Test"
+          }
+        }
+        """
+
+        LINK_ENTRY = """{
+          "sender":{
+            "id":"1001"
+          },
+          "recipient":{
+            "id":"%s"
+          },
+          "timestamp":1234567890,
+          "account_linking":{
+            "status":"linked",
+            "authorization_code":"PASS_THROUGH_AUTHORIZATION_CODE"
+          }
+        }
+        """
+
+        AUTH_ENTRY = """{
+          "sender":{
+            "id":"1001"
+          },
+          "recipient":{
+            "id":"%s"
+          },
+          "timestamp":1234567890,
+          "optin":{
+            "ref":"PASS_THROUGH_PARAM"
+          }
+        }
+        """
+
+        callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
+        for entry in (READ_ENTRY, ECHO_ENTRY, LINK_ENTRY, AUTH_ENTRY):
+            payload = json.loads(TEST_PAYLOAD)
+            payload['entry'][0]['messaging'].append(json.loads(entry % self.channel.address))
+
+            with patch('requests.get') as mock_get:
+                mock_get.return_value = MockResponse(200, '{"first_name": "Ben","last_name": "Haggerty"}')
+                response = self.client.post(callback_url, json.dumps(payload), content_type="application/json")
+
+                # ignored but 200
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "Ignored")
+
     def test_receive(self):
         data = json.loads(FacebookTest.TEST_INCOMING)
         callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])

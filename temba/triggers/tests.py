@@ -592,7 +592,7 @@ class TriggerTest(TembaTest):
         # try to create another one, fails as we already have a trigger for that channel
         response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]), data=dict(channel=fb_channel.id, flow=flow2.id))
         self.assertEqual(response.status_code, 200)
-        self.assertHasFieldError(response, 'channel')
+        self.assertFormError(response, 'form', 'channel')
 
         # ok, trigger a facebook event
         data = json.loads("""{

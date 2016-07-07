@@ -1687,12 +1687,13 @@ class FacebookHandler(View):
                     if 'message' in envelope or 'postback' in envelope:
                         # ignore echos
                         if 'message' in envelope and envelope['message'].get('is_echo'):
+                            status.append("Echo Ignored")
                             continue
 
                         # check that the recipient is correct for this channel
                         channel_address = str(envelope['recipient']['id'])
                         if channel_address != channel.address:
-                            return HttpResponse("Msg ignored for recipient id: %s" % channel.address, status=200)
+                            return HttpResponse("Msg Ignored for recipient id: %s" % channel.address, status=200)
 
                         content = None
                         postback = None
@@ -1759,6 +1760,9 @@ class FacebookHandler(View):
                             if msg:
                                 msg.status_delivered()
                                 status.append("Msg %d updated." % msg.id)
+
+                    else:
+                        status.append("Messaging entry Ignored")
 
                 return JsonResponse(dict(status=status))
 
