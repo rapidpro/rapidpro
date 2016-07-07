@@ -6571,7 +6571,6 @@ class FacebookTest(TembaTest):
             msg = Msg.all_messages.get()
 
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Msgs Updated")
 
             # load our message
             self.assertEqual(msg.contact.get_urn(FACEBOOK_SCHEME).path, "5678")
@@ -6593,7 +6592,6 @@ class FacebookTest(TembaTest):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Msgs Updated")
 
             msg = Msg.all_messages.get()
 
@@ -6609,7 +6607,6 @@ class FacebookTest(TembaTest):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Msgs Updated")
 
             msg = Msg.all_messages.get()
 
@@ -6627,7 +6624,6 @@ class FacebookTest(TembaTest):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Msgs Updated")
 
             msg = Msg.all_messages.get()
 
@@ -6669,7 +6665,6 @@ class FacebookTest(TembaTest):
         msg = Msg.all_messages.get()
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Msgs Updated")
         self.assertEqual(msg.text, "http://mediaurl.com/img.gif")
 
     def test_send(self):

@@ -1681,7 +1681,7 @@ class FacebookHandler(View):
         for entry in body.get('entry'):
             # this is a messaging notification
             if 'messaging' in entry:
-                msgs = []
+                status = []
 
                 for envelope in entry['messaging']:
                     if 'message' in envelope or 'postback' in envelope:
@@ -1746,19 +1746,20 @@ class FacebookHandler(View):
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
                             msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
-                            msgs.append(msg)
+                            status.append("Msg %d accepted." % msg.id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
                         elif postback == Channel.GET_STARTED:
                             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+                            status.append("Postback handled.")
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
                             msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
                             if msg:
                                 msg.status_delivered()
-                                msgs.append(msg)
+                                status.append("Msg %d updated." % msg.id)
 
-                return HttpResponse("Msgs Updated: %s" % (",".join([str(m.id) for m in msgs])))
+                return JsonResponse(dict(status=status))
 
-        return HttpResponse("Ignored, unknown msg", status=200)
+        return JsonResponse(dict(status=["Ignored, unknown msg"]))

@@ -633,9 +633,12 @@ class Channel(TembaModel):
 
         access_token = self.config_json()[AUTH_TOKEN]
 
-        requests.post(url, json.dumps(body),
-                      params=dict(access_token=access_token),
-                      headers={'Content-Type': 'application/json'})
+        response = requests.post(url, json.dumps(body),
+                                 params=dict(access_token=access_token),
+                                 headers={'Content-Type': 'application/json'})
+
+        if response.status_code != 200:
+            raise Exception(_("Unable to update call to action: %s" % response.content))
 
     def get_delegate(self, role):
         """
