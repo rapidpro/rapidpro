@@ -43,7 +43,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.import_file('call-me-maybe')
+        self.import_file('call_me_maybe')
         flow = Flow.objects.filter(name='Call me maybe').first()
 
         user_settings = self.admin.get_settings()
@@ -66,7 +66,7 @@ class IVRTests(FlowFileTest):
         # create our ivr setup
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
         self.org.save()
-        self.import_file('capture-recording')
+        self.import_file('capture_recording')
         flow = Flow.objects.filter(name='Capture Recording').first()
 
         # start our flow
@@ -294,7 +294,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.import_file('gather-digits')
+        self.import_file('gather_digits')
 
         # make sure our flow is there as expected
         flow = Flow.objects.filter(name='Gather Digits').first()
@@ -334,7 +334,7 @@ class IVRTests(FlowFileTest):
         self.assertIsNotNone(self.org.get_twilio_client())
 
         # import an ivr flow
-        self.import_file('call-me-maybe')
+        self.import_file('call_me_maybe')
 
         # make sure our flow is there as expected
         flow = Flow.objects.filter(name='Call me maybe').first()
@@ -503,7 +503,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        flow = self.get_flow('rule-first-ivr')
+        flow = self.get_flow('rule_first_ivr')
 
         user_settings = self.admin.get_settings()
         user_settings.tel = '+18005551212'
@@ -544,7 +544,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.get_flow('call-me-maybe')
+        self.get_flow('call_me_maybe')
 
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
@@ -554,3 +554,13 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().first()
         self.assertEquals('+250788382382', call.contact_urn.path)
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_incoming_start(self):
+        # connect it and check our client is configured
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        self.get_flow('call_me_start')
