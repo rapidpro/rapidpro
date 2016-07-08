@@ -2,7 +2,9 @@ from __future__ import unicode_literals
 
 import json
 import os
+import re
 
+from urlparse import urlparse
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
@@ -559,8 +561,19 @@ class IVRTests(FlowFileTest):
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_incoming_start(self):
-        # connect it and check our client is configured
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
         self.org.save()
 
         self.get_flow('call_me_start')
+
+        # create an inbound call
+        post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
+                         From='+250788382382', To=self.channel.address)
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+
+        # grab the redirect URL
+        redirect_url = re.match(r'.*<Redirect>(.*)</Redirect>.*', response.content).group(1)
+
+        # get just the path and hit it
+        response = self.client.post(urlparse(redirect_url).path, post_data)
+        self.assertContains(response, "You are not part of group.")
