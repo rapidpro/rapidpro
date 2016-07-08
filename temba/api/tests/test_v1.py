@@ -556,7 +556,7 @@ class APITest(TembaTest):
         # login as surveyor
         self.login(self.surveyor)
 
-        flow = self.get_flow('media-survey')
+        flow = self.get_flow('media_survey')
 
         rulesets = RuleSet.objects.filter(flow=flow).order_by('y')
         ruleset_name = rulesets[0]

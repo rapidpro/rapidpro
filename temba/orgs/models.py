@@ -417,7 +417,7 @@ class Org(SmartModel):
                 if not channels:
                     channels = [c for c in self.channels.all()]
 
-                # filter based on rule and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
+                # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
                 for c in channels:
                     if c.is_active and c.address and role in c.role and not c.parent_id:
