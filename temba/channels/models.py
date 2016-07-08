@@ -68,6 +68,7 @@ TELEGRAM = 'TG'
 CHIKKA = 'CK'
 JASMIN = 'JS'
 MBLOX = 'MB'
+GLOBE = 'GL'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -108,6 +109,7 @@ CHANNEL_SETTINGS = {
     CLICKATELL: dict(scheme='tel', max_length=420),
     EXTERNAL: dict(max_length=160),
     FACEBOOK: dict(scheme='facebook', max_length=320),
+    GLOBE: dict(scheme='tel', max_length=160),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),
@@ -161,6 +163,7 @@ class Channel(TembaModel):
                     (CLICKATELL, "Clickatell"),
                     (EXTERNAL, "External"),
                     (FACEBOOK, "Facebook"),
+                    (GLOBE, "Globe Labs"),
                     (HIGH_CONNECTION, "High Connection"),
                     (HUB9, "Hub9"),
                     (INFOBIP, "Infobip"),
