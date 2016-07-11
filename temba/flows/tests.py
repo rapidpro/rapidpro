@@ -2684,6 +2684,11 @@ class ActionTest(TembaTest):
         action = SetChannelAction(None)
         action.execute(run, None, None)
 
+        # incoming messages will still cause preference to switch
+        Msg.create_incoming(tel2_channel, str(urn), "Incoming msg")
+        urn.refresh_from_db()
+        self.assertEqual(urn.channel, tel2_channel)
+
     def test_add_label_action(self):
         flow = self.flow
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
