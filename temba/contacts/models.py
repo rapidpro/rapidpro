@@ -1333,6 +1333,10 @@ class Contact(TembaModel):
         """
         return self.urns.filter(scheme=scheme).order_by('-priority', 'pk')
 
+    def clear_urn_cache(self):
+        if hasattr(self, '__urns'):
+            delattr(self, '__urns')
+
     def get_urns(self):
         """
         Gets all URNs ordered by priority
@@ -1538,7 +1542,7 @@ class ContactURN(models.Model):
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90}
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90}
 
     ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
 

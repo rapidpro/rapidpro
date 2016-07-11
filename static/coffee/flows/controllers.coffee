@@ -792,6 +792,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # all org languages except default
   $scope.languages = utils.clone(Flow.languages).filter (lang) -> lang.name isnt "Default"
+  $scope.channels = Flow.channels
 
   formData = {}
 
@@ -1489,6 +1490,16 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         break
 
     Flow.saveAction(actionset, $scope.action)
+    $modalInstance.close()
+
+  $scope.saveChannel = () ->
+    # look up the name for this channel, make sure it is up to date
+    definition = {type: 'channel', channel: $scope.action.channel, uuid: $scope.action.uuid}
+    for chan in Flow.channels
+      if chan.uuid == $scope.action.channel
+        definition['name'] = chan.name
+
+    Flow.saveAction(actionset, definition)
     $modalInstance.close()
 
   $scope.ok = ->
