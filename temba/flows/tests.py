@@ -36,7 +36,7 @@ from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import HasStateTest, HasDistrictTest, HasWardTest
-from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
+from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
 from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
 from temba.msgs.models import WIRED
 
@@ -2630,6 +2630,59 @@ class ActionTest(TembaTest):
         self.assertEqual(dynamic_group.contacts.count(), 0)
 
         self.assertEqual(ActionLog.objects.filter(level='E').count(), 1)
+
+    def test_set_channel_action(self):
+        flow = self.flow
+        run = FlowRun.create(flow, self.contact.pk)
+
+        tel1_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12061111111', 'KN', {})
+        tel2_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12062222222', 'KN', {})
+        fb_channel = Channel.add_facebook_channel(self.org, self.admin, "Page Name", "Page Id", "Page Token")
+
+        # create an incoming message on tel1, this should create an affinity to that channel
+        Msg.create_incoming(tel1_channel, str(self.contact.urns.all().first()), "Incoming msg")
+        urn = self.contact.urns.all().first()
+        self.assertEqual(urn.channel, tel1_channel)
+
+        action = SetChannelAction(tel2_channel)
+        action.execute(run, None, None)
+
+        # check the affinity on our urn again, should now be the second channel
+        urn.refresh_from_db()
+        self.assertEqual(urn.channel, tel2_channel)
+
+        # try to set it to a channel that we don't have a URN for
+        action = SetChannelAction(fb_channel)
+        action.execute(run, None, None)
+
+        # affinity is unchanged
+        urn.refresh_from_db()
+        self.assertEqual(urn.channel, tel2_channel)
+
+        # add a FB urn for our contact
+        fb_urn = ContactURN.get_or_create(self.org, self.contact, 'facebook:1001')
+
+        # default URN should be FB now, as it has the highest priority
+        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
+        self.assertEqual(resolved_urn, fb_urn)
+
+        # but if we set our channel to tel, will override that
+        action = SetChannelAction(tel1_channel)
+        action.execute(run, None, None)
+
+        self.contact.clear_urn_cache()
+        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
+        self.assertEqual(resolved_urn, urn)
+        self.assertEqual(resolved_urn.channel, tel1_channel)
+
+        # test serializing
+        action_json = action.as_json()
+        action = SetChannelAction.from_json(self.org, action_json)
+        self.assertEqual(tel1_channel, action.channel)
+
+        # action shouldn't blow up without a channel
+        action = SetChannelAction(None)
+        action.execute(run, None, None)
 
     def test_add_label_action(self):
         flow = self.flow
