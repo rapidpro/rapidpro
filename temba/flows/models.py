@@ -2830,7 +2830,7 @@ class RuleSet(models.Model):
                     (TYPE_WAIT_DIGIT, "Wait for digit"),
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
                     (TYPE_WEBHOOK, "Webhook"),
-                    (TYPE_RESTHOOK, "Zapier"),
+                    (TYPE_RESTHOOK, "Resthook"),
                     (TYPE_FLOW_FIELD, "Split on flow field"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
                     (TYPE_EXPRESSION, "Split by expression"))
@@ -2976,7 +2976,7 @@ class RuleSet(models.Model):
 
         context = run.flow.build_message_context(run.contact, msg)
 
-        if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
+        if self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
             from temba.api.models import WebHookEvent
             (value, errors) = Msg.substitute_variables(self.webhook_url, run.contact, context,
                                                        org=run.flow.org, url_encode=True)
@@ -3072,7 +3072,7 @@ class RuleSet(models.Model):
         self.set_rules_dict(rules_dict)
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
+        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, resthook=self.resthook,
                     rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                     operand=self.operand, config=self.config_json())

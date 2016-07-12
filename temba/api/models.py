@@ -165,7 +165,7 @@ class WebHookEvent(SmartModel):
         deliver_event_task.delay(self.id)
 
     @classmethod
-    def trigger_flow_event(cls, webhook_url, flow, run, node_uuid, contact, event, action='POST'):
+    def trigger_flow_event(cls, webhook_url, flow, run, node_uuid, contact, event, action='POST', resthook=None):
         org = flow.org
         api_user = get_api_user()
 
@@ -232,6 +232,7 @@ class WebHookEvent(SmartModel):
                                                     data=json.dumps(data),
                                                     try_count=1,
                                                     action=action,
+                                                    resthook=resthook,
                                                     created_by=api_user,
                                                     modified_by=api_user)
 
