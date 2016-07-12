@@ -396,7 +396,8 @@ class ContactCRUDL(SmartCRUDL):
                                                     "hypens"))
 
                         if not ContactField.is_valid_key(field_key):
-                            raise ValidationError(_("%s is an invalid name or is a reserved name for contact fields, field names should start by a letter.") % value)
+                            raise ValidationError(_("%s is an invalid name or is a reserved name for contact fields, "
+                                                    "field names should start with a letter.") % value)
 
                         if field_label in used_labels:
                             raise ValidationError(_("%s should be used once") % field_label)
