@@ -1129,7 +1129,10 @@ class Msg(models.Model):
         elif urn:
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
 
-        # check our URN's affinity
+        # set the preferred channel for this contact
+        contact.set_preferred_channel(channel)
+
+        # and update this URN to make sure it is associated with this channel
         if contact_urn:
             contact_urn.update_affinity(channel)
 

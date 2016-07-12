@@ -4875,20 +4875,8 @@ class SetChannelAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         # if we found the channel to set
         if self.channel:
-            # update all the contact URNs for this contact with the same scheme to use this channel
-            updated = ContactURN.objects.filter(contact=run.contact, scheme=self.channel.scheme).update(channel=self.channel)
-
-            # make sure that our current highest priority URN of this scheme is our absolute highest URN for this contact
-            if updated:
-                highest = ContactURN.objects.filter(contact=run.contact).order_by('-priority', '-id').first()
-                if highest and highest.scheme != self.channel.scheme:
-                    ContactURN.objects.filter(contact=run.contact,
-                                              scheme=self.channel.scheme).order_by('-priority', '-id').update(priority=highest.priority + 1)
-
-            self.log(run, _("Updated preferred channel to %s for %d URN") % (self.channel.name, updated))
-
-            # clear our URN cache so we recalculate priorities
-            run.contact.clear_urn_cache()
+            run.contact.set_preferred_channel(self.channel)
+            self.log(run, _("Updated preferred channel to %s") % self.channel.name)
             return []
         else:
             self.log(run, _("Channel not found, no action taken"))
