@@ -500,7 +500,7 @@ class OrgCRUDL(SmartCRUDL):
                     flows.add(flow)
                 exported_campaigns.append(campaign.as_json())
 
-            definition = Flow.export_definitions(flows, fail_on_dependencies=False)
+            definition = Flow.export_definitions(flows)
             definition['campaigns'] = exported_campaigns
             definition['site'] = request.branding['link']
 
