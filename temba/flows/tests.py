@@ -4960,6 +4960,17 @@ class FlowBatchTest(FlowFileTest):
         self.assertEqual(step.broadcasts.all().count(), 1)
 
 
+class TwoInRowTest(FlowFileTest):
+
+    def test_two_in_row(self):
+        flow = self.get_flow('two_in_row')
+        flow.start([], [self.contact])
+
+        # assert contact received both messages
+        msgs = self.contact.msgs.all()
+        self.assertEqual(msgs.count(), 2)
+
+
 class OrderingTest(FlowFileTest):
 
     def setUp(self):

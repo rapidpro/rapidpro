@@ -1630,7 +1630,7 @@ class Flow(TembaModel):
 
             if entry_actions:
                 run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
-                                                          execute_reply_action=not optimize_sending_action)
+                                                          skip_leading_reply_actions=not optimize_sending_action)
 
                 step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
 
@@ -3104,12 +3104,18 @@ class ActionSet(models.Model):
     def get_step_type(self):
         return FlowStep.TYPE_ACTION_SET
 
-    def execute_actions(self, run, msg, started_flows, execute_reply_action=True):
+    def execute_actions(self, run, msg, started_flows, skip_leading_reply_actions=True):
         actions = self.get_actions()
         msgs = []
 
+        seen_other_action = False
         for action in actions:
-            if not execute_reply_action and isinstance(action, ReplyAction):
+            if not isinstance(action, ReplyAction):
+                seen_other_action = True
+
+            # if this is a reply action, we're skipping leading reply actions and we haven't seen other actions
+            if not skip_leading_reply_actions and isinstance(action, ReplyAction) and not seen_other_action:
+                # then skip it
                 pass
 
             elif isinstance(action, StartFlowAction):
