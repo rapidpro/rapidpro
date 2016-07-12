@@ -33,7 +33,7 @@
         -trans "Ok"
 
     %div{ng-if:'config.type == "channel"'}
-      %p
+      %p{class:"description"}
         -blocktrans
           Choose the preferred channel for this contact.
       %select{ng-model:"action.channel",style:"height:34px",name:"channel",ng-options:"channel.uuid as channel.name for channel in channels", required:"", class:"channel", select2:""}
@@ -41,7 +41,7 @@
         -trans "Ok"
 
     %div{ng-if:'config.type == "add_label"'}
-      %p
+      %p{class:"description"}
         -blocktrans
           Choose one or more labels below.
       %input{ng-model:"action.labels", name:"msg_labels", select-label:"", required:"", type:"hidden"}

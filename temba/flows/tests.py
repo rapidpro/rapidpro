@@ -2667,10 +2667,11 @@ class ActionTest(TembaTest):
         self.assertEqual(resolved_urn, fb_urn)
 
         # but if we set our channel to tel, will override that
+        run.contact.clear_urn_cache()
         action = SetChannelAction(tel1_channel)
         action.execute(run, None, None)
 
-        self.contact.clear_urn_cache()
+        contact.clear_urn_cache()
         contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
         self.assertEqual(resolved_urn, urn)
         self.assertEqual(resolved_urn.channel, tel1_channel)
@@ -2688,6 +2689,12 @@ class ActionTest(TembaTest):
         Msg.create_incoming(tel2_channel, str(urn), "Incoming msg")
         urn.refresh_from_db()
         self.assertEqual(urn.channel, tel2_channel)
+
+        # make sure that switch will work across schemes as well
+        Msg.create_incoming(fb_channel, str(fb_urn), "Incoming FB message")
+        self.contact.clear_urn_cache()
+        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
+        self.assertEqual(resolved_urn, fb_urn)
 
     def test_add_label_action(self):
         flow = self.flow
