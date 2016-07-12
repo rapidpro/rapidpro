@@ -1331,6 +1331,9 @@ class Contact(TembaModel):
         """
         Sets the preferred channel for communicating with this Contact
         """
+        if channel is None:
+            return
+
         urns = self.get_urns()
 
         # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
