@@ -2644,7 +2644,15 @@ class ContactTest(TembaTest):
         post_data['column_joined_type'] = 'D'
 
         response = self.client.post(customize_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
+        self.assertFormError(response, 'form', None, 'Name is an invalid name or is a reserved name for contact '
+                                                     'fields, field names should start with a letter.')
+
+        # we do not support names not starting by letter
+        post_data['column_country_label'] = '12Project'  # reserved when slugified to 'name'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, '12Project is an invalid name or is a reserved name for contact '
+                                                     'fields, field names should start with a letter.')
 
         # invalid label
         post_data['column_country_label'] = '}{i$t0rY'  # supports only numbers, letters, hyphens
