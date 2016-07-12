@@ -29,6 +29,7 @@ from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
+from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -453,7 +454,7 @@ class Flow(TembaModel):
 
         # create a message to hold our inbound message
         from temba.msgs.models import HANDLED, IVR
-        if text or media_url:
+        if text is not None or media_url:
 
             # we don't have text for media, so lets use the media value there too
             if media_url and ':' in media_url:
@@ -513,7 +514,11 @@ class Flow(TembaModel):
                 # nest all of our previous verbs in our gather
                 for verb in voice_response.verbs:
                     gather.append(verb)
+
                 voice_response = response
+
+                # append a redirect at the end in case the user sends #
+                voice_response.append(twiml.Redirect(url=callback + "?empty=1"))
 
         return voice_response
 
@@ -1625,7 +1630,7 @@ class Flow(TembaModel):
 
             if entry_actions:
                 run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
-                                                          execute_reply_action=not optimize_sending_action)
+                                                          skip_leading_reply_actions=not optimize_sending_action)
 
                 step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
 
@@ -2566,7 +2571,6 @@ class FlowRun(models.Model):
             media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
             text = recording_url
 
-        print 'Creating outgoing ivr'
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
                                   response_to=response_to, media=media,
                                   status=DELIVERED, msg_type=IVR)
@@ -3102,12 +3106,18 @@ class ActionSet(models.Model):
     def get_step_type(self):
         return FlowStep.TYPE_ACTION_SET
 
-    def execute_actions(self, run, msg, started_flows, execute_reply_action=True):
+    def execute_actions(self, run, msg, started_flows, skip_leading_reply_actions=True):
         actions = self.get_actions()
         msgs = []
 
+        seen_other_action = False
         for action in actions:
-            if not execute_reply_action and isinstance(action, ReplyAction):
+            if not isinstance(action, ReplyAction):
+                seen_other_action = True
+
+            # if this is a reply action, we're skipping leading reply actions and we haven't seen other actions
+            if not skip_leading_reply_actions and isinstance(action, ReplyAction) and not seen_other_action:
+                # then skip it
                 pass
 
             elif isinstance(action, StartFlowAction):
@@ -3981,6 +3991,7 @@ class Action(object):
                 WebhookAction.TYPE: WebhookAction,
                 SaveToContactAction.TYPE: SaveToContactAction,
                 SetLanguageAction.TYPE: SetLanguageAction,
+                SetChannelAction.TYPE: SetChannelAction,
                 StartFlowAction.TYPE: StartFlowAction,
                 SayAction.TYPE: SayAction,
                 PlayAction.TYPE: PlayAction,
@@ -4833,6 +4844,61 @@ class SaveToContactAction(Action):
         log = ActionLog.create(run, log_txt)
 
         return log
+
+
+class SetChannelAction(Action):
+    """
+    Action which sets the preferred channel to use for this Contact. If the contact has no URNs that match
+    the Channel being set then this is a no-op.
+    """
+    TYPE = 'channel'
+    CHANNEL = 'channel'
+    NAME = 'name'
+
+    def __init__(self, channel):
+        self.channel = channel
+        super(Action, self).__init__()
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        channel_uuid = json_obj.get(SetChannelAction.CHANNEL)
+
+        if channel_uuid:
+            channel = Channel.objects.filter(org=org, is_active=True, uuid=channel_uuid).first()
+        else:
+            channel = None
+        return SetChannelAction(channel)
+
+    def as_json(self):
+        channel_uuid = self.channel.uuid if self.channel else None
+        channel_name = "%s: %s" % (self.channel.get_channel_type_display(), self.channel.get_address_display()) if self.channel else None
+        return dict(type=SetChannelAction.TYPE, channel=channel_uuid, name=channel_name)
+
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
+        # if we found the channel to set
+        if self.channel:
+            # update all the contact URNs for this contact with the same scheme to use this channel
+            updated = ContactURN.objects.filter(contact=run.contact, scheme=self.channel.scheme).update(channel=self.channel)
+
+            # make sure that our current highest priority URN of this scheme is our absolute highest URN for this contact
+            if updated:
+                highest = ContactURN.objects.filter(contact=run.contact).order_by('-priority', '-id').first()
+                if highest and highest.scheme != self.channel.scheme:
+                    ContactURN.objects.filter(contact=run.contact,
+                                              scheme=self.channel.scheme).order_by('-priority', '-id').update(priority=highest.priority + 1)
+
+            self.log(run, _("Updated preferred channel to %s for %d URN") % (self.channel.name, updated))
+
+            # clear our URN cache so we recalculate priorities
+            run.contact.clear_urn_cache()
+            return []
+        else:
+            self.log(run, _("Channel not found, no action taken"))
+            return []
+
+    def log(self, run, text):  # pragma: no cover
+        if run.contact.is_test:
+            ActionLog.create(run, text)
 
 
 class SendAction(VariableContactAction):

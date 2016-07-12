@@ -1,0 +1,41 @@
+- extends 'smartmin/form.html'
+- load smartmin temba compress
+- load i18n
+
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+    {% endlessblock %}
+
+-block extra-style
+  {{ block.super }}
+  :css
+
+- block form-span
+  span8
+
+
+- block pre-form
+
+  -blocktrans
+    Your organization can have user accounts with various roles. You can use the Manage Accounts page 
+    to view all existing accounts or to invite new users to your organization.
+  
+  %br
+  %a.btn.btn-primary.btn-tiny{href:"{%url 'orgs.org_manage_accounts'%}", style:'margin-top:5px'}
+    -trans "Manage Accounts"
+
+  %hr
+   
+  -blocktrans with org=org.name brand=brand.name 
+    If you use the {{ brand }} Surveyor application to run flows offline, we recommend enabling
+    users to create accounts from within the Android application. Setting a Surveyor password will
+    allow anybody with that password to join {{org}} as a surveyor.
+
+- block summary
+  -trans "User accounts for"
+  %span.attn 
+    {{org.name}}
+

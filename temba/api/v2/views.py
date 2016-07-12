@@ -145,11 +145,11 @@ class AuthenticateView(SmartFormView):
 
 
 class CreatedOnCursorPagination(CustomCursorPagination):
-    ordering = ('-created_on',)
+    ordering = ('-created_on', '-id')
 
 
 class ModifiedOnCursorPagination(CustomCursorPagination):
-    ordering = ('-modified_on',)
+    ordering = ('-modified_on', '-id')
 
 
 class BaseAPIView(generics.GenericAPIView):
