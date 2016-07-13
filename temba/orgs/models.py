@@ -1346,7 +1346,7 @@ class Org(SmartModel):
 
     def get_export_flows(self, include_archived=False):
         from temba.flows.models import Flow
-        flows = self.flows.all().exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
+        flows = self.flows.all().exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
         if not include_archived:
             flows = flows.filter(is_archived=False)
         return flows

@@ -2027,6 +2027,19 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')
         self.assertEquals(60, confirm_appointment.expires_after_minutes)
 
+        # now delete a flow
+        register = Flow.objects.filter(name='Register Patient').first()
+        register.is_active = False
+        register.save()
+
+        # default view shouldn't show deleted flows
+        response = self.client.get(reverse('orgs.org_export'))
+        self.assertNotContains(response, 'Register Patient')
+
+        # even with the archived flag one deleted flows should not show up
+        response = self.client.get("%s?archived=1" % reverse('orgs.org_export'))
+        self.assertNotContains(response, 'Register Patient')
+
 
 class CreditAlertTest(TembaTest):
     def test_check_org_credits(self):
