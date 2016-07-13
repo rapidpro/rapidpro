@@ -2799,6 +2799,7 @@ class FlowStep(models.Model):
 
 
 class RuleSet(models.Model):
+    RESTHOOK = 'resthook'
 
     TYPE_WAIT_MESSAGE = 'wait_message'
 
@@ -2836,6 +2837,7 @@ class RuleSet(models.Model):
                     (TYPE_EXPRESSION, "Split by expression"))
 
     uuid = models.CharField(max_length=36, unique=True)
+
     flow = models.ForeignKey(Flow, related_name='rule_sets')
 
     label = models.CharField(max_length=64, null=True, blank=True,
@@ -2977,14 +2979,28 @@ class RuleSet(models.Model):
         context = run.flow.build_message_context(run.contact, msg)
 
         if self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
-            from temba.api.models import WebHookEvent
-            (value, errors) = Msg.substitute_variables(self.webhook_url, run.contact, context,
-                                                       org=run.flow.org, url_encode=True)
-            result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                                     run.contact, msg, self.webhook_action)
+            # figure out which URLs will be called
+            if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
+                resthook = None
+                urls = [self.webhook_url]
+                action = self.webhook_action
 
-            # rebuild our context again, the webhook may have populated something
-            context = run.flow.build_message_context(run.contact, msg)
+            elif self.ruleset_type == RuleSet.TYPE_RESTHOOK:
+                from temba.api.models import Resthook
+
+                # look up the rest hook
+                resthook = Resthook.objects.filter(is_active=True, org=run.org, slug=self.config_json()[RuleSet.RESTHOOK]).first()
+                urls = resthook.get_subscriber_urls()
+                action = 'POST'
+
+            # fire off each of our URLs
+            for url in urls:
+                from temba.api.models import WebHookEvent
+                (value, errors) = Msg.substitute_variables(url, run.contact, context,
+                                                           org=run.flow.org, url_encode=True)
+
+                result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
+                                                         run.contact, msg, action, resthook=resthook)
 
             rule = self.get_rules()[0]
             rule.category = run.flow.get_base_text(rule.category)
@@ -3072,7 +3088,7 @@ class RuleSet(models.Model):
         self.set_rules_dict(rules_dict)
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, resthook=self.resthook,
+        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
                     rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
                     finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
                     operand=self.operand, config=self.config_json())

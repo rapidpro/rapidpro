@@ -108,6 +108,9 @@ class Resthook(SmartModel):
                             help_text=_("The organization this resthook belongs to"))
     slug = models.SlugField(help_text=_("A simple label for this event"))
 
+    def get_subscriber_urls(self):
+        return [s.target_url for s in self.subscribers.filter(is_active=True)]
+
     def release(self, user):
         # release any active subscribers
         for s in self.subscribers.filter(is_active=True):
