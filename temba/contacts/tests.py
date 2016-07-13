@@ -1406,6 +1406,20 @@ class ContactTest(TembaTest):
         broadcast.schedule.reset()
         self.assertFalse(self.joe.get_scheduled_messages())
 
+    def test_contact_update_urns_field(self):
+        update_url = reverse('contacts.contact_update', args=[self.joe.pk])
+
+        # we have a field to add new urns
+        response = self.fetch_protected(update_url, self.admin)
+        self.assertEquals(self.joe, response.context['object'])
+        self.assertContains(response, 'Add Connection')
+
+        # no field to add new urns for anon org
+        with AnonymousOrg(self.org):
+            response = self.fetch_protected(update_url, self.admin)
+            self.assertEquals(self.joe, response.context['object'])
+            self.assertNotContains(response, 'Add Connection')
+
     def test_read(self):
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
 
