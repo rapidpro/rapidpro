@@ -1704,8 +1704,12 @@ class FacebookHandler(View):
                             elif 'attachments' in envelope['message']:
                                 urls = []
                                 for attachment in envelope['message']['attachments']:
-                                    if 'url' in attachment['payload']:
+                                    if attachment['payload'] and 'url' in attachment['payload']:
                                         urls.append(attachment['payload']['url'])
+                                    elif 'url' in attachment:
+                                        if 'title' in attachment:
+                                            urls.append(attachment['title'])
+                                        urls.append(attachment['url'])
 
                                 content = '\n'.join(urls)
 

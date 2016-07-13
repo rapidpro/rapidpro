@@ -6734,8 +6734,7 @@ class FacebookTest(TembaTest):
             "timestamp": 1459991487970
           }],
           "time": 1459991487970
-        }]
-        }
+        }]}
         """
         data = json.loads(data)
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
@@ -6744,6 +6743,40 @@ class FacebookTest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(msg.text, "http://mediaurl.com/img.gif")
+
+        # link attachment
+        data = """{
+          "object":"page",
+          "entry":[{
+            "id":"32408604530",
+            "time":1468418021822,
+            "messaging":[{
+              "sender":{"id":"5678"},
+              "recipient":{"id":"1234"},
+              "timestamp":1468417833159,
+              "message": {
+                "mid":"external_id",
+                "seq":11242,
+                "attachments":[{
+                  "title":"Get in touch with us.",
+                  "url": "http:\x5c/\x5c/m.me\x5c/",
+                  "type": "fallback",
+                  "payload": null
+                }]
+              }
+            }]
+          }]
+        }
+        """
+        Msg.all_messages.all().delete()
+
+        data = json.loads(data)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.all_messages.get()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(msg.text, "Get in touch with us.\nhttp://m.me/")
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
