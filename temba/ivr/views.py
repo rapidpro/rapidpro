@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
-from .models import IVRCall, IN_PROGRESS, COMPLETED
+from .models import IVRCall, IN_PROGRESS, COMPLETED, RINGING
 
 
 class CallHandler(View):
@@ -48,14 +48,21 @@ class CallHandler(View):
 
             call.save()
 
-            hangup = 'hangup' == request.POST.get('Digits', None)
+            # figure out if this is a callback due to an empty gather
+            is_empty = '1' == request.GET.get('empty', '0')
+            user_response = request.POST.copy()
 
-            if call.status == IN_PROGRESS or hangup:
+            # if the user pressed pound, then record no digits as the input
+            if is_empty:
+                user_response['Digits'] = ''
+
+            hangup = 'hangup' == user_response.get('Digits', None)
+
+            if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():
-                    response = Flow.handle_call(call, request.POST, hangup=hangup)
+                    response = Flow.handle_call(call, user_response, hangup=hangup)
                     return HttpResponse(unicode(response))
             else:
-
                 if call.status == COMPLETED:
                     # if our call is completed, hangup
                     run = FlowRun.objects.filter(call=call).first()

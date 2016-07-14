@@ -149,10 +149,12 @@ class WebHookEvent(SmartModel):
         # we might not have an sms (or channel) yet
         channel = None
         text = None
+        contact_urn = contact.get_urn()
 
         if event:
             text = event.text
             channel = event.channel
+            contact_urn = event.contact_urn
 
         if channel:
             channel_id = channel.pk
@@ -175,6 +177,8 @@ class WebHookEvent(SmartModel):
                     text=text,
                     step=unicode(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    contact=contact.uuid,
+                    urn=unicode(contact_urn),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
                     time=json_time)
@@ -239,6 +243,11 @@ class WebHookEvent(SmartModel):
 
         finally:
             webhook_event.save()
+
+            # make sure our message isn't too long
+            if message:
+                message = message[:255]
+
             result = WebHookResult.objects.create(event=webhook_event,
                                                   url=webhook_url,
                                                   status_code=status_code,
@@ -276,6 +285,8 @@ class WebHookEvent(SmartModel):
         json_time = time.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(sms=msg.pk,
                     phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    contact=msg.contact.uuid,
+                    urn=unicode(msg.contact_urn),
                     text=msg.text,
                     time=json_time,
                     status=msg.status,
@@ -315,6 +326,8 @@ class WebHookEvent(SmartModel):
         json_time = call.time.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(call=call.pk,
                     phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    contact=call.contact.uuid,
+                    urn=unicode(call.contact_urn),
                     duration=call.duration,
                     time=json_time)
         hook_event = WebHookEvent.objects.create(org=org,
@@ -407,7 +420,7 @@ class WebHookEvent(SmartModel):
                                        headers=headers).prepare()
             result['url'] = prepped.url
             result['request'] = prepped_request_to_str(prepped)
-            r = s.send(prepped)
+            r = s.send(prepped, timeout=5)
 
             result['status_code'] = r.status_code
             result['body'] = r.text.strip()
@@ -525,6 +538,8 @@ class APIToken(models.Model):
                        "Editors": ("Administrators", "Editors"),
                        "Surveyors": ("Administrators", "Editors", "Surveyors")}
 
+    is_active = models.BooleanField(default=True)
+
     key = models.CharField(max_length=40, primary_key=True)
 
     user = models.ForeignKey(User, related_name='api_tokens')
@@ -536,7 +551,7 @@ class APIToken(models.Model):
     role = models.ForeignKey(Group)
 
     @classmethod
-    def get_or_create(cls, org, user, role=None):
+    def get_or_create(cls, org, user, role=None, refresh=False):
         """
         Gets or creates an API token for this user
         """
@@ -548,9 +563,18 @@ class APIToken(models.Model):
         elif role.name not in cls.ROLE_GRANTED_TO:
             raise ValueError("Role %s is not valid for API usage" % role.name)
 
-        token = cls.objects.filter(user=user, org=org, role=role).first()
-        if not token:
+        tokens = cls.objects.filter(is_active=True, user=user, org=org, role=role)
+
+        # if we are refreshing the token, clear existing ones
+        if refresh and tokens:
+            for token in tokens:
+                token.release()
+            tokens = None
+
+        if not tokens:
             token = cls.objects.create(user=user, org=org, role=role)
+        else:
+            token = tokens.first()
 
         return token
 
@@ -608,11 +632,12 @@ class APIToken(models.Model):
         unique = uuid.uuid4()
         return hmac.new(unique.bytes, digestmod=sha1).hexdigest()
 
+    def release(self):
+        self.is_active = False
+        self.save()
+
     def __unicode__(self):
         return self.key
-
-    class Meta:
-        unique_together = ('user', 'org', 'role')
 
 
 def get_or_create_api_token(user):

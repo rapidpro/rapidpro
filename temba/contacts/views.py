@@ -395,8 +395,9 @@ class ContactCRUDL(SmartCRUDL):
                             raise ValidationError(_("Field names can only contain letters, numbers, "
                                                     "hypens"))
 
-                        if field_key in Contact.RESERVED_FIELDS:
-                            raise ValidationError(_("%s is a reserved name for contact fields") % value)
+                        if not ContactField.is_valid_key(field_key):
+                            raise ValidationError(_("%s is an invalid name or is a reserved name for contact fields, "
+                                                    "field names should start with a letter.") % value)
 
                         if field_label in used_labels:
                             raise ValidationError(_("%s should be used once") % field_label)

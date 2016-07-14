@@ -32,7 +32,7 @@ class APITokenAuthentication(TokenAuthentication):
 
     def authenticate_credentials(self, key):
         try:
-            token = self.model.objects.get(key=key)
+            token = self.model.objects.get(is_active=True, key=key)
         except self.model.DoesNotExist:
             raise exceptions.AuthenticationFailed('Invalid token')
 
