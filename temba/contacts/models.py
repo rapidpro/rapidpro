@@ -382,10 +382,11 @@ class Contact(TembaModel):
     LANGUAGE = 'language'
     PHONE = 'phone'
     UUID = 'uuid'
+    GROUPS = 'groups'
 
     # reserved contact fields
     RESERVED_FIELDS = [
-        NAME, FIRST_NAME, PHONE, LANGUAGE, 'created_by', 'modified_by', 'org', UUID, 'groups', 'is', 'has'
+        NAME, FIRST_NAME, PHONE, LANGUAGE, GROUPS, UUID, 'created_by', 'modified_by', 'org', 'is', 'has'
     ] + [c[0] for c in IMPORT_HEADERS]
 
     @classmethod
@@ -573,6 +574,9 @@ class Contact(TembaModel):
                 existing.save(update_fields=['string_value', 'decimal_value', 'datetime_value',
                                              'location_value', 'category', 'modified_on'])
 
+                # remove any others on the same field that may exist
+                Value.objects.filter(contact=self, contact_field__pk=field.id).exclude(id=existing.id).delete()
+
             # otherwise, create a new value for it
             else:
                 category = loc_value.name if loc_value else None
@@ -634,7 +638,7 @@ class Contact(TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, incoming_channel=None, uuid=None, language=None, is_test=False, force_urn_update=False):
+    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False):
         """
         Gets or creates a contact with the given URNs
         """
@@ -643,7 +647,7 @@ class Contact(TembaModel):
             raise ValueError("Attempt to create contact without org or user")
 
         # if channel is specified then urns should contain the single URN that communicated with the channel
-        if incoming_channel and (not urns or len(urns) > 1):
+        if channel and (not urns or len(urns) > 1):
             raise ValueError("Only one URN may be specified when calling from channel event")
 
         # deal with None being passed into urns
@@ -651,8 +655,8 @@ class Contact(TembaModel):
             urns = ()
 
         # get country from channel or org
-        if incoming_channel:
-            country = incoming_channel.country.code
+        if channel:
+            country = channel.country.code
         else:
             country = org.get_country_code()
 
@@ -665,11 +669,6 @@ class Contact(TembaModel):
 
             if existing_urn and existing_urn.contact:
                 contact = existing_urn.contact
-
-                # update the channel on this URN if this is an incoming message
-                if incoming_channel and incoming_channel != existing_urn.channel:
-                    existing_urn.channel = incoming_channel
-                    existing_urn.save(update_fields=['channel'])
 
                 # return our contact, mapping our existing urn appropriately
                 contact.urn_objects = {urns[0]: existing_urn}
@@ -732,11 +731,6 @@ class Contact(TembaModel):
                         existing_orphan_urns[urn] = existing_urn
                         if not contact and existing_urn.contact:
                             contact = existing_urn.contact
-
-                    # update this URN's channel
-                    if incoming_channel and existing_urn.channel != incoming_channel:
-                        existing_urn.channel = incoming_channel
-                        existing_urn.save(update_fields=['channel'])
                 else:
                     urns_to_create[urn] = normalized
 
@@ -774,7 +768,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in urns_to_create.iteritems():
-                urn = ContactURN.create(org, contact, normalized, channel=incoming_channel)
+                urn = ContactURN.create(org, contact, normalized, channel=channel)
                 urn_objects[raw] = urn
 
             # save which urns were updated
@@ -1333,11 +1327,43 @@ class Contact(TembaModel):
             names = [first_name] + names[1:]
             self.name = " ".join(names)
 
+    def set_preferred_channel(self, channel):
+        """
+        Sets the preferred channel for communicating with this Contact
+        """
+        if channel is None:
+            return
+
+        urns = self.get_urns()
+
+        # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
+        if channel.scheme == TEL_SCHEME:
+            for urn in urns:
+                if urn.scheme == channel.scheme and urn.channel_id != channel.id:
+                    urn.channel = channel
+                    urn.save(update_fields=['channel'])
+
+        # if our scheme isn't the highest priority
+        if urns and urns[0].scheme != channel.scheme:
+            # update the highest URN of the right scheme to be highest
+            for urn in urns[1:]:
+                if urn.scheme == channel.scheme:
+                    urn.priority = urns[0].priority + 1
+                    urn.save(update_fields=['priority'])
+
+                    # clear our URN cache, order is different now
+                    self.clear_urn_cache()
+                    break
+
     def get_urns_for_scheme(self, scheme):
         """
         Returns all the URNs for the passed in scheme
         """
         return self.urns.filter(scheme=scheme).order_by('-priority', 'pk')
+
+    def clear_urn_cache(self):
+        if hasattr(self, '__urns'):
+            delattr(self, '__urns')
 
     def get_urns(self):
         """
@@ -1529,6 +1555,7 @@ class ContactURN(models.Model):
     IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME}  # schemes that support "new conversation" triggers
 
     EXPORT_FIELDS = {
         TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
@@ -1543,7 +1570,7 @@ class ContactURN(models.Model):
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90}
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90}
 
     ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
 
@@ -1569,6 +1596,16 @@ class ContactURN(models.Model):
                                 help_text="The preferred channel for this URN")
 
     @classmethod
+    def get_or_create(cls, org, contact, urn_as_string, channel=None):
+        urn = cls.lookup(org, urn_as_string)
+
+        # not found? create it
+        if not urn:
+            urn = cls.create(org, contact, urn_as_string, channel=channel)
+
+        return urn
+
+    @classmethod
     def create(cls, org, contact, urn_as_string, channel=None, priority=None):
         scheme, path = URN.to_parts(urn_as_string)
 
@@ -1587,6 +1624,14 @@ class ContactURN(models.Model):
             urn_as_string = URN.normalize(urn_as_string, country_code)
 
         return cls.objects.filter(org=org, urn=urn_as_string).select_related('contact').first()
+
+    def update_affinity(self, channel):
+        """
+        Checks and optionally updates the affinity for this contact URN
+        """
+        if channel and self.channel != channel:
+            self.channel = channel
+            self.save(update_fields=['channel'])
 
     def ensure_number_normalization(self, country_code):
         """

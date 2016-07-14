@@ -1122,11 +1122,19 @@ class Msg(models.Model):
         if not date:
             date = timezone.now()  # no date?  set it to now
 
+        contact_urn = None
         if not contact:
-            contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+            contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
             contact_urn = contact.urn_objects[urn]
-        else:
-            contact_urn = None
+        elif urn:
+            contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
+
+        # set the preferred channel for this contact
+        contact.set_preferred_channel(channel)
+
+        # and update this URN to make sure it is associated with this channel
+        if contact_urn:
+            contact_urn.update_affinity(channel)
 
         existing = Msg.all_messages.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:
