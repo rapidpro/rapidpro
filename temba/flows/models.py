@@ -29,6 +29,7 @@ from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
+from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -51,11 +52,6 @@ START_FLOW_BATCH_SIZE = 500
 class FlowException(Exception):
     def __init__(self, *args, **kwargs):
         super(FlowException, self).__init__(*args, **kwargs)
-
-
-class FlowReferenceException(Exception):
-    def __init__(self, flow_names):
-        self.flow_names = flow_names
 
 
 FLOW_LOCK_TTL = 60  # 1 minute
@@ -278,7 +274,7 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def export_definitions(cls, flows, fail_on_dependencies=True):
+    def export_definitions(cls, flows):
         """
         Builds a json definition fit for export
         """
@@ -286,25 +282,11 @@ class Flow(TembaModel):
         exported_flows = []
 
         for flow in flows:
-
             # only export current versions
             flow.ensure_current_version()
 
             # get our json with group names
-            flow_definition = flow.as_json(expand_contacts=True)
-            if fail_on_dependencies:
-                # if the flow references other flows, don't allow export yet
-                other_flows = set()
-                for action_set in flow_definition.get('action_sets', []):
-                    for action in action_set.get('actions', []):
-                        action_type = action['type']
-                        if action_type == StartFlowAction.TYPE or action_type == TriggerFlowAction.TYPE:
-                            other_flows.add(action['name'].strip())
-
-                if len(other_flows):
-                    raise FlowReferenceException(other_flows)
-
-            exported_flows.append(flow_definition)
+            exported_flows.append(flow.as_json(expand_contacts=True))
 
         # get all non-schedule based triggers that are active for these flows
         triggers = set()
@@ -1680,7 +1662,7 @@ class Flow(TembaModel):
 
             if entry_actions:
                 run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
-                                                          execute_reply_action=not optimize_sending_action)
+                                                          skip_leading_reply_actions=not optimize_sending_action)
 
                 step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
 
@@ -3196,12 +3178,18 @@ class ActionSet(models.Model):
     def get_step_type(self):
         return FlowStep.TYPE_ACTION_SET
 
-    def execute_actions(self, run, msg, started_flows, execute_reply_action=True):
+    def execute_actions(self, run, msg, started_flows, skip_leading_reply_actions=True):
         actions = self.get_actions()
         msgs = []
 
+        seen_other_action = False
         for action in actions:
-            if not execute_reply_action and isinstance(action, ReplyAction):
+            if not isinstance(action, ReplyAction):
+                seen_other_action = True
+
+            # if this is a reply action, we're skipping leading reply actions and we haven't seen other actions
+            if not skip_leading_reply_actions and isinstance(action, ReplyAction) and not seen_other_action:
+                # then skip it
                 pass
 
             elif isinstance(action, StartFlowAction):
@@ -4075,6 +4063,7 @@ class Action(object):
                 WebhookAction.TYPE: WebhookAction,
                 SaveToContactAction.TYPE: SaveToContactAction,
                 SetLanguageAction.TYPE: SetLanguageAction,
+                SetChannelAction.TYPE: SetChannelAction,
                 StartFlowAction.TYPE: StartFlowAction,
                 SayAction.TYPE: SayAction,
                 PlayAction.TYPE: PlayAction,
@@ -4928,6 +4917,49 @@ class SaveToContactAction(Action):
         log = ActionLog.create(run, log_txt)
 
         return log
+
+
+class SetChannelAction(Action):
+    """
+    Action which sets the preferred channel to use for this Contact. If the contact has no URNs that match
+    the Channel being set then this is a no-op.
+    """
+    TYPE = 'channel'
+    CHANNEL = 'channel'
+    NAME = 'name'
+
+    def __init__(self, channel):
+        self.channel = channel
+        super(Action, self).__init__()
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        channel_uuid = json_obj.get(SetChannelAction.CHANNEL)
+
+        if channel_uuid:
+            channel = Channel.objects.filter(org=org, is_active=True, uuid=channel_uuid).first()
+        else:
+            channel = None
+        return SetChannelAction(channel)
+
+    def as_json(self):
+        channel_uuid = self.channel.uuid if self.channel else None
+        channel_name = "%s: %s" % (self.channel.get_channel_type_display(), self.channel.get_address_display()) if self.channel else None
+        return dict(type=SetChannelAction.TYPE, channel=channel_uuid, name=channel_name)
+
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
+        # if we found the channel to set
+        if self.channel:
+            run.contact.set_preferred_channel(self.channel)
+            self.log(run, _("Updated preferred channel to %s") % self.channel.name)
+            return []
+        else:
+            self.log(run, _("Channel not found, no action taken"))
+            return []
+
+    def log(self, run, text):  # pragma: no cover
+        if run.contact.is_test:
+            ActionLog.create(run, text)
 
 
 class SendAction(VariableContactAction):

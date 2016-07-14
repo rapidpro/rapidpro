@@ -1327,11 +1327,43 @@ class Contact(TembaModel):
             names = [first_name] + names[1:]
             self.name = " ".join(names)
 
+    def set_preferred_channel(self, channel):
+        """
+        Sets the preferred channel for communicating with this Contact
+        """
+        if channel is None:
+            return
+
+        urns = self.get_urns()
+
+        # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
+        if channel.scheme == TEL_SCHEME:
+            for urn in urns:
+                if urn.scheme == channel.scheme and urn.channel_id != channel.id:
+                    urn.channel = channel
+                    urn.save(update_fields=['channel'])
+
+        # if our scheme isn't the highest priority
+        if urns and urns[0].scheme != channel.scheme:
+            # update the highest URN of the right scheme to be highest
+            for urn in urns[1:]:
+                if urn.scheme == channel.scheme:
+                    urn.priority = urns[0].priority + 1
+                    urn.save(update_fields=['priority'])
+
+                    # clear our URN cache, order is different now
+                    self.clear_urn_cache()
+                    break
+
     def get_urns_for_scheme(self, scheme):
         """
         Returns all the URNs for the passed in scheme
         """
         return self.urns.filter(scheme=scheme).order_by('-priority', 'pk')
+
+    def clear_urn_cache(self):
+        if hasattr(self, '__urns'):
+            delattr(self, '__urns')
 
     def get_urns(self):
         """
@@ -1524,6 +1556,7 @@ class ContactURN(models.Model):
     IMPORT_HEADER_TO_SCHEME = {s[0]: s[1] for s in IMPORT_HEADERS}
 
     SCHEMES_SUPPORTING_FOLLOW = {TWITTER_SCHEME}  # schemes that support "follow" triggers
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME}  # schemes that support "new conversation" triggers
 
     EXPORT_FIELDS = {
         TEL_SCHEME: dict(label="Phone", key=Contact.PHONE, id=0, field=None, urn_scheme=TEL_SCHEME),
@@ -1538,7 +1571,7 @@ class ContactURN(models.Model):
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90}
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90}
 
     ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
 

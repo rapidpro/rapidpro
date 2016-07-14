@@ -1406,6 +1406,20 @@ class ContactTest(TembaTest):
         broadcast.schedule.reset()
         self.assertFalse(self.joe.get_scheduled_messages())
 
+    def test_contact_update_urns_field(self):
+        update_url = reverse('contacts.contact_update', args=[self.joe.pk])
+
+        # we have a field to add new urns
+        response = self.fetch_protected(update_url, self.admin)
+        self.assertEquals(self.joe, response.context['object'])
+        self.assertContains(response, 'Add Connection')
+
+        # no field to add new urns for anon org
+        with AnonymousOrg(self.org):
+            response = self.fetch_protected(update_url, self.admin)
+            self.assertEquals(self.joe, response.context['object'])
+            self.assertNotContains(response, 'Add Connection')
+
     def test_read(self):
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
 
@@ -2644,7 +2658,15 @@ class ContactTest(TembaTest):
         post_data['column_joined_type'] = 'D'
 
         response = self.client.post(customize_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
+        self.assertFormError(response, 'form', None, 'Name is an invalid name or is a reserved name for contact '
+                                                     'fields, field names should start with a letter.')
+
+        # we do not support names not starting by letter
+        post_data['column_country_label'] = '12Project'  # reserved when slugified to 'name'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, '12Project is an invalid name or is a reserved name for contact '
+                                                     'fields, field names should start with a letter.')
 
         # invalid label
         post_data['column_country_label'] = '}{i$t0rY'  # supports only numbers, letters, hyphens

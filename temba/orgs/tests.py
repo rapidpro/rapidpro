@@ -1775,8 +1775,7 @@ class LanguageTest(TembaTest):
 class BulkExportTest(TembaTest):
 
     def test_trigger_flow(self):
-
-        self.import_file('triggered-flow')
+        self.import_file('triggered_flow')
 
         flow = Flow.objects.filter(name='Trigger a Flow', org=self.org).first()
         definition = flow.as_json()
@@ -1784,9 +1783,36 @@ class BulkExportTest(TembaTest):
         self.assertEquals(1, len(actions))
         self.assertEquals('Triggered Flow', actions[0]['name'])
 
+    def test_flow_export_dynamic_group(self):
+        flow = self.get_flow('favorites')
+
+        # get one of our flow actionsets, change it to an AddToGroupAction
+        actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
+
+        # replace the actions
+        from temba.flows.models import AddToGroupAction
+        actionset.set_actions_dict([AddToGroupAction([dict(id=1, name="Other Group"), '@contact.name']).as_json()])
+        actionset.save()
+
+        # now let's export!
+        self.login(self.admin)
+        post_data = dict(flows=[flow.pk], campaigns=[])
+        response = self.client.post(reverse('orgs.org_export'), post_data)
+        exported = json.loads(response.content)
+
+        # try to import the flow
+        flow.delete()
+        json.loads(response.content)
+        Flow.import_flows(exported, self.org, self.admin)
+
+        # make sure the created flow has the same action set
+        flow = Flow.objects.filter(name="%s" % flow.name).first()
+        actionset = ActionSet.objects.filter(flow=flow).order_by('y').first()
+        self.assertTrue('@contact.name' in actionset.get_actions()[0].groups)
+
     def test_missing_flows_on_import(self):
         # import a flow that starts a missing flow
-        self.import_file('start-missing-flow')
+        self.import_file('start_missing_flow')
 
         # the flow that kicks off our missing flow
         flow = Flow.objects.get(name='Start Missing Flow')
@@ -1804,7 +1830,7 @@ class BulkExportTest(TembaTest):
         self.assertEquals(1, len(other_actionset.get_actions()))
 
         # now make sure it does the same thing from an actionset
-        self.import_file('start-missing-flow-from-actionset')
+        self.import_file('start_missing_flow_from_actionset')
         self.assertIsNotNone(Flow.objects.filter(name='Start Missing Flow').first())
         self.assertIsNone(Flow.objects.filter(name='Missing Flow').first())
 
@@ -1856,7 +1882,7 @@ class BulkExportTest(TembaTest):
             self.assertEquals(1, Label.label_objects.filter(org=self.org).count())
 
         # import all our bits
-        self.import_file('the-clinic')
+        self.import_file('the_clinic')
 
         # check that the right number of objects successfully imported for our app
         assert_object_counts()
@@ -1885,7 +1911,7 @@ class BulkExportTest(TembaTest):
         action_set.save()
 
         # now reimport
-        self.import_file('the-clinic')
+        self.import_file('the_clinic')
 
         # our flow should get reset from the import
         confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
@@ -2000,6 +2026,19 @@ class BulkExportTest(TembaTest):
         # make sure we have the previously exported expiration
         confirm_appointment = Flow.objects.get(name='Confirm Appointment')
         self.assertEquals(60, confirm_appointment.expires_after_minutes)
+
+        # now delete a flow
+        register = Flow.objects.filter(name='Register Patient').first()
+        register.is_active = False
+        register.save()
+
+        # default view shouldn't show deleted flows
+        response = self.client.get(reverse('orgs.org_export'))
+        self.assertNotContains(response, 'Register Patient')
+
+        # even with the archived flag one deleted flows should not show up
+        response = self.client.get("%s?archived=1" % reverse('orgs.org_export'))
+        self.assertNotContains(response, 'Register Patient')
 
 
 class CreditAlertTest(TembaTest):
