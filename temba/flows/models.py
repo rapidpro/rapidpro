@@ -2522,22 +2522,22 @@ class FlowRun(models.Model):
         """
         runs = runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False)
         for run in runs:
-                steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
-                step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
+            steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
+            step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
 
-                if step:
-                    # use the last incoming message on this step
-                    msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
+            if step:
+                # use the last incoming message on this step
+                msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
 
-                    # if we are routing back to the parent before a msg was sent, we need a placeholder
-                    if not msg:
-                        msg = Msg()
-                        msg.text = ''
-                        msg.org = run.org
-                        msg.contact = run.contact
+                # if we are routing back to the parent before a msg was sent, we need a placeholder
+                if not msg:
+                    msg = Msg()
+                    msg.text = ''
+                    msg.org = run.org
+                    msg.contact = run.contact
 
-                    # finally, trigger our parent flow
-                    Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
+                # finally, trigger our parent flow
+                Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
     def release(self):
         """
