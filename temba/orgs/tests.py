@@ -1179,7 +1179,7 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
         # and disconnect
-        self.org.remove_nexmo_account()
+        self.org.remove_nexmo_account(self.admin)
         self.assertFalse(self.org.is_connected_to_nexmo())
         self.assertFalse(self.org.config_json()['NEXMO_KEY'])
         self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
@@ -1197,7 +1197,7 @@ class OrgTest(TembaTest):
 
         self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_nexmo_connect'))
 
-        self.org.connect_nexmo('key', 'secret')
+        self.org.connect_nexmo('key', 'secret', self.admin)
 
         with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
             # try automatic nexmo settings update

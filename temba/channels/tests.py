@@ -1002,7 +1002,7 @@ class ChannelTest(TembaTest):
         # now connect to nexmo
         with patch('temba.nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456')
+            self.org.connect_nexmo('123', '456', self.admin)
             self.org.save()
         self.assertTrue(self.org.is_connected_to_nexmo())
 
@@ -1682,7 +1682,7 @@ class ChannelTest(TembaTest):
         # connect org to Nexmo and add bulk sender
         with patch('temba.nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456')
+            self.org.connect_nexmo('123', '456', self.admin)
             self.org.save()
 
         claim_nexmo_url = reverse('channels.channel_create_bulk_sender') + "?connection=NX&channel=%d" % android.pk
