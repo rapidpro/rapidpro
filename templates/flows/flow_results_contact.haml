@@ -17,7 +17,7 @@
 
     .span4
       .pull-right
-        %a.btn.btn-success{ href: "{% url 'flows.flow_export_results' %}?ids={{ object.id }}" }
+        %a.btn.btn-success{ href: "#", onClick:"exportFlow()" }
           -trans "Export Flow Results"
         %span.btn-group.gear-menu
           %button.btn.dropdown-toggle{ data-toggle:"dropdown" }
@@ -228,6 +228,14 @@
   {{block.super}}
 
   :javascript
+    function exportFlow(){
+      var flowIds = getCheckedIds();
+      var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
+      modal.setIcon('icon-excel');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    }
+
     function playMessage (messageId) {
       var audio = $('audio#message-' + messageId)
       var parent = audio.parent();

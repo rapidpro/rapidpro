@@ -662,6 +662,10 @@ class Contact(TembaModel):
 
         contact = None
 
+        # limit our contact name to 128 chars
+        if name:
+            name = name[:128]
+
         # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
         # it is read only from a contacts perspective, but it is by far the most common case
         if not uuid and not name and urns and len(urns) == 1:
@@ -1326,6 +1330,34 @@ class Contact(TembaModel):
             names = self.name.split()
             names = [first_name] + names[1:]
             self.name = " ".join(names)
+
+    def set_preferred_channel(self, channel):
+        """
+        Sets the preferred channel for communicating with this Contact
+        """
+        if channel is None:
+            return
+
+        urns = self.get_urns()
+
+        # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
+        if channel.scheme == TEL_SCHEME:
+            for urn in urns:
+                if urn.scheme == channel.scheme and urn.channel_id != channel.id:
+                    urn.channel = channel
+                    urn.save(update_fields=['channel'])
+
+        # if our scheme isn't the highest priority
+        if urns and urns[0].scheme != channel.scheme:
+            # update the highest URN of the right scheme to be highest
+            for urn in urns[1:]:
+                if urn.scheme == channel.scheme:
+                    urn.priority = urns[0].priority + 1
+                    urn.save(update_fields=['priority'])
+
+                    # clear our URN cache, order is different now
+                    self.clear_urn_cache()
+                    break
 
     def get_urns_for_scheme(self, scheme):
         """

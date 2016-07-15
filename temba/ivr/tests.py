@@ -85,9 +85,10 @@ class IVRTests(FlowFileTest):
         # recording (they give us a call status of completed at the same time)
         from temba.tests import MockResponse
         with patch('requests.get') as response:
-            mock = MockResponse(200, 'Fake Recording Bits')
-            mock.add_header('Content-Type', 'audio/x-wav')
-            response.return_value = mock
+            mock1 = MockResponse(404, 'No such file')
+            mock2 = MockResponse(200, 'Fake Recording Bits')
+            mock2.add_header('Content-Type', 'audio/x-wav')
+            response.side_effect = (mock1, mock2)
 
             self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
                              dict(CallStatus='completed',
