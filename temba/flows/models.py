@@ -1953,7 +1953,7 @@ class Flow(TembaModel):
                     else:
                         group_instance = groups.get(group['uuid'], None)
                         if group_instance:
-                            expanded_groups.append(dict(id=group_instance.uuid, name=group_instance.name))
+                            expanded_groups.append(dict(uuid=group_instance.uuid, name=group_instance.name))
                         else:
                             expanded_groups.append(group)
 

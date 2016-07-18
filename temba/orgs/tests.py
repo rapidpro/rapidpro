@@ -1808,7 +1808,7 @@ class BulkExportTest(TembaTest):
 
         # replace the actions
         from temba.flows.models import AddToGroupAction
-        actionset.set_actions_dict([AddToGroupAction([dict(id=1, name="Other Group"), '@contact.name']).as_json()])
+        actionset.set_actions_dict([AddToGroupAction([dict(uuid='123', name="Other Group"), '@contact.name']).as_json()])
         actionset.save()
 
         # now let's export!
