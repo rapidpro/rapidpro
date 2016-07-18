@@ -38,7 +38,7 @@ from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import HasStateTest, HasDistrictTest, HasWardTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
-from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
+from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction
 from temba.msgs.models import WIRED
 
 
@@ -945,6 +945,17 @@ class FlowTest(TembaTest):
         # our json should contain the names of our contact and groups
         self.assertTrue(json_as_string.find('Eric') > 0)
         self.assertTrue(json_as_string.find('Other') > 0)
+
+        # now delete our group
+        self.other_group.delete()
+
+        flow_json = self.flow.as_json(expand_contacts=True)
+        add_group = flow_json['action_sets'][3]['actions'][0]
+        send = flow_json['action_sets'][3]['actions'][1]
+
+        # should still see a reference to our group even (recreated)
+        self.assertEquals(1, len(add_group['groups']))
+        self.assertEquals(1, len(send['groups']))
 
     def assertTest(self, expected_test, expected_value, test, extra=None):
         runs = FlowRun.objects.filter(contact=self.contact)
@@ -2302,6 +2313,11 @@ class ActionTest(TembaTest):
         updated_action = SendAction.from_json(self.org, action.as_json())
         self.assertTrue(updated_action.groups)
         self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
+
+    def test_variable_contact_parsing(self):
+        groups = dict(groups=[dict(id=-1)])
+        groups = VariableContactAction.parse_groups(self.org, groups)
+        self.assertTrue('Missing', groups[0].name)
 
     @override_settings(SEND_EMAILS=True)
     def test_email_action(self):

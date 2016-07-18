@@ -542,6 +542,10 @@ class ContactTest(TembaTest):
         with self.assertRaises(ValueError):
             Contact.get_or_create(self.org, self.user, name='Joe', urns=['tel:'])
 
+        # name too long gets truncated
+        contact = Contact.get_or_create(self.org, self.user, name='Roger ' + 'xxxxx' * 100)
+        self.assertEqual(len(contact.name), 128)
+
         # create a contact with name, phone number and language
         joe = Contact.get_or_create(self.org, self.user, name="Joe", urns=['tel:0783835665'], language='fre')
         self.assertEqual(joe.org, self.org)

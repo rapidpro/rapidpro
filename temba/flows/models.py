@@ -1951,10 +1951,11 @@ class Flow(TembaModel):
                     if not isinstance(group, dict):
                         expanded_groups.append(group)
                     else:
-                        if 'uuid' in group:
-                            group = groups.get(group['uuid'], None)
-                            if group:
-                                expanded_groups.append(dict(uuid=group.uuid, name=group.name))
+                        group_instance = groups.get(group['uuid'], None)
+                        if group_instance:
+                            expanded_groups.append(dict(id=group_instance.uuid, name=group_instance.name))
+                        else:
+                            expanded_groups.append(group)
 
                 action['groups'] = expanded_groups
 
@@ -2087,7 +2088,7 @@ class Flow(TembaModel):
                     json_flow = self.as_json()
 
                 self.update(json_flow)
-                # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
+                self.refresh_from_db()
 
     def update(self, json_dict, user=None, force=False):
         """
@@ -4574,6 +4575,10 @@ class VariableContactAction(Action):
         for group_data in json_obj.get(VariableContactAction.GROUPS):
             group_uuid = group_data.get(VariableContactAction.UUID, None)
             group_name = group_data.get(VariableContactAction.NAME)
+
+            # flows from when true deletion was allowed need this
+            if not group_name:
+                group_name = 'Missing'
 
             group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_uuid)
             groups.append(group)

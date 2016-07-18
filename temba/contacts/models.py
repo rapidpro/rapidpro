@@ -662,6 +662,10 @@ class Contact(TembaModel):
 
         contact = None
 
+        # limit our contact name to 128 chars
+        if name:
+            name = name[:128]
+
         # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
         # it is read only from a contacts perspective, but it is by far the most common case
         if not uuid and not name and urns and len(urns) == 1:
