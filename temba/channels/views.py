@@ -39,7 +39,7 @@ from uuid import uuid4
 from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN, FACEBOOK
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
-from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX
+from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX, GLOBE
 from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, CHIKKA, AUTH_TOKEN
 
 RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
@@ -528,7 +528,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook')
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1366,6 +1366,42 @@ class ChannelCRUDL(SmartCRUDL):
                                                                    password=data['password'],
                                                                    channel=data['channel']),
                                                               role=CALL + ANSWER)
+
+            return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
+
+    class ClaimGlobe(ClaimAuthenticatedExternal):
+        class GlobeClaimForm(forms.Form):
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
+                                     help_text=_("The shortcode you have been assigned by Globe Labs"
+                                                 "ex: 15543"))
+            app_id = forms.CharField(label=_("Application Id"),
+                                     help_text=_("The id of your Globe Labs application"))
+            app_secret = forms.CharField(label=_("Application Secret"),
+                                         help_text=_("The secret assigned to your Globe Labs application"))
+            passphrase = forms.CharField(label=_("Passphrase"),
+                                         help_text=_("The passphrase assigned to you by Globe Labs to support sending"))
+
+        title = _("Connect Globe")
+        channel_type = GLOBE
+        form_class = GlobeClaimForm
+        fields = ('number', 'app_id', 'app_secret', 'passphrase')
+
+        def get_submitted_country(self, data):
+            return 'PH'
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+
+            if not org:  # pragma: no cover
+                raise Exception(_("No org for this user, cannot claim"))
+
+            data = form.cleaned_data
+            self.object = Channel.add_config_external_channel(org, self.request.user,
+                                                              'PH', data['number'], GLOBE,
+                                                              dict(app_id=data['app_id'],
+                                                                   app_secret=data['app_secret'],
+                                                                   passphrase=data['passphrase']),
+                                                              role=SEND + RECEIVE)
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
