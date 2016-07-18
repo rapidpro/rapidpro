@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('api', '0006_resthook_resthooksubscriber'),
+        ('api', '0007_resthook_resthooksubscriber'),
     ]
 
     operations = [

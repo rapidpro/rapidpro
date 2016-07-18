@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('orgs', '0018_fix_org_groups'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('api', '0005_apitoken_role'),
+        ('api', '0006_auto_20160617_1610'),
     ]
 
     operations = [
