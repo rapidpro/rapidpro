@@ -5267,7 +5267,7 @@ class TelegramTest(TembaTest):
         self.assertEquals("Hello World", msg1.text)
         self.assertEqual(msg1.contact.name, 'Nic Pottier')
 
-        def test_file_message(data, file_path, content_type, extension):
+        def test_file_message(data, file_path, content_type, extension, caption=None):
 
             Msg.all_messages.all().delete()
 
@@ -5282,13 +5282,19 @@ class TelegramTest(TembaTest):
 
                     # should have a media message now with an image
                     msgs = Msg.all_messages.all().order_by('-created_on')
-                    self.assertEqual(msgs.count(), 1)
 
-                    self.assertTrue(msgs[0].media.startswith('%s:https://' % content_type))
-                    self.assertTrue(msgs[0].media.endswith(extension))
+                    offset = 1 if caption else 0
+                    if caption:
+                        self.assertEqual(msgs.count(), 2)
+                        self.assertEqual(msgs[0].text, caption)
+                    else:
+                        self.assertEqual(msgs.count(), 1)
 
-                    self.assertTrue(msgs[0].text.startswith('https://'))
-                    self.assertTrue(msgs[0].text.endswith(extension))
+                    self.assertTrue(msgs[offset].media.startswith('%s:https://' % content_type))
+                    self.assertTrue(msgs[offset].media.endswith(extension))
+
+                    self.assertTrue(msgs[offset].text.startswith('https://'))
+                    self.assertTrue(msgs[offset].text.endswith(extension))
 
         # stickers are allowed
         sticker_data = """
@@ -5377,6 +5383,7 @@ class TelegramTest(TembaTest):
         {
           "update_id":414383173,
           "message":{
+            "caption": "Check out this amazeballs video",
             "message_id":54,
             "from":{
               "id":25028612,
@@ -5440,7 +5447,7 @@ class TelegramTest(TembaTest):
 
         test_file_message(sticker_data, 'file/image.webp', "image/webp", "webp")
         test_file_message(photo_data, 'file/image.jpg', "image/jpeg", "jpg")
-        test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4")
+        test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4", caption="Check out this amazeballs video")
         test_file_message(audio_data, 'file/audio.oga', "audio/ogg", "oga")
 
         location_data = """
