@@ -8,6 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, status
+from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -27,7 +28,7 @@ from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, Cont
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
 from .serializers import LabelReadSerializer, MsgReadSerializer
 from ..models import APIPermission, SSLPermission
-from ..support import InvalidQueryError, CustomCursorPagination
+from ..support import InvalidQueryError
 
 
 @api_view(['GET'])
@@ -138,12 +139,14 @@ class AuthenticateView(SmartFormView):
             return HttpResponse(status=403)
 
 
-class CreatedOnCursorPagination(CustomCursorPagination):
-    ordering = ('-created_on', '-id')
+class CreatedOnCursorPagination(CursorPagination):
+    ordering = ('-created_on', '-pk')
+    offset_cutoff = 1000000
 
 
-class ModifiedOnCursorPagination(CustomCursorPagination):
-    ordering = ('-modified_on', '-id')
+class ModifiedOnCursorPagination(CursorPagination):
+    ordering = ('-modified_on', '-pk')
+    offset_cutoff = 1000000
 
 
 class BaseAPIView(generics.GenericAPIView):
@@ -1008,7 +1011,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
-    class Pagination(CustomCursorPagination):
+    class Pagination(CreatedOnCursorPagination):
         """
         Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
         at all incoming messages.
