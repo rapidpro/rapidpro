@@ -29,6 +29,7 @@ from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
+from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
@@ -1659,7 +1660,7 @@ class Flow(TembaModel):
 
             if entry_actions:
                 run_msgs += entry_actions.execute_actions(run, start_msg, started_flows_by_contact,
-                                                          execute_reply_action=not optimize_sending_action)
+                                                          skip_leading_reply_actions=not optimize_sending_action)
 
                 step = self.add_step(run, entry_actions, run_msgs, is_start=True, arrived_on=arrived_on)
 
@@ -1950,10 +1951,11 @@ class Flow(TembaModel):
                     if not isinstance(group, dict):
                         expanded_groups.append(group)
                     else:
-                        if 'uuid' in group:
-                            group = groups.get(group['uuid'], None)
-                            if group:
-                                expanded_groups.append(dict(uuid=group.uuid, name=group.name))
+                        group_instance = groups.get(group['uuid'], None)
+                        if group_instance:
+                            expanded_groups.append(dict(uuid=group_instance.uuid, name=group_instance.name))
+                        else:
+                            expanded_groups.append(group)
 
                 action['groups'] = expanded_groups
 
@@ -2086,7 +2088,7 @@ class Flow(TembaModel):
                     json_flow = self.as_json()
 
                 self.update(json_flow)
-                # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
+                self.refresh_from_db()
 
     def update(self, json_dict, user=None, force=False):
         """
@@ -2532,22 +2534,22 @@ class FlowRun(models.Model):
         """
         runs = runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False)
         for run in runs:
-                steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
-                step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
+            steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
+            step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
 
-                if step:
-                    # use the last incoming message on this step
-                    msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
+            if step:
+                # use the last incoming message on this step
+                msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
 
-                    # if we are routing back to the parent before a msg was sent, we need a placeholder
-                    if not msg:
-                        msg = Msg()
-                        msg.text = ''
-                        msg.org = run.org
-                        msg.contact = run.contact
+                # if we are routing back to the parent before a msg was sent, we need a placeholder
+                if not msg:
+                    msg = Msg()
+                    msg.text = ''
+                    msg.org = run.org
+                    msg.contact = run.contact
 
-                    # finally, trigger our parent flow
-                    Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
+                # finally, trigger our parent flow
+                Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
     def release(self):
         """
@@ -3188,12 +3190,18 @@ class ActionSet(models.Model):
     def get_step_type(self):
         return FlowStep.TYPE_ACTION_SET
 
-    def execute_actions(self, run, msg, started_flows, execute_reply_action=True):
+    def execute_actions(self, run, msg, started_flows, skip_leading_reply_actions=True):
         actions = self.get_actions()
         msgs = []
 
+        seen_other_action = False
         for action in actions:
-            if not execute_reply_action and isinstance(action, ReplyAction):
+            if not isinstance(action, ReplyAction):
+                seen_other_action = True
+
+            # if this is a reply action, we're skipping leading reply actions and we haven't seen other actions
+            if not skip_leading_reply_actions and isinstance(action, ReplyAction) and not seen_other_action:
+                # then skip it
                 pass
 
             elif isinstance(action, StartFlowAction):
@@ -4089,6 +4097,7 @@ class Action(object):
                 WebhookAction.TYPE: WebhookAction,
                 SaveToContactAction.TYPE: SaveToContactAction,
                 SetLanguageAction.TYPE: SetLanguageAction,
+                SetChannelAction.TYPE: SetChannelAction,
                 StartFlowAction.TYPE: StartFlowAction,
                 SayAction.TYPE: SayAction,
                 PlayAction.TYPE: PlayAction,
@@ -4567,6 +4576,10 @@ class VariableContactAction(Action):
             group_uuid = group_data.get(VariableContactAction.UUID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
+            # flows from when true deletion was allowed need this
+            if not group_name:
+                group_name = 'Missing'
+
             group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_uuid)
             groups.append(group)
 
@@ -4938,6 +4951,49 @@ class SaveToContactAction(Action):
         log = ActionLog.create(run, log_txt)
 
         return log
+
+
+class SetChannelAction(Action):
+    """
+    Action which sets the preferred channel to use for this Contact. If the contact has no URNs that match
+    the Channel being set then this is a no-op.
+    """
+    TYPE = 'channel'
+    CHANNEL = 'channel'
+    NAME = 'name'
+
+    def __init__(self, channel):
+        self.channel = channel
+        super(Action, self).__init__()
+
+    @classmethod
+    def from_json(cls, org, json_obj):
+        channel_uuid = json_obj.get(SetChannelAction.CHANNEL)
+
+        if channel_uuid:
+            channel = Channel.objects.filter(org=org, is_active=True, uuid=channel_uuid).first()
+        else:
+            channel = None
+        return SetChannelAction(channel)
+
+    def as_json(self):
+        channel_uuid = self.channel.uuid if self.channel else None
+        channel_name = "%s: %s" % (self.channel.get_channel_type_display(), self.channel.get_address_display()) if self.channel else None
+        return dict(type=SetChannelAction.TYPE, channel=channel_uuid, name=channel_name)
+
+    def execute(self, run, actionset_uuid, msg, offline_on=None):
+        # if we found the channel to set
+        if self.channel:
+            run.contact.set_preferred_channel(self.channel)
+            self.log(run, _("Updated preferred channel to %s") % self.channel.name)
+            return []
+        else:
+            self.log(run, _("Channel not found, no action taken"))
+            return []
+
+    def log(self, run, text):  # pragma: no cover
+        if run.contact.is_test:
+            ActionLog.create(run, text)
 
 
 class SendAction(VariableContactAction):

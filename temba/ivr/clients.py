@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import json
 import re
 import requests
-
+import time
 
 from django.conf import settings
 from django.core.files import File
@@ -58,7 +58,18 @@ class TwilioClient(TwilioRestClient):
         :param media_url: the url where the media lives
         :return: the url for our downloaded media with full content type prefix
         """
-        response = requests.get(media_url, stream=True, auth=self.auth)
+        attempts = 0
+        while attempts < 4:
+            response = requests.get(media_url, stream=True, auth=self.auth)
+
+            # in some cases Twilio isn't ready for us to fetch the recording URL yet, if we get a 404
+            # sleep for a bit then try again up to 4 times
+            if response.status_code == 200:
+                break
+            else:
+                attempts += 1
+                time.sleep(.250)
+
         disposition = response.headers.get('Content-Disposition', None)
         content_type = response.headers.get('Content-Type', None)
 
