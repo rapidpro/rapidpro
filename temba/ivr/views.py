@@ -8,7 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
-from .models import IVRCall, IN_PROGRESS, COMPLETED
+from .models import IVRCall, IN_PROGRESS, COMPLETED, RINGING
 
 
 class CallHandler(View):
@@ -58,12 +58,11 @@ class CallHandler(View):
 
             hangup = 'hangup' == user_response.get('Digits', None)
 
-            if call.status == IN_PROGRESS or hangup:
+            if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():
                     response = Flow.handle_call(call, user_response, hangup=hangup)
                     return HttpResponse(unicode(response))
             else:
-
                 if call.status == COMPLETED:
                     # if our call is completed, hangup
                     run = FlowRun.objects.filter(call=call).first()

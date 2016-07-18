@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0056_indexes_update'),
+        ('flows', '0056_indexes_update')
     ]
 
     operations = [

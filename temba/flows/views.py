@@ -413,10 +413,10 @@ class FlowCRUDL(SmartCRUDL):
                                                help_text=_("When a user sends any of these keywords they will begin this flow"))
 
             flow_type = forms.ChoiceField(label=_('Run flow over'),
-                                          help_text=_('Place a phone call or use text messaging'),
-                                          choices=((Flow.FLOW, 'Text Messaging'),
+                                          help_text=_('Send messages, place phone calls, or submit Surveyor runs'),
+                                          choices=((Flow.FLOW, 'Messaging'),
                                                    (Flow.VOICE, 'Phone Call'),
-                                                   (Flow.SURVEY, 'Android Phone')))
+                                                   (Flow.SURVEY, 'Surveyor')))
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Create.FlowCreateForm, self).__init__(*args, **kwargs)
@@ -1305,7 +1305,10 @@ class FlowCRUDL(SmartCRUDL):
 
             # all the translation languages for our org
             languages = [lang.as_json() for lang in flow.org.languages.all().order_by('orgs')]
-            return build_json_response(dict(flow=flow.as_json(expand_contacts=True), languages=languages))
+
+            # all the channels available for our org
+            channels = [dict(uuid=chan.uuid, name=u"%s: %s" % (chan.get_channel_type_display(), chan.get_address_display())) for chan in flow.org.channels.filter(is_active=True)]
+            return build_json_response(dict(flow=flow.as_json(expand_contacts=True), languages=languages, channels=channels))
 
         def post(self, request, *args, **kwargs):
 

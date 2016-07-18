@@ -244,6 +244,11 @@ class WebHookEvent(SmartModel):
 
         finally:
             webhook_event.save()
+
+            # make sure our message isn't too long
+            if message:
+                message = message[:255]
+
             result = WebHookResult.objects.create(event=webhook_event,
                                                   url=webhook_url,
                                                   status_code=status_code,
