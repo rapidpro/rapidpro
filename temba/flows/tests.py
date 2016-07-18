@@ -268,6 +268,43 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'), post_data)
         self.assertContains(response, self.flow.name)
 
+    def test_flows_select2(self):
+        self.login(self.admin)
+
+        msg = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Message Flow"), base_language='base', flow_type=Flow.FLOW)
+        survey = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Surveyor Flow"), base_language='base', flow_type=Flow.SURVEY)
+        ivr = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "IVR Flow"), base_language='base', flow_type=Flow.VOICE)
+
+        # all flow types
+        response = self.client.get('%s?_format=select2' % reverse('flows.flow_list'))
+        self.assertContains(response, ivr.name)
+        self.assertContains(response, survey.name)
+        self.assertContains(response, msg.name)
+
+        # only surveyor flows
+        response = self.client.get('%s?_format=select2&flow_type=S' % reverse('flows.flow_list'))
+        self.assertContains(response, survey.name)
+        self.assertNotContains(response, ivr.name)
+        self.assertNotContains(response, msg.name)
+
+        # only voice flows
+        response = self.client.get('%s?_format=select2&flow_type=V' % reverse('flows.flow_list'))
+        self.assertContains(response, ivr.name)
+        self.assertNotContains(response, survey.name)
+        self.assertNotContains(response, msg.name)
+
+        # only text flows
+        response = self.client.get('%s?_format=select2&flow_type=F' % reverse('flows.flow_list'))
+        self.assertContains(response, msg.name)
+        self.assertNotContains(response, survey.name)
+        self.assertNotContains(response, ivr.name)
+
+        # two at a time
+        response = self.client.get('%s?_format=select2&flow_type=V&flow_type=F' % reverse('flows.flow_list'))
+        self.assertContains(response, ivr.name)
+        self.assertContains(response, msg.name)
+        self.assertNotContains(response, survey.name)
+
     def test_flow_read(self):
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_read', args=[self.flow.pk]))

@@ -925,6 +925,16 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     utils.openModal("/partials/rule_webhook", RuleOptionsController, resolveObj)
 
+  $scope.getFlowsUrl = (flow) ->
+    url = "/flow/?_format=select2"
+    if Flow.flow.flow_type == 'S'
+      return url + "&flow_type=S"
+    if Flow.flow.flow_type == 'F'
+      return url + "&flow_type=F&flow_type=V"
+    if Flow.flow.flow_type == 'V'
+      return url + "&flow_type=V"
+    return url
+
   $scope.remove = (rule) ->
     $scope.removed.push(rule)
     index = $scope.ruleset.rules.indexOf(rule)
