@@ -211,37 +211,33 @@ class APITest(TembaTest):
 
         # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
         flow = self.create_flow(uuid_start=0)
-
-        runs = [FlowRun(org=self.org, flow=flow, contact=self.joe) for r in range(1255)]
-        FlowRun.objects.bulk_create(runs)
-        runs = FlowRun.objects.order_by('pk')
-
-        returned_ids = []
-        runs = list(reversed(runs))
+        FlowRun.objects.bulk_create([FlowRun(org=self.org, flow=flow, contact=self.joe) for r in range(1255)])
+        actual_ids = list(FlowRun.objects.order_by('-pk').values_list('pk', flat=True))
 
         # give them all the same modified_on
         FlowRun.objects.all().update(modified_on=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
+
+        returned_ids = []
 
         # fetch all full pages
         response = None
         for p in range(5):
             response = self.fetchJSON(url if p == 0 else response.json['next'], raw_url=True)
 
-            self.assertResultsById(response, [runs[p * 250 + i] for i in range(250)])
+            self.assertEqual(len(response.json['results']), 250)
             self.assertIsNotNone(response.json['next'])
 
-            returned_ids += set([r['id'] for r in response.json['results']])
+            returned_ids += [r['id'] for r in response.json['results']]
 
         # fetch final partial page
         response = self.fetchJSON(response.json['next'], raw_url=True)
 
         self.assertEqual(len(response.json['results']), 5)
-        self.assertResultsById(response, [runs[1250], runs[1251], runs[1252], runs[1253], runs[1254]])
         self.assertIsNone(response.json['next'])
 
-        returned_ids += set([r['id'] for r in response.json['results']])
+        returned_ids += [r['id'] for r in response.json['results']]
 
-        self.assertEqual(set(returned_ids), {r.pk for r in runs})  # ensure all results were returned
+        self.assertEqual(returned_ids, actual_ids)  # ensure all results were returned and in correct order
 
     def test_authenticate(self):
         url = reverse('api.v2.authenticate')
