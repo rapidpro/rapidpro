@@ -1,18 +1,27 @@
 from __future__ import unicode_literals
 
 import copy
+import json
 
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
 from temba.utils.expressions import migrate_template
 from uuid import uuid4
+import regex
 
 
 def migrate_export_to_version_9(exported_json, org, same_site=False):
     """
-    Migrates remaining ids to uuids. Changes to uuids for  Flows, Groups,
+    Migrates remaining ids to uuids. Changes to uuids for Flows, Groups,
     Contacts and Channels inside of Actions, Triggers, Campaigns, Events
     """
+
+    # any references to @extra.flow are now just @parent
+    exported_string = json.dumps(exported_json).replace('extra.flow', 'parent')
+    pattern = '@(extra\.flow)|@\(.*?(extra\.flow).*?\)'
+    rexp = regex.compile(pattern, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
+    exported_string = rexp.sub('flow', exported_string)
+    exported_json = json.loads(exported_string)
 
     flow_id_map = {}
     group_id_map = {}
