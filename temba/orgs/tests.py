@@ -240,7 +240,7 @@ class OrgTest(TembaTest):
         # while we are suspended, we can't send broadcasts
         send_url = reverse('msgs.broadcast_send')
         mark = self.create_contact('Mark', number='+12065551212')
-        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%d" % mark.pk)
+        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%s" % mark.uuid)
         response = self.client.post(send_url, post_data, follow=True)
 
         self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
@@ -248,7 +248,7 @@ class OrgTest(TembaTest):
 
         # we also can't start flows
         flow = self.create_flow()
-        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants='on')
         response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
 
         self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
@@ -275,7 +275,7 @@ class OrgTest(TembaTest):
 
         # unsuspend our org and start a flow
         self.org.set_restored()
-        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants='on')
         response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
         self.assertEqual(1, FlowRun.objects.all().count())
 
@@ -1781,7 +1781,24 @@ class BulkExportTest(TembaTest):
         definition = flow.as_json()
         actions = definition[Flow.ACTION_SETS][0]['actions']
         self.assertEquals(1, len(actions))
-        self.assertEquals('Triggered Flow', actions[0]['name'])
+        self.assertEquals('Triggered Flow', actions[0]['flow']['name'])
+
+    def test_subflow_dependencies(self):
+        self.import_file('subflow')
+
+        parent = Flow.objects.filter(name='Parent Flow').first()
+        child = Flow.objects.filter(name='Child Flow').first()
+        self.assertIn(child, parent.get_dependencies()['flows'])
+
+        self.login(self.admin)
+        response = self.client.get(reverse('orgs.org_export'))
+
+        from BeautifulSoup import BeautifulSoup
+        soup = BeautifulSoup(response.content)
+        group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
+
+        self.assertIn('Parent Flow', group)
+        self.assertIn('Child Flow', group)
 
     def test_flow_export_dynamic_group(self):
         flow = self.get_flow('favorites')

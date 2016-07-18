@@ -390,7 +390,7 @@
                   .group-name.force-wrap{ng-show:'group.name'}
                     [[group.name]]
                   .group-name.force-wrap{ng-hide:'group.name'}
-                    [[group]]
+                    [[group.name]]
 
                 // updating contacts
                 %span{ng-show:'action.type == "save"'}
@@ -406,7 +406,7 @@
                 // starting flows
                 %span{ng-show:'action.type == "flow" || action.type == "trigger-flow"'}
                   .start-flow
-                    [[action.name]]
+                    [[action.flow.name]]
 
                 // webhooks
                 %span{ng-show:'action.type == "api"'}

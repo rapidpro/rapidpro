@@ -217,7 +217,7 @@ class TriggerTest(TembaTest):
         tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
         post_data = dict()
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'D'
         post_data['start'] = 'later'
         post_data['start_datetime_value'] = "%d" % tommorrow_stamp
@@ -229,7 +229,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['start'] = 'never'
         post_data['repeat_period'] = 'O'
 
@@ -244,7 +244,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['start'] = 'stop'
         post_data['repeat_period'] = 'O'
 
@@ -259,7 +259,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'O'
         post_data['start'] = 'now'
         post_data['start_datetime_value'] = "%d" % now_stamp
@@ -277,7 +277,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'D'
         post_data['start'] = 'later'
         post_data['start_datetime_value'] = "%d" % tommorrow_stamp
@@ -294,7 +294,7 @@ class TriggerTest(TembaTest):
         update_url = reverse('triggers.trigger_update', args=[trigger.pk])
 
         post_data = dict()
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'O'
         post_data['start'] = 'now'
         post_data['start_datetime_value'] = "%d" % now_stamp
@@ -304,7 +304,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d" % linkin_park.pk
+        post_data['omnibox'] = "g-%s" % linkin_park.uuid
         post_data['repeat_period'] = 'O'
         post_data['start'] = 'now'
         post_data['start_datetime_value'] = "%d" % now_stamp
@@ -320,7 +320,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['start'] = 'never'
         post_data['repeat_period'] = 'O'
 
@@ -334,7 +334,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['start'] = 'stop'
         post_data['repeat_period'] = 'O'
 
@@ -348,7 +348,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'D'
         post_data['start'] = 'later'
         post_data['start_datetime_value'] = "%d" % tommorrow_stamp

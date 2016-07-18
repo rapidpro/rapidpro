@@ -1,6 +1,6 @@
 {
   "campaigns": [], 
-  "version": 8, 
+  "version": 9, 
   "site": "https://textit.in", 
   "flows": [
     {
@@ -79,7 +79,7 @@
           "config": {
             "flow": {
               "name": "Flow B",
-              "id": 35641
+              "uuid": "8a2c48a7-0592-4863-85c1-6b32584d4a93"
             }
           }
         }
@@ -87,7 +87,7 @@
       "metadata": {
         "expires": 10080, 
         "revision": 19, 
-        "id": 35640, 
+        "uuid": "555c48a7-0592-4863-85c1-6b32584d4a93", 
         "name": "Flow A", 
         "saved_on": "2016-05-06T19:54:29.629761Z"
       }
@@ -143,7 +143,7 @@
       "metadata": {
         "expires": 10080, 
         "revision": 3, 
-        "id": 35641, 
+        "uuid": "8a2c48a7-0592-4863-85c1-6b32584d4a93", 
         "name": "Flow B", 
         "saved_on": "2016-05-06T19:55:33.195336Z"
       }

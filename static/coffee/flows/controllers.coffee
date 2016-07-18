@@ -1145,7 +1145,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     # subflow rulesets have their own kind of rules
     if ruleset.ruleset_type == 'subflow'
-      $log.debug(ruleset.rules)
 
       needs_completed = true
       needs_expired = true
@@ -1292,7 +1291,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         ruleset.config =
           flow:
             name: flow.text
-            id: flow.id
+            uuid: flow.id
 
         # remove any non subflow actions
         rules = []
@@ -1450,16 +1449,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         if label.id == msgLabel
           found = true
           labels.push
-            id: label.id
+            uuid: label.id
             name: label.text
 
       if not found
         labels.push
-          id: msgLabel.id
+          uuid: msgLabel.id
           name: msgLabel.text
 
     $scope.action.labels = labels
-
 
     $scope.action.type = 'add_label'
     Flow.saveAction(actionset, $scope.action)
@@ -1470,7 +1468,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.saveGroups = (actionType, omnibox) ->
 
     $scope.action.type = actionType
-    $scope.action.groups = omnibox.groups
+
+    groups = []
+    for group in omnibox.groups
+      groups.push
+        uuid: group.id
+        name: group.name
+
+    $scope.action.groups = groups
 
     # add our list of variables
     for variable in omnibox.variables
@@ -1538,8 +1543,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       $scope.action.type = 'flow'
 
     flow = flow[0]
-    $scope.action.id = flow.id
-    $scope.action.name = flow.text
+    $scope.action.flow = 
+      uuid: flow.id
+      name: flow.text
+
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
