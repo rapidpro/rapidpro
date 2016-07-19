@@ -44,7 +44,7 @@ from urllib import urlencode
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, CHIKKA, TELEGRAM
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
-from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
+from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO, SEND_BODY
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
 
@@ -2988,16 +2988,52 @@ class ExternalTest(TembaTest):
                                           SEND_METHOD: 'GET'})
         self.channel.save()
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.settings(SEND_MESSAGES=True):
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send&text=Test+message&to=250788383383')
 
-        finally:
-            settings.SEND_MESSAGES = False
+        self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send',
+                                          SEND_METHOD: 'POST'})
+        self.channel.save()
+        self.clear_cache()
+
+        with self.settings(SEND_MESSAGES=True):
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, "Sent")
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
+                self.assertEqual(mock.call_args[1]['data'], 'id=%d&text=Test+message&to=%%2B250788383383&to_no_plus=250788383383&'
+                                                            'from=%%2B250788123123&from_no_plus=250788123123&'
+                                                            'channel=%d' % (sms.id, self.channel.id))
+
+        self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send',
+                                          SEND_BODY: 'text={{text}}&to={{to_no_plus}}',
+                                          SEND_METHOD: 'POST'})
+        self.channel.save()
+        self.clear_cache()
+
+        with self.settings(SEND_MESSAGES=True):
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, "Sent")
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
+                self.assertEqual(mock.call_args[1]['data'], 'text=Test+message&to=250788383383')
+
+        self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send',
+                                          SEND_BODY: 'text={{text}}&to={{to_no_plus}}',
+                                          SEND_METHOD: 'PUT'})
+
+        self.channel.save()
+        self.clear_cache()
+
+        with self.settings(SEND_MESSAGES=True):
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, "Sent")
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
+                self.assertEqual(mock.call_args[1]['data'], 'text=Test+message&to=250788383383')
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
