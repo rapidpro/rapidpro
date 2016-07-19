@@ -1238,12 +1238,12 @@ class Flow(TembaModel):
         # if we have parent or child contexts, add them in too
         if run:
             if run.parent:
-                context['parent'] = Flow.build_flow_context(run.parent.flow, contact)
+                context['parent'] = Flow.build_flow_context(run.parent.flow, run.parent.contact)
 
             # see if we spawned any children and add them too
             child_run = FlowRun.objects.filter(parent=run).first()
             if child_run:
-                context['child'] = Flow.build_flow_context(child_run.flow, contact)
+                context['child'] = Flow.build_flow_context(child_run.flow, child_run.contact)
 
         if contact:
             context['contact'] = contact_context
@@ -3302,7 +3302,6 @@ class FlowRevision(SmartModel):
                         json_flow = migrate_fn(json_flow, org)
                     flows.append(json_flow)
                 exported_json['flows'] = flows
-
             version += 1
 
         return exported_json
@@ -4695,10 +4694,9 @@ class TriggerFlowAction(VariableContactAction):
             if not run.contact.is_test:
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
-                extra['flow'] = message_context.get('flow', dict())
                 extra['contact'] = run.contact.build_message_context()
-
-                self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk], extra=extra)
+                self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
+                                extra=extra, parent_run=run)
                 return []
 
             else:
@@ -4795,7 +4793,6 @@ class StartFlowAction(Action):
 
         # our extra will be the current flow variables
         extra = message_context.get('extra', {})
-        extra['flow'] = message_context.get('flow', {})
 
         # if they are both flow runs, just redirect the call
         if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
@@ -4804,8 +4801,8 @@ class StartFlowAction(Action):
             url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
             run.voice_response.redirect(url)
         else:
-            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                            extra=extra, parent_run=run)
+            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra,
+                            parent_run=run)
 
         self.logger(run)
         return []

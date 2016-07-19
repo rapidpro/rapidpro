@@ -2532,13 +2532,16 @@ class ActionTest(TembaTest):
 
     def test_start_flow_action(self):
         self.flow.update(self.create_flow_definition())
+        self.flow.name = 'Parent'
+        self.flow.save()
+
         self.flow.start([], [self.contact])
 
         sms = Msg.create_incoming(self.channel, "tel:+250788382382", "Blue is my favorite")
 
         run = FlowRun.objects.get()
 
-        new_flow = Flow.create_single_message(self.org, self.user, "You chose @extra.flow.color.category")
+        new_flow = Flow.create_single_message(self.org, self.user, "You chose @parent.color.category")
         action = StartFlowAction(new_flow)
 
         action_json = action.as_json()

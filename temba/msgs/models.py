@@ -424,7 +424,7 @@ class Broadcast(models.Model):
                         if run.parent:
                             from temba.flows.models import Flow
                             message_context = message_context.copy()
-                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, recipient)))
+                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
 
             try:
                 msg = Msg.create_outgoing(org,

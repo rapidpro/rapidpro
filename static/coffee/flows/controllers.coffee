@@ -957,13 +957,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
       if rule.test.test 
         if rule._config.localized
-          rule.test._base = rule.test.test[flow.base_language]
+          rule.test._base = rule.test.test[Flow.flow.base_language]
         else
           rule.test =
             _base: rule.test.test
 
     # and finally the category name
-    rule.category._base = rule.category[flow.base_language]
+    rule.category._base = rule.category[Flow.flow.base_language]
 
   if window.ivr
     # prep our menu
@@ -1194,7 +1194,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
             test:
               type: 'eq'
               test: option.number
-          rule.category[flow.base_language] = option.category._base
+          rule.category[Flow.flow.base_language] = option.category._base
 
           rules.push(rule)
 
@@ -1224,11 +1224,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           if rule._config.localized
             if not rule.test.test
               rule.test.test = {}
-            rule.test.test[flow.base_language] = rule.test._base
+            rule.test.test[Flow.flow.base_language] = rule.test._base
           else
             rule.test.test = rule.test._base
 
-        rule.category[flow.base_language] = rule.category._base
+        rule.category[Flow.flow.base_language] = rule.category._base
         if rule.category
           rules.push(rule)
 
