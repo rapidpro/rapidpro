@@ -2538,18 +2538,20 @@ class FlowRun(models.Model):
             step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
 
             if step:
-                # use the last incoming message on this step
-                msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
+                ruleset = RuleSet.objects.filter(uuid=step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW, org=step.org).first()
+                if ruleset:
+                    # use the last incoming message on this step
+                    msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
 
-                # if we are routing back to the parent before a msg was sent, we need a placeholder
-                if not msg:
-                    msg = Msg()
-                    msg.text = ''
-                    msg.org = run.org
-                    msg.contact = run.contact
+                    # if we are routing back to the parent before a msg was sent, we need a placeholder
+                    if not msg:
+                        msg = Msg()
+                        msg.text = ''
+                        msg.org = run.org
+                        msg.contact = run.contact
 
-                # finally, trigger our parent flow
-                Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
+                    # finally, trigger our parent flow
+                    Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
     def release(self):
         """
