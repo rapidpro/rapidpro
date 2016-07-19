@@ -2538,7 +2538,7 @@ class FlowRun(models.Model):
             step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
 
             if step:
-                ruleset = RuleSet.objects.filter(uuid=step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW, org=step.org).first()
+                ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW, flow__org=step.run.org).first()
                 if ruleset:
                     # use the last incoming message on this step
                     msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
