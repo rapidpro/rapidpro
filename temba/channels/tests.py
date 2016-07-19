@@ -6834,7 +6834,7 @@ class GlobeTest(TembaTest):
         self.assertEqual(response.status_code, 405)
 
         # POST invalid JSON data
-        response = self.client.post(callback_url, json.dumps("not json"), content_type="application/json")
+        response = self.client.post(callback_url, "not json", content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
         # POST missing data
@@ -6897,3 +6897,15 @@ class GlobeTest(TembaTest):
             # check the status of the message now errored
             msg = bcast.get_messages()[0]
             self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()
+
+        with patch('requests.get') as mock:
+            mock.side_effect = Exception("Unable to reach host")
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message now errored
+            msg = bcast.get_messages()[0]
+            self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()

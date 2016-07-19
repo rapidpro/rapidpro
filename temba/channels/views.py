@@ -1382,6 +1382,7 @@ class ChannelCRUDL(SmartCRUDL):
                                          help_text=_("The passphrase assigned to you by Globe Labs to support sending"))
 
         title = _("Connect Globe")
+        template_name = 'channels/channel_claim_globe.html'
         channel_type = GLOBE
         form_class = GlobeClaimForm
         fields = ('number', 'app_id', 'app_secret', 'passphrase')

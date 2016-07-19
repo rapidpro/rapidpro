@@ -1841,5 +1841,5 @@ class GlobeHandler(View):
                 msgs.append(msg)
 
             return HttpResponse("Msgs Accepted: %s" % ", ".join([str(m.id) for m in msgs]))
-        else:
+        else:  # pragma: no cover
             return HttpResponse("Not handled", status=400)

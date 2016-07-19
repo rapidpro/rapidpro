@@ -1,0 +1,19 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.icon-channel-external.float-left
+
+  %h2.font_normalize.header-margin
+    -trans "Connect Globe Labs"
+
+-block pre-form
+  .info
+    %p
+      -blocktrans with name=brand.name
+        You can connect your <a href="http://www.globelabs.com.ph/">Globe Labs</a> application to {{ name }} using the fields below. You will first need to create a Globe Labs
+        application, then get approval from Globe Labs by sending an email to <a href:"mailto:info@globelabs.ph">info@globelabs.ph</a>.
+
+    %p
+      -blocktrans with name=brand.name
+        With your approval you will receive the passphrase to use below.
