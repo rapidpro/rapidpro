@@ -4334,7 +4334,13 @@ class FlowsTest(FlowFileTest):
         self.send_message(parent, "color", assert_reply=False)
 
         # we should now have two active flows
-        self.assertEqual(2, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+        runs = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on')
+        self.assertEqual(2, runs.count())
+
+        # make sure the parent run expires later than the child
+        child_run = runs[0]
+        parent_run = runs[1]
+        self.assertTrue(parent_run.expires_on > child_run.expires_on)
 
         # now expire out of the child flow
         run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on').first()
