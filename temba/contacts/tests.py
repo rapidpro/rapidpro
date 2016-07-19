@@ -2124,7 +2124,7 @@ class ContactTest(TembaTest):
                 self.assertFalse(response.context['show_form'])
 
             # we have records and added them to a group
-            if not expected_results.get('records', 0):
+            if expected_results.get('records', 0):
                 self.assertIsNotNone(response.context['group'])
 
         return response
@@ -2532,6 +2532,15 @@ class ContactTest(TembaTest):
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
+
+        with patch('temba.contacts.models.Org.get_country_code') as mock_country_code:
+            mock_country_code.return_value = None
+
+            self.assertContactImport(
+                '%s/test_imports/sample_contacts_org_missing_country.csv' % settings.MEDIA_ROOT,
+                dict(records=0, errors=1,
+                     error_messages=[dict(line=2,
+                                          error="Invalid Phone number or no country code specified for 788383385")]))
 
         # try importing invalid spreadsheets with missing headers
         csv_file = open('%s/test_imports/sample_contacts_missing_name_header.xls' % settings.MEDIA_ROOT, 'rb')
