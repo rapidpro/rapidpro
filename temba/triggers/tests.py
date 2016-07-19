@@ -367,12 +367,14 @@ class TriggerTest(TembaTest):
         self.login(self.admin)
         group = self.create_group(name='Chat', contacts=[])
 
+        favorites = self.get_flow('favorites')
+
         # create a trigger that sets up a group join flow
-        post_data = dict(keyword='join', action_join_group=group.pk, response='Thanks for joining')
+        post_data = dict(keyword='join', action_join_group=group.pk, response='Thanks for joining', flow=favorites.pk)
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.FLOW)
+        flow = Flow.objects.get(flow_type=Flow.FLOW, name='Join Chat')
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword='join', flow=flow)
@@ -397,8 +399,8 @@ class TriggerTest(TembaTest):
         # we should be in the group now
         self.assertEqual({group}, set(contact.user_groups.all()))
 
-        # and have one incoming and one outgoing message
-        self.assertEqual(2, contact.msgs.count())
+        # and have one incoming and one outgoing message plus an outgoing from our favorites flow
+        self.assertEqual(3, contact.msgs.count())
 
         # deleting our contact group should leave our triggers and flows since the group can be recreated
         self.client.post(reverse("contacts.contactgroup_delete", args=[group.pk]))
