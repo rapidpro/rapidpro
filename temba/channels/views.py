@@ -1942,7 +1942,7 @@ class ChannelCRUDL(SmartCRUDL):
                     form._errors['phone_number'] = form.error_class([_("Sorry, the number you chose is not supported. "
                                                                        "You can still deploy in any country using your "
                                                                        "own SIM card and an Android phone.")])
-                return self.form_invalid(form)
+                    return self.form_invalid(form)
 
             # don't add the same number twice to the same account
             existing = org.channels.filter(is_active=True, address=data['phone_number']).first()
@@ -2178,10 +2178,10 @@ class ChannelCRUDL(SmartCRUDL):
 
             return client
 
-        def is_messaging_country(self, country_code):
+        def is_valid_country(self, country_code):
             return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
 
-        def is_supported_country(self, country_code):
+        def is_messaging_country(self, country_code):
             return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
 
         def get_search_url(self):
