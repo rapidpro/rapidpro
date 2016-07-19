@@ -2124,7 +2124,7 @@ class ContactTest(TembaTest):
                 self.assertFalse(response.context['show_form'])
 
             # we have records and added them to a group
-            if not expected_results.get('records', 0):
+            if expected_results.get('records', 0):
                 self.assertIsNotNone(response.context['group'])
 
         return response
@@ -2533,6 +2533,15 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
+        with patch('temba.contacts.models.Org.get_country_code') as mock_country_code:
+            mock_country_code.return_value = None
+
+            self.assertContactImport(
+                '%s/test_imports/sample_contacts_org_missing_country.csv' % settings.MEDIA_ROOT,
+                dict(records=0, errors=1,
+                     error_messages=[dict(line=2,
+                                          error="Invalid Phone number or no country code specified for 788383385")]))
+
         # try importing invalid spreadsheets with missing headers
         csv_file = open('%s/test_imports/sample_contacts_missing_name_header.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
@@ -2687,6 +2696,24 @@ class ContactTest(TembaTest):
 
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'District should be used once')
+
+        # wrong field with reserve word key
+        ContactField.objects.create(org=self.org, key='language', label='Lang',
+                                    created_by=self.admin, modified_by=self.admin)
+
+        response = self.assertContactImport(
+            '%s/test_imports/sample_contacts_with_extra_fields_wrong_lang.xls' % settings.MEDIA_ROOT,
+            None, task_customize=True)
+
+        customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
+        post_data = dict()
+        post_data['column_lang_include'] = 'on'
+        post_data['column_lang_label'] = 'Lang'
+        post_data['column_lang_type'] = 'T'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "'Lang' contact field has 'language' key which is reserved name. "
+                                                     "Column cannot be imported")
 
         # we shouldn't be suspended
         self.org.refresh_from_db()
@@ -3319,7 +3346,7 @@ class ContactFieldTest(TembaTest):
         post_data['label_2'] = "town"
 
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "Field names must be unique")
+        self.assertFormError(response, 'form', None, "Field names must be unique. 'Town' is duplicated")
         self.assertEquals(3, ContactField.objects.filter(org=self.org, is_active=True).count())
         self.assertFalse(ContactField.objects.filter(org=self.org, label__in=["town", "Town"]))
 

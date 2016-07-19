@@ -896,7 +896,11 @@ class Contact(TembaModel):
                 (normalized, is_valid) = URN.normalize_number(value, country)
 
                 if not is_valid:
-                    raise SmartImportRowError("Invalid Phone number %s" % value)
+                    error_msg = "Invalid Phone number %s" % value
+                    if not country:
+                        error_msg = "Invalid Phone number or no country code specified for %s" % value
+
+                    raise SmartImportRowError(error_msg)
 
                 # in the past, test contacts have ended up in exports. Don't re-import them
                 if value == OLD_TEST_CONTACT_TEL:
@@ -1073,6 +1077,9 @@ class Contact(TembaModel):
         finally:
             os.remove(tmp_file)
 
+        # save the import results even if no record was created
+        task.import_results = json.dumps(import_results)
+
         # don't create a group if there are no contacts
         if not contacts:
             return contacts
@@ -1116,6 +1123,7 @@ class Contact(TembaModel):
                 # if we fail to parse phone numbers for any reason just punt
                 pass
 
+        # overwrite the import results for adding the counts
         import_results['creates'] = num_creates
         import_results['updates'] = len(contacts) - num_creates
         task.import_results = json.dumps(import_results)
