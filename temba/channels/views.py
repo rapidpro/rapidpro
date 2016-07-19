@@ -1826,8 +1826,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class BaseClaimNumber(OrgPermsMixin, SmartFormView):
         class ClaimNumberForm(forms.Form):
-
-            country = forms.ChoiceField(choices=TWILIO_SUPPORTED_COUNTRIES)
+            country = forms.ChoiceField(choices=ALL_COUNTRIES)
             phone_number = forms.CharField(help_text=_("The phone number being added"))
 
             def clean_phone_number(self):
@@ -1910,11 +1909,14 @@ class ChannelCRUDL(SmartCRUDL):
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
         def is_valid_country(self, country_code):  # pragma: no cover
-
             raise NotImplementedError('method "is_valid_country" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
-        def claim_number(self, user, phone_number, country):  # pragma: no cover
+        def is_messaging_country(self, country_code):  # pragma: no cover
+            raise NotImplementedError('method "is_messaging_country" should be overridden in %s.%s'
+                                      % (self.crudl.__class__.__name__, self.__class__.__name__))
+
+        def claim_number(self, user, phone_number, country, role):  # pragma: no cover
             raise NotImplementedError('method "claim_number" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
@@ -1953,9 +1955,12 @@ class ChannelCRUDL(SmartCRUDL):
                 form._errors['phone_number'] = form.error_class([_("That number is already connected to another account - %s (%s)" % (existing.org, existing.created_by.username))])
                 return self.form_invalid(form)
 
-            # try to claim the number from twilio
+            # try to claim the number
             try:
-                self.claim_number(self.request.user, data['phone_number'], data['country'])
+                role = CALL + ANSWER
+                if self.is_messaging_country(data['country']):
+                    role += SEND + RECEIVE
+                self.claim_number(self.request.user, data['phone_number'], data['country'], role)
                 self.remove_api_credentials_from_session()
 
                 return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
@@ -1995,7 +2000,7 @@ class ChannelCRUDL(SmartCRUDL):
             return TWILIO_SEARCH_COUNTRIES
 
         def get_supported_countries_tuple(self):
-            return TWILIO_SUPPORTED_COUNTRIES
+            return ALL_COUNTRIES
 
         def get_search_url(self):
             return reverse('channels.channel_search_numbers')
@@ -2022,13 +2027,16 @@ class ChannelCRUDL(SmartCRUDL):
             return numbers
 
         def is_valid_country(self, country_code):
+            return True
+
+        def is_messaging_country(self, country_code):
             return country_code in TWILIO_SUPPORTED_COUNTRY_CODES
 
-        def claim_number(self, user, phone_number, country):
+        def claim_number(self, user, phone_number, country, role):
             analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
 
             # add this channel
-            return Channel.add_twilio_channel(user.get_org(), user, phone_number, country)
+            return Channel.add_twilio_channel(user.get_org(), user, phone_number, country, role)
 
     class ClaimNexmo(BaseClaimNumber):
         class ClaimNexmoForm(forms.Form):
@@ -2063,6 +2071,9 @@ class ChannelCRUDL(SmartCRUDL):
         def is_valid_country(self, country_code):
             return country_code in NEXMO_SUPPORTED_COUNTRY_CODES
 
+        def is_messaging_country(self, country_code):
+            return country_code in NEXMO_SUPPORTED_COUNTRY_CODES
+
         def get_search_url(self):
             return reverse('channels.channel_search_nexmo')
 
@@ -2091,7 +2102,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return numbers
 
-        def claim_number(self, user, phone_number, country):
+        def claim_number(self, user, phone_number, country, role):
             analytics.track(user.username, 'temba.channel_claim_nexmo', dict(number=phone_number))
 
             # add this channel
@@ -2170,6 +2181,9 @@ class ChannelCRUDL(SmartCRUDL):
         def is_valid_country(self, country_code):
             return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
 
+        def is_messaging_country(self, country_code):
+            return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
+
         def get_search_url(self):
             return reverse('channels.channel_search_plivo')
 
@@ -2207,7 +2221,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return account_numbers
 
-        def claim_number(self, user, phone_number, country):
+        def claim_number(self, user, phone_number, country, role):
 
             auth_id = self.request.session.get(PLIVO_AUTH_ID, None)
             auth_token = self.request.session.get(PLIVO_AUTH_TOKEN, None)

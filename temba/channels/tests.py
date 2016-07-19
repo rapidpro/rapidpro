@@ -45,6 +45,7 @@ from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, Chann
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
+from .models import CALL, ANSWER
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
 
@@ -1179,6 +1180,25 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 Channel.objects.get(channel_type='T', org=self.org)
+
+        # voice only number
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
+            mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+554139087835')]
+
+            with patch('temba.tests.MockTwilioClient.MockShortCodes.list') as mock_short_codes:
+                mock_short_codes.return_value = []
+                Channel.objects.all().delete()
+
+                response = self.client.get(claim_twilio)
+                self.assertContains(response, '+55 41 3908-7835')
+
+                # claim it
+                response = self.client.post(claim_twilio, dict(country='BR', phone_number='554139087835'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                channel = Channel.objects.get(channel_type='T', org=self.org)
+                self.assertEqual(channel.role, CALL + ANSWER)
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+4545335500')]
