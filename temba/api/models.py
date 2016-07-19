@@ -174,6 +174,8 @@ class WebHookEvent(SmartModel):
         data = dict(channel=channel_id,
                     relayer=channel_id,
                     flow=flow.id,
+                    flow_name=flow.name,
+                    flow_base_language=flow.base_language,
                     run=run.id,
                     text=text,
                     step=unicode(node_uuid),
