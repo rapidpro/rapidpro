@@ -2688,6 +2688,24 @@ class ContactTest(TembaTest):
         response = self.client.post(customize_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, 'District should be used once')
 
+        # wrong field with reserve word key
+        ContactField.objects.create(org=self.org, key='language', label='Lang',
+                                    created_by=self.admin, modified_by=self.admin)
+
+        response = self.assertContactImport(
+            '%s/test_imports/sample_contacts_with_extra_fields_wrong_lang.xls' % settings.MEDIA_ROOT,
+            None, task_customize=True)
+
+        customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
+        post_data = dict()
+        post_data['column_lang_include'] = 'on'
+        post_data['column_lang_label'] = 'Lang'
+        post_data['column_lang_type'] = 'T'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "'Lang' contact field has 'language' key which is reserved name. "
+                                                     "Column cannot be imported")
+
         # we shouldn't be suspended
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_suspended())
@@ -3319,7 +3337,7 @@ class ContactFieldTest(TembaTest):
         post_data['label_2'] = "town"
 
         response = self.client.post(manage_fields_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, "Field names must be unique")
+        self.assertFormError(response, 'form', None, "Field names must be unique. 'Town' is duplicated")
         self.assertEquals(3, ContactField.objects.filter(org=self.org, is_active=True).count())
         self.assertFalse(ContactField.objects.filter(org=self.org, label__in=["town", "Town"]))
 
