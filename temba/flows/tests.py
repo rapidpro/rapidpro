@@ -4402,6 +4402,8 @@ class FlowsTest(FlowFileTest):
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserve_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
+        self.org.connect_transferto('mylogin', 'api_token', self.admin)
+
         flow = self.get_flow('airtime')
         runs = flow.start_msg_flow([self.contact.id])
         self.assertEquals(1, len(runs))
@@ -4463,6 +4465,29 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(airtime.recipient, '+250788123123')
         self.assertNotEqual(airtime.recipient, 'biyombo')
         self.assertEqual(mock_post_transferto.call_count, 3)
+        mock_post_transferto.reset_mock()
+
+        self.org.remove_transferto_account(self.admin)
+
+        mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                              "product_list=5,10,20,30\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserve_id=234\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        runs = flow.start_msg_flow([self.contact.id])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(3, self.contact.msgs.all().count())
+        self.assertEquals('Message failed', self.contact.msgs.all()[0].text)
+
+        self.assertEquals(4, Airtime.objects.all().count())
+        airtime = Airtime.objects.all().last()
+        self.assertEqual(airtime.status, Airtime.FAILED)
+        self.assertEqual(airtime.contact, self.contact)
+        self.assertEqual(airtime.message, "Error transferring airtime: No transferTo Account connected to "
+                                          "this organization")
+
+        # we never call TransferTo API if no accoutnis connected
+        self.assertEqual(mock_post_transferto.call_count, 0)
         mock_post_transferto.reset_mock()
 
 

@@ -99,12 +99,13 @@ class Airtime(SmartModel):
 
         api_user = get_api_user()
 
+        channel = None
         # if we have an SMS event use its channel and contact urn
         if event:
             channel = event.channel
             contact_urn = event.contact_urn
-        else:
-            channel = None
+
+        if not contact_urn:
             contact_urn = contact.get_urn(TEL_SCHEME)
 
         airtime = Airtime.objects.create(org=org, channel=channel, contact=contact, recipient=contact_urn.path,
@@ -112,6 +113,12 @@ class Airtime(SmartModel):
 
         message = "None"
         try:
+
+            if not org.is_connected_to_transferto():
+                message = "No transferTo Account connected to this organization"
+                airtime.status = Airtime.FAILED
+                raise Exception(message)
+
             action = 'msisdn_info'
             request_kwargs = dict(action=action, destination_msisdn=airtime.recipient)
             response = airtime.get_transferto_response_json(**request_kwargs)
