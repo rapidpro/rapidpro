@@ -394,10 +394,6 @@ app.service "Flow", ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     { type:'trigger-flow',   name:'Start Someone in a Flow', verbose_name:'Start someone else in a flow', icon: 'icon-tree', flows:true }
   ]
 
-  $rootScope.hiddenActions = [
-    { type:'del_groups', name:'Remove from All Groups', verbose_name:'Remove contact from All Groups', icon: 'icon-users-2', groups:true }
-  ]
-
   $rootScope.operators = [
     { type:'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true }
     { type:'contains', name: 'Contains all', verbose_name:'has all of the words', operands: 1, localized:true }

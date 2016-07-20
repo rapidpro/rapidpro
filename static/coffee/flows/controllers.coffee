@@ -1371,22 +1371,17 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
   $scope.saveGroups = (actionType, omnibox) ->
 
     $scope.action.type = actionType
-    $scope.action.groups = omnibox.groups
+    if omnibox
+      $scope.action.groups = omnibox.groups
 
     # add our list of variables
-    for variable in omnibox.variables
-      $scope.action.groups.push(variable.id)
+    if omnibox
+      for variable in omnibox.variables
+        $scope.action.groups.push(variable.id)
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 
-  # Saving the remove all groups action
-  $scope.delGroups = (actionType) ->
-
-    $scope.action.type = 'del_groups'
-
-    Flow.saveAction(actionset, $scope.action)
-    $modalInstance.close()
 
   # Save the updating of a contact
   $scope.saveUpdateContact = (field, value) ->

@@ -1297,6 +1297,7 @@ class RuleTest(TembaTest):
         self.assertTrue(group2.contacts.filter(id=self.contact.pk))
         self.assertEquals(1, group2.contacts.all().count())
 
+        # TODO
         test = DeleteFromAllGroupsAction(["@step.contact"])
         action_json = test.as_json()
         test = DeleteFromAllGroupsAction.from_json(self.org, action_json)
@@ -1441,7 +1442,7 @@ class RuleTest(TembaTest):
 
         # update flow with unformated keyword
         post_data['keyword_triggers'] = "it,changes,everything,unique"
-        response = self.client.post(reverse('flows.flow_update', args=[flow_with_keywords.pk]), post_data)        
+        response = self.client.post(reverse('flows.flow_update', args=[flow_with_keywords.pk]), post_data)
         self.assertTrue(response.context['form'].errors)
         response = self.client.get(reverse('flows.flow_update', args=[flow_with_keywords.pk]))
         self.assertEquals(response.context['form'].fields['keyword_triggers'].initial, "it,everything,changes")
@@ -1689,8 +1690,8 @@ class RuleTest(TembaTest):
         #create a viewer
         self.viewer = self.create_user("Viewer")
         self.org.viewers.add(self.viewer)
-        self.viewer.set_org(self.org)        
-        
+        self.viewer.set_org(self.org)
+
         self.create_secondary_org()
 
         # create a flow for another org and a flow label
@@ -1713,7 +1714,7 @@ class RuleTest(TembaTest):
         self.login(user)
 
         # list, should have only one flow (the one created in setUp)
-        
+
         response = self.client.get(flow_list_url)
         self.assertEquals(1, len(response.context['object_list']))
         # no create links
@@ -1746,7 +1747,7 @@ class RuleTest(TembaTest):
         self.assertEquals(response.context['object_list'][0].pk, self.flow.pk)
         self.assertFalse(response.context['object_list'][0].is_archived)
 
-        
+
         # inactive list shouldn't have any flows
         response = self.client.get(flow_archived_url)
         self.assertEquals(0, len(response.context['object_list']))
