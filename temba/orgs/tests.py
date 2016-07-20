@@ -16,6 +16,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch, Mock
 from smartmin.tests import SmartminTest
+from temba.airtime.models import Airtime
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
@@ -1169,6 +1170,16 @@ class OrgTest(TembaTest):
 
                     org.refresh_from_db()
                     self.assertFalse(org.is_connected_to_twilio())
+
+    def test_has_airtime_transfers(self):
+        Airtime.objects.filter(org=self.org).delete()
+        self.assertFalse(self.org.has_airtime_transfers())
+        contact = self.create_contact('Bob', number='+250788123123')
+
+        Airtime.objects.create(org=self.org, recipient='+250788123123', amount='100',
+                               contact=contact, created_by=self.admin, modified_by=self.admin)
+
+        self.assertTrue(self.org.has_airtime_transfers())
 
     def test_transferto_model_methods(self):
         org = self.org
