@@ -1787,7 +1787,7 @@ class OrgCRUDL(SmartCRUDL):
             org = user.get_org()
 
             if disconnect:
-                org.remove_twilio_account()
+                org.remove_twilio_account(user)
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             else:
                 account_sid = form.cleaned_data['account_sid']

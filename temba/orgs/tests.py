@@ -1193,6 +1193,8 @@ class OrgTest(TembaTest):
         self.assertTrue(org.is_connected_to_transferto())
         self.assertEqual(org.modified_by, self.admin)
 
+        org.remove_transferto_account(self.admin)
+
         org.refresh_from_db()
         self.assertFalse(org.is_connected_to_transferto())
         self.assertEqual(org.modified_by, self.admin)
