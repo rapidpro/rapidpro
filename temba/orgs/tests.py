@@ -79,6 +79,25 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug('Which part?'), 'which-part')
         self.assertEqual(Org.get_unique_slug('Allo'), 'allo-2')
 
+    def test_get_channel_countries(self):
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF')])
+
+        Channel.create(self.org, self.user, 'US', 'A', None, "+12001112222", gcm_id="asdf", secret="asdf")
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF'),
+                                                            dict(code='US', name='United States',
+                                                                 currency_name='US Dollar', currency_code='USD')])
+
+        Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
+                       address="billy_bob", role="SR", scheme='twitter')
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF'),
+                                                            dict(code='US', name='United States',
+                                                                 currency_name='US Dollar', currency_code='USD')])
+
     def test_edit(self):
         # use a manager now
         self.login(self.admin)
