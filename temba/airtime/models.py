@@ -95,30 +95,16 @@ class Airtime(SmartModel):
         return Airtime.post_transferto_api_response(login, token, airtime_obj=self, **kwargs)
 
     @classmethod
-    def trigger_flow_event(cls, flow, run, ruleset, contact, event):
+    def trigger_airtime_event(cls, org, ruleset, contact, event):
 
-        # flow simulation will always simulate a suceessful airtime transfer
-        # without saving the object in the DB
-        if run.contact.is_test:
-            from temba.flows.models import ActionLog
-            log_txt = "Simulate Complete airtime transfer"
-            ActionLog.create(run, log_txt, safe=True)
-
-            return Airtime(status=Airtime.COMPLETE)
-
-        org = flow.org
         api_user = get_api_user()
 
-        # if the action is on the first node
-        # we might not have an sms (or channel) yet
-        channel = None
-        contact_urn = contact.get_urn(TEL_SCHEME)
-
-        if event and not contact.is_test:
+        # if we have an SMS event use its channel and contact urn
+        if event:
             channel = event.channel
             contact_urn = event.contact_urn
-
-        if not contact_urn:
+        else:
+            channel = None
             contact_urn = contact.get_urn(TEL_SCHEME)
 
         airtime = Airtime.objects.create(org=org, channel=channel, contact=contact, recipient=contact_urn.path,

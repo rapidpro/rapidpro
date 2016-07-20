@@ -2990,7 +2990,17 @@ class RuleSet(models.Model):
                 text = msg.text
 
             if self.ruleset_type == RuleSet.TYPE_AIRTIME:
-                airtime = Airtime.trigger_flow_event(self.flow, run, self, run.contact, msg)
+
+                # flow simulation will always simulate a suceessful airtime transfer
+                # without saving the object in the DB
+                if run.contact.is_test:
+                    from temba.flows.models import ActionLog
+                    log_txt = "Simulate Complete airtime transfer"
+                    ActionLog.create(run, log_txt, safe=True)
+
+                    airtime = Airtime(status=Airtime.COMPLETE)
+                else:
+                    airtime = Airtime.trigger_airtime_event(self.flow.org, self, run.contact, msg)
 
                 # rebuild our context again, the webhook may have populated something
                 context = run.flow.build_message_context(run.contact, msg)

@@ -4396,7 +4396,7 @@ class FlowsTest(FlowFileTest):
             self.assertEquals('Message failed', self.contact.msgs.all()[0].text)
 
     @patch('temba.airtime.models.Airtime.post_transferto_api_response')
-    def test_airtime_flow_trigger_event(self, mock_post_transferto):
+    def test_airtime_trigger_event(self, mock_post_transferto):
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
                                                               "product_list=5,10,20,30\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserve_id=234\r\n"),
