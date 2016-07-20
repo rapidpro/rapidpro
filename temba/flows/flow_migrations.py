@@ -150,14 +150,18 @@ def migrate_export_to_version_9(exported_json, org, same_site=False):
     return exported_json
 
 
-def migrate_to_version_9(json_flow, org):
+def migrate_to_version_9(json_flow, flow):
     """
     This version marks the first usage of subflow rulesets. Moves more items to UUIDs.
     """
-    return migrate_export_to_version_9(dict(flows=[json_flow]), org)['flows'][0]
+    # inject metadata if it's missing
+    from temba.flows.models import Flow
+    if Flow.METADATA not in json_flow:
+        json_flow[Flow.METADATA] = flow.get_metadata()
+    return migrate_export_to_version_9(dict(flows=[json_flow]), flow.org)['flows'][0]
 
 
-def migrate_to_version_8(json_flow, org=None):
+def migrate_to_version_8(json_flow, flow=None):
     """
     Migrates any expressions found in the flow definition to use the new @(...) syntax
     """
@@ -188,7 +192,7 @@ def migrate_to_version_8(json_flow, org=None):
     return json_flow
 
 
-def migrate_to_version_7(json_flow, org=None):
+def migrate_to_version_7(json_flow, flow=None):
     """
     Adds flow details to metadata section
     """
@@ -220,7 +224,7 @@ def migrate_to_version_7(json_flow, org=None):
     return json_flow
 
 
-def migrate_to_version_6(json_flow, org=None):
+def migrate_to_version_6(json_flow, flow=None):
     """
     This migration removes the non-localized flow format. This means all potentially localizable
     text will be a dict from the outset. If no language is set, we will use 'base' as the
@@ -267,7 +271,7 @@ def migrate_to_version_6(json_flow, org=None):
     return json_flow
 
 
-def migrate_to_version_5(json_flow, org=None):
+def migrate_to_version_5(json_flow, flow=None):
     """
     Adds passive rulesets. This necessitates injecting nodes in places where
     we were previously waiting implicitly with explicit waits.

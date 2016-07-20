@@ -1084,10 +1084,8 @@ class FlowWriteSerializer(WriteSerializer):
         """
         flow_json = self.validated_data
 
-        # first, migrate our definition forward if necessary
-        version = flow_json.get('version', CURRENT_EXPORT_VERSION)
-        if version < CURRENT_EXPORT_VERSION:
-            flow_json = FlowRevision.migrate_definition(self.org, flow_json, version, CURRENT_EXPORT_VERSION)
+        if 'metadata' not in flow_json:
+            flow_json['metadata'] = dict(name=flow_json.get('name', None), uuid=flow_json.get('uuid', None))
 
         # previous to version 7, uuid could be supplied on the outer element
         uuid = flow_json.get('metadata').get('uuid', flow_json.get('uuid', None))
@@ -1104,6 +1102,11 @@ class FlowWriteSerializer(WriteSerializer):
         else:
             flow_type = flow_json.get('flow_type', Flow.FLOW)
             flow = Flow.create(self.org, self.user, name, flow_type)
+
+        # first, migrate our definition forward if necessary
+        version = flow_json.get('version', CURRENT_EXPORT_VERSION)
+        if version < CURRENT_EXPORT_VERSION:
+            flow_json = FlowRevision.migrate_definition(flow_json, flow, version, CURRENT_EXPORT_VERSION)
 
         flow.update(flow_json, self.user, force=True)
         return flow
@@ -1238,7 +1241,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         definition = json.loads(flow_revision.definition)
 
         # make sure we are operating off a current spec
-        definition = FlowRevision.migrate_definition(self.org, definition, self.flow_obj.version_number, CURRENT_EXPORT_VERSION)
+        definition = FlowRevision.migrate_definition(definition, self.flow_obj, self.flow_obj.version_number, CURRENT_EXPORT_VERSION)
 
         for step in steps:
             node_obj = None
