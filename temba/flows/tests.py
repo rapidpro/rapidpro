@@ -4575,7 +4575,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json['metadata']['revision'], 2)
 
     def test_migration_string_group(self):
-        flow = Flow.create_instance(dict(name='Single Message Flow', org=self.org,
+        flow = Flow.create_instance(dict(name='String group', org=self.org,
                                          created_by=self.admin, modified_by=self.admin,
                                          saved_by=self.admin, version_number=3))
 
@@ -4591,6 +4591,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(len(flow_json['action_sets']), 1)
         self.assertEqual("The Funky Bunch", flow_json['action_sets'][0]['actions'][0]['groups'][0]['name'])
         self.assertTrue("The Funky Bunch", flow_json['action_sets'][0]['actions'][0]['groups'][0]['uuid'])
+        self.assertEqual("@contact.name", flow_json['action_sets'][0]['actions'][0]['groups'][1])
 
     def test_ensure_current_version(self):
         flow_json = self.get_flow_json('call_me_maybe')['definition']

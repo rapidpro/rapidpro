@@ -40,7 +40,11 @@ def migrate_export_to_version_9(exported_json, org, same_site=False):
     def replace_with_uuid(ele, manager, id_map, nested_name=None, obj=None, create_dict=False):
         # deal with case of having only a string and no name
         if isinstance(ele, basestring) and create_dict:
-            ele = dict(name=ele)
+            # variable references should just stay put
+            if len(ele) > 0 and ele[0] == '@':
+                return ele
+            else:
+                ele = dict(name=ele)
 
         obj_id = ele.pop('id', None)
         obj_name = ele.pop('name', None)
