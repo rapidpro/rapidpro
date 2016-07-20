@@ -140,12 +140,12 @@ class AuthenticateView(SmartFormView):
 
 
 class CreatedOnCursorPagination(CursorPagination):
-    ordering = ('-created_on', '-pk')
+    ordering = ('-created_on', '-id')
     offset_cutoff = 1000000
 
 
 class ModifiedOnCursorPagination(CursorPagination):
-    ordering = ('-modified_on', '-pk')
+    ordering = ('-modified_on', '-id')
     offset_cutoff = 1000000
 
 
