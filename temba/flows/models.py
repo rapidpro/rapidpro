@@ -2090,7 +2090,6 @@ class Flow(TembaModel):
                 else:
                     json_flow = self.as_json()
 
-                print json_flow
                 self.update(json_flow)
                 self.refresh_from_db()
 
