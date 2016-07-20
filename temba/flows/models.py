@@ -1988,21 +1988,24 @@ class Flow(TembaModel):
         flow[Flow.BASE_LANGUAGE] = self.base_language
         flow[Flow.FLOW_TYPE] = self.flow_type
         flow[Flow.VERSION] = CURRENT_EXPORT_VERSION
+        flow[Flow.METADATA] = self.get_metadata()
+        return flow
 
-        # lastly our metadata
-        if not self.metadata:
-            flow[Flow.METADATA] = dict()
-        else:
-            flow[Flow.METADATA] = json.loads(self.metadata)
+    def get_metadata(self):
+
+        metadata = dict()
+        if self.metadata:
+            metadata = json.loads(self.metadata)
 
         revision = self.revisions.all().order_by('-revision').first()
-        flow[Flow.METADATA][Flow.NAME] = self.name
-        flow[Flow.METADATA][Flow.SAVED_ON] = datetime_to_str(self.saved_on)
-        flow[Flow.METADATA][Flow.REVISION] = revision.revision if revision else 1
-        flow[Flow.METADATA][Flow.UUID] = self.uuid
-        flow[Flow.METADATA][Flow.EXPIRES] = self.expires_after_minutes
 
-        return flow
+        metadata[Flow.NAME] = self.name
+        metadata[Flow.SAVED_ON] = datetime_to_str(self.saved_on)
+        metadata[Flow.REVISION] = revision.revision if revision else 1
+        metadata[Flow.UUID] = self.uuid
+        metadata[Flow.EXPIRES] = self.expires_after_minutes
+
+        return metadata
 
     @classmethod
     def detect_invalid_cycles(cls, json_dict):
@@ -2087,6 +2090,7 @@ class Flow(TembaModel):
                 else:
                     json_flow = self.as_json()
 
+                print json_flow
                 self.update(json_flow)
                 self.refresh_from_db()
 
@@ -3299,7 +3303,7 @@ class FlowRevision(SmartModel):
                 for json_flow in exported_json.get('flows', []):
                     migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
                     if migrate_fn:
-                        json_flow = migrate_fn(json_flow, org)
+                        json_flow = migrate_fn(json_flow, None)
                     flows.append(json_flow)
                 exported_json['flows'] = flows
             version += 1
@@ -3307,14 +3311,14 @@ class FlowRevision(SmartModel):
         return exported_json
 
     @classmethod
-    def migrate_definition(cls, org, json_flow, version, to_version=None):
+    def migrate_definition(cls, json_flow, flow, version, to_version=None):
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
         from temba.flows import flow_migrations
         while version < to_version and version < CURRENT_EXPORT_VERSION:
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
-                json_flow = migrate_fn(json_flow, org)
+                json_flow = migrate_fn(json_flow, flow)
             version += 1
 
         return json_flow
@@ -3332,7 +3336,7 @@ class FlowRevision(SmartModel):
 
         # migrate our definition if necessary
         if self.spec_version < CURRENT_EXPORT_VERSION:
-            definition = FlowRevision.migrate_definition(self.flow.org, definition, self.spec_version)
+            definition = FlowRevision.migrate_definition(definition, self.flow, self.spec_version)
         return definition
 
     def as_json(self, include_definition=False):
