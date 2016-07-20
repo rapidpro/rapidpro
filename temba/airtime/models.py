@@ -1,3 +1,8 @@
+import hashlib
+import time
+
+import requests
+from django.conf import settings
 from django.db import models
 
 
@@ -41,3 +46,20 @@ class Airtime(SmartModel):
 
     message = models.CharField(max_length=255,
                                help_text="A message describing the end status, error messages go here")
+
+    @classmethod
+    def post_transferto_api_response(cls, login, token, **kwargs):
+        if not settings.SEND_AIRTIME:
+            raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
+
+        key = str(int(time.time()))
+        md5 = hashlib.md5()
+        md5.update(login + token + key)
+        md5 = md5.hexdigest()
+
+        data = kwargs
+        data.update(dict(login=login, key=key, md5=md5))
+
+        response = requests.post(cls.TRANSFERTO_AIRTIME_API_URL, data)
+
+        return response

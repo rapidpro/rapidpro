@@ -34,15 +34,15 @@ from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient, NexmoValidationError
-from temba.orgs.models import get_stripe_credentials, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
 from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
-from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings
+from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
-from .models import SUSPENDED, WHITELISTED, RESTORED
+from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
+from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN
 
 
 def check_login(request):
@@ -426,7 +426,7 @@ class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'accounts', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect', 'export',
-               'import', 'plivo_connect', 'service', 'surveyor')
+               'import', 'plivo_connect', 'service', 'surveyor', 'transferto_account')
 
     model = Org
 
@@ -1629,6 +1629,10 @@ class OrgCRUDL(SmartCRUDL):
                 if client:
                     formax.add_section('twilio', reverse('orgs.org_twilio_account'), icon='icon-channel-twilio')
 
+            if self.has_org_perm('orgs.org_transferto_account'):
+                formax.add_section('user', reverse('orgs.org_transferto_account'), icon='icon-transferto',
+                                   action='redirect')
+
             if self.has_org_perm('orgs.org_profile'):
                 formax.add_section('user', reverse('orgs.user_edit'), icon='icon-user', action='redirect')
 
@@ -1647,6 +1651,74 @@ class OrgCRUDL(SmartCRUDL):
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_pro():
                 formax.add_section('accounts', reverse('orgs.org_accounts'), icon='icon-users', action='redirect')
+
+    class TransfertoAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        success_message = ""
+
+        class TransfertoAccountForm(forms.ModelForm):
+            account_login = forms.CharField(label=_("TransfetTo Account API Login"), required=False)
+            airtime_api_token = forms.CharField(label=_("TransferTo Airtime API Token"), required=False)
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
+
+            def clean(self):
+                super(OrgCRUDL.TransfertoAccount.TransfertoAccountForm, self).clean()
+                if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    account_login = self.cleaned_data.get('account_login', None)
+                    airtime_api_token = self.cleaned_data.get('airtime_api_token', None)
+
+                    try:
+                        from temba.airtime.models import Airtime
+                        response = Airtime.post_transferto_api_response(account_login, airtime_api_token, action='ping')
+                    except:
+                        raise ValidationError(_("Your TransferTo API key and secret seem invalid. "
+                                                "Please check them again and retry."))
+
+                    splitted_content = response.content.split('\r\n')
+                    if not ('error_code=0' in splitted_content and 'info_txt=pong' in splitted_content):
+                        raise ValidationError(_("Your TransferTo API key and secret seem invalid. "
+                                                "Please check them again and retry."))
+
+                return self.cleaned_data
+
+            class Meta:
+                model = Org
+                fields = ('account_login', 'airtime_api_token', 'disconnect')
+
+        form_class = TransfertoAccountForm
+        submit_button_name = "Save"
+        success_url = '@orgs.org_home'
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.TransfertoAccount, self).get_context_data(**kwargs)
+            if self.object.is_connected_to_transferto():
+                config = self.object.config_json()
+                account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
+                context['transferto_account_login'] = account_login
+
+            return context
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.TransfertoAccount, self).derive_initial()
+            config = self.object.config_json()
+            initial['account_login'] = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
+            initial['airtime_api_token'] = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
+            initial['disconnect'] = 'false'
+            return initial
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
+            if disconnect:
+                org.remove_transferto_account(user)
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+            else:
+                account_login = form.cleaned_data['account_login']
+                airtime_api_token = form.cleaned_data['airtime_api_token']
+
+                org.connect_transferto(account_login, airtime_api_token, user)
+                return super(OrgCRUDL.TransfertoAccount, self).form_valid(form)
 
     class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 

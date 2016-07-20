@@ -1,0 +1,40 @@
+-extends "smartmin/form.html"
+
+-load compress temba smartmin i18n
+
+-block form-span
+
+-block title-text
+  .title-text
+    %h1 TransferTo Account
+
+-block summary
+  -if object.is_connected_to_transferto
+    Connected to TransferTo Account {{transferto_account_login}}
+  -else
+    Disconnected from TransferTo
+
+-block post-form
+  -if object.is_connected_to_transferto and request.META.HTTP_X_FORMAX
+    If you no longer want it connected, you can
+    %a{href:'javascript:confirmTransferToDisconnect();'}
+      disconnect your TransferTo Account
+
+    .disconnect-transferto.hide
+      .title
+        -trans "Disconnect TransferTo"
+      .body
+        -blocktrans
+          Disconnecting your TransferTo account. Are you sure you want to proceed?
+    %a#disconnect-transferto-form.posterize{href:'{% url "orgs.org_transferto_account" %}?disconnect=true'}
+
+  -if object.has_airtime_event_log
+    %hr
+      %a.btn{href:'{% url "events.airtimeevent_list" %}'}
+        -trans "Airtime Events Log"
+
+-block extra-script
+  :javascript
+    function confirmTransferToDisconnect() {
+      removalConfirmation("disconnect-transferto", "Disconnect");
+    }
