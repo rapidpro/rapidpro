@@ -408,7 +408,7 @@ class Contact(TembaModel):
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
     def as_json(self):
-        obj = dict(id=self.pk, name=unicode(self))
+        obj = dict(id=self.pk, name=unicode(self), uuid=self.uuid)
 
         if not self.org.is_anon:
             urns = []
@@ -1544,6 +1544,7 @@ class Contact(TembaModel):
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
         from temba.msgs.models import Broadcast
+
         broadcast = Broadcast.create(self.org, user, text, [self])
         broadcast.send(trigger_send=trigger_send, message_context=message_context)
 
@@ -1772,11 +1773,11 @@ class ContactGroup(TembaModel):
         return groups
 
     @classmethod
-    def get_or_create(cls, org, user, name, group_id=None):
+    def get_or_create(cls, org, user, name, group_uuid=None):
         existing = None
 
-        if group_id is not None:
-            existing = ContactGroup.user_groups.filter(org=org, id=group_id).first()
+        if group_uuid is not None:
+            existing = ContactGroup.user_groups.filter(org=org, uuid=group_uuid).first()
 
         if not existing:
             existing = ContactGroup.get_user_group(org, name)

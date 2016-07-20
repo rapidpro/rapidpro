@@ -138,7 +138,7 @@ class NexmoClient(object):
             return False
 
 
-def __main__():
+def __main__():  # pragma: no cover
     n = NexmoClient('foo', 'foo_secret')
     print "Valid: %s" % n.test_credentials()
     print "Balance: %s" % n.get_balance()
