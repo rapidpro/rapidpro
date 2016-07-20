@@ -1211,6 +1211,18 @@ class OrgTest(TembaTest):
             self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_transferto())
 
+            mock_post_transterto_request.return_value = MockResponse(200, 'authentication_key=123\r\n'
+                                                                          'error_code=400\r\n'
+                                                                          'error_txt=Failed Authentication\r\n')
+
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='false'))
+
+            self.assertContains(response, "Connecting to your TransferTo account failed "
+                                          "with error text: Failed Authentication")
+
+            self.assertFalse(self.org.is_connected_to_transferto())
+
             mock_post_transterto_request.return_value = MockResponse(200, 'info_txt=pong\r\n'
                                                                           'authentication_key=123\r\n'
                                                                           'error_code=0\r\n'

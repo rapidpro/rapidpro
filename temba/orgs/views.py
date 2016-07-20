@@ -1670,14 +1670,19 @@ class OrgCRUDL(SmartCRUDL):
                     try:
                         from temba.airtime.models import Airtime
                         response = Airtime.post_transferto_api_response(account_login, airtime_api_token, action='ping')
+                        parsed_response = Airtime.parse_transferto_response(response.content)
+
+                        error_code = int(parsed_response.get('error_code', None))
+                        info_txt = parsed_response.get('info_txt', None)
+                        error_txt = parsed_response.get('error_txt', None)
+
                     except:
                         raise ValidationError(_("Your TransferTo API key and secret seem invalid. "
                                                 "Please check them again and retry."))
 
-                    splitted_content = response.content.split('\r\n')
-                    if not ('error_code=0' in splitted_content and 'info_txt=pong' in splitted_content):
-                        raise ValidationError(_("Your TransferTo API key and secret seem invalid. "
-                                                "Please check them again and retry."))
+                    if error_code != 0 and info_txt != 'pong':
+                        raise ValidationError(_("Connecting to your TransferTo account "
+                                                "failed with error text: %s") % error_txt)
 
                 return self.cleaned_data
 
