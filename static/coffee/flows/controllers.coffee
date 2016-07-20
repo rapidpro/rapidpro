@@ -903,6 +903,25 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   formData.fieldIndex = Flow.getFieldSelection($scope.fieldIndexOptions, config.field_index, true)
   formData.fieldDelimiter = Flow.getFieldSelection($scope.fieldDelimiterOptions, config.field_delimiter, true)
 
+  airtimeAmountConfig = []
+  seenOrgCountries = []
+  for country in angular.copy(Flow.channel_countries)
+    countryAirtime = country
+    countryCode = country.code
+    if config[countryCode]
+      countryAirtime.amount = parseFloat(config[countryCode]['amount'])
+    else
+      countryAirtime.amount = 0
+    seenOrgCountries.push(countryCode)
+
+    airtimeAmountConfig.push(countryAirtime)
+
+  for countryCode, countryConfig of config
+    if countryCode not in seenOrgCountries
+      airtimeAmountConfig.push(countryConfig)
+
+  formData.airtimeAmountConfig = airtimeAmountConfig
+
   # default webhook action
   if not $scope.ruleset.webhook_action
     $scope.ruleset.webhook_action = 'GET'
@@ -1117,6 +1136,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
+      if  rule._config.type == 'airtime_status'
+        continue
       complete = complete and $scope.isRuleComplete(rule)
       if not complete
         break
@@ -1137,6 +1158,46 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     # start with an empty list of rules
     rules = []
+
+    # airtime rulesets have their own kind of rules
+    if ruleset.ruleset_type == 'airtime'
+
+      needs_completed = true
+      needs_failed = true
+
+      # see which airtime status rules we already have
+      for rule in ruleset.rules
+        if rule.type == 'airtime_status'
+          if rule.test.exit_status == 'completed'
+            needs_completed = false
+            rules.push(rule)
+          if rule.test.exit_status == 'failed'
+            needs_failed = false
+            rules.push(rule)
+
+      # if we don't have the completed rule add it
+      if needs_completed
+        rule =
+          uuid: uuid()
+          type: 'airtime_status'
+          test:
+            type: 'airtime_status'
+            exit_status: 'completed'
+          category: {}
+        rule['category'][Flow.flow.base_language] = 'Completed'
+        rules.push(rule)
+
+      # if we don't have the failed rule add it
+      if needs_failed
+        rule =
+          uuid: uuid()
+          type: 'airtime_status'
+          test:
+            type: 'airtime_status'
+            exit_status: 'failed'
+          category: {}
+        rule['category'][Flow.flow.base_language] = 'Failed'
+        rules.push(rule)
 
     # create rules off of an IVR menu configuration
     if ruleset.ruleset_type == 'wait_digit'
@@ -1207,17 +1268,18 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if not category
       category = {}
 
-    category[flow.base_language] = allCategory
+    category[Flow.flow.base_language] = allCategory
 
-    # finally add it to the end of our rule list
-    rules.push
-      _config: Flow.getOperatorConfig("true")
-      test:
-        test: "true"
-        type: "true"
-      destination: destination
-      uuid: ruleId
-      category: category
+    # for all rules that require a catch all, append a true rule
+    if ruleset.ruleset_type != 'airtime'
+      rules.push
+        _config: Flow.getOperatorConfig("true")
+        test:
+          test: "true"
+          type: "true"
+        destination: destination
+        uuid: ruleId
+        category: category
 
     $scope.ruleset.rules = rules
 
@@ -1233,9 +1295,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       rulesetConfig = $scope.formData.rulesetConfig
       contactField = $scope.formData.contactField
       flowField = $scope.formData.flowField
+      airtimeAmountConfig = $scope.formData.airtimeAmountConfig
 
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
+
+      # clear previous config
+      ruleset.config = {}
 
       # settings for a message form
       if rulesetConfig.type == 'form_field'
@@ -1243,6 +1309,25 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         ruleset.config =
           field_index: $scope.formData.fieldIndex.id
           field_delimiter: $scope.formData.fieldDelimiter.id
+
+      else if rulesetConfig.type == 'airtime'
+        airtimeConfig = {}
+        for elt in airtimeAmountConfig
+          amount = elt.amount
+          try
+            elt.amount = parseFloat(amount)
+          catch
+            elt.amount = 0
+          airtimeConfig[elt.code] = elt
+        ruleset.config = airtimeConfig
+
+        # remove any non airtime rule
+        rules = []
+        for rule in ruleset.rules
+          if rule.type == 'airtime_status'
+            rules.push(rule)
+
+        ruleset.rules = rules
 
       # update our operand if they selected a contact field explicitly
       else if ruleset.ruleset_type == 'contact_field'
