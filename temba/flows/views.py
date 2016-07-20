@@ -782,7 +782,10 @@ class FlowCRUDL(SmartCRUDL):
 
             org = self.request.user.get_org()
             context = super(FlowCRUDL.Read, self).get_context_data(*args, **kwargs)
-            initial = self.get_object(self.get_queryset()).as_json(expand_contacts=True)
+            flow = self.get_object(self.get_queryset())
+            flow.ensure_current_version()
+
+            initial = flow.as_json(expand_contacts=True)
             initial['archived'] = self.object.is_archived
             context['initial'] = json.dumps(initial)
             context['flows'] = Flow.objects.filter(org=org, is_active=True, flow_type__in=[Flow.FLOW, Flow.VOICE], is_archived=False)
