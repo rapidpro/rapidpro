@@ -4377,7 +4377,7 @@ class FlowsTest(FlowFileTest):
         airtime_event = Airtime.objects.create(org=self.org, status=Airtime.COMPLETE, amount=10, contact=self.contact,
                                                recipient=contact_urn.path, created_by=self.admin, modified_by=self.admin)
 
-        with patch('temba.flows.models.Airtime.trigger_flow_event') as mock_trigger_event:
+        with patch('temba.flows.models.Airtime.trigger_airtime_event') as mock_trigger_event:
             mock_trigger_event.return_value = airtime_event
 
             runs = flow.start_msg_flow([self.contact.id])
