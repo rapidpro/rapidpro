@@ -413,7 +413,7 @@ class Channel(TembaModel):
         return Channel.create(org, user, country, NEXMO, name=phone, address=phone_number, bod=nexmo_phone_number)
 
     @classmethod
-    def add_twilio_channel(cls, org, user, phone_number, country):
+    def add_twilio_channel(cls, org, user, phone_number, country, role):
         client = org.get_twilio_client()
         twilio_phones = client.phone_numbers.list(phone_number=phone_number)
 
@@ -431,7 +431,6 @@ class Channel(TembaModel):
             raise Exception(_("Your Twilio account is no longer connected. "
                               "First remove your Twilio account, reconnect it and try again."))
 
-        role = SEND + RECEIVE + CALL + ANSWER
         is_short_code = len(phone_number) <= 6
 
         if is_short_code:
