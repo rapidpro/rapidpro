@@ -1437,8 +1437,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # Saving an SMS to somebody else
   $scope.saveSend = (omnibox, message) ->
-    $scope.action.groups = omnibox.groups
-    $scope.action.contacts = omnibox.contacts
+
+    groups = []
+    for group in omnibox.groups
+      groups.push
+        uuid: group.id
+        name: group.name
+    $scope.action.groups = groups
+
+    contacts = []
+    for contact in omnibox.contacts
+      contacts.push
+        uuid: contact.id
+        name: contact.name
+    $scope.action.contacts = contacts
+
     $scope.action.variables = omnibox.variables
     $scope.action.type = 'send'
 
@@ -1545,8 +1558,20 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if omnibox
       $scope.action.type = 'trigger-flow'
-      $scope.action.groups = omnibox.groups
-      $scope.action.contacts = omnibox.contacts
+
+      groups = []
+      for group in omnibox.groups
+        groups.push
+          uuid: group.id
+          name: group.name
+      $scope.action.groups = groups
+
+      contacts = []
+      for contact in omnibox.contacts
+        contacts.push
+          uuid: contact.id
+          name: contact.text
+      $scope.action.contacts = contacts
       $scope.action.variables = omnibox.variables
 
     else
