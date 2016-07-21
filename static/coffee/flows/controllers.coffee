@@ -1570,7 +1570,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       for contact in omnibox.contacts
         contacts.push
           uuid: contact.id
-          name: contact.text
+          name: contact.name
       $scope.action.contacts = contacts
       $scope.action.variables = omnibox.variables
 
