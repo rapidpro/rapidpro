@@ -434,18 +434,25 @@ class Org(SmartModel):
                         senders.append(c)
                 senders.sort(key=lambda chan: chan.id)
 
-                for sender in senders:
-                    channel_number = sender.address.strip('+')
+                # if we have more than one match, find the one with the highest overlap
+                if len(senders) > 1:
+                    for sender in senders:
+                        channel_number = sender.address.strip('+')
 
-                    for idx in range(prefix, len(channel_number)):
-                        if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
-                            prefix = idx
-                            channel = sender
-                        else:
-                            break
+                        for idx in range(prefix, len(channel_number)):
+                            if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
+                                prefix = idx
+                                channel = sender
+                            else:
+                                break
+                elif senders:
+                    channel = senders[0]
 
                 if channel:
-                    return self.get_channel_delegate(channel, SEND)
+                    if role == SEND:
+                        return self.get_channel_delegate(channel, SEND)
+                    else:
+                        return channel
 
         # get any send channel without any country or URN hints
         return self.get_channel(scheme, country_code, role)

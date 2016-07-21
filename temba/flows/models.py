@@ -663,7 +663,6 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False):
-
         if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
 
             if not resume_parent_run:
@@ -1198,7 +1197,6 @@ class Flow(TembaModel):
         return (rulesets, rule_categories)
 
     def build_message_context(self, contact, msg):
-
         contact_context = contact.build_message_context() if contact else dict()
 
         # our default value
@@ -1241,7 +1239,7 @@ class Flow(TembaModel):
                 context['parent'] = Flow.build_flow_context(run.parent.flow, run.parent.contact)
 
             # see if we spawned any children and add them too
-            child_run = FlowRun.objects.filter(parent=run).first()
+            child_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
             if child_run:
                 context['child'] = Flow.build_flow_context(child_run.flow, child_run.contact)
 
@@ -3058,7 +3056,6 @@ class RuleSet(models.Model):
         return self.ruleset_type in RuleSet.TYPE_WAIT
 
     def find_matching_rule(self, step, run, msg):
-
         orig_text = None
         if msg:
             orig_text = msg.text
@@ -5229,9 +5226,8 @@ class SubflowTest(Test):
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
 
     def evaluate(self, run, sms, context, text):
-
         # lookup the subflow run
-        subflow_run = FlowRun.objects.filter(parent=run).first()
+        subflow_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
 
         if subflow_run and SubflowTest.EXIT_MAP[self.exit_type] == subflow_run.exit_type:
             return 1, text
