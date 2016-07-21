@@ -42,7 +42,7 @@ from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 8
+CURRENT_EXPORT_VERSION = 9
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0
@@ -328,6 +328,16 @@ class Org(SmartModel):
         # compare the hosts of the sites to see if they are the same
         if data_site and site:
             same_site = urlparse(data_site).netloc == urlparse(site).netloc
+
+        # see if our export needs to be updated
+        export_version = data.get('version', 0)
+        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
+        if export_version < EARLIEST_IMPORT_VERSION:
+            raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
+
+        if export_version < CURRENT_EXPORT_VERSION:
+            from temba.flows.models import FlowRevision
+            data = FlowRevision.migrate_export(self, data, same_site, export_version)
 
         # we need to import flows first, they will resolve to
         # the appropriate ids and update our definition accordingly

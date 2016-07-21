@@ -95,7 +95,12 @@
         "name": "Call Channel Split", 
         "id": 40799
       }, 
-      "groups": [], 
+      "groups": [
+        {
+          "id":4,
+          "name":"Trigger Group"
+        }
+      ], 
       "keyword": null, 
       "channel": null
     }

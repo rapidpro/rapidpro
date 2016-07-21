@@ -2,15 +2,11 @@ from __future__ import absolute_import, unicode_literals
 
 import logging
 
-from base64 import b64decode
-from urlparse import parse_qs
-
 from django.conf import settings
 from django.http import HttpResponseServerError
 from rest_framework import exceptions, status
 from rest_framework.authentication import TokenAuthentication
-from rest_framework.exceptions import APIException, NotFound
-from rest_framework.pagination import Cursor, CursorPagination, _positive_int
+from rest_framework.exceptions import APIException
 from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import exception_handler
@@ -117,37 +113,3 @@ def temba_exception_handler(exc, context):
 
         # respond with simple message
         return HttpResponseServerError("Server Error. Site administrators have been notified.")
-
-
-class CustomCursorPagination(CursorPagination):
-
-    def decode_cursor(self, request):
-        """
-        Given a request with a cursor, return a `Cursor` instance.
-        """
-        # Determine if we have a cursor, and if so then decode it.
-        encoded = request.query_params.get(self.cursor_query_param)
-        if encoded is None:
-            return None
-
-        # The offset in the cursor is used in situations where we have a
-        # nearly-unique index. (Eg millisecond precision creation timestamps)
-        # We guard against malicious users attempting to cause expensive database
-        # queries, by having a hard cap on the maximum possible size of the offset.
-        offset_cutoff = getattr(settings, 'CURSOR_PAGINATION_OFFSET_CUTOFF', 1000)
-
-        try:
-            querystring = b64decode(encoded.encode('ascii')).decode('ascii')
-            tokens = parse_qs(querystring, keep_blank_values=True)
-
-            offset = tokens.get('o', ['0'])[0]
-            offset = _positive_int(offset, cutoff=offset_cutoff)
-
-            reverse = tokens.get('r', ['0'])[0]
-            reverse = bool(int(reverse))
-
-            position = tokens.get('p', [None])[0]
-        except (TypeError, ValueError):
-            raise NotFound(self.invalid_cursor_message)
-
-        return Cursor(offset=offset, reverse=reverse, position=position)

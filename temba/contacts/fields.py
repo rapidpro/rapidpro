@@ -12,16 +12,16 @@ class OmniboxWidget(forms.TextInput):
     def get_objects_spec(cls, spec, user):
         org = user.get_org()
 
-        group_ids = []
-        contact_ids = []
+        group_uuids = []
+        contact_uuids = []
         urn_ids = []
         raw_numbers = []
 
-        item_lists = {'g': group_ids, 'c': contact_ids, 'u': urn_ids, 'n': raw_numbers}
+        item_lists = {'g': group_uuids, 'c': contact_uuids, 'u': urn_ids, 'n': raw_numbers}
 
         ids = spec.split(",") if spec else []
         for item_id in ids:
-            item_type, item_id = item_id.split("-")
+            item_type, item_id = item_id.split("-", 1)
             item_lists[item_type].append(item_id)
 
         # turn our raw numbers into new contacts with tel URNs for orgs that aren't anonymous
@@ -32,8 +32,8 @@ class OmniboxWidget(forms.TextInput):
                 urn_obj = contact.urn_objects[urn]
                 urn_ids.append(urn_obj.pk)
 
-        groups = ContactGroup.user_groups.filter(id__in=group_ids, org=org)
-        contacts = Contact.objects.filter(id__in=contact_ids, org=org, is_active=True)
+        groups = ContactGroup.user_groups.filter(uuid__in=group_uuids, org=org)
+        contacts = Contact.objects.filter(uuid__in=contact_uuids, org=org, is_active=True)
         urns = ContactURN.objects.filter(id__in=urn_ids, org=org)
 
         return dict(groups=groups, contacts=contacts, urns=urns)
@@ -54,10 +54,10 @@ class OmniboxWidget(forms.TextInput):
 
         selected = []
         for group in objects['groups']:
-            selected.append(dict(text=group.name, id="g-%d" % group.id, contacts=group.contacts.count()))
+            selected.append(dict(text=group.name, id="g-%s" % group.uuid, contacts=group.contacts.count()))
 
         for contact in objects['contacts']:
-            selected.append(dict(text=str(contact), id="c-%d" % contact.id))
+            selected.append(dict(text=str(contact), id="c-%s" % contact.uuid))
 
         return json.dumps(selected) if selected else None
 
