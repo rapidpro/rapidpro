@@ -882,6 +882,9 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm('flows.flow_update') and not self.request.user.is_superuser:
                 context['mutable'] = True
 
+            org = self.request.user.get_org()
+            context['has_airtime_service'] = bool(org.is_connected_to_transferto())
+
             return context
 
         def get_template_names(self):

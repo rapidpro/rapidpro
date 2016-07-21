@@ -49,6 +49,8 @@
     window.ivr = '{{object.flow_type}}' == 'V';
     window.flow_type = '{{object.flow_type}}';
     window.mediaURL = '{{media_url}}';
+    window.hasAirtimeService = {{has_airtime_service|lower}};
+    window.connectAirtimeServiceURL = '{% url "orgs.org_home" %}#id-transferto';
 
     $('.draggable').draggable();
     // TODO: All inline javascript below should be replaced with corresponding angular implementations

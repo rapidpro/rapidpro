@@ -82,6 +82,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
   # inject into our gear menu
   $rootScope.gearLinks = []
   $rootScope.ivr = window.ivr
+  $rootScope.hasAirtimeService = window.hasAirtimeService
 
   $scope.getContactFieldName = (ruleset) ->
     if not ruleset._contactFieldName
@@ -125,6 +126,16 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     $scope.dialog = utils.openModal("/partials/modal", SimpleMessageController, resolveObj)
     return $scope.dialog
+
+  showConnectTransferTo = ->
+    modal = new ConfirmationModal(gettext("TransferTo Disconnected"), gettext("No TransferTo account connected. Please first connect your TransferTo account."))
+    modal.addClass('airtime-warning')
+    modal.setPrimaryButton(gettext("Connect TransferTo Account"))
+    modal.setListeners
+      onPrimary: ->
+        document.location.href = window.connectAirtimeServiceURL
+    modal.show()
+    return
 
   $scope.showRevisionHistory = ->
     $scope.$evalAsync ->
@@ -411,6 +422,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       return
 
     DragHelper.hide()
+
+    # show message asking to connect TransferTo account for existing airtime node
+    if ruleset.ruleset_type == 'airtime' and not $rootScope.hasAirtimeService
+      showConnectTransferTo()
+      return
 
     if Flow.language and Flow.flow.base_language != Flow.language.iso_code
       resolveObj =
@@ -1058,6 +1074,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       return false
 
     if rulesetConfig.type == 'contact_field' and $scope.contactFields.length == 0
+      return false
+
+    if rulesetConfig.type == 'airtime' and not $rootScope.hasAirtimeService
       return false
 
     return valid

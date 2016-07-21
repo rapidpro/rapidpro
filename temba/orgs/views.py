@@ -1630,7 +1630,7 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section('twilio', reverse('orgs.org_twilio_account'), icon='icon-channel-twilio')
 
             if self.has_org_perm('orgs.org_transferto_account'):
-                formax.add_section('user', reverse('orgs.org_transferto_account'), icon='icon-transferto',
+                formax.add_section('transferto', reverse('orgs.org_transferto_account'), icon='icon-transferto',
                                    action='redirect')
 
             if self.has_org_perm('orgs.org_profile'):
