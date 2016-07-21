@@ -2921,6 +2921,7 @@ class RuleSet(models.Model):
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
                     (TYPE_WAIT_DIGIT, "Wait for digit"),
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
+                    (TYPE_SUBFLOW, "Subflow"),
                     (TYPE_WEBHOOK, "Webhook"),
                     (TYPE_AIRTIME, "Transfer Airtime"),
                     (TYPE_FORM_FIELD, "Split by message form"),
