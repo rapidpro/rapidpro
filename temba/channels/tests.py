@@ -45,7 +45,7 @@ from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, Chann
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
-from .models import CALL, ANSWER, SEND_BODY
+from .models import CALL, ANSWER, SEND_BODY, SEND, RECEIVE
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
 
@@ -1179,7 +1179,8 @@ class ChannelTest(TembaTest):
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
 
                 # make sure it is actually connected
-                Channel.objects.get(channel_type='T', org=self.org)
+                channel = Channel.objects.get(channel_type='T', org=self.org)
+                self.assertEqual(channel.role, CALL + ANSWER + SEND + RECEIVE)
 
         # voice only number
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
@@ -1435,6 +1436,7 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='NX', org=self.org)
+                self.assertEqual(channel.role, SEND + RECEIVE)
 
                 # test the update page for nexmo
                 update_url = reverse('channels.channel_update', args=[channel.pk])
@@ -1523,6 +1525,7 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='PL', org=self.org)
+                self.assertEqual(channel.role, SEND + RECEIVE)
                 self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID: 'auth-id',
                                                           PLIVO_AUTH_TOKEN: 'auth-token',
                                                           PLIVO_APP_ID: 'app-id'})
