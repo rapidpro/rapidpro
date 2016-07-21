@@ -1832,6 +1832,9 @@ class Flow(TembaModel):
 
     def get_dependencies(self, dependencies=None):
 
+        # need to make sure we have the latest version to inspect dependencies
+        self.ensure_current_version()
+
         if not dependencies:
             dependencies = dict(flows=set(), groups=set(), campaigns=set(), triggers=set())
 
