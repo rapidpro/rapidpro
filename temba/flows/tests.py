@@ -5216,8 +5216,8 @@ class TwoInRowTest(FlowFileTest):
 class SendActionTest(FlowFileTest):
 
     def test_send(self):
-        contact1 = self.create_contact("Mark", "+14122579999")
-        contact2 = self.create_contact("Gregg", "+17247474604")
+        contact1 = self.create_contact("Mark", "+14255551212")
+        contact2 = self.create_contact("Gregg", "+12065551212")
 
         substitutions = dict(contact1_id=contact1.id, contact2_id=contact2.id)
         exported_json = json.loads(self.get_import_json('bad_send_action', substitutions))

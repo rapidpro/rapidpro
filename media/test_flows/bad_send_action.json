@@ -14,7 +14,7 @@
               "urns": [
                 {
                   "priority": 50,
-                  "path": "+14122579999",
+                  "path": "+14255551212",
                   "scheme": "tel"
                 }
               ],
@@ -25,7 +25,7 @@
               "urns": [
                 {
                   "priority": 50,
-                  "path": "+17247474604",
+                  "path": "+12065551212",
                   "scheme": "tel"
                 }
               ],
@@ -36,7 +36,7 @@
           "variables": [],
           "groups": [],
           "msg": {
-            "base": "@flow.keyedinlastname just purchased a $@flow.keyedinprice item. This was a keyed-in purchased. Number not automatically recognized."
+            "base": "Hey there, here's a message."
           },
           "type": "send"
         }
@@ -52,6 +52,6 @@
     "expires": 5,
     "saved_on": "2015-12-08T17:55:01.020719Z",
     "uuid": "9e73669a-e71b-4e2d-ba3e-336ff0e6447b",
-    "name": "CLB Member Checkout - Update 9/2015"
+    "name": "Send Action Test"
   }
 }
