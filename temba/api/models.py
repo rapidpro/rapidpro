@@ -12,14 +12,12 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
 from django.db import models
 from django.utils import timezone
-from django.utils.translation import ugettext_lazy as _
 from hashlib import sha1
 from rest_framework.permissions import BasePermission
 from smartmin.models import SmartModel
+from temba.channels.models import Channel, ChannelEvent, TEMBA_HEADERS
 from temba.contacts.models import TEL_SCHEME
 from temba.orgs.models import Org
-from temba.channels.models import Channel, TEMBA_HEADERS
-from temba.msgs.models import Call
 from temba.utils import datetime_to_str, prepped_request_to_str
 from temba.utils.cache import get_cacheable_attr
 from urllib import urlencode
@@ -47,43 +45,52 @@ CATEGORIZE = 'categorize'
 EVENT_CHOICES = ((SMS_RECEIVED, "Incoming SMS Message"),
                  (SMS_SENT, "Outgoing SMS Sent"),
                  (SMS_DELIVERED, "Outgoing SMS Delivered to Recipient"),
-                 (Call.TYPE_CALL_OUT, "Outgoing Call"),
-                 (Call.TYPE_CALL_OUT_MISSED, "Missed Outgoing Call"),
-                 (Call.TYPE_CALL_IN, "Incoming Call"),
-                 (Call.TYPE_CALL_IN_MISSED, "Missed Incoming Call"),
+                 (ChannelEvent.TYPE_CALL_OUT, "Outgoing Call"),
+                 (ChannelEvent.TYPE_CALL_OUT_MISSED, "Missed Outgoing Call"),
+                 (ChannelEvent.TYPE_CALL_IN, "Incoming Call"),
+                 (ChannelEvent.TYPE_CALL_IN_MISSED, "Missed Incoming Call"),
                  (RELAYER_ALARM, "Channel Alarm"),
                  (FLOW, "Flow Step Reached"),
                  (CATEGORIZE, "Flow Categorization"))
 
 
-class ApiPermission(BasePermission):
+class APIPermission(BasePermission):
+    """
+    Verifies that the user has the permission set on the endpoint view
+    """
     def has_permission(self, request, view):
 
         if getattr(view, 'permission', None):
-
+            # no anon access to API endpoints
             if request.user.is_anonymous():
                 return False
 
-            # try to determine group from api token
+            org = request.user.get_org()
+
             if request.auth:
-                group = request.auth.role
-            # otherwise lean on the logged in user
+                role_group = request.auth.role
+                allowed_roles = APIToken.get_allowed_roles(org, request.user)
+
+                # check that user is still allowed to use the token's role
+                if role_group not in allowed_roles:
+                    return False
+            elif org:
+                # user may not have used token authentication
+                role_group = org.get_user_org_group(request.user)
             else:
-                org = request.user.get_org()
-                group = org.get_user_org_group(request.user) if org else None
+                return False
 
-            # if we have a group, check its permissions
-            if group:
-                codename = view.permission.split(".")[-1]
-                return group.permissions.filter(codename=codename)
-
-            return False
+            codename = view.permission.split(".")[-1]
+            return role_group.permissions.filter(codename=codename).exists()
 
         else:  # pragma: no cover
             return True
 
 
 class SSLPermission(BasePermission):  # pragma: no cover
+    """
+    Verifies that the request used SSL if that is required
+    """
     def has_permission(self, request, view):
         if getattr(settings, 'SESSION_COOKIE_SECURE', False):
             return request.is_secure()
@@ -142,10 +149,12 @@ class WebHookEvent(SmartModel):
         # we might not have an sms (or channel) yet
         channel = None
         text = None
+        contact_urn = contact.get_urn()
 
         if event:
             text = event.text
             channel = event.channel
+            contact_urn = event.contact_urn
 
         if channel:
             channel_id = channel.pk
@@ -164,10 +173,14 @@ class WebHookEvent(SmartModel):
         data = dict(channel=channel_id,
                     relayer=channel_id,
                     flow=flow.id,
+                    flow_name=flow.name,
+                    flow_base_language=flow.base_language,
                     run=run.id,
                     text=text,
                     step=unicode(node_uuid),
                     phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    contact=contact.uuid,
+                    urn=unicode(contact_urn),
                     values=json.dumps(values),
                     steps=json.dumps(steps),
                     time=json_time)
@@ -232,6 +245,11 @@ class WebHookEvent(SmartModel):
 
         finally:
             webhook_event.save()
+
+            # make sure our message isn't too long
+            if message:
+                message = message[:255]
+
             result = WebHookResult.objects.create(event=webhook_event,
                                                   url=webhook_url,
                                                   status_code=status_code,
@@ -269,6 +287,8 @@ class WebHookEvent(SmartModel):
         json_time = time.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(sms=msg.pk,
                     phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    contact=msg.contact.uuid,
+                    urn=unicode(msg.contact_urn),
                     text=msg.text,
                     time=json_time,
                     status=msg.status,
@@ -294,13 +314,13 @@ class WebHookEvent(SmartModel):
         if not org or not org.get_webhook_url():
             return
 
-        event = call.call_type
+        event = call.event_type
 
         # if the org doesn't care about this type of message, ignore it
-        if (event == 'mt_call' and not org.is_notified_of_mt_call()) or \
-           (event == 'mt_miss' and not org.is_notified_of_mt_call()) or \
-           (event == 'mo_call' and not org.is_notified_of_mo_call()) or \
-           (event == 'mo_miss' and not org.is_notified_of_mo_call()):
+        if (event == ChannelEvent.TYPE_CALL_OUT and not org.is_notified_of_mt_call()) or \
+           (event == ChannelEvent.TYPE_CALL_OUT_MISSED and not org.is_notified_of_mt_call()) or \
+           (event == ChannelEvent.TYPE_CALL_IN and not org.is_notified_of_mo_call()) or \
+           (event == ChannelEvent.TYPE_CALL_IN_MISSED and not org.is_notified_of_mo_call()):
             return
 
         api_user = get_api_user()
@@ -308,6 +328,8 @@ class WebHookEvent(SmartModel):
         json_time = call.time.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(call=call.pk,
                     phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    contact=call.contact.uuid,
+                    urn=unicode(call.contact_urn),
                     duration=call.duration,
                     time=json_time)
         hook_event = WebHookEvent.objects.create(org=org,
@@ -400,7 +422,7 @@ class WebHookEvent(SmartModel):
                                        headers=headers).prepare()
             result['url'] = prepped.url
             result['request'] = prepped_request_to_str(prepped)
-            r = s.send(prepped)
+            r = s.send(prepped, timeout=5)
 
             result['status_code'] = r.status_code
             result['body'] = r.text.strip()
@@ -512,13 +534,13 @@ class APIToken(models.Model):
     """
     Our API token, ties in orgs
     """
-    ROLE_ADMIN = 'A'
-    ROLE_EDITOR = 'E'
-    ROLE_SURVEYOR = 'S'
+    CODE_TO_ROLE = {'A': "Administrators", 'E': "Editors", 'S': "Surveyors"}
 
-    ROLE_CHOICES = ((ROLE_ADMIN, _("Administrator")),
-                    (ROLE_EDITOR, _("Editor")),
-                    (ROLE_SURVEYOR, _("Surveyor")))
+    ROLE_GRANTED_TO = {"Administrators": ("Administrators",),
+                       "Editors": ("Administrators", "Editors"),
+                       "Surveyors": ("Administrators", "Editors", "Surveyors")}
+
+    is_active = models.BooleanField(default=True)
 
     key = models.CharField(max_length=40, primary_key=True)
 
@@ -531,29 +553,77 @@ class APIToken(models.Model):
     role = models.ForeignKey(Group)
 
     @classmethod
+    def get_or_create(cls, org, user, role=None, refresh=False):
+        """
+        Gets or creates an API token for this user
+        """
+        if not role:
+            role = cls.get_default_role(org, user)
+
+        if not role:
+            raise ValueError("User '%s' has no suitable role for API usage" % unicode(user))
+        elif role.name not in cls.ROLE_GRANTED_TO:
+            raise ValueError("Role %s is not valid for API usage" % role.name)
+
+        tokens = cls.objects.filter(is_active=True, user=user, org=org, role=role)
+
+        # if we are refreshing the token, clear existing ones
+        if refresh and tokens:
+            for token in tokens:
+                token.release()
+            tokens = None
+
+        if not tokens:
+            token = cls.objects.create(user=user, org=org, role=role)
+        else:
+            token = tokens.first()
+
+        return token
+
+    @classmethod
     def get_orgs_for_role(cls, user, role):
         """
-        Gets all the orgs the user can login to with the given role. Also
-        takes a single character role (A, E, S, etc) and maps it to a UserGroup.
+        Gets all the orgs the user can access the API with the given role
         """
+        user_query = Q()
+        for user_group in cls.ROLE_GRANTED_TO.get(role.name):
+            user_query |= Q(**{user_group.lower(): user})
 
-        if role == cls.ROLE_ADMIN:
-            valid_orgs = Org.objects.filter(administrators__in=[user])
-            role = Group.objects.get(name='Administrators')
-        elif role == cls.ROLE_EDITOR:
-            # admins can authenticate as editors
-            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]))
-            role = Group.objects.get(name='Editors')
-        elif role == cls.ROLE_SURVEYOR:
-            # admins and editors can authenticate as surveyors
-            valid_orgs = Org.objects.filter(Q(administrators__in=[user]) | Q(editors__in=[user]) | Q(surveyors__in=[user]))
-            role = Group.objects.get(name='Surveyors')
+        return Org.objects.filter(user_query)
+
+    @classmethod
+    def get_default_role(cls, org, user):
+        """
+        Gets the default API role for the given user
+        """
+        group = org.get_user_org_group(user)
+
+        if not group or group.name not in cls.ROLE_GRANTED_TO:  # don't allow creating tokens for Viewers group etc
+            return None
+
+        return group
+
+    @classmethod
+    def get_allowed_roles(cls, org, user):
+        """
+        Gets all of the allowed API roles for the given user
+        """
+        group = org.get_user_org_group(user)
+
+        if group:
+            role_names = []
+            for role_name, granted_to in cls.ROLE_GRANTED_TO.iteritems():
+                if group.name in granted_to:
+                    role_names.append(role_name)
+
+            return Group.objects.filter(name__in=role_names)
         else:
-            # can't authenticate via the api as anything else
-            valid_orgs = []
-            role = None
+            return []
 
-        return valid_orgs, role
+    @classmethod
+    def get_role_from_code(cls, code):
+        role = cls.CODE_TO_ROLE.get(code)
+        return Group.objects.get(name=role) if role else None
 
     def save(self, *args, **kwargs):
         if not self.key:
@@ -564,36 +634,30 @@ class APIToken(models.Model):
         unique = uuid.uuid4()
         return hmac.new(unique.bytes, digestmod=sha1).hexdigest()
 
+    def release(self):
+        self.is_active = False
+        self.save()
+
     def __unicode__(self):
         return self.key
-
-    class Meta:
-        unique_together = ('user', 'org', 'role')
 
 
 def get_or_create_api_token(user):
     """
-    Gets or (lazily creates) an API token for this user
+    Gets or creates an API token for this user. If user doen't have access to the API, this returns None.
     """
-    if not user.is_authenticated():
-        return None
-
     org = user.get_org()
     if not org:
         org = Org.get_org(user)
 
-    role = user.get_role()
-
     if org:
-        tokens = APIToken.objects.filter(user=user, org=org, role=role)
+        try:
+            token = APIToken.get_or_create(org, user)
+            return token.key
+        except ValueError:
+            pass
 
-        if tokens:
-            return str(tokens[0])
-        else:
-            token = APIToken.objects.create(user=user, org=org, role=role)
-            return str(token)
-    else:
-        return None
+    return None
 
 
 def api_token(user):

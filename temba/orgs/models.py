@@ -208,6 +208,9 @@ class Org(SmartModel):
     brand = models.CharField(max_length=128, default=settings.DEFAULT_BRAND, verbose_name=_("Brand"),
                              help_text=_("The brand used in emails"))
 
+    surveyor_password = models.CharField(null=True, max_length=128, default=None,
+                                         help_text=_('A password that allows users to register as surveyors'))
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -414,7 +417,7 @@ class Org(SmartModel):
                 if not channels:
                     channels = [c for c in self.channels.all()]
 
-                # filter based on rule and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
+                # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
                 for c in channels:
                     if c.is_active and c.address and role in c.role and not c.parent_id:
@@ -730,10 +733,16 @@ class Org(SmartModel):
         return str_to_datetime(date_string, self.get_tzinfo(), self.get_dayfirst())
 
     def parse_decimal(self, decimal_string):
+        parsed = None
+
         try:
-            return Decimal(decimal_string)
+            parsed = Decimal(decimal_string)
+            if not parsed.is_finite() or parsed > Decimal('999999999999999999999999'):
+                parsed = None
         except Exception:
-            return None
+            pass
+
+        return parsed
 
     def generate_location_query(self, name, level, is_alias=False):
         if is_alias:
@@ -891,7 +900,7 @@ class Org(SmartModel):
                                created_by=self.created_by, modified_by=self.modified_by)
         self.all_groups.create(name='Blocked Contacts', group_type=ContactGroup.TYPE_BLOCKED,
                                created_by=self.created_by, modified_by=self.modified_by)
-        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_FAILED,
+        self.all_groups.create(name='Failed Contacts', group_type=ContactGroup.TYPE_STOPPED,
                                created_by=self.created_by, modified_by=self.modified_by)
 
     def create_sample_flows(self, api_url):
@@ -1337,7 +1346,7 @@ class Org(SmartModel):
 
     def get_export_flows(self, include_archived=False):
         from temba.flows.models import Flow
-        flows = self.flows.all().exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
+        flows = self.flows.all().exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
         if not include_archived:
             flows = flows.filter(is_archived=False)
         return flows
@@ -1495,18 +1504,6 @@ def get_org_group(obj):
     return org_group
 
 
-def set_role(obj, role):
-    obj._role = role
-
-
-def get_role(obj):
-
-    if not hasattr(obj, '_role'):
-        obj._role = obj.get_org_group()
-
-    return obj._role
-
-
 def _user_has_org_perm(user, org, permission):
     """
     Determines if a user has the given permission in this org
@@ -1538,8 +1535,6 @@ User.is_beta = is_beta_user
 User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
-User.get_role = get_role
-User.set_role = set_role
 User.has_org_perm = _user_has_org_perm
 
 
@@ -1617,6 +1612,11 @@ class Invitation(SmartModel):
     host = models.CharField(max_length=32, help_text=_("The host this invitation was created on"))
 
     user_group = models.CharField(max_length=1, choices=USER_GROUPS, default='V', verbose_name=_("User Role"))
+
+    @classmethod
+    def create(cls, org, user, email, user_group, host):
+        return cls.objects.create(org=org, email=email, user_group=user_group, host=host,
+                                  created_by=user, modified_by=user)
 
     def save(self, *args, **kwargs):
         if not self.secret:

@@ -35,7 +35,15 @@ GSM7_REPLACEMENTS = {u'á': 'a',
                      u'Ô': 'O',
                      u'Õ': 'O',
                      u'Ú': 'U',
-                     u'Ù': 'U'}
+                     u'Ù': 'U',
+
+                     # shit Word likes replacing automatically
+                     u'’': '\'',
+                     u'‘': '\'',
+                     u'“': '"',
+                     u'”': '"',
+                     u'–': '-',
+                     }
 
 
 def is_gsm7(text):

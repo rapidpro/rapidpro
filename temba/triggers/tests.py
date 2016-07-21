@@ -2,19 +2,21 @@
 from __future__ import unicode_literals
 
 import time
+import json
 
+from mock import patch
 from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
-from temba.orgs.models import Language
-from temba.contacts.models import TEL_SCHEME
+from temba.channels.models import Channel, ChannelEvent, CALL, ANSWER, TWITTER
+from temba.contacts.models import TEL_SCHEME, Contact
 from temba.flows.models import Flow, ActionSet, FlowRun
+from temba.orgs.models import Language
+from temba.msgs.models import Msg, INCOMING
 from temba.schedules.models import Schedule
-from temba.msgs.models import Msg, INCOMING, Call
-from temba.channels.models import CALL, ANSWER, TWITTER, Channel
-from temba.tests import TembaTest
+from temba.tests import TembaTest, MockResponse
 from .models import Trigger
-from temba.triggers.views import DefaultTriggerForm, RegisterTriggerForm
+from .views import DefaultTriggerForm, RegisterTriggerForm
 
 
 class TriggerTest(TembaTest):
@@ -500,9 +502,9 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(missed_call_trigger)
 
-        Call.create_call(self.channel, contact.get_urn(TEL_SCHEME).path, timezone.now(), 0, Call.TYPE_CALL_IN_MISSED)
-        self.assertEquals(1, Call.objects.all().count())
-        self.assertEquals(0, flow.runs.all().count())
+        ChannelEvent.create(self.channel, contact.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        self.assertEqual(ChannelEvent.objects.all().count(), 1)
+        self.assertEqual(flow.runs.all().count(), 0)
 
         trigger_url = reverse("triggers.trigger_missed_call")
 
@@ -521,10 +523,10 @@ class TriggerTest(TembaTest):
 
         self.assertEquals(missed_call_trigger.pk, trigger.pk)
 
-        Call.create_call(self.channel, contact.get_urn(TEL_SCHEME).path, timezone.now(), 0, Call.TYPE_CALL_IN_MISSED)
-        self.assertEquals(2, Call.objects.all().count())
-        self.assertEquals(1, flow.runs.all().count())
-        self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
+        ChannelEvent.create(self.channel, contact.get_urn(TEL_SCHEME).urn, ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), 0)
+        self.assertEqual(ChannelEvent.objects.all().count(), 2)
+        self.assertEqual(flow.runs.all().count(), 1)
+        self.assertEqual(flow.runs.all()[0].contact.pk, contact.pk)
 
         other_flow = Flow.copy(flow, self.admin)
         post_data = dict(flow=other_flow.pk)
@@ -556,6 +558,93 @@ class TriggerTest(TembaTest):
         self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
         self.assertFalse(active_trigger.pk == Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL)[0].pk)
 
+    def test_new_conversation_trigger(self):
+        self.login(self.admin)
+        flow = self.create_flow()
+        flow2 = self.create_flow()
+
+        # see if we list new conversation triggers on the trigger page
+        create_trigger_url = reverse('triggers.trigger_create', args=[])
+        response = self.client.get(create_trigger_url)
+        self.assertNotContains(response, "conversation is started")
+
+        # create a facebook channel
+        fb_channel = Channel.add_facebook_channel(self.org, self.user, 'Temba', 1001, 'fb_token')
+
+        # should now be able to create one
+        response = self.client.get(create_trigger_url)
+        self.assertContains(response, "conversation is started")
+
+        # go create it
+        with patch('requests.post') as mock_post:
+            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
+
+            response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]),
+                                        data=dict(channel=fb_channel.id, flow=flow.id))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(mock_post.call_count, 1)
+
+        # check that it is right
+        trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False)
+        self.assertEqual(trigger.channel, fb_channel)
+        self.assertEqual(trigger.flow, flow)
+
+        # try to create another one, fails as we already have a trigger for that channel
+        response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]), data=dict(channel=fb_channel.id, flow=flow2.id))
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', 'channel', 'Trigger with this Channel already exists.')
+
+        # ok, trigger a facebook event
+        data = json.loads("""{
+        "object": "page",
+          "entry": [
+            {
+              "id": "620308107999975",
+              "time": 1467841778778,
+              "messaging": [
+                {
+                  "sender":{
+                    "id":"1001"
+                  },
+                  "recipient":{
+                    "id":"%s"
+                  },
+                  "timestamp":1458692752478,
+                  "postback":{
+                    "payload":"get_started"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+        """ % fb_channel.address)
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(200, '{"first_name": "Ben","last_name": "Haggerty"}')
+
+            callback_url = reverse('handlers.facebook_handler', args=[fb_channel.uuid])
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+            # should have a new flow run for Ben
+            contact = Contact.from_urn(self.org, 'facebook:1001')
+            self.assertTrue(contact.name, "Ben Haggerty")
+
+            run = FlowRun.objects.get(contact=contact)
+            self.assertEqual(run.flow, flow)
+
+        # archive our trigger, should unregister our callback
+        with patch('requests.post') as mock_post:
+            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
+
+            Trigger.apply_action_archive(self.admin, Trigger.objects.filter(pk=trigger.pk))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(mock_post.call_count, 1)
+
+            trigger.refresh_from_db()
+            self.assertTrue(trigger.is_archived)
+
     def test_catch_all_trigger(self):
         self.login(self.admin)
         catch_all_trigger = Trigger.get_triggers_of_type(self.org, Trigger.TYPE_CATCH_ALL).first()
@@ -572,7 +661,7 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(catch_all_trigger)
 
-        Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(1, Msg.all_messages.all().count())
         self.assertEquals(0, flow.runs.all().count())
 
@@ -593,7 +682,7 @@ class TriggerTest(TembaTest):
 
         self.assertEquals(catch_all_trigger.pk, trigger.pk)
 
-        incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(1, flow.runs.all().count())
         self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.all_messages.get(response_to=incoming)
@@ -662,7 +751,7 @@ class TriggerTest(TembaTest):
         FlowRun.objects.all().delete()
         Msg.all_messages.all().delete()
 
-        incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(0, FlowRun.objects.all().count())
         self.assertFalse(Msg.all_messages.filter(response_to=incoming))
 
@@ -670,7 +759,7 @@ class TriggerTest(TembaTest):
         group.contacts.add(contact)
 
         # this time should trigger the flow
-        incoming = Msg.create_incoming(self.channel, (TEL_SCHEME, contact.get_urn().path), "Hi")
+        incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(1, FlowRun.objects.all().count())
         self.assertEquals(other_flow.runs.all()[0].contact.pk, contact.pk)
         reply = Msg.all_messages.get(response_to=incoming)

@@ -3,14 +3,14 @@ from __future__ import unicode_literals
 import json
 import re
 import requests
-
+import time
 
 from django.conf import settings
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
-from temba.contacts.models import Contact, TEL_SCHEME
+from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow
 from temba.ivr.models import IN_PROGRESS
 from twilio import TwilioRestException
@@ -58,7 +58,18 @@ class TwilioClient(TwilioRestClient):
         :param media_url: the url where the media lives
         :return: the url for our downloaded media with full content type prefix
         """
-        response = requests.get(media_url, stream=True, auth=self.auth)
+        attempts = 0
+        while attempts < 4:
+            response = requests.get(media_url, stream=True, auth=self.auth)
+
+            # in some cases Twilio isn't ready for us to fetch the recording URL yet, if we get a 404
+            # sleep for a bit then try again up to 4 times
+            if response.status_code == 200:
+                break
+            else:
+                attempts += 1
+                time.sleep(.250)
+
         disposition = response.headers.get('Content-Disposition', None)
         content_type = response.headers.get('Content-Type', None)
 
@@ -97,7 +108,7 @@ class VerboiceClient:
     def start_call(self, call, to, from_, status_callback):
 
         channel = call.channel
-        Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, to)])
+        Contact.get_or_create(channel.org, channel.created_by, urns=[URN.from_tel(to)])
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
         payload = unicode(Flow.handle_call(call, {}))

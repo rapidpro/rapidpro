@@ -29,7 +29,7 @@ from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
-from temba.flows.models import Flow, FlowReferenceException, FlowRun, FlowRevision, STARTING, PENDING
+from temba.flows.models import Flow, FlowRun, FlowRevision
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, INCOMING, OUTGOING
@@ -38,7 +38,7 @@ from temba.utils import analytics, build_json_response, percentage, datetime_to_
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, COMPLETE, FAILED, FlowStart
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
 
 logger = logging.getLogger(__name__)
 
@@ -327,7 +327,7 @@ class PartialTemplate(SmartTemplateView):
 
 
 class FlowCRUDL(SmartCRUDL):
-    actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'export', 'simulate', 'export_results',
+    actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter',
                'completion', 'revisions', 'recent_messages')
 
@@ -413,10 +413,10 @@ class FlowCRUDL(SmartCRUDL):
                                                help_text=_("When a user sends any of these keywords they will begin this flow"))
 
             flow_type = forms.ChoiceField(label=_('Run flow over'),
-                                          help_text=_('Place a phone call or use text messaging'),
-                                          choices=((Flow.FLOW, 'Text Messaging'),
+                                          help_text=_('Send messages, place phone calls, or submit Surveyor runs'),
+                                          choices=((Flow.FLOW, 'Messaging'),
                                                    (Flow.VOICE, 'Phone Call'),
-                                                   (Flow.SURVEY, 'Android Phone')))
+                                                   (Flow.SURVEY, 'Surveyor')))
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Create.FlowCreateForm, self).__init__(*args, **kwargs)
@@ -805,7 +805,7 @@ class FlowCRUDL(SmartCRUDL):
             # are there pending starts?
             starting = False
             start = self.object.starts.all().order_by('-created_on')
-            if start.exists() and start[0].status in [STARTING, PENDING]:
+            if start.exists() and start[0].status in [FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING]:
                 starting = True
             context['starting'] = starting
 
@@ -840,9 +840,9 @@ class FlowCRUDL(SmartCRUDL):
                                   posterize=True,
                                   href=reverse('flows.flow_copy', args=[self.get_object().id])))
 
-            if self.has_org_perm('flows.flow_export'):
+            if self.has_org_perm('orgs.org_export'):
                 links.append(dict(title=_("Export"),
-                                  href=reverse('flows.flow_export', args=[self.get_object().id])))
+                                  href='%s?flow=%s' % (reverse('orgs.org_export'), self.get_object().id)))
 
             if self.has_org_perm('flows.flow_revisions'):
                 links.append(dict(divider=True)),
@@ -868,7 +868,7 @@ class FlowCRUDL(SmartCRUDL):
             # are there pending starts?
             starting = False
             start = self.object.starts.all().order_by('-created_on')
-            if start.exists() and start[0].status in [STARTING, PENDING]:
+            if start.exists() and start[0].status in [FlowStart.STATUS_STARTING, FlowStart.STATUS_PENDING]:
                 starting = True
             context['starting'] = starting
             context['mutable'] = False
@@ -879,22 +879,6 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_template_names(self):
             return "flows/flow_editor.haml"
-
-    class Export(OrgPermsMixin, SmartReadView):
-
-        def derive_title(self):
-            return _("Export Flow")
-
-        def render_to_response(self, context, **response_kwargs):
-            try:
-                flow = self.get_object()
-                definition = Flow.export_definitions(flows=[flow], fail_on_dependencies=True)
-                response = HttpResponse(json.dumps(definition, indent=2), content_type='application/javascript')
-                response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(flow.name)
-                return response
-            except FlowReferenceException as e:
-                context['other_flow_names'] = e.flow_names
-                return super(FlowCRUDL.Export, self).render_to_response(context, **response_kwargs)
 
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
@@ -1170,7 +1154,7 @@ class FlowCRUDL(SmartCRUDL):
             # get our latest start, we might warn the user that one is in progress
             start = flow.starts.all().order_by('-created_on')
             pending = None
-            if start.count() and (start[0].status == STARTING or start[0].status == PENDING):
+            if start.count() and (start[0].status == FlowStart.STATUS_STARTING or start[0].status == FlowStart.STATUS_PENDING):
                 pending = start[0].status
 
             # if we have an active call, include that
@@ -1280,7 +1264,7 @@ class FlowCRUDL(SmartCRUDL):
             if new_message or media:
                 try:
                     Msg.create_incoming(None,
-                                        (TEL_SCHEME, test_contact.get_urn(TEL_SCHEME).path),
+                                        test_contact.get_urn(TEL_SCHEME).urn,
                                         new_message,
                                         media=media,
                                         org=user.get_org())
@@ -1321,7 +1305,10 @@ class FlowCRUDL(SmartCRUDL):
 
             # all the translation languages for our org
             languages = [lang.as_json() for lang in flow.org.languages.all().order_by('orgs')]
-            return build_json_response(dict(flow=flow.as_json(expand_contacts=True), languages=languages))
+
+            # all the channels available for our org
+            channels = [dict(uuid=chan.uuid, name=u"%s: %s" % (chan.get_channel_type_display(), chan.get_address_display())) for chan in flow.org.channels.filter(is_active=True)]
+            return build_json_response(dict(flow=flow.as_json(expand_contacts=True), languages=languages, channels=channels))
 
         def post(self, request, *args, **kwargs):
 
@@ -1371,7 +1358,7 @@ class FlowCRUDL(SmartCRUDL):
                 cleaned = super(FlowCRUDL.Broadcast.BroadcastForm, self).clean()
 
                 # check whether there are any flow starts that are incomplete
-                if FlowStart.objects.filter(flow=self.flow).exclude(status__in=[COMPLETE, FAILED]):
+                if FlowStart.objects.filter(flow=self.flow).exclude(status__in=[FlowStart.STATUS_COMPLETE, FlowStart.STATUS_FAILED]):
                     raise ValidationError(_("This flow is already being started, please wait until that process is complete before starting more contacts."))
 
                 if self.flow.org.is_suspended():

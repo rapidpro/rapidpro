@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from django.db.models import Min
 from smartmin.views import SmartCRUDL, SmartListView, SmartCreateView, SmartTemplateView, SmartUpdateView
-from temba.contacts.models import ContactGroup, URN_SCHEMES_SUPPORTING_FOLLOW
+from temba.contacts.models import ContactGroup, ContactURN
 from temba.contacts.fields import OmniboxField
 from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
@@ -175,7 +175,7 @@ class RegisterTriggerForm(BaseTriggerForm):
                 # we must get groups for this org only
                 group = ContactGroup.get_user_group(self.user.get_org(), value)
                 if not group:
-                    group = ContactGroup.create(self.user.get_org(), self.user, name=value)
+                    group = ContactGroup.create_static(self.user.get_org(), self.user, name=value)
                 return group
 
             return super(RegisterTriggerForm.AddNewGroupChoiceField, self).clean(value)
@@ -254,11 +254,28 @@ class FollowTriggerForm(BaseTriggerForm):
     channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW, Flow.VOICE])
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW])
         super(FollowTriggerForm, self).__init__(user, flows, *args, **kwargs)
 
         self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
-                                                                 scheme__in=URN_SCHEMES_SUPPORTING_FOLLOW)
+                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_FOLLOW)
+
+    class Meta(BaseTriggerForm.Meta):
+        fields = ('channel', 'flow')
+
+
+class NewConversationTriggerForm(BaseTriggerForm):
+    """
+    Form for New Conversation triggers
+    """
+    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=True)
+
+    def __init__(self, user, *args, **kwargs):
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.FLOW])
+        super(NewConversationTriggerForm, self).__init__(user, flows, *args, **kwargs)
+
+        self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
+                                                                 scheme__in=ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION)
 
     class Meta(BaseTriggerForm.Meta):
         fields = ('channel', 'flow')
@@ -294,7 +311,7 @@ class TriggerActionMixin(SmartListView):
 class TriggerCRUDL(SmartCRUDL):
     model = Trigger
     actions = ('list', 'create', 'update', 'archived',
-               'keyword', 'register', 'schedule', 'inbound_call', 'missed_call', 'catchall', 'follow')
+               'keyword', 'register', 'schedule', 'inbound_call', 'missed_call', 'catchall', 'follow', 'new_conversation')
 
     class OrgMixin(OrgPermsMixin):
         def derive_queryset(self, *args, **kwargs):
@@ -321,10 +338,14 @@ class TriggerCRUDL(SmartCRUDL):
                 add_section('trigger-inboundcall', 'triggers.trigger_inbound_call', 'icon-phone2')
 
             add_section('trigger-missedcall', 'triggers.trigger_missed_call', 'icon-phone')
-            add_section('trigger-catchall', 'triggers.trigger_catchall', 'icon-bubble')
 
-            if URN_SCHEMES_SUPPORTING_FOLLOW.intersection(org_schemes):
+            if ContactURN.SCHEMES_SUPPORTING_FOLLOW.intersection(org_schemes):
                 add_section('trigger-follow', 'triggers.trigger_follow', 'icon-user-restore')
+
+            if ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
+                add_section('trigger-new-conversation', 'triggers.trigger_new_conversation', 'icon-bubbles-2')
+
+            add_section('trigger-catchall', 'triggers.trigger_catchall', 'icon-bubble')
 
     class Update(ModalMixin, OrgMixin, SmartUpdateView):
         success_message = ''
@@ -333,7 +354,8 @@ class TriggerCRUDL(SmartCRUDL):
                          Trigger.TYPE_MISSED_CALL: DefaultTriggerForm,
                          Trigger.TYPE_INBOUND_CALL: InboundCallTriggerForm,
                          Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
-                         Trigger.TYPE_FOLLOW: FollowTriggerForm}
+                         Trigger.TYPE_FOLLOW: FollowTriggerForm,
+                         Trigger.TYPE_NEW_CONVERSATION: NewConversationTriggerForm}
 
         def get_form_class(self):
             trigger_type = self.object.trigger_type
@@ -711,10 +733,34 @@ class TriggerCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_FOLLOW,
-                                   flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
+            trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_FOLLOW,
+                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
+            trigger.archive_conflicts(user)
 
             analytics.track(self.request.user.username, 'temba.trigger_created_follow')
+
+            response = self.render_to_response(self.get_context_data(form=form))
+            response['REDIRECT'] = self.get_success_url()
+            return response
+
+    class NewConversation(CreateTrigger):
+        form_class = NewConversationTriggerForm
+
+        def get_form_kwargs(self):
+            kwargs = super(TriggerCRUDL.NewConversation, self).get_form_kwargs()
+            kwargs['auto_id'] = "id_new_conversation_%s"
+            return kwargs
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+
+            trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org, trigger_type=Trigger.TYPE_NEW_CONVERSATION,
+                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
+            trigger.archive_conflicts(user)
+            trigger.channel.set_fb_call_to_action_payload(Channel.GET_STARTED)
+
+            analytics.track(self.request.user.username, 'temba.trigger_created_new_conversation')
 
             response = self.render_to_response(self.get_context_data(form=form))
             response['REDIRECT'] = self.get_success_url()

@@ -57,6 +57,7 @@ class AdminBoundary(MPTTModel, models.Model):
 
     def get_geojson_feature(self):
         return geojson.Feature(properties=dict(name=self.name, osm_id=self.osm_id, id=self.pk, level=self.level),
+                               zoomable=True if self.children.all() else False,
                                geometry=None if not self.simplified_geometry else geojson.loads(self.simplified_geometry.geojson))
 
     def get_geojson(self):
@@ -90,11 +91,8 @@ class BoundaryAlias(SmartModel):
     """
     Alternative names for a boundaries
     """
-
     name = models.CharField(max_length=128, help_text="The name for our alias")
 
-    boundary = models.ForeignKey(
-        AdminBoundary, help_text='The admin boundary this alias applies to', related_name='aliases')
+    boundary = models.ForeignKey(AdminBoundary, help_text='The admin boundary this alias applies to', related_name='aliases')
 
-    org = models.ForeignKey(
-        'orgs.Org', help_text="The org that owns this alias")
+    org = models.ForeignKey('orgs.Org', help_text="The org that owns this alias")

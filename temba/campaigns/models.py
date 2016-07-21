@@ -94,7 +94,7 @@ class Campaign(SmartModel):
 
                 # all else fails, create the objects from scratch
                 if not group:
-                    group = ContactGroup.create(org, user, campaign_spec['group']['name'])
+                    group = ContactGroup.create_static(org, user, campaign_spec['group']['name'])
 
                 if not campaign:
                     campaign_name = Campaign.get_unique_name(org, name)
@@ -106,7 +106,7 @@ class Campaign(SmartModel):
                 # we want to nuke old single message flows
                 for event in campaign.events.all():
                     if event.flow.flow_type == Flow.MESSAGE:
-                        event.flow.delete()
+                        event.flow.release()
 
                 # and all of the events, we'll recreate these
                 campaign.events.all().delete()

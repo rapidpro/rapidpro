@@ -6,6 +6,7 @@ import six
 from django.utils.translation import ugettext_lazy as _
 from temba.utils.gsm7 import is_gsm7
 from urlparse import urljoin
+from django.utils.http import urlencode
 
 
 class NexmoValidationError(Exception):
@@ -58,12 +59,12 @@ class NexmoClient(object):
         response = self._fire_get(path, {})
         return response['value']
 
-    def get_numbers(self, pattern=None):
+    def get_numbers(self, pattern=None, size=10):
         path = "/account/numbers/%s/%s" % (self.api_key, self.api_secret)
         params = dict()
         if pattern:
             params['pattern'] = str(pattern).strip('+')
-
+        params['size'] = size
         response = self._fire_get(path, params)
 
         if int(response.get('count', 0)):
@@ -84,20 +85,32 @@ class NexmoClient(object):
         if not is_gsm7(text):
             params['type'] = 'unicode'
 
-        response = requests.get(NexmoClient.SEND_URL, params=params)
-        response_json = response.json()
+        log_params = params.copy()
+        log_params['api_secret'] = 'x' * len(log_params['api_secret'])
+        log_url = NexmoClient.SEND_URL + '?' + urlencode(log_params)
 
-        messages = response_json.get('messages', [])
+        try:
+            response = requests.get(NexmoClient.SEND_URL, params=params)
+            response_json = response.json()
+            messages = response_json.get('messages', [])
+        except:
+            raise SendException(u"Failed sending message: %s" % response.text,
+                                method=response.request.method,
+                                url=log_url,
+                                request=None,
+                                response=response.text,
+                                response_status=response.status_code)
+
         if not messages or int(messages[0]['status']) != 0:
             raise SendException(u"Failed sending message, received error status [%s]" % messages[0]['status'],
                                 method=response.request.method,
-                                url=response.request.url,
+                                url=log_url,
                                 request=None,
                                 response=response.text,
                                 response_status=response.status_code)
 
         else:
-            return (messages[0]['message-id'], response)
+            return messages[0]['message-id'], response
 
     def search_numbers(self, country, pattern):
         path = '/number/search/%s/%s/%s?features=SMS' % (self.api_key, self.api_secret, country)

@@ -26,8 +26,9 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, URN_SCHEME_CHOICES, FACEBOOK_SCHEME, ContactURN
-from temba.msgs.models import Broadcast, Call, Msg, QUEUED, PENDING
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING
+from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
@@ -35,7 +36,7 @@ from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_co
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
-from .models import Channel, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
+from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN, FACEBOOK
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
 from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX
@@ -339,7 +340,7 @@ def sync(request, channel_id):
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
 
-                        msg = Msg.create_incoming(channel, (TEL_SCHEME, tel), cmd['msg'], date=date)
+                        msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
                         if msg:
                             extra = dict(msg_id=msg.id)
                             handled = True
@@ -356,11 +357,12 @@ def sync(request, channel_id):
                         # ignore these events on our side as they have no purpose and break a lot of our
                         # assumptions
                         if cmd['phone']:
-                            Call.create_call(channel=channel,
-                                             phone=cmd['phone'],
-                                             date=date,
-                                             duration=duration,
-                                             call_type=cmd['type'])
+                            urn = URN.from_parts(TEL_SCHEME, cmd['phone'])
+                            try:
+                                ChannelEvent.create(channel, urn, cmd['type'], date, duration)
+                            except ValueError:
+                                # in some cases Android passes us invalid URNs, in those cases just ignore them
+                                pass
                         handled = True
 
                     elif keyword == 'gcm':
@@ -526,8 +528,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook',
-               'facebook_welcome')
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1069,7 +1070,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimExternal(OrgPermsMixin, SmartFormView):
         class EXClaimForm(forms.Form):
-            scheme = forms.ChoiceField(choices=URN_SCHEME_CHOICES, label=_("URN Type"),
+            scheme = forms.ChoiceField(choices=ContactURN.SCHEME_CHOICES, label=_("URN Type"),
                                        help_text=_("The type of URNs handled by this channel"))
 
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"), required=False,
@@ -1711,7 +1712,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimFacebook(OrgPermsMixin, SmartFormView):
         class FacebookForm(forms.Form):
-            page_access_token = forms.CharField(min_length=100, required=True,
+            page_access_token = forms.CharField(min_length=43, required=True,
                                                 help_text=_("The Page Access Token for your Application"))
 
             def clean_page_access_token(self):
@@ -1736,50 +1737,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                    page['name'], page['id'], form.cleaned_data['page_access_token'])
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
-
-    class FacebookWelcome(ModalMixin, OrgPermsMixin, SmartUpdateView):
-        class WelcomeForm(forms.ModelForm):
-            message = forms.CharField(max_length=160, widget=forms.Textarea, label=_("Welcome Message"), required=False,
-                                      help_text=_("This message will appear when a user first interacts with your page."))
-
-            class Meta:
-                model = Channel
-                fields = 'id', 'message'
-
-        form_class = WelcomeForm
-        success_url = 'id@channels.channel_configuration'
-
-        def form_valid(self, form):
-            welcome_message = form.cleaned_data['message'].strip()
-
-            # fire our post to facebook to update their welcome message
-            url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % self.object.address
-            payload = dict(setting_type='call_to_actions',
-                           thread_state='new_thread',
-                           call_to_actions=[])
-
-            # set our welcome message if we have one
-            if welcome_message:
-                payload['call_to_actions'].append(dict(message=dict(text=welcome_message)))
-
-            response = requests.post(url, json.dumps(payload),
-                                     params=dict(access_token=self.object.config_json()[AUTH_TOKEN]),
-                                     headers={'Content-Type': 'application/json'})
-            if response.status_code == 200:
-                messages.info(self.request, _("Your welcome message has been updated."))
-            else:
-                messages.info(self.request, _("We encountered an error updating your welcome message: %s" % str(response.content)))
-
-            if 'HTTP_X_PJAX' not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(form=form,
-                                          success_url=self.get_success_url(),
-                                          success_script=getattr(self, 'success_script', None)))
-                response['Temba-Success'] = self.get_success_url()
-                response['REDIRECT'] = self.get_success_url()
-                return response
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")
@@ -1976,12 +1933,6 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
 
-            # can't add a channel from a different country
-            other_countries = org.channels.exclude(country=None).exclude(is_active=False).exclude(country=data['country']).first()
-            if other_countries:
-                form._errors['phone_number'] = form.error_class([_("Sorry, you can only add numbers for the same country (%s)" % other_countries.country)])
-                return self.form_invalid(form)
-
             # no number parse for short codes
             if len(data['phone_number']) > 6:
                 phone = phonenumbers.parse(data['phone_number'])
@@ -2127,7 +2078,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_existing_numbers(self, org):
             client = org.get_nexmo_client()
             if client:
-                account_numbers = client.get_numbers()
+                account_numbers = client.get_numbers(size=100)
 
             numbers = []
             for number in account_numbers:
@@ -2329,6 +2280,28 @@ class ChannelCRUDL(SmartCRUDL):
                 return HttpResponse(json.dumps(numbers))
             except Exception as e:
                 return HttpResponse(json.dumps(dict(error=str(e))))
+
+
+class ChannelEventCRUDL(SmartCRUDL):
+    model = ChannelEvent
+    actions = ('calls',)
+
+    class Calls(InboxView):
+        title = _("Calls")
+        fields = ('contact', 'event_type', 'channel', 'time')
+        default_order = '-time'
+        search_fields = ('contact__urns__path__icontains', 'contact__name__icontains')
+        system_label = SystemLabel.TYPE_CALLS
+        select_related = ('contact', 'channel')
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r'^calls/$'
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(ChannelEventCRUDL.Calls, self).get_context_data(*args, **kwargs)
+            context['actions'] = []
+            return context
 
 
 class ChannelLogCRUDL(SmartCRUDL):

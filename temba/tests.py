@@ -1,3 +1,4 @@
+# coding=utf-8
 from __future__ import absolute_import, unicode_literals
 
 import inspect
@@ -20,11 +21,11 @@ from django.utils import timezone
 from HTMLParser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
-from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, RULE_SET, ACTION_SET
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
@@ -84,8 +85,8 @@ class TembaTest(SmartminTest):
         self.state1 = AdminBoundary.objects.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
         self.state2 = AdminBoundary.objects.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
         self.district1 = AdminBoundary.objects.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
-        self.district2 = AdminBoundary.objects.create(osm_id='1711163', name='Kayonza', level=2, parent=self.state2)
-        self.district3 = AdminBoundary.objects.create(osm_id='60485579', name='Kigali', level=2, parent=self.state1)
+        self.district2 = AdminBoundary.objects.create(osm_id='1711163', name='Kayônza', level=2, parent=self.state2)
+        self.district3 = AdminBoundary.objects.create(osm_id='3963734', name='Nyarugenge', level=2, parent=self.state1)
         self.district4 = AdminBoundary.objects.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
         self.ward1 = AdminBoundary.objects.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
         self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
@@ -219,9 +220,9 @@ class TembaTest(SmartminTest):
         """
         urns = []
         if number:
-            urns.append((TEL_SCHEME, number))
+            urns.append(URN.from_tel(number))
         if twitter:
-            urns.append((TWITTER_SCHEME, twitter))
+            urns.append(URN.from_twitter(twitter))
         if urn:
             urns.append(urn)
 
@@ -239,10 +240,17 @@ class TembaTest(SmartminTest):
 
         return Contact.get_or_create(**kwargs)
 
-    def create_group(self, name, contacts):
-        group = ContactGroup.create(self.org, self.user, name)
-        group.contacts.add(*contacts)
-        return group
+    def create_group(self, name, contacts=(), query=None):
+        if contacts and query:
+            raise ValueError("Can't provide contact list for a dynamic group")
+
+        if query:
+            return ContactGroup.create_dynamic(self.org, self.user, name, query=query)
+        else:
+            group = ContactGroup.create_static(self.org, self.user, name)
+            if contacts:
+                group.contacts.add(*contacts)
+            return group
 
     def create_msg(self, **kwargs):
         if 'org' not in kwargs:
@@ -323,10 +331,10 @@ class TembaTest(SmartminTest):
     def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
         # look up our destination, we need this in order to set the correct destination_type
-        destination_type = ACTION_SET
+        destination_type = FlowStep.TYPE_ACTION_SET
         action_destination = Flow.get_node(flow, destination, destination_type)
         if not action_destination:
-            destination_type = RULE_SET
+            destination_type = FlowStep.TYPE_RULE_SET
             ruleset_destination = Flow.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 
@@ -352,24 +360,23 @@ class TembaTest(SmartminTest):
         """
         Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
         """
-        self.assertEqual(len(values), sheet.ncols, msg="Expecting %d columns, found %d" % (len(values), sheet.ncols))
-
-        actual_values = []
         expected_values = []
-        for c in range(0, len(values)):
-            cell = sheet.cell(row_num, c)
-            actual = cell.value
-            expected = values[c]
-
-            if cell.ctype == XL_CELL_DATE:
-                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
-
+        for expected in values:
             # if expected value is datetime, localize and remove microseconds
             if isinstance(expected, datetime):
                 expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
 
-            actual_values.append(actual)
             expected_values.append(expected)
+
+        actual_values = []
+        for c in range(0, sheet.ncols):
+            cell = sheet.cell(row_num, c)
+            actual = cell.value
+
+            if cell.ctype == XL_CELL_DATE:
+                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
+
+            actual_values.append(actual)
 
         self.assertEqual(actual_values, expected_values)
 

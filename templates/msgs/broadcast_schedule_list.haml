@@ -34,6 +34,12 @@
             %td{colspan:3}
               -trans "No Matching schedules"
 
+  - block paginator
+    -if object_list.count
+      .paginator
+        -include "smartmin/sidebar_pagination.haml"
+
+
 -block extra-less
   -compress css inline
     {% lessblock %}

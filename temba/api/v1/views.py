@@ -15,20 +15,20 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView
-from temba.api.models import get_or_create_api_token, APIToken
+from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, Call, Label
+from temba.msgs.models import Broadcast, Msg, Label
 from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
-from ..models import ApiPermission, SSLPermission
+from ..models import APIPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
-from .serializers import CallSerializer, CampaignReadSerializer, CampaignWriteSerializer
+from .serializers import ChannelEventSerializer, CampaignReadSerializer, CampaignWriteSerializer
 from .serializers import CampaignEventReadSerializer, CampaignEventWriteSerializer
 from .serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
@@ -116,23 +116,21 @@ class AuthenticateEndpoint(SmartFormView):
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('email')
         password = form.cleaned_data.get('password')
-        role = form.cleaned_data.get('role')
+        role_code = form.cleaned_data.get('role')
 
         user = authenticate(username=username, password=password)
         if user and user.is_active:
             login(self.request, user)
 
+            role = APIToken.get_role_from_code(role_code)
             orgs = []
 
-            valid_orgs, role = APIToken.get_orgs_for_role(user, role)
             if role:
-                for org in valid_orgs:
-                    user.set_org(org)
-                    user.set_role(role)
-                    token = get_or_create_api_token(user)
+                valid_orgs = APIToken.get_orgs_for_role(user, role)
 
-                    if token:
-                        orgs.append(dict(id=org.pk, name=org.name, token=token))
+                for org in valid_orgs:
+                    token = APIToken.get_or_create(org, user, role)
+                    orgs.append(dict(id=org.pk, name=org.name, token=token.key))
             else:
                 return HttpResponse(status=403)
 
@@ -249,7 +247,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
-    permission_classes = (SSLPermission, ApiPermission)
+    permission_classes = (SSLPermission, APIPermission)
 
     @non_atomic_gets
     def dispatch(self, request, *args, **kwargs):
@@ -466,7 +464,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        return queryset.order_by('-created_on').prefetch_related('urns', 'contacts', 'groups')
+        return queryset.order_by('-created_on').select_related('org').prefetch_related('urns', 'contacts', 'groups')
 
     @classmethod
     def get_read_explorer(cls):
@@ -968,9 +966,9 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
             ...
 
     """
-    permission = 'msgs.call_api'
-    model = Call
-    serializer_class = CallSerializer
+    permission = 'channels.channelevent_api'
+    model = ChannelEvent
+    serializer_class = ChannelEventSerializer
     cache_counts = True
 
     def get_queryset(self):
@@ -998,7 +996,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
 
         call_types = splitting_getlist(self.request, 'call_type')
         if call_types:
-            queryset = queryset.filter(call_type__in=call_types)
+            queryset = queryset.filter(event_type__in=call_types)
 
         phones = splitting_getlist(self.request, 'phone')
         if phones:
@@ -1853,7 +1851,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
     run has the following attributes:
 
-    * **uuid** - the UUID of the run (string) (filterable: ```uuid``` repeatable)
+    * **run** - the id of the run (integer) (filterable: ```run``` repeatable)
     * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` repeatable)
     * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` repeatable)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
@@ -1877,7 +1875,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "previous": null,
             "results": [
             {
-                "uuid": "988e040c-33ff-4917-a36e-8cfa6a5ac731",
+                "run": 10150051,
                 "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-03-02T17:28:12",
@@ -2034,7 +2032,6 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             queryset = queryset.filter(org=org)
 
         # other queries on the runs themselves...
-
         runs = splitting_getlist(self.request, 'run')
         if runs:
             queryset = queryset.filter(pk__in=runs)

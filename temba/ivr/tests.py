@@ -2,17 +2,19 @@ from __future__ import unicode_literals
 
 import json
 import os
+import re
 
+from urlparse import urlparse
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.urlresolvers import reverse
 from mock import patch
 from temba.channels.models import TWILIO, CALL, ANSWER, SEND
 from temba.contacts.models import Contact
-from temba.flows.models import Flow, FAILED, FlowRun, ActionLog, FlowStep
+from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.msgs.models import Msg, IVR
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator
-from .models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER
+from .models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER, FAILED
 
 
 class IVRTests(FlowFileTest):
@@ -43,7 +45,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.import_file('call-me-maybe')
+        self.import_file('call_me_maybe')
         flow = Flow.objects.filter(name='Call me maybe').first()
 
         user_settings = self.admin.get_settings()
@@ -66,7 +68,7 @@ class IVRTests(FlowFileTest):
         # create our ivr setup
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
         self.org.save()
-        self.import_file('capture-recording')
+        self.import_file('capture_recording')
         flow = Flow.objects.filter(name='Capture Recording').first()
 
         # start our flow
@@ -83,9 +85,10 @@ class IVRTests(FlowFileTest):
         # recording (they give us a call status of completed at the same time)
         from temba.tests import MockResponse
         with patch('requests.get') as response:
-            mock = MockResponse(200, 'Fake Recording Bits')
-            mock.add_header('Content-Type', 'audio/x-wav')
-            response.return_value = mock
+            mock1 = MockResponse(404, 'No such file')
+            mock2 = MockResponse(200, 'Fake Recording Bits')
+            mock2.add_header('Content-Type', 'audio/x-wav')
+            response.side_effect = (mock1, mock2)
 
             self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
                              dict(CallStatus='completed',
@@ -294,7 +297,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.import_file('gather-digits')
+        self.import_file('gather_digits')
 
         # make sure our flow is there as expected
         flow = Flow.objects.filter(name='Gather Digits').first()
@@ -310,6 +313,9 @@ class IVRTests(FlowFileTest):
 
         # make sure we send the finishOnKey attribute to twilio
         self.assertContains(response, 'finishOnKey="#"')
+
+        # make sure we have a redirect to deal with empty responses
+        self.assertContains(response, 'empty=1')
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -331,7 +337,7 @@ class IVRTests(FlowFileTest):
         self.assertIsNotNone(self.org.get_twilio_client())
 
         # import an ivr flow
-        self.import_file('call-me-maybe')
+        self.import_file('call_me_maybe')
 
         # make sure our flow is there as expected
         flow = Flow.objects.filter(name='Call me maybe').first()
@@ -389,20 +395,25 @@ class IVRTests(FlowFileTest):
         self.assertEquals(20, call.duration)
         self.assertEquals(IN_PROGRESS, call.status)
 
-        # press the number 4 (unexpected)
-        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
+        # don't press any numbers, but # instead
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + "?empty=1", dict())
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
         self.assertEquals(4, self.org.get_credits_used())
 
+        # press the number 4 (unexpected)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
+        self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
+        self.assertEquals(6, self.org.get_credits_used())
+
         # two more messages, one inbound and it's response
-        self.assertEquals(3, Msg.all_messages.filter(msg_type=IVR).count())
+        self.assertEquals(5, Msg.all_messages.filter(msg_type=IVR).count())
 
         # now let's have them press the number 3 (for maybe)
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=3))
         self.assertContains(response, '<Say>This might be crazy.</Say>')
         messages = Msg.all_messages.filter(msg_type=IVR).order_by('pk')
-        self.assertEquals(5, messages.count())
-        self.assertEquals(6, self.org.get_credits_used())
+        self.assertEquals(7, messages.count())
+        self.assertEquals(8, self.org.get_credits_used())
 
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' not attached to step" % msg.text)
@@ -495,7 +506,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        flow = self.get_flow('rule-first-ivr')
+        flow = self.get_flow('rule_first_ivr')
 
         user_settings = self.admin.get_settings()
         user_settings.tel = '+18005551212'
@@ -536,7 +547,7 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.get_flow('call-me-maybe')
+        self.get_flow('call_me_maybe')
 
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
@@ -546,3 +557,24 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().first()
         self.assertEquals('+250788382382', call.contact_urn.path)
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_incoming_start(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.save()
+
+        self.get_flow('call_me_start')
+
+        # create an inbound call
+        post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
+                         From='+250788382382', To=self.channel.address)
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+
+        # grab the redirect URL
+        redirect_url = re.match(r'.*<Redirect>(.*)</Redirect>.*', response.content).group(1)
+
+        # get just the path and hit it
+        response = self.client.post(urlparse(redirect_url).path, post_data)
+        self.assertContains(response, "You are not part of group.")

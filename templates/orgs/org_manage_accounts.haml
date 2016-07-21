@@ -2,10 +2,94 @@
 - load smartmin temba compress
 - load i18n
 
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+
+        #id-channel {
+          a {
+            text-decoration:none;
+            &:hover {
+              text-decoration:none;
+            }
+          }
+        }
+
+        tr.invite td {
+          color: #ddd;
+        }
+
+        .glyph.level-checkbox:before {
+          content: "\e004";
+        }
+
+        td.check.checked .glyph.level-checkbox:before {
+          content: "\e05a";
+        }
+
+        .glyph.level-checkbox.checked:before {
+          content: "\e05a";
+        }
+
+        .glyph.level-checkbox {
+          font-family: 'temba';
+          speak: none;
+          font-style: normal;
+          font-weight: normal;
+          line-height: 1;
+          -webkit-font-smoothing: antialiased;
+          margin-top: 6px;
+          margin-right: 5px;
+          margin-top:2px;
+        }
+
+        .formax-form .table th, .table td {
+          border: 0px;
+        }
+
+        td.permission, th.permission {
+          text-align:center;
+        }
+
+        th.permission {
+          width:80px;
+        }
+
+        td.form {
+          border-top: 1px solid #eee;
+        }
+
+        #plan-form ul.errorlist li {
+          color: #fff;
+        }
+    {% endlessblock %}
+
+-block extra-style
+  {{ block.super }}
+  :css
+
+
+
+    th, td, .form-horizontal .control-label { 
+      width: inherit;
+      color: #999999;
+
+    }
+
+    .form-horizontal .form-actions {
+        padding-left: 5px;
+    }
+
+    .form-horizontal .controls, .form-horizontal .form-control {
+      margin-left:0px;
+    }
 - block form-span
   span8
 
 - block fields
+
   %table.table.table-condensed{style:"margin-bottom:0px;"}
     %thead
       %tr
@@ -23,7 +107,7 @@
           -trans "Remove"
     %tbody
       %tr#admin-error.hide
-        %td.alert.alert-error{colspan: 5}
+        %td.alert.alert-error{colspan: 6}
           -trans "You must have at least one administator"
       - for user in org_users
         %tr
@@ -57,16 +141,16 @@
             .glyph.level-checkbox{class:'{% if invite.user_group == "S"%}checked{%endif%}'}
 
       %tr
-        %td{height:'3px'}
+        %td{height:'3px', colspan:6}
 
       // add a new user
       %tr
         %td.form{colspan: 1}
           .field.formax-vertical
-            {% render_field 'emails' %}
+            {% render_field 'invite_emails' %}
         %td.form{colspan: 3}
           .field.formax-vertical
-            {% render_field 'user_group' %}
+            {% render_field 'invite_group' %}
 
 
 - block summary
