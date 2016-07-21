@@ -10,7 +10,7 @@ from uuid import uuid4
 import regex
 
 
-def migrate_export_to_version_9(exported_json, org, same_site=False):
+def migrate_export_to_version_9(exported_json, org, same_site=True):
     """
     Migrates remaining ids to uuids. Changes to uuids for Flows, Groups,
     Contacts and Channels inside of Actions, Triggers, Campaigns, Events
