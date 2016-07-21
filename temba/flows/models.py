@@ -435,7 +435,7 @@ class Flow(TembaModel):
             media_url = call.channel.get_ivr_client().download_media(media_url)
 
         # create a message to hold our inbound message
-        from temba.msgs.models import HANDLED, IVR
+        from temba.msgs.models import IVR
         if text is not None or media_url:
 
             # we don't have text for media, so lets use the media value there too
@@ -443,7 +443,7 @@ class Flow(TembaModel):
                 text = media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=HANDLED, msg_type=IVR, media=media_url)
+                                      text, status=PENDING, msg_type=IVR, media=media_url)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -471,6 +471,8 @@ class Flow(TembaModel):
         # if we handled it, increment our unread count
         if handled and not call.contact.is_test:
             run.flow.increment_unread_responses()
+            if msg.id:
+                Msg.mark_handled(msg)
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
@@ -582,7 +584,7 @@ class Flow(TembaModel):
             if destination.get_step_type() == FlowStep.TYPE_RULE_SET:
                 should_pause = False
 
-                # if we are a ruleset against @step or we have a webhook we wait
+                # check if we need to stop
                 if destination.is_pause() or msg.status == HANDLED:
                     should_pause = True
 
