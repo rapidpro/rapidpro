@@ -75,6 +75,18 @@
                 }
               ],
              "type": "add_label"
+            },
+            {
+              "field": "concat_test",
+              "type": "save",
+              "value": "@(CONCAT(extra.flow.divided, extra.flow.sky))",
+              "label": "Concat Test"
+            },
+            {
+              "field": "normal_test",
+              "type": "save",
+              "value": "@extra.contact.name",
+              "label": "Normal Test"
             }
           ]
         },

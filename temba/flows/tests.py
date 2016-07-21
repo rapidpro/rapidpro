@@ -4718,6 +4718,10 @@ class FlowMigrationTest(FlowFileTest):
         self.assertTrue('uuid' in flow_json['metadata'])
         self.assertTrue('saved_on' in flow_json['metadata'])
 
+        # check that our replacements work
+        self.assertEqual('@(CONCAT(parent.divided, parent.sky))', flow_json['action_sets'][0]['actions'][3]['value'])
+        self.assertEqual('@parent.contact.name', flow_json['action_sets'][0]['actions'][4]['value'])
+
     def test_migrate_to_8(self):
         # file uses old style expressions
         flow_json = self.get_flow_json('old_expressions')

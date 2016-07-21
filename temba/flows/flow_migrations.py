@@ -16,12 +16,28 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     Contacts and Channels inside of Actions, Triggers, Campaigns, Events
     """
 
+    def replace(str, match, replace):
+        rexp = regex.compile(match, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
+
+        # replace until no matches found
+        matches = 1
+        while matches:
+            (str, matches) = rexp.subn(replace, str)
+
+        return str
+
+    exported_string = json.dumps(exported_json)
+
     # any references to @extra.flow are now just @parent
-    exported_string = json.dumps(exported_json).replace('extra.flow', 'parent')
-    pattern = '@(extra\.flow)|@\(.*?(extra\.flow).*?\)'
-    rexp = regex.compile(pattern, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
-    exported_string = rexp.sub('flow', exported_string)
+    exported_string = replace(exported_string, '@(extra\.flow)', '@parent')
+    exported_string = replace(exported_string, '(@\(.*?)extra\.flow(.*?\))', r'\1parent\2')
+
+    # any references to @extra.contact are now @parent.contact
+    exported_string = replace(exported_string, '@(extra\.contact)', '@parent.contact')
+    exported_string = replace(exported_string, '(@\(.*?)extra\.contact(.*?\))', r'\1parent.contact\2')
+
     exported_json = json.loads(exported_string)
+    # print json.dumps(exported_json, indent=1)
 
     flow_id_map = {}
     group_id_map = {}

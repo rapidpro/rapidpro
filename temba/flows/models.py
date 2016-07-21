@@ -745,7 +745,7 @@ class Flow(TembaModel):
         return changed
 
     @classmethod
-    def build_flow_context(cls, flow, contact):
+    def build_flow_context(cls, flow, contact, contact_context=None):
         """
         Get a flow context built on the last run for the contact in the given flow
         """
@@ -773,6 +773,11 @@ class Flow(TembaModel):
                     values.append("%s: %s" % (value['label'], value['rule_value']))
 
             flow_context['__default__'] = "\n".join(values)
+
+            # if we don't have a contact context, build one
+            if not contact_context:
+                flow_context['contact'] = contact.build_message_context()
+
         return flow_context
 
     def as_select2(self):
@@ -1231,7 +1236,7 @@ class Flow(TembaModel):
         run_context = run.field_dict() if run else {}
 
         # our current flow context
-        flow_context = Flow.build_flow_context(self, contact)
+        flow_context = Flow.build_flow_context(self, contact, contact_context)
 
         context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
 
@@ -4692,18 +4697,12 @@ class TriggerFlowAction(VariableContactAction):
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         if self.flow:
-            message_context = run.flow.build_message_context(run.contact, msg)
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
-
             # start our contacts down the flow
             if not run.contact.is_test:
                 # our extra will be our flow variables in our message context
-                extra = message_context.get('extra', dict())
-                extra['contact'] = run.contact.build_message_context()
-                self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
-                                extra=extra, parent_run=run)
+                self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk], parent_run=run)
                 return []
-
             else:
                 unique_contacts = set()
                 for contact in contacts:
@@ -4794,20 +4793,14 @@ class StartFlowAction(Action):
         return dict(type=StartFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
     def execute(self, run, actionset_uuid, msg, started_flows, offline_on=None):
-        message_context = run.flow.build_message_context(run.contact, msg)
-
-        # our extra will be the current flow variables
-        extra = message_context.get('extra', {})
-
         # if they are both flow runs, just redirect the call
         if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
             new_run = self.flow.start([], [run.contact], started_flows=started_flows,
-                                      restart_participants=True, extra=extra, parent_run=run)[0]
+                                      restart_participants=True, parent_run=run)[0]
             url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
             run.voice_response.redirect(url)
         else:
-            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra,
-                            parent_run=run)
+            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, parent_run=run)
 
         self.logger(run)
         return []
