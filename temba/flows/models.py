@@ -4682,8 +4682,8 @@ class TriggerFlowAction(VariableContactAction):
         return TriggerFlowAction(flow, groups, contacts, variables)
 
     def as_json(self):
-        contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
+        contact_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.contacts]
+        group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=TriggerFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name),
                     contacts=contact_ids, groups=group_ids, variables=variables)
