@@ -1189,7 +1189,8 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
-        if status == PENDING:
+        # ivr messages are handled in handle_call
+        if status == PENDING and msg_type != IVR:
             msg.handle()
 
             # fire an event off for this message
