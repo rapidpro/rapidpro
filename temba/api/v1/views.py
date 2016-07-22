@@ -534,6 +534,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             D - Message was delivered to the recipient
             H - Incoming message was handled
             F - Message was not sent due to a failure
+            W - Message has been delivered to the channel
 
       * **type** - the type of the message, a string one of: (filterable: ```type``` repeatable)
 

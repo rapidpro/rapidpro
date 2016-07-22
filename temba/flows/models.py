@@ -436,7 +436,7 @@ class Flow(TembaModel):
             media_url = call.channel.get_ivr_client().download_media(media_url)
 
         # create a message to hold our inbound message
-        from temba.msgs.models import HANDLED, IVR
+        from temba.msgs.models import IVR
         if text is not None or media_url:
 
             # we don't have text for media, so lets use the media value there too
@@ -444,7 +444,7 @@ class Flow(TembaModel):
                 text = media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=HANDLED, msg_type=IVR, media=media_url)
+                                      text, status=PENDING, msg_type=IVR, media=media_url)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -472,6 +472,8 @@ class Flow(TembaModel):
         # if we handled it, increment our unread count
         if handled and not call.contact.is_test:
             run.flow.increment_unread_responses()
+            if msg.id:
+                Msg.mark_handled(msg)
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
@@ -583,7 +585,7 @@ class Flow(TembaModel):
             if destination.get_step_type() == FlowStep.TYPE_RULE_SET:
                 should_pause = False
 
-                # if we are a ruleset against @step or we have a webhook we wait
+                # check if we need to stop
                 if destination.is_pause() or msg.status == HANDLED:
                     should_pause = True
 
@@ -664,7 +666,6 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False):
-
         if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
 
             if not resume_parent_run:
@@ -1199,7 +1200,6 @@ class Flow(TembaModel):
         return (rulesets, rule_categories)
 
     def build_message_context(self, contact, msg):
-
         contact_context = contact.build_message_context() if contact else dict()
 
         # our default value
@@ -1242,7 +1242,7 @@ class Flow(TembaModel):
                 context['parent'] = Flow.build_flow_context(run.parent.flow, run.parent.contact)
 
             # see if we spawned any children and add them too
-            child_run = FlowRun.objects.filter(parent=run).first()
+            child_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
             if child_run:
                 context['child'] = Flow.build_flow_context(child_run.flow, child_run.contact)
 
@@ -1832,6 +1832,9 @@ class Flow(TembaModel):
         return send_actions
 
     def get_dependencies(self, dependencies=None):
+
+        # need to make sure we have the latest version to inspect dependencies
+        self.ensure_current_version()
 
         if not dependencies:
             dependencies = dict(flows=set(), groups=set(), campaigns=set(), triggers=set())
@@ -3063,7 +3066,6 @@ class RuleSet(models.Model):
         return self.ruleset_type in RuleSet.TYPE_WAIT
 
     def find_matching_rule(self, step, run, msg):
-
         orig_text = None
         if msg:
             orig_text = msg.text
@@ -5284,9 +5286,8 @@ class SubflowTest(Test):
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
 
     def evaluate(self, run, sms, context, text):
-
         # lookup the subflow run
-        subflow_run = FlowRun.objects.filter(parent=run).first()
+        subflow_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
 
         if subflow_run and SubflowTest.EXIT_MAP[self.exit_type] == subflow_run.exit_type:
             return 1, text

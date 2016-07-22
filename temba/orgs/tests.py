@@ -1878,6 +1878,30 @@ class LanguageTest(TembaTest):
 
 class BulkExportTest(TembaTest):
 
+    def test_get_dependencies(self):
+
+        # import a flow that triggers another flow
+        contact1 = self.create_contact("Marshawn", "+14255551212")
+        substitutions = dict(contact_id=contact1.id)
+        flow = self.get_flow('triggered', substitutions)
+
+        # read in the old version 8 raw json
+        old_json = json.loads(self.get_import_json('triggered', substitutions))
+        old_actions = old_json['flows'][1]['action_sets'][0]['actions']
+
+        # splice our actionset with old bits
+        actionset = flow.action_sets.all()[0]
+        actionset.actions = json.dumps(old_actions)
+        actionset.save()
+
+        # fake our version number back to 8
+        flow.version_number = 8
+        flow.save()
+
+        # now make sure a call to get dependencies succeeds and shows our flow
+        triggeree = Flow.objects.filter(name='Triggeree').first()
+        self.assertIn(triggeree, flow.get_dependencies()['flows'])
+
     def test_trigger_flow(self):
         self.import_file('triggered_flow')
 

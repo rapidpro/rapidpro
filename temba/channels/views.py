@@ -1923,7 +1923,7 @@ class ChannelCRUDL(SmartCRUDL):
             raise NotImplementedError('method "is_valid_country" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
-        def is_messaging_country(self, country_code):  # pragma: no cover
+        def is_messaging_country(self, country):  # pragma: no cover
             raise NotImplementedError('method "is_messaging_country" should be overridden in %s.%s'
                                       % (self.crudl.__class__.__name__, self.__class__.__name__))
 
@@ -2040,8 +2040,8 @@ class ChannelCRUDL(SmartCRUDL):
         def is_valid_country(self, country_code):
             return True
 
-        def is_messaging_country(self, country_code):
-            return country_code in TWILIO_SUPPORTED_COUNTRY_CODES
+        def is_messaging_country(self, country):
+            return country in [c[0] for c in TWILIO_SUPPORTED_COUNTRIES]
 
         def claim_number(self, user, phone_number, country, role):
             analytics.track(user.username, 'temba.channel_claim_twilio', properties=dict(number=phone_number))
@@ -2082,8 +2082,8 @@ class ChannelCRUDL(SmartCRUDL):
         def is_valid_country(self, country_code):
             return country_code in NEXMO_SUPPORTED_COUNTRY_CODES
 
-        def is_messaging_country(self, country_code):
-            return country_code in NEXMO_SUPPORTED_COUNTRY_CODES
+        def is_messaging_country(self, country):
+            return country in [c[0] for c in NEXMO_SUPPORTED_COUNTRIES]
 
         def get_search_url(self):
             return reverse('channels.channel_search_nexmo')
@@ -2192,8 +2192,8 @@ class ChannelCRUDL(SmartCRUDL):
         def is_valid_country(self, country_code):
             return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
 
-        def is_messaging_country(self, country_code):
-            return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
+        def is_messaging_country(self, country):
+            return country in [c[0] for c in PLIVO_SUPPORTED_COUNTRIES]
 
         def get_search_url(self):
             return reverse('channels.channel_search_plivo')
