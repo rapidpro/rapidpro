@@ -91,11 +91,8 @@ class BoundaryAlias(SmartModel):
     """
     Alternative names for a boundaries
     """
-
     name = models.CharField(max_length=128, help_text="The name for our alias")
 
-    boundary = models.ForeignKey(
-        AdminBoundary, help_text='The admin boundary this alias applies to', related_name='aliases')
+    boundary = models.ForeignKey(AdminBoundary, help_text='The admin boundary this alias applies to', related_name='aliases')
 
-    org = models.ForeignKey(
-        'orgs.Org', help_text="The org that owns this alias")
+    org = models.ForeignKey('orgs.Org', help_text="The org that owns this alias")
