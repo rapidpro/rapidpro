@@ -1239,6 +1239,9 @@ class OrgTest(TembaTest):
             self.assertEqual(self.org.config_json()['TRANSFERTO_ACCOUNT_LOGIN'], 'login')
             self.assertEqual(self.org.config_json()['TRANSFERTO_AIRTIME_API_TOKEN'], 'token')
 
+            response = self.client.get(transferto_account_url)
+            self.assertEqual(response.context['transferto_account_login'], 'login')
+
             # and disconnect
             response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
                                                                      disconnect='true'))

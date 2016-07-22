@@ -27,6 +27,60 @@ class AirtimeEventTest(TembaTest):
         self.assertEqual(Airtime.parse_transferto_response("foo=allo\r\nbar=1,2,3\r\n"),
                          dict(foo='allo', bar=['1', '2', '3']))
 
+    @patch('requests.post')
+    def test_post_transferto_api_response(self, mock_post):
+        mock_post.return_value = MockResponse(200, "foo=allo\r\nbar=1,2,3\r\n")
+
+        # Send airtime disabled should raise exception
+        with self.assertRaises(Exception):
+            Airtime.post_transferto_api_response('login_acc', 'token', action='ping')
+
+        with self.settings(SEND_AIRTIME=True):
+            model_obj_data = self.airtime.data
+            model_obj_response = self.airtime.response
+
+            response = Airtime.post_transferto_api_response('login_acc', 'token', action='ping')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
+
+            self.assertEqual(mock_post.call_count, 1)
+            self.assertEqual('https://fm.transfer-to.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
+            mock_args = mock_post.call_args_list[0][0][1]
+            self.assertTrue('action' in mock_args.keys())
+            self.assertTrue('login' in mock_args.keys())
+            self.assertTrue('key' in mock_args.keys())
+            self.assertTrue('md5' in mock_args.keys())
+
+            self.assertTrue('ping' in mock_args.values())
+            self.assertTrue('login_acc' in mock_args.values())
+
+            self.airtime.refresh_from_db()
+            # model not changed since not passed in args
+            self.assertEqual(self.airtime.data, model_obj_data)
+            self.assertEqual(self.airtime.response, model_obj_response)
+            mock_post.reset_mock()
+
+            response = Airtime.post_transferto_api_response('login_acc', 'token', airtime_obj=self.airtime,
+                                                            action='ping')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
+            self.assertEqual(mock_post.call_count, 1)
+            self.assertEqual('https://fm.transfer-to.com/cgi-bin/shop/topup', mock_post.call_args_list[0][0][0])
+            mock_args = mock_post.call_args_list[0][0][1]
+            self.assertTrue('action' in mock_args.keys())
+            self.assertTrue('login' in mock_args.keys())
+            self.assertTrue('key' in mock_args.keys())
+            self.assertTrue('md5' in mock_args.keys())
+
+            self.assertTrue('ping' in mock_args.values())
+            self.assertTrue('login_acc' in mock_args.values())
+
+            self.airtime.refresh_from_db()
+            # model changed since it is passed in args
+            self.assertNotEqual(self.airtime.data, model_obj_data)
+            self.assertNotEqual(self.airtime.response, model_obj_response)
+            mock_post.reset_mock()
+
     @patch('temba.airtime.models.Airtime.post_transferto_api_response')
     def test_get_transferto_response(self, mock_post_transferto):
         mock_post_transferto.return_value = MockResponse(200, "foo=allo\r\nbar=1,2,3\r\n")
@@ -95,6 +149,51 @@ class AirtimeEventTest(TembaTest):
         self.assertTrue(({'action': 'msisdn_info',
                           'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
         self.assertEqual(mock_response.call_count, 1)
+        mock_response.reset_mock()
+
+        # first error code not 0
+        mock_response.side_effect = [MockResponse(200, "error_code=1\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                       "product_list=5,10,20,30\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, Airtime.FAILED)
+        self.assertTrue(({'action': 'msisdn_info',
+                          'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
+        self.assertEqual(mock_response.call_count, 1)
+        mock_response.reset_mock()
+
+        # second error code not 0
+        mock_response.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                       "product_list=5,10,20,30\r\n"),
+                                     MockResponse(200, "error_code=1\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, Airtime.FAILED)
+
+        self.assertTrue(({'action': 'msisdn_info',
+                          'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
+        self.assertEqual(mock_response.call_count, 2)
+        mock_response.reset_mock()
+
+        # third error code not 0
+        mock_response.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                       "product_list=5,10,20,30\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                     MockResponse(200, "error_code=1\r\nerror_txt=\r\n")]
+
+        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, Airtime.FAILED)
+        self.assertTrue(({'action': 'msisdn_info',
+                          'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'topup', 'reserved_id': '234', 'msisdn': '',
+                          'destination_msisdn': '+12065552020',
+                          'product': float('10')},) in mock_response.call_args_list)
+        self.assertEqual(mock_response.call_count, 3)
         mock_response.reset_mock()
 
     def test_list(self):
