@@ -1,0 +1,33 @@
+{% extends "smartmin/read.html" %}
+
+-block title
+  .medium-help.icon-cloud-upload{ style:'float:left;' }
+  %h2.header-margin
+    Airtime Transfer Details
+
+-block above-bar
+  %a.btn.btn-primary{ href: '{% url "airtime.airtime_list" %}' } Back
+
+-block post-fields
+  -if show_logs
+    %hr
+    %h3 Data posted Log
+    %pre.data.prettyprint{ style:'margin-top:10px;' }<
+      {{ object.data|default:"" }}
+    %hr
+    %h3 Responses Log
+    %pre.responses.prettyprint{ style:'margin-top:10px;' }<
+      {{ object.response|default:"" }}
+
+
+-block extra-script
+  {{ block.super }}
+  <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
+  :javascript
+    $(function(){
+      prettyPrint();
+    });
+
+-block extra-style
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
