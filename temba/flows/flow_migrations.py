@@ -16,11 +16,26 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     Contacts and Channels inside of Actions, Triggers, Campaigns, Events
     """
 
+    def replace(str, match, replace):
+        rexp = regex.compile(match, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
+
+        # replace until no matches found
+        matches = 1
+        while matches:
+            (str, matches) = rexp.subn(replace, str)
+
+        return str
+
+    exported_string = json.dumps(exported_json)
+
     # any references to @extra.flow are now just @parent
-    exported_string = json.dumps(exported_json).replace('extra.flow', 'parent')
-    pattern = '@(extra\.flow)|@\(.*?(extra\.flow).*?\)'
-    rexp = regex.compile(pattern, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
-    exported_string = rexp.sub('flow', exported_string)
+    exported_string = replace(exported_string, '@(extra\.flow)', '@parent')
+    exported_string = replace(exported_string, '(@\(.*?)extra\.flow(.*?\))', r'\1parent\2')
+
+    # any references to @extra.contact are now @parent.contact
+    exported_string = replace(exported_string, '@(extra\.contact)', '@parent.contact')
+    exported_string = replace(exported_string, '(@\(.*?)extra\.contact(.*?\))', r'\1parent.contact\2')
+
     exported_json = json.loads(exported_string)
 
     flow_id_map = {}
@@ -112,13 +127,12 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     for flow in exported_json.get('flows', []):
         for action_set in flow['action_sets']:
             for action in action_set['actions']:
-                if action['type'] in ('add_group', 'del_group', 'send'):
+                if action['type'] in ('add_group', 'del_group', 'send', 'trigger-flow'):
                     groups = []
                     for group_json in action.get('groups', []):
                         groups.append(remap_group(group_json))
                     for contact_json in action.get('contacts', []):
                         remap_contact(contact_json)
-
                     if groups:
                         action['groups'] = groups
                 if action['type'] in ('trigger-flow', 'flow'):
