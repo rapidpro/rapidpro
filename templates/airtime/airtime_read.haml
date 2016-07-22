@@ -1,4 +1,5 @@
 {% extends "smartmin/read.html" %}
+{% load smartmin i18n %}
 
 -block title
   .medium-help.icon-cloud-upload{ style:'float:left;' }
@@ -12,12 +13,19 @@
   -if show_logs
     %hr
     %h3 Data posted Log
-    %pre.data.prettyprint{ style:'margin-top:10px;' }<
-      {{ object.data|default:"" }}
+      %pre.data.prettyprint{ style:'margin-top:10px;' }<
+        -if object.data
+          {{ object.data|default:"" }}
+        -else
+          -trans "No Data"
+
     %hr
     %h3 Responses Log
     %pre.responses.prettyprint{ style:'margin-top:10px;' }<
-      {{ object.response|default:"" }}
+      -if object.response
+        {{ object.response|default:"" }}
+      -else
+        -trans "No Response"
 
 
 -block extra-script

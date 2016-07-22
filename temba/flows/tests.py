@@ -4567,7 +4567,7 @@ class FlowsTest(FlowFileTest):
     def test_airtime_trigger_event(self, mock_post_transferto):
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
                                                               "product_list=5,10,20,30\r\n"),
-                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserve_id=234\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
         self.org.connect_transferto('mylogin', 'api_token', self.admin)
@@ -4588,7 +4588,7 @@ class FlowsTest(FlowFileTest):
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=Rwanda\r\n"
                                                               "product_list=5,10,20,30\r\n"),
-                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserve_id=234\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
         runs = flow.start_msg_flow([self.contact.id])
@@ -4607,7 +4607,7 @@ class FlowsTest(FlowFileTest):
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
                                                               "product_list=5,10,20,30\r\n"),
-                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserve_id=234\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
         test_contact = Contact.get_test_contact(self.admin)
@@ -4639,7 +4639,7 @@ class FlowsTest(FlowFileTest):
 
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
                                                               "product_list=5,10,20,30\r\n"),
-                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserve_id=234\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                             MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
         runs = flow.start_msg_flow([self.contact.id])

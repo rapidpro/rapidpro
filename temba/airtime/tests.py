@@ -1,6 +1,7 @@
 from django.core.urlresolvers import reverse
 from mock import patch
 from temba.airtime.models import Airtime
+from temba.flows.models import RuleSet
 from temba.tests import TembaTest, MockResponse
 
 
@@ -8,9 +9,9 @@ class AirtimeEventTest(TembaTest):
     def setUp(self):
         super(AirtimeEventTest, self).setUp()
 
-        self.contact = self.create_contact('Bob', number='+250788123123')
+        self.contact = self.create_contact('Ben Haggerty', '+12065552020')
         self.org.connect_transferto('mylogin', 'api_token', self.admin)
-        self.airtime = Airtime.objects.create(org=self.org, recipient='+250788123123', amount='100',
+        self.airtime = Airtime.objects.create(org=self.org, recipient='+12065552020', amount='100',
                                               contact=self.contact, created_by=self.admin, modified_by=self.admin)
 
     def test_parse_transferto_response(self):
@@ -27,16 +28,74 @@ class AirtimeEventTest(TembaTest):
                          dict(foo='allo', bar=['1', '2', '3']))
 
     @patch('temba.airtime.models.Airtime.post_transferto_api_response')
-    def test_get_transferto_response_json(self, mock_post_transferto):
+    def test_get_transferto_response(self, mock_post_transferto):
         mock_post_transferto.return_value = MockResponse(200, "foo=allo\r\nbar=1,2,3\r\n")
 
         with self.settings(SEND_AIRTIME=True):
-            response = self.airtime.get_transferto_response_json(action='command')
+            response = self.airtime.get_transferto_response(action='command')
             self.assertEqual(200, response.status_code)
             self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
 
             mock_post_transferto.assert_called_once_with('mylogin', 'api_token', airtime_obj=self.airtime,
                                                          action='command')
+
+    @patch('temba.airtime.models.Airtime.get_transferto_response')
+    def test_airtime_trigger_event(self, mock_response):
+        flow = self.get_flow('airtime')
+        ruleset = RuleSet.objects.get(flow=flow)
+        org = flow.org
+
+        # disconnect transferTo account
+        org.remove_transferto_account(self.admin)
+        mock_response.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                       "product_list=5,10,20,30\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, Airtime.FAILED)
+        self.assertEqual(airtime.contact, self.contact)
+        self.assertEqual(airtime.message, "Error transferring airtime: No transferTo Account connected to "
+                                          "this organization")
+
+        # we never call TransferTo API if no account is connected
+        self.assertEqual(mock_response.call_count, 0)
+        mock_response.reset_mock()
+
+        # now have an account connected
+        org.connect_transferto('mylogin', 'api_token', self.admin)
+
+        mock_response.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                       "product_list=5,10,20,30\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, Airtime.COMPLETE)
+        self.assertEqual(airtime.contact, self.contact)
+        self.assertEqual(airtime.message, "Airtime Transferred Successfully")
+        self.assertEqual(mock_response.call_count, 3)
+        self.assertTrue(({'action': 'msisdn_info',
+                          'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
+        self.assertTrue(({'action': 'topup', 'reserve_id': '234', 'msisdn': '',
+                          'destination_msisdn': '+12065552020',
+                          'product': float('10')},) in mock_response.call_args_list)
+        mock_response.reset_mock()
+
+        mock_response.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=Rwanda\r\n"
+                                                       "product_list=5,10,20,30\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                     MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, Airtime.FAILED)
+        self.assertEqual(airtime.message, "Error transferring airtime: Failed by invalid amount "
+                                          "configuration or missing amount configuration for Rwanda")
+        self.assertTrue(({'action': 'msisdn_info',
+                          'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
+        self.assertEqual(mock_response.call_count, 1)
+        mock_response.reset_mock()
 
     def test_list(self):
         list_url = reverse('airtime.airtime_list')

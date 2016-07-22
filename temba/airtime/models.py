@@ -87,7 +87,7 @@ class Airtime(SmartModel):
 
         return parsed
 
-    def get_transferto_response_json(self, **kwargs):
+    def get_transferto_response(self, **kwargs):
         config = self.org.config_json()
         login = config.get(TRANSFERTO_ACCOUNT_LOGIN, '')
         token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, '')
@@ -100,6 +100,7 @@ class Airtime(SmartModel):
         api_user = get_api_user()
 
         channel = None
+        contact_urn = None
         # if we have an SMS event use its channel and contact urn
         if event:
             channel = event.channel
@@ -121,7 +122,7 @@ class Airtime(SmartModel):
 
             action = 'msisdn_info'
             request_kwargs = dict(action=action, destination_msisdn=airtime.recipient)
-            response = airtime.get_transferto_response_json(**request_kwargs)
+            response = airtime.get_transferto_response(**request_kwargs)
             content_json = Airtime.parse_transferto_response(response.content)
 
             error_code = int(content_json.get('error_code', None))
@@ -164,7 +165,7 @@ class Airtime(SmartModel):
 
             action = 'reserve_id'
             request_kwargs = dict(action=action)
-            response = airtime.get_transferto_response_json(**request_kwargs)
+            response = airtime.get_transferto_response(**request_kwargs)
             content_json = Airtime.parse_transferto_response(response.content)
 
             error_code = int(content_json.get('error_code', None))
@@ -175,7 +176,7 @@ class Airtime(SmartModel):
                 airtime.status = Airtime.FAILED
                 raise Exception(message)
 
-            transaction_id = content_json.get('reserve_id')
+            transaction_id = content_json.get('reserved_id')
 
             action = 'topup'
             request_kwargs = dict(action=action,
@@ -183,7 +184,7 @@ class Airtime(SmartModel):
                                   msisdn=channel.address if channel else '',
                                   destination_msisdn=airtime.recipient,
                                   product=airtime.denomination)
-            response = airtime.get_transferto_response_json(**request_kwargs)
+            response = airtime.get_transferto_response(**request_kwargs)
             content_json = Airtime.parse_transferto_response(response.content)
 
             error_code = int(content_json.get('error_code', None))
