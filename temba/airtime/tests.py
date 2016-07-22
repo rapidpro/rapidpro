@@ -78,7 +78,7 @@ class AirtimeEventTest(TembaTest):
         self.assertTrue(({'action': 'msisdn_info',
                           'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
         self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
-        self.assertTrue(({'action': 'topup', 'reserve_id': '234', 'msisdn': '',
+        self.assertTrue(({'action': 'topup', 'reserved_id': '234', 'msisdn': '',
                           'destination_msisdn': '+12065552020',
                           'product': float('10')},) in mock_response.call_args_list)
         mock_response.reset_mock()

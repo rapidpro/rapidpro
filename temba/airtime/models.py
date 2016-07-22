@@ -180,7 +180,7 @@ class Airtime(SmartModel):
 
             action = 'topup'
             request_kwargs = dict(action=action,
-                                  reserve_id=transaction_id,
+                                  reserved_id=transaction_id,
                                   msisdn=channel.address if channel else '',
                                   destination_msisdn=airtime.recipient,
                                   product=airtime.denomination)
