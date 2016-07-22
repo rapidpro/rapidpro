@@ -2534,6 +2534,11 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, test_contact.pk)
         test.execute(run, None, sms)
 
+        ActionLog.objects.all().delete()
+        action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='foo@bar.com'))
+        action.execute(run, None, None)
+        self.assertEquals(ActionLog.objects.get().text, "Added foo@bar.com as @contact.mailto - skipped in simulator")
+
         # URN should be unchanged on the simulator contact
         test_contact = Contact.objects.get(id=test_contact.id)
         self.assertEquals(test_contact_urn, test_contact.urns.all().first())
@@ -3468,6 +3473,8 @@ class FlowsTest(FlowFileTest):
 
         assert_in_response(response, 'message_completions', 'contact')
         assert_in_response(response, 'message_completions', 'contact.first_name')
+        assert_in_response(response, 'message_completions', 'contact.tel')
+        assert_in_response(response, 'message_completions', 'contact.mailto')
         assert_in_response(response, 'message_completions', 'flow.color')
         assert_in_response(response, 'message_completions', 'flow.color.category')
         assert_in_response(response, 'message_completions', 'flow.color.text')

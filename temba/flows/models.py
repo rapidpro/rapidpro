@@ -4923,7 +4923,6 @@ class SaveToContactAction(Action):
             new_urn = URN.normalize(URN.from_parts(scheme, new_value))
             if not URN.validate(new_urn, contact.org.get_country_code()):
                 new_urn = None
-            else:
                 if contact.is_test:
                     ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
 
@@ -4931,11 +4930,11 @@ class SaveToContactAction(Action):
                 urns = [urn.urn for urn in contact.urns.all()]
                 urns += [new_urn]
 
-                if not contact.is_test:
-                    # don't really update URNs on test contacts
-                    contact.update_urns(user, urns)
+                # don't really update URNs on test contacts
+                if contact.is_test:
+                    ActionLog.info(run, _("Added %s as @contact.%s - skipped in simulator" % (new_value, scheme)))
                 else:
-                    ActionLog.info(run, _('Added new connection for contact (%s:%s)' % (scheme, new_value)))
+                    contact.update_urns(user, urns)
 
         else:
             new_value = value[:640]
