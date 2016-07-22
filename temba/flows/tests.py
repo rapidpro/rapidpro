@@ -3086,6 +3086,24 @@ class WebhookTest(TembaTest):
         super(WebhookTest, self).tearDown()
         settings.SEND_WEBHOOKS = False
 
+    def test_webhook_subflow_extra(self):
+        # import out flow that triggers another flow
+        contact1 = self.create_contact("Marshawn", "+14255551212")
+        substitutions = dict(contact_id=contact1.id)
+        flow = self.get_flow('triggered', substitutions)
+
+        with patch('requests.get') as get:
+            get.return_value = MockResponse(200, '{ "text": "(I came from a webhook)" }')
+            flow.start(groups=[], contacts=[contact1], restart_participants=True)
+
+            # first message from our trigger flow action
+            msg = Msg.all_messages.all().order_by('-created_on')[0]
+            self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
+
+            # second message from our start flow action
+            msg = Msg.all_messages.all().order_by('-created_on')[1]
+            self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
+
     def test_webhook(self):
         self.flow = self.create_flow()
         self.contact = self.create_contact("Ben Haggerty", '+250788383383')

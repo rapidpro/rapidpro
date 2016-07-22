@@ -37,7 +37,6 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     exported_string = replace(exported_string, '(@\(.*?)extra\.contact(.*?\))', r'\1parent.contact\2')
 
     exported_json = json.loads(exported_string)
-    # print json.dumps(exported_json, indent=1)
 
     flow_id_map = {}
     group_id_map = {}
@@ -128,13 +127,12 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     for flow in exported_json.get('flows', []):
         for action_set in flow['action_sets']:
             for action in action_set['actions']:
-                if action['type'] in ('add_group', 'del_group', 'send'):
+                if action['type'] in ('add_group', 'del_group', 'send', 'trigger-flow'):
                     groups = []
                     for group_json in action.get('groups', []):
                         groups.append(remap_group(group_json))
                     for contact_json in action.get('contacts', []):
                         remap_contact(contact_json)
-
                     if groups:
                         action['groups'] = groups
                 if action['type'] in ('trigger-flow', 'flow'):

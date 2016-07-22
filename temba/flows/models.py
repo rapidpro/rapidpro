@@ -4697,11 +4697,14 @@ class TriggerFlowAction(VariableContactAction):
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         if self.flow:
+            message_context = run.flow.build_message_context(run.contact, msg)
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
             # start our contacts down the flow
             if not run.contact.is_test:
                 # our extra will be our flow variables in our message context
-                self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk], parent_run=run)
+                extra = message_context.get('extra', dict())
+                self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
+                                extra=extra, parent_run=run)
                 return []
             else:
                 unique_contacts = set()
@@ -4793,14 +4796,20 @@ class StartFlowAction(Action):
         return dict(type=StartFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
     def execute(self, run, actionset_uuid, msg, started_flows, offline_on=None):
+
+        # our extra will be our flow variables in our message context
+        message_context = run.flow.build_message_context(run.contact, msg)
+        extra = message_context.get('extra', dict())
+
         # if they are both flow runs, just redirect the call
         if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
             new_run = self.flow.start([], [run.contact], started_flows=started_flows,
-                                      restart_participants=True, parent_run=run)[0]
+                                      restart_participants=True, extra=extra, parent_run=run)[0]
             url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
             run.voice_response.redirect(url)
         else:
-            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, parent_run=run)
+            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
+                            extra=extra, parent_run=run)
 
         self.logger(run)
         return []

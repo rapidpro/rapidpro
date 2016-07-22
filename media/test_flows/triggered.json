@@ -1,7 +1,7 @@
 {
   "campaigns": [],
   "version": 8,
-  "site": "https://app.rapidpro.io",
+  "site": "http://rapidpro.io",
   "flows": [
     {
       "base_language": "eng",
@@ -14,7 +14,7 @@
           "actions": [
             {
               "msg": {
-                "eng": "Honey, I triggered the flow!"
+                "eng": "Honey, I triggered the flow! @extra.text"
               },
               "type": "reply"
             }
@@ -43,16 +43,9 @@
           "uuid": "06a3be8b-36f9-4f73-b31a-95a1e8ee920d",
           "actions": [
             {
-              "name": "Trigger Flow Test",
+              "name": "Triggeree",
               "contacts": [
                 {
-                  "urns": [
-                    {
-                      "priority": 50,
-                      "path": "+13606208214",
-                      "scheme": "tel"
-                    }
-                  ],
                   "name": "Marshawn",
                   "id": contact_id
                 }
@@ -61,14 +54,45 @@
               "groups": [],
               "type": "trigger-flow",
               "id": 25994
+            },
+            {
+              "name": "Triggeree",
+              "type": "flow",
+              "id": 25994
             }
           ]
         }
       ],
       "version": 8,
       "flow_type": "F",
-      "entry": "06a3be8b-36f9-4f73-b31a-95a1e8ee920d",
-      "rule_sets": [],
+      "entry": "98d0948b-c50d-4033-b07c-403d324aa147",
+      "rule_sets": [{
+          "uuid": "98d0948b-c50d-4033-b07c-403d324aa147",
+          "webhook_action": "GET",
+          "rules": [
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "eng": "All Responses"
+              },
+              "destination": "06a3be8b-36f9-4f73-b31a-95a1e8ee920d",
+              "uuid": "1e89ff33-80fe-4d34-9ced-3b96f5aacd50",
+              "destination_type": "A"
+            }
+          ],
+          "webhook": "http://catfacts-api.appspot.com/api/facts?number=1",
+          "ruleset_type": "webhook",
+          "label": "Response 1",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 0,
+          "x": 328,
+          "config": {}
+        }],
       "metadata": {
         "expires": 10080,
         "revision": 1,
