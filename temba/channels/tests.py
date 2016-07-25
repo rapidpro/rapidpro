@@ -46,6 +46,7 @@ from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, Chann
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS, GLOBE
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
+from .models import CALL, ANSWER, SEND_BODY, SEND, RECEIVE
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
 
@@ -1179,7 +1180,27 @@ class ChannelTest(TembaTest):
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
 
                 # make sure it is actually connected
-                Channel.objects.get(channel_type='T', org=self.org)
+                channel = Channel.objects.get(channel_type='T', org=self.org)
+                self.assertEqual(channel.role, CALL + ANSWER + SEND + RECEIVE)
+
+        # voice only number
+        with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
+            mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+554139087835')]
+
+            with patch('temba.tests.MockTwilioClient.MockShortCodes.list') as mock_short_codes:
+                mock_short_codes.return_value = []
+                Channel.objects.all().delete()
+
+                response = self.client.get(claim_twilio)
+                self.assertContains(response, '+55 41 3908-7835')
+
+                # claim it
+                response = self.client.post(claim_twilio, dict(country='BR', phone_number='554139087835'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                channel = Channel.objects.get(channel_type='T', org=self.org)
+                self.assertEqual(channel.role, CALL + ANSWER)
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.list') as mock_numbers:
             mock_numbers.return_value = [MockTwilioClient.MockPhoneNumber('+4545335500')]
@@ -1416,6 +1437,7 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='NX', org=self.org)
+                self.assertEqual(channel.role, SEND + RECEIVE)
 
                 # test the update page for nexmo
                 update_url = reverse('channels.channel_update', args=[channel.pk])
@@ -1504,6 +1526,7 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='PL', org=self.org)
+                self.assertEqual(channel.role, SEND + RECEIVE)
                 self.assertEquals(channel.config_json(), {PLIVO_AUTH_ID: 'auth-id',
                                                           PLIVO_AUTH_TOKEN: 'auth-token',
                                                           PLIVO_APP_ID: 'app-id'})
@@ -3010,16 +3033,52 @@ class ExternalTest(TembaTest):
                                           SEND_METHOD: 'GET'})
         self.channel.save()
 
-        try:
-            settings.SEND_MESSAGES = True
-
+        with self.settings(SEND_MESSAGES=True):
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "Sent")
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send&text=Test+message&to=250788383383')
 
-        finally:
-            settings.SEND_MESSAGES = False
+        self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send',
+                                          SEND_METHOD: 'POST'})
+        self.channel.save()
+        self.clear_cache()
+
+        with self.settings(SEND_MESSAGES=True):
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, "Sent")
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
+                self.assertEqual(mock.call_args[1]['data'], 'id=%d&text=Test+message&to=%%2B250788383383&to_no_plus=250788383383&'
+                                                            'from=%%2B250788123123&from_no_plus=250788123123&'
+                                                            'channel=%d' % (sms.id, self.channel.id))
+
+        self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send',
+                                          SEND_BODY: 'text={{text}}&to={{to_no_plus}}',
+                                          SEND_METHOD: 'POST'})
+        self.channel.save()
+        self.clear_cache()
+
+        with self.settings(SEND_MESSAGES=True):
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, "Sent")
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
+                self.assertEqual(mock.call_args[1]['data'], 'text=Test+message&to=250788383383')
+
+        self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send',
+                                          SEND_BODY: 'text={{text}}&to={{to_no_plus}}',
+                                          SEND_METHOD: 'PUT'})
+
+        self.channel.save()
+        self.clear_cache()
+
+        with self.settings(SEND_MESSAGES=True):
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, "Sent")
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
+                self.assertEqual(mock.call_args[1]['data'], 'text=Test+message&to=250788383383')
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
@@ -5289,7 +5348,7 @@ class TelegramTest(TembaTest):
         self.assertEquals("Hello World", msg1.text)
         self.assertEqual(msg1.contact.name, 'Nic Pottier')
 
-        def test_file_message(data, file_path, content_type, extension):
+        def test_file_message(data, file_path, content_type, extension, caption=None):
 
             Msg.all_messages.all().delete()
 
@@ -5304,13 +5363,19 @@ class TelegramTest(TembaTest):
 
                     # should have a media message now with an image
                     msgs = Msg.all_messages.all().order_by('-created_on')
-                    self.assertEqual(msgs.count(), 1)
 
-                    self.assertTrue(msgs[0].media.startswith('%s:https://' % content_type))
-                    self.assertTrue(msgs[0].media.endswith(extension))
+                    offset = 1 if caption else 0
+                    if caption:
+                        self.assertEqual(msgs.count(), 2)
+                        self.assertEqual(msgs[0].text, caption)
+                    else:
+                        self.assertEqual(msgs.count(), 1)
 
-                    self.assertTrue(msgs[0].text.startswith('https://'))
-                    self.assertTrue(msgs[0].text.endswith(extension))
+                    self.assertTrue(msgs[offset].media.startswith('%s:https://' % content_type))
+                    self.assertTrue(msgs[offset].media.endswith(extension))
+
+                    self.assertTrue(msgs[offset].text.startswith('https://'))
+                    self.assertTrue(msgs[offset].text.endswith(extension))
 
         # stickers are allowed
         sticker_data = """
@@ -5399,6 +5464,7 @@ class TelegramTest(TembaTest):
         {
           "update_id":414383173,
           "message":{
+            "caption": "Check out this amazeballs video",
             "message_id":54,
             "from":{
               "id":25028612,
@@ -5462,7 +5528,7 @@ class TelegramTest(TembaTest):
 
         test_file_message(sticker_data, 'file/image.webp', "image/webp", "webp")
         test_file_message(photo_data, 'file/image.jpg', "image/jpeg", "jpg")
-        test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4")
+        test_file_message(video_data, 'file/video.mp4', "video/mp4", "mp4", caption="Check out this amazeballs video")
         test_file_message(audio_data, 'file/audio.oga', "audio/ogg", "oga")
 
         location_data = """
@@ -6756,8 +6822,7 @@ class FacebookTest(TembaTest):
             "timestamp": 1459991487970
           }],
           "time": 1459991487970
-        }]
-        }
+        }]}
         """
         data = json.loads(data)
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
@@ -6766,6 +6831,40 @@ class FacebookTest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(msg.text, "http://mediaurl.com/img.gif")
+
+        # link attachment
+        data = """{
+          "object":"page",
+          "entry":[{
+            "id":"32408604530",
+            "time":1468418021822,
+            "messaging":[{
+              "sender":{"id":"5678"},
+              "recipient":{"id":"1234"},
+              "timestamp":1468417833159,
+              "message": {
+                "mid":"external_id",
+                "seq":11242,
+                "attachments":[{
+                  "title":"Get in touch with us.",
+                  "url": "http:\x5c/\x5c/m.me\x5c/",
+                  "type": "fallback",
+                  "payload": null
+                }]
+              }
+            }]
+          }]
+        }
+        """
+        Msg.all_messages.all().delete()
+
+        data = json.loads(data)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.all_messages.get()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(msg.text, "Get in touch with us.\nhttp://m.me/")
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="facebook:1234")

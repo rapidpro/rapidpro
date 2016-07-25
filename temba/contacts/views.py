@@ -378,7 +378,15 @@ class ContactCRUDL(SmartCRUDL):
     class Customize(OrgPermsMixin, SmartUpdateView):
 
         class CustomizeForm(forms.ModelForm):
+            def __init__(self, *args, **kwargs):
+                self.org = kwargs['org']
+                del kwargs['org']
+                super(ContactCRUDL.Customize.CustomizeForm, self).__init__(*args, **kwargs)
+
             def clean(self):
+
+                existing_contact_fields = ContactField.objects.filter(org=self.org, is_active=True).values('key', 'label')
+                existing_contact_fields_map = {elt['label']: elt['key'] for elt in existing_contact_fields}
 
                 used_labels = []
                 # don't allow users to specify field keys or labels
@@ -395,11 +403,17 @@ class ContactCRUDL(SmartCRUDL):
                             raise ValidationError(_("Field names can only contain letters, numbers, "
                                                     "hypens"))
 
-                        if field_key in Contact.RESERVED_FIELDS:
-                            raise ValidationError(_("%s is a reserved name for contact fields") % value)
+                        if not ContactField.is_valid_key(field_key):
+                            raise ValidationError(_("%s is an invalid name or is a reserved name for contact fields, "
+                                                    "field names should start with a letter.") % value)
 
                         if field_label in used_labels:
                             raise ValidationError(_("%s should be used once") % field_label)
+
+                        existing_key = existing_contact_fields_map.get(field_label, None)
+                        if existing_key and existing_key in Contact.RESERVED_FIELDS:
+                            raise ValidationError(_("'%s' contact field has '%s' key which is reserved name. "
+                                                    "Column cannot be imported") % (value, existing_key))
 
                         used_labels.append(field_label)
 
@@ -485,6 +499,11 @@ class ContactCRUDL(SmartCRUDL):
             context['contact_fields'] = json.dumps(contact_fields)
 
             return context
+
+        def get_form_kwargs(self):
+            kwargs = super(ContactCRUDL.Customize, self).get_form_kwargs()
+            kwargs['org'] = self.derive_org()
+            return kwargs
 
         def get_form(self, form_class):
             form = super(ContactCRUDL.Customize, self).get_form(form_class)
@@ -1259,7 +1278,7 @@ class ManageFieldsForm(forms.Form):
                         raise forms.ValidationError(_("Field names can only contain letters, numbers and hypens"))
 
                     if label.lower() in used_labels:
-                        raise ValidationError(_("Field names must be unique"))
+                        raise ValidationError(_("Field names must be unique. '%s' is duplicated") % label)
 
                     elif not ContactField.is_valid_key(ContactField.make_key(label)):
                         raise forms.ValidationError(_("Field name '%s' is a reserved word") % label)

@@ -1,3 +1,4 @@
+
 from __future__ import absolute_import, unicode_literals
 
 import hmac
@@ -173,6 +174,8 @@ class WebHookEvent(SmartModel):
         data = dict(channel=channel_id,
                     relayer=channel_id,
                     flow=flow.id,
+                    flow_name=flow.name,
+                    flow_base_language=flow.base_language,
                     run=run.id,
                     text=text,
                     step=unicode(node_uuid),
@@ -243,6 +246,11 @@ class WebHookEvent(SmartModel):
 
         finally:
             webhook_event.save()
+
+            # make sure our message isn't too long
+            if message:
+                message = message[:255]
+
             result = WebHookResult.objects.create(event=webhook_event,
                                                   url=webhook_url,
                                                   status_code=status_code,

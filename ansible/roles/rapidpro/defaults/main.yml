@@ -1,0 +1,5 @@
+---
+
+project_user: vagrant
+project_path: /home/{{ project_user }}/rapidpro
+pip_requirements_file: pip-freeze.txt

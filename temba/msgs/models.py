@@ -341,7 +341,7 @@ class Broadcast(models.Model):
         return commands
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, base_language=None, partial_recipients=None):
+             created_on=None, base_language=None, partial_recipients=None, run_map=None):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
         """
@@ -412,6 +412,19 @@ class Broadcast(models.Model):
 
             # find the right text to send
             text = Language.get_localized_text(text_translations, preferred_languages, self.text)
+
+            # add in our parent context if the message references @parent
+            if run_map:
+                run = run_map.get(recipient.pk, None)
+                if run and run.flow:
+                    # a bit kludgy here, but should avoid most unnecessary context creations.
+                    # since this path is an optimization for flow starts, we don't need to
+                    # worry about the @child context.
+                    if 'parent' in text:
+                        if run.parent:
+                            from temba.flows.models import Flow
+                            message_context = message_context.copy()
+                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
 
             try:
                 msg = Msg.create_outgoing(org,
@@ -1129,7 +1142,10 @@ class Msg(models.Model):
         elif urn:
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
 
-        # check our URN's affinity
+        # set the preferred channel for this contact
+        contact.set_preferred_channel(channel)
+
+        # and update this URN to make sure it is associated with this channel
         if contact_urn:
             contact_urn.update_affinity(channel)
 
@@ -1173,7 +1189,8 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
-        if status == PENDING:
+        # ivr messages are handled in handle_call
+        if status == PENDING and msg_type != IVR:
             msg.handle()
 
             # fire an event off for this message

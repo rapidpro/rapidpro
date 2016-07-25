@@ -1,0 +1,151 @@
+{
+  "campaigns": [
+    {
+      "events": [
+        {
+          "event_type": "M",
+          "relative_to": {
+            "id": 1134,
+            "key": "next_appointment",
+            "label": "Next Show"
+          },
+          "flow": {
+            "name": "Single Message",
+            "id": 2814
+          },
+          "offset": -1,
+          "delivery_hour": -1,
+          "message": "Hi there, your next show is @contact.next_show. Don't miss it!",
+          "id": 9959,
+          "unit": "H"
+        }
+      ],
+      "group": {
+        "name": "Pending Appointments",
+        "id": 2308
+      },
+      "id": 405,
+      "name": "Appointment Schedule"
+    }
+  ],
+  "version": 9, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "a04f3046-e053-444f-b018-eff019766ad9", 
+          "uuid": "e4a03298-dd43-4afb-b185-2782fc36a006", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Hi there!"
+              },
+              "type": "reply"
+            },
+            {
+              "uuid": "c756af8f-4480-4a91-875d-c0600597c0ae", 
+              "contacts": [
+                {
+                  "id": contact_id, 
+                  "name": "Trey Anastasio"
+                }
+              ],
+              "groups": [
+                {
+                  "id": group_id, 
+                  "name": "Phans"
+                }
+              ],
+              "variables": [], 
+              "msg": {
+                "base": "You're phantastic"
+              }, 
+              "action": "GET", 
+              "type": "send"
+            },
+            {
+              "labels": [
+                {
+                  "name": "this label",
+                  "id": label_id
+                }
+              ],
+             "type": "add_label"
+            },
+            {
+              "field": "concat_test",
+              "type": "save",
+              "value": "@(CONCAT(extra.flow.divided, extra.flow.sky))",
+              "label": "Concat Test"
+            },
+            {
+              "field": "normal_test",
+              "type": "save",
+              "value": "@extra.contact.name",
+              "label": "Normal Test"
+            }
+          ]
+        },
+        {
+          "y": 142, 
+          "x": 166, 
+          "destination": null, 
+          "uuid": "a04f3046-e053-444f-b018-eff019766ad9", 
+          "actions": [
+            {
+              "type": "add_group", 
+              "groups": [
+                {
+                  "name": "Survey Audience", 
+                  "id": group_id
+                }
+              ]
+            }, 
+            {
+              "type": "del_group", 
+              "groups": [
+                {
+                  "name": "Unsatisfied Customers", 
+                  "id": group_id
+                }
+              ]
+            }, 
+            {
+              "name": "Test flow", 
+              "contacts": [], 
+              "variables": [
+                {
+                  "id": "@contact.tel_e164"
+                }
+              ], 
+              "groups": [], 
+              "type": "trigger-flow", 
+              "id": start_flow_id
+            }, 
+            {
+              "type": "flow", 
+              "name": "Parent Flow", 
+              "id": start_flow_id
+            }
+          ]
+        }
+      ], 
+      "version": 9, 
+      "flow_type": "F", 
+      "entry": "e4a03298-dd43-4afb-b185-2782fc36a006", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 11, 
+        "id": previous_flow_id, 
+        "name": "Migrate to 9", 
+        "saved_on": "2016-06-22T15:05:12.074490Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

@@ -11,6 +11,7 @@
 @color-send-email:@flat-mutedpurple;
 @color-webhook:@flat-mutedorange;
 @color-passive:@flat-darkwhite;
+@color-subflow:@flat-darkwhite;
 @color-missing:@flat-mutedred + #444;
 @color-save-to-contact: #00ac9a;
 @color-start-flow: #c05093;
@@ -406,6 +407,11 @@
         min-width: 200px;
       }
 
+      .ruleset-body {
+        padding: 6px;
+        border-bottom: 1px solid @flat-white;
+      }
+
       &.dragging:hover {
         .remove {
           display: none;
@@ -443,6 +449,11 @@
             text-shadow: 0px 1px @color-missing - #222;
             .bg-gradient(@color-missing, @color-missing - #101010);
           }
+
+          &.subflow-header {
+            text-shadow: 0px 1px @color-subflow - #222;
+            .bg-gradient(@color-subflow, @color-subflow - #101010);
+          }
         }
 
         &.webhook {
@@ -455,11 +466,13 @@
         }
       }
 
+      tr.rules td.rule:not(:first-child) {
+        border-left: 1px solid @flat-white;
+      }
+
       .rules {
         border-collapse:collapse;
-
         .rule {
-          border-left: 1px solid @flat-white;
           padding: 6px 4px;
           font-size: 14px;
           min-width: 80px;
@@ -813,7 +826,7 @@
     }
   }
 
-  .save, .lang {
+  .save, .lang, .channel {
     .title {
       text-shadow: 0px 1px @color-save-to-contact - #222;
       .bg-gradient(@color-save-to-contact, @color-save-to-contact - #101010);

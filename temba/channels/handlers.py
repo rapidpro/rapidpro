@@ -480,23 +480,39 @@ class TelegramHandler(View):
 
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
 
-        def create_media_message(file_id):
-            media_url = TelegramHandler.download_file(channel, file_id)
-            url = media_url.partition(':')[2]
-            msg = Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
-            return HttpResponse("Message Accepted: %d" % msg.id)
+        def create_media_message(body, name):
+            # if we have a caption add it
+            if 'caption' in body['message']:
+                Msg.create_incoming(channel, urn, body['message']['caption'], date=msg_date)
+
+            # pull out the media body, download it and create our msg
+            if name in body['message']:
+                attachment = body['message'][name]
+                if isinstance(attachment, list):
+                    attachment = attachment[-1]
+                    if isinstance(attachment, list):
+                        attachment = attachment[0]
+
+                media_url = TelegramHandler.download_file(channel, attachment['file_id'])
+
+                # if we got a media URL for this attachment, save it away
+                if media_url:
+                    url = media_url.partition(':')[2]
+                    Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
+
+            return HttpResponse("Message Accepted")
 
         if 'sticker' in body['message']:
-            return create_media_message(body['message']['sticker']['file_id'])
+            return create_media_message(body, 'sticker')
 
         if 'video' in body['message']:
-            return create_media_message(body['message']['video']['file_id'])
+            return create_media_message(body, 'video')
 
         if 'voice' in body['message']:
-            return create_media_message(body['message']['voice']['file_id'])
+            return create_media_message(body, 'voice')
 
         if 'document' in body['message']:
-            return create_media_message(body['message']['document']['file_id'])
+            return create_media_message(body, 'document')
 
         if 'location' in body['message']:
             location = body['message']['location']
@@ -511,10 +527,7 @@ class TelegramHandler(View):
             return HttpResponse("Message Accepted: %d" % msg.id)
 
         if 'photo' in body['message']:
-            photos = body['message']['photo']
-            if len(photos):
-                # grab the last (largest) photo in the list
-                return create_media_message(photos[-1:][0]['file_id'])
+            create_media_message(body, 'photo')
 
         if 'contact' in body['message']:
             contact = body['message']['contact']
@@ -1704,8 +1717,12 @@ class FacebookHandler(View):
                             elif 'attachments' in envelope['message']:
                                 urls = []
                                 for attachment in envelope['message']['attachments']:
-                                    if 'url' in attachment['payload']:
+                                    if attachment['payload'] and 'url' in attachment['payload']:
                                         urls.append(attachment['payload']['url'])
+                                    elif 'url' in attachment:
+                                        if 'title' in attachment:
+                                            urls.append(attachment['title'])
+                                        urls.append(attachment['url'])
 
                                 content = '\n'.join(urls)
 

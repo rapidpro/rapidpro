@@ -408,7 +408,7 @@ class Contact(TembaModel):
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
     def as_json(self):
-        obj = dict(id=self.pk, name=unicode(self))
+        obj = dict(id=self.pk, name=unicode(self), uuid=self.uuid)
 
         if not self.org.is_anon:
             urns = []
@@ -662,6 +662,10 @@ class Contact(TembaModel):
 
         contact = None
 
+        # limit our contact name to 128 chars
+        if name:
+            name = name[:128]
+
         # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
         # it is read only from a contacts perspective, but it is by far the most common case
         if not uuid and not name and urns and len(urns) == 1:
@@ -892,7 +896,11 @@ class Contact(TembaModel):
                 (normalized, is_valid) = URN.normalize_number(value, country)
 
                 if not is_valid:
-                    raise SmartImportRowError("Invalid Phone number %s" % value)
+                    error_msg = "Invalid Phone number %s" % value
+                    if not country:
+                        error_msg = "Invalid Phone number or no country code specified for %s" % value
+
+                    raise SmartImportRowError(error_msg)
 
                 # in the past, test contacts have ended up in exports. Don't re-import them
                 if value == OLD_TEST_CONTACT_TEL:
@@ -1069,6 +1077,9 @@ class Contact(TembaModel):
         finally:
             os.remove(tmp_file)
 
+        # save the import results even if no record was created
+        task.import_results = json.dumps(import_results)
+
         # don't create a group if there are no contacts
         if not contacts:
             return contacts
@@ -1112,6 +1123,7 @@ class Contact(TembaModel):
                 # if we fail to parse phone numbers for any reason just punt
                 pass
 
+        # overwrite the import results for adding the counts
         import_results['creates'] = num_creates
         import_results['updates'] = len(contacts) - num_creates
         task.import_results = json.dumps(import_results)
@@ -1327,11 +1339,43 @@ class Contact(TembaModel):
             names = [first_name] + names[1:]
             self.name = " ".join(names)
 
+    def set_preferred_channel(self, channel):
+        """
+        Sets the preferred channel for communicating with this Contact
+        """
+        if channel is None:
+            return
+
+        urns = self.get_urns()
+
+        # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
+        if channel.scheme == TEL_SCHEME:
+            for urn in urns:
+                if urn.scheme == channel.scheme and urn.channel_id != channel.id:
+                    urn.channel = channel
+                    urn.save(update_fields=['channel'])
+
+        # if our scheme isn't the highest priority
+        if urns and urns[0].scheme != channel.scheme:
+            # update the highest URN of the right scheme to be highest
+            for urn in urns[1:]:
+                if urn.scheme == channel.scheme:
+                    urn.priority = urns[0].priority + 1
+                    urn.save(update_fields=['priority'])
+
+                    # clear our URN cache, order is different now
+                    self.clear_urn_cache()
+                    break
+
     def get_urns_for_scheme(self, scheme):
         """
         Returns all the URNs for the passed in scheme
         """
         return self.urns.filter(scheme=scheme).order_by('-priority', 'pk')
+
+    def clear_urn_cache(self):
+        if hasattr(self, '__urns'):
+            delattr(self, '__urns')
 
     def get_urns(self):
         """
@@ -1500,6 +1544,7 @@ class Contact(TembaModel):
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
         from temba.msgs.models import Broadcast
+
         broadcast = Broadcast.create(self.org, user, text, [self])
         broadcast.send(trigger_send=trigger_send, message_context=message_context)
 
@@ -1538,7 +1583,7 @@ class ContactURN(models.Model):
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90}
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90}
 
     ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
 
@@ -1728,11 +1773,11 @@ class ContactGroup(TembaModel):
         return groups
 
     @classmethod
-    def get_or_create(cls, org, user, name, group_id=None):
+    def get_or_create(cls, org, user, name, group_uuid=None):
         existing = None
 
-        if group_id is not None:
-            existing = ContactGroup.user_groups.filter(org=org, id=group_id).first()
+        if group_uuid is not None:
+            existing = ContactGroup.user_groups.filter(org=org, uuid=group_uuid).first()
 
         if not existing:
             existing = ContactGroup.get_user_group(org, name)

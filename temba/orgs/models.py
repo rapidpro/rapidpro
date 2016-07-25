@@ -42,7 +42,7 @@ from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 8
+CURRENT_EXPORT_VERSION = 9
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0
@@ -326,6 +326,16 @@ class Org(SmartModel):
         if data_site and site:
             same_site = urlparse(data_site).netloc == urlparse(site).netloc
 
+        # see if our export needs to be updated
+        export_version = data.get('version', 0)
+        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
+        if export_version < EARLIEST_IMPORT_VERSION:
+            raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
+
+        if export_version < CURRENT_EXPORT_VERSION:
+            from temba.flows.models import FlowRevision
+            data = FlowRevision.migrate_export(self, data, same_site, export_version)
+
         # we need to import flows first, they will resolve to
         # the appropriate ids and update our definition accordingly
         Flow.import_flows(data, self, user, same_site)
@@ -417,25 +427,32 @@ class Org(SmartModel):
                 if not channels:
                     channels = [c for c in self.channels.all()]
 
-                # filter based on rule and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
+                # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
                 for c in channels:
                     if c.is_active and c.address and role in c.role and not c.parent_id:
                         senders.append(c)
                 senders.sort(key=lambda chan: chan.id)
 
-                for sender in senders:
-                    channel_number = sender.address.strip('+')
+                # if we have more than one match, find the one with the highest overlap
+                if len(senders) > 1:
+                    for sender in senders:
+                        channel_number = sender.address.strip('+')
 
-                    for idx in range(prefix, len(channel_number)):
-                        if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
-                            prefix = idx
-                            channel = sender
-                        else:
-                            break
+                        for idx in range(prefix, len(channel_number)):
+                            if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
+                                prefix = idx
+                                channel = sender
+                            else:
+                                break
+                elif senders:
+                    channel = senders[0]
 
                 if channel:
-                    return self.get_channel_delegate(channel, SEND)
+                    if role == SEND:
+                        return self.get_channel_delegate(channel, SEND)
+                    else:
+                        return channel
 
         # get any send channel without any country or URN hints
         return self.get_channel(scheme, country_code, role)
@@ -1346,7 +1363,7 @@ class Org(SmartModel):
 
     def get_export_flows(self, include_archived=False):
         from temba.flows.models import Flow
-        flows = self.flows.all().exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
+        flows = self.flows.all().exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
         if not include_archived:
             flows = flows.filter(is_archived=False)
         return flows
