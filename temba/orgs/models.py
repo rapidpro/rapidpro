@@ -1398,7 +1398,7 @@ class Org(SmartModel):
             recommended = 'yo'
 
         elif countrycode == 'PH':
-            recommended = 'chikka'
+            recommended = 'globe'
 
         return recommended
 
