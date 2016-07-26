@@ -1928,6 +1928,19 @@ class ChannelTest(TembaTest):
         self.assertEquals('12345', self.tel_channel.gcm_id)
         self.assertEquals('abcde', self.tel_channel.uuid)
 
+        # should ignore incoming messages without text
+        post_data = dict(cmds=[
+            # incoming msg without text
+            dict(cmd="mo_sms", phone="+250788383383", p_id="1", ts=date),
+
+        ])
+
+        msgs_count = Msg.all_messages.all().count()
+        response = self.sync(self.tel_channel, post_data)
+
+        # no new message
+        self.assertEqual(Msg.all_messages.all().count(), msgs_count)
+
         # set an email on our channel
         self.tel_channel.alert_email = 'fred@worldrelif.org'
         self.tel_channel.save()
