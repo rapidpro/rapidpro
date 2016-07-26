@@ -394,6 +394,7 @@ PERMISSIONS = {
                          'claim_clickatell',
                          'claim_external',
                          'claim_facebook',
+                         'claim_globe',
                          'claim_high_connection',
                          'claim_hub9',
                          'claim_infobip',
@@ -601,6 +602,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
+        'channels.channel_claim_globe',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
@@ -722,6 +724,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
+        'channels.channel_claim_globe',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
@@ -1021,7 +1024,6 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
-CURSOR_PAGINATION_OFFSET_CUTOFF = 1000000
 
 
 # -----------------------------------------------------------------------------------

@@ -432,7 +432,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
           scope: $scope
         $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
 
-
       else
         resolveObj =
           options: ->
@@ -878,6 +877,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.ruleset = utils.clone(ruleset)
   $scope.removed = []
   flow = Flow.flow
+
   $scope.flowFields = Flow.getFlowFields(ruleset)
   $scope.fieldIndexOptions = [{text:'first', id: 0},
                               {text:'second', id: 1},
@@ -903,6 +903,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   formData.fieldIndex = Flow.getFieldSelection($scope.fieldIndexOptions, config.field_index, true)
   formData.fieldDelimiter = Flow.getFieldSelection($scope.fieldDelimiterOptions, config.field_delimiter, true)
 
+  if ruleset.config
+    formData.flow = ruleset.config.flow
+  else
+    formData.flow = {}
+
   # default webhook action
   if not $scope.ruleset.webhook_action
     $scope.ruleset.webhook_action = 'GET'
@@ -921,6 +926,16 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     utils.openModal("/partials/rule_webhook", RuleOptionsController, resolveObj)
 
+  $scope.getFlowsUrl = (flow) ->
+    url = "/flow/?_format=select2"
+    if Flow.flow.flow_type == 'S'
+      return url + "&flow_type=S"
+    if Flow.flow.flow_type == 'F'
+      return url + "&flow_type=F&flow_type=V"
+    if Flow.flow.flow_type == 'V'
+      return url + "&flow_type=V"
+    return url
+
   $scope.remove = (rule) ->
     $scope.removed.push(rule)
     index = $scope.ruleset.rules.indexOf(rule)
@@ -938,7 +953,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       toRemove.push(rule)
       continue
 
-    # the config is the meta data about our type of operator
+    # the config is the metadata about our type of operator
     rule._config = Flow.getOperatorConfig(rule.test.type)
 
     # we need to parse our dates
@@ -950,14 +965,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # set the operands
     else if rule.test.type != "between" and rule.test.type != "ward"
 
-      if rule.test.test and rule._config.localized
-        rule.test._base = rule.test.test[flow.base_language]
-      else
-        rule.test =
-          _base: rule.test.test
+      if rule.test.test 
+        if rule._config.localized
+          rule.test._base = rule.test.test[Flow.flow.base_language]
+        else
+          rule.test =
+            _base: rule.test.test
 
     # and finally the category name
-    rule.category._base = rule.category[flow.base_language]
+    rule.category._base = rule.category[Flow.flow.base_language]
 
   if window.ivr
     # prep our menu
@@ -1014,10 +1030,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       if not operator.voice
         return false
 
-    if operator.type == "true"
-      return false
-
-    return true
+    return operator.show
 
   $scope.isVisibleRulesetType = (rulesetConfig) ->
     valid = flow.flow_type in rulesetConfig.filter
@@ -1117,6 +1130,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
+      if rule._config.type == 'subflow'
+        continue
       complete = complete and $scope.isRuleComplete(rule)
       if not complete
         break
@@ -1138,6 +1153,46 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # start with an empty list of rules
     rules = []
 
+    # subflow rulesets have their own kind of rules
+    if ruleset.ruleset_type == 'subflow'
+
+      needs_completed = true
+      needs_expired = true
+      
+      # see which subflow rules we already have
+      for rule in ruleset.rules
+        if rule.type == 'subflow'
+          if rule.test.exit_type == 'completed'
+            needs_completed = false
+            rules.push(rule)
+          if rule.test.exit_type == 'expired'
+            needs_expired = false
+            rules.push(rule)
+
+      # if we don't have a completed rule add it
+      if needs_completed
+        rule =
+          uuid: uuid(),
+          type: 'subflow'
+          test: 
+            type: 'subflow'
+            exit_type: 'completed'
+          category: {}
+        rule['category'][Flow.flow.base_language] = 'Completed'
+        rules.push(rule)
+
+      # if we don't have an expired rule, add it
+      if needs_expired
+        rule =
+          uuid: uuid(),
+          type: 'subflow'
+          test: 
+            type: 'subflow'
+            exit_type: 'expired'
+          category: {}
+        rule['category'][Flow.flow.base_language] = 'Expired'
+        rules.push(rule)
+
     # create rules off of an IVR menu configuration
     if ruleset.ruleset_type == 'wait_digit'
       for option in $scope.numbers
@@ -1149,7 +1204,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
             test:
               type: 'eq'
               test: option.number
-          rule.category[flow.base_language] = option.category._base
+          rule.category[Flow.flow.base_language] = option.category._base
 
           rules.push(rule)
 
@@ -1179,11 +1234,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           if rule._config.localized
             if not rule.test.test
               rule.test.test = {}
-            rule.test.test[flow.base_language] = rule.test._base
+            rule.test.test[Flow.flow.base_language] = rule.test._base
           else
             rule.test.test = rule.test._base
 
-        rule.category[flow.base_language] = rule.category._base
+        rule.category[Flow.flow.base_language] = rule.category._base
         if rule.category
           rules.push(rule)
 
@@ -1207,35 +1262,53 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if not category
       category = {}
 
-    category[flow.base_language] = allCategory
+    category[Flow.flow.base_language] = allCategory
 
-    # finally add it to the end of our rule list
-    rules.push
-      _config: Flow.getOperatorConfig("true")
-      test:
-        test: "true"
-        type: "true"
-      destination: destination
-      uuid: ruleId
-      category: category
+    # for all rules that require a catch all, append a true rule
+    if ruleset.ruleset_type != 'subflow'
+      rules.push
+        _config: Flow.getOperatorConfig("true")
+        test:
+          test: "true"
+          type: "true"
+        destination: destination
+        uuid: ruleId
+        category: category
 
     $scope.ruleset.rules = rules
 
-  $scope.okRules = ->
+  $scope.okRules = (splitEditor) ->
 
     # close our dialog
     stopWatching()
     $modalInstance.close ""
 
     $timeout ->
+
       # changes from the user
       ruleset = $scope.ruleset
       rulesetConfig = $scope.formData.rulesetConfig
       contactField = $scope.formData.contactField
       flowField = $scope.formData.flowField
+      flow = $scope.formData.flow
 
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
+
+      if rulesetConfig.type == 'subflow'
+        # configure our subflow settings
+        flow = splitEditor.flow.selected[0]
+        ruleset.config =
+          flow:
+            name: flow.text
+            uuid: flow.id
+
+        # remove any non subflow actions
+        rules = []
+        for rule in ruleset.rules
+          if rule.type == 'subflow'
+            rules.push(rule)
+        ruleset.rules = rules
 
       # settings for a message form
       if rulesetConfig.type == 'form_field'
@@ -1364,8 +1437,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # Saving an SMS to somebody else
   $scope.saveSend = (omnibox, message) ->
-    $scope.action.groups = omnibox.groups
-    $scope.action.contacts = omnibox.contacts
+
+    groups = []
+    for group in omnibox.groups
+      groups.push
+        uuid: group.id
+        name: group.name
+    $scope.action.groups = groups
+
+    contacts = []
+    for contact in omnibox.contacts
+      contacts.push
+        uuid: contact.id
+        name: contact.name
+    $scope.action.contacts = contacts
+
     $scope.action.variables = omnibox.variables
     $scope.action.type = 'send'
 
@@ -1386,16 +1472,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         if label.id == msgLabel
           found = true
           labels.push
-            id: label.id
+            uuid: label.id
             name: label.text
 
       if not found
         labels.push
-          id: msgLabel.id
+          uuid: msgLabel.id
           name: msgLabel.text
 
     $scope.action.labels = labels
-
 
     $scope.action.type = 'add_label'
     Flow.saveAction(actionset, $scope.action)
@@ -1406,7 +1491,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.saveGroups = (actionType, omnibox) ->
 
     $scope.action.type = actionType
-    $scope.action.groups = omnibox.groups
+
+    groups = []
+    for group in omnibox.groups
+      groups.push
+        uuid: group.id
+        name: group.name
+
+    $scope.action.groups = groups
 
     # add our list of variables
     for variable in omnibox.variables
@@ -1466,16 +1558,30 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if omnibox
       $scope.action.type = 'trigger-flow'
-      $scope.action.groups = omnibox.groups
-      $scope.action.contacts = omnibox.contacts
+
+      groups = []
+      for group in omnibox.groups
+        groups.push
+          uuid: group.id
+          name: group.name
+      $scope.action.groups = groups
+
+      contacts = []
+      for contact in omnibox.contacts
+        contacts.push
+          uuid: contact.id
+          name: contact.name
+      $scope.action.contacts = contacts
       $scope.action.variables = omnibox.variables
 
     else
       $scope.action.type = 'flow'
 
     flow = flow[0]
-    $scope.action.id = flow.id
-    $scope.action.name = flow.text
+    $scope.action.flow = 
+      uuid: flow.id
+      name: flow.text
+
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
 

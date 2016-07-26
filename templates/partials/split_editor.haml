@@ -22,10 +22,16 @@
           .error.ng-hide{ng-show:"variable.$error.alphanum"}
             -trans "The response name must consist of only letters and numbers."
 
-
     .response{ng-if:'formData.rulesetConfig.type == "wait_message"'}><
       #split-on
         -trans "If the message response.."
+
+    .subflow{ng-if:'formData.rulesetConfig.type == "subflow"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Call out to another flow and return the results to this flow in the @child variable.
+        %input{style:"width:620px",ng-model:"formData.flow",search:"true",init-text:"[[formData.flow.name]]",name:"flow",placeholder:"Select the flow to run",required:"",init-id:"[[formData.flow.uuid]]",select-server:"[[getFlowsUrl()]]",type:"hidden"}
 
     .expression{ng-if:'formData.rulesetConfig.type == "expression"'}><
       #split-on
@@ -45,7 +51,6 @@
         %select{ name:'flowField', required:'true', ng-model:'formData.flowField', ng-options:"field as field.text for field in flowFields"}
         -trans "delimited by a"
         %select.field-delimiter{ name:'fieldDelimiter', ng-model:'formData.fieldDelimiter', required:'true', ng-options: 'delim as delim.text for delim in fieldDelimiterOptions'}
-
 
     .contact-field{ng-if:'formData.rulesetConfig.type == "contact_field"'}><
       #split-on
@@ -109,7 +114,7 @@
     %form{name:'ruleForm'}
       %span{ng-if:'hasRules()'}><
         %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
-          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule._config.type != "true"'}
+          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid", ng-show:'rule._config.show'}
             <ng-form name="inner">
               .icon.icon-menu
               %select{ng-model:"rule._config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:isVisibleOperator', class:"operator-select",ng-change:"updateCategory(rule)"}
@@ -155,5 +160,5 @@
   <!--[[splitEditor]]-->
   %button{ng-click:"cancel()",class:"btn btn-secondary"}
     -trans "Cancel"
-  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid',ng-click:"okRules()",class:"btn btn-primary"}
+  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid',ng-click:"okRules(splitEditor)",class:"btn btn-primary"}
     -trans "Ok"

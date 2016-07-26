@@ -664,8 +664,12 @@ class FlowCRUDL(SmartCRUDL):
         actions = ('archive', 'label')
 
         def derive_queryset(self, *args, **kwargs):
-            return super(FlowCRUDL.List, self).derive_queryset(*args, **kwargs).filter(is_active=True,
-                                                                                       is_archived=False).exclude(flow_type=Flow.MESSAGE)
+            queryset = super(FlowCRUDL.List, self).derive_queryset(*args, **kwargs)
+            queryset = queryset.filter(is_active=True, is_archived=False).exclude(flow_type=Flow.MESSAGE)
+            types = self.request.REQUEST.getlist('flow_type')
+            if types:
+                queryset = queryset.filter(flow_type__in=types)
+            return queryset
 
     class Filter(BaseList):
         add_button = True
@@ -724,6 +728,7 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='contact.first_name', display=unicode(_('Contact First Name'))),
                 dict(name='contact.groups', display=unicode(_('Contact Groups'))),
                 dict(name='contact.language', display=unicode(_('Contact Language'))),
+                dict(name='contact.mailto', display=unicode(_('Contact Email Address'))),
                 dict(name='contact.name', display=unicode(_('Contact Name'))),
                 dict(name='contact.tel', display=unicode(_('Contact Phone'))),
                 dict(name='contact.tel_e164', display=unicode(_('Contact Phone - E164'))),
@@ -778,7 +783,10 @@ class FlowCRUDL(SmartCRUDL):
 
             org = self.request.user.get_org()
             context = super(FlowCRUDL.Read, self).get_context_data(*args, **kwargs)
-            initial = self.get_object(self.get_queryset()).as_json(expand_contacts=True)
+            flow = self.get_object(self.get_queryset())
+            flow.ensure_current_version()
+
+            initial = flow.as_json(expand_contacts=True)
             initial['archived'] = self.object.is_archived
             context['initial'] = json.dumps(initial)
             context['flows'] = Flow.objects.filter(org=org, is_active=True, flow_type__in=[Flow.FLOW, Flow.VOICE], is_archived=False)

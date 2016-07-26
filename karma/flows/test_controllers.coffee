@@ -192,6 +192,45 @@ describe 'Controllers:', ->
 
       $timeout.flush()
 
+
+    it 'should save subflow rulesets', ->
+       # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      $http.flush()
+
+      getRuleConfig = (type) ->
+        for ruleset in flowService.rulesets
+          if ruleset.type == type
+            return ruleset
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # simulate selecting a child flow
+        modalScope.ruleset.ruleset_type = 'subflow'
+        modalScope.formData.rulesetConfig = getRuleConfig('subflow')
+
+        splitEditor =
+          flow:
+            selected:[{id: 'cf785f12-658a-4821-ae62-7735ea5c6cef', text: 'Child Flow'}]
+        
+        modalScope.okRules(splitEditor)
+
+      $timeout.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+
+      # our ruleset should be
+      expect(ruleset.ruleset_type).toBe('subflow')
+      expect(ruleset.rules.length).toBe(2)
+      config = JSON.stringify(ruleset.config)
+
+      expect(JSON.stringify(ruleset.config)).toBe('{"flow":{"name":"Child Flow","uuid":"cf785f12-658a-4821-ae62-7735ea5c6cef"}}')
+
     it 'should filter action options based on flow type', ->
 
       # load a flow

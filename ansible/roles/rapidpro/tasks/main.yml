@@ -1,0 +1,28 @@
+---
+
+- name: OS | Install dependencies
+  become: yes
+  apt: name={{ item }} update_cache=yes
+  with_items:
+    - git
+    - redis-server
+    - postgresql
+    - postgresql-contrib
+    - postgis
+    - postgresql-9.3-postgis-2.1
+    - libpq-dev
+    - python-dev
+    - python-virtualenv
+    - python-psycopg2
+    - npm
+    # Pillow
+    - libjpeg8-dev
+    - zlib1g-dev
+    # Other dependencies for python packages
+    - lib32ncurses5-dev
+
+- include: postgres.yml
+
+- include: python.yml
+
+- include: npm.yml
