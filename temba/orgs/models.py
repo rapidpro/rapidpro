@@ -1700,7 +1700,7 @@ class TopUp(SmartModel):
     """
     org = models.ForeignKey(Org, related_name='topups',
                             help_text="The organization that was toppped up")
-    price = models.IntegerField(verbose_name=_("Price Paid"),
+    price = models.IntegerField(null=True, blank=True, verbose_name=_("Price Paid"),
                                 help_text=_("The price paid for the messages in this top up (in cents)"))
     credits = models.IntegerField(verbose_name=_("Number of Credits"),
                                   help_text=_("The number of credits bought in this top up"))
@@ -1726,6 +1726,14 @@ class TopUp(SmartModel):
 
         org.update_caches(OrgEvent.topup_new, topup)
         return topup
+
+    def get_price_display(self):
+        if self.price is None:
+            return ""
+        elif self.price == 0:
+            return _("Free")
+
+        return "$%.2f" % self.dollars()
 
     def dollars(self):
         if self.price == 0:
