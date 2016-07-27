@@ -791,7 +791,8 @@ class OrgCRUDL(SmartCRUDL):
         def get_credits(self, obj):
             if not obj.credits:
                 obj.credits = 0
-            return "<div class='num-credits'>%d</div>" % obj.credits
+            return "<div class='num-credits'><a href='%s'>%s</a></div>" % (reverse('orgs.topup_manage') + "?org=%d" % obj.id,
+                                                                           format(obj.credits, ",d"))
 
         def get_owner(self, obj):
             owner = obj.latest_admin()
@@ -1972,6 +1973,9 @@ class TopUpCRUDL(SmartCRUDL):
                 return "$%.2f" % (obj.price / 100.0)
             else:
                 return "-"
+
+        def get_credits(self, obj):
+            return format(obj.credits, ",d")
 
         def get_context_data(self, **kwargs):
             context = super(TopUpCRUDL.Manage, self).get_context_data(**kwargs)

@@ -480,23 +480,39 @@ class TelegramHandler(View):
 
         msg_date = datetime.utcfromtimestamp(body['message']['date']).replace(tzinfo=pytz.utc)
 
-        def create_media_message(file_id):
-            media_url = TelegramHandler.download_file(channel, file_id)
-            url = media_url.partition(':')[2]
-            msg = Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
-            return HttpResponse("Message Accepted: %d" % msg.id)
+        def create_media_message(body, name):
+            # if we have a caption add it
+            if 'caption' in body['message']:
+                Msg.create_incoming(channel, urn, body['message']['caption'], date=msg_date)
+
+            # pull out the media body, download it and create our msg
+            if name in body['message']:
+                attachment = body['message'][name]
+                if isinstance(attachment, list):
+                    attachment = attachment[-1]
+                    if isinstance(attachment, list):
+                        attachment = attachment[0]
+
+                media_url = TelegramHandler.download_file(channel, attachment['file_id'])
+
+                # if we got a media URL for this attachment, save it away
+                if media_url:
+                    url = media_url.partition(':')[2]
+                    Msg.create_incoming(channel, urn, url, date=msg_date, media=media_url)
+
+            return HttpResponse("Message Accepted")
 
         if 'sticker' in body['message']:
-            return create_media_message(body['message']['sticker']['file_id'])
+            return create_media_message(body, 'sticker')
 
         if 'video' in body['message']:
-            return create_media_message(body['message']['video']['file_id'])
+            return create_media_message(body, 'video')
 
         if 'voice' in body['message']:
-            return create_media_message(body['message']['voice']['file_id'])
+            return create_media_message(body, 'voice')
 
         if 'document' in body['message']:
-            return create_media_message(body['message']['document']['file_id'])
+            return create_media_message(body, 'document')
 
         if 'location' in body['message']:
             location = body['message']['location']
@@ -511,10 +527,7 @@ class TelegramHandler(View):
             return HttpResponse("Message Accepted: %d" % msg.id)
 
         if 'photo' in body['message']:
-            photos = body['message']['photo']
-            if len(photos):
-                # grab the last (largest) photo in the list
-                return create_media_message(photos[-1:][0]['file_id'])
+            create_media_message(body, 'photo')
 
         if 'contact' in body['message']:
             contact = body['message']['contact']
@@ -1679,29 +1692,45 @@ class FacebookHandler(View):
 
         # iterate through our entries, handling them
         for entry in body.get('entry'):
-            # this is an incoming message
+            # this is a messaging notification
             if 'messaging' in entry:
-                msgs = []
+                status = []
 
                 for envelope in entry['messaging']:
-                    if 'message' in envelope:
+                    if 'message' in envelope or 'postback' in envelope:
+                        # ignore echos
+                        if 'message' in envelope and envelope['message'].get('is_echo'):
+                            status.append("Echo Ignored")
+                            continue
+
+                        # check that the recipient is correct for this channel
                         channel_address = str(envelope['recipient']['id'])
                         if channel_address != channel.address:
-                            return HttpResponse("Msg does not match channel recipient id: %s" % channel.address, status=400)
+                            return HttpResponse("Msg Ignored for recipient id: %s" % channel.address, status=200)
 
                         content = None
-                        if 'text' in envelope['message']:
-                            content = envelope['message']['text']
-                        elif 'attachments' in envelope['message']:
-                            urls = []
-                            for attachment in envelope['message']['attachments']:
-                                if 'url' in attachment['payload']:
-                                    urls.append(attachment['payload']['url'])
+                        postback = None
 
-                            content = '\n'.join(urls)
+                        if 'message' in envelope:
+                            if 'text' in envelope['message']:
+                                content = envelope['message']['text']
+                            elif 'attachments' in envelope['message']:
+                                urls = []
+                                for attachment in envelope['message']['attachments']:
+                                    if attachment['payload'] and 'url' in attachment['payload']:
+                                        urls.append(attachment['payload']['url'])
+                                    elif 'url' in attachment:
+                                        if 'title' in attachment:
+                                            urls.append(attachment['title'])
+                                        urls.append(attachment['url'])
 
-                        # if we have some content, create the msg
-                        if content:
+                                content = '\n'.join(urls)
+
+                        elif 'postback' in envelope:
+                            postback = envelope['postback']['payload']
+
+                        # if we have some content, load the contact
+                        if content or postback:
                             # does this contact already exist?
                             sender_id = envelope['sender']['id']
                             urn = URN.from_facebook(sender_id)
@@ -1730,18 +1759,104 @@ class FacebookHandler(View):
                                 contact = Contact.get_or_create(channel.org, channel.created_by,
                                                                 name=name, urns=[urn], channel=channel)
 
+                        # we received a new message, create and handle it
+                        if content:
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
                             msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
                             Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
-                            msgs.append(msg)
+                            status.append("Msg %d accepted." % msg.id)
+
+                        # a contact pressed "Get Started", trigger any new conversation triggers
+                        elif postback == Channel.GET_STARTED:
+                            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+                            status.append("Postback handled.")
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
                             msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
                             if msg:
                                 msg.status_delivered()
-                                msgs.append(msg)
+                                status.append("Msg %d updated." % msg.id)
 
-                return HttpResponse("Msgs Updated: %s" % (",".join([str(m.id) for m in msgs])))
+                    else:
+                        status.append("Messaging entry Ignored")
 
-        return HttpResponse("Ignored, unknown msg", status=200)
+                return JsonResponse(dict(status=status))
+
+        return JsonResponse(dict(status=["Ignored, unknown msg"]))
+
+
+class GlobeHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(GlobeHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Illegal method, must be POST", status=405)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        from temba.channels.models import GLOBE
+
+        # Sample request body for incoming message
+        # {
+        #     "inboundSMSMessageList":{
+        #         "inboundSMSMessage": [
+        #             {
+        #                 "dateTime": "Fri Nov 22 2013 12:12:13 GMT+0000 (UTC)",
+        #                 "destinationAddress": "21581234",
+        #                 "messageId": null,
+        #                 "message": "Hello",
+        #                 "resourceURL": null,
+        #                 "senderAddress": "9171234567"
+        #             }
+        #         ],
+        #         "numberOfMessagesInThisBatch": 1,
+        #         "resourceURL": null,
+        #         "totalNumberOfPendingMessages": null
+        #     }
+        #
+        # }
+        action = kwargs['action'].lower()
+        request_uuid = kwargs['uuid']
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=GLOBE).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
+
+        # parse our JSON
+        try:
+            body = json.loads(request.body)
+        except Exception as e:
+            return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
+
+        # needs to contain our message list and inboundSMS message
+        if 'inboundSMSMessageList' not in body or 'inboundSMSMessage' not in body['inboundSMSMessageList']:
+            return HttpResponse("Invalid request, missing inboundSMSMessageList or inboundSMSMessage", status=400)
+
+        # this is a callback for a message we sent
+        if action == 'receive':
+            msgs = []
+            for inbound_msg in body['inboundSMSMessageList']['inboundSMSMessage']:
+                if not all(field in inbound_msg for field in ('dateTime', 'senderAddress', 'message', 'messageId', 'destinationAddress')):
+                    return HttpResponse("Missing one of dateTime, senderAddress, message, messageId or destinationAddress in message", status=400)
+
+                destination = inbound_msg['destinationAddress']
+                if destination != channel.address:
+                    return HttpResponse("Invalid request, channel address: %s mismatch with destinationAddress: %s" % (channel.address, destination), status=400)
+
+                # dates come in the format "2014-04-18 03:54:20.570618" GMT
+                sms_date = datetime.strptime(inbound_msg['dateTime'], "%a %b %d %Y %H:%M:%S GMT+0000 (UTC)")
+                gmt_date = pytz.timezone('GMT').localize(sms_date)
+
+                msg = Msg.create_incoming(channel, URN.from_tel(inbound_msg['senderAddress']), inbound_msg['message'], date=gmt_date)
+
+                # use an update so there is no race with our handling
+                Msg.all_messages.filter(pk=msg.id).update(external_id=inbound_msg['messageId'])
+                msgs.append(msg)
+
+            return HttpResponse("Msgs Accepted: %s" % ", ".join([str(m.id) for m in msgs]))
+        else:  # pragma: no cover
+            return HttpResponse("Not handled", status=400)

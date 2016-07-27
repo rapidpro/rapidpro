@@ -68,9 +68,12 @@ TELEGRAM = 'TG'
 CHIKKA = 'CK'
 JASMIN = 'JS'
 MBLOX = 'MB'
+GLOBE = 'GL'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
+SEND_BODY = 'body'
+DEFAULT_SEND_BODY = 'id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}&channel={{channel}}'
 USERNAME = 'username'
 PASSWORD = 'password'
 KEY = 'key'
@@ -108,6 +111,7 @@ CHANNEL_SETTINGS = {
     CLICKATELL: dict(scheme='tel', max_length=420),
     EXTERNAL: dict(max_length=160),
     FACEBOOK: dict(scheme='facebook', max_length=320),
+    GLOBE: dict(scheme='tel', max_length=160),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),
@@ -161,6 +165,7 @@ class Channel(TembaModel):
                     (CLICKATELL, "Clickatell"),
                     (EXTERNAL, "External"),
                     (FACEBOOK, "Facebook"),
+                    (GLOBE, "Globe Labs"),
                     (HIGH_CONNECTION, "High Connection"),
                     (HUB9, "Hub9"),
                     (INFOBIP, "Infobip"),
@@ -181,6 +186,8 @@ class Channel(TembaModel):
                     (VUMI, "Vumi"),
                     (YO, "Yo!"),
                     (ZENVIA, "Zenvia"))
+
+    GET_STARTED = 'get_started'
 
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
@@ -409,7 +416,7 @@ class Channel(TembaModel):
         return Channel.create(org, user, country, NEXMO, name=phone, address=phone_number, bod=nexmo_phone_number)
 
     @classmethod
-    def add_twilio_channel(cls, org, user, phone_number, country):
+    def add_twilio_channel(cls, org, user, phone_number, country, role):
         client = org.get_twilio_client()
         twilio_phones = client.phone_numbers.list(phone_number=phone_number)
 
@@ -427,7 +434,6 @@ class Channel(TembaModel):
             raise Exception(_("Your Twilio account is no longer connected. "
                               "First remove your Twilio account, reconnect it and try again."))
 
-        role = SEND + RECEIVE + CALL + ANSWER
         is_short_code = len(phone_number) <= 6
 
         if is_short_code:
@@ -500,9 +506,11 @@ class Channel(TembaModel):
 
     @classmethod
     def add_facebook_channel(cls, org, user, page_name, page_id, page_access_token):
-        return Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
-                              config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
-                              secret=Channel.generate_secret())
+        channel = Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
+                                 config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
+                                 secret=Channel.generate_secret())
+
+        return channel
 
     @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
@@ -617,6 +625,24 @@ class Channel(TembaModel):
             return Channel.objects.none()
 
         return self.org.channels.filter(parent=self, is_active=True, org=self.org).order_by('-role')
+
+    def set_fb_call_to_action_payload(self, payload):
+        # register for get_started events
+        url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % self.address
+        body = dict(setting_type='call_to_actions', thread_state='new_thread', call_to_actions=[])
+
+        # if we have a payload, set it, otherwise, clear it
+        if payload:
+            body['call_to_actions'].append(dict(payload=payload))
+
+        access_token = self.config_json()[AUTH_TOKEN]
+
+        response = requests.post(url, json.dumps(body),
+                                 params=dict(access_token=access_token),
+                                 headers={'Content-Type': 'application/json'})
+
+        if response.status_code != 200:
+            raise Exception(_("Unable to update call to action: %s" % response.content))
 
     def get_delegate(self, role):
         """
@@ -1314,19 +1340,26 @@ class Channel(TembaModel):
 
         # build our send URL
         url = Channel.build_send_url(channel.config[SEND_URL], payload)
-        log_payload = None
         start = time.time()
 
+        method = channel.config.get(SEND_METHOD, 'POST')
+
+        headers = TEMBA_HEADERS.copy()
+        if method in ('POST', 'PUT'):
+            body = channel.config.get(SEND_BODY, DEFAULT_SEND_BODY)
+            body = Channel.build_send_url(body, payload)
+            headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            log_payload = body
+        else:
+            log_payload = None
+
         try:
-            method = channel.config.get(SEND_METHOD, 'POST')
             if method == 'POST':
-                response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
+                response = requests.post(url, data=body, headers=headers, timeout=5)
             elif method == 'PUT':
-                response = requests.put(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
-                log_payload = urlencode(payload)
+                response = requests.put(url, data=body, headers=headers, timeout=5)
             else:
-                response = requests.get(url, headers=TEMBA_HEADERS, timeout=5)
-                log_payload = urlencode(payload)
+                response = requests.get(url, headers=headers, timeout=5)
 
         except Exception as e:
             raise SendException(unicode(e),
@@ -1689,6 +1722,57 @@ class Channel(TembaModel):
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
                                method='PUT',
+                               url=url,
+                               request=payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
+    def send_globe_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+
+        payload = {
+            'address': msg.urn_path.lstrip('+'),
+            'message': text,
+            'passphrase': channel.config['passphrase'],
+            'app_id': channel.config['app_id'],
+            'app_secret': channel.config['app_secret']
+        }
+        headers = dict(TEMBA_HEADERS)
+
+        url = 'https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/6380/requests'
+        start = time.time()
+
+        try:
+            response = requests.post(url,
+                                     data=payload,
+                                     headers=headers,
+                                     timeout=5)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # parse our response
+        response.json()
+
+        # mark our message as sent
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
                                url=url,
                                request=payload,
                                response=response.text,
@@ -2396,6 +2480,7 @@ class Channel(TembaModel):
                       CLICKATELL: Channel.send_clickatell_message,
                       EXTERNAL: Channel.send_external_message,
                       FACEBOOK: Channel.send_facebook_message,
+                      GLOBE: Channel.send_globe_message,
                       HIGH_CONNECTION: Channel.send_high_connection_message,
                       HUB9: Channel.send_hub9_message,
                       INFOBIP: Channel.send_infobip_message,

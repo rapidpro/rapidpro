@@ -394,6 +394,7 @@ PERMISSIONS = {
                          'claim_clickatell',
                          'claim_external',
                          'claim_facebook',
+                         'claim_globe',
                          'claim_high_connection',
                          'claim_hub9',
                          'claim_infobip',
@@ -418,7 +419,6 @@ PERMISSIONS = {
                          'create_bulk_sender',
                          'create_caller',
                          'errors',
-                         'facebook_welcome',
                          'search_nexmo',
                          'search_numbers',
                          ),
@@ -486,6 +486,7 @@ PERMISSIONS = {
                          'inbound_call',
                          'keyword',
                          'missed_call',
+                         'new_conversation',
                          'register',
                          'schedule',
                          ),
@@ -601,6 +602,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
+        'channels.channel_claim_globe',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
@@ -625,7 +627,6 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
-        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_nexmo',
@@ -723,6 +724,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
+        'channels.channel_claim_globe',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
@@ -747,7 +749,6 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
-        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_numbers',
@@ -1023,7 +1024,6 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
-CURSOR_PAGINATION_OFFSET_CUTOFF = 1000000
 
 
 # -----------------------------------------------------------------------------------

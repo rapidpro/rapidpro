@@ -791,6 +791,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # all org languages except default
   $scope.languages = utils.clone(Flow.languages).filter (lang) -> lang.name isnt "Default"
+  $scope.channels = Flow.channels
 
   formData = {}
 
@@ -925,6 +926,16 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     utils.openModal("/partials/rule_webhook", RuleOptionsController, resolveObj)
 
+  $scope.getFlowsUrl = (flow) ->
+    url = "/flow/?_format=select2"
+    if Flow.flow.flow_type == 'S'
+      return url + "&flow_type=S"
+    if Flow.flow.flow_type == 'F'
+      return url + "&flow_type=F&flow_type=V"
+    if Flow.flow.flow_type == 'V'
+      return url + "&flow_type=V"
+    return url
+
   $scope.remove = (rule) ->
     $scope.removed.push(rule)
     index = $scope.ruleset.rules.indexOf(rule)
@@ -956,13 +967,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
       if rule.test.test 
         if rule._config.localized
-          rule.test._base = rule.test.test[flow.base_language]
+          rule.test._base = rule.test.test[Flow.flow.base_language]
         else
           rule.test =
             _base: rule.test.test
 
     # and finally the category name
-    rule.category._base = rule.category[flow.base_language]
+    rule.category._base = rule.category[Flow.flow.base_language]
 
   if window.ivr
     # prep our menu
@@ -1193,7 +1204,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
             test:
               type: 'eq'
               test: option.number
-          rule.category[flow.base_language] = option.category._base
+          rule.category[Flow.flow.base_language] = option.category._base
 
           rules.push(rule)
 
@@ -1223,11 +1234,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           if rule._config.localized
             if not rule.test.test
               rule.test.test = {}
-            rule.test.test[flow.base_language] = rule.test._base
+            rule.test.test[Flow.flow.base_language] = rule.test._base
           else
             rule.test.test = rule.test._base
 
-        rule.category[flow.base_language] = rule.category._base
+        rule.category[Flow.flow.base_language] = rule.category._base
         if rule.category
           rules.push(rule)
 
@@ -1426,8 +1437,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # Saving an SMS to somebody else
   $scope.saveSend = (omnibox, message) ->
-    $scope.action.groups = omnibox.groups
-    $scope.action.contacts = omnibox.contacts
+
+    groups = []
+    for group in omnibox.groups
+      groups.push
+        uuid: group.id
+        name: group.name
+    $scope.action.groups = groups
+
+    contacts = []
+    for contact in omnibox.contacts
+      contacts.push
+        uuid: contact.id
+        name: contact.name
+    $scope.action.contacts = contacts
+
     $scope.action.variables = omnibox.variables
     $scope.action.type = 'send'
 
@@ -1534,8 +1558,20 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     if omnibox
       $scope.action.type = 'trigger-flow'
-      $scope.action.groups = omnibox.groups
-      $scope.action.contacts = omnibox.contacts
+
+      groups = []
+      for group in omnibox.groups
+        groups.push
+          uuid: group.id
+          name: group.name
+      $scope.action.groups = groups
+
+      contacts = []
+      for contact in omnibox.contacts
+        contacts.push
+          uuid: contact.id
+          name: contact.name
+      $scope.action.contacts = contacts
       $scope.action.variables = omnibox.variables
 
     else
@@ -1560,6 +1596,16 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         break
 
     Flow.saveAction(actionset, $scope.action)
+    $modalInstance.close()
+
+  $scope.saveChannel = () ->
+    # look up the name for this channel, make sure it is up to date
+    definition = {type: 'channel', channel: $scope.action.channel, uuid: $scope.action.uuid}
+    for chan in Flow.channels
+      if chan.uuid == $scope.action.channel
+        definition['name'] = chan.name
+
+    Flow.saveAction(actionset, definition)
     $modalInstance.close()
 
   $scope.ok = ->

@@ -13,7 +13,7 @@
       -blocktrans with brand.name as brand
         You can connect an external aggregator or messaging service to {{ brand }} using our external API.
 
-        You can specify parameters to substitute in the URL by using these variables:
+        You can specify parameters to substitute in the URL or body by using these variables:
 
     %ul
       %li <code>{% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}</code> -
@@ -38,7 +38,7 @@
 
     %p
       -blocktrans
-        If using POST, then we will post <code>from</code>, <code>to</code>, <code>id</code> and <code>text</code> parameters to the URL you specify.
+        If using POST or PUT, you can specify the body of the request using the same variables.
 
     %p
       -blocktrans with brand.name as brand

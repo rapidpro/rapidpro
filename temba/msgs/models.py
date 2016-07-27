@@ -424,7 +424,7 @@ class Broadcast(models.Model):
                         if run.parent:
                             from temba.flows.models import Flow
                             message_context = message_context.copy()
-                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, recipient)))
+                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
 
             try:
                 msg = Msg.create_outgoing(org,
@@ -1142,7 +1142,10 @@ class Msg(models.Model):
         elif urn:
             contact_urn = ContactURN.get_or_create(org, contact, urn, channel=channel)
 
-        # check our URN's affinity
+        # set the preferred channel for this contact
+        contact.set_preferred_channel(channel)
+
+        # and update this URN to make sure it is associated with this channel
         if contact_urn:
             contact_urn.update_affinity(channel)
 
@@ -1186,7 +1189,8 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
-        if status == PENDING:
+        # ivr messages are handled in handle_call
+        if status == PENDING and msg_type != IVR:
             msg.handle()
 
             # fire an event off for this message
@@ -1909,7 +1913,7 @@ class ExportMessagesTask(SmartModel):
         date_style = XFStyle()
         date_style.num_format_str = 'DD-MM-YYYY HH:MM:SS'
 
-        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels']
+        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels', "Status"]
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
@@ -1980,6 +1984,7 @@ class ExportMessagesTask(SmartModel):
             current_messages_sheet.write(row, 5, msg.get_direction_display())
             current_messages_sheet.write(row, 6, msg.text)
             current_messages_sheet.write(row, 7, msg_labels)
+            current_messages_sheet.write(row, 8, msg.get_status_display())
             row += 1
             processed += 1
 

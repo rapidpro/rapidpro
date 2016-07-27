@@ -8,6 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, mixins, status
+from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -27,7 +28,7 @@ from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, Cont
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
 from .serializers import LabelReadSerializer, MsgReadSerializer
 from ..models import APIPermission, SSLPermission
-from ..support import InvalidQueryError, CustomCursorPagination
+from ..support import InvalidQueryError
 
 
 @api_view(['GET'])
@@ -141,36 +142,15 @@ class AuthenticateView(SmartFormView):
             return HttpResponse(status=403)
 
 
-class CreateAPIMixin(object):
-    """
-    Mixin for any endpoint which can create or update objects with a write serializer. Our list and create approach
-    differs slightly a bit from ListCreateAPIView in the REST framework as we use separate read and write serializers...
-    and sometimes we use another serializer again for write output
-    """
-    write_serializer_class = None
+class CreatedOnCursorPagination(CursorPagination):
 
-    def post(self, request, *args, **kwargs):
-        user = request.user
-        context = self.get_serializer_context()
-        serializer = self.write_serializer_class(user=user, data=request.data, context=context)
-
-        if serializer.is_valid():
-            output = serializer.save()
-            return self.render_write_response(output, context)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def render_write_response(self, write_output, context):
-        response_serializer = self.serializer_class(instance=write_output, context=context)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-
-
-class CreatedOnCursorPagination(CustomCursorPagination):
     ordering = ('-created_on', '-id')
+    offset_cutoff = 1000000
 
 
-class ModifiedOnCursorPagination(CustomCursorPagination):
+class ModifiedOnCursorPagination(CursorPagination):
     ordering = ('-modified_on', '-id')
+    offset_cutoff = 1000000
 
 
 class BaseAPIView(generics.GenericAPIView):
@@ -1173,7 +1153,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
     """
-    class Pagination(CustomCursorPagination):
+    class Pagination(CreatedOnCursorPagination):
         """
         Overridden paginator for Msg endpoint that switches from created_on to modified_on when looking
         at all incoming messages.

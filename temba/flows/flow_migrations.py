@@ -1,18 +1,42 @@
 from __future__ import unicode_literals
 
 import copy
+import json
 
 from temba.flows.models import ContainsTest, StartsWithTest, ContainsAnyTest, RegexTest, ReplyAction
 from temba.flows.models import SayAction, SendAction, RuleSet
 from temba.utils.expressions import migrate_template
 from uuid import uuid4
+import regex
 
 
-def migrate_export_to_version_9(exported_json, org, same_site=False):
+def migrate_export_to_version_9(exported_json, org, same_site=True):
     """
-    Migrates remaining ids to uuids. Changes to uuids for  Flows, Groups,
+    Migrates remaining ids to uuids. Changes to uuids for Flows, Groups,
     Contacts and Channels inside of Actions, Triggers, Campaigns, Events
     """
+
+    def replace(str, match, replace):
+        rexp = regex.compile(match, flags=regex.MULTILINE | regex.UNICODE | regex.V0)
+
+        # replace until no matches found
+        matches = 1
+        while matches:
+            (str, matches) = rexp.subn(replace, str)
+
+        return str
+
+    exported_string = json.dumps(exported_json)
+
+    # any references to @extra.flow are now just @parent
+    exported_string = replace(exported_string, '@(extra\.flow)', '@parent')
+    exported_string = replace(exported_string, '(@\(.*?)extra\.flow(.*?\))', r'\1parent\2')
+
+    # any references to @extra.contact are now @parent.contact
+    exported_string = replace(exported_string, '@(extra\.contact)', '@parent.contact')
+    exported_string = replace(exported_string, '(@\(.*?)extra\.contact(.*?\))', r'\1parent.contact\2')
+
+    exported_json = json.loads(exported_string)
 
     flow_id_map = {}
     group_id_map = {}
@@ -28,7 +52,15 @@ def migrate_export_to_version_9(exported_json, org, same_site=False):
             id_map[obj_id] = uuid
         return uuid
 
-    def replace_with_uuid(ele, manager, id_map, nested_name=None, obj=None):
+    def replace_with_uuid(ele, manager, id_map, nested_name=None, obj=None, create_dict=False):
+        # deal with case of having only a string and no name
+        if isinstance(ele, basestring) and create_dict:
+            # variable references should just stay put
+            if len(ele) > 0 and ele[0] == '@':
+                return ele
+            else:
+                ele = dict(name=ele)
+
         obj_id = ele.pop('id', None)
         obj_name = ele.pop('name', None)
 
@@ -55,13 +87,15 @@ def migrate_export_to_version_9(exported_json, org, same_site=False):
             if obj_name:
                 ele['name'] = obj_name
 
+        return ele
+
     def remap_flow(ele, nested_name=None):
         from temba.flows.models import Flow
         replace_with_uuid(ele, Flow.objects, flow_id_map, nested_name)
 
     def remap_group(ele):
         from temba.contacts.models import ContactGroup
-        replace_with_uuid(ele, ContactGroup.user_groups, group_id_map)
+        return replace_with_uuid(ele, ContactGroup.user_groups, group_id_map, create_dict=True)
 
     def remap_campaign(ele):
         from temba.campaigns.models import Campaign
@@ -93,11 +127,14 @@ def migrate_export_to_version_9(exported_json, org, same_site=False):
     for flow in exported_json.get('flows', []):
         for action_set in flow['action_sets']:
             for action in action_set['actions']:
-                if action['type'] in ('add_group', 'del_group', 'send'):
+                if action['type'] in ('add_group', 'del_group', 'send', 'trigger-flow'):
+                    groups = []
                     for group_json in action.get('groups', []):
-                        remap_group(group_json)
+                        groups.append(remap_group(group_json))
                     for contact_json in action.get('contacts', []):
                         remap_contact(contact_json)
+                    if groups:
+                        action['groups'] = groups
                 if action['type'] in ('trigger-flow', 'flow'):
                     remap_flow(action, 'flow')
                 if action['type'] == 'add_label':
@@ -131,14 +168,18 @@ def migrate_export_to_version_9(exported_json, org, same_site=False):
     return exported_json
 
 
-def migrate_to_version_9(json_flow, org):
+def migrate_to_version_9(json_flow, flow):
     """
     This version marks the first usage of subflow rulesets. Moves more items to UUIDs.
     """
-    return migrate_export_to_version_9(dict(flows=[json_flow]), org)['flows'][0]
+    # inject metadata if it's missing
+    from temba.flows.models import Flow
+    if Flow.METADATA not in json_flow:
+        json_flow[Flow.METADATA] = flow.get_metadata()
+    return migrate_export_to_version_9(dict(flows=[json_flow]), flow.org)['flows'][0]
 
 
-def migrate_to_version_8(json_flow, org=None):
+def migrate_to_version_8(json_flow, flow=None):
     """
     Migrates any expressions found in the flow definition to use the new @(...) syntax
     """
@@ -169,7 +210,7 @@ def migrate_to_version_8(json_flow, org=None):
     return json_flow
 
 
-def migrate_to_version_7(json_flow, org=None):
+def migrate_to_version_7(json_flow, flow=None):
     """
     Adds flow details to metadata section
     """
@@ -201,7 +242,7 @@ def migrate_to_version_7(json_flow, org=None):
     return json_flow
 
 
-def migrate_to_version_6(json_flow, org=None):
+def migrate_to_version_6(json_flow, flow=None):
     """
     This migration removes the non-localized flow format. This means all potentially localizable
     text will be a dict from the outset. If no language is set, we will use 'base' as the
@@ -248,7 +289,7 @@ def migrate_to_version_6(json_flow, org=None):
     return json_flow
 
 
-def migrate_to_version_5(json_flow, org=None):
+def migrate_to_version_5(json_flow, flow=None):
     """
     Adds passive rulesets. This necessitates injecting nodes in places where
     we were previously waiting implicitly with explicit waits.

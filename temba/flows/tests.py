@@ -37,8 +37,8 @@ from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import HasStateTest, HasDistrictTest, HasWardTest
-from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction
-from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
+from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
+from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction
 from temba.msgs.models import WIRED
 
 
@@ -121,7 +121,7 @@ class FlowTest(TembaTest):
             for run_elt in runs:
                 flow1.get_results(contact=run_elt.contact, run=run_elt)
 
-        flow2 = self.get_flow('no-ruleset-flow')
+        flow2 = self.get_flow('no_ruleset_flow')
         flow2.start([], [self.contact, self.contact2, contact3])
 
         with self.assertNumQueries(13):
@@ -237,7 +237,7 @@ class FlowTest(TembaTest):
         self.login(self.admin)
 
         # add another flow
-        flow2 = self.get_flow('no-ruleset-flow')
+        flow2 = self.get_flow('no_ruleset_flow')
 
         # and archive it right off the bat
         flow2.is_archived = True
@@ -267,6 +267,43 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, self.flow.name)
         response = self.client.get(reverse('flows.flow_list'), post_data)
         self.assertContains(response, self.flow.name)
+
+    def test_flows_select2(self):
+        self.login(self.admin)
+
+        msg = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Message Flow"), base_language='base', flow_type=Flow.FLOW)
+        survey = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "Surveyor Flow"), base_language='base', flow_type=Flow.SURVEY)
+        ivr = Flow.create(self.org, self.admin, Flow.get_unique_name(self.org, "IVR Flow"), base_language='base', flow_type=Flow.VOICE)
+
+        # all flow types
+        response = self.client.get('%s?_format=select2' % reverse('flows.flow_list'))
+        self.assertContains(response, ivr.name)
+        self.assertContains(response, survey.name)
+        self.assertContains(response, msg.name)
+
+        # only surveyor flows
+        response = self.client.get('%s?_format=select2&flow_type=S' % reverse('flows.flow_list'))
+        self.assertContains(response, survey.name)
+        self.assertNotContains(response, ivr.name)
+        self.assertNotContains(response, msg.name)
+
+        # only voice flows
+        response = self.client.get('%s?_format=select2&flow_type=V' % reverse('flows.flow_list'))
+        self.assertContains(response, ivr.name)
+        self.assertNotContains(response, survey.name)
+        self.assertNotContains(response, msg.name)
+
+        # only text flows
+        response = self.client.get('%s?_format=select2&flow_type=F' % reverse('flows.flow_list'))
+        self.assertContains(response, msg.name)
+        self.assertNotContains(response, survey.name)
+        self.assertNotContains(response, ivr.name)
+
+        # two at a time
+        response = self.client.get('%s?_format=select2&flow_type=V&flow_type=F' % reverse('flows.flow_list'))
+        self.assertContains(response, ivr.name)
+        self.assertContains(response, msg.name)
+        self.assertNotContains(response, survey.name)
 
     def test_flow_read(self):
         self.login(self.admin)
@@ -945,6 +982,17 @@ class FlowTest(TembaTest):
         # our json should contain the names of our contact and groups
         self.assertTrue(json_as_string.find('Eric') > 0)
         self.assertTrue(json_as_string.find('Other') > 0)
+
+        # now delete our group
+        self.other_group.delete()
+
+        flow_json = self.flow.as_json(expand_contacts=True)
+        add_group = flow_json['action_sets'][3]['actions'][0]
+        send = flow_json['action_sets'][3]['actions'][1]
+
+        # should still see a reference to our group even (recreated)
+        self.assertEquals(1, len(add_group['groups']))
+        self.assertEquals(1, len(send['groups']))
 
     def assertTest(self, expected_test, expected_value, test, extra=None):
         runs = FlowRun.objects.filter(contact=self.contact)
@@ -2303,6 +2351,11 @@ class ActionTest(TembaTest):
         self.assertTrue(updated_action.groups)
         self.assertFalse(self.other_group.pk in [g.pk for g in updated_action.groups])
 
+    def test_variable_contact_parsing(self):
+        groups = dict(groups=[dict(id=-1)])
+        groups = VariableContactAction.parse_groups(self.org, groups)
+        self.assertTrue('Missing', groups[0].name)
+
     @override_settings(SEND_EMAILS=True)
     def test_email_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
@@ -2481,6 +2534,17 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, test_contact.pk)
         test.execute(run, None, sms)
 
+        ActionLog.objects.all().delete()
+        action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='foo@bar.com'))
+        action.execute(run, None, None)
+        self.assertEquals(ActionLog.objects.get().text, "Added foo@bar.com as @contact.mailto - skipped in simulator")
+
+        # Invalid email
+        ActionLog.objects.all().delete()
+        action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='foobar.com'))
+        action.execute(run, None, None)
+        self.assertEquals(ActionLog.objects.get().text, "Skipping invalid connection for contact (mailto:foobar.com)")
+
         # URN should be unchanged on the simulator contact
         test_contact = Contact.objects.get(id=test_contact.id)
         self.assertEquals(test_contact_urn, test_contact.urns.all().first())
@@ -2516,13 +2580,16 @@ class ActionTest(TembaTest):
 
     def test_start_flow_action(self):
         self.flow.update(self.create_flow_definition())
+        self.flow.name = 'Parent'
+        self.flow.save()
+
         self.flow.start([], [self.contact])
 
         sms = Msg.create_incoming(self.channel, "tel:+250788382382", "Blue is my favorite")
 
         run = FlowRun.objects.get()
 
-        new_flow = Flow.create_single_message(self.org, self.user, "You chose @extra.flow.color.category")
+        new_flow = Flow.create_single_message(self.org, self.user, "You chose @parent.color.category")
         action = StartFlowAction(new_flow)
 
         action_json = action.as_json()
@@ -2633,6 +2700,71 @@ class ActionTest(TembaTest):
 
         self.assertEqual(ActionLog.objects.filter(level='E').count(), 1)
 
+    def test_set_channel_action(self):
+        flow = self.flow
+        run = FlowRun.create(flow, self.contact.pk)
+
+        tel1_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12061111111', 'KN', {})
+        tel2_channel = Channel.add_config_external_channel(self.org, self.admin, 'US', '+12062222222', 'KN', {})
+        fb_channel = Channel.add_facebook_channel(self.org, self.admin, "Page Name", "Page Id", "Page Token")
+
+        # create an incoming message on tel1, this should create an affinity to that channel
+        Msg.create_incoming(tel1_channel, str(self.contact.urns.all().first()), "Incoming msg")
+        urn = self.contact.urns.all().first()
+        self.assertEqual(urn.channel, tel1_channel)
+
+        action = SetChannelAction(tel2_channel)
+        action.execute(run, None, None)
+
+        # check the affinity on our urn again, should now be the second channel
+        urn.refresh_from_db()
+        self.assertEqual(urn.channel, tel2_channel)
+
+        # try to set it to a channel that we don't have a URN for
+        action = SetChannelAction(fb_channel)
+        action.execute(run, None, None)
+
+        # affinity is unchanged
+        urn.refresh_from_db()
+        self.assertEqual(urn.channel, tel2_channel)
+
+        # add a FB urn for our contact
+        fb_urn = ContactURN.get_or_create(self.org, self.contact, 'facebook:1001')
+
+        # default URN should be FB now, as it has the highest priority
+        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
+        self.assertEqual(resolved_urn, fb_urn)
+
+        # but if we set our channel to tel, will override that
+        run.contact.clear_urn_cache()
+        action = SetChannelAction(tel1_channel)
+        action.execute(run, None, None)
+
+        contact.clear_urn_cache()
+        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
+        self.assertEqual(resolved_urn, urn)
+        self.assertEqual(resolved_urn.channel, tel1_channel)
+
+        # test serializing
+        action_json = action.as_json()
+        action = SetChannelAction.from_json(self.org, action_json)
+        self.assertEqual(tel1_channel, action.channel)
+
+        # action shouldn't blow up without a channel
+        action = SetChannelAction(None)
+        action.execute(run, None, None)
+
+        # incoming messages will still cause preference to switch
+        Msg.create_incoming(tel2_channel, str(urn), "Incoming msg")
+        urn.refresh_from_db()
+        self.assertEqual(urn.channel, tel2_channel)
+
+        # make sure that switch will work across schemes as well
+        Msg.create_incoming(fb_channel, str(fb_urn), "Incoming FB message")
+        self.contact.clear_urn_cache()
+        contact, resolved_urn = Msg.resolve_recipient(self.org, self.admin, self.contact, None)
+        self.assertEqual(resolved_urn, fb_urn)
+
     def test_add_label_action(self):
         flow = self.flow
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
@@ -2702,6 +2834,8 @@ class ActionTest(TembaTest):
                                                          'urn': u'tel:+250788382382',
                                                          'text': None,
                                                          'flow': self.flow.pk,
+                                                         'flow_name': self.flow.name,
+                                                         'flow_base_language': self.flow.base_language,
                                                          'relayer': -1,
                                                          'step': 'None',
                                                          'values': '[]',
@@ -2727,6 +2861,8 @@ class ActionTest(TembaTest):
                                                          'urn': u'tel:+250788382382',
                                                          'text': "Green is my favorite",
                                                          'flow': self.flow.pk,
+                                                         'flow_name': self.flow.name,
+                                                         'flow_base_language': self.flow.base_language,
                                                          'relayer': msg.channel.pk,
                                                          'step': 'None',
                                                          'values': '[]',
@@ -2961,6 +3097,24 @@ class WebhookTest(TembaTest):
         super(WebhookTest, self).tearDown()
         settings.SEND_WEBHOOKS = False
 
+    def test_webhook_subflow_extra(self):
+        # import out flow that triggers another flow
+        contact1 = self.create_contact("Marshawn", "+14255551212")
+        substitutions = dict(contact_id=contact1.id)
+        flow = self.get_flow('triggered', substitutions)
+
+        with patch('requests.get') as get:
+            get.return_value = MockResponse(200, '{ "text": "(I came from a webhook)" }')
+            flow.start(groups=[], contacts=[contact1], restart_participants=True)
+
+            # first message from our trigger flow action
+            msg = Msg.all_messages.all().order_by('-created_on')[0]
+            self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
+
+            # second message from our start flow action
+            msg = Msg.all_messages.all().order_by('-created_on')[1]
+            self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
+
     def test_webhook(self):
         self.flow = self.create_flow()
         self.contact = self.create_contact("Ben Haggerty", '+250788383383')
@@ -3171,7 +3325,7 @@ class FlowsTest(FlowFileTest):
             self.get_flow('non_localized_ruleset')
 
     def test_sms_forms(self):
-        flow = self.get_flow('sms-form')
+        flow = self.get_flow('sms_form')
 
         def assert_response(message, response):
             self.assertEquals(response, self.send_message(flow, message, restart_participants=True))
@@ -3225,7 +3379,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(response.get('status'), 'unsaved')
 
     def test_get_columns_order(self):
-        flow = self.get_flow('columns-order')
+        flow = self.get_flow('columns_order')
 
         export_columns = flow.get_columns()
         self.assertEquals(export_columns[0], RuleSet.objects.filter(flow=flow, label='Beer').first())
@@ -3343,6 +3497,8 @@ class FlowsTest(FlowFileTest):
 
         assert_in_response(response, 'message_completions', 'contact')
         assert_in_response(response, 'message_completions', 'contact.first_name')
+        assert_in_response(response, 'message_completions', 'contact.tel')
+        assert_in_response(response, 'message_completions', 'contact.mailto')
         assert_in_response(response, 'message_completions', 'flow.color')
         assert_in_response(response, 'message_completions', 'flow.color.category')
         assert_in_response(response, 'message_completions', 'flow.color.text')
@@ -3796,7 +3952,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("You've got to be kitten me", self.send_message(flow, "cats"))
 
     def test_numeric_rule_allows_variables(self):
-        flow = self.get_flow('numeric-rule-allows-variables')
+        flow = self.get_flow('numeric_rule_allows_variables')
 
         zinedine = self.create_contact('Zinedine', '+123456')
         zinedine.set_field(self.user, 'age', 25)
@@ -3857,7 +4013,7 @@ class FlowsTest(FlowFileTest):
         ContactGroup.get_or_create(self.org, self.admin, "Survey Audience")
 
         # this could blow up due to illegal lookup for more than one contact group
-        self.get_flow('group-send-flow')
+        self.get_flow('group_send_flow')
 
     def test_new_contact(self):
         mother_flow = self.get_flow('mama_mother_registration')
@@ -3957,7 +4113,7 @@ class FlowsTest(FlowFileTest):
         self.assertFalse(trigger.is_active)
 
     def test_start_flow_action(self):
-        self.import_file('flow-starts')
+        self.import_file('flow_starts')
         parent = Flow.objects.get(name='Parent Flow')
         child = Flow.objects.get(name='Child Flow')
 
@@ -3982,7 +4138,7 @@ class FlowsTest(FlowFileTest):
         Language.create(self.org, self.admin, "English", 'eng')
 
         # import our localized flow into an org with no languages
-        self.import_file('multi-language-flow')
+        self.import_file('multi_language_flow')
         flow = Flow.objects.get(name='Multi Language Flow')
 
         # even tho we don't have a language, our flow has enough info to function
@@ -4209,7 +4365,13 @@ class FlowsTest(FlowFileTest):
         self.send_message(parent, "color", assert_reply=False)
 
         # we should now have two active flows
-        self.assertEqual(2, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+        runs = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on')
+        self.assertEqual(2, runs.count())
+
+        # make sure the parent run expires later than the child
+        child_run = runs[0]
+        parent_run = runs[1]
+        self.assertTrue(parent_run.expires_on > child_run.expires_on)
 
         # now expire out of the child flow
         run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on').first()
@@ -4416,7 +4578,7 @@ class FlowMigrationTest(FlowFileTest):
                              expires=flow.expires_after_minutes, id=flow.pk,
                              revision=revision.revision if revision else 1)
 
-        flow_json = FlowRevision.migrate_definition(self.org, flow_json, flow.version_number, to_version=to_version)
+        flow_json = FlowRevision.migrate_definition(flow_json, flow, flow.version_number, to_version=to_version)
         if 'definition' in flow_json:
             flow_json = flow_json['definition']
 
@@ -4443,8 +4605,27 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json['version'], CURRENT_EXPORT_VERSION)
         self.assertEqual(flow_json['metadata']['revision'], 2)
 
+    def test_migration_string_group(self):
+        flow = Flow.create_instance(dict(name='String group', org=self.org,
+                                         created_by=self.admin, modified_by=self.admin,
+                                         saved_by=self.admin, version_number=3))
+
+        flow_json = self.get_flow_json('string_group')['definition']
+
+        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+                                          spec_version=3, revision=1,
+                                          created_by=self.admin, modified_by=self.admin))
+
+        flow.ensure_current_version()
+        flow_json = flow.as_json()
+
+        self.assertEqual(len(flow_json['action_sets']), 1)
+        self.assertEqual("The Funky Bunch", flow_json['action_sets'][0]['actions'][0]['groups'][0]['name'])
+        self.assertTrue("The Funky Bunch", flow_json['action_sets'][0]['actions'][0]['groups'][0]['uuid'])
+        self.assertEqual("@contact.name", flow_json['action_sets'][0]['actions'][0]['groups'][1])
+
     def test_ensure_current_version(self):
-        flow_json = self.get_flow_json('call-me-maybe')['definition']
+        flow_json = self.get_flow_json('call_me_maybe')['definition']
         flow = Flow.create_instance(dict(name='Call Me Maybe', org=self.org,
                                          created_by=self.admin, modified_by=self.admin,
                                          saved_by=self.admin, version_number=3))
@@ -4549,15 +4730,32 @@ class FlowMigrationTest(FlowFileTest):
         new_exported_json = migrate_export_to_version_9(new_exported_json, self.org, False)
         self.assertNotEqual(flow_json['metadata']['uuid'], new_exported_json['flows'][0]['metadata']['uuid'])
 
+        flow = Flow.objects.create(name='test flow', created_by=self.admin, modified_by=self.admin, org=self.org, saved_by=self.admin)
+        flow.update(exported_json)
+
         # can also just import a single flow
         exported_json = json.loads(self.get_import_json('migrate_to_9', substitutions))
-        flow_json = migrate_to_version_9(exported_json['flows'][0], self.org)
+        flow_json = migrate_to_version_9(exported_json['flows'][0], flow)
         self.assertIn('uuid', flow_json['metadata'])
         self.assertNotIn('id', flow_json['metadata'])
 
+        # try it with missing metadata
+        flow_json = json.loads(self.get_import_json('migrate_to_9', substitutions))['flows'][0]
+        del flow_json['metadata']
+        flow_json = migrate_to_version_9(flow_json, flow)
+        self.assertEqual(1, flow_json['metadata']['revision'])
+        self.assertEqual('test flow', flow_json['metadata']['name'])
+        self.assertEqual(720, flow_json['metadata']['expires'])
+        self.assertTrue('uuid' in flow_json['metadata'])
+        self.assertTrue('saved_on' in flow_json['metadata'])
+
+        # check that our replacements work
+        self.assertEqual('@(CONCAT(parent.divided, parent.sky))', flow_json['action_sets'][0]['actions'][3]['value'])
+        self.assertEqual('@parent.contact.name', flow_json['action_sets'][0]['actions'][4]['value'])
+
     def test_migrate_to_8(self):
         # file uses old style expressions
-        flow_json = self.get_flow_json('old-expressions')
+        flow_json = self.get_flow_json('old_expressions')
 
         # migrate to the version right before us first
         flow_json = migrate_to_version_7(flow_json)
@@ -4572,7 +4770,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(flow_json['rule_sets'][1]['operand'], "@(step.value + 3)")
 
     def test_migrate_to_7(self):
-        flow_json = self.get_flow_json('call-me-maybe')
+        flow_json = self.get_flow_json('call_me_maybe')
 
         # migrate to the version right before us first
         flow_json = migrate_to_version_5(flow_json)
@@ -4595,7 +4793,7 @@ class FlowMigrationTest(FlowFileTest):
     def test_migrate_to_6(self):
 
         # file format is old non-localized format
-        voice_json = self.get_flow_json('call-me-maybe')
+        voice_json = self.get_flow_json('call_me_maybe')
         definition = voice_json.get('definition')
 
         # no language set
@@ -4617,7 +4815,7 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals('/recording.mp3', definition['action_sets'][0]['actions'][0]['recording']['base'])
 
         # now try one that doesn't have a recording set
-        voice_json = self.get_flow_json('call-me-maybe')
+        voice_json = self.get_flow_json('call_me_maybe')
         definition = voice_json.get('definition')
         del definition['action_sets'][0]['actions'][0]['recording']
         voice_json = migrate_to_version_5(voice_json)
@@ -4627,7 +4825,7 @@ class FlowMigrationTest(FlowFileTest):
 
     def test_migrate_to_5_language(self):
 
-        flow_json = self.get_flow_json('multi-language-flow')
+        flow_json = self.get_flow_json('multi_language_flow')
         ruleset = flow_json['definition']['rule_sets'][0]
         ruleset['operand'] = '@step.value|lower_case'
 
@@ -4881,7 +5079,7 @@ class WebhookLoopTest(FlowFileTest):
 class MissedCallChannelTest(FlowFileTest):
 
     def test_missed_call_channel(self):
-        flow = self.get_flow('call-channel-split')
+        flow = self.get_flow('call_channel_split')
 
         # trigger a missed call on our channel
         call = ChannelEvent.create(self.channel, 'tel:+250788111222', ChannelEvent.TYPE_CALL_IN_MISSED,
@@ -5038,6 +5236,38 @@ class FlowBatchTest(FlowFileTest):
         step.add_message(step.messages.all()[0])
         self.assertEqual(step.messages.all().count(), 1)
         self.assertEqual(step.broadcasts.all().count(), 1)
+
+
+class TwoInRowTest(FlowFileTest):
+
+    def test_two_in_row(self):
+        flow = self.get_flow('two_in_row')
+        flow.start([], [self.contact])
+
+        # assert contact received both messages
+        msgs = self.contact.msgs.all()
+        self.assertEqual(msgs.count(), 2)
+
+
+class SendActionTest(FlowFileTest):
+
+    def test_send(self):
+        contact1 = self.create_contact("Mark", "+14255551212")
+        contact2 = self.create_contact("Gregg", "+12065551212")
+
+        substitutions = dict(contact1_id=contact1.id, contact2_id=contact2.id)
+        exported_json = json.loads(self.get_import_json('bad_send_action', substitutions))
+
+        # create a flow object, we just need this to test our flow revision
+        flow = Flow.objects.create(org=self.org, name="Import Flow", created_by=self.admin, modified_by=self.admin, saved_by=self.admin)
+        revision = FlowRevision.objects.create(flow=flow, definition=json.dumps(exported_json), spec_version=8, revision=1,
+                                               created_by=self.admin, modified_by=self.admin)
+
+        migrated = revision.get_definition_json()
+
+        # assert our contacts have valid uuids now
+        self.assertEqual(migrated['action_sets'][0]['actions'][0]['contacts'][0]['uuid'], contact1.uuid)
+        self.assertEqual(migrated['action_sets'][0]['actions'][0]['contacts'][1]['uuid'], contact2.uuid)
 
 
 class OrderingTest(FlowFileTest):

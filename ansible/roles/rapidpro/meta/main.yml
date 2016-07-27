@@ -1,0 +1,12 @@
+---
+
+galaxy_info:
+  author: javaguirre
+  description: Rapidpro role
+  min_ansible_version: 2.0
+  platforms:
+    - name: Ubuntu
+  versions:
+    - all
+  categories:
+    - web
