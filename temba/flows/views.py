@@ -728,6 +728,7 @@ class FlowCRUDL(SmartCRUDL):
                 dict(name='contact.first_name', display=unicode(_('Contact First Name'))),
                 dict(name='contact.groups', display=unicode(_('Contact Groups'))),
                 dict(name='contact.language', display=unicode(_('Contact Language'))),
+                dict(name='contact.mailto', display=unicode(_('Contact Email Address'))),
                 dict(name='contact.name', display=unicode(_('Contact Name'))),
                 dict(name='contact.tel', display=unicode(_('Contact Phone'))),
                 dict(name='contact.tel_e164', display=unicode(_('Contact Phone - E164'))),
