@@ -2075,8 +2075,8 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             'contact',
             rulesets_prefetch,
             Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
-            Prefetch('steps__broadcasts', queryset=Broadcast.objects.only('text').order_by('created_on')),
             Prefetch('steps__messages', queryset=Msg.all_messages.only('broadcast', 'text').order_by('created_on')),
+            Prefetch('steps__broadcasts', queryset=Broadcast.objects.only('text').order_by('created_on')),
         )
 
         return queryset.order_by('-modified_on')

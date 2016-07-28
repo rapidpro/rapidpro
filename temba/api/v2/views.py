@@ -1287,8 +1287,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
             Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
-            Prefetch('steps__broadcasts', queryset=Broadcast.objects.all()),
             Prefetch('steps__messages', queryset=Msg.all_messages.only('broadcast', 'text')),
+            Prefetch('steps__broadcasts', queryset=Broadcast.objects.all()),
         )
 
         return self.filter_before_after(queryset, 'modified_on')

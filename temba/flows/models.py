@@ -1283,7 +1283,8 @@ class Flow(TembaModel):
             if filter_ruleset:
                 flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
 
-            flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
+            flow_steps = flow_steps.order_by('arrived_on', 'pk')
+            flow_steps = flow_steps.select_related('run').prefetch_related('messages', 'broadcasts')
 
         steps_cache = {}
         for step in flow_steps:
@@ -3668,6 +3669,7 @@ class ExportFlowResultsTask(SmartModel):
                                       select_related=['run', 'contact'],
                                       prefetch_related=['messages__contact_urn',
                                                         'messages__channel',
+                                                        'broadcasts',
                                                         'contact__all_groups'],
                                       contact_fields=contact_fields):
 
