@@ -3528,7 +3528,7 @@ class URNTest(TembaTest):
         self.assertEqual(URN.normalize("tel:+62877747666", None), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:62877747666", "ID"), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:0877747666", "ID"), "tel:+62877747666")
-        self.assertEqual(URN.normalize("tel:07531669965", "GB"), "tel+447531669965")
+        self.assertEqual(URN.normalize("tel:07531669965", "GB"), "tel:+447531669965")
 
         # un-normalizable tel numbers
         self.assertEqual(URN.normalize("tel:12345", "RW"), "tel:12345")
