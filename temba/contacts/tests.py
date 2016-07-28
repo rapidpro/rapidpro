@@ -1975,6 +1975,24 @@ class ContactTest(TembaTest):
         # the call should be inactive now too
         self.assertFalse(call.is_active)
 
+    def test_number_normalized(self):
+        self.org.country = None
+        self.org.save()
+
+        self.channel.country = 'GB'
+        self.channel.save()
+
+        self.login(self.admin)
+
+        self.client.post(reverse('contacts.contact_create'), dict(name="Ryan Lewis", urn__tel__0='07531669965'))
+        contact = Contact.from_urn(self.org, 'tel:+447531669965')
+        self.assertEqual("Ryan Lewis", contact.name)
+
+        # try the update case
+        self.client.post(reverse('contacts.contact_update', args=[contact.id]), dict(name="Marshal Mathers", urn__tel__0='07531669966'))
+        contact = Contact.from_urn(self.org, 'tel:+447531669966')
+        self.assertEqual("Marshal Mathers", contact.name)
+
     def test_contact_model(self):
         contact1 = self.create_contact(name=None, number="123456")
 
@@ -3414,8 +3432,6 @@ class ContactFieldTest(TembaTest):
 
         response_json = json.loads(response.content)
 
-        print response_json
-
         self.assertEquals(len(response_json), 40)
         self.assertEquals(response_json[0]['label'], 'Full name')
         self.assertEquals(response_json[0]['key'], 'name')
@@ -3512,6 +3528,7 @@ class URNTest(TembaTest):
         self.assertEqual(URN.normalize("tel:+62877747666", None), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:62877747666", "ID"), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:0877747666", "ID"), "tel:+62877747666")
+        self.assertEqual(URN.normalize("tel:07531669965", "GB"), "tel+447531669965")
 
         # un-normalizable tel numbers
         self.assertEqual(URN.normalize("tel:12345", "RW"), "tel:12345")
