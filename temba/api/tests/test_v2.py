@@ -1091,7 +1091,7 @@ class APITest(TembaTest):
         self.assertEquals('Parent Flow', response.json['flows'][0]['metadata']['name'])
 
         # import the clinic app which has campaigns
-        self.import_file('the-clinic')
+        self.import_file('the_clinic')
 
         # our catchall flow, all alone
         flow = Flow.objects.filter(name='Catch All').first()
