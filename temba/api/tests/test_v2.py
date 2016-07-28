@@ -931,9 +931,6 @@ class APITest(TembaTest):
         joe_run2.refresh_from_db()
         frank_run1.refresh_from_db()
 
-        joe_msgs = list(Msg.all_messages.filter(contact=self.joe).order_by('pk'))
-        frank_msgs = list(Msg.all_messages.filter(contact=self.frank).order_by('pk'))
-
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
             response = self.fetchJSON(url)
@@ -944,6 +941,9 @@ class APITest(TembaTest):
 
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
         frank_run2_steps = list(frank_run2.steps.order_by('pk'))
+
+        joe_msgs = list(Msg.all_messages.filter(contact=self.joe).order_by('pk'))
+        frank_msgs = list(Msg.all_messages.filter(contact=self.frank).order_by('pk'))
 
         self.assertEqual(response.json['results'][1], {
             'id': frank_run2.pk,
@@ -1043,6 +1043,21 @@ class APITest(TembaTest):
             'exited_on': format_datetime(joe_run1.exited_on),
             'exit_type': 'completed'
         })
+
+        # check when all broadcasts have been purged
+        Broadcast.objects.all().update(purged=True)
+        Msg.all_messages.filter(direction='O').delete()
+
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.json['results'][1]['steps'][0]['messages'], [
+            {
+                'id': None,
+                'broadcast': frank_msgs[3].broadcast_id,
+                'text': "What is your favorite color?"
+            }
+        ])
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)
