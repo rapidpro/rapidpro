@@ -5375,7 +5375,7 @@ class TelegramTest(TembaTest):
                     self.assertEquals(200, response.status_code)
 
                     # should have a media message now with an image
-                    msgs = Msg.all_messages.all().order_by('-created_on')
+                    msgs = Msg.all_messages.all().order_by('-pk')
 
                     offset = 1 if caption else 0
                     if caption:
