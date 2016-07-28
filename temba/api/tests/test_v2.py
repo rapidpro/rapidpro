@@ -16,7 +16,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
-from temba.msgs.models import Broadcast, Label
+from temba.msgs.models import Broadcast, Label, Msg
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
@@ -931,8 +931,11 @@ class APITest(TembaTest):
         joe_run2.refresh_from_db()
         frank_run1.refresh_from_db()
 
+        joe_msgs = list(Msg.all_messages.filter(contact=self.joe).order_by('pk'))
+        frank_msgs = list(Msg.all_messages.filter(contact=self.frank).order_by('pk'))
+
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -952,6 +955,13 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000001",
                     'arrived_on': format_datetime(frank_run2_steps[0].arrived_on),
                     'left_on': format_datetime(frank_run2_steps[0].left_on),
+                    'messages': [
+                        {
+                            'id': frank_msgs[3].id,
+                            'broadcast': frank_msgs[3].broadcast_id,
+                            'text': "What is your favorite color?"
+                        }
+                    ],
                     'text': "What is your favorite color?",
                     'value': None,
                     'category': None,
@@ -961,6 +971,7 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000005",
                     'arrived_on': format_datetime(frank_run2_steps[1].arrived_on),
                     'left_on': None,
+                    'messages': [],
                     'text': None,
                     'value': None,
                     'category': None,
@@ -982,6 +993,13 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000001",
                     'arrived_on': format_datetime(joe_run1_steps[0].arrived_on),
                     'left_on': format_datetime(joe_run1_steps[0].left_on),
+                    'messages': [
+                        {
+                            'id': joe_msgs[0].id,
+                            'broadcast': joe_msgs[0].broadcast_id,
+                            'text': "What is your favorite color?"
+                        }
+                    ],
                     'text': "What is your favorite color?",
                     'value': None,
                     'category': None,
@@ -991,7 +1009,14 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000005",
                     'arrived_on': format_datetime(joe_run1_steps[1].arrived_on),
                     'left_on': format_datetime(joe_run1_steps[1].left_on),
-                    'text': 'it is blue',
+                    'messages': [
+                        {
+                            'id': joe_msgs[1].id,
+                            'broadcast': joe_msgs[1].broadcast_id,
+                            'text': "it is blue"
+                        }
+                    ],
+                    'text': "it is blue",
                     'value': 'blue',
                     'category': "Blue",
                     'type': 'ruleset'
@@ -1000,7 +1025,14 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000003",
                     'arrived_on': format_datetime(joe_run1_steps[2].arrived_on),
                     'left_on': format_datetime(joe_run1_steps[2].left_on),
-                    'text': 'Blue is sad. :(',
+                    'messages': [
+                        {
+                            'id': joe_msgs[2].id,
+                            'broadcast': joe_msgs[2].broadcast_id,
+                            'text': "Blue is sad. :("
+                        }
+                    ],
+                    'text': "Blue is sad. :(",
                     'value': None,
                     'category': None,
                     'type': 'actionset'

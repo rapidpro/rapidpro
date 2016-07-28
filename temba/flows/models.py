@@ -2828,8 +2828,21 @@ class FlowStep(models.Model):
         self.save(update_fields=['rule_category', 'rule_uuid', 'rule_value', 'rule_decimal_value'])
 
     def get_text(self):
+        """
+        Returns a single text value for this step. Since steps can have multiple outgoing messages, this isn't very
+        useful but needed for backwards compatibility in API v1.
+        """
         msg = self.messages.all().first()
-        return msg.text if msg else None
+        if msg:
+            return msg.text
+
+        # Broadcast isn't implicitly ordered like Msg is so .all().first() would cause an extra db hit even if all() has
+        # been prefetched
+        broadcasts = list(self.broadcasts.all())
+        if broadcasts:
+            return broadcasts[0].text
+
+        return None
 
     def add_message(self, msg):
         # no-op for no msg or mock msgs

@@ -244,13 +244,31 @@ class FlowRunReadSerializer(ReadSerializer):
                           'node': step.step_uuid,
                           'arrived_on': format_datetime(step.arrived_on),
                           'left_on': format_datetime(step.left_on),
-                          'text': step.get_text(),
+                          'messages': self.get_step_messages(step),
+                          'text': step.get_text(),  # TODO remove
                           'value': val,
                           'category': step.rule_category})
         return steps
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)
+
+    @staticmethod
+    def get_step_messages(step):
+        # TODO this can be removed once purging broadcasts actually deletes messages
+        included_broadcast_ids = set()
+
+        messages = []
+        for m in step.messages.all():
+            messages.append({'id': m.id, 'broadcast': m.broadcast_id, 'text': m.text})
+            if m.broadcast_id:
+                included_broadcast_ids.add(m.broadcast_id)
+
+        for b in step.broadcasts.all():
+            if b.id not in included_broadcast_ids:
+                messages.append({'id': None, 'broadcast': b.id, 'text': b.text})
+
+        return messages
 
     class Meta:
         model = FlowRun
