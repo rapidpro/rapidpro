@@ -871,14 +871,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     {value:360, text:'6 hours'}
   ]
 
-  # initialize our timeout options
+  minutes = 1
   formData.hasTimeout = false
+
+  for rule in ruleset.rules
+    if rule.test.type == 'timeout'
+      minutes = rule.test.minutes
+      formData.hasTimeout = true
+      break
+
+  # initialize our timeout options
   formData.timeout = formData.timeoutOptions[0]
 
   for option in formData.timeoutOptions
-    if option.value == ruleset.config.timeout_minutes
+    if option.value == minutes
       formData.timeout = option
-      formData.hasTimeout = true
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
@@ -1239,8 +1246,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if $scope.hasRules()
 
       for rule in ruleset.rules
-        # we'll tack our everything rule on the end
-        if rule._config.type == "true"
+        # we'll tack our everything and timeout rules on the end
+        if rule._config.type in ['true', 'timeout']
           continue
 
         # between categories are not required, populate their category name
@@ -1270,26 +1277,35 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           rules.push(rule)
 
     # set the name for our everything rule
-    allCategory = "All Responses"
+    otherCategoryName = "All Responses"
     if rules.length > 0
-      allCategory = "Other"
+      otherCategoryName = "Other"
 
-    # grab previous category translations if we have them
-    ruleId = uuid()
-    destination = null
+    # grab previous category translations and destinations if we have them
+    otherRuleUuid = uuid()
+    otherDestination = null
+
+    timeoutRuleUuid = uuid()
+    timeoutDestination = null
+
+    timeoutCategory = {}
+    timeoutCategory[Flow.flow.base_language] = 'No Response'
+
     for rule in ruleset.rules
       if rule._config.type == 'true'
-        destination = rule.destination
-        category = rule.category
-        ruleId = rule.uuid
-        break
+        otherDestination = rule.destination
+        otherCategory = rule.category
+        otherRuleUuid = rule.uuid
+      else if rule._config.type == 'timeout'
+        timeoutDestination = rule.destination
+        timeoutCategory = rule.category
+        timeoutRuleUuid = rule.uuid
 
     # if for some reason we don't have an other rule
     # create an empty category (this really shouldn't happen)
-    if not category
-      category = {}
-
-    category[Flow.flow.base_language] = allCategory
+    if not otherCategory
+      otherCategory = {}
+    otherCategory[Flow.flow.base_language] = otherCategoryName
 
     # for all rules that require a catch all, append a true rule
     if ruleset.ruleset_type != 'subflow'
@@ -1298,9 +1314,19 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         test:
           test: "true"
           type: "true"
-        destination: destination
-        uuid: ruleId
-        category: category
+        destination: otherDestination
+        uuid: otherRuleUuid
+        category: otherCategory
+
+    if $scope.formData.hasTimeout
+      rules.push
+        _config: Flow.getOperatorConfig("timeout")
+        test:
+          type: "timeout"
+          minutes: $scope.formData.timeout.value
+        destination: timeoutDestination
+        uuid: timeoutRuleUuid
+        category: timeoutCategory
 
     $scope.ruleset.rules = rules
 
@@ -1338,6 +1364,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           if rule.type == 'subflow'
             rules.push(rule)
         ruleset.rules = rules
+      else
+
+        # remove subflow rules
+        rules = []
+        for rule in ruleset.rules
+          if rule.type != 'subflow'
+            rules.push(rule)
+        ruleset.rules = rules
 
       # settings for a message form
       if rulesetConfig.type == 'form_field'
@@ -1363,11 +1397,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       if ruleset.ruleset_type != 'webhook'
         ruleset.webhook = null
         ruleset.webhook_action = null
-
-      if formData.hasTimeout && $scope.isPausingRuleset()
-        ruleset.config['timeout_minutes'] = $scope.formData.timeout.value
-      else
-        delete ruleset.config['timeout_minutes']
 
       # update our rules accordingly
       $scope.updateRules(ruleset, rulesetConfig)
