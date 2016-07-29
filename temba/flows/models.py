@@ -2828,7 +2828,7 @@ class FlowStep(models.Model):
 
         self.save(update_fields=['rule_category', 'rule_uuid', 'rule_value', 'rule_decimal_value'])
 
-    def get_text(self):
+    def get_text(self, run=None):
         """
         Returns a single text value for this step. Since steps can have multiple outgoing messages, this isn't very
         useful but needed for backwards compatibility in API v1.
@@ -2837,11 +2837,12 @@ class FlowStep(models.Model):
         if msg:
             return msg.text
 
-        # Broadcast isn't implicitly ordered like Msg is so .all().first() would cause an extra db hit even if all() has
-        # been prefetched
+        # It's possible that messages have been purged but we still have broadcasts. Broadcast isn't implicitly ordered
+        # like Msg is so .all().first() would cause an extra db hit even if all() has been prefetched.
         broadcasts = list(self.broadcasts.all())
         if broadcasts:
-            return broadcasts[0].text
+            run = run or self.run
+            return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
 
         return None
 

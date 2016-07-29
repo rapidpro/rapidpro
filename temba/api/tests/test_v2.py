@@ -329,7 +329,7 @@ class APITest(TembaTest):
         Broadcast.create(self.org2, self.admin2, "Different org...", [self.hans])
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -566,12 +566,11 @@ class APITest(TembaTest):
         self.joe.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        print response
         self.assertResultsByUUID(response, [contact4, self.joe, contact2, contact1, self.frank])
         self.assertEqual(response.json['results'][0], {
             'uuid': contact4.uuid,
@@ -754,7 +753,7 @@ class APITest(TembaTest):
         joe_msg3.refresh_from_db(fields=('modified_on',))
 
         # filter by inbox
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, 'folder=INBOX')
 
         self.assertEqual(response.status_code, 200)
@@ -763,7 +762,7 @@ class APITest(TembaTest):
         self.assertMsgEqual(response.json['results'][0], frank_msg1, msg_type='inbox', msg_status='queued', msg_visibility='visible')
 
         # filter by incoming, should get deleted messages too
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, 'folder=incoming')
 
         self.assertEqual(response.status_code, 200)

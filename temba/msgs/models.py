@@ -25,8 +25,9 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.channels.models import Channel, ChannelEvent, ANDROID, SEND, CALL
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils.email import send_template_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils.cache import get_cacheable_attr
+from temba.utils.email import send_template_email
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
@@ -340,6 +341,38 @@ class Broadcast(models.Model):
 
         return commands
 
+    def get_preferred_languages(self, contact, base_language=None, org=None):
+        """
+        Gets the ordered list of language preferences for the given contact
+        """
+        org = org or self.org  # org object can be provided to allow caching of org languages
+        preferred_languages = []
+
+        if org.primary_language:
+            preferred_languages.append(org.primary_language.iso_code)
+
+        if base_language:
+            preferred_languages.append(base_language)
+
+        # if contact has a language and it's a valid org language, it has priority
+        if contact.language and contact.language in {l.iso_code for l in org.languages.all()}:
+            preferred_languages = [contact.language] + preferred_languages
+
+        return preferred_languages
+
+    def get_translations(self):
+        if not self.language_dict:
+            return []
+        return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
+
+    def get_translated_text(self, contact, base_language=None, org=None):
+        """
+        Gets the appropriate translation for the given contact. base_language may be provided
+        """
+        translations = self.get_translations()
+        preferred_languages = self.get_preferred_languages(contact, base_language, org)
+        return Language.get_localized_text(translations, preferred_languages, self.text)
+
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, base_language=None, partial_recipients=None, run_map=None):
         """
@@ -379,16 +412,6 @@ class Broadcast(models.Model):
         elif len(recipients) >= BULK_THRESHOLD:
             priority = SMS_BULK_PRIORITY
 
-        # determine our preferred languages
-        org_languages = {l.iso_code for l in self.org.languages.all()}
-        other_preferred_languages = []
-
-        if self.org.primary_language:
-            other_preferred_languages.append(self.org.primary_language.iso_code)
-
-        if base_language:
-            other_preferred_languages.append(base_language)
-
         # if they didn't pass in a created on, create one ourselves
         if not created_on:
             created_on = timezone.now()
@@ -396,22 +419,11 @@ class Broadcast(models.Model):
         # pre-fetch channels to reduce database hits
         org = Org.objects.filter(pk=self.org.id).prefetch_related('channels').first()
 
-        # build our text translations
-        text_translations = None
-        if self.language_dict:
-            text_translations = json.loads(self.language_dict)
-
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
 
-            # if contact has a language and it's a valid org language, it has priority
-            if contact.language and contact.language in org_languages:
-                preferred_languages = [contact.language] + other_preferred_languages
-            else:
-                preferred_languages = other_preferred_languages
-
-            # find the right text to send
-            text = Language.get_localized_text(text_translations, preferred_languages, self.text)
+            # get the appropriate translation for this contact
+            text = self.get_translated_text(contact, base_language)
 
             # add in our parent context if the message references @parent
             if run_map:

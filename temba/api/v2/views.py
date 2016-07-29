@@ -159,6 +159,12 @@ class BaseAPIView(generics.GenericAPIView):
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
 
+    def get_serializer_context(self):
+        context = super(BaseAPIView, self).get_serializer_context()
+        context['org'] = self.request.user.get_org()
+        context['user'] = self.request.user
+        return context
+
 
 class ListAPIMixin(mixins.ListModelMixin):
     """
@@ -290,7 +296,6 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
             queryset = queryset.filter(id=msg_id)
 
         queryset = queryset.prefetch_related(
-            Prefetch('org', queryset=Org.objects.only('is_anon')),
             Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name')),
             Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name')),
         )
@@ -715,7 +720,6 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('org', queryset=Org.objects.only('is_anon')),
             Prefetch('all_groups', queryset=ContactGroup.user_groups.only('uuid', 'name'), to_attr='prefetched_user_groups')
         )
 
@@ -730,7 +734,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
         """
         So that we only fetch active contact fields once for all contacts
         """
-        context = super(BaseAPIView, self).get_serializer_context()
+        context = super(ContactsEndpoint, self).get_serializer_context()
         context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
         return context
 
@@ -1089,7 +1093,6 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('org', queryset=Org.objects.only('is_anon')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
             Prefetch('contact_urn', queryset=ContactURN.objects.only('urn')),
             Prefetch('channel', queryset=Channel.objects.only('uuid', 'name')),
@@ -1284,8 +1287,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
 
         # use prefetch rather than select_related for foreign keys to avoid joins
         queryset = queryset.prefetch_related(
-            Prefetch('flow', queryset=Flow.objects.only('uuid', 'name')),
-            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name')),
+            Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
+            Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
             Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
             Prefetch('steps__messages', queryset=Msg.all_messages.only('broadcast', 'text')),
             Prefetch('steps__broadcasts', queryset=Broadcast.objects.all()),
