@@ -520,7 +520,8 @@ class Flow(TembaModel):
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
                                                       user_input=True, triggered_start=triggered_start,
-                                                      resume_parent_run=resume_parent_run)
+                                                      resume_parent_run=resume_parent_run,
+                                                      resume_after_timeout=resume_after_timeout)
 
             if handled:
                 # increment our unread count if this isn't the simulator
@@ -2493,6 +2494,19 @@ class FlowRun(models.Model):
             # continue the parent flows to continue async
             continue_parent_flows.delay(ids)
 
+    def get_last_incoming_msg(self):
+        """
+        Returns the last incoming msg on this run, or an empty dummy message if there is none
+        """
+        msg = Msg.objects.filter(steps__run=self, direction=INCOMING).first()
+        if not msg:
+            msg = Msg()
+            msg.text = ''
+            msg.org = self.org
+            msg.contact = self.contact
+
+        return msg
+
     @classmethod
     def continue_parent_flow_runs(cls, runs):
         """
@@ -2519,24 +2533,16 @@ class FlowRun(models.Model):
                     # finally, trigger our parent flow
                     Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
-    def resume_after_timeout(self, run):
+    def resume_after_timeout(self):
         """
         Resumes a flow that is at a ruleset that has timed out
         """
-        if not run.is_active or not run.flow.is_active:
-            return
-
-        last_step = run.steps.order_by('-arrived_on').first()
+        last_step = self.steps.order_by('-arrived_on').first()
         step = last_step.get_step()
 
         # make sure we haven't moved on before handling this timeout (race with an incoming msg)
-        if isinstance(step, RuleSet) and step.arrived_on < run.timeout_on:
-            # create a fake msg to pass on
-            msg = Msg()
-            msg.text = ''
-            msg.org = run.org
-            msg.contact = run.contact
-
+        if isinstance(step, RuleSet) and timezone.now() > self.timeout_on > step.arrived_on:
+            msg = self.get_last_incoming_msg()
             Flow.find_and_handle(msg, resume_after_timeout=True)
 
     def release(self):
