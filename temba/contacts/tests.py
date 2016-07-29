@@ -3214,6 +3214,21 @@ class ContactFieldTest(TembaTest):
         # this should be a different field
         self.assertFalse(created_field.pk == groups_field.pk)
 
+        # check it is not possible to create two field with the same label
+        self.assertFalse(ContactField.objects.filter(key='sport'))
+        self.assertFalse(ContactField.objects.filter(key='play'))
+
+        field1 = ContactField.get_or_create(self.org, self.admin, 'sport', 'Games')
+        self.assertEqual(field1.key, 'sport')
+        self.assertEqual(field1.label, 'Games')
+
+        # should be the same field
+        field2 = ContactField.get_or_create(self.org, self.admin, 'play', 'Games')
+
+        self.assertEqual(field2.key, 'sport')
+        self.assertEqual(field2.label, 'Games')
+        self.assertEqual(field1.pk, field2.pk)
+
     def test_contact_templatetag(self):
         self.joe.set_field(self.user, 'First', 'Starter')
         self.assertEquals(contact_field(self.joe, 'First'), 'Starter')
