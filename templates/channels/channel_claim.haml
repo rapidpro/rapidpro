@@ -195,7 +195,7 @@
           .claim-description
             %div
               -blocktrans
-                Connect to a TwiML API. You can use this to migrate away from Twilio and save on Twilio fees.
+                Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.
 
     -if not user_org.is_connected_to_twilio
       .claim-row.twilio-channel{class:"{% if recommended_channel == 'twilio' %}recommended{% endif %}"}

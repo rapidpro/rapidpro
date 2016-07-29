@@ -284,7 +284,7 @@
 
     %p
       -blocktrans
-        This endpoint should be called by Twilio when new messages are received by your TwiML REST API instance.
+        Outgoing messages for this channel will be sent to this endpoint.
 
     %code
       https://{{ domain }}{% url 'handlers.twiml_api_handler' 'receive' object.uuid %}
