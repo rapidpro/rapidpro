@@ -778,6 +778,7 @@ RuleOptionsController = ($rootScope, $scope, $log, $modalInstance, $timeout, uti
 NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow, Plumb, utils, options) ->
 
   # let our template know our editor type
+  $scope.flow = Flow.flow
   $scope.nodeType = options.nodeType
   $scope.ivr = window.ivr
   $scope.options = options
@@ -854,6 +855,30 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # localized category name
     ruleset.rules[0].category = { _base:'All Responses' }
     ruleset.rules[0].category[Flow.flow.base_language] = 'All Responses'
+
+  formData.timeoutOptions = [
+    {value:1, text:'1 minute'},
+    {value:2, text:'2 minutes'},
+    {value:3, text:'3 minutes'},
+    {value:4, text:'4 minutes'},
+    {value:5, text:'5 minutes'},
+    {value:10, text:'10 minutes'},
+    {value:15, text:'15 minutes'},
+    {value:30, text:'30 minutes'},
+    {value:60, text:'1 hour'},
+    {value:120, text:'2 hours'},
+    {value:180, text:'3 hours'},
+    {value:360, text:'6 hours'}
+  ]
+
+  # initialize our timeout options
+  formData.hasTimeout = false
+  formData.timeout = formData.timeoutOptions[0]
+
+  for option in formData.timeoutOptions
+    if option.value == ruleset.config.timeout_minutes
+      formData.timeout = option
+      formData.hasTimeout = true
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
@@ -936,6 +961,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       return url + "&flow_type=V"
     return url
 
+  $scope.isPausingRuleset = ->
+    return Flow.isPausingRulesetType($scope.formData.rulesetConfig.type)
+
   $scope.remove = (rule) ->
     $scope.removed.push(rule)
     index = $scope.ruleset.rules.indexOf(rule)
@@ -946,7 +974,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       type: 'between'
     config: Flow.getOperatorConfig('between')
 
-  # rules = []
   toRemove = []
   for rule in $scope.ruleset.rules
     if not rule.category
@@ -1284,6 +1311,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $modalInstance.close ""
 
     $timeout ->
+      if not ruleset.config
+        ruleset.config = {}
 
       # changes from the user
       ruleset = $scope.ruleset
@@ -1335,10 +1364,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         ruleset.webhook = null
         ruleset.webhook_action = null
 
+      if formData.hasTimeout && $scope.isPausingRuleset()
+        ruleset.config['timeout_minutes'] = $scope.formData.timeout.value
+      else
+        delete ruleset.config['timeout_minutes']
+
       # update our rules accordingly
       $scope.updateRules(ruleset, rulesetConfig)
 
-      # unplumb any rules that were explicity removed
+      # unplumb any rules that were explicitly removed
       Plumb.disconnectRules($scope.removed)
 
       # switching from an actionset means removing it and hijacking its connections
