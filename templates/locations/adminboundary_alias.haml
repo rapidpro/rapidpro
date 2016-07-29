@@ -9,6 +9,12 @@
 -block page-top
 
 -block content
+  <style>
+    :css
+      [ng\:cloak], [ng-cloak], [data-ng-cloak], [x-ng-cloak], .ng-cloak, .x-ng-cloak {
+        display: none !important;
+      }
+  </style>
 
   #ctrl{ng-controller:'BoundaryController'}
     #editor
@@ -26,7 +32,7 @@
         %img{src:'{{STATIC_URL}}images/loader-circles.gif'}
 
       // only show the search if they haven't selected anything
-      .search{ng-show:'!stateBoundary && boundaries'}
+      .search.ng-cloak{ng-cloak:'true', ng-show:'!stateBoundary && boundaries'}
         %input.filter{ ng-model:"query", placeholder:'Search', ng-model-options:"{ debounce: 200 }"}
         %a.btn.btn-primary.btn-tiny.clear-button{ ng-show:'query.trim().length > 0', ng-click:'reset();'}
           -trans "Clear"
@@ -52,7 +58,7 @@
                     .aliases{ng-show:'ward.aliases.strip().length > 0'}
                       [[ward.aliases | collapse ]]
 
-      %form{name:'aliasForm'}
+      %form.ng-cloak{name:'aliasForm', ng-clock:'true'}
         .summary{ng-show:'stateBoundary'}
           %h4
             <a href='javascript:void(0);' ng-click='currentBoundary=null;'>{{ object.name }}</a>
@@ -69,7 +75,7 @@
               [[stateBoundary.name]]
 
             %span{ng-show:'!wardBoundary'}
-                [[districtBoundary.name]]
+              [[districtBoundary.name]]
 
             %span{ng-show:'wardBoundary'}
               &raquo;
@@ -98,7 +104,7 @@
 
           %input.btn.btn-primary.btn-tiny.submit{name:'saveButton', ng-click:'saveAliases()',  ng-show:'!savingError', ng-disabled:'aliasForm.$invalid || aliasForm.$pristine', type:'submit', value:'[[saveButtonName]]'}
 
-      .districts{ng-show:'!districtBoundary && boundaries'}
+      .districts.ng-cloak{ng-show:'!districtBoundary && boundaries', ng-cloak: 'true'}
         %hr
         .district{ng-repeat:'district in stateBoundary.children', ng-show:'district != districtBoundary'}
           %a{href:'javascript:void(0);', ng-click: "clickBoundary(stateBoundary, district)"}
@@ -106,7 +112,7 @@
           .aliases{ng-show:'district.aliases.strip().length > 0'}
             [[district.aliases | collapse ]]
 
-      .wards
+      .wards.ng-cloak{ng-cloak: 'true'}
         %hr
         .ward{ng-repeat: 'ward in districtBoundary.children'}
           %a{href:'javascript:void(0);', ng-click: "clickBoundary(stateBoundary, districtBoundary, ward)"}
@@ -115,7 +121,7 @@
             [[ward.aliases | collapse ]]
 
 
-    <div id="map" leaflet="" ng-show="boundaries" osm-id="'{{ object.osm_id }}'" boundaries="boundaries" root="root" selected-layer="selectedLayer" state-boundary="stateBoundary" district-boundary="districtBoundary" ward-boundary="wardBoundary" hovered-boundary="hoveredBoundary"></div>
+    <div id="map" class="ng-cloak" leaflet="" ng-cloak="true" ng-show="boundaries" osm-id="'{{ object.osm_id }}'" boundaries="boundaries" root="root" selected-layer="selectedLayer" state-boundary="stateBoundary" district-boundary="districtBoundary" ward-boundary="wardBoundary" hovered-boundary="hoveredBoundary"></div>
 
 
 -block extra-style

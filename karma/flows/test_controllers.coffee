@@ -319,3 +319,40 @@ describe 'Controllers:', ->
         expect(modalScope.languages.length).toEqual(1)
 
       $timeout.flush()
+
+    it 'isRuleComplete should have proper validation', ->
+
+      # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      flowService.language = {iso_code:'base'}
+      $http.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        rule_tests = [
+          {rule: {category: null, _config: {operands: null}, test: {}}, complete: false},
+          {rule: {category: {_base: null}, _config: {operands: 0}, test: {}}, complete: false},
+          {rule: {category: {_base: 'Red'},_config: {operands: 0}, test: {}}, complete: true},
+          {rule: {category: {_base: 'Red'}, _config: {operands: 1}, test: {}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {operands: 1}, test: {_base: 'Red'}}, complete: true},
+          {rule: {category: {_base: 'Red'}, _config: {operands: 1}, test: {_base: 'Red'}}, complete: true},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'between', operands: 2}, test: {min: null, max: null}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'between', operands: 2}, test: {min: 5, max: null}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'between', operands: 2}, test: {min: null, max: 10}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'between', operands: 2}, test: {min: 5, max: 10}}, complete: true},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'ward', operands: 2}, test: {state: null, district: null}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'ward', operands: 2}, test: {state: 'state', district: null}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'ward', operands: 2}, test: {state: null, district: 'district'}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'ward', operands: 2}, test: {state: 'state', district: 'district'}}, complete: true},
+        ]
+
+        for rule_test in rule_tests
+          expect(modalScope.isRuleComplete(rule_test['rule'])).toBe(rule_test['complete'])
+
+      $timeout.flush()
+        

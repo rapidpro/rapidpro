@@ -106,7 +106,7 @@
                               %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
                                 -trans "inbound call"
                             - else
-                                -trans "inbound call"
+                              -trans "inbound call"
 
                         -if obj.trigger_type == 'F'
                           A new
@@ -116,6 +116,19 @@
                                 -trans "follow"
                             - else
                               -trans "follow"
+                          -if obj.channel
+                            on
+                            %span.attn
+                              %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
+
+                        -if obj.trigger_type == 'N'
+                          A new
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                -trans "conversation"
+                            - else
+                              -trans "conversation"
                           -if obj.channel
                             on
                             %span.attn

@@ -115,6 +115,19 @@ class ContactCRUDLTest(_CRUDLTest):
         self.client.post(unblock_url, dict(id=self.joe.id))
         self.assertTrue(Contact.objects.get(pk=self.joe.id, is_blocked=False))
 
+        response = self.client.get(read_url)
+        unstop_url = reverse('contacts.contact_unstop', args=[self.joe.id])
+        self.assertFalse(unstop_url in response)
+
+        # stop the contact
+        self.joe.stop(self.user)
+        self.assertFalse(Contact.objects.filter(pk=self.joe.id, is_stopped=False))
+        response = self.client.get(read_url)
+        self.assertContains(response, unstop_url)
+
+        self.client.post(unstop_url, dict(id=self.joe.id))
+        self.assertTrue(Contact.objects.filter(pk=self.joe.id, is_stopped=False))
+
         # ok, what about deleting?
         response = self.client.get(read_url)
         delete_url = reverse('contacts.contact_delete', args=[self.joe.id])
@@ -515,12 +528,11 @@ class ContactTest(TembaTest):
 
         # incoming channel with no urns
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=None)
+            Contact.get_or_create(self.org, self.user, channel=self.channel, name='Joe', urns=None)
 
         # incoming channel with two urns
         with self.assertRaises(ValueError):
-            Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, name='Joe', urns=['tel:123',
-                                                                                                        'tel:456'])
+            Contact.get_or_create(self.org, self.user, channel=self.channel, name='Joe', urns=['tel:123', 'tel:456'])
 
         # missing scheme
         with self.assertRaises(ValueError):
@@ -551,9 +563,8 @@ class ContactTest(TembaTest):
         Contact.get_or_create(self.org, self.user, uuid=snoop.uuid, urns=['tel:456'])
 
         self.assertIsNone(snoop.urns.all().first().channel)
-        snoop = Contact.get_or_create(self.org, self.user, incoming_channel=self.channel, urns=['tel:456'])
+        snoop = Contact.get_or_create(self.org, self.user, channel=self.channel, urns=['tel:456'])
         self.assertEquals(1, snoop.urns.all().count())
-        self.assertEqual(snoop.urns.all().first().channel, self.channel)
 
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
@@ -900,20 +911,16 @@ class ContactTest(TembaTest):
 
         ContactField.get_or_create(self.org, self.admin, 'age', "Age", value_type='N')
         ContactField.get_or_create(self.org, self.admin, 'join_date', "Join Date", value_type='D')
-        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
         ContactField.get_or_create(self.org, self.admin, 'state', "Home State", value_type='S')
+        ContactField.get_or_create(self.org, self.admin, 'home', "Home District", value_type='I')
+        ContactField.get_or_create(self.org, self.admin, 'ward', "Home Ward", value_type='W')
         ContactField.get_or_create(self.org, self.admin, 'profession', "Profession", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'isureporter', "Is UReporter", value_type='T')
         ContactField.get_or_create(self.org, self.admin, 'hasbirth', "Has Birth", value_type='T')
 
-        africa = AdminBoundary.objects.create(osm_id='R001', name='Africa', level=0)
-        rwanda = AdminBoundary.objects.create(osm_id='R002', name='Rwanda', level=1, parent=africa)
-        AdminBoundary.objects.create(osm_id='R003', name='Gatsibo', level=2, parent=rwanda)
-        AdminBoundary.objects.create(osm_id='R004', name='Kayonza', level=2, parent=rwanda)
-        AdminBoundary.objects.create(osm_id='R005', name='Kigali', level=2, parent=rwanda)
-
-        locations = ['Gatsibo', 'Kayonza', 'Kigali']
         names = ['Trey', 'Mike', 'Paige', 'Fish']
+        districts = ['Gatsibo', 'Kayônza', 'Rwamagana']
+        wards = ['Kageyo', 'Kabara', 'Bukure']
         date_format = get_datetime_format(True)[0]
 
         # create some contacts
@@ -927,11 +934,9 @@ class ContactTest(TembaTest):
             # some field data so we can do some querying
             contact.set_field(self.user, 'age', '%s' % i)
             contact.set_field(self.user, 'join_date', '%s' % join_date)
-            contact.set_field(self.user, 'state', "Rwanda")
-            index = (i + 2) % len(locations)
-            with patch('temba.orgs.models.Org.parse_location') as mock_parse_location:
-                mock_parse_location.return_value = AdminBoundary.objects.filter(name__iexact=locations[index])
-                contact.set_field(self.user, 'home', locations[index])
+            contact.set_field(self.user, 'state', "Eastern Province")
+            contact.set_field(self.user, 'home', districts[i % len(districts)])
+            contact.set_field(self.user, 'ward', wards[i % len(wards)])
 
             if i % 3 == 0:
                 contact.set_field(self.user, 'profession', "Farmer")  # only some contacts have any value for this
@@ -975,9 +980,10 @@ class ContactTest(TembaTest):
         self.assertEqual(q('join_date >= 30/1/2014'), 61)
         self.assertEqual(q('join_date >= xxxx'), 0)  # invalid date
 
-        self.assertEqual(q('home is Kayonza'), 30)
-        self.assertEqual(q('HOME is "kigali"'), 30)
-        self.assertEqual(q('home has k'), 60)
+        self.assertEqual(q('state is "Eastern Province"'), 90)
+        self.assertEqual(q('HOME is Kayônza'), 30)  # value with non-ascii character
+        self.assertEqual(q('ward is kageyo'), 30)
+        self.assertEqual(q('home has ga'), 60)
 
         self.assertEqual(q('home is ""'), 0)
         self.assertEqual(q('profession = ""'), 60)
@@ -994,8 +1000,8 @@ class ContactTest(TembaTest):
         # boolean combinations
         self.assertEqual(q('name is trey or name is mike'), 46)
         self.assertEqual(q('name is trey and age < 20'), 3)
-        self.assertEqual(q('(home is gatsibo or home is "kigali")'), 60)
-        self.assertEqual(q('(home is gatsibo or home is "kigali") and name is mike'), 15)
+        self.assertEqual(q('(home is gatsibo or home is "Rwamagana")'), 60)
+        self.assertEqual(q('(home is gatsibo or home is "Rwamagana") and name is mike'), 16)
         self.assertEqual(q('name is MIKE and profession = ""'), 15)
 
         # invalid queries - which revert to simple name/phone matches
@@ -1399,6 +1405,20 @@ class ContactTest(TembaTest):
 
         broadcast.schedule.reset()
         self.assertFalse(self.joe.get_scheduled_messages())
+
+    def test_contact_update_urns_field(self):
+        update_url = reverse('contacts.contact_update', args=[self.joe.pk])
+
+        # we have a field to add new urns
+        response = self.fetch_protected(update_url, self.admin)
+        self.assertEquals(self.joe, response.context['object'])
+        self.assertContains(response, 'Add Connection')
+
+        # no field to add new urns for anon org
+        with AnonymousOrg(self.org):
+            response = self.fetch_protected(update_url, self.admin)
+            self.assertEquals(self.joe, response.context['object'])
+            self.assertNotContains(response, 'Add Connection')
 
     def test_read(self):
         read_url = reverse('contacts.contact_read', args=[self.joe.uuid])
@@ -2638,7 +2658,15 @@ class ContactTest(TembaTest):
         post_data['column_joined_type'] = 'D'
 
         response = self.client.post(customize_url, post_data, follow=True)
-        self.assertFormError(response, 'form', None, 'Name is a reserved name for contact fields')
+        self.assertFormError(response, 'form', None, 'Name is an invalid name or is a reserved name for contact '
+                                                     'fields, field names should start with a letter.')
+
+        # we do not support names not starting by letter
+        post_data['column_country_label'] = '12Project'  # reserved when slugified to 'name'
+
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, '12Project is an invalid name or is a reserved name for contact '
+                                                     'fields, field names should start with a letter.')
 
         # invalid label
         post_data['column_country_label'] = '}{i$t0rY'  # supports only numbers, letters, hyphens

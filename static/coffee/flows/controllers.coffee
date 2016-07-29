@@ -792,6 +792,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # all org languages except default
   $scope.languages = utils.clone(Flow.languages).filter (lang) -> lang.name isnt "Default"
+  $scope.channels = Flow.channels
 
   formData = {}
 
@@ -947,7 +948,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       rule.test._base = rule.test.test.slice(15, -1)
 
     # set the operands
-    else if rule.test.type != "between"
+    else if rule.test.type != "between" and rule.test.type != "ward"
 
       if rule.test.test and rule._config.localized
         rule.test._base = rule.test.test[flow.base_language]
@@ -1097,22 +1098,28 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # limit category names to 36 chars
     return categoryName.substr(0, 36)
 
+  $scope.isRuleComplete = (rule) ->
+    complete = true
+    if not rule.category or not rule.category._base
+      complete = false
+
+    else if rule._config.operands == 1 and not rule.test._base
+      complete = false
+
+    else if rule._config.type == 'between' and (not rule.test.min or not rule.test.max)
+      complete = false
+
+    else if rule._config.type == 'ward' and (not rule.test.state or not rule.test.district)
+      complete = false
+
+    return complete
 
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
-      if not rule._config.operands == 0
-        if not rule.category or not rule.category._base
-          complete = false
-          break
-      else if rule._config.operands == 1
-        if not rule.category or not rule.category._base or not rule.test._base
-          complete = false
-          break
-      else if rule._config.operands == 2
-        if not rule.category or not rule.category._base or not rule.test.min or not rule.test.min
-          complete = false
-          break
+      complete = complete and $scope.isRuleComplete(rule)
+      if not complete
+        break
 
     if complete
       # we insert this to keep our true rule at the end
@@ -1483,6 +1490,16 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         break
 
     Flow.saveAction(actionset, $scope.action)
+    $modalInstance.close()
+
+  $scope.saveChannel = () ->
+    # look up the name for this channel, make sure it is up to date
+    definition = {type: 'channel', channel: $scope.action.channel, uuid: $scope.action.uuid}
+    for chan in Flow.channels
+      if chan.uuid == $scope.action.channel
+        definition['name'] = chan.name
+
+    Flow.saveAction(actionset, definition)
     $modalInstance.close()
 
   $scope.ok = ->

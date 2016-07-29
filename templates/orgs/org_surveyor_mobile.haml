@@ -1,0 +1,134 @@
+-extends "smartmin/update.html"
+
+-load i18n smartmin temba compress
+
+-block extra-less
+  -compress css inline
+    {% lessblock %}
+      :plain
+        body {
+          padding: 0;
+          font-size: 16px;
+        }
+
+        .attn {
+          font-weight: bold;
+          font-size:110%;
+        }
+
+        .create-account {
+          #header {
+            margin: 0;
+            color: white;
+            padding: 20px;
+            height: inherit;
+
+            .title {
+              padding-bottom:10px;
+              font-size:20px;
+              font-weight:500;
+            }
+          }
+
+          .content {
+            margin-top:10px;
+            padding: 20px;
+
+            form {
+              text-align: center;
+
+              label, p.help-block {
+                display:none;
+              }
+
+              .fields {
+                input {
+                  background-color:transparent;
+                  border: 0px solid;
+                  border-bottom: 1px solid #ddd;
+                  -webkit-box-shadow: none;
+                  -moz-box-shadow: none;
+                  box-shadow: none;
+                  outline: none;
+                  padding-left:1px;
+                  font-size:18px;
+                  width:98%;
+                  margin-top:8px;
+
+
+                }
+              }
+
+              .error {
+                width: inherit;
+                text-align: left;
+                font-size: 14px;
+              }
+
+              .errorlist {
+                li {
+
+                  width: 100%;
+                }
+              }
+
+              textarea:focus, input:focus{
+                outline: none;
+                border-bottom: 1px solid @color-primary;
+              }
+
+              input[type="submit"] {
+                margin-top:20px;
+                font-weight:500;
+                color: #999;
+                font-size:16px;
+                padding:8px;
+                width:100%;
+              }
+            }
+          }
+        }
+
+    {% endlessblock %}
+
+-block body
+  .create-account
+
+    #header
+      -if step == 1
+          .details
+          -blocktrans
+            Enter the password you were provided to continue. If you don't have one, request
+            one from your project leader.
+      -elif step == 2
+          .details
+          -blocktrans
+            You have been invited to be a surveyor for 
+
+          <span class='attn'>{{org.name}}</span>. 
+
+          -blocktrans
+            Enter your details below to create your account.
+            This is the email address you will use to login to Surveyor.
+
+    .content
+      %form{method:'POST' }
+        {% csrf_token %}
+
+        .fields
+          -if step == 1
+            {% render_field 'surveyor_password' %}
+
+          -elif step == 2
+            {% render_field 'surveyor_password' %}
+            {% render_field 'first_name' %}
+            {% render_field 'last_name' %}
+            {% render_field 'email' %}
+            {% render_field 'password' %}
+
+        %input.btn.btn-secondary.btn-tiny{type:'submit', value:'CONTINUE'}
+
+  
+
+
+
