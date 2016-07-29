@@ -40,11 +40,8 @@ def check_flows_task():
     key = 'check_flows'
     if not r.get(key):
         with r.lock(key, timeout=900):
-            # expire all flows that should no longer be active
-            runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now()).only('id', 'org')
-            for run in runs:
-                # move this flow forward via the handler queue
-                push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=TIMEOUT_EVENT, run=run.id))
+            runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now())
+            FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
 
 
 @task(track_started=True, name='check_flow_timeouts_task')  # pragma: no cover
@@ -58,10 +55,11 @@ def check_flow_timeouts_task():
     key = 'check_flow_timeouts'
     if not r.get(key):
         with r.lock(key, timeout=900):
-            # find any runs that need to be moved forward
-            runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now())
+            # find any runs that should have timed out
+            runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now()).only('id', 'org')
             for run in runs:
-                run.continue_flow_after_timeout(run)
+                # move this flow forward via the handler queue
+                push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=TIMEOUT_EVENT, run=run.id))
 
 
 @task(track_started=True, name='continue_parent_flows')  # pragma: no cover

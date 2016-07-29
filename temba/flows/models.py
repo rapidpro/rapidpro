@@ -2521,7 +2521,7 @@ class FlowRun(models.Model):
 
     def resume_after_timeout(self, run):
         """
-        Continues a flow that is at a ruleset that has timed out
+        Resumes a flow that is at a ruleset that has timed out
         """
         if not run.is_active or not run.flow.is_active:
             return
