@@ -502,7 +502,7 @@ class Flow(TembaModel):
 
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
-                        triggered_start=False, resume_parent_run=False):
+                        triggered_start=False, resume_parent_run=False, resume_after_timeout=False):
 
         if started_flows is None:
             started_flows = []
@@ -534,7 +534,7 @@ class Flow(TembaModel):
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
                            started_flows=None, is_test_contact=False, user_input=False,
-                           triggered_start=False, trigger_send=True, resume_parent_run=False):
+                           triggered_start=False, trigger_send=True, resume_parent_run=False, resume_after_timeout=False):
 
         if started_flows is None:
             started_flows = []
@@ -561,8 +561,8 @@ class Flow(TembaModel):
                 if destination.is_pause() or msg.status == HANDLED:
                     should_pause = True
 
-                if user_input or not should_pause:
-                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run)
+                if (user_input or resume_after_timeout) or not should_pause:
+                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run, resume_after_timeout)
                     add_to_path(path, destination.uuid)
 
                 # if we used this input, then mark our user input as used
@@ -635,9 +635,8 @@ class Flow(TembaModel):
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
     @classmethod
-    def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False):
+    def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
         if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-
             if not resume_parent_run:
                 flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
                 flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
@@ -656,7 +655,7 @@ class Flow(TembaModel):
                     return dict(handled=True, destination=None, destination_type=None)
 
         # find a matching rule
-        rule, value = ruleset.find_matching_rule(step, run, msg)
+        rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
         flow = ruleset.flow
 
         # add the message to our step
@@ -1680,6 +1679,10 @@ class Flow(TembaModel):
         if not arrived_on:
             arrived_on = timezone.now()
 
+        # update our timeouts
+        timeout = node.get_timeout() if isinstance(node, RuleSet) else None
+        run.update_timeout(arrived_on, timeout)
+
         if not is_start:
             # we have activity, update our expires on date accordingly
             run.update_expiration(timezone.now())
@@ -2385,6 +2388,9 @@ class FlowRun(models.Model):
     expires_on = models.DateTimeField(null=True,
                                       help_text=_("When this flow run will expire"))
 
+    timeout_on = models.DateTimeField(null=True,
+                                      help_text=_("When this flow will next time out (if any)"))
+
     responded = models.BooleanField(default=False, help_text='Whether contact has responded in this run')
 
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
@@ -2513,6 +2519,26 @@ class FlowRun(models.Model):
                     # finally, trigger our parent flow
                     Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
+    def resume_after_timeout(self, run):
+        """
+        Continues a flow that is at a ruleset that has timed out
+        """
+        if not run.is_active or not run.flow.is_active:
+            return
+
+        last_step = run.steps.order_by('-arrived_on').first()
+        step = last_step.get_step()
+
+        # make sure we haven't moved on before handling this timeout (race with an incoming msg)
+        if isinstance(step, RuleSet) and step.arrived_on < run.timeout_on:
+            # create a fake msg to pass on
+            msg = Msg()
+            msg.text = ''
+            msg.org = run.org
+            msg.contact = run.contact
+
+            Flow.find_and_handle(msg, resume_after_timeout=True)
+
     def release(self):
         """
         Permanently deletes this flow run
@@ -2558,6 +2584,19 @@ class FlowRun(models.Model):
         # let our parent know we finished
         from .tasks import continue_parent_flows
         continue_parent_flows.delay([self.pk])
+
+    def update_timeout(self, now, minutes):
+        """
+        Updates our timeout for our run, either clearing it or setting it appropriately
+        """
+        if minutes and self.timeout_on:
+            self.timeout_on = None
+            self.modified_on = now
+            self.save(update_fields=['timeout_on', 'modified_on'])
+        elif minutes:
+            self.timeout_on = now + timedelta(minutes=minutes)
+            self.modified_on = now
+            self.save(update_fields=['timeout_on', 'modified_on'])
 
     def update_expiration(self, point_in_time):
         """
@@ -2846,7 +2885,6 @@ class FlowStep(models.Model):
 
 
 class RuleSet(models.Model):
-
     TYPE_WAIT_MESSAGE = 'wait_message'
 
     # Calls
@@ -3014,14 +3052,29 @@ class RuleSet(models.Model):
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
 
-    def find_matching_rule(self, step, run, msg):
+    def get_timeout(self):
+        for rule in self.get_rules():
+            if isinstance(rule.test, TimeoutTest):
+                return rule.test.timeout
+
+        return None
+
+    def find_matching_rule(self, step, run, msg, resume_after_timeout=False):
         orig_text = None
         if msg:
             orig_text = msg.text
 
         context = run.flow.build_message_context(run.contact, msg)
 
-        if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
+        if resume_after_timeout:
+            for rule in self.get_rules():
+                if isinstance(rule.test, TimeoutTest):
+                    (result, value) = rule.matches(run, msg, context, orig_text)
+                    if result > 0:
+                        rule.category = run.flow.get_base_text(rule.category)
+                        return rule, value
+
+        elif self.ruleset_type == RuleSet.TYPE_WEBHOOK:
             from temba.api.models import WebHookEvent
             (value, errors) = Msg.substitute_variables(self.webhook_url, run.contact, context,
                                                        org=run.flow.org, url_encode=True)
@@ -3063,7 +3116,7 @@ class RuleSet(models.Model):
                 if msg:
                     msg.text = orig_text
 
-            return None, None
+        return None, None
 
     def save_run_value(self, run, rule, value):
         value = unicode(value)[:640]
@@ -5128,7 +5181,8 @@ class Test(object):
                 HasWardTest.TYPE: HasWardTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasStateTest.TYPE: HasStateTest,
-                NotEmptyTest.TYPE: NotEmptyTest
+                NotEmptyTest.TYPE: NotEmptyTest,
+                TimeoutTest.TYPE: TimeoutTest,
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -5175,7 +5229,7 @@ class SubflowTest(Test):
 
     @classmethod
     def from_json(cls, org, json):
-        return SubflowTest(json.get('exit_type'))
+        return SubflowTest(json.get(SubflowTest.EXIT))
 
     def as_json(self):
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
@@ -5187,6 +5241,30 @@ class SubflowTest(Test):
         if subflow_run and SubflowTest.EXIT_MAP[self.exit_type] == subflow_run.exit_type:
             return 1, text
         return 0, None
+
+
+class TimeoutTest(Test):
+    """
+    { op: "timeout", minutes: 60 }
+    """
+    TYPE = 'timeout'
+    MINUTES = 'minutes'
+
+    def __init__(self, minutes):
+        self.minutes = minutes
+
+    @classmethod
+    def from_json(cls, org, json):
+        return TimeoutTest(int(json.get(TimeoutTest.MINUTES)))
+
+    def as_json(self):
+        return {'type': TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
+
+    def evaluate(self, run, sms, context, text):
+        if run.timeout_on < timezone.now():
+            return 1, None
+        else:
+            return 0, None
 
 
 class TrueTest(Test):
