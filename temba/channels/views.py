@@ -1585,9 +1585,15 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimTwimlApi(OrgPermsMixin, SmartFormView):
 
         class TwimlApiClaimForm(forms.Form):
+            ROLES = (
+                (SEND + RECEIVE, _('Messaging')),
+                (CALL + ANSWER, _('Voice')),
+                (SEND + RECEIVE + CALL + ANSWER, _('Both')),
+            )
             country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in"))
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"), help_text=_("The phone number with country code or short code you are connecting."))
             url = forms.URLField(max_length=1024, label=_("TwiML REST API Host"), help_text=_("The publicly accessible URL for your TwiML REST API instance ex: https://api.twilio.com"))
+            role = forms.ChoiceField(choices=ROLES, label=_("Role"), help_text=_("Choose the role that this channel supports"))
             account_sid = forms.CharField(max_length=64, required=False, help_text=_("The Account SID to use to authenticate to the TwiML REST API"), widget=forms.TextInput(attrs={'autocomplete': 'off'}))
             account_token = forms.CharField(max_length=64, required=False, help_text=_("The Account Token to use to authenticate to the TwiML REST API"), widget=forms.TextInput(attrs={'autocomplete': 'off'}))
 
@@ -1602,6 +1608,7 @@ class ChannelCRUDL(SmartCRUDL):
             country = data['country']
             number = data['number']
             url = data['url']
+            role = data['role']
 
             config = {SEND_URL: url,
                       ACCOUNT_SID: data.get('account_sid', None),
@@ -1609,7 +1616,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             number = phonenumbers.parse(number=number, region=country)
             phone_number = "{0}{1}".format(str(number.country_code), str(number.national_number))
-            self.object = Channel.add_twiml_api_channel(org=org, user=self.request.user, country=country, address=phone_number, config=config)
+            self.object = Channel.add_twiml_api_channel(org=org, user=self.request.user, country=country, address=phone_number, config=config, role=role)
 
             # if they didn't set a username or password, generate them, we do this after the addition above
             # because we use the channel id in the configuration
