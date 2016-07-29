@@ -322,6 +322,13 @@ class ContactField(SmartModel):
                         EventFire.update_field_events(field)
 
             else:
+                # try first to lookup the existing field by label
+                field = ContactField.get_by_label(org, label)
+
+                # we have a field with a valid key
+                if field and ContactField.is_valid_key(field.key):
+                        return field
+
                 # we need to create a new contact field, use our key with invalid chars removed
                 if not label:
                     label = regex.sub(r'([^A-Za-z0-9\- ]+)', ' ', key, regex.V0).title()
