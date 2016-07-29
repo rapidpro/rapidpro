@@ -477,8 +477,7 @@ class Channel(TembaModel):
                               name=messaging_service_sid, address=None, config=config)
 
     @classmethod
-    def add_twiml_api_channel(cls, org, user, country, address, config):
-        role = SEND + RECEIVE + CALL + ANSWER
+    def add_twiml_api_channel(cls, org, user, country, address, config, role):
         is_short_code = len(address) <= 6
 
         if is_short_code:
@@ -2099,7 +2098,15 @@ class Channel(TembaModel):
         callback_url = Channel.build_twilio_callback_url(msg.id)
         start = time.time()
 
-        if channel.channel_type == TWILIO_MESSAGING_SERVICE and not channel.channel_type == TWIML_API:
+        if channel.channel_type == TWIML_API:
+            config = channel.config
+            client = TwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN), base=config.get(SEND_URL))
+            client.messages.create(to=msg.urn_path,
+                                   from_=channel.address,
+                                   body=text,
+                                   status_callback=callback_url)
+
+        else:
             client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
 
             if channel.channel_type == TWILIO_MESSAGING_SERVICE:
@@ -2113,14 +2120,6 @@ class Channel(TembaModel):
                                        from_=channel.address,
                                        body=text,
                                        status_callback=callback_url)
-
-        else:
-            config = channel.config
-            client = TwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN), base=config.get(SEND_URL))
-            client.messages.create(to=msg.urn_path,
-                                   from_=channel.address,
-                                   body=text,
-                                   status_callback=callback_url)
 
         Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
         ChannelLog.log_success(msg, "Successfully delivered message")
