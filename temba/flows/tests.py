@@ -869,9 +869,10 @@ class FlowTest(TembaTest):
 
         entry = ActionSet.objects.get(uuid=uuid(1))
         actions = entry.get_actions()
-        self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction(dict(base='What is your favorite color?')).as_json(), actions[0].as_json())
-        self.assertEquals(entry.uuid, self.flow.entry_uuid)
+        self.assertEqual(len(actions), 1)
+        self.assertIsInstance(actions[0], ReplyAction)
+        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
+        self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
         orange = ActionSet.objects.get(uuid=uuid(2))
         actions = orange.get_actions()
@@ -927,9 +928,10 @@ class FlowTest(TembaTest):
 
         entry = ActionSet.objects.get(uuid=uuid(1))
         actions = entry.get_actions()
-        self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction(dict(base='What is your favorite color?')).as_json(), actions[0].as_json())
-        self.assertEquals(entry.uuid, self.flow.entry_uuid)
+        self.assertEqual(len(actions), 1)
+        self.assertIsInstance(actions[0], ReplyAction)
+        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
+        self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
         orange = ActionSet.objects.get(uuid=uuid(2))
         actions = orange.get_actions()

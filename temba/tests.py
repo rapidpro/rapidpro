@@ -205,6 +205,9 @@ class TembaTest(SmartminTest):
         data = self.get_import_json(filename, substitutions=substitutions)
         return json.loads(data)['flows'][0]
 
+    def add_language(self, code, name):
+        return self.org.languages.create(iso_code=code, name=name, created_by=self.admin, modified_by=self.admin)
+
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
         self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", brand='rapidpro.io',
@@ -288,7 +291,7 @@ class TembaTest(SmartminTest):
 
         return dict(version=8,
                     action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
+                                      actions=[dict(type='reply', msg=dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))]),
                                  dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
                                       actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
                                  dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,

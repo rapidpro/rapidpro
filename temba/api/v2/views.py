@@ -21,7 +21,6 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
-from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer

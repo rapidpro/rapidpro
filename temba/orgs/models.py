@@ -30,10 +30,10 @@ from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
-from temba.utils.email import send_template_email
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
 from temba.utils import timezone_to_country_code
-from temba.utils.cache import get_cacheable_result, incrby_existing
+from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
+from temba.utils.email import send_template_email
 from twilio.rest import TwilioRestClient
 from urlparse import urlparse
 from uuid import uuid4
@@ -728,6 +728,9 @@ class Org(SmartModel):
             return countries[0]
 
         return None
+
+    def get_language_codes(self):
+        return get_cacheable_attr(self, '_language_codes', lambda: {l.iso_code for l in self.languages.all()})
 
     def get_dayfirst(self):
         return self.date_format == DAYFIRST

@@ -904,6 +904,12 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
+        # allow Frank to run the flow in French
+        self.add_language('eng', "English")
+        self.add_language('fre', "French")
+        self.frank.language = 'fre'
+        self.frank.save()
+
         flow1 = self.create_flow(uuid_start=0)
         flow2 = Flow.copy(flow1, self.user)
 
@@ -958,10 +964,10 @@ class APITest(TembaTest):
                         {
                             'id': frank_msgs[3].id,
                             'broadcast': frank_msgs[3].broadcast_id,
-                            'text': "What is your favorite color?"
+                            'text': "Quelle est votre couleur préférée?"
                         }
                     ],
-                    'text': "What is your favorite color?",
+                    'text': "Quelle est votre couleur préférée?",
                     'value': None,
                     'category': None,
                     'type': 'actionset'
@@ -1047,16 +1053,17 @@ class APITest(TembaTest):
         Broadcast.objects.all().update(purged=True)
         Msg.all_messages.filter(direction='O').delete()
 
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 8):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.json['results'][1]['steps'][0]['messages'], [
             {
                 'id': None,
                 'broadcast': frank_msgs[3].broadcast_id,
-                'text': "What is your favorite color?"
+                'text': "Quelle est votre couleur préférée?"
             }
         ])
+        self.assertEqual(response.json['results'][1]['steps'][0]['text'], "Quelle est votre couleur préférée?")
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)

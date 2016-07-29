@@ -355,7 +355,7 @@ class Broadcast(models.Model):
             preferred_languages.append(base_language)
 
         # if contact has a language and it's a valid org language, it has priority
-        if contact.language and contact.language in {l.iso_code for l in org.languages.all()}:
+        if contact.language and contact.language in org.get_language_codes():
             preferred_languages = [contact.language] + preferred_languages
 
         return preferred_languages
