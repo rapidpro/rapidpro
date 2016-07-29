@@ -21,7 +21,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
-from temba.utils import str_to_bool, json_date_to_datetime
+from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
@@ -45,6 +45,7 @@ def api(request, format=None):
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
+     * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/groups](/api/v2/groups) - to list contact groups
      * [/api/v2/labels](/api/v2/labels) - to list message labels
@@ -61,6 +62,7 @@ def api(request, format=None):
         'channels': reverse('api.v2.channels', request=request),
         'channel_events': reverse('api.v2.channel_events', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
+        'definitions': reverse('api.v2.definitions', request=request),
         'fields': reverse('api.v2.fields', request=request),
         'groups': reverse('api.v2.groups', request=request),
         'labels': reverse('api.v2.labels', request=request),
@@ -85,6 +87,7 @@ class ApiExplorerView(SmartTemplateView):
             ChannelsEndpoint.get_read_explorer(),
             ChannelEventsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
+            DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_read_explorer(),
             LabelsEndpoint.get_read_explorer(),
@@ -139,6 +142,7 @@ class AuthenticateView(SmartFormView):
 
 
 class CreatedOnCursorPagination(CursorPagination):
+
     ordering = ('-created_on', '-id')
     offset_cutoff = 1000000
 
@@ -753,6 +757,144 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'before', 'required': False, 'help': "Only return contacts modified before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return contacts modified after this date, ex: 2015-01-28T18:00:00.000"}
             ]
+        }
+
+
+class DefinitionsEndpoint(BaseAPIView):
+    """
+    This endpoint exports flows, campaigns, and triggers and optionally will determine
+    the dependency graph for the provided uuids.
+
+    ## Getting Definitions
+
+    Returns json export for all items requested
+
+      * **flow_uuid** - the UUID of the flow to export (string, repeatable)
+      * **campaign_uuid** - the UUID of the campaign to export (string, repeatable)
+      * **dependencies** - whether to include dependencies (boolean, default: true)
+
+    Example:
+
+        GET /api/v2/definitions.json?flow_uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c0b
+
+    Response is a collection of definitions
+
+        {
+          version: 8,
+          campaigns: [],
+          triggers: [],
+          flows: [{
+            metadata: {
+              "name": "Water Point Survey",
+              "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
+              "saved_on": "2015-09-23T00:25:50.709164Z",
+              "revision":28,
+              "expires":7880,
+              "id":12712,
+            },
+            "version": 7,
+            "flow_type": "S",
+            "base_language": "eng",
+            "entry": "87929095-7d13-4003-8ee7-4c668b736419",
+            "action_sets": [
+              {
+                "y": 0,
+                "x": 100,
+                "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
+                "actions": [
+                  {
+                    "msg": {
+                      "eng": "What is your name?"
+                    },
+                    "type": "reply"
+                  }
+                ]
+              },
+              ...
+            ],
+            "rule_sets": [
+              {
+                "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
+                "webhook_action": null,
+                "rules": [
+                  {
+                    "test": {
+                      "test": "true",
+                      "type": "true"
+                    },
+                      "category": {
+                      "eng": "All Responses"
+                    },
+                    "destination": null,
+                    "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
+                    "destination_type": null
+                  }
+                ],
+                "webhook": null,
+                "ruleset_type": "wait_message",
+                "label": "Name",
+                "operand": "@step.value",
+                "finished_key": null,
+                "y": 162,
+                "x": 62,
+                "config": {}
+              },
+              ...
+            ]
+            }
+          }]
+        }
+    """
+    permission = 'orgs.org_api'
+
+    def get(self, request, *args, **kwargs):
+
+        depends = self.request.GET.get('dependencies', 'true').lower() == 'true'
+        org = self.request.user.get_org()
+
+        flows = set()
+        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+        if flow_uuids:
+            flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
+
+        # any fetched campaigns
+        campaigns = []
+        campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
+        if campaign_uuids:
+            campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org)
+
+            if depends:
+                for campaign in campaigns:
+                    for event in campaign.events.filter(event_type=CampaignEvent.TYPE_FLOW, is_active=True).exclude(flow=None):
+                        flows.add(event.flow)
+
+        # get any dependencies on our flows and campaigns
+        dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
+        for flow in flows:
+            if depends:
+                dependencies = flow.get_dependencies(dependencies=dependencies)
+
+        # make sure our requested items are included flows we requested are included
+        to_export = dict(flows=dependencies['flows'],
+                         campaigns=dependencies['campaigns'],
+                         triggers=dependencies['triggers'])
+
+        # add in our primary requested flows
+        to_export['flows'].update(flows)
+
+        export = self.request.user.get_org().export_definitions(self.request.branding['link'], **to_export)
+
+        return Response(export, status=status.HTTP_200_OK)
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "Definitions",
+            'url': reverse('api.v2.definitions'),
+            'slug': 'org-definitions',
+            'request': ""
         }
 
 

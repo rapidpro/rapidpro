@@ -30,6 +30,12 @@ class ReadSerializer(serializers.ModelSerializer):
         raise ValueError("Can't call save on a read serializer")
 
 
+class UUIDField(serializers.CharField):
+
+    def __init__(self, **kwargs):
+        super(UUIDField, self).__init__(max_length=36, **kwargs)
+
+
 # ============================================================
 # Serializers (A-Z)
 # ============================================================
