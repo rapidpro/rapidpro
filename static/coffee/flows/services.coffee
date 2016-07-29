@@ -633,8 +633,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     isPausingRuleset: (node) ->
       if not node?.actions
-        return node.ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
+        return @isPausingRulesetType(node.ruleset_type)
       return false
+
+    isPausingRulesetType: (ruleset_type) ->
+      return ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
 
     # check if a potential connection would result in an invalid loop
     detectLoop: (nodeId, targetId, path=[]) ->
