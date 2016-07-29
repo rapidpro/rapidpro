@@ -208,6 +208,9 @@ class Org(SmartModel):
     brand = models.CharField(max_length=128, default=settings.DEFAULT_BRAND, verbose_name=_("Brand"),
                              help_text=_("The brand used in emails"))
 
+    surveyor_password = models.CharField(null=True, max_length=128, default=None,
+                                         help_text=_('A password that allows users to register as surveyors'))
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -414,7 +417,7 @@ class Org(SmartModel):
                 if not channels:
                     channels = [c for c in self.channels.all()]
 
-                # filter based on rule and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
+                # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
                 for c in channels:
                     if c.is_active and c.address and role in c.role and not c.parent_id:
@@ -1361,7 +1364,7 @@ class Org(SmartModel):
 
     def get_export_flows(self, include_archived=False):
         from temba.flows.models import Flow
-        flows = self.flows.all().exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
+        flows = self.flows.all().exclude(is_active=False).exclude(flow_type=Flow.MESSAGE).order_by('-modified_on')
         if not include_archived:
             flows = flows.filter(is_archived=False)
         return flows

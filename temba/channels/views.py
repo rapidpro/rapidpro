@@ -359,7 +359,11 @@ def sync(request, channel_id):
                         # assumptions
                         if cmd['phone']:
                             urn = URN.from_parts(TEL_SCHEME, cmd['phone'])
-                            ChannelEvent.create(channel, urn, cmd['type'], date, duration)
+                            try:
+                                ChannelEvent.create(channel, urn, cmd['type'], date, duration)
+                            except ValueError:
+                                # in some cases Android passes us invalid URNs, in those cases just ignore them
+                                pass
                         handled = True
 
                     elif keyword == 'gcm':
@@ -525,8 +529,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook',
-               'facebook_welcome', 'claim_twiml_api')
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_twiml_api')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1753,7 +1756,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimFacebook(OrgPermsMixin, SmartFormView):
         class FacebookForm(forms.Form):
-            page_access_token = forms.CharField(min_length=100, required=True,
+            page_access_token = forms.CharField(min_length=43, required=True,
                                                 help_text=_("The Page Access Token for your Application"))
 
             def clean_page_access_token(self):
@@ -1778,50 +1781,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                    page['name'], page['id'], form.cleaned_data['page_access_token'])
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
-
-    class FacebookWelcome(ModalMixin, OrgPermsMixin, SmartUpdateView):
-        class WelcomeForm(forms.ModelForm):
-            message = forms.CharField(max_length=160, widget=forms.Textarea, label=_("Welcome Message"), required=False,
-                                      help_text=_("This message will appear when a user first interacts with your page."))
-
-            class Meta:
-                model = Channel
-                fields = 'id', 'message'
-
-        form_class = WelcomeForm
-        success_url = 'id@channels.channel_configuration'
-
-        def form_valid(self, form):
-            welcome_message = form.cleaned_data['message'].strip()
-
-            # fire our post to facebook to update their welcome message
-            url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % self.object.address
-            payload = dict(setting_type='call_to_actions',
-                           thread_state='new_thread',
-                           call_to_actions=[])
-
-            # set our welcome message if we have one
-            if welcome_message:
-                payload['call_to_actions'].append(dict(message=dict(text=welcome_message)))
-
-            response = requests.post(url, json.dumps(payload),
-                                     params=dict(access_token=self.object.config_json()[AUTH_TOKEN]),
-                                     headers={'Content-Type': 'application/json'})
-            if response.status_code == 200:
-                messages.info(self.request, _("Your welcome message has been updated."))
-            else:
-                messages.info(self.request, _("We encountered an error updating your welcome message: %s" % str(response.content)))
-
-            if 'HTTP_X_PJAX' not in self.request.META:
-                return HttpResponseRedirect(self.get_success_url())
-            else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(form=form,
-                                          success_url=self.get_success_url(),
-                                          success_script=getattr(self, 'success_script', None)))
-                response['Temba-Success'] = self.get_success_url()
-                response['REDIRECT'] = self.get_success_url()
-                return response
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")
@@ -2017,12 +1976,6 @@ class ChannelCRUDL(SmartCRUDL):
                 return self.form_invalid(form)
 
             data = form.cleaned_data
-
-            # can't add a channel from a different country
-            other_countries = org.channels.exclude(country=None).exclude(is_active=False).exclude(country=data['country']).first()
-            if other_countries:
-                form._errors['phone_number'] = form.error_class([_("Sorry, you can only add numbers for the same country (%s)" % other_countries.country)])
-                return self.form_invalid(form)
 
             # no number parse for short codes
             if len(data['phone_number']) > 6:

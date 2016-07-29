@@ -43,13 +43,14 @@ from twython import TwythonError
 from urllib import urlencode
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, CHIKKA, TELEGRAM
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
-from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN, TWIML_API
+from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
 
 
 class ChannelTest(TembaTest):
+
     def setUp(self):
         super(ChannelTest, self).setUp()
 
@@ -440,9 +441,9 @@ class ChannelTest(TembaTest):
 
         # simulate a sync in back in two hours
         post_data = dict(cmds=[
-            # device details status
-            dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60",
-                 net="UMTS", pending=[], retry=[])])
+                         # device details status
+                         dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60",
+                              net="UMTS", pending=[], retry=[])])
         self.sync(channel, post_data)
         sync_event = SyncEvent.objects.all()[0]
         sync_event.created_on = timezone.now() - timedelta(hours=2)
@@ -507,6 +508,7 @@ class ChannelTest(TembaTest):
 
         ts = int(time.time())
         if not signature:
+
             # sign the request
             key = str(channel.secret) + str(ts)
             signature = hmac.new(key=key, msg=bytes(post_data), digestmod=hashlib.sha256).digest()
@@ -633,16 +635,16 @@ class ChannelTest(TembaTest):
 
     def test_read(self):
         post_data = dict(cmds=[
-            # device details status
-            dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60",
-                 net="UMTS", pending=[], retry=[])])
+                         # device details status
+                         dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60",
+                              net="UMTS", pending=[], retry=[])])
 
         # now send the channel's updates
         self.sync(self.tel_channel, post_data)
         post_data = dict(cmds=[
-            # device details status
-            dict(cmd="status", p_sts="FUL", p_src="AC", p_lvl="100",
-                 net="WIFI", pending=[], retry=[])])
+                         # device details status
+                         dict(cmd="status", p_sts="FUL", p_src="AC", p_lvl="100",
+                              net="WIFI", pending=[], retry=[])])
 
         # now send the channel's updates
         self.sync(self.tel_channel, post_data)
@@ -1221,6 +1223,7 @@ class ChannelTest(TembaTest):
         self.assertEquals('T', twilio_channel.channel_type)
 
         with patch('temba.tests.MockTwilioClient.MockPhoneNumbers.update') as mock_numbers:
+
             # our twilio channel removal should fail on bad auth
             mock_numbers.side_effect = TwilioRestException(401, 'http://twilio', msg='Authentication Failure', code=20003)
             self.client.post(reverse('channels.channel_delete', args=[twilio_channel.pk]))
@@ -1367,42 +1370,6 @@ class ChannelTest(TembaTest):
                 # assert we subscribed to events
                 self.assertEqual(mock_post.call_count, 1)
 
-            # try to set the welcome message (this try fails)
-            welcome_url = reverse('channels.channel_facebook_welcome', args=[channel.id])
-            with patch('requests.post') as mock_post:
-                mock_post.return_value = MockResponse(400, json.dumps(dict(success=False)))
-
-                response = self.client.post(welcome_url, dict(id=channel.id, message="Test Message"), follow=True)
-                self.assertEqual(response.status_code, 200)
-                self.assertContains(response, 'error')
-
-                # assert our facebook endpoint was called
-                self.assertEqual(mock_post.call_count, 1)
-
-            # try with success
-            with patch('requests.post') as mock_post:
-                mock_post.return_value = MockResponse(200, json.dumps(dict(success=True)))
-
-                response = self.client.post(welcome_url, dict(id=channel.id, message="Test Message"), follow=True)
-                self.assertEqual(response.status_code, 200)
-                self.assertNotContains(response, 'error')
-
-                # assert our facebook endpoint was called
-                self.assertEqual(mock_post.call_count, 1)
-                self.assertEqual(json.loads(mock_post.call_args[0][1])['call_to_actions'], [dict(message=dict(text="Test Message"))])
-
-            # try removing it
-            with patch('requests.post') as mock_post:
-                mock_post.return_value = MockResponse(200, json.dumps(dict(success=True)))
-
-                response = self.client.post(welcome_url, dict(id=channel.id, message=""), follow=True)
-                self.assertEqual(response.status_code, 200)
-                self.assertNotContains(response, 'error')
-
-                # assert our facebook endpoint was called
-                self.assertEqual(mock_post.call_count, 1)
-                self.assertEqual(json.loads(mock_post.call_args[0][1])['call_to_actions'], [])
-
             # release the channel
             with patch('requests.delete') as mock_delete:
                 mock_delete.return_value = MockResponse(200, json.dumps(dict(success=True)))
@@ -1462,6 +1429,25 @@ class ChannelTest(TembaTest):
                 channel = Channel.objects.get(pk=channel.id)
 
                 self.assertEquals('MTN', channel.address)
+
+                # add a canada number
+                nexmo_get.return_value = MockResponse(200, '{"count":1,"numbers":[{"type":"mobile-lvn","country":"CA","msisdn":"15797884540"}] }')
+                nexmo_post.return_value = MockResponse(200, '{"error-code": "200"}')
+
+                # make sure our number appears on the claim page
+                response = self.client.get(claim_nexmo)
+                self.assertFalse('account_trial' in response.context)
+                self.assertContains(response, '579-788-4540')
+
+                # claim it
+                response = self.client.post(claim_nexmo, dict(country='CA', phone_number='15797884540'))
+                self.assertRedirects(response, reverse('public.public_welcome') + "?success")
+
+                # make sure it is actually connected
+                self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='+15797884540').first())
+
+                # as is our old one
+                self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='MTN').first())
 
     def test_claim_plivo(self):
         self.login(self.admin)
@@ -1530,6 +1516,7 @@ class ChannelTest(TembaTest):
 
         with patch('temba.channels.views.plivo.RestAPI.get_account') as mock_plivo_get_account:
             with patch('temba.channels.views.plivo.RestAPI.create_application') as mock_plivo_create_application:
+
                 with patch('temba.channels.models.plivo.RestAPI.get_number') as mock_plivo_get_number:
                     with patch('temba.channels.models.plivo.RestAPI.buy_phone_number') as mock_plivo_buy_phone_number:
                         mock_plivo_get_account.return_value = (200, MockResponse(200, json.dumps(dict())))
@@ -1858,6 +1845,9 @@ class ChannelTest(TembaTest):
             # incoming
             dict(cmd="call", phone="2505551212", type='mt', dur=10, ts=date),
 
+            # incoming, invalid URN
+            dict(cmd="call", phone="*", type='mt', dur=10, ts=date),
+
             # outgoing
             dict(cmd="call", phone="+250788383383", type='mo', dur=5, ts=date),
 
@@ -2060,6 +2050,7 @@ class ChannelTest(TembaTest):
 
 
 class ChannelBatchTest(TembaTest):
+
     def test_time_utils(self):
         from temba.utils import datetime_to_ms, ms_to_datetime
         now = timezone.now()
@@ -2070,6 +2061,7 @@ class ChannelBatchTest(TembaTest):
 
 
 class ChannelEventTest(TembaTest):
+
     def test_create(self):
         now = timezone.now()
         event = ChannelEvent.create(self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, 300)
@@ -2086,6 +2078,7 @@ class ChannelEventTest(TembaTest):
 
 
 class ChannelEventCRUDLTest(TembaTest):
+
     def test_calls(self):
         now = timezone.now()
         ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, 600)
@@ -2102,6 +2095,7 @@ class ChannelEventCRUDLTest(TembaTest):
 
 
 class SyncEventTest(SmartminTest):
+
     def setUp(self):
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
         self.user = self.create_user("tito")
@@ -2127,6 +2121,7 @@ class SyncEventTest(SmartminTest):
 
 
 class ChannelAlertTest(TembaTest):
+
     def test_no_alert_email(self):
         # set our last seen to a while ago
         self.channel.last_seen = timezone.now() - timedelta(minutes=40)
@@ -2694,6 +2689,7 @@ class ChannelAlertTest(TembaTest):
 
 
 class CountTest(TembaTest):
+
     def assertDailyCount(self, channel, assert_count, count_type, day):
         calculated_count = ChannelCount.get_day_count(channel, count_type, day)
         self.assertEquals(assert_count, calculated_count)
@@ -2769,6 +2765,7 @@ class CountTest(TembaTest):
 
 
 class AfricasTalkingTest(TembaTest):
+
     def setUp(self):
         super(AfricasTalkingTest, self).setUp()
 
@@ -2884,6 +2881,7 @@ class AfricasTalkingTest(TembaTest):
 
 
 class ExternalTest(TembaTest):
+
     def setUp(self):
         super(ExternalTest, self).setUp()
 
@@ -3178,8 +3176,8 @@ class YoTest(TembaTest):
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "ybs_autocreate_status=ERROR&ybs_autocreate_message=" +
-                                                 "YBS+AutoCreate+Subsystem%3A+Access+denied" +
-                                                 "+due+to+wrong+authorization+code")
+                                                      "YBS+AutoCreate+Subsystem%3A+Access+denied" +
+                                                      "+due+to+wrong+authorization+code")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
@@ -3218,6 +3216,7 @@ class YoTest(TembaTest):
 
 
 class ShaqodoonTest(TembaTest):
+
     def setUp(self):
         from temba.channels.models import USERNAME, PASSWORD, KEY
 
@@ -3285,6 +3284,7 @@ class ShaqodoonTest(TembaTest):
 
 
 class M3TechTest(TembaTest):
+
     def setUp(self):
         from temba.channels.models import USERNAME, PASSWORD
 
@@ -3387,6 +3387,7 @@ class M3TechTest(TembaTest):
 
 
 class KannelTest(TembaTest):
+
     def setUp(self):
         super(KannelTest, self).setUp()
 
@@ -3582,6 +3583,7 @@ class KannelTest(TembaTest):
 
 
 class NexmoTest(TembaTest):
+
     def setUp(self):
         super(NexmoTest, self).setUp()
 
@@ -3727,6 +3729,23 @@ class NexmoTest(TembaTest):
                 self.clear_cache()
 
             with patch('requests.get') as mock:
+                mock.return_value = MockResponse(401, "Invalid API token", method='POST')
+
+                # clear out our channel log
+                ChannelLog.objects.all().delete()
+
+                # then send it
+                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+                # check status
+                msg = bcast.get_messages()[0]
+                self.assertEquals(ERRORED, msg.status)
+
+                # and that we have a decent log
+                log = ChannelLog.objects.get(msg=msg)
+                self.assertEqual(log.description, "Failed sending message: Invalid API token")
+
+            with patch('requests.get') as mock:
                 # this hackery is so that we return a different thing on the second call as the first
                 def return_valid(url, params):
                     called = getattr(return_valid, 'called', False)
@@ -3741,7 +3760,6 @@ class NexmoTest(TembaTest):
                     else:
                         return MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id': 12}])),
                                             method='POST')
-
                 mock.side_effect = return_valid
 
                 # manually send it off
@@ -3769,6 +3787,7 @@ class NexmoTest(TembaTest):
 
 
 class VumiTest(TembaTest):
+
     def setUp(self):
         super(VumiTest, self).setUp()
 
@@ -3805,7 +3824,7 @@ class VumiTest(TembaTest):
     def test_delivery_reports(self):
 
         sms = self.create_msg(direction='O', text='Outgoing message', contact=self.trey, status=WIRED,
-                              external_id=unicode(uuid.uuid4()), )
+                              external_id=unicode(uuid.uuid4()),)
 
         data = dict(event_type='delivery_report',
                     event_id=unicode(uuid.uuid4()),
@@ -3958,6 +3977,7 @@ class VumiTest(TembaTest):
 
 
 class ZenviaTest(TembaTest):
+
     def setUp(self):
         super(ZenviaTest, self).setUp()
 
@@ -4056,6 +4076,7 @@ class ZenviaTest(TembaTest):
 
 
 class InfobipTest(TembaTest):
+
     def setUp(self):
         super(InfobipTest, self).setUp()
 
@@ -4160,6 +4181,7 @@ class InfobipTest(TembaTest):
 
 
 class BlackmynaTest(TembaTest):
+
     def setUp(self):
         super(BlackmynaTest, self).setUp()
 
@@ -4296,6 +4318,7 @@ class BlackmynaTest(TembaTest):
 
 
 class SMSCentralTest(TembaTest):
+
     def setUp(self):
         super(SMSCentralTest, self).setUp()
 
@@ -4375,6 +4398,7 @@ class SMSCentralTest(TembaTest):
 
 
 class Hub9Test(TembaTest):
+
     def setUp(self):
         super(Hub9Test, self).setUp()
 
@@ -4481,6 +4505,7 @@ class Hub9Test(TembaTest):
 
 
 class HighConnectionTest(TembaTest):
+
     def setUp(self):
         super(HighConnectionTest, self).setUp()
 
@@ -4572,6 +4597,7 @@ class HighConnectionTest(TembaTest):
 
 
 class TwilioTest(TembaTest):
+
     def setUp(self):
         super(TwilioTest, self).setUp()
 
@@ -4792,6 +4818,7 @@ class TwilioTest(TembaTest):
 
 
 class TwilioMessagingServiceTest(TembaTest):
+
     def setUp(self):
         super(TwilioMessagingServiceTest, self).setUp()
 
@@ -5037,6 +5064,7 @@ class TwimlAPITest(TembaTest):
 
 
 class ClickatellTest(TembaTest):
+
     def setUp(self):
         super(ClickatellTest, self).setUp()
 
@@ -5310,6 +5338,7 @@ class ClickatellTest(TembaTest):
 
 
 class TelegramTest(TembaTest):
+
     def setUp(self):
         super(TelegramTest, self).setUp()
 
@@ -5357,10 +5386,12 @@ class TelegramTest(TembaTest):
         self.assertEqual(msg1.contact.name, 'Nic Pottier')
 
         def test_file_message(data, file_path, content_type, extension):
+
             Msg.all_messages.all().delete()
 
             with patch('requests.post') as post:
                 with patch('requests.get') as get:
+
                     post.return_value = MockResponse(200, json.dumps(dict(ok="true", result=dict(file_path=file_path))))
                     get.return_value = MockResponse(200, "Fake image bits", headers={"Content-Type": content_type})
 
@@ -5617,6 +5648,7 @@ class TelegramTest(TembaTest):
 
 
 class PlivoTest(TembaTest):
+
     def setUp(self):
         super(PlivoTest, self).setUp()
 
@@ -5729,6 +5761,7 @@ class PlivoTest(TembaTest):
 
 
 class TwitterTest(TembaTest):
+
     def setUp(self):
         super(TwitterTest, self).setUp()
 
@@ -5880,6 +5913,7 @@ class TwitterTest(TembaTest):
 
 
 class MageHandlerTest(TembaTest):
+
     def setUp(self):
         super(MageHandlerTest, self).setUp()
 
@@ -6044,6 +6078,7 @@ class MageHandlerTest(TembaTest):
 
 
 class StartMobileTest(TembaTest):
+
     def setUp(self):
         super(StartMobileTest, self).setUp()
 
@@ -6122,7 +6157,9 @@ class StartMobileTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, '')
+                mock.return_value = MockResponse(200,
+                                                 """<status date='Wed, 25 May 2016 17:29:56 +0300'>
+                                                 <id>380502535130309161501</id><state>Accepted</state></status>""")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
@@ -6131,6 +6168,7 @@ class StartMobileTest(TembaTest):
                 msg = bcast.get_messages()[0]
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
+                self.assertEqual(msg.external_id, "380502535130309161501")
 
                 self.assertEqual('http://bulk.startmobile.com.ua/clients.php', mock.call_args[0][0])
                 self.clear_cache()
@@ -6168,6 +6206,7 @@ class StartMobileTest(TembaTest):
 
 
 class ChikkaTest(TembaTest):
+
     def setUp(self):
         super(ChikkaTest, self).setUp()
 
@@ -6311,6 +6350,7 @@ class ChikkaTest(TembaTest):
 
 
 class JasminTest(TembaTest):
+
     def setUp(self):
         super(JasminTest, self).setUp()
 
@@ -6419,6 +6459,7 @@ class JasminTest(TembaTest):
 
 
 class MbloxTest(TembaTest):
+
     def setUp(self):
         super(MbloxTest, self).setUp()
 
@@ -6538,6 +6579,29 @@ class MbloxTest(TembaTest):
 
 
 class FacebookTest(TembaTest):
+
+    TEST_INCOMING = """
+    {
+        "entry": [{
+          "id": "208685479508187",
+          "messaging": [{
+            "message": {
+              "text": "hello world",
+              "mid": "external_id"
+            },
+            "recipient": {
+              "id": "1234"
+            },
+            "sender": {
+              "id": "5678"
+            },
+            "timestamp": 1459991487970
+          }],
+          "time": 1459991487970
+        }]
+    }
+    """
+
     def setUp(self):
         super(FacebookTest, self).setUp()
 
@@ -6584,29 +6648,116 @@ class FacebookTest(TembaTest):
         msg.refresh_from_db()
         self.assertEqual(msg.status, DELIVERED)
 
-    def test_receive(self):
-        data = """
+    def test_affinity(self):
+        data = json.loads(FacebookTest.TEST_INCOMING)
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(200, '{"first_name": "Ben","last_name": "Haggerty"}')
+
+            callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+            # check the channel affinity for our URN
+            urn = ContactURN.objects.get(urn='facebook:5678')
+            self.assertEqual(self.channel, urn.channel)
+
+            # create another facebook channel
+            channel2 = Channel.create(self.org, self.user, None, 'FB', None, '1234',
+                                      config={AUTH_TOKEN: 'auth'},
+                                      uuid='00000000-0000-0000-0000-000000012345')
+
+            # have to change the message so we don't treat it as a duplicate
+            data['entry'][0]['messaging'][0]['message']['text'] = '2nd Message'
+            data['entry'][0]['messaging'][0]['message']['mid'] = 'external_id_2'
+
+            callback_url = reverse('handlers.facebook_handler', args=[channel2.uuid])
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+            urn = ContactURN.objects.get(urn='facebook:5678')
+            self.assertEqual(channel2, urn.channel)
+
+    def test_ignored_webhooks(self):
+        TEST_PAYLOAD = """{
+          "object": "page",
+          "entry": [{
+            "id": "208685479508187",
+            "time": 1459991487970,
+            "messaging": []
+          }]
+        }"""
+
+        READ_ENTRY = """
         {
-        "entry": [{
-          "id": 208685479508187,
-          "messaging": [{
-            "message": {
-              "text": "hello world",
-              "mid": "external_id"
-            },
-            "recipient": {
-              "id": "1234"
-            },
-            "sender": {
-              "id": "5678"
-            },
-            "timestamp": 1459991487970
-          }],
-          "time": 1459991487970
-        }]
+          "sender":{ "id":"1001" },
+          "recipient":{ "id":"%s" },
+          "timestamp":1458668856463,
+          "read":{
+            "watermark":1458668856253,
+            "seq":38
+          }
         }
         """
-        data = json.loads(data)
+
+        ECHO_ENTRY = """{
+          "sender": {"id": "1001"},
+          "recipient": {"id": "%s"},
+          "timestamp": 1467905036620,
+          "message": {
+            "is_echo": true,
+            "app_id": 1077392885670130,
+            "mid": "mid.1467905036543:c721a8364e45388954",
+            "seq": 4,
+            "text": "Echo Test"
+          }
+        }
+        """
+
+        LINK_ENTRY = """{
+          "sender":{
+            "id":"1001"
+          },
+          "recipient":{
+            "id":"%s"
+          },
+          "timestamp":1234567890,
+          "account_linking":{
+            "status":"linked",
+            "authorization_code":"PASS_THROUGH_AUTHORIZATION_CODE"
+          }
+        }
+        """
+
+        AUTH_ENTRY = """{
+          "sender":{
+            "id":"1001"
+          },
+          "recipient":{
+            "id":"%s"
+          },
+          "timestamp":1234567890,
+          "optin":{
+            "ref":"PASS_THROUGH_PARAM"
+          }
+        }
+        """
+
+        callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
+        for entry in (READ_ENTRY, ECHO_ENTRY, LINK_ENTRY, AUTH_ENTRY):
+            payload = json.loads(TEST_PAYLOAD)
+            payload['entry'][0]['messaging'].append(json.loads(entry % self.channel.address))
+
+            with patch('requests.get') as mock_get:
+                mock_get.return_value = MockResponse(200, '{"first_name": "Ben","last_name": "Haggerty"}')
+                response = self.client.post(callback_url, json.dumps(payload), content_type="application/json")
+
+                # ignored but 200
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "Ignored")
+
+    def test_receive(self):
+        data = json.loads(FacebookTest.TEST_INCOMING)
         callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
 
         with patch('requests.get') as mock_get:
@@ -6616,7 +6767,6 @@ class FacebookTest(TembaTest):
             msg = Msg.all_messages.get()
 
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Msgs Updated")
 
             # load our message
             self.assertEqual(msg.contact.get_urn(FACEBOOK_SCHEME).path, "5678")
@@ -6638,7 +6788,6 @@ class FacebookTest(TembaTest):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Msgs Updated")
 
             msg = Msg.all_messages.get()
 
@@ -6654,7 +6803,6 @@ class FacebookTest(TembaTest):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Msgs Updated")
 
             msg = Msg.all_messages.get()
 
@@ -6672,7 +6820,6 @@ class FacebookTest(TembaTest):
             response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Msgs Updated")
 
             msg = Msg.all_messages.get()
 
@@ -6705,8 +6852,7 @@ class FacebookTest(TembaTest):
             "timestamp": 1459991487970
           }],
           "time": 1459991487970
-        }]
-        }
+        }]}
         """
         data = json.loads(data)
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
@@ -6714,8 +6860,41 @@ class FacebookTest(TembaTest):
         msg = Msg.all_messages.get()
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Msgs Updated")
         self.assertEqual(msg.text, "http://mediaurl.com/img.gif")
+
+        # link attachment
+        data = """{
+          "object":"page",
+          "entry":[{
+            "id":"32408604530",
+            "time":1468418021822,
+            "messaging":[{
+              "sender":{"id":"5678"},
+              "recipient":{"id":"1234"},
+              "timestamp":1468417833159,
+              "message": {
+                "mid":"external_id",
+                "seq":11242,
+                "attachments":[{
+                  "title":"Get in touch with us.",
+                  "url": "http:\x5c/\x5c/m.me\x5c/",
+                  "type": "fallback",
+                  "payload": null
+                }]
+              }
+            }]
+          }]
+        }
+        """
+        Msg.all_messages.all().delete()
+
+        data = json.loads(data)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.all_messages.get()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(msg.text, "Get in touch with us.\nhttp://m.me/")
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="facebook:1234")

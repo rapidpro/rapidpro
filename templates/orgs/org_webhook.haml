@@ -56,7 +56,9 @@
           <input type="text" id="id_header_1_value" name="header_1_value" value="" />
     {% endif %}
 
-  API Token: {{user.api_token}}
+  API Token: <span id="api_token">{{user.api_token}}</span>
+  <a href="javascript:refreshToken()" class='api-token-refresh'><div class="icon-loop"></div></a>
+
 
   .field.subscribed-events
     .field-label
@@ -193,6 +195,12 @@
         };
       };
 
+      function refreshToken(){
+         $.post("{% url 'api.apitoken_refresh' %}", function(data){
+            $("#api_token").text(data['token']);
+         });
+      }
+
       $(function() {
         $(".field.webhook-header-pair").on('focusin', addHeaderPair);
       });
@@ -241,4 +249,9 @@
     .subscribed-events .field-input input[type="checkbox"] {
       height: 22px;
       margin-top: 0px;
+    }
+
+    .api-token-refresh {
+      padding-left: 5px;
+      color: #999;
     }
