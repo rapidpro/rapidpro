@@ -30,7 +30,7 @@ def process_run_timeout(run_id):
         with r.lock(key, timeout=120):
             print "T[%09d] Processing timeout" % run.id
             start = time.time()
-            run.continue_after_timeout()
+            run.resume_after_timeout()
             print "T[%09d] %08.3f s" % (run.id, time.time() - start)
 
 
