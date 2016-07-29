@@ -1337,11 +1337,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $modalInstance.close ""
 
     $timeout ->
-      if not ruleset.config
-        ruleset.config = {}
 
       # changes from the user
       ruleset = $scope.ruleset
+
+      if not ruleset.config
+        ruleset.config = {}
+
       rulesetConfig = $scope.formData.rulesetConfig
       contactField = $scope.formData.contactField
       flowField = $scope.formData.flowField
