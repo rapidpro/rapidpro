@@ -1,0 +1,173 @@
+{
+  "campaigns": [], 
+  "version": 9, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "0e191a4b-b815-4bdc-b7d7-00ab2882a17f", 
+          "uuid": "598a9a68-10e4-47e8-aab1-155641a8e0f9", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Hi there, what is your name?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 305, 
+          "x": 453, 
+          "destination": "dfaea908-81e2-47dd-a9bf-2f091887cf64", 
+          "uuid": "476a9a43-829f-4544-99e1-85628646fd5e", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "No worries, let's talk about your age. How old are you?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 306, 
+          "x": 207, 
+          "destination": "dfaea908-81e2-47dd-a9bf-2f091887cf64", 
+          "uuid": "19039686-c1f7-4101-abf0-f1758284bbe7", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Great, how old are you?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 605, 
+          "x": 460, 
+          "destination": null, 
+          "uuid": "a647c1d0-9c3c-4c3c-9dba-ec8385f05433", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Thanks, @step.value"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 609, 
+          "x": 202, 
+          "destination": null, 
+          "uuid": "f30213e5-3aef-469c-8b97-5a14c5a4cdf9", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Ok, that's a good age!"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 9, 
+      "flow_type": "F", 
+      "entry": "598a9a68-10e4-47e8-aab1-155641a8e0f9", 
+      "rule_sets": [
+        {
+          "uuid": "0e191a4b-b815-4bdc-b7d7-00ab2882a17f", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "19039686-c1f7-4101-abf0-f1758284bbe7", 
+              "uuid": "bfeb76b7-7ca3-4c48-983f-5e0f6ce6a07f", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "type": "timeout", 
+                "minutes": 5
+              }, 
+              "category": {
+                "eng": "No Response"
+              }, 
+              "destination": "476a9a43-829f-4544-99e1-85628646fd5e", 
+              "uuid": "066543db-24fe-4f80-a140-2c84cc344b32", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_message", 
+          "label": "Name", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 146, 
+          "x": 300, 
+          "config": {}
+        }, 
+        {
+          "uuid": "dfaea908-81e2-47dd-a9bf-2f091887cf64", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "f30213e5-3aef-469c-8b97-5a14c5a4cdf9", 
+              "uuid": "fbb2cb1e-6c42-462e-abeb-8ddbba12f610", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "type": "timeout", 
+                "minutes": 5
+              }, 
+              "category": {
+                "eng": "No Response"
+              }, 
+              "destination": "a647c1d0-9c3c-4c3c-9dba-ec8385f05433", 
+              "uuid": "bb597d75-7057-4e17-bb58-f14e39e03abc", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_message", 
+          "label": "Age", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 476, 
+          "x": 266, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 39, 
+        "uuid": "ed9c57ce-a971-4af3-b6ea-4c12d2522376", 
+        "name": "Timeout Flow", 
+        "saved_on": "2016-07-29T21:00:54.646854Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

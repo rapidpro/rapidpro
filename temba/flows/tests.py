@@ -5354,3 +5354,88 @@ class OrderingTest(FlowFileTest):
 
             # two batches of messages, one batch for each contact
             self.assertEqual(mock_send_msg.call_count, 2)
+
+
+class TimeoutTest(FlowFileTest):
+
+    def test_multi_timeout(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        flow = self.get_flow('multi_timeout')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # create a new message and get it handled
+        msg = self.create_msg(contact=self.contact, direction='I', text="Wilson")
+        Flow.find_and_handle(msg)
+
+        time.sleep(1)
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+        check_flow_timeouts_task()
+
+        run = FlowRun.objects.get()
+
+        # run should be complete now
+        self.assertFalse(run.is_active)
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+
+        # and we should have sent our message
+        self.assertEquals("Thanks, Wilson",
+                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+
+    def test_timeout(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        flow = self.get_flow('timeout')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # create a new message and get it handled
+        msg = self.create_msg(contact=self.contact, direction='I', text="Wilson")
+        Flow.find_and_handle(msg)
+
+        # we should have sent a response
+        self.assertEquals("Great. Good to meet you Wilson",
+                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+
+        # assert we have exited our flow
+        run = FlowRun.objects.get()
+        self.assertFalse(run.is_active)
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+
+        # ok, now let's try with a timeout
+        FlowRun.objects.all().delete()
+        Msg.all_messages.all().delete()
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # check our timeout is set
+        run = FlowRun.objects.get()
+        self.assertTrue(run.is_active)
+        self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
+
+        # run our timeout check task
+        check_flow_timeouts_task()
+
+        # nothing occured as we haven't timed out yet
+        run.refresh_from_db()
+        self.assertTrue(run.is_active)
+        self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
+
+        time.sleep(1)
+
+        # ok, change our timeout to the past
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+
+        # check our timeouts again
+        check_flow_timeouts_task()
+        run.refresh_from_db()
+
+        # run should be complete now
+        self.assertFalse(run.is_active)
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+
+        # and we should have sent our message
+        self.assertEquals("Don't worry about it , we'll catch up next week.",
+                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)

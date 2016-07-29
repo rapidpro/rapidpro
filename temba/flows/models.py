@@ -2498,7 +2498,7 @@ class FlowRun(models.Model):
         """
         Returns the last incoming msg on this run, or an empty dummy message if there is none
         """
-        msg = Msg.objects.filter(steps__run=self, direction=INCOMING).first()
+        msg = Msg.all_messages.filter(steps__run=self, direction=INCOMING).first()
         if not msg:
             msg = Msg()
             msg.text = ''
@@ -2538,10 +2538,10 @@ class FlowRun(models.Model):
         Resumes a flow that is at a ruleset that has timed out
         """
         last_step = self.steps.order_by('-arrived_on').first()
-        step = last_step.get_step()
+        node = last_step.get_step()
 
         # make sure we haven't moved on before handling this timeout (race with an incoming msg)
-        if isinstance(step, RuleSet) and timezone.now() > self.timeout_on > step.arrived_on:
+        if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
             msg = self.get_last_incoming_msg()
             Flow.find_and_handle(msg, resume_after_timeout=True)
 
@@ -3061,7 +3061,7 @@ class RuleSet(models.Model):
     def get_timeout(self):
         for rule in self.get_rules():
             if isinstance(rule.test, TimeoutTest):
-                return rule.test.timeout
+                return rule.test.minutes
 
         return None
 

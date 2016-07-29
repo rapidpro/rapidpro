@@ -23,15 +23,16 @@ def process_run_timeout(run_id):
     from temba.flows.models import FlowRun
 
     r = get_redis_connection()
-    run = FlowRun.objects.filter(id=run_id, is_active=True, flow__is_active=True)
+    run = FlowRun.objects.filter(id=run_id, is_active=True, flow__is_active=True).first()
 
-    key = 'pcm_%d' % run.contact_id
-    if not r.get(key):
-        with r.lock(key, timeout=120):
-            print "T[%09d] Processing timeout" % run.id
-            start = time.time()
-            run.resume_after_timeout()
-            print "T[%09d] %08.3f s" % (run.id, time.time() - start)
+    if run:
+        key = 'pcm_%d' % run.contact_id
+        if not r.get(key):
+            with r.lock(key, timeout=120):
+                print "T[%09d] Processing timeout" % run.id
+                start = time.time()
+                run.resume_after_timeout()
+                print "T[%09d] %08.3f s" % (run.id, time.time() - start)
 
 
 @task(track_started=True, name='process_message_task')  # pragma: no cover
