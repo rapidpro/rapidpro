@@ -652,7 +652,7 @@ class Flow(TembaModel):
 
                 if flow:
                     flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                               extra=extra, parent_run=run, interrupt=False)
+                               extra=extra, parent_run=run)
                     return dict(handled=True, destination=None, destination_type=None)
 
         # find a matching rule
@@ -1341,7 +1341,7 @@ class Flow(TembaModel):
         start_flow_task.delay(flow_start.pk)
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
-              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True):
+              start_msg=None, extra=None, flow_start=None, parent_run=None):
         """
         Starts a flow for the passed in groups and contacts.
         """
