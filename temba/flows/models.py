@@ -1384,12 +1384,9 @@ class Flow(TembaModel):
             already_started = set(self.runs.all().values_list('contact_id', flat=True))
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_started]
 
-        else:
-            # stop any runs still active for these contacts
-            previous_runs = self.runs.filter(is_active=True, contact__pk__in=all_contact_ids)
-
-            if interrupt:
-                FlowRun.bulk_exit(previous_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
+        # for the contacts that will be started, exit any existing flow runs
+        active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=all_contact_ids)
+        FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
         contact_count = len(all_contact_ids)
 
