@@ -5270,6 +5270,24 @@ class SendActionTest(FlowFileTest):
         self.assertEqual(migrated['action_sets'][0]['actions'][0]['contacts'][1]['uuid'], contact2.uuid)
 
 
+class ExitTest(FlowFileTest):
+
+    def test_flow_exits(self):
+        # start contact in one flow
+        first_flow = self.get_flow('substitution')
+        first_flow.start([], [self.contact])
+
+        # should have one active flow run
+        FlowRun.objects.get(is_active=True, flow=first_flow, contact=self.contact)
+
+        # start in second via manual start
+        second_flow = self.get_flow('favorites')
+        second_flow.start([], [self.contact])
+
+        # user should have only one active flow we were exited from our other flow
+        FlowRun.objects.get(is_active=True)
+
+
 class OrderingTest(FlowFileTest):
 
     def setUp(self):
