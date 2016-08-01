@@ -905,8 +905,8 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # allow Frank to run the flow in French
-        self.add_language('eng', "English")
-        self.add_language('fre', "French")
+        Language.create(self.org, self.admin, "English", 'eng')
+        Language.create(self.org, self.admin, "French", 'fre')
         self.frank.language = 'fre'
         self.frank.save()
 

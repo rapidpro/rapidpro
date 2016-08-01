@@ -205,9 +205,6 @@ class TembaTest(SmartminTest):
         data = self.get_import_json(filename, substitutions=substitutions)
         return json.loads(data)['flows'][0]
 
-    def add_language(self, code, name):
-        return self.org.languages.create(iso_code=code, name=name, created_by=self.admin, modified_by=self.admin)
-
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
         self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", brand='rapidpro.io',
