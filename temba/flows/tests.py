@@ -5447,6 +5447,36 @@ class OrderingTest(FlowFileTest):
 
 class TimeoutTest(FlowFileTest):
 
+    def test_timeout_loop(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        flow = self.get_flow('timeout_loop')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # mark our last message as sent
+        run = FlowRun.objects.all().first()
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=2)
+        last_msg.save()
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+        check_flow_timeouts_task()
+
+        # should have a new outgoing message
+        last_msg = run.get_last_msg(OUTGOING)
+        self.assertTrue(last_msg.text.find("No seriously, what's your name?") >= 0)
+
+        # ok, now respond
+        msg = self.create_msg(contact=self.contact, direction='I', text="Wilson")
+        Flow.find_and_handle(msg)
+
+        # should have completed our flow
+        run.refresh_from_db()
+        self.assertFalse(run.is_active)
+
+        last_msg = run.get_last_msg(OUTGOING)
+        self.assertEqual(last_msg.text, "Cool, got it..")
+
     def test_multi_timeout(self):
         from temba.flows.tasks import check_flow_timeouts_task
         flow = self.get_flow('multi_timeout')

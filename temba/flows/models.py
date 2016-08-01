@@ -595,6 +595,7 @@ class Flow(TembaModel):
                 handled = True
 
             resume_parent_run = False
+            resume_after_timeout = False
 
         if handled:
             analytics.gauge('temba.flow_execution', time.time() - start_time)
