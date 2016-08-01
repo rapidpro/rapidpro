@@ -17,7 +17,7 @@ urlpatterns = [
     url(r'^handlers', include([
         url(r'^/twilio/$', TwilioHandler.as_view(), name='handlers.twilio_handler'),
         url(r'^/twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$', TwilioMessagingServiceHandler.as_view(), name='handlers.twilio_messaging_service_handler'),
-        url(r'^/twiml_api/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$', TwimlAPIHandler.as_view(), name='handlers.twiml_api_handler'),
+        url(r'^/twiml_api/(?P<uuid>[a-z0-9\-]+)/?$', TwimlAPIHandler.as_view(), name='handlers.twiml_api_handler'),
         url(r'^/verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', VerboiceHandler.as_view(), name='handlers.verboice_handler'),
         url(r'^/africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$', AfricasTalkingHandler.as_view(), name='handlers.africas_talking_handler'),
         url(r'^/zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$', ZenviaHandler.as_view(), name='handlers.zenvia_handler'),

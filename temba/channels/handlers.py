@@ -284,11 +284,37 @@ class TwimlAPIHandler(View):
                     # either way, we need to hangup now
                     return HttpResponse(unicode(response))
 
-        action = kwargs['action']
+        action = request.GET.get('action', 'received')
         channel_uuid = kwargs['uuid']
 
-        if action == 'receive':
+        # this is a callback for a message we sent
+        if action == 'callback':
+            smsId = request.GET.get('id', None)
+            status = request.POST.get('SmsStatus', None)
 
+            # get the SMS
+            sms = Msg.all_messages.select_related('channel').get(id=smsId)
+
+            # validate this request is coming from TwiML
+            org = sms.org
+            client = org.get_twiml_client()
+            validator = RequestValidator(client.auth[1])
+
+            if not validator.validate(url, request.POST, signature):
+                # raise an exception that things weren't properly signed
+                raise ValidationError("Invalid request signature")
+
+            # queued, sending, sent, failed, or received.
+            if status == 'sent':
+                sms.status_sent()
+            elif status == 'delivered':
+                sms.status_delivered()
+            elif status == 'failed':
+                sms.fail()
+
+            return HttpResponse("", status=200)
+
+        elif action == 'received':
             channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TWIML_API).exclude(org=None).first()
             if not channel:
                 return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
