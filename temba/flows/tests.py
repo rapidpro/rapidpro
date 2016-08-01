@@ -5375,6 +5375,28 @@ class TimeoutTest(FlowFileTest):
 
         run = FlowRun.objects.get()
 
+        # nothing should have changed as we haven't yet sent our msg
+        self.assertTrue(run.is_active)
+
+        # ok, mark our message as sent, but only two minutes ago
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=2)
+        last_msg.save()
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+        check_flow_timeouts_task()
+
+        # still nothing should have changed, not enough time has passed, but our timeout should be in the future now
+        run.refresh_from_db()
+        self.assertTrue(run.is_active)
+        self.assertTrue(run.timeout_on > timezone.now() + timedelta(minutes=2))
+
+        # ok, finally mark our message sent a while ago
+        last_msg.sent_on = timezone.now() - timedelta(minutes=10)
+        last_msg.save()
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+        check_flow_timeouts_task()
+        run.refresh_from_db()
+
         # run should be complete now
         self.assertFalse(run.is_active)
         self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
@@ -5415,6 +5437,13 @@ class TimeoutTest(FlowFileTest):
         self.assertTrue(run.is_active)
         self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
 
+        # mark our last message as sent
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
+        last_msg.save()
+
+        time.sleep(.5)
+
         # run our timeout check task
         check_flow_timeouts_task()
 
@@ -5423,7 +5452,7 @@ class TimeoutTest(FlowFileTest):
         self.assertTrue(run.is_active)
         self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
 
-        time.sleep(1)
+        time.sleep(.5)
 
         # ok, change our timeout to the past
         FlowRun.objects.all().update(timeout_on=timezone.now())

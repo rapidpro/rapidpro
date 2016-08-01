@@ -31,7 +31,7 @@ from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, OUTGOING
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
 from temba.utils.email import send_template_email, is_valid_address
@@ -2494,17 +2494,11 @@ class FlowRun(models.Model):
             # continue the parent flows to continue async
             continue_parent_flows.delay(ids)
 
-    def get_last_incoming_msg(self):
+    def get_last_msg(self, direction):
         """
         Returns the last incoming msg on this run, or an empty dummy message if there is none
         """
-        msg = Msg.all_messages.filter(steps__run=self, direction=INCOMING).first()
-        if not msg:
-            msg = Msg()
-            msg.text = ''
-            msg.org = self.org
-            msg.contact = self.contact
-
+        msg = Msg.all_messages.filter(steps__run=self, direction=direction).order_by('-created_on').first()
         return msg
 
     @classmethod
@@ -2540,10 +2534,28 @@ class FlowRun(models.Model):
         last_step = self.steps.order_by('-arrived_on').first()
         node = last_step.get_step()
 
-        # make sure we haven't moved on before handling this timeout (race with an incoming msg)
+        # only continue if we are at a ruleset with a timeout
         if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
-            msg = self.get_last_incoming_msg()
-            Flow.find_and_handle(msg, resume_after_timeout=True)
+            timeout = node.get_timeout()
+
+            # if our current node doesn't have a timeout, then we've moved on
+            if timeout:
+                # get the last outgoing msg for this contact
+                msg = self.get_last_msg(OUTGOING)
+
+                # check that our last outgoing msg was sent and our timeout is in the past, otherwise reschedule
+                if msg and (not msg.sent_on or timezone.now() < msg.sent_on + timedelta(minutes=timeout)):
+                    self.update_timeout(msg.sent_on if msg.sent_on else timezone.now(), timeout)
+
+                # look good, lets resume this run
+                else:
+                    msg = self.get_last_msg(INCOMING)
+                    if not msg:
+                        msg = Msg()
+                        msg.text = ''
+                        msg.org = self.org
+                        msg.contact = self.contact
+                    Flow.find_and_handle(msg, resume_after_timeout=True)
 
     def release(self):
         """
@@ -2595,7 +2607,7 @@ class FlowRun(models.Model):
         """
         Updates our timeout for our run, either clearing it or setting it appropriately
         """
-        if minutes and self.timeout_on:
+        if not minutes and self.timeout_on:
             self.timeout_on = None
             self.modified_on = now
             self.save(update_fields=['timeout_on', 'modified_on'])
