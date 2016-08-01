@@ -222,17 +222,78 @@ class TwimlAPIHandler(View):
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
         url = "https://" + settings.HOSTNAME + "%s" % request.get_full_path()
 
+        call_sid = request.REQUEST.get('CallSid', None)
+        direction = request.REQUEST.get('Direction', None)
+        status = request.REQUEST.get('CallStatus', None)
+        to_number = request.REQUEST.get('To', None)
+        to_country = request.REQUEST.get('ToCountry', None)
+        from_number = request.REQUEST.get('From', None)
+
+        # Twilio sometimes sends un-normalized numbers
+        if not to_number.startswith('+') and to_country:
+            to_number, valid = URN.normalize_number(to_number, to_country)
+
+        # see if it's a twilio call being initiated
+        if to_number and call_sid and direction == 'inbound' and status == 'ringing':
+
+            # find a channel that knows how to answer twilio calls
+            channel = Channel.objects.filter(address=to_number, channel_type=TWIML_API, role__contains='A', is_active=True).exclude(org=None).first()
+            if not channel:
+                raise Exception("No active answering channel found for number: %s" % to_number)
+
+            client = channel.org.get_twiml_client()
+            validator = RequestValidator(client.auth[1])
+            signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
+
+            base_url = settings.TEMBA_HOST
+            url = "https://%s%s" % (base_url, request.get_full_path())
+
+            if validator.validate(url, request.POST, signature):
+                from temba.ivr.models import IVRCall
+
+                # find a contact for the one initiating us
+                urn = URN.from_tel(from_number)
+                contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
+                urn_obj = contact.urn_objects[urn]
+
+                flow = Trigger.find_flow_for_inbound_call(contact)
+
+                call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
+                call.update_status(request.POST.get('CallStatus', None),
+                                   request.POST.get('CallDuration', None))
+                call.save()
+
+                if flow:
+                    FlowRun.create(flow, contact.pk, call=call)
+                    response = Flow.handle_call(call, {})
+                    return HttpResponse(unicode(response))
+                else:
+
+                    # we don't have an inbound trigger to deal with this call.
+                    response = twiml.Response()
+
+                    # say nothing and hangup, this is a little rude, but if we reject the call, then
+                    # they'll get a non-working number error. We send 'busy' when our server is down
+                    # so we don't want to use that here either.
+                    response.say('')
+                    response.hangup()
+
+                    # if they have a missed call trigger, fire that off
+                    Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
+
+                    # either way, we need to hangup now
+                    return HttpResponse(unicode(response))
+
         action = kwargs['action']
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TWIML_API).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
-
         if action == 'receive':
 
-            org = channel.org
-            client = org.get_twiml_client()
+            channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TWIML_API).exclude(org=None).first()
+            if not channel:
+                return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+
+            client = channel.org.get_twiml_client()
             validator = RequestValidator(client.auth[1])
 
             if not validator.validate(url, request.POST, signature):
