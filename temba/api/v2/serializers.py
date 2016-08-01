@@ -265,17 +265,12 @@ class FlowRunReadSerializer(ReadSerializer):
 
     @staticmethod
     def get_step_messages(run, step):
-        # TODO this can be removed once purging broadcasts actually deletes messages
-        included_broadcast_ids = set()
-
         messages = []
         for m in step.messages.all():
             messages.append({'id': m.id, 'broadcast': m.broadcast_id, 'text': m.text})
-            if m.broadcast_id:
-                included_broadcast_ids.add(m.broadcast_id)
 
         for b in step.broadcasts.all():
-            if b.id not in included_broadcast_ids:
+            if b.purged:
                 text = b.get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
                 messages.append({'id': None, 'broadcast': b.id, 'text': text})
 
