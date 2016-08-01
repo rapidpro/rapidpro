@@ -2539,6 +2539,17 @@ class ActionTest(TembaTest):
         run = FlowRun.create(self.flow, test_contact.pk)
         test.execute(run, None, sms)
 
+        ActionLog.objects.all().delete()
+        action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='foo@bar.com'))
+        action.execute(run, None, None)
+        self.assertEquals(ActionLog.objects.get().text, "Added foo@bar.com as @contact.mailto - skipped in simulator")
+
+        # Invalid email
+        ActionLog.objects.all().delete()
+        action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='foobar.com'))
+        action.execute(run, None, None)
+        self.assertEquals(ActionLog.objects.get().text, "Skipping invalid connection for contact (mailto:foobar.com)")
+
         # URN should be unchanged on the simulator contact
         test_contact = Contact.objects.get(id=test_contact.id)
         self.assertEquals(test_contact_urn, test_contact.urns.all().first())
@@ -3091,6 +3102,24 @@ class WebhookTest(TembaTest):
         super(WebhookTest, self).tearDown()
         settings.SEND_WEBHOOKS = False
 
+    def test_webhook_subflow_extra(self):
+        # import out flow that triggers another flow
+        contact1 = self.create_contact("Marshawn", "+14255551212")
+        substitutions = dict(contact_id=contact1.id)
+        flow = self.get_flow('triggered', substitutions)
+
+        with patch('requests.get') as get:
+            get.return_value = MockResponse(200, '{ "text": "(I came from a webhook)" }')
+            flow.start(groups=[], contacts=[contact1], restart_participants=True)
+
+            # first message from our trigger flow action
+            msg = Msg.all_messages.all().order_by('-created_on')[0]
+            self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
+
+            # second message from our start flow action
+            msg = Msg.all_messages.all().order_by('-created_on')[1]
+            self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
+
     def test_webhook(self):
         self.flow = self.create_flow()
         self.contact = self.create_contact("Ben Haggerty", '+250788383383')
@@ -3473,6 +3502,8 @@ class FlowsTest(FlowFileTest):
 
         assert_in_response(response, 'message_completions', 'contact')
         assert_in_response(response, 'message_completions', 'contact.first_name')
+        assert_in_response(response, 'message_completions', 'contact.tel')
+        assert_in_response(response, 'message_completions', 'contact.mailto')
         assert_in_response(response, 'message_completions', 'flow.color')
         assert_in_response(response, 'message_completions', 'flow.color.category')
         assert_in_response(response, 'message_completions', 'flow.color.text')
@@ -4843,6 +4874,10 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEqual(720, flow_json['metadata']['expires'])
         self.assertTrue('uuid' in flow_json['metadata'])
         self.assertTrue('saved_on' in flow_json['metadata'])
+
+        # check that our replacements work
+        self.assertEqual('@(CONCAT(parent.divided, parent.sky))', flow_json['action_sets'][0]['actions'][3]['value'])
+        self.assertEqual('@parent.contact.name', flow_json['action_sets'][0]['actions'][4]['value'])
 
     def test_migrate_to_8(self):
         # file uses old style expressions

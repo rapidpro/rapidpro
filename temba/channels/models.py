@@ -68,6 +68,7 @@ TELEGRAM = 'TG'
 CHIKKA = 'CK'
 JASMIN = 'JS'
 MBLOX = 'MB'
+GLOBE = 'GL'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -110,6 +111,7 @@ CHANNEL_SETTINGS = {
     CLICKATELL: dict(scheme='tel', max_length=420),
     EXTERNAL: dict(max_length=160),
     FACEBOOK: dict(scheme='facebook', max_length=320),
+    GLOBE: dict(scheme='tel', max_length=160),
     HIGH_CONNECTION: dict(scheme='tel', max_length=320),
     HUB9: dict(scheme='tel', max_length=1600),
     INFOBIP: dict(scheme='tel', max_length=1600),
@@ -163,6 +165,7 @@ class Channel(TembaModel):
                     (CLICKATELL, "Clickatell"),
                     (EXTERNAL, "External"),
                     (FACEBOOK, "Facebook"),
+                    (GLOBE, "Globe Labs"),
                     (HIGH_CONNECTION, "High Connection"),
                     (HUB9, "Hub9"),
                     (INFOBIP, "Infobip"),
@@ -1725,6 +1728,57 @@ class Channel(TembaModel):
                                response_status=response.status_code)
 
     @classmethod
+    def send_globe_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+
+        payload = {
+            'address': msg.urn_path.lstrip('+'),
+            'message': text,
+            'passphrase': channel.config['passphrase'],
+            'app_id': channel.config['app_id'],
+            'app_secret': channel.config['app_secret']
+        }
+        headers = dict(TEMBA_HEADERS)
+
+        url = 'https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/6380/requests'
+        start = time.time()
+
+        try:
+            response = requests.post(url,
+                                     data=payload,
+                                     headers=headers,
+                                     timeout=5)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response="",
+                                response_status=503)
+
+        if response.status_code != 200 and response.status_code != 201:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response=response.text,
+                                response_status=response.status_code)
+
+        # parse our response
+        response.json()
+
+        # mark our message as sent
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=payload,
+                               response=response.text,
+                               response_status=response.status_code)
+
+    @classmethod
     def send_nexmo_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, SENT
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
@@ -2426,6 +2480,7 @@ class Channel(TembaModel):
                       CLICKATELL: Channel.send_clickatell_message,
                       EXTERNAL: Channel.send_external_message,
                       FACEBOOK: Channel.send_facebook_message,
+                      GLOBE: Channel.send_globe_message,
                       HIGH_CONNECTION: Channel.send_high_connection_message,
                       HUB9: Channel.send_hub9_message,
                       INFOBIP: Channel.send_infobip_message,

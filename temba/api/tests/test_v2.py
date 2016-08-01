@@ -1071,3 +1071,68 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'contact=%s&flow=%s' % (self.joe.uuid, flow1.uuid))
         self.assertResponseError(response, None,
                                  "You may only specify one of the contact, flow parameters")
+
+    def test_api_definitions(self):
+        url = reverse('api.v2.definitions')
+        self.assertEndpointAccess(url)
+
+        self.import_file('subflow')
+        flow = Flow.objects.filter(name='Parent Flow').first()
+
+        # all flow dependencies and we should get the child flow
+        response = self.fetchJSON(url, 'flow_uuid=%s' % flow.uuid)
+        self.assertEqual(2, len(response.json['flows']))
+        self.assertEquals('Parent Flow', response.json['flows'][0]['metadata']['name'])
+        self.assertEquals('Child Flow', response.json['flows'][1]['metadata']['name'])
+
+        # export just the parent flow
+        response = self.fetchJSON(url, 'flow_uuid=%s&dependencies=false' % flow.uuid)
+        self.assertEqual(1, len(response.json['flows']))
+        self.assertEquals('Parent Flow', response.json['flows'][0]['metadata']['name'])
+
+        # import the clinic app which has campaigns
+        self.import_file('the_clinic')
+
+        # our catchall flow, all alone
+        flow = Flow.objects.filter(name='Catch All').first()
+        response = self.fetchJSON(url, 'flow_uuid=%s&dependencies=false' % flow.uuid)
+        self.assertEqual(1, len(response.json['flows']))
+        self.assertEqual(0, len(response.json['campaigns']))
+        self.assertEqual(0, len(response.json['triggers']))
+
+        # with it's trigger dependency
+        response = self.fetchJSON(url, 'flow_uuid=%s' % flow.uuid)
+        self.assertEqual(1, len(response.json['flows']))
+        self.assertEqual(0, len(response.json['campaigns']))
+        self.assertEqual(1, len(response.json['triggers']))
+
+        # our registration flow, all alone
+        flow = Flow.objects.filter(name='Register Patient').first()
+        response = self.fetchJSON(url, 'flow_uuid=%s&dependencies=false' % flow.uuid)
+        self.assertEqual(1, len(response.json['flows']))
+        self.assertEqual(0, len(response.json['campaigns']))
+        self.assertEqual(0, len(response.json['triggers']))
+
+        # touches a lot of stuff
+        response = self.fetchJSON(url, 'flow_uuid=%s' % flow.uuid)
+        self.assertEqual(6, len(response.json['flows']))
+        self.assertEqual(1, len(response.json['campaigns']))
+        self.assertEqual(2, len(response.json['triggers']))
+
+        # add our missed call flow
+        missed_call = Flow.objects.filter(name='Missed Call').first()
+        response = self.fetchJSON(url, 'flow_uuid=%s&flow_uuid=%s&dependencies=true' % (flow.uuid, missed_call.uuid))
+        self.assertEqual(7, len(response.json['flows']))
+        self.assertEqual(1, len(response.json['campaigns']))
+        self.assertEqual(3, len(response.json['triggers']))
+
+        campaign = Campaign.objects.filter(name='Appointment Schedule').first()
+        response = self.fetchJSON(url, 'campaign_uuid=%s&dependencies=false' % campaign.uuid)
+        self.assertEqual(0, len(response.json['flows']))
+        self.assertEqual(1, len(response.json['campaigns']))
+        self.assertEqual(0, len(response.json['triggers']))
+
+        response = self.fetchJSON(url, 'campaign_uuid=%s' % campaign.uuid)
+        self.assertEqual(4, len(response.json['flows']))
+        self.assertEqual(1, len(response.json['campaigns']))
+        self.assertEqual(1, len(response.json['triggers']))

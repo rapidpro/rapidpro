@@ -492,19 +492,15 @@ class OrgCRUDL(SmartCRUDL):
             flows = set(Flow.objects.filter(id__in=self.request.REQUEST.getlist('flows'), org=self.get_object(), is_active=True))
             campaigns = Campaign.objects.filter(id__in=self.request.REQUEST.getlist('campaigns'), org=self.get_object())
 
-            # add in all the flows our campaign depends on
-            exported_campaigns = []
-            for campaign in campaigns:
-                # don't export single message flows, those get recreated on each import
-                for flow in campaign.get_flows():
-                    flows.add(flow)
-                exported_campaigns.append(campaign.as_json())
+            # by default we include the triggers for the requested flows
+            dependencies = dict(flows=set(), campaigns=set(), groups=set(), triggers=set())
+            for flow in flows:
+                dependencies = flow.get_dependencies(dependencies)
 
-            definition = Flow.export_definitions(flows)
-            definition['campaigns'] = exported_campaigns
-            definition['site'] = request.branding['link']
+            triggers = dependencies['triggers']
 
-            response = HttpResponse(json.dumps(definition, indent=2), content_type='application/javascript')
+            export = self.get_object().export_definitions(request.branding['link'], flows, campaigns, triggers)
+            response = HttpResponse(json.dumps(export, indent=2), content_type='application/javascript')
             response['Content-Disposition'] = 'attachment; filename=%s.json' % slugify(self.get_object().name)
             return response
 
@@ -795,7 +791,8 @@ class OrgCRUDL(SmartCRUDL):
         def get_credits(self, obj):
             if not obj.credits:
                 obj.credits = 0
-            return "<div class='num-credits'>%d</div>" % obj.credits
+            return "<div class='num-credits'><a href='%s'>%s</a></div>" % (reverse('orgs.topup_manage') + "?org=%d" % obj.id,
+                                                                           format(obj.credits, ",d"))
 
         def get_owner(self, obj):
             owner = obj.latest_admin()
@@ -2051,6 +2048,9 @@ class TopUpCRUDL(SmartCRUDL):
                 return "$%.2f" % (obj.price / 100.0)
             else:
                 return "-"
+
+        def get_credits(self, obj):
+            return format(obj.credits, ",d")
 
         def get_context_data(self, **kwargs):
             context = super(TopUpCRUDL.Manage, self).get_context_data(**kwargs)

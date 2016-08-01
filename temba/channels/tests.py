@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import base64
 import calendar
+import copy
 import hashlib
 import hmac
 import json
@@ -42,7 +43,7 @@ from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, CHIKKA, TELEGRAM
-from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS
+from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO_APP_ID, TEMBA_HEADERS, GLOBE
 from .models import TWILIO, ANDROID, TWITTER, API_ID, USERNAME, PASSWORD, PAGE_NAME, AUTH_TOKEN
 from .models import ENCODING, SMART_ENCODING, SEND_URL, SEND_METHOD, NEXMO_UUID, UNICODE_ENCODING, NEXMO
 from .models import CALL, ANSWER, SEND_BODY, SEND, RECEIVE
@@ -1580,6 +1581,27 @@ class ChannelTest(TembaTest):
                         self.assertFalse(PLIVO_AUTH_ID in self.client.session)
                         self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
 
+    def test_claim_globe(self):
+        # disassociate all of our channels
+        self.org.channels.all().update(org=None, is_active=False)
+
+        self.login(self.admin)
+        claim_url = reverse('channels.channel_claim_globe')
+
+        response = self.client.get(claim_url)
+        self.assertEqual(200, response.status_code)
+
+        response = self.client.post(claim_url, dict(number=21586380, app_id="AppId", app_secret="AppSecret", passphrase="Passphrase"), follow=True)
+        self.assertEqual(200, response.status_code)
+
+        channel = Channel.objects.get(channel_type=GLOBE)
+        self.assertEqual('21586380', channel.address)
+        self.assertEqual('PH', channel.country)
+        config = channel.config_json()
+        self.assertEqual(config['app_secret'], 'AppSecret')
+        self.assertEqual(config['app_id'], 'AppId')
+        self.assertEqual(config['passphrase'], 'Passphrase')
+
     def test_claim_telegram(self):
 
         # disassociate all of our channels
@@ -1905,6 +1927,19 @@ class ChannelTest(TembaTest):
         self.tel_channel = Channel.objects.get(pk=self.tel_channel.pk)
         self.assertEquals('12345', self.tel_channel.gcm_id)
         self.assertEquals('abcde', self.tel_channel.uuid)
+
+        # should ignore incoming messages without text
+        post_data = dict(cmds=[
+            # incoming msg without text
+            dict(cmd="mo_sms", phone="+250788383383", p_id="1", ts=date),
+
+        ])
+
+        msgs_count = Msg.all_messages.all().count()
+        response = self.sync(self.tel_channel, post_data)
+
+        # no new message
+        self.assertEqual(Msg.all_messages.all().count(), msgs_count)
 
         # set an email on our channel
         self.tel_channel.alert_email = 'fred@worldrelif.org'
@@ -5340,20 +5375,18 @@ class TelegramTest(TembaTest):
                     self.assertEquals(200, response.status_code)
 
                     # should have a media message now with an image
-                    msgs = Msg.all_messages.all().order_by('-created_on')
+                    msgs = Msg.all_messages.all().order_by('-pk')
 
-                    offset = 1 if caption else 0
                     if caption:
                         self.assertEqual(msgs.count(), 2)
-                        self.assertEqual(msgs[0].text, caption)
+                        self.assertEqual(msgs[1].text, caption)
                     else:
                         self.assertEqual(msgs.count(), 1)
 
-                    self.assertTrue(msgs[offset].media.startswith('%s:https://' % content_type))
-                    self.assertTrue(msgs[offset].media.endswith(extension))
-
-                    self.assertTrue(msgs[offset].text.startswith('https://'))
-                    self.assertTrue(msgs[offset].text.endswith(extension))
+                    self.assertTrue(msgs[0].media.startswith('%s:https://' % content_type))
+                    self.assertTrue(msgs[0].media.endswith(extension))
+                    self.assertTrue(msgs[0].text.startswith('https://'))
+                    self.assertTrue(msgs[0].text.endswith(extension))
 
         # stickers are allowed
         sticker_data = """
@@ -6875,3 +6908,114 @@ class FacebookTest(TembaTest):
             # check the status of the message now errored
             msg = bcast.get_messages()[0]
             self.assertEquals(ERRORED, msg.status)
+
+
+class GlobeTest(TembaTest):
+
+    def setUp(self):
+        super(GlobeTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'PH', 'GL', None, '21586380',
+                                      config=dict(app_id='AppId', app_secret='AppSecret', passphrase='Passphrase'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_receive(self):
+        # invalid UUID
+        response = self.client.post(reverse('handlers.globe_handler', args=['receive', '00000000-0000-0000-0000-000000000000']))
+        self.assertEqual(response.status_code, 400)
+
+        data = {
+            "inboundSMSMessageList": {
+                "inboundSMSMessage": [{
+                    "dateTime": "Fri Nov 22 2013 12:12:13 GMT+0000 (UTC)",
+                    "destinationAddress": "21586380",
+                    "messageId": None,
+                    "message": "Hello",
+                    "resourceURL": None,
+                    "senderAddress": "9171234567"
+                }]
+            }
+        }
+        callback_url = reverse('handlers.globe_handler', args=['receive', self.channel.uuid])
+
+        # try a GET
+        response = self.client.get(callback_url)
+        self.assertEqual(response.status_code, 405)
+
+        # POST invalid JSON data
+        response = self.client.post(callback_url, "not json", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST missing data
+        response = self.client.post(callback_url, json.dumps({}), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST missing fields in msg
+        bad_data = copy.deepcopy(data)
+        del bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['message']
+        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST, invalid sender Address
+        bad_data = copy.deepcopy(data)
+        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = '9999'
+        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # ok, valid post
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.all_messages.get()
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertEqual(msg.contact.get_urn(TEL_SCHEME).path, "+639171234567")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "Hello")
+        self.assertEqual(msg.created_on.date(), date(day=22, month=11, year=2013))
+
+    def test_send(self):
+        joe = self.create_contact("Joe", "+639171234567")
+        bcast = joe.send("MT", self.admin, trigger_send=False)
+
+        # our outgoing sms
+        sms = bcast.get_messages()[0]
+        settings.SEND_MESSAGES = True
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "status":"accepted" }')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message is now sent
+            msg = bcast.get_messages()[0]
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.clear_cache()
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(401, 'Error')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message now errored
+            msg = bcast.get_messages()[0]
+            self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()
+
+        with patch('requests.get') as mock:
+            mock.side_effect = Exception("Unable to reach host")
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+
+            # check the status of the message now errored
+            msg = bcast.get_messages()[0]
+            self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()

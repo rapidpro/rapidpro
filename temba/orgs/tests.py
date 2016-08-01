@@ -856,6 +856,21 @@ class OrgTest(TembaTest):
 
         self.assertEquals(5500, self.org.get_credits_remaining())
 
+    def test_topup_model(self):
+        topup = TopUp.create(self.admin, price=None, credits=1000)
+
+        self.assertEqual(topup.get_price_display(), "")
+
+        topup.price = 0
+        topup.save()
+
+        self.assertEqual(topup.get_price_display(), "Free")
+
+        topup.price = 100
+        topup.save()
+
+        self.assertEqual(topup.get_price_display(), "$1.00")
+
     def test_topups(self):
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         test_contact = Contact.get_test_contact(self.user)

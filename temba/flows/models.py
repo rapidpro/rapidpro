@@ -35,7 +35,6 @@ from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, W
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
-from temba.utils.cache import get_cacheable
 from temba.utils.email import send_template_email, is_valid_address
 from temba.utils.models import TembaModel, ChunkIterator
 from temba.utils.profiler import SegmentProfiler
@@ -273,32 +272,6 @@ class Flow(TembaModel):
                          rule_sets=[], action_sets=action_sets))
 
         return flow
-
-    @classmethod
-    def export_definitions(cls, flows):
-        """
-        Builds a json definition fit for export
-        """
-        exported_triggers = []
-        exported_flows = []
-
-        for flow in flows:
-            # only export current versions
-            flow.ensure_current_version()
-
-            # get our json with group names
-            exported_flows.append(flow.as_json(expand_contacts=True))
-
-        # get all non-schedule based triggers that are active for these flows
-        triggers = set()
-        for flow in flows:
-            triggers.update(flow.get_dependencies()['triggers'])
-
-        for trigger in triggers:
-            exported_triggers.append(trigger.as_json())
-
-        from temba.orgs.models import CURRENT_EXPORT_VERSION
-        return dict(version=CURRENT_EXPORT_VERSION, flows=exported_flows, triggers=exported_triggers)
 
     @classmethod
     def import_flows(cls, exported_json, org, user, same_site=False):
@@ -542,7 +515,7 @@ class Flow(TembaModel):
             destination = Flow.get_node(flow, step.step_uuid, step.step_type)
 
             # this node doesn't exist anymore, mark it as left so they leave the flow
-            if not destination:
+            if not destination:  # pragma: no cover
                 step.run.set_completed(final_step=step)
                 continue
 
@@ -634,12 +607,10 @@ class Flow(TembaModel):
         return handled, msgs
 
     @classmethod
-    def handle_actionset(cls, actionset, step, run, msg, started_flows=None, is_test_contact=False):
-        if started_flows is None:
-            started_flows = []
+    def handle_actionset(cls, actionset, step, run, msg, started_flows, is_test_contact=False):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
-        if not actionset:
+        if not actionset:  # pragma: no cover
             run.set_completed(final_step=step)
             return dict(handled=True, destination=None, destination_type=None)
 
@@ -741,12 +712,12 @@ class Flow(TembaModel):
             try:
                 flow.restore()
                 changed.append(flow.pk)
-            except FlowException:
+            except FlowException:  # pragma: no cover
                 pass
         return changed
 
     @classmethod
-    def build_flow_context(cls, flow, contact):
+    def build_flow_context(cls, flow, contact, contact_context=None):
         """
         Get a flow context built on the last run for the contact in the given flow
         """
@@ -774,6 +745,11 @@ class Flow(TembaModel):
                     values.append("%s: %s" % (value['label'], value['rule_value']))
 
             flow_context['__default__'] = "\n".join(values)
+
+            # if we don't have a contact context, build one
+            if not contact_context:
+                flow_context['contact'] = contact.build_message_context()
+
         return flow_context
 
     def as_select2(self):
@@ -988,13 +964,13 @@ class Flow(TembaModel):
         return FlowRunCount.run_count(self)
 
     def get_base_text(self, language_dict, default=''):
-        if not isinstance(language_dict, dict):
+        if not isinstance(language_dict, dict):  # pragma: no cover
             return language_dict
 
         if self.base_language:
             return language_dict.get(self.base_language, default)
 
-        return default
+        return default  # pragma: no cover
 
     def get_localized_text(self, text_translations, contact=None, default_text=''):
         """
@@ -1168,15 +1144,6 @@ class Flow(TembaModel):
         # increment our global count as well
         self.org.increment_unread_msg_count(UNREAD_FLOW_MSGS)
 
-    def get_terminal_nodes(self):
-        cache_key = self.get_props_cache_key(FlowPropsCache.terminal_nodes)
-        return get_cacheable(cache_key, FLOW_PROP_CACHE_TTL,
-                             lambda: [s.uuid for s in self.action_sets.filter(destination=None)])
-
-    def get_category_nodes(self):
-        cache_key = self.get_props_cache_key(FlowPropsCache.category_nodes)
-        return get_cacheable(cache_key, FLOW_PROP_CACHE_TTL, lambda: [rs.uuid for rs in self.rule_sets.all()])
-
     def get_columns(self):
         node_order = []
         for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('y', 'pk'):
@@ -1232,7 +1199,7 @@ class Flow(TembaModel):
         run_context = run.field_dict() if run else {}
 
         # our current flow context
-        flow_context = Flow.build_flow_context(self, contact)
+        flow_context = Flow.build_flow_context(self, contact, contact_context)
 
         context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
 
@@ -1380,13 +1347,13 @@ class Flow(TembaModel):
         Starts a flow for the passed in groups and contacts.
         """
         # build up querysets of our groups for memory efficiency
-        if isinstance(groups, QuerySet):
+        if isinstance(groups, QuerySet):  # pragma: no cover
             group_qs = groups
         else:
             group_qs = ContactGroup.all_groups.filter(id__in=[g.id for g in groups])
 
         # build up querysets of our contacts for memory efficiency
-        if isinstance(contacts, QuerySet):
+        if isinstance(contacts, QuerySet):  # pragma: no cover
             contact_qs = contacts
         else:
             contact_qs = Contact.objects.filter(id__in=[c.id for c in contacts])
@@ -1461,20 +1428,13 @@ class Flow(TembaModel):
         if not channel or CALL not in channel.role:
             return runs
 
-        # (entry_actions, entry_rules) = (None, None)
-        # if self.entry_type == Flow.ACTIONS_ENTRY:
-        #    entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
-        #
-        # elif self.entry_type == Flow.RULES_ENTRY:
-        #    entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
-
         for contact_id in all_contact_ids:
             contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
             contact_urn = contact.get_urn(TEL_SCHEME)
             channel = self.org.get_call_channel(contact_urn=contact_urn)
 
             # can't reach this contact, move on
-            if not contact or not contact_urn or not channel:
+            if not contact or not contact_urn or not channel:  # pragma: no cover
                 continue
 
             run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
@@ -1565,14 +1525,8 @@ class Flow(TembaModel):
 
             return []
 
-    def start_msg_flow_batch(self, batch_contact_ids, broadcasts=None, started_flows=None, start_msg=None,
+    def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
                              extra=None, flow_start=None, parent_run=None):
-
-        if started_flows is None:
-            started_flows = []
-
-        if broadcasts is None:
-            broadcasts = []
 
         simulation = False
         if len(batch_contact_ids) == 1:
@@ -1839,9 +1793,6 @@ class Flow(TembaModel):
         if not dependencies:
             dependencies = dict(flows=set(), groups=set(), campaigns=set(), triggers=set())
 
-        if self in dependencies['flows']:
-            return dependencies
-
         flows = set()
         groups = set()
 
@@ -1863,7 +1814,7 @@ class Flow(TembaModel):
 
         # add any campaigns that use our groups
         from temba.campaigns.models import Campaign
-        campaigns = Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True)
+        campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
         for campaign in campaigns:
             flows.update(list(campaign.get_flows()))
 
@@ -1873,8 +1824,11 @@ class Flow(TembaModel):
 
         dependencies['flows'].update(flows)
         dependencies['groups'].update(groups)
-        dependencies['campaigns'].update(set(campaigns))
+        dependencies['campaigns'].update(campaigns)
         dependencies['triggers'].update(triggers)
+
+        if self in dependencies['flows']:
+            return dependencies
 
         for flow in flows:
             dependencies = flow.get_dependencies(dependencies)
@@ -4718,16 +4672,13 @@ class TriggerFlowAction(VariableContactAction):
         if self.flow:
             message_context = run.flow.build_message_context(run.contact, msg)
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
-
             # start our contacts down the flow
             if not run.contact.is_test:
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
-                extra['contact'] = run.contact.build_message_context()
                 self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
                                 extra=extra, parent_run=run)
                 return []
-
             else:
                 unique_contacts = set()
                 for contact in contacts:
@@ -4818,10 +4769,10 @@ class StartFlowAction(Action):
         return dict(type=StartFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
     def execute(self, run, actionset_uuid, msg, started_flows, offline_on=None):
-        message_context = run.flow.build_message_context(run.contact, msg)
 
-        # our extra will be the current flow variables
-        extra = message_context.get('extra', {})
+        # our extra will be our flow variables in our message context
+        message_context = run.flow.build_message_context(run.contact, msg)
+        extra = message_context.get('extra', dict())
 
         # if they are both flow runs, just redirect the call
         if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
@@ -4830,8 +4781,8 @@ class StartFlowAction(Action):
             url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
             run.voice_response.redirect(url)
         else:
-            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra,
-                            parent_run=run)
+            self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
+                            extra=extra, parent_run=run)
 
         self.logger(run)
         return []
@@ -4947,7 +4898,6 @@ class SaveToContactAction(Action):
             new_urn = URN.normalize(URN.from_parts(scheme, new_value))
             if not URN.validate(new_urn, contact.org.get_country_code()):
                 new_urn = None
-            else:
                 if contact.is_test:
                     ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
 
@@ -4955,11 +4905,11 @@ class SaveToContactAction(Action):
                 urns = [urn.urn for urn in contact.urns.all()]
                 urns += [new_urn]
 
-                if not contact.is_test:
-                    # don't really update URNs on test contacts
-                    contact.update_urns(user, urns)
+                # don't really update URNs on test contacts
+                if contact.is_test:
+                    ActionLog.info(run, _("Added %s as @contact.%s - skipped in simulator" % (new_value, scheme)))
                 else:
-                    ActionLog.info(run, _('Added new connection for contact (%s:%s)' % (scheme, new_value)))
+                    contact.update_urns(user, urns)
 
         else:
             new_value = value[:640]
