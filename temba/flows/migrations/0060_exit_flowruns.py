@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.db.models import Count
 
 
-def exit_active_flowruns(Contact):
+def exit_active_flowruns(Contact, log=False):
     from temba.flows.models import FlowRun
 
     exit_runs = []
@@ -16,7 +16,8 @@ def exit_active_flowruns(Contact):
     active_contact_ids = Contact.objects.filter(runs__is_active=True).order_by('id')\
         .annotate(run_count=Count('id')).filter(run_count__gt=1).values_list('id', flat=True)
 
-    print "%d contacts to evaluate runs for" % len(active_contact_ids)
+    if log:
+        print "%d contacts to evaluate runs for" % len(active_contact_ids)
 
     for idx, contact_id in enumerate(active_contact_ids):
         active_runs = FlowRun.objects.filter(contact_id=contact_id, is_active=True).order_by('-modified_on')
@@ -33,7 +34,8 @@ def exit_active_flowruns(Contact):
             exit_runs += contact_exit_runs
 
         if (idx % 100) == 0:
-            print "  - %d / %d contacts evaluated. %d runs to exit" % (idx, len(active_contact_ids), len(exit_runs))
+            if log:
+                print "  - %d / %d contacts evaluated. %d runs to exit" % (idx, len(active_contact_ids), len(exit_runs))
 
     # ok, now exit those runs
     exited = 0
@@ -42,7 +44,8 @@ def exit_active_flowruns(Contact):
         FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_INTERRUPTED, timezone.now())
 
         exited += len(batch)
-        print " * %d / %d runs exited." % (exited, len(exit_runs))
+        if log:
+            print " * %d / %d runs exited." % (exited, len(exit_runs))
 
 
 def migration_exit_active_flowruns(apps, schema):

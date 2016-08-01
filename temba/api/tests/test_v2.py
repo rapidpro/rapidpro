@@ -937,7 +937,6 @@ class APITest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        print json.dumps(response.json, indent=2)
         self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
 
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
