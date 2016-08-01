@@ -17,6 +17,8 @@ from smartmin.csv_imports.models import ImportTask
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
+from temba.flows.models import FlowRun
+from temba.ivr.models import NO_ANSWER, IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast
 from temba.orgs.models import Org
@@ -1204,15 +1206,11 @@ class ContactTest(TembaTest):
         msgs = []
         for i in range(105):
             msgs.append(self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i))
-            i += 1
 
         # start a joe flow
-        from temba.flows.models import FlowRun
         self.reminder_flow.start([], [self.joe])
 
         # create an event from the past
-        from temba.campaigns.models import EventFire
-
         scheduled = timezone.now() - timedelta(days=5)
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
@@ -1221,37 +1219,36 @@ class ContactTest(TembaTest):
                             timezone.now(), 5)
 
         # try adding some failed calls
-        from temba.ivr.models import NO_ANSWER, IVRCall
         IVRCall.objects.create(contact=self.joe, status=NO_ANSWER, created_by=self.admin,
                                modified_by=self.admin, channel=self.channel, org=self.org,
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
         response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
-        activity = response.context['activity']
-
-        # even though there are no messages after it, should still see the recent call
-        self.assertTrue(isinstance(activity[0], IVRCall))
-        self.assertTrue(isinstance(activity[1], ChannelEvent))
-
-        # 100 messages, a channel event, a call, and a flow run
-        self.assertEquals(103, len(activity))
         self.assertTrue(response.context['more'])
+
+        # activity should include last 100 messages, the channel event, the call, and the flow run
+        activity = response.context['activity']
+        self.assertEqual(103, len(activity))
+        self.assertIsInstance(activity[0], IVRCall)
+        self.assertIsInstance(activity[1], ChannelEvent)
+        self.assertIsInstance(activity[2], Msg)
+        self.assertEqual(activity[2].direction, 'O')
+        self.assertIsInstance(activity[3], FlowRun)
+        self.assertIsInstance(activity[4], Msg)
+        self.assertEqual(activity[4].text, "Inbound message 104")
+        self.assertEqual(activity[-1].text, "Inbound message 6")
 
         # fetch page 2
         response = self.fetch_protected('%s?page=2' % reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
-        activity = response.context['activity']
         self.assertFalse(response.context['more'])
 
-        # six remaining messages
-        self.assertEquals(7, len(activity))
-        self.assertTrue(isinstance(activity[6], EventFire))
-
-        # most recent thing is a message followed by a flow run
-        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        # activity should include 6 remaining messages and the event fire
         activity = response.context['activity']
-        self.assertTrue(isinstance(activity[2], Msg))
-        self.assertTrue(isinstance(activity[3], FlowRun))
+        self.assertEqual(len(activity), 7)
+        self.assertEqual(activity[0].text, "Inbound message 5")
+        self.assertEqual(activity[5].text, "Inbound message 0")
+        self.assertIsInstance(activity[6], EventFire)
 
         # if a new message comes in
         self.create_msg(direction='I', contact=self.joe, text="Newer message")
@@ -1259,9 +1256,9 @@ class ContactTest(TembaTest):
         activity = response.context['activity']
 
         # now we'll see the message that just came in first, followed by the call event
-        self.assertEquals('Newer message', activity[0].text)
-        self.assertTrue(isinstance(activity[0], Msg))
-        self.assertTrue(isinstance(activity[1], IVRCall))
+        self.assertIsInstance(activity[0], Msg)
+        self.assertEqual(activity[0].text, "Newer message")
+        self.assertIsInstance(activity[1], IVRCall)
 
         # remove 50 messages
         for i in range(50):

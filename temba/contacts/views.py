@@ -816,21 +816,6 @@ class ContactCRUDL(SmartCRUDL):
             from temba.campaigns.models import EventFire
             from temba.ivr.models import IVRCall, BUSY, FAILED, NO_ANSWER, CANCELED
 
-            def activity_cmp(a, b):
-
-                if not hasattr(a, 'created_on') and hasattr(a, 'fired'):
-                    a.created_on = a.fired
-
-                if not hasattr(b, 'created_on') and hasattr(b, 'fired'):
-                    b.created_on = b.fired
-
-                if a.created_on == b.created_on:  # pragma: no cover
-                    return 0
-                elif a.created_on < b.created_on:
-                    return -1
-                else:
-                    return 1
-
             contact = self.get_object()
 
             # determine our start and end time based on the page
@@ -838,39 +823,37 @@ class ContactCRUDL(SmartCRUDL):
             msgs_per_page = 100
             start_time = None
 
-            # if we are just grabbing recent history use that window
-
-            recent_seconds = int(self.request.REQUEST.get('rs', 0))
             recent = self.request.REQUEST.get('r', False)
-            context['recent_date'] = datetime.utcfromtimestamp(recent_seconds).replace(tzinfo=pytz.utc)
+            recent_seconds = int(self.request.REQUEST.get('rs', 0))
+            recent_date = datetime.utcfromtimestamp(recent_seconds).replace(tzinfo=pytz.utc)
 
-            text_messages = Msg.all_messages.filter(contact=contact.id).exclude(visibility=Msg.VISIBILITY_DELETED)
-            text_messages = text_messages.order_by('-created_on')
+            msgs = Msg.all_messages.filter(contact=contact).exclude(visibility=Msg.VISIBILITY_DELETED)
+            msgs = msgs.order_by('-created_on')
+
             if recent:
-                start_time = context['recent_date']
-                text_messages = text_messages.filter(created_on__gt=start_time)
-                context['recent'] = True
-
-            # other wise, just grab 100 messages within our page (and an extra marker, for determining more)
+                # if we are just grabbing recent history use that window
+                start_time = recent_date
+                msgs = msgs.filter(created_on__gt=start_time)
             else:
+                # other wise, just grab 100 messages within our page (and an extra marker, for determining more)
                 start_message = (page - 1) * msgs_per_page
                 end_message = page * msgs_per_page
-                text_messages = text_messages[start_message:end_message + 1]
+                msgs = msgs[start_message:end_message + 1]
 
             # ignore our lead message past the first page
-            count = len(text_messages)
-            first_message = 0
+            count = len(msgs)
 
             # if we got an extra one at the end too, trim it off
-            context['more'] = False
             if count > msgs_per_page and not recent:
-                context['more'] = True
-                start_time = text_messages[count - 1].created_on
+                more_messages = True
+                start_time = msgs[count - 1].created_on
                 count -= 1
+            else:
+                more_messages = False
 
-            # grab up to 100 messages from our first message
+            # grab up to 100 messages
             if not recent_seconds:
-                text_messages = text_messages[first_message:first_message + 100]
+                msgs = msgs[0:100]
 
             # if we don't know our start time, go back to the beginning
             if not start_time:
@@ -880,13 +863,19 @@ class ContactCRUDL(SmartCRUDL):
             if page == 1:
                 end_time = timezone.now()
             else:
-                end_time = text_messages[0].created_on
+                end_time = msgs[0].created_on
 
-            context['start_time'] = start_time
+            # purged broadcasts
+            from temba.msgs.models import Broadcast
+            broadcasts = Broadcast.objects.filter(recipients=[u for u in contact.urns.all()], purged=True).distinct()
 
             # all of our runs and events
             runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
-            fired = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
+            event_fires = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
+
+            # for easier comparison and display - give event fires same time attribute as other activity items
+            for event_fire in event_fires:
+                event_fire.created_on = event_fire.fired
 
             # channel events, e.g. missed calls etc
             events = ChannelEvent.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
@@ -895,9 +884,14 @@ class ContactCRUDL(SmartCRUDL):
             error_calls = error_calls.filter(status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
 
             # now chain them all together in the same list and sort by time
-            activity = sorted(chain(text_messages, runs, fired, events, error_calls), cmp=activity_cmp, reverse=True)
+            activity = chain(msgs, broadcasts, runs, event_fires, events, error_calls)
+            activity = sorted(activity, key=lambda i: i.created_on, reverse=True)
 
             context['activity'] = activity
+            context['recent'] = recent
+            context['recent_date'] = recent_date
+            context['start_time'] = start_time
+            context['more'] = more_messages
             return context
 
     class List(ContactActionMixin, ContactListView):
