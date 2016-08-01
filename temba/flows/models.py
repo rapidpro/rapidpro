@@ -652,7 +652,7 @@ class Flow(TembaModel):
 
                 if flow:
                     flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                               extra=extra, parent_run=run)
+                               extra=extra, parent_run=run, interrupt=False)
                     return dict(handled=True, destination=None, destination_type=None)
 
         # find a matching rule
@@ -1341,7 +1341,7 @@ class Flow(TembaModel):
         start_flow_task.delay(flow_start.pk)
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
-              start_msg=None, extra=None, flow_start=None, parent_run=None):
+              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True):
         """
         Starts a flow for the passed in groups and contacts.
         """
@@ -1394,6 +1394,11 @@ class Flow(TembaModel):
         # for the contacts that will be started, exit any existing flow runs
         active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=all_contact_ids).exclude(id__in=ancestor_ids)
         FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
+
+        # if we are interrupting parent flow runs, mark them as completed
+        if ancestor_ids and interrupt:
+            ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
+            FlowRun.bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
 
         contact_count = len(all_contact_ids)
 
