@@ -900,7 +900,7 @@ class DefinitionsEndpoint(BaseAPIView):
             'fields': [
                 {'name': "flow", 'required': False, 'help': "One or more flow UUIDs to include"},
                 {'name': "campaign", 'required': False, 'help': "One or more campaign UUIDs to include"},
-                {'name': "dependencies", 'required': False, 'help': "Whether to include dependebcies of the requested items. ex: false"}
+                {'name': "dependencies", 'required': False, 'help': "Whether to include dependencies of the requested items. ex: false"}
             ]
         }
 
