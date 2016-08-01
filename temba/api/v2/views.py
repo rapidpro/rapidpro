@@ -759,12 +759,10 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
 
 class DefinitionsEndpoint(BaseAPIView):
     """
-    This endpoint exports flows, campaigns, and triggers and optionally will include automatically all dependencies for
-    the requested items.
+    ## Exporting Definitions
 
-    ## Getting Definitions
-
-    Returns JSON export for all items requested
+    A **GET** exports a set of flows and campaigns, and can automatically include dependencies for the requested items,
+    such as groups, triggers and other flows.
 
       * **flow** - the UUIDs of flows to include (string, repeatable)
       * **campaign** - the UUIDs of campaigns to include (string, repeatable)
@@ -774,7 +772,7 @@ class DefinitionsEndpoint(BaseAPIView):
 
         GET /api/v2/definitions.json?flow=f14e4ff0-724d-43fe-a953-1d16aefd1c0b&flow=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab
 
-    Response is a collection of definitions
+    Response is a collection of definitions:
 
         {
           version: 8,
@@ -785,9 +783,9 @@ class DefinitionsEndpoint(BaseAPIView):
               "name": "Water Point Survey",
               "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
               "saved_on": "2015-09-23T00:25:50.709164Z",
-              "revision":28,
-              "expires":7880,
-              "id":12712,
+              "revision": 28,
+              "expires": 7880,
+              "id": 12712,
             },
             "version": 7,
             "flow_type": "S",
