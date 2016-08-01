@@ -759,22 +759,20 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
 
 class DefinitionsEndpoint(BaseAPIView):
     """
-    This endpoint exports flows, campaigns, and triggers and optionally will determine
-    the dependency graph for the provided uuids.
+    ## Exporting Definitions
 
-    ## Getting Definitions
+    A **GET** exports a set of flows and campaigns, and can automatically include dependencies for the requested items,
+    such as groups, triggers and other flows.
 
-    Returns json export for all items requested
-
-      * **flow_uuid** - the UUID of the flow to export (string, repeatable)
-      * **campaign_uuid** - the UUID of the campaign to export (string, repeatable)
+      * **flow** - the UUIDs of flows to include (string, repeatable)
+      * **campaign** - the UUIDs of campaigns to include (string, repeatable)
       * **dependencies** - whether to include dependencies (boolean, default: true)
 
     Example:
 
-        GET /api/v2/definitions.json?flow_uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c0b
+        GET /api/v2/definitions.json?flow=f14e4ff0-724d-43fe-a953-1d16aefd1c0b&flow=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab
 
-    Response is a collection of definitions
+    Response is a collection of definitions:
 
         {
           version: 8,
@@ -785,9 +783,9 @@ class DefinitionsEndpoint(BaseAPIView):
               "name": "Water Point Survey",
               "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
               "saved_on": "2015-09-23T00:25:50.709164Z",
-              "revision":28,
-              "expires":7880,
-              "id":12712,
+              "revision": 28,
+              "expires": 7880,
+              "id": 12712,
             },
             "version": 7,
             "flow_type": "S",
@@ -846,18 +844,25 @@ class DefinitionsEndpoint(BaseAPIView):
     permission = 'orgs.org_api'
 
     def get(self, request, *args, **kwargs):
+        org = request.user.get_org()
+        params = request.query_params
 
-        depends = self.request.GET.get('dependencies', 'true').lower() == 'true'
-        org = self.request.user.get_org()
+        if 'flow_uuid' in params or 'campaign_uuid' in params:  # deprecated
+            flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+            campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
+        else:
+            flow_uuids = params.getlist('flow')
+            campaign_uuids = params.getlist('campaign')
 
-        flows = set()
-        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+        depends = str_to_bool(params.get('dependencies', 'true'))
+
         if flow_uuids:
             flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
+        else:
+            flows = set()
 
         # any fetched campaigns
         campaigns = []
-        campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
         if campaign_uuids:
             campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org)
 
@@ -880,7 +885,7 @@ class DefinitionsEndpoint(BaseAPIView):
         # add in our primary requested flows
         to_export['flows'].update(flows)
 
-        export = self.request.user.get_org().export_definitions(self.request.branding['link'], **to_export)
+        export = org.export_definitions(self.request.branding['link'], **to_export)
 
         return Response(export, status=status.HTTP_200_OK)
 
@@ -888,10 +893,15 @@ class DefinitionsEndpoint(BaseAPIView):
     def get_read_explorer(cls):
         return {
             'method': "GET",
-            'title': "Definitions",
+            'title': "Export Definitions",
             'url': reverse('api.v2.definitions'),
-            'slug': 'org-definitions',
-            'request': ""
+            'slug': 'export-definitions',
+            'request': "flow=f14e4ff0-724d-43fe-a953-1d16aefd1c0b&flow=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+            'fields': [
+                {'name': "flow", 'required': False, 'help': "One or more flow UUIDs to include"},
+                {'name': "campaign", 'required': False, 'help': "One or more campaign UUIDs to include"},
+                {'name': "dependencies", 'required': False, 'help': "Whether to include dependencies of the requested items. ex: false"}
+            ]
         }
 
 
