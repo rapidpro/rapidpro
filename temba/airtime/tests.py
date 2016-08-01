@@ -1,6 +1,6 @@
 from django.core.urlresolvers import reverse
 from mock import patch
-from temba.airtime.models import Airtime
+from temba.airtime.models import AirtimeTransfer
 from temba.flows.models import RuleSet
 from temba.tests import TembaTest, MockResponse
 
@@ -11,20 +11,20 @@ class AirtimeEventTest(TembaTest):
 
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
         self.org.connect_transferto('mylogin', 'api_token', self.admin)
-        self.airtime = Airtime.objects.create(org=self.org, recipient='+12065552020', amount='100',
-                                              contact=self.contact, created_by=self.admin, modified_by=self.admin)
+        self.airtime = AirtimeTransfer.objects.create(org=self.org, recipient='+12065552020', amount='100',
+                                                      contact=self.contact, created_by=self.admin, modified_by=self.admin)
 
     def test_parse_transferto_response(self):
-        self.assertEqual(Airtime.parse_transferto_response(""), dict())
+        self.assertEqual(AirtimeTransfer.parse_transferto_response(""), dict())
 
-        self.assertEqual(Airtime.parse_transferto_response("foo"), dict())
+        self.assertEqual(AirtimeTransfer.parse_transferto_response("foo"), dict())
 
-        self.assertEqual(Airtime.parse_transferto_response("foo\r\nbar"), dict())
+        self.assertEqual(AirtimeTransfer.parse_transferto_response("foo\r\nbar"), dict())
 
-        self.assertEqual(Airtime.parse_transferto_response("foo=allo\r\nbar"),
+        self.assertEqual(AirtimeTransfer.parse_transferto_response("foo=allo\r\nbar"),
                          dict(foo='allo'))
 
-        self.assertEqual(Airtime.parse_transferto_response("foo=allo\r\nbar=1,2,3\r\n"),
+        self.assertEqual(AirtimeTransfer.parse_transferto_response("foo=allo\r\nbar=1,2,3\r\n"),
                          dict(foo='allo', bar=['1', '2', '3']))
 
     @patch('requests.post')
@@ -33,13 +33,13 @@ class AirtimeEventTest(TembaTest):
 
         # Send airtime disabled should raise exception
         with self.assertRaises(Exception):
-            Airtime.post_transferto_api_response('login_acc', 'token', action='ping')
+            AirtimeTransfer.post_transferto_api_response('login_acc', 'token', action='ping')
 
         with self.settings(SEND_AIRTIME=True):
             model_obj_data = self.airtime.data
             model_obj_response = self.airtime.response
 
-            response = Airtime.post_transferto_api_response('login_acc', 'token', action='ping')
+            response = AirtimeTransfer.post_transferto_api_response('login_acc', 'token', action='ping')
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
 
@@ -60,8 +60,8 @@ class AirtimeEventTest(TembaTest):
             self.assertEqual(self.airtime.response, model_obj_response)
             mock_post.reset_mock()
 
-            response = Airtime.post_transferto_api_response('login_acc', 'token', airtime_obj=self.airtime,
-                                                            action='ping')
+            response = AirtimeTransfer.post_transferto_api_response('login_acc', 'token', airtime_obj=self.airtime,
+                                                                    action='ping')
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.content, "foo=allo\r\nbar=1,2,3\r\n")
             self.assertEqual(mock_post.call_count, 1)
@@ -81,7 +81,7 @@ class AirtimeEventTest(TembaTest):
             self.assertNotEqual(self.airtime.response, model_obj_response)
             mock_post.reset_mock()
 
-    @patch('temba.airtime.models.Airtime.post_transferto_api_response')
+    @patch('temba.airtime.models.AirtimeTransfer.post_transferto_api_response')
     def test_get_transferto_response(self, mock_post_transferto):
         mock_post_transferto.return_value = MockResponse(200, "foo=allo\r\nbar=1,2,3\r\n")
 
@@ -93,7 +93,7 @@ class AirtimeEventTest(TembaTest):
             mock_post_transferto.assert_called_once_with('mylogin', 'api_token', airtime_obj=self.airtime,
                                                          action='command')
 
-    @patch('temba.airtime.models.Airtime.get_transferto_response')
+    @patch('temba.airtime.models.AirtimeTransfer.get_transferto_response')
     def test_airtime_trigger_event(self, mock_response):
         flow = self.get_flow('airtime')
         ruleset = RuleSet.objects.get(flow=flow)
@@ -106,8 +106,8 @@ class AirtimeEventTest(TembaTest):
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
-        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
-        self.assertEqual(airtime.status, Airtime.FAILED)
+        airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
         self.assertEqual(airtime.contact, self.contact)
         self.assertEqual(airtime.message, "Error transferring airtime: No transferTo Account connected to "
                                           "this organization")
@@ -124,8 +124,8 @@ class AirtimeEventTest(TembaTest):
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
-        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
-        self.assertEqual(airtime.status, Airtime.COMPLETE)
+        airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, AirtimeTransfer.COMPLETE)
         self.assertEqual(airtime.contact, self.contact)
         self.assertEqual(airtime.message, "Airtime Transferred Successfully")
         self.assertEqual(mock_response.call_count, 3)
@@ -142,8 +142,8 @@ class AirtimeEventTest(TembaTest):
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
-        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
-        self.assertEqual(airtime.status, Airtime.FAILED)
+        airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
         self.assertEqual(airtime.message, "Error transferring airtime: Failed by invalid amount "
                                           "configuration or missing amount configuration for Rwanda")
         self.assertTrue(({'action': 'msisdn_info',
@@ -157,8 +157,8 @@ class AirtimeEventTest(TembaTest):
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
-        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
-        self.assertEqual(airtime.status, Airtime.FAILED)
+        airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
         self.assertTrue(({'action': 'msisdn_info',
                           'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
         self.assertEqual(mock_response.call_count, 1)
@@ -170,8 +170,8 @@ class AirtimeEventTest(TembaTest):
                                      MockResponse(200, "error_code=1\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
-        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
-        self.assertEqual(airtime.status, Airtime.FAILED)
+        airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
 
         self.assertTrue(({'action': 'msisdn_info',
                           'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
@@ -185,8 +185,8 @@ class AirtimeEventTest(TembaTest):
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
                                      MockResponse(200, "error_code=1\r\nerror_txt=\r\n")]
 
-        airtime = Airtime.trigger_airtime_event(org, ruleset, self.contact, None)
-        self.assertEqual(airtime.status, Airtime.FAILED)
+        airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
+        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
         self.assertTrue(({'action': 'msisdn_info',
                           'destination_msisdn': '+12065552020'},) in mock_response.call_args_list)
         self.assertTrue(({'action': 'reserve_id'},) in mock_response.call_args_list)
@@ -197,7 +197,7 @@ class AirtimeEventTest(TembaTest):
         mock_response.reset_mock()
 
     def test_list(self):
-        list_url = reverse('airtime.airtime_list')
+        list_url = reverse('airtime.airtimetransfer_list')
 
         self.login(self.user)
         response = self.client.get(list_url)
@@ -213,7 +213,7 @@ class AirtimeEventTest(TembaTest):
         self.assertTrue(self.airtime in response.context['object_list'])
 
     def test_read(self):
-        read_url = reverse('airtime.airtime_read', args=[self.airtime.pk])
+        read_url = reverse('airtime.airtimetransfer_read', args=[self.airtime.pk])
 
         self.login(self.user)
         response = self.client.get(read_url)

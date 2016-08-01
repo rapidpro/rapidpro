@@ -28,7 +28,7 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from temba.airtime.models import Airtime
+from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
@@ -3111,9 +3111,9 @@ class RuleSet(models.Model):
                     log_txt = "Simulate Complete airtime transfer"
                     ActionLog.create(run, log_txt, safe=True)
 
-                    airtime = Airtime(status=Airtime.COMPLETE)
+                    airtime = AirtimeTransfer(status=AirtimeTransfer.COMPLETE)
                 else:
-                    airtime = Airtime.trigger_airtime_event(self.flow.org, self, run.contact, msg)
+                    airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
 
                 # rebuild our context again, the webhook may have populated something
                 context = run.flow.build_message_context(run.contact, msg)
@@ -5242,8 +5242,8 @@ class AirtimeStatusTest(Test):
     STATUS_COMPLETED = 'completed'
     STATUS_FAILED = 'failed'
 
-    STATUS_MAP = {STATUS_COMPLETED: Airtime.COMPLETE,
-                  STATUS_FAILED: Airtime.FAILED}
+    STATUS_MAP = {STATUS_COMPLETED: AirtimeTransfer.COMPLETE,
+                  STATUS_FAILED: AirtimeTransfer.FAILED}
 
     def __init__(self, exit_status):
         self.exit_status = exit_status

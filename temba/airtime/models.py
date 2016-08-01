@@ -15,7 +15,7 @@ from temba.orgs.models import Org, TRANSFERTO_ACCOUNT_LOGIN, TRANSFERTO_AIRTIME_
 from temba.utils import get_country_code_by_name
 
 
-class Airtime(SmartModel):
+class AirtimeTransfer(SmartModel):
     TRANSFERTO_AIRTIME_API_URL = 'https://fm.transfer-to.com/cgi-bin/shop/topup'
     LOG_DIVIDER = "%s\n\n\n" % ('=' * 20)
 
@@ -66,8 +66,8 @@ class Airtime(SmartModel):
         response = requests.post(cls.TRANSFERTO_AIRTIME_API_URL, data)
 
         if airtime_obj is not None:
-            airtime_obj.data += json.dumps(data) + Airtime.LOG_DIVIDER
-            airtime_obj.response += response.content + Airtime.LOG_DIVIDER
+            airtime_obj.data += json.dumps(data) + AirtimeTransfer.LOG_DIVIDER
+            airtime_obj.response += response.content + AirtimeTransfer.LOG_DIVIDER
             airtime_obj.save()
 
         return response
@@ -92,7 +92,7 @@ class Airtime(SmartModel):
         login = config.get(TRANSFERTO_ACCOUNT_LOGIN, '')
         token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, '')
 
-        return Airtime.post_transferto_api_response(login, token, airtime_obj=self, **kwargs)
+        return AirtimeTransfer.post_transferto_api_response(login, token, airtime_obj=self, **kwargs)
 
     @classmethod
     def trigger_airtime_event(cls, org, ruleset, contact, event):
@@ -109,28 +109,28 @@ class Airtime(SmartModel):
         if not contact_urn:
             contact_urn = contact.get_urn(TEL_SCHEME)
 
-        airtime = Airtime.objects.create(org=org, channel=channel, contact=contact, recipient=contact_urn.path,
-                                         amount=0, created_by=api_user, modified_by=api_user)
+        airtime = AirtimeTransfer.objects.create(org=org, channel=channel, contact=contact, recipient=contact_urn.path,
+                                                 amount=0, created_by=api_user, modified_by=api_user)
 
         message = "None"
         try:
 
             if not org.is_connected_to_transferto():
                 message = "No transferTo Account connected to this organization"
-                airtime.status = Airtime.FAILED
+                airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
             action = 'msisdn_info'
             request_kwargs = dict(action=action, destination_msisdn=airtime.recipient)
             response = airtime.get_transferto_response(**request_kwargs)
-            content_json = Airtime.parse_transferto_response(response.content)
+            content_json = AirtimeTransfer.parse_transferto_response(response.content)
 
             error_code = int(content_json.get('error_code', None))
             error_txt = content_json.get('error_txt', None)
 
             if error_code != 0:
                 message = "Got non-zero error code (%d) from TransferTo with message (%s)" % (error_code, error_txt)
-                airtime.status = Airtime.FAILED
+                airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
             country_name = content_json.get('country', '')
@@ -155,25 +155,25 @@ class Airtime(SmartModel):
 
             if float(amount) <= 0:
                 message = "Failed by invalid amount configuration or missing amount configuration for %s" % country_name
-                airtime.status = Airtime.FAILED
+                airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
             if denomination is None:
                 message = "No TransferTo denomination matched"
-                airtime.status = Airtime.FAILED
+                airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
             action = 'reserve_id'
             request_kwargs = dict(action=action)
             response = airtime.get_transferto_response(**request_kwargs)
-            content_json = Airtime.parse_transferto_response(response.content)
+            content_json = AirtimeTransfer.parse_transferto_response(response.content)
 
             error_code = int(content_json.get('error_code', None))
             error_txt = content_json.get('error_txt', None)
 
             if error_code != 0:
                 message = "Got non-zero error code (%d) from TransferTo with message (%s)" % (error_code, error_txt)
-                airtime.status = Airtime.FAILED
+                airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
             transaction_id = content_json.get('reserved_id')
@@ -185,24 +185,24 @@ class Airtime(SmartModel):
                                   destination_msisdn=airtime.recipient,
                                   product=airtime.denomination)
             response = airtime.get_transferto_response(**request_kwargs)
-            content_json = Airtime.parse_transferto_response(response.content)
+            content_json = AirtimeTransfer.parse_transferto_response(response.content)
 
             error_code = int(content_json.get('error_code', None))
             error_txt = content_json.get('error_txt', None)
 
             if error_code != 0:
                 message = "Got non-zero error code (%d) from TransferTo with message (%s)" % (error_code, error_txt)
-                airtime.status = Airtime.FAILED
+                airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
             message = "Airtime Transferred Successfully"
-            airtime.status = Airtime.COMPLETE
+            airtime.status = AirtimeTransfer.COMPLETE
 
         except Exception as e:
             import traceback
             traceback.print_exc()
 
-            airtime.status = Airtime.FAILED
+            airtime.status = AirtimeTransfer.FAILED
             message = "Error transferring airtime: %s" % unicode(e)
 
         finally:

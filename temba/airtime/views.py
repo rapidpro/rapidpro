@@ -1,12 +1,12 @@
 from django.utils.translation import ugettext_lazy as _
 
 from smartmin.views import SmartListView, SmartReadView, SmartCRUDL
-from temba.airtime.models import Airtime
+from temba.airtime.models import AirtimeTransfer
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin
 
 
 class AirtimeCRUDL(SmartCRUDL):
-    model = Airtime
+    model = AirtimeTransfer
     actions = ('list', 'read')
 
     class List(OrgPermsMixin, SmartListView):
@@ -20,7 +20,7 @@ class AirtimeCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             org = self.derive_org()
-            return Airtime.objects.filter(org=org)
+            return AirtimeTransfer.objects.filter(org=org)
 
         def get_channel(self, obj):
             if obj.channel:
@@ -60,7 +60,7 @@ class AirtimeCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             org = self.derive_org()
-            return Airtime.objects.filter(org=org)
+            return AirtimeTransfer.objects.filter(org=org)
 
         def get_channel(self, obj):
             if obj.channel:

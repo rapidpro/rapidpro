@@ -587,8 +587,8 @@ class Org(SmartModel):
                     Msg.send_messages(pending)
 
     def has_airtime_transfers(self):
-        from temba.airtime.models import Airtime
-        return Airtime.objects.filter(org=self).exists()
+        from temba.airtime.models import AirtimeTransfer
+        return AirtimeTransfer.objects.filter(org=self).exists()
 
     def connect_transferto(self, account_login, airtime_api_token, user):
         transferto_config = {TRANSFERTO_ACCOUNT_LOGIN: account_login.strip(),

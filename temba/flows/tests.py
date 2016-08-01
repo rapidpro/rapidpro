@@ -16,7 +16,7 @@ from django.db.models import Prefetch
 from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
-from temba.airtime.models import Airtime
+from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
@@ -4542,10 +4542,10 @@ class FlowsTest(FlowFileTest):
 
         contact_urn = self.contact.get_urn(TEL_SCHEME)
 
-        airtime_event = Airtime.objects.create(org=self.org, status=Airtime.COMPLETE, amount=10, contact=self.contact,
-                                               recipient=contact_urn.path, created_by=self.admin, modified_by=self.admin)
+        airtime_event = AirtimeTransfer.objects.create(org=self.org, status=AirtimeTransfer.COMPLETE, amount=10, contact=self.contact,
+                                                       recipient=contact_urn.path, created_by=self.admin, modified_by=self.admin)
 
-        with patch('temba.flows.models.Airtime.trigger_airtime_event') as mock_trigger_event:
+        with patch('temba.flows.models.AirtimeTransfer.trigger_airtime_event') as mock_trigger_event:
             mock_trigger_event.return_value = airtime_event
 
             runs = flow.start_msg_flow([self.contact.id])
@@ -4553,7 +4553,7 @@ class FlowsTest(FlowFileTest):
             self.assertEquals(1, self.contact.msgs.all().count())
             self.assertEquals('Message complete', self.contact.msgs.all()[0].text)
 
-            airtime_event.status = Airtime.FAILED
+            airtime_event.status = AirtimeTransfer.FAILED
             airtime_event.save()
 
             mock_trigger_event.return_value = airtime_event
@@ -4563,7 +4563,7 @@ class FlowsTest(FlowFileTest):
             self.assertEquals(2, self.contact.msgs.all().count())
             self.assertEquals('Message failed', self.contact.msgs.all()[0].text)
 
-    @patch('temba.airtime.models.Airtime.post_transferto_api_response')
+    @patch('temba.airtime.models.AirtimeTransfer.post_transferto_api_response')
     def test_airtime_trigger_event(self, mock_post_transferto):
         mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
                                                               "product_list=5,10,20,30\r\n"),
@@ -4578,9 +4578,9 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, self.contact.msgs.all().count())
         self.assertEquals('Message complete', self.contact.msgs.all()[0].text)
 
-        self.assertEquals(1, Airtime.objects.all().count())
-        airtime = Airtime.objects.all().first()
-        self.assertEqual(airtime.status, Airtime.COMPLETE)
+        self.assertEquals(1, AirtimeTransfer.objects.all().count())
+        airtime = AirtimeTransfer.objects.all().first()
+        self.assertEqual(airtime.status, AirtimeTransfer.COMPLETE)
         self.assertEqual(airtime.contact, self.contact)
         self.assertEqual(airtime.message, "Airtime Transferred Successfully")
         self.assertEqual(mock_post_transferto.call_count, 3)
@@ -4596,9 +4596,9 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(2, self.contact.msgs.all().count())
         self.assertEquals('Message failed', self.contact.msgs.all()[0].text)
 
-        self.assertEquals(2, Airtime.objects.all().count())
-        airtime = Airtime.objects.all().last()
-        self.assertEqual(airtime.status, Airtime.FAILED)
+        self.assertEquals(2, AirtimeTransfer.objects.all().count())
+        airtime = AirtimeTransfer.objects.all().last()
+        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
         self.assertEqual(airtime.message, "Error transferring airtime: Failed by invalid amount "
                                           "configuration or missing amount configuration for Rwanda")
 
@@ -4616,7 +4616,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(runs))
 
         # no saved airtime event in DB
-        self.assertEquals(2, Airtime.objects.all().count())
+        self.assertEquals(2, AirtimeTransfer.objects.all().count())
         self.assertEqual(mock_post_transferto.call_count, 0)
 
         contact2 = self.create_contact(name='Bismack Biyombo', number='+250788123123', twitter='biyombo')
@@ -4627,9 +4627,9 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, contact2.msgs.all().count())
         self.assertEquals('Message complete', contact2.msgs.all()[0].text)
 
-        self.assertEquals(3, Airtime.objects.all().count())
-        airtime = Airtime.objects.all().last()
-        self.assertEqual(airtime.status, Airtime.COMPLETE)
+        self.assertEquals(3, AirtimeTransfer.objects.all().count())
+        airtime = AirtimeTransfer.objects.all().last()
+        self.assertEqual(airtime.status, AirtimeTransfer.COMPLETE)
         self.assertEqual(airtime.recipient, '+250788123123')
         self.assertNotEqual(airtime.recipient, 'biyombo')
         self.assertEqual(mock_post_transferto.call_count, 3)
@@ -4647,9 +4647,9 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(3, self.contact.msgs.all().count())
         self.assertEquals('Message failed', self.contact.msgs.all()[0].text)
 
-        self.assertEquals(4, Airtime.objects.all().count())
-        airtime = Airtime.objects.all().last()
-        self.assertEqual(airtime.status, Airtime.FAILED)
+        self.assertEquals(4, AirtimeTransfer.objects.all().count())
+        airtime = AirtimeTransfer.objects.all().last()
+        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
         self.assertEqual(airtime.contact, self.contact)
         self.assertEqual(airtime.message, "Error transferring airtime: No transferTo Account connected to "
                                           "this organization")
