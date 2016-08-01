@@ -11,7 +11,7 @@ ON flows_flowrun (timeout_on) WHERE is_active = TRUE AND timeout_on IS NOT NULL;
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0059_auto_20160721_1654'),
+        ('flows', '0060_exit_flowruns'),
     ]
 
     operations = [
