@@ -8,10 +8,10 @@ from django.conf import settings
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0019_org_surveyor_password'),
+        ('channels', '0033_auto_20160718_2045'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('contacts', '0041_indexes_update'),
-        ('channels', '0032_channelevent'),
+        ('orgs', '0020_auto_20160726_1510'),
     ]
 
     operations = [
@@ -31,8 +31,8 @@ class Migration(migrations.Migration):
                 ('message', models.CharField(help_text=b'A message describing the end status, error messages go here', max_length=255, null=True, blank=True)),
                 ('channel', models.ForeignKey(blank=True, to='channels.Channel', help_text=b'The channel that this airtime is relating to', null=True)),
                 ('contact', models.ForeignKey(help_text=b'The contact that this airtime is sent to', to='contacts.Contact')),
-                ('created_by', models.ForeignKey(related_name='airtime_airtime_creations', to=settings.AUTH_USER_MODEL, help_text='The user which originally created this item')),
-                ('modified_by', models.ForeignKey(related_name='airtime_airtime_modifications', to=settings.AUTH_USER_MODEL, help_text='The user which last modified this item')),
+                ('created_by', models.ForeignKey(related_name='airtime_airtimetransfer_creations', to=settings.AUTH_USER_MODEL, help_text='The user which originally created this item')),
+                ('modified_by', models.ForeignKey(related_name='airtime_airtimetransfer_modifications', to=settings.AUTH_USER_MODEL, help_text='The user which last modified this item')),
                 ('org', models.ForeignKey(help_text=b'The organization that this airtime was triggered for', to='orgs.Org')),
             ],
             options={
