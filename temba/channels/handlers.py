@@ -326,9 +326,19 @@ class TwimlAPIHandler(View):
                 # raise an exception that things weren't properly signed
                 raise ValidationError("Invalid request signature")
 
-            sms = Msg.create_incoming(channel, URN.from_tel(request.POST['From']), request.POST['Body'])
+            body = request.POST.get('Body')
+            urn = URN.from_tel(request.POST['From'])
 
-            return HttpResponse("SMS Accepted: %d" % sms.id)
+            # process any attached media
+            for i in range(int(request.POST.get('NumMedia', 0))):
+                media_url = client.download_media(request.POST['MediaUrl%d' % i])
+                path = media_url.partition(':')[2]
+                Msg.create_incoming(channel, urn, path, media=media_url)
+
+            if body:
+                Msg.create_incoming(channel, urn, body)
+
+            return HttpResponse("", status=201)
 
         return HttpResponse("Not Handled, unknown action", status=400)
 
