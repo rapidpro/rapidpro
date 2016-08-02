@@ -1746,17 +1746,17 @@ class FacebookHandler(View):
                                 contact = Contact.get_or_create(channel.org, channel.created_by,
                                                                 name=name, urns=[urn], channel=channel)
 
-                        # we received a new message, create and handle it
-                        if content:
-                            msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
-                            msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
-                            Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
-                            status.append("Msg %d accepted." % msg.id)
-
-                        # a contact pressed "Get Started", trigger any new conversation triggers
-                        elif postback == Channel.GET_STARTED:
-                            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
-                            status.append("Postback handled.")
+                            # a contact pressed "Get Started", trigger any new conversation triggers
+                            if postback and postback == Channel.GET_STARTED:
+                                Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+                                status.append("Postback handled.")
+                            else:
+                                # we received a new message, create and handle it
+                                content = postback if postback else content
+                                msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
+                                msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
+                                Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
+                                status.append("Msg %d accepted." % msg.id)
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
