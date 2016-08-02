@@ -1481,8 +1481,6 @@ class Msg(models.Model):
             msg.archive()
             changed.append(msg.pk)
 
-        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
-
         return changed
 
     @classmethod
@@ -1493,8 +1491,6 @@ class Msg(models.Model):
             msg.restore()
             changed.append(msg.pk)
 
-        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
-
         return changed
 
     @classmethod
@@ -1504,8 +1500,6 @@ class Msg(models.Model):
         for msg in msgs:
             msg.release()
             changed.append(msg.pk)
-
-        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
 
         return changed
 
