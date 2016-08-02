@@ -650,6 +650,7 @@ class Flow(TembaModel):
 
                 if msg.id > 0:
                     step.add_message(msg)
+                    run.update_expiration(timezone.now())
 
                 if flow:
                     flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
@@ -663,6 +664,7 @@ class Flow(TembaModel):
         # add the message to our step
         if msg.id > 0:
             step.add_message(msg)
+            run.update_expiration(timezone.now())
 
         if ruleset.ruleset_type in RuleSet.TYPE_MEDIA:
             # store the media path as the value
@@ -1695,9 +1697,6 @@ class Flow(TembaModel):
         run.update_timeout(arrived_on, timeout)
 
         if not is_start:
-            # we have activity, update our expires on date accordingly
-            run.update_expiration(timezone.now())
-
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
             self.steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
                                                               rule_uuid=rule, rule_category=category)
@@ -2890,7 +2889,7 @@ class FlowStep(models.Model):
 
         # if message is from contact, mark run as responded
         if not self.run.responded and msg.direction == INCOMING:
-            # update our local run's responded state
+            # update our local run's responded state and it's expiration
             self.run.responded = True
 
             # and make sure the db is up to date

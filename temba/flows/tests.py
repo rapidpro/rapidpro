@@ -4225,12 +4225,20 @@ class FlowsTest(FlowFileTest):
         time.sleep(1)
 
         # now fire another messages
-        self.assertEquals("Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?", self.send_message(flow, "turbo"))
+        self.assertEquals("Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?",
+                          self.send_message(flow, "turbo"))
 
         # our new expiration should be later
-        run = flow.runs.get()
+        run.refresh_from_db()
         self.assertTrue(run.expires_on > starting_expiration)
         self.assertTrue(run.modified_on > starting_modified)
+
+    def test_initial_expiration(self):
+        flow = self.get_flow('favorites')
+        flow.start(groups=[], contacts=[self.contact])
+
+        run = FlowRun.objects.get()
+        self.assertTrue(run.expires_on)
 
     def test_flow_expiration(self):
         flow = self.get_flow('favorites')
@@ -5460,7 +5468,10 @@ class TimeoutTest(FlowFileTest):
         last_msg = run.get_last_msg(OUTGOING)
         last_msg.sent_on = timezone.now() - timedelta(minutes=2)
         last_msg.save()
+
         timeout = timezone.now()
+        expiration = run.expires_on
+
         FlowRun.objects.all().update(timeout_on=timeout)
         check_flow_timeouts_task()
 
@@ -5470,6 +5481,10 @@ class TimeoutTest(FlowFileTest):
 
         # fire the task manually, shouldn't change anything (this tests double firing)
         process_run_timeout(run.id, timeout)
+
+        # expiration should still be the same
+        run.refresh_from_db()
+        self.assertEqual(run.expires_on, expiration)
 
         new_last_msg = run.get_last_msg(OUTGOING)
         self.assertEqual(new_last_msg, last_msg)
