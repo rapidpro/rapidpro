@@ -64,12 +64,6 @@ INBOX = 'I'
 FLOW = 'F'
 IVR = 'V'
 
-SMS_HIGH_PRIORITY = 1000
-SMS_NORMAL_PRIORITY = 500
-SMS_BULK_PRIORITY = 100
-
-BULK_THRESHOLD = 50
-
 MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
 # status codes used for both messages and broadcasts (single char constant, human readable, API readable)
@@ -151,6 +145,8 @@ class Broadcast(models.Model):
     messages sent from the same bundle together
     """
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
+
+    BULK_THRESHOLD = 50  # use bulk priority for messages if number of recipients greater than this
 
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
@@ -373,11 +369,11 @@ class Broadcast(models.Model):
         recipient_batch = []
 
         # our priority is based on the number of recipients
-        priority = SMS_NORMAL_PRIORITY
+        priority = Msg.PRIORITY_NORMAL
         if len(recipients) == 1:
-            priority = SMS_HIGH_PRIORITY
-        elif len(recipients) >= BULK_THRESHOLD:
-            priority = SMS_BULK_PRIORITY
+            priority = Msg.PRIORITY_HIGH
+        elif len(recipients) >= self.BULK_THRESHOLD:
+            priority = Msg.PRIORITY_BULK
 
         # determine our preferred languages
         org_languages = {l.iso_code for l in self.org.languages.all()}
@@ -569,6 +565,10 @@ class Msg(models.Model):
 
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
+    PRIORITY_HIGH = 1000
+    PRIORITY_NORMAL = 500
+    PRIORITY_BULK = 100
+
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
 
@@ -591,7 +591,7 @@ class Msg(models.Model):
     text = models.TextField(max_length=640, verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
-    priority = models.IntegerField(default=SMS_NORMAL_PRIORITY,
+    priority = models.IntegerField(default=PRIORITY_NORMAL,
                                    help_text=_("The priority for this message to be sent, higher is higher priority"))
 
     created_on = models.DateTimeField(verbose_name=_("Created On"), db_index=True,
@@ -706,9 +706,9 @@ class Msg(models.Model):
                         task = msg.as_task_json()
 
                         # only be low priority if no priority has been set for this task group
-                        if msg.priority == SMS_BULK_PRIORITY and task_priority is None:
+                        if msg.priority == Msg.PRIORITY_BULK and task_priority is None:
                             task_priority = LOW_PRIORITY
-                        elif msg.priority == SMS_HIGH_PRIORITY:
+                        elif msg.priority == Msg.PRIORITY_HIGH:
                             task_priority = HIGH_PRIORITY
 
                         task_msgs.append(task)
@@ -1244,7 +1244,7 @@ class Msg(models.Model):
         return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
-    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
+    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
                         media=None, topup_id=None, msg_type=INBOX):
 

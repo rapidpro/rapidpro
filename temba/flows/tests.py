@@ -20,7 +20,7 @@ from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW
 from temba.msgs.models import OUTGOING
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
@@ -341,7 +341,7 @@ class FlowTest(TembaTest):
         msg = Msg.all_messages.get(contact=self.contact)
         self.assertEquals("What is your favorite color?", msg.text)
         self.assertEquals(PENDING, msg.status)
-        self.assertEquals(SMS_NORMAL_PRIORITY, msg.priority)
+        self.assertEquals(Msg.PRIORITY_NORMAL, msg.priority)
 
         # should have a flow run for each contact
         contact1_run = FlowRun.objects.get(contact=self.contact)
@@ -426,7 +426,7 @@ class FlowTest(TembaTest):
         self.assertEquals("I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange", reply.text)
 
         # should be high priority
-        self.assertEquals(SMS_HIGH_PRIORITY, reply.priority)
+        self.assertEqual(reply.priority, Msg.PRIORITY_HIGH)
 
         # our previous state should be executed
         step = FlowStep.objects.get(run__contact=self.contact, pk=step.id)
