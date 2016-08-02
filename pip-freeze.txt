@@ -11,6 +11,7 @@ boto==2.29.1
 celery==3.1.23
 certifi==14.5.14
 colorama==0.3.1
+contextlib2==0.5.4
 coverage==4.0.3
 defusedxml==0.4.1
 dj-database-url==0.2.1
@@ -87,7 +88,7 @@ pytz==2016.4
 PyYAML==3.11
 pyzmq==14.3.1
 rapidpro-expressions==1.1.5
-raven==4.0.4
+raven==5.23.0
 redis==2.10.1
 regex==2014.6.28
 requests==2.9.1
