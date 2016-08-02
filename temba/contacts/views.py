@@ -815,6 +815,7 @@ class ContactCRUDL(SmartCRUDL):
             from temba.flows.models import FlowRun, Flow
             from temba.campaigns.models import EventFire
             from temba.ivr.models import IVRCall, BUSY, FAILED, NO_ANSWER, CANCELED
+            from temba.msgs.models import Broadcast
 
             contact = self.get_object()
 
@@ -865,25 +866,26 @@ class ContactCRUDL(SmartCRUDL):
             else:
                 end_time = msgs[0].created_on
 
-            # purged broadcasts
-            from temba.msgs.models import Broadcast
-            broadcasts = Broadcast.objects.filter(recipients=[u for u in contact.urns.all()], purged=True).distinct()
+            # we also include in the timeline purged broadcasts with a best guess at the translation used
+            broadcasts = contact.get_purged_broadcasts()
+            broadcasts = broadcasts.filter(created_on__lt=end_time, created_on__gt=start_time)
+            for broadcast in broadcasts:
+                broadcast.translated_text = broadcast.get_translated_text(contact=contact, org=contact.org)  # TODO flow base language
 
-            # all of our runs and events
+            # and all of this contact's runs, channel events such as missed calls, scheduled events
             runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
+            events = ChannelEvent.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
             event_fires = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
 
             # for easier comparison and display - give event fires same time attribute as other activity items
             for event_fire in event_fires:
                 event_fire.created_on = event_fire.fired
 
-            # channel events, e.g. missed calls etc
-            events = ChannelEvent.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
-
+            # and the contact's failed IVR calls
             error_calls = IVRCall.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
             error_calls = error_calls.filter(status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
 
-            # now chain them all together in the same list and sort by time
+            # chain them all together in the same list and sort by time
             activity = chain(msgs, broadcasts, runs, event_fires, events, error_calls)
             activity = sorted(activity, key=lambda i: i.created_on, reverse=True)
 

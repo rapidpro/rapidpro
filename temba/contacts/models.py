@@ -459,6 +459,17 @@ class Contact(TembaModel):
 
         return scheduled_broadcasts.order_by('schedule__next_fire')
 
+    def get_purged_broadcasts(self):
+        """
+        Gets purged broadcasts sent to URNs currently owned by this contact
+        """
+        from temba.msgs.models import Broadcast
+
+        q = Q()
+        for urn in self.urns.all():
+            q |= Q(recipients=urn)
+        return Broadcast.objects.filter(q, purged=True)
+
     def get_field(self, key):
         """
         Gets the (possibly cached) value of a contact field
