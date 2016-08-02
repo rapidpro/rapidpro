@@ -2554,7 +2554,7 @@ class FlowRun(models.Model):
                 msg = self.get_last_msg(OUTGOING)
 
                 # check that our last outgoing msg was sent and our timeout is in the past, otherwise reschedule
-                if msg and (not msg.sent_on or timezone.now() < msg.sent_on + timedelta(minutes=timeout) + timedelta(seconds=30)):
+                if msg and (not msg.sent_on or timezone.now() < msg.sent_on + timedelta(minutes=timeout) - timedelta(seconds=5)):
                     self.update_timeout(msg.sent_on if msg.sent_on else timezone.now(), timeout)
 
                 # look good, lets resume this run

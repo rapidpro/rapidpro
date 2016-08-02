@@ -59,7 +59,7 @@ def check_flow_timeouts_task():
             runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now()).only('id', 'org')
             for run in runs:
                 # move this flow forward via the handler queue
-                push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=TIMEOUT_EVENT, run=run.id))
+                push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on))
 
 
 @task(track_started=True, name='continue_parent_flows')  # pragma: no cover

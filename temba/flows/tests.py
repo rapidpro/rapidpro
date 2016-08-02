@@ -5449,6 +5449,7 @@ class TimeoutTest(FlowFileTest):
 
     def test_timeout_loop(self):
         from temba.flows.tasks import check_flow_timeouts_task
+        from temba.msgs.tasks import process_run_timeout
         flow = self.get_flow('timeout_loop')
 
         # start the flow
@@ -5459,12 +5460,19 @@ class TimeoutTest(FlowFileTest):
         last_msg = run.get_last_msg(OUTGOING)
         last_msg.sent_on = timezone.now() - timedelta(minutes=2)
         last_msg.save()
-        FlowRun.objects.all().update(timeout_on=timezone.now())
+        timeout = timezone.now()
+        FlowRun.objects.all().update(timeout_on=timeout)
         check_flow_timeouts_task()
 
         # should have a new outgoing message
         last_msg = run.get_last_msg(OUTGOING)
         self.assertTrue(last_msg.text.find("No seriously, what's your name?") >= 0)
+
+        # fire the task manually, shouldn't change anything (this tests double firing)
+        process_run_timeout(run.id, timeout)
+
+        new_last_msg = run.get_last_msg(OUTGOING)
+        self.assertEqual(new_last_msg, last_msg)
 
         # ok, now respond
         msg = self.create_msg(contact=self.contact, direction='I', text="Wilson")

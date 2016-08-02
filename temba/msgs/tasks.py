@@ -10,13 +10,14 @@ from djcelery_transactions import task
 from redis_cache import get_redis_connection
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import pop_task
+from temba.utils import json_date_to_datetime
 from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
 from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel
 
 logger = logging.getLogger(__name__)
 
 
-def process_run_timeout(run_id):
+def process_run_timeout(run_id, timeout_on):
     """
     Processes a single run timeout
     """
@@ -31,7 +32,15 @@ def process_run_timeout(run_id):
             with r.lock(key, timeout=120):
                 print "T[%09d] Processing timeout" % run.id
                 start = time.time()
-                run.resume_after_timeout()
+
+                run.refresh_from_db()
+
+                # this is still the timeout to process (json doesn't have microseconds so close enough)
+                if run.timeout_on and abs(run.timeout_on - timeout_on) < timedelta(milliseconds=1):
+                    run.resume_after_timeout()
+                else:
+                    print "T[%09d] .. skipping timeout, already handled" % run.id
+
                 print "T[%09d] %08.3f s" % (run.id, time.time() - start)
 
 
@@ -237,7 +246,8 @@ def handle_event_task():
                     print "E[%09d] %08.3f s" % (event.id, time.time() - start)
 
     elif event_task['type'] == TIMEOUT_EVENT:
-        process_run_timeout(event_task['run'])
+        timeout_on = json_date_to_datetime(event_task['timeout_on'])
+        process_run_timeout(event_task['run'], timeout_on)
 
     else:
         raise Exception("Unexpected event type: %s" % event_task)
