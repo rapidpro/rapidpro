@@ -31,7 +31,7 @@ from smartmin.models import SmartModel
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
-from temba.utils import timezone_to_country_code
+from temba.utils import timezone_to_country_code, languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.email import send_template_email
 from twilio.rest import TwilioRestClient
@@ -756,6 +756,33 @@ class Org(SmartModel):
 
     def get_language_codes(self):
         return get_cacheable_attr(self, '_language_codes', lambda: {l.iso_code for l in self.languages.all()})
+
+    def set_languages(self, user, iso_codes, primary):
+        """
+        Sets languages for this org, creating and deleting language objects as necessary
+        """
+        for iso_code in iso_codes:
+            name = languages.get_language_name(iso_code)
+            language = self.languages.filter(iso_code=iso_code).first()
+
+            # if it's valid and doesn't exist yet, create it
+            if name and not language:
+                language = self.languages.create(iso_code=iso_code, name=name, created_by=user, modified_by=user)
+
+            if iso_code == primary:
+                self.primary_language = language
+                self.save(update_fields=('primary_language',))
+
+        # unset the primary language if not in the new list of codes
+        if self.primary_language and self.primary_language.iso_code not in iso_codes:
+            self.primary_language = None
+            self.save(update_fields=('primary_language',))
+
+        # remove any languages that are not in the new list
+        self.languages.exclude(iso_code__in=iso_codes).delete()
+
+        if hasattr(self, '_language_codes'):  # invalidate language cache if set
+            delattr(self, '_language_codes')
 
     def get_dayfirst(self):
         return self.date_format == DAYFIRST

@@ -79,6 +79,23 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug('Which part?'), 'which-part')
         self.assertEqual(Org.get_unique_slug('Allo'), 'allo-2')
 
+    def test_languages(self):
+        self.assertEqual(self.org.get_language_codes(), set())
+
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.refresh_from_db()
+
+        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
+        self.assertEqual(self.org.primary_language.name, "English")
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'fre'})
+
+        self.org.set_languages(self.admin, ['eng', 'kin'], 'kin')
+        self.org.refresh_from_db()
+
+        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "Kinyarwanda"})
+        self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'kin'})
+
     def test_edit(self):
         # use a manager now
         self.login(self.admin)
@@ -1703,16 +1720,17 @@ class OrgCRUDLTest(TembaTest):
 
 class LanguageTest(TembaTest):
 
-    def test_setting_language(self):
+    def test_languages(self):
+        url = reverse('orgs.org_languages')
+
         self.login(self.admin)
 
         # update our org with some language settings
-        post_data = dict(primary_lang='fre', languages='hat,arc')
-        response = self.client.post(reverse('orgs.org_languages'), post_data)
-        self.assertEquals(302, response.status_code)
+        response = self.client.post(url, dict(primary_lang='fre', languages='hat,arc'))
+        self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
 
-        self.assertEquals('French', self.org.primary_language.name)
+        self.assertEqual(self.org.primary_language.name, 'French')
         self.assertIsNotNone(self.org.languages.filter(name='French'))
 
         # everything after the paren should be stripped for aramaic
@@ -1722,35 +1740,36 @@ class LanguageTest(TembaTest):
         self.assertIsNotNone(self.org.languages.filter(name='Haitian'))
 
         # check that the last load shows our new languages
-        response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEquals('Haitian and Official Aramaic', response.context['languages'])
+        response = self.client.get(url)
+        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic')
         self.assertContains(response, 'fre')
         self.assertContains(response, 'hat,arc')
 
         # three translation languages
-        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='fre', languages='hat,arc,spa'))
+        self.client.post(url, dict(primary_lang='fre', languages='hat,arc,spa'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEquals('Haitian, Official Aramaic and Spanish', response.context['languages'])
+        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic and Spanish')
 
         # one translation language
-        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='fre', languages='hat'))
+        self.client.post(url, dict(primary_lang='fre', languages='hat'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEquals('Haitian', response.context['languages'])
+        self.assertEqual(response.context['languages'], 'Haitian')
 
-        # remove our primary language
-        self.client.post(reverse('orgs.org_languages'), dict())
+        # remove all languages
+        self.client.post(url, dict())
         self.org.refresh_from_db()
         self.assertIsNone(self.org.primary_language)
+        self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get('%s?search=fre' % reverse('orgs.org_languages'))
+        response = self.client.get('%s?search=fre' % url)
         results = json.loads(response.content)['results']
-        self.assertEquals(4, len(results))
+        self.assertEqual(len(results), 4)
 
         # initial should do a match on code only
-        response = self.client.get('%s?initial=fre' % reverse('orgs.org_languages'))
+        response = self.client.get('%s?initial=fre' % url)
         results = json.loads(response.content)['results']
-        self.assertEquals(1, len(results))
+        self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
         self.assertEquals('French', languages.get_language_name('fre'))

@@ -928,10 +928,7 @@ class APITest(TembaTest):
             'anon': False
         })
 
-        eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
-        self.org.primary_language = eng
-        self.org.save()
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
 
         response = self.fetchJSON(url)
         self.assertEqual(response.json, {
@@ -977,8 +974,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # allow Frank to run the flow in French
-        Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
         self.frank.language = 'fre'
         self.frank.save()
 
