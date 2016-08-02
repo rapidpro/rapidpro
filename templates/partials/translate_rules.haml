@@ -8,7 +8,7 @@
           .icon
           %span{id:"modal-title"}
             -trans "[[language.name]] Translation"
-      .modal-body
+      .modal-body.force-center
         %div{ng-if:'ruleset.ruleset_type == "wait_menu" || ruleset.ruleset_type == "wait_ussd"', style:'padding:20px'}
           .translate-text.translate-from{ng-show:"translation.from"}
             [[translation.from]]
@@ -37,8 +37,6 @@
             .translate-from
               [[rule._translation.category.from]]
             %input{ng-model:"rule._translation.category.to",type:"text",class:"translate-to"}
-        %p
-          &nbsp;
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
           -trans "Cancel"

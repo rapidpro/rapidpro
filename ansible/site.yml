@@ -1,0 +1,13 @@
+---
+
+- name: Rapidpro
+  hosts: all
+  remote_user: vagrant
+  become: no
+
+  vars_files:
+    - vars.yml
+
+  roles:
+    - rapidpro
+    - { role: supervisor, become: yes }

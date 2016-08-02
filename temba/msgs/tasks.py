@@ -8,7 +8,6 @@ from django.utils import timezone
 from django.core.cache import cache
 from djcelery_transactions import task
 from redis_cache import get_redis_connection
-from temba.contacts.models import Contact
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import pop_task
 from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
@@ -135,7 +134,7 @@ def check_messages_task():
     Also takes care of flipping Contacts from Failed to Normal and back based on their status.
     """
     from django.utils import timezone
-    from .models import INCOMING, OUTGOING, PENDING, FAILED, WIRED, SENT, DELIVERED
+    from .models import INCOMING, PENDING
     from temba.orgs.models import Org
     from temba.channels.tasks import send_msg_task
 
@@ -147,20 +146,6 @@ def check_messages_task():
         with r.lock(key, timeout=900):
             now = timezone.now()
             five_minutes_ago = now - timedelta(minutes=5)
-
-            # get any contacts that are currently normal that had a failed message in the past five minutes
-            for contact in Contact.objects.filter(msgs__created_on__gte=five_minutes_ago, msgs__direction=OUTGOING,
-                                                  msgs__status=FAILED, is_failed=False):
-                # if the last message from this contact is failed, then fail this contact
-                if contact.msgs.all().order_by('-created_on').first().status == FAILED:
-                    contact.fail()
-
-            # get any contacts that are currently failed that had a normal message in the past five minutes
-            for contact in Contact.objects.filter(msgs__created_on__gte=five_minutes_ago, msgs__direction=OUTGOING,
-                                                  msgs__status__in=[WIRED, SENT, DELIVERED], is_failed=True):
-                # if the last message from this contact is ok, then mark them as normal
-                if contact.msgs.all().order_by('-created_on').first().status in [WIRED, SENT, DELIVERED]:
-                    contact.unfail()
 
             # for any org that sent messages in the past five minutes, check for pending messages
             for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago).distinct():
