@@ -778,6 +778,7 @@ RuleOptionsController = ($rootScope, $scope, $log, $modalInstance, $timeout, uti
 NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow, Plumb, utils, options) ->
 
   # let our template know our editor type
+  $scope.flow = Flow.flow
   $scope.nodeType = options.nodeType
   $scope.ivr = window.ivr
   $scope.options = options
@@ -854,6 +855,36 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # localized category name
     ruleset.rules[0].category = { _base:'All Responses' }
     ruleset.rules[0].category[Flow.flow.base_language] = 'All Responses'
+
+  formData.timeoutOptions = [
+    {value:1, text:'1 minute'},
+    {value:2, text:'2 minutes'},
+    {value:3, text:'3 minutes'},
+    {value:4, text:'4 minutes'},
+    {value:5, text:'5 minutes'},
+    {value:10, text:'10 minutes'},
+    {value:15, text:'15 minutes'},
+    {value:30, text:'30 minutes'},
+    {value:60, text:'1 hour'},
+    {value:120, text:'2 hours'},
+    {value:180, text:'3 hours'},
+    {value:360, text:'6 hours'}
+  ]
+
+  minutes = 5
+  formData.hasTimeout = false
+
+  for rule in ruleset.rules
+    if rule.test.type == 'timeout'
+      minutes = rule.test.minutes
+      formData.hasTimeout = true
+      break
+
+  # initialize our timeout options
+  formData.timeout = formData.timeoutOptions[0]
+  for option in formData.timeoutOptions
+    if option.value == minutes
+      formData.timeout = option
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
@@ -936,6 +967,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       return url + "&flow_type=V"
     return url
 
+  $scope.isPausingRuleset = ->
+    return Flow.isPausingRulesetType($scope.formData.rulesetConfig.type)
+
   $scope.remove = (rule) ->
     $scope.removed.push(rule)
     index = $scope.ruleset.rules.indexOf(rule)
@@ -946,7 +980,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       type: 'between'
     config: Flow.getOperatorConfig('between')
 
-  # rules = []
   toRemove = []
   for rule in $scope.ruleset.rules
     if not rule.category
@@ -1212,8 +1245,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if $scope.hasRules()
 
       for rule in ruleset.rules
-        # we'll tack our everything rule on the end
-        if rule._config.type == "true"
+        # we'll tack our everything and timeout rules on the end
+        if rule._config.type in ['true', 'timeout']
           continue
 
         # between categories are not required, populate their category name
@@ -1243,26 +1276,35 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           rules.push(rule)
 
     # set the name for our everything rule
-    allCategory = "All Responses"
+    otherCategoryName = "All Responses"
     if rules.length > 0
-      allCategory = "Other"
+      otherCategoryName = "Other"
 
-    # grab previous category translations if we have them
-    ruleId = uuid()
-    destination = null
+    # grab previous category translations and destinations if we have them
+    otherRuleUuid = uuid()
+    otherDestination = null
+
+    timeoutRuleUuid = uuid()
+    timeoutDestination = null
+
+    timeoutCategory = {}
+    timeoutCategory[Flow.flow.base_language] = 'No Response'
+
     for rule in ruleset.rules
       if rule._config.type == 'true'
-        destination = rule.destination
-        category = rule.category
-        ruleId = rule.uuid
-        break
+        otherDestination = rule.destination
+        otherCategory = rule.category
+        otherRuleUuid = rule.uuid
+      else if rule._config.type == 'timeout'
+        timeoutDestination = rule.destination
+        timeoutCategory = rule.category
+        timeoutRuleUuid = rule.uuid
 
     # if for some reason we don't have an other rule
     # create an empty category (this really shouldn't happen)
-    if not category
-      category = {}
-
-    category[Flow.flow.base_language] = allCategory
+    if not otherCategory
+      otherCategory = {}
+    otherCategory[Flow.flow.base_language] = otherCategoryName
 
     # for all rules that require a catch all, append a true rule
     if ruleset.ruleset_type != 'subflow'
@@ -1271,9 +1313,19 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         test:
           test: "true"
           type: "true"
-        destination: destination
-        uuid: ruleId
-        category: category
+        destination: otherDestination
+        uuid: otherRuleUuid
+        category: otherCategory
+
+    if $scope.formData.hasTimeout
+      rules.push
+        _config: Flow.getOperatorConfig("timeout")
+        test:
+          type: "timeout"
+          minutes: $scope.formData.timeout.value
+        destination: timeoutDestination
+        uuid: timeoutRuleUuid
+        category: timeoutCategory
 
     $scope.ruleset.rules = rules
 
@@ -1287,6 +1339,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
       # changes from the user
       ruleset = $scope.ruleset
+
+      if not ruleset.config
+        ruleset.config = {}
+
       rulesetConfig = $scope.formData.rulesetConfig
       contactField = $scope.formData.contactField
       flowField = $scope.formData.flowField
@@ -1307,6 +1363,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         rules = []
         for rule in ruleset.rules
           if rule.type == 'subflow'
+            rules.push(rule)
+        ruleset.rules = rules
+      else
+
+        # remove subflow rules
+        rules = []
+        for rule in ruleset.rules
+          if rule.type != 'subflow'
             rules.push(rule)
         ruleset.rules = rules
 
@@ -1338,7 +1402,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       # update our rules accordingly
       $scope.updateRules(ruleset, rulesetConfig)
 
-      # unplumb any rules that were explicity removed
+      # unplumb any rules that were explicitly removed
       Plumb.disconnectRules($scope.removed)
 
       # switching from an actionset means removing it and hijacking its connections

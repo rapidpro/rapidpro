@@ -4225,12 +4225,20 @@ class FlowsTest(FlowFileTest):
         time.sleep(1)
 
         # now fire another messages
-        self.assertEquals("Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?", self.send_message(flow, "turbo"))
+        self.assertEquals("Mmmmm... delicious Turbo King. If only they made red Turbo King! Lastly, what is your name?",
+                          self.send_message(flow, "turbo"))
 
         # our new expiration should be later
-        run = flow.runs.get()
+        run.refresh_from_db()
         self.assertTrue(run.expires_on > starting_expiration)
         self.assertTrue(run.modified_on > starting_modified)
+
+    def test_initial_expiration(self):
+        flow = self.get_flow('favorites')
+        flow.start(groups=[], contacts=[self.contact])
+
+        run = FlowRun.objects.get()
+        self.assertTrue(run.expires_on)
 
     def test_flow_expiration(self):
         flow = self.get_flow('favorites')
@@ -5443,3 +5451,162 @@ class OrderingTest(FlowFileTest):
 
             # two batches of messages, one batch for each contact
             self.assertEqual(mock_send_msg.call_count, 2)
+
+
+class TimeoutTest(FlowFileTest):
+
+    def test_timeout_loop(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        from temba.msgs.tasks import process_run_timeout
+        flow = self.get_flow('timeout_loop')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # mark our last message as sent
+        run = FlowRun.objects.all().first()
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=2)
+        last_msg.save()
+
+        timeout = timezone.now()
+        expiration = run.expires_on
+
+        FlowRun.objects.all().update(timeout_on=timeout)
+        check_flow_timeouts_task()
+
+        # should have a new outgoing message
+        last_msg = run.get_last_msg(OUTGOING)
+        self.assertTrue(last_msg.text.find("No seriously, what's your name?") >= 0)
+
+        # fire the task manually, shouldn't change anything (this tests double firing)
+        process_run_timeout(run.id, timeout)
+
+        # expiration should still be the same
+        run.refresh_from_db()
+        self.assertEqual(run.expires_on, expiration)
+
+        new_last_msg = run.get_last_msg(OUTGOING)
+        self.assertEqual(new_last_msg, last_msg)
+
+        # ok, now respond
+        msg = self.create_msg(contact=self.contact, direction='I', text="Wilson")
+        Flow.find_and_handle(msg)
+
+        # should have completed our flow
+        run.refresh_from_db()
+        self.assertFalse(run.is_active)
+
+        last_msg = run.get_last_msg(OUTGOING)
+        self.assertEqual(last_msg.text, "Cool, got it..")
+
+    def test_multi_timeout(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        flow = self.get_flow('multi_timeout')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # create a new message and get it handled
+        msg = self.create_msg(contact=self.contact, direction='I', text="Wilson")
+        Flow.find_and_handle(msg)
+
+        time.sleep(1)
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+        check_flow_timeouts_task()
+
+        run = FlowRun.objects.get()
+
+        # nothing should have changed as we haven't yet sent our msg
+        self.assertTrue(run.is_active)
+
+        # ok, mark our message as sent, but only two minutes ago
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=2)
+        last_msg.save()
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+        check_flow_timeouts_task()
+
+        # still nothing should have changed, not enough time has passed, but our timeout should be in the future now
+        run.refresh_from_db()
+        self.assertTrue(run.is_active)
+        self.assertTrue(run.timeout_on > timezone.now() + timedelta(minutes=2))
+
+        # ok, finally mark our message sent a while ago
+        last_msg.sent_on = timezone.now() - timedelta(minutes=10)
+        last_msg.save()
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+        check_flow_timeouts_task()
+        run.refresh_from_db()
+
+        # run should be complete now
+        self.assertFalse(run.is_active)
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+
+        # and we should have sent our message
+        self.assertEquals("Thanks, Wilson",
+                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+
+    def test_timeout(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        flow = self.get_flow('timeout')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # create a new message and get it handled
+        msg = self.create_msg(contact=self.contact, direction='I', text="Wilson")
+        Flow.find_and_handle(msg)
+
+        # we should have sent a response
+        self.assertEquals("Great. Good to meet you Wilson",
+                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+
+        # assert we have exited our flow
+        run = FlowRun.objects.get()
+        self.assertFalse(run.is_active)
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+
+        # ok, now let's try with a timeout
+        FlowRun.objects.all().delete()
+        Msg.all_messages.all().delete()
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # check our timeout is set
+        run = FlowRun.objects.get()
+        self.assertTrue(run.is_active)
+        self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
+
+        # mark our last message as sent
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
+        last_msg.save()
+
+        time.sleep(.5)
+
+        # run our timeout check task
+        check_flow_timeouts_task()
+
+        # nothing occured as we haven't timed out yet
+        run.refresh_from_db()
+        self.assertTrue(run.is_active)
+        self.assertTrue(timezone.now() - timedelta(minutes=1) < run.timeout_on > timezone.now() + timedelta(minutes=4))
+
+        time.sleep(.5)
+
+        # ok, change our timeout to the past
+        FlowRun.objects.all().update(timeout_on=timezone.now())
+
+        # check our timeouts again
+        check_flow_timeouts_task()
+        run.refresh_from_db()
+
+        # run should be complete now
+        self.assertFalse(run.is_active)
+        self.assertEqual(run.exit_type, FlowRun.EXIT_TYPE_COMPLETED)
+
+        # and we should have sent our message
+        self.assertEquals("Don't worry about it , we'll catch up next week.",
+                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)

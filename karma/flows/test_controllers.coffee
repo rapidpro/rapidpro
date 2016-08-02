@@ -121,7 +121,7 @@ describe 'Controllers:', ->
 
       $http.flush()
 
-    it 'should ruleset category translation', ->
+    it 'should allow ruleset category translation', ->
 
       # go grab our flow
       flowService.fetch(flows.webhook_rule_first.id)
@@ -192,6 +192,35 @@ describe 'Controllers:', ->
 
       $timeout.flush()
 
+    it 'should create timeout rules if necessary', ->
+      # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      $http.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+
+      # three rules and our other
+      expect(ruleset.rules.length).toBe(4)
+
+      $scope.clickRuleset(ruleset)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+        modalScope.formData.hasTimeout = true
+        modalScope.formData.timeout = modalScope.formData.timeoutOptions[5]
+        modalScope.okRules()
+
+      $timeout.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+
+      # now we have three rules, our other, and a timeout
+      expect(ruleset.rules.length).toBe(5)
+
+      # checkout our timeout rule as the right settings
+      lastRule = ruleset.rules[ruleset.rules.length - 1]
+      expect(lastRule['test']['type']).toBe('timeout')
+      expect(lastRule['test']['minutes']).toBe(10)
 
     it 'should save subflow rulesets', ->
        # load a flow
