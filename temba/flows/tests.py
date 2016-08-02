@@ -4135,6 +4135,12 @@ class FlowsTest(FlowFileTest):
             self.assertTrue(FlowRun.objects.filter(flow=child, contact=contact))
             self.assertEquals("Greg", Contact.objects.get(pk=contact.pk).name)
 
+        # 10 of the runs should be completed (parent runs)
+        self.assertEqual(FlowRun.objects.filter(flow=parent, is_active=False, exit_type=FlowRun.EXIT_TYPE_COMPLETED).count(), 10)
+
+        # 10 should be active waiting for input
+        self.assertEqual(FlowRun.objects.filter(flow=child, is_active=True).count(), 10)
+
     def test_cross_language_import(self):
         spanish = Language.create(self.org, self.admin, "Spanish", 'spa')
         Language.create(self.org, self.admin, "English", 'eng')
@@ -5270,6 +5276,89 @@ class SendActionTest(FlowFileTest):
         # assert our contacts have valid uuids now
         self.assertEqual(migrated['action_sets'][0]['actions'][0]['contacts'][0]['uuid'], contact1.uuid)
         self.assertEqual(migrated['action_sets'][0]['actions'][0]['contacts'][1]['uuid'], contact2.uuid)
+
+
+class ExitTest(FlowFileTest):
+
+    def test_exit_via_start(self):
+        # start contact in one flow
+        first_flow = self.get_flow('substitution')
+        first_flow.start([], [self.contact])
+
+        # should have one active flow run
+        first_run = FlowRun.objects.get(is_active=True, flow=first_flow, contact=self.contact)
+
+        # start in second via manual start
+        second_flow = self.get_flow('favorites')
+        second_flow.start([], [self.contact])
+
+        second_run = FlowRun.objects.get(is_active=True)
+        first_run.refresh_from_db()
+        self.assertFalse(first_run.is_active)
+        self.assertEqual(first_run.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
+
+        self.assertTrue(second_run.is_active)
+
+    def test_exit_via_trigger(self):
+        # start contact in one flow
+        first_flow = self.get_flow('substitution')
+        first_flow.start([], [self.contact])
+
+        # should have one active flow run
+        first_run = FlowRun.objects.get(is_active=True, flow=first_flow, contact=self.contact)
+
+        # start in second via a keyword trigger
+        second_flow = self.get_flow('favorites')
+
+        Trigger.objects.create(org=self.org, keyword='favorites', flow=second_flow,
+                               trigger_type=Trigger.TYPE_KEYWORD,
+                               created_by=self.admin, modified_by=self.admin)
+
+        # start it via the keyword
+        msg = self.create_msg(contact=self.contact, direction=INCOMING, text="favorites")
+        msg.handle()
+
+        second_run = FlowRun.objects.get(is_active=True)
+        first_run.refresh_from_db()
+        self.assertFalse(first_run.is_active)
+        self.assertEqual(first_run.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
+
+        self.assertTrue(second_run.is_active)
+
+    def test_exit_via_campaign(self):
+        from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+
+        # start contact in one flow
+        first_flow = self.get_flow('substitution')
+        first_flow.start([], [self.contact])
+
+        # should have one active flow run
+        first_run = FlowRun.objects.get(is_active=True, flow=first_flow, contact=self.contact)
+
+        # start in second via a campaign event
+        second_flow = self.get_flow('favorites')
+        self.farmers = self.create_group("Farmers", [self.contact])
+
+        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        planting_date = ContactField.get_or_create(self.org, self.admin, 'planting_date', "Planting Date")
+        event = CampaignEvent.create_flow_event(self.org, self.admin, campaign, planting_date,
+                                                offset=1, unit='W', flow=second_flow, delivery_hour='13')
+
+        self.contact.set_field(self.user, 'planting_date', "05-10-2020 12:30:10")
+
+        # update our campaign events
+        EventFire.update_campaign_events(campaign)
+        event = EventFire.objects.get()
+
+        # fire it, this will start our second flow
+        event.fire()
+
+        second_run = FlowRun.objects.get(is_active=True)
+        first_run.refresh_from_db()
+        self.assertFalse(first_run.is_active)
+        self.assertEqual(first_run.exit_type, FlowRun.EXIT_TYPE_INTERRUPTED)
+
+        self.assertTrue(second_run.is_active)
 
 
 class OrderingTest(FlowFileTest):

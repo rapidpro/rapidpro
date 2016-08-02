@@ -287,6 +287,14 @@ class ContactField(SmartModel):
         with org.lock_on(OrgLock.field, key):
             field = ContactField.objects.filter(org=org, key__iexact=key).first()
 
+            if not field:
+                # try to lookup the existing field by label
+                field = ContactField.get_by_label(org, label)
+
+            # we have a field with a invalid key we should ignore it
+            if field and not ContactField.is_valid_key(field.key):
+                field = None
+
             if field:
                 update_events = False
                 changed = False
