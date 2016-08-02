@@ -871,7 +871,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     {value:360, text:'6 hours'}
   ]
 
-  minutes = 1
+  minutes = 5
   formData.hasTimeout = false
 
   for rule in ruleset.rules
@@ -882,7 +882,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   # initialize our timeout options
   formData.timeout = formData.timeoutOptions[0]
-
   for option in formData.timeoutOptions
     if option.value == minutes
       formData.timeout = option
