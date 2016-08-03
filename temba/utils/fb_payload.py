@@ -49,12 +49,13 @@ def get_fb_payload(msg, text):
                         else:
                             buttons.append(dict(content_type=TEXT, title=category, payload=value))
 
-                if model == BUTTON:
-                    obj_payload = dict(template_type=BUTTON, text=text, buttons=buttons)
-                    attachment = dict(type=TEMPLATE, payload=obj_payload)
-                    payload = dict(attachment=attachment)
-                else:
-                    payload = dict(text=text, quick_replies=buttons)
+                if buttons:
+                    if model == BUTTON:
+                        obj_payload = dict(template_type=BUTTON, text=text, buttons=buttons)
+                        attachment = dict(type=TEMPLATE, payload=obj_payload)
+                        payload = dict(attachment=attachment)
+                    else:
+                        payload = dict(text=text, quick_replies=buttons)
 
     return payload
 
