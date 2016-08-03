@@ -14,6 +14,8 @@ POSTBACK = 'postback'
 TEMPLATE = 'template'
 TEST = 'test'
 STR_TRUE = 'true'
+CONTAINS_ANY = 'contains_any'
+TYPE = 'type'
 
 
 def get_fb_payload(msg, text):
@@ -32,31 +34,31 @@ def get_fb_payload(msg, text):
         except:
             rules = None
 
-        model = get_model(rules.get(RULES))
-        if model and rules.get(RULESET_TYPE) == WAIT_MESSAGE:
+        if rules:
+            model = get_model(rules.get(RULES))
+            if model and rules.get(RULESET_TYPE) == WAIT_MESSAGE:
 
-            buttons = []
-            for rule in rules.get(RULES):
-                category, value = get_value_payload(rule)
+                buttons = []
+                for rule in rules.get(RULES):
+                    category, value = get_value_payload(rule)
 
-                if category and value:
-                    if model == BUTTON:
-                        buttons.append(dict(type=POSTBACK, title=category, payload=value))
-                    else:
-                        buttons.append(dict(content_type=TEXT, title=category, payload=value))
+                    if category and value:
+                        if model == BUTTON:
+                            buttons.append(dict(type=POSTBACK, title=category, payload=value))
+                        else:
+                            buttons.append(dict(content_type=TEXT, title=category, payload=value))
 
-            if model == BUTTON:
-                obj_payload = dict(template_type=BUTTON, text=text, buttons=buttons)
-                attachment = dict(type=TEMPLATE, payload=obj_payload)
-                payload = dict(attachment=attachment)
-            else:
-                payload = dict(text=text, quick_replies=buttons)
+                if model == BUTTON:
+                    obj_payload = dict(template_type=BUTTON, text=text, buttons=buttons)
+                    attachment = dict(type=TEMPLATE, payload=obj_payload)
+                    payload = dict(attachment=attachment)
+                else:
+                    payload = dict(text=text, quick_replies=buttons)
 
     return payload
 
 
 def get_model(rules):
-
     if len(rules) == 1:
         if rules[0].get(TEST).get(TEST) == STR_TRUE:
             return None
@@ -76,10 +78,14 @@ def get_value_payload(rule):
     test = rule.get(TEST).get(TEST)
     value = None
 
-    if test == STR_TRUE:
+    if test == STR_TRUE or rule.get(TEST).get(TYPE) != CONTAINS_ANY:
         pass
     elif category.get(BASE) != OTHER.capitalize():
-        base = test.get(BASE)
+        try:
+            base = test.get(BASE)
+        except:
+            base = test
+
         value = base.split(' ')[0]
 
     return category.get(BASE), value
