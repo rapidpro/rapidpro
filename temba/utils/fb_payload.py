@@ -1,5 +1,4 @@
 from __future__ import absolute_import, unicode_literals
-from temba.utils import str_to_bool
 
 OTHER = 'other'
 BUTTON = 'button'
@@ -65,9 +64,9 @@ def get_model(rules):
         if rules[0].get(TEST).get(TEST) == STR_TRUE:
             return None
 
-    if 0 < len(rules) <= 3:
+    if 0 < len(rules) <= 4:
         response = BUTTON
-    elif 3 < len(rules) <= 10:
+    elif 4 < len(rules) <= 10:
         response = QUICK_REPLIES
     else:
         return None
