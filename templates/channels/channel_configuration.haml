@@ -49,7 +49,7 @@
 
     %hr
 
-    %h4 
+    %h4
       -trans "Delivery URL"
 
     %p
@@ -259,6 +259,35 @@
 
     %code
       https://{{ domain }}{% url 'handlers.twilio_messaging_service_handler' 'receive' object.uuid %}
+
+    %hr
+
+  -elif object.channel_type == 'TW'
+    %h4
+      -blocktrans
+        To finish configuring your TwiML REST API channel you'll need to add the following URL in your TwiML REST API instance.
+
+    %hr
+
+    %h4
+      -trans "TwiML REST API Host"
+
+    %p
+      -blocktrans
+        The below endpoint should receive message this channel.
+
+    %code
+      {{ object.config_json.send_url }}
+
+    %h4
+      -trans "Request URL"
+
+    %p
+      -blocktrans
+        Outgoing messages for this channel will be sent to this endpoint.
+
+    %code
+      https://{{ domain }}{% url 'handlers.twiml_api_handler' object.uuid %}
 
     %hr
 
@@ -621,6 +650,20 @@
 
     %code
       https://{{ domain }}{% url 'handlers.chikka_handler' object.uuid %}
+
+
+  -elif object.channel_type == 'TW'
+    %h4
+      -blocktrans
+        To finish configuring your connection you'll need to set the following status callback URL in your Adhearsion Application
+
+    %hr
+
+    %h4
+      -trans "Status Callback URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.twilio_handler' %}
 
   -elif object.channel_type == 'EX'
     %h4
