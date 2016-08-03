@@ -34,6 +34,8 @@ from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
 from temba.utils.email import send_template_email
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json
 from time import sleep
+
+from twilio import twiml
 from twilio.rest import TwilioRestClient
 from twython import Twython
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -680,6 +682,11 @@ class Channel(TembaModel):
 
     def is_delegate_caller(self):
         return self.parent and CALL in self.role
+
+    def generate_ivr_response(self):
+        if self.channel_type in [TWILIO, VERBOICE]:
+            return twiml.Response()
+        return None
 
     def get_ivr_client(self):
         if self.channel_type == TWILIO:

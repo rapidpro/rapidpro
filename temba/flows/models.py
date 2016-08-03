@@ -392,7 +392,7 @@ class Flow(TembaModel):
         run = FlowRun.objects.filter(call=call).first()
 
         # what we will send back
-        voice_response = twiml.Response()
+        voice_response = call.channel.generate_ivr_response()
         run.voice_response = voice_response
 
         # make sure our test contact is handled by simulation
@@ -460,7 +460,7 @@ class Flow(TembaModel):
         step = run.steps.all().order_by('-pk').first()
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
         if isinstance(destination, RuleSet):
-            response = twiml.Response()
+            response = call.channel.generate_ivr_response()
             callback = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
             gather = destination.get_voice_input(response, action=callback)
 

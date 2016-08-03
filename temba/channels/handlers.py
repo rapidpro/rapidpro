@@ -27,7 +27,6 @@ from temba.utils import json_date_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from .tasks import fb_channel_subscribe
-from twilio import twiml
 
 
 class TwilioHandler(View):
@@ -94,7 +93,7 @@ class TwilioHandler(View):
                 else:
 
                     # we don't have an inbound trigger to deal with this call.
-                    response = twiml.Response()
+                    response = channel.generate_ivr_response()
 
                     # say nothing and hangup, this is a little rude, but if we reject the call, then
                     # they'll get a non-working number error. We send 'busy' when our server is down
