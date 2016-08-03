@@ -1003,6 +1003,7 @@ class APITest(TembaTest):
         joe_run1.refresh_from_db()
         joe_run2.refresh_from_db()
         frank_run1.refresh_from_db()
+        frank_run2.refresh_from_db()
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
