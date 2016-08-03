@@ -16,6 +16,7 @@ TEST = 'test'
 STR_TRUE = 'true'
 CONTAINS_ANY = 'contains_any'
 TYPE = 'type'
+EQ = 'eq'
 
 
 def get_fb_payload(msg, text):
@@ -78,7 +79,9 @@ def get_value_payload(rule):
     test = rule.get(TEST).get(TEST)
     value = None
 
-    if test == STR_TRUE or rule.get(TEST).get(TYPE) != CONTAINS_ANY:
+    PERM = [EQ, CONTAINS_ANY]
+
+    if test == STR_TRUE or rule.get(TEST).get(TYPE) not in PERM:
         pass
     elif category.get(BASE) != OTHER.capitalize():
         try:
