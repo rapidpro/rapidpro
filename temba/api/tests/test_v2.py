@@ -17,7 +17,6 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun
 from temba.msgs.models import Broadcast, Label, Msg
-from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from ..models import APIToken
