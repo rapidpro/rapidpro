@@ -345,7 +345,7 @@ class IVRTests(FlowFileTest):
         config = {SEND_URL: 'https://api.twilio.com',
                   ACCOUNT_SID: 'TEST_SID',
                   ACCOUNT_TOKEN: 'TEST_TOKEN'}
-        Channel.add_twiml_api_channel(self.org, self.org.get_user(), 'BR', '8299990000', config)
+        Channel.add_twiml_api_channel(self.org, self.org.get_user(), 'BR', '8299990000', config, 'AC')
         self.assertIsNotNone(self.org.get_twiml_client())
 
         # import an ivr flow
