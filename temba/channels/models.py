@@ -185,6 +185,8 @@ class Channel(TembaModel):
                     (YO, "Yo!"),
                     (ZENVIA, "Zenvia"))
 
+    GET_STARTED = 'get_started'
+
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
 
@@ -507,9 +509,11 @@ class Channel(TembaModel):
 
     @classmethod
     def add_facebook_channel(cls, org, user, page_name, page_id, page_access_token):
-        return Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
-                              config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
-                              secret=Channel.generate_secret())
+        channel = Channel.create(org, user, None, FACEBOOK, name=page_name, address=page_id,
+                                 config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
+                                 secret=Channel.generate_secret())
+
+        return channel
 
     @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
@@ -624,6 +628,24 @@ class Channel(TembaModel):
             return Channel.objects.none()
 
         return self.org.channels.filter(parent=self, is_active=True, org=self.org).order_by('-role')
+
+    def set_fb_call_to_action_payload(self, payload):
+        # register for get_started events
+        url = 'https://graph.facebook.com/v2.6/%s/thread_settings' % self.address
+        body = dict(setting_type='call_to_actions', thread_state='new_thread', call_to_actions=[])
+
+        # if we have a payload, set it, otherwise, clear it
+        if payload:
+            body['call_to_actions'].append(dict(payload=payload))
+
+        access_token = self.config_json()[AUTH_TOKEN]
+
+        response = requests.post(url, json.dumps(body),
+                                 params=dict(access_token=access_token),
+                                 headers={'Content-Type': 'application/json'})
+
+        if response.status_code != 200:
+            raise Exception(_("Unable to update call to action: %s" % response.content))
 
     def get_delegate(self, role):
         """
@@ -1576,7 +1598,14 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        # parse out our id, this is XML but we only care about the id
+        external_id = None
+        start = response.text.find("<id>")
+        end = response.text.find("</id>")
+        if end > start > 0:
+            external_id = response.text[start + 4:end]
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -2677,7 +2706,7 @@ class ChannelEvent(models.Model):
         org = channel.org
         user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)  # TODO lookup by name for latest django-guardian
 
-        contact = Contact.get_or_create(org, user, name=None, urns=[urn], incoming_channel=channel)
+        contact = Contact.get_or_create(org, user, name=None, urns=[urn], channel=channel)
         contact_urn = contact.urn_objects[urn]
 
         event = cls.objects.create(org=org, channel=channel, contact=contact, contact_urn=contact_urn,

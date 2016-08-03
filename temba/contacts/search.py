@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import ply.lex as lex
 import pytz
+import re
 
 from datetime import timedelta
 from decimal import Decimal
@@ -148,7 +149,7 @@ def generate_queryset(lexer, identifier, comparator, value):
             q = generate_decimal_field_comparison(field, comparator, value)
         elif field.value_type == Value.TYPE_DATETIME:
             q = generate_datetime_field_comparison(field, comparator, value, lexer.org)
-        elif field.value_type == Value.TYPE_STATE or field.value_type == Value.TYPE_DISTRICT:
+        elif field.value_type in (Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD):
             q = generate_location_field_comparison(field, comparator, value)
         else:  # pragma: no cover
             raise SearchException("Unrecognized contact field type '%s'" % field.value_type)
@@ -310,7 +311,7 @@ def p_error(p):
 # ================================== Module initialization ==================================
 
 # initalize the PLY library for lexing and parsing
-search_lexer = lex.lex()
+search_lexer = lex.lex(reflags=re.UNICODE)
 search_parser = yacc.yacc(write_tables=False)
 
 

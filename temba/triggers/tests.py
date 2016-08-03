@@ -2,17 +2,19 @@
 from __future__ import unicode_literals
 
 import time
+import json
 
+from mock import patch
 from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.channels.models import Channel, ChannelEvent, CALL, ANSWER, TWITTER
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import TEL_SCHEME, Contact
 from temba.flows.models import Flow, ActionSet, FlowRun
 from temba.orgs.models import Language
 from temba.msgs.models import Msg, INCOMING
 from temba.schedules.models import Schedule
-from temba.tests import TembaTest
+from temba.tests import TembaTest, MockResponse
 from .models import Trigger
 from .views import DefaultTriggerForm, RegisterTriggerForm
 
@@ -555,6 +557,93 @@ class TriggerTest(TembaTest):
         response = self.client.post(reverse("triggers.trigger_archived"), post_data)
         self.assertEquals(1, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count())
         self.assertFalse(active_trigger.pk == Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL)[0].pk)
+
+    def test_new_conversation_trigger(self):
+        self.login(self.admin)
+        flow = self.create_flow()
+        flow2 = self.create_flow()
+
+        # see if we list new conversation triggers on the trigger page
+        create_trigger_url = reverse('triggers.trigger_create', args=[])
+        response = self.client.get(create_trigger_url)
+        self.assertNotContains(response, "conversation is started")
+
+        # create a facebook channel
+        fb_channel = Channel.add_facebook_channel(self.org, self.user, 'Temba', 1001, 'fb_token')
+
+        # should now be able to create one
+        response = self.client.get(create_trigger_url)
+        self.assertContains(response, "conversation is started")
+
+        # go create it
+        with patch('requests.post') as mock_post:
+            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
+
+            response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]),
+                                        data=dict(channel=fb_channel.id, flow=flow.id))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(mock_post.call_count, 1)
+
+        # check that it is right
+        trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False)
+        self.assertEqual(trigger.channel, fb_channel)
+        self.assertEqual(trigger.flow, flow)
+
+        # try to create another one, fails as we already have a trigger for that channel
+        response = self.client.post(reverse('triggers.trigger_new_conversation', args=[]), data=dict(channel=fb_channel.id, flow=flow2.id))
+        self.assertEqual(response.status_code, 200)
+        self.assertFormError(response, 'form', 'channel', 'Trigger with this Channel already exists.')
+
+        # ok, trigger a facebook event
+        data = json.loads("""{
+        "object": "page",
+          "entry": [
+            {
+              "id": "620308107999975",
+              "time": 1467841778778,
+              "messaging": [
+                {
+                  "sender":{
+                    "id":"1001"
+                  },
+                  "recipient":{
+                    "id":"%s"
+                  },
+                  "timestamp":1458692752478,
+                  "postback":{
+                    "payload":"get_started"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+        """ % fb_channel.address)
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(200, '{"first_name": "Ben","last_name": "Haggerty"}')
+
+            callback_url = reverse('handlers.facebook_handler', args=[fb_channel.uuid])
+            response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+            self.assertEqual(response.status_code, 200)
+
+            # should have a new flow run for Ben
+            contact = Contact.from_urn(self.org, 'facebook:1001')
+            self.assertTrue(contact.name, "Ben Haggerty")
+
+            run = FlowRun.objects.get(contact=contact)
+            self.assertEqual(run.flow, flow)
+
+        # archive our trigger, should unregister our callback
+        with patch('requests.post') as mock_post:
+            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
+
+            Trigger.apply_action_archive(self.admin, Trigger.objects.filter(pk=trigger.pk))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(mock_post.call_count, 1)
+
+            trigger.refresh_from_db()
+            self.assertTrue(trigger.is_archived)
 
     def test_catch_all_trigger(self):
         self.login(self.admin)
