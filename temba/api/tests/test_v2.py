@@ -1122,7 +1122,7 @@ class APITest(TembaTest):
         Broadcast.objects.all().update(purged=True)
         Msg.all_messages.filter(direction='O').delete()
 
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 8):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.json['results'][2]['steps'][0]['messages'], [
