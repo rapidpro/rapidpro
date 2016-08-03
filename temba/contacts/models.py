@@ -185,7 +185,7 @@ class URN(object):
         number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
 
         # add on a plus if it looks like it could be a fully qualified number
-        if len(number) >= 11 and number[0] != '+':
+        if len(number) >= 11 and number[0] not in ['+', '0']:
             number = '+' + number
 
         normalized = None
@@ -286,6 +286,14 @@ class ContactField(SmartModel):
 
         with org.lock_on(OrgLock.field, key):
             field = ContactField.objects.filter(org=org, key__iexact=key).first()
+
+            if not field:
+                # try to lookup the existing field by label
+                field = ContactField.get_by_label(org, label)
+
+            # we have a field with a invalid key we should ignore it
+            if field and not ContactField.is_valid_key(field.key):
+                field = None
 
             if field:
                 update_events = False

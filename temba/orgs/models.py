@@ -342,6 +342,31 @@ class Org(SmartModel):
         Campaign.import_campaigns(data, self, user, same_site)
         Trigger.import_triggers(data, self, user, same_site)
 
+    @classmethod
+    def export_definitions(cls, site_link, flows=[], campaigns=[], triggers=[]):
+
+        exported_flows = []
+        for flow in flows:
+            # only export current versions
+            flow.ensure_current_version()
+            exported_flows.append(flow.as_json(expand_contacts=True))
+
+        exported_campaigns = []
+        for campaign in campaigns:
+            for flow in campaign.get_flows():
+                flows.add(flow)
+            exported_campaigns.append(campaign.as_json())
+
+        exported_triggers = []
+        for trigger in triggers:
+            exported_triggers.append(trigger.as_json())
+
+        return dict(version=CURRENT_EXPORT_VERSION,
+                    site=site_link,
+                    flows=exported_flows,
+                    campaigns=exported_campaigns,
+                    triggers=exported_triggers)
+
     def config_json(self):
         if self.config:
             return json.loads(self.config)
