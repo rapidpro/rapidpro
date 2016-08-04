@@ -430,6 +430,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type:'api', name:'Webhook', verbose_name:'Make a call to an external server', icon: 'icon-cloud-upload', filter:[TEXT,VOICE] }
         { type:'email', name:'Send Email', verbose_name: 'Send an email', icon: 'icon-bubble-3', filter:[TEXT,VOICE] }
         { type:'lang', name:'Set Language', verbose_name:'Set language for contact', icon: 'icon-language', filter:ALL }
+        { type:'channel', name:'Set Channel', verbose_name:'Set preferred channel', icon: 'icon-phone', filter:[TEXT, VOICE] }
         { type:'flow', name:'Start Another Flow', verbose_name:'Start another flow', icon: 'icon-tree', flows:true, filter:[TEXT,VOICE] }
         { type:'trigger-flow',   name:'Start Someone in a Flow', verbose_name:'Start someone else in a flow', icon: 'icon-tree', flows:true, filter:[TEXT,VOICE] }
       ]
@@ -919,6 +920,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         for actionset in flow.action_sets
           for action in actionset.actions
             action.uuid = uuid()
+
+        # save away the available channels
+        Flow.channels = data.channels
 
         languages = []
 

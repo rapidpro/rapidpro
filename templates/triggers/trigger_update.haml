@@ -140,6 +140,10 @@
         select2div("#id_channel", "520px", '{% trans "Social media channel" %}');
       {% endif %}
 
+      {% if object.trigger_type == 'N' %}
+        select2div("#id_channel", "520px", '{% trans "Social media channel" %}');
+      {% endif %}
+
       {% if object.trigger_type == 'K' or object.trigger_type == 'V' %}
         $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
       {% endif %}

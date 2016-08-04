@@ -314,6 +314,8 @@ PERMISSIONS = {
           'delete',  # can delete an object,
           'list'),   # can view a list of the objects
 
+    'api.apitoken': ('refresh',),
+
     'campaigns.campaign': ('api',
                            'archived',
                            ),
@@ -350,7 +352,8 @@ PERMISSIONS = {
                                 'boundaries',
                                 'geometry'),
 
-    'orgs.org': ('api',
+    'orgs.org': ('accounts',
+                 'api',
                  'country',
                  'clear_cache',
                  'create_login',
@@ -416,7 +419,6 @@ PERMISSIONS = {
                          'create_bulk_sender',
                          'create_caller',
                          'errors',
-                         'facebook_welcome',
                          'search_nexmo',
                          'search_numbers',
                          ),
@@ -484,6 +486,7 @@ PERMISSIONS = {
                          'inbound_call',
                          'keyword',
                          'missed_call',
+                         'new_conversation',
                          'register',
                          'schedule',
                          ),
@@ -528,6 +531,7 @@ GROUP_PERMISSIONS = {
         'orgs.topup_update',
     ),
     "Administrators": (
+        'api.apitoken_refresh',
         'api.webhookevent_list',
         'api.webhookevent_read',
 
@@ -564,6 +568,7 @@ GROUP_PERMISSIONS = {
         'locations.adminboundary_boundaries',
         'locations.adminboundary_geometry',
 
+        'orgs.org_accounts',
         'orgs.org_api',
         'orgs.org_country',
         'orgs.org_download',
@@ -622,7 +627,6 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
-        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_nexmo',
@@ -661,6 +665,7 @@ GROUP_PERMISSIONS = {
 
     ),
     "Editors": (
+        'api.apitoken_refresh',
         'api.webhookevent_list',
         'api.webhookevent_read',
 
@@ -744,7 +749,6 @@ GROUP_PERMISSIONS = {
         'channels.channel_create_bulk_sender',
         'channels.channel_create_caller',
         'channels.channel_delete',
-        'channels.channel_facebook_welcome',
         'channels.channel_list',
         'channels.channel_read',
         'channels.channel_search_numbers',
@@ -859,11 +863,6 @@ AUTHENTICATION_BACKENDS = (
 )
 
 ANONYMOUS_USER_ID = -1
-
-# -----------------------------------------------------------------------------------
-# Async tasks with django-celery, for testing we use a memory test backend
-# -----------------------------------------------------------------------------------
-BROKER_BACKEND = 'memory'
 
 # -----------------------------------------------------------------------------------
 # Our test runner is standard but with ability to exclude apps
