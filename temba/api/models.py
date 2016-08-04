@@ -105,7 +105,7 @@ class Resthook(SmartModel):
     Represents a hook that a user creates on an organization. Outside apps can integrate by subscribing
     to this particular resthook.
     """
-    org = models.ForeignKey(Org,
+    org = models.ForeignKey(Org, related_name='resthooks',
                             help_text=_("The organization this resthook belongs to"))
     slug = models.SlugField(help_text=_("A simple label for this event"))
 

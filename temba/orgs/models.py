@@ -540,6 +540,12 @@ class Org(SmartModel):
             for urn in urns:
                 urn.ensure_number_normalization(country_code)
 
+    def get_resthooks(self):
+        """
+        Returns the resthooks configured on this Org
+        """
+        return self.resthooks.filter(is_active=True).order_by('slug')
+
     def get_webhook_url(self):
         """
         Returns a string with webhook url.
