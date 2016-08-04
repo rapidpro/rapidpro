@@ -914,6 +914,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'check_flows_task',
         'schedule': timedelta(seconds=60),
     },
+    "check-flow-timeouts": {
+        'task': 'check_flow_timeouts_task',
+        'schedule': timedelta(seconds=20),
+    },
     "check-credits": {
         'task': 'check_credits_task',
         'schedule': timedelta(seconds=900)
