@@ -11,7 +11,7 @@ from django.utils import timezone
 from mock import patch
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
+from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
@@ -628,6 +628,28 @@ class MsgTest(TembaTest):
         # inbound message with media attached, such as an ivr recording
         msg5 = Msg.create_incoming(self.channel, joe_urn, "Media message", media='audio:http://rapidpro.io/audio/sound.mp3')
 
+        # outgoing message
+        msg6 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 6")
+        msg7 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 7")
+        msg8 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 8")
+        msg9 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 9")
+
+        # mark msg as sent
+        msg6.status = SENT
+        msg6.save()
+
+        # mark msg as delivered
+        msg7.status = DELIVERED
+        msg7.save()
+
+        # mark msg as errored
+        msg8.status = ERRORED
+        msg8.save()
+
+        # mark message as failed
+        msg9.status = FAILED
+        msg9.save()
+
         self.assertTrue(msg5.is_media_type_audio())
         self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
 
@@ -655,14 +677,38 @@ class MsgTest(TembaTest):
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
-        self.assertEquals(sheet.nrows, 5)  # msg3 not included as it's archived
+        self.assertEquals(sheet.nrows, 9)  # msg3 not included as it's archived
 
-        self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels"])
-        self.assertExcelRow(sheet, 1, [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction",
+                                       "Text", "Labels", "Status"])
 
-        self.assertExcelRow(sheet, 2, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 3, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 4, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
+        self.assertExcelRow(sheet, 1,
+                            [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing",
+                             "Hey out 9", "", "Failed Sending"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 2,
+                            [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "Outgoing",
+                             "Hey out 8", "", "Error Sending"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 3,
+                            [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing",
+                             "Hey out 7", "", "Delivered"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 4,
+                            [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing",
+                             "Hey out 6", "", "Sent"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 5, [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming",
+                                       "Media message", "", "Handled"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 6, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming",
+                                       "hello 4", "", "Handled"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 7, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming",
+                                       "hello 2", "", "Handled"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 8, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
+                                       "hello 1", "label1", "Handled"], pytz.UTC)
 
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
@@ -686,7 +732,7 @@ class MsgTest(TembaTest):
         sheet = workbook.sheets()[0]
 
         self.assertEquals(sheet.nrows, 2)  # only header and msg1
-        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
+        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
 
         ExportMessagesTask.objects.all().delete()
 
@@ -699,11 +745,31 @@ class MsgTest(TembaTest):
             workbook = open_workbook(filename, 'rb')
             sheet = workbook.sheets()[0]
 
-            self.assertEquals(sheet.nrows, 5)
-            self.assertExcelRow(sheet, 1, [msg5.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 2, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 3, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 4, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
+            self.assertEquals(sheet.nrows, 9)
+
+            self.assertExcelRow(sheet, 1, [msg9.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg9.contact.uuid,
+                                           "Outgoing", "Hey out 9", "", "Failed Sending"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 2, [msg8.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg8.contact.uuid,
+                                           "Outgoing", "Hey out 8", "", "Error Sending"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 3, [msg7.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg7.contact.uuid,
+                                           "Outgoing", "Hey out 7", "", "Delivered"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 4, [msg6.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg6.contact.uuid,
+                                           "Outgoing", "Hey out 6", "", "Sent"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 5, [msg5.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg5.contact.uuid,
+                                           "Incoming", "Media message", "", "Handled"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 6, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid,
+                                           "Incoming", "hello 4", "", "Handled"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 7, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid,
+                                           "Incoming", "hello 2", "", "Handled"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 8, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid,
+                                           "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)

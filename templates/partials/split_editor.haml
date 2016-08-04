@@ -157,6 +157,18 @@
                 -trans "Please enter a category name."
             </ng-form>
 .modal-footer
+  .timeout{ng-show:'flow.type == "F" && isPausingRuleset()', style:'float:left'}
+
+    %label
+      %input{type:'checkbox', ng-model:'formData.hasTimeout'}
+
+      %span{ng-show:'!formData.hasTimeout'}
+        Continue when there is no response
+
+      %span{ng-show:'formData.hasTimeout'}
+        Continue when there is no response for
+        %select{ng-model:'formData.timeout', ng-options:'option as option.text for option in formData.timeoutOptions'}
+
   <!--[[splitEditor]]-->
   %button{ng-click:"cancel()",class:"btn btn-secondary"}
     -trans "Cancel"

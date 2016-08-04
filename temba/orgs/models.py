@@ -342,6 +342,31 @@ class Org(SmartModel):
         Campaign.import_campaigns(data, self, user, same_site)
         Trigger.import_triggers(data, self, user, same_site)
 
+    @classmethod
+    def export_definitions(cls, site_link, flows=[], campaigns=[], triggers=[]):
+
+        exported_flows = []
+        for flow in flows:
+            # only export current versions
+            flow.ensure_current_version()
+            exported_flows.append(flow.as_json(expand_contacts=True))
+
+        exported_campaigns = []
+        for campaign in campaigns:
+            for flow in campaign.get_flows():
+                flows.add(flow)
+            exported_campaigns.append(campaign.as_json())
+
+        exported_triggers = []
+        for trigger in triggers:
+            exported_triggers.append(trigger.as_json())
+
+        return dict(version=CURRENT_EXPORT_VERSION,
+                    site=site_link,
+                    flows=exported_flows,
+                    campaigns=exported_campaigns,
+                    triggers=exported_triggers)
+
     def config_json(self):
         if self.config:
             return json.loads(self.config)
@@ -1700,7 +1725,7 @@ class TopUp(SmartModel):
     """
     org = models.ForeignKey(Org, related_name='topups',
                             help_text="The organization that was toppped up")
-    price = models.IntegerField(verbose_name=_("Price Paid"),
+    price = models.IntegerField(null=True, blank=True, verbose_name=_("Price Paid"),
                                 help_text=_("The price paid for the messages in this top up (in cents)"))
     credits = models.IntegerField(verbose_name=_("Number of Credits"),
                                   help_text=_("The number of credits bought in this top up"))
@@ -1726,6 +1751,14 @@ class TopUp(SmartModel):
 
         org.update_caches(OrgEvent.topup_new, topup)
         return topup
+
+    def get_price_display(self):
+        if self.price is None:
+            return ""
+        elif self.price == 0:
+            return _("Free")
+
+        return "$%.2f" % self.dollars()
 
     def dollars(self):
         if self.price == 0:

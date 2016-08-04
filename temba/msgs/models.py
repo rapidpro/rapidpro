@@ -43,6 +43,7 @@ HANDLER_QUEUE = 'handler'
 HANDLE_EVENT_TASK = 'handle_event_task'
 MSG_EVENT = 'msg'
 FIRE_EVENT = 'fire'
+TIMEOUT_EVENT = 'timeout'
 
 BATCH_SIZE = 500
 
@@ -1913,7 +1914,7 @@ class ExportMessagesTask(SmartModel):
         date_style = XFStyle()
         date_style.num_format_str = 'DD-MM-YYYY HH:MM:SS'
 
-        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels']
+        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels', "Status"]
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
@@ -1984,6 +1985,7 @@ class ExportMessagesTask(SmartModel):
             current_messages_sheet.write(row, 5, msg.get_direction_display())
             current_messages_sheet.write(row, 6, msg.text)
             current_messages_sheet.write(row, 7, msg_labels)
+            current_messages_sheet.write(row, 8, msg.get_status_display())
             row += 1
             processed += 1
 

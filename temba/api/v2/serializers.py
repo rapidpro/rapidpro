@@ -52,9 +52,15 @@ class WriteSerializer(serializers.Serializer):
         return super(WriteSerializer, self).run_validation(data)
 
 
+class UUIDField(serializers.CharField):
+
+    def __init__(self, **kwargs):
+        super(UUIDField, self).__init__(max_length=36, **kwargs)
+
 # ============================================================
 # Serializers (A-Z)
 # ============================================================
+
 
 class BroadcastReadSerializer(ReadSerializer):
     urns = serializers.SerializerMethodField()

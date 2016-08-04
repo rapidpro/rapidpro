@@ -1928,6 +1928,19 @@ class ChannelTest(TembaTest):
         self.assertEquals('12345', self.tel_channel.gcm_id)
         self.assertEquals('abcde', self.tel_channel.uuid)
 
+        # should ignore incoming messages without text
+        post_data = dict(cmds=[
+            # incoming msg without text
+            dict(cmd="mo_sms", phone="+250788383383", p_id="1", ts=date),
+
+        ])
+
+        msgs_count = Msg.all_messages.all().count()
+        response = self.sync(self.tel_channel, post_data)
+
+        # no new message
+        self.assertEqual(Msg.all_messages.all().count(), msgs_count)
+
         # set an email on our channel
         self.tel_channel.alert_email = 'fred@worldrelif.org'
         self.tel_channel.save()
@@ -5362,20 +5375,18 @@ class TelegramTest(TembaTest):
                     self.assertEquals(200, response.status_code)
 
                     # should have a media message now with an image
-                    msgs = Msg.all_messages.all().order_by('-created_on')
+                    msgs = Msg.all_messages.all().order_by('-pk')
 
-                    offset = 1 if caption else 0
                     if caption:
                         self.assertEqual(msgs.count(), 2)
-                        self.assertEqual(msgs[0].text, caption)
+                        self.assertEqual(msgs[1].text, caption)
                     else:
                         self.assertEqual(msgs.count(), 1)
 
-                    self.assertTrue(msgs[offset].media.startswith('%s:https://' % content_type))
-                    self.assertTrue(msgs[offset].media.endswith(extension))
-
-                    self.assertTrue(msgs[offset].text.startswith('https://'))
-                    self.assertTrue(msgs[offset].text.endswith(extension))
+                    self.assertTrue(msgs[0].media.startswith('%s:https://' % content_type))
+                    self.assertTrue(msgs[0].media.endswith(extension))
+                    self.assertTrue(msgs[0].text.startswith('https://'))
+                    self.assertTrue(msgs[0].text.endswith(extension))
 
         # stickers are allowed
         sticker_data = """

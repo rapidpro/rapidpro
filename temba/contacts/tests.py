@@ -1975,6 +1975,24 @@ class ContactTest(TembaTest):
         # the call should be inactive now too
         self.assertFalse(call.is_active)
 
+    def test_number_normalized(self):
+        self.org.country = None
+        self.org.save()
+
+        self.channel.country = 'GB'
+        self.channel.save()
+
+        self.login(self.admin)
+
+        self.client.post(reverse('contacts.contact_create'), dict(name="Ryan Lewis", urn__tel__0='07531669965'))
+        contact = Contact.from_urn(self.org, 'tel:+447531669965')
+        self.assertEqual("Ryan Lewis", contact.name)
+
+        # try the update case
+        self.client.post(reverse('contacts.contact_update', args=[contact.id]), dict(name="Marshal Mathers", urn__tel__0='07531669966'))
+        contact = Contact.from_urn(self.org, 'tel:+447531669966')
+        self.assertEqual("Marshal Mathers", contact.name)
+
     def test_contact_model(self):
         contact1 = self.create_contact(name=None, number="123456")
 
@@ -3177,6 +3195,58 @@ class ContactFieldTest(TembaTest):
             with self.assertRaises(ValueError):
                 ContactField.get_or_create(self.org, self.admin, elt, elt, value_type=Value.TYPE_TEXT)
 
+        groups_field = ContactField.get_or_create(self.org, self.admin, 'groups_field', 'Groups Field')
+        self.assertEqual(groups_field.key, 'groups_field')
+        self.assertEqual(groups_field.label, 'Groups Field')
+
+        groups_field.label = 'Groups'
+        groups_field.save()
+
+        groups_field.refresh_from_db()
+
+        self.assertEqual(groups_field.key, 'groups_field')
+        self.assertEqual(groups_field.label, 'Groups')
+
+        # we should lookup the existing field by label
+        label_field = ContactField.get_or_create(self.org, self.admin, 'groups', 'Groups')
+
+        self.assertEqual(label_field.key, 'groups_field')
+        self.assertEqual(label_field.label, 'Groups')
+        self.assertFalse(ContactField.objects.filter(key='groups'))
+        self.assertEqual(label_field.pk, groups_field.pk)
+
+        # exisiting field by label has invalid key we should try to create a new field
+        groups_field.key = 'groups'
+        groups_field.save()
+
+        groups_field.refresh_from_db()
+
+        # we throw since the key is a reserved word
+        with self.assertRaises(ValueError):
+            ContactField.get_or_create(self.org, self.admin, 'name', 'Groups')
+
+        created_field = ContactField.get_or_create(self.org, self.admin, 'list', 'Groups')
+        self.assertEqual(created_field.key, 'list')
+        self.assertEqual(created_field.label, 'Groups')
+
+        # this should be a different field
+        self.assertFalse(created_field.pk == groups_field.pk)
+
+        # check it is not possible to create two field with the same label
+        self.assertFalse(ContactField.objects.filter(key='sport'))
+        self.assertFalse(ContactField.objects.filter(key='play'))
+
+        field1 = ContactField.get_or_create(self.org, self.admin, 'sport', 'Games')
+        self.assertEqual(field1.key, 'sport')
+        self.assertEqual(field1.label, 'Games')
+
+        # should be the same field
+        field2 = ContactField.get_or_create(self.org, self.admin, 'play', 'Games')
+
+        self.assertEqual(field2.key, 'sport')
+        self.assertEqual(field2.label, 'Games')
+        self.assertEqual(field1.pk, field2.pk)
+
     def test_contact_templatetag(self):
         self.joe.set_field(self.user, 'First', 'Starter')
         self.assertEquals(contact_field(self.joe, 'First'), 'Starter')
@@ -3414,8 +3484,6 @@ class ContactFieldTest(TembaTest):
 
         response_json = json.loads(response.content)
 
-        print response_json
-
         self.assertEquals(len(response_json), 40)
         self.assertEquals(response_json[0]['label'], 'Full name')
         self.assertEquals(response_json[0]['key'], 'name')
@@ -3512,6 +3580,7 @@ class URNTest(TembaTest):
         self.assertEqual(URN.normalize("tel:+62877747666", None), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:62877747666", "ID"), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:0877747666", "ID"), "tel:+62877747666")
+        self.assertEqual(URN.normalize("tel:07531669965", "GB"), "tel:+447531669965")
 
         # un-normalizable tel numbers
         self.assertEqual(URN.normalize("tel:12345", "RW"), "tel:12345")

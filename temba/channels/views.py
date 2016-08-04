@@ -341,10 +341,11 @@ def sync(request, channel_id):
                         # it is possible to receive spam SMS messages from no number on some carriers
                         tel = cmd['phone'] if cmd['phone'] else 'empty'
 
-                        msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
-                        if msg:
-                            extra = dict(msg_id=msg.id)
-                            handled = True
+                        if 'msg' in cmd:
+                            msg = Msg.create_incoming(channel, URN.from_tel(tel), cmd['msg'], date=date)
+                            if msg:
+                                extra = dict(msg_id=msg.id)
+                        handled = True
 
                     # phone event
                     elif keyword == 'call':
