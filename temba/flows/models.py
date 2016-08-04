@@ -35,7 +35,7 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INI
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
 from temba.utils.email import send_template_email, is_valid_address
-from temba.utils.models import TembaModel, ChunkIterator
+from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
@@ -4036,10 +4036,13 @@ class FlowStart(SmartModel):
 
 
 class FlowLabel(models.Model):
+    org = models.ForeignKey(Org)
+
+    uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid,
+                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this label"))
     name = models.CharField(max_length=64, verbose_name=_("Name"),
                             help_text=_("The name of this flow label"))
     parent = models.ForeignKey('FlowLabel', verbose_name=_("Parent"), null=True, related_name="children")
-    org = models.ForeignKey(Org)
 
     def get_flows_count(self):
         """
