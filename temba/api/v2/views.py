@@ -25,8 +25,8 @@ from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
-from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
-from .serializers import LabelReadSerializer, MsgReadSerializer
+from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
+from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -1007,9 +1007,8 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         }
     """
     permission = 'flows.flow_api'
-    model = ContactGroup
-    model_manager = 'user_groups'
-    serializer_class = ContactGroupReadSerializer
+    model = Flow
+    serializer_class = FlowReadSerializer
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
@@ -1020,18 +1019,20 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         if uuid:
             queryset = queryset.filter(uuid=uuid)
 
-        return queryset.filter(is_active=True)
+        queryset = queryset.prefetch_related('labels')
+
+        return queryset
 
     @classmethod
     def get_read_explorer(cls):
         return {
             'method': "GET",
-            'title': "List Groups",
-            'url': reverse('api.v2.groups'),
-            'slug': 'group-list',
+            'title': "List Flows",
+            'url': reverse('api.v2.flows'),
+            'slug': 'flow-list',
             'request': "",
             'fields': [
-                {'name': "uuid", 'required': False, 'help': "A group UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
+                {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
         }
 

@@ -4,7 +4,7 @@ from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import FlowRun, FlowStep
+from temba.flows.models import Flow, FlowRun, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
@@ -218,6 +218,23 @@ class ContactGroupReadSerializer(ReadSerializer):
     class Meta:
         model = ContactGroup
         fields = ('uuid', 'name', 'query', 'count')
+
+
+class FlowReadSerializer(ReadSerializer):
+    archived = serializers.ReadOnlyField(source='is_archived')
+    labels = serializers.SerializerMethodField()
+    expires = serializers.ReadOnlyField(source='expires_after_minutes')
+    runs = serializers.SerializerMethodField()
+
+    def get_labels(self, obj):
+        return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
+
+    def get_runs(self, obj):
+        return {'completed': obj.get_completed_runs(), 'expired': obj.get_expired_runs()}
+
+    class Meta:
+        model = Flow
+        fields = ('uuid', 'name', 'archived', 'labels', 'expires', 'runs', 'created_on')
 
 
 class FlowRunReadSerializer(ReadSerializer):
