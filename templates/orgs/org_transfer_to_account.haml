@@ -6,13 +6,15 @@
 
 -block title-text
   .title-text
-    %h1 TransferTo Account
+    %h1
+      -trans "TransferTo Account"
 
 -block summary
   -if object.is_connected_to_transferto
-    Connected to TransferTo Account {{transferto_account_login}}
+    -trans "Connected to TransferTo Account"
+    {{transferto_account_login}}
   -else
-    Disconnected from TransferTo
+    -trans "Disconnected from TransferTo"
 
 -block post-form
   -if object.is_connected_to_transferto and request.META.HTTP_X_FORMAX
