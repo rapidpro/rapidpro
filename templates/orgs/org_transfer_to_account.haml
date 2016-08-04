@@ -18,9 +18,9 @@
 
 -block post-form
   -if object.is_connected_to_transferto and request.META.HTTP_X_FORMAX
-    If you no longer want it connected, you can
+    -trans "If you no longer want it connected, you can"
     %a{href:'javascript:confirmTransferToDisconnect();'}
-      disconnect your TransferTo Account
+      -trans "disconnect your TransferTo Account"
 
     .disconnect-transferto.hide
       .title
