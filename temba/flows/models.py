@@ -39,7 +39,6 @@ from temba.utils.models import TembaModel, ChunkIterator
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
-from twilio import twiml
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -475,7 +474,7 @@ class Flow(TembaModel):
                 voice_response = response
 
                 # append a redirect at the end in case the user sends #
-                voice_response.append(twiml.Redirect(url=callback + "?empty=1"))
+                voice_response.redirect(url=callback + "?empty=1")
 
         return voice_response
 
