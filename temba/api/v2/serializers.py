@@ -230,7 +230,11 @@ class FlowReadSerializer(ReadSerializer):
         return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
 
     def get_runs(self, obj):
-        return {'completed': obj.get_completed_runs(), 'expired': obj.get_expired_runs()}
+        return {
+            'completed': obj.get_completed_runs(),
+            'interrupted': obj.get_interrupted_runs(),
+            'expired': obj.get_expired_runs()
+        }
 
     class Meta:
         model = Flow

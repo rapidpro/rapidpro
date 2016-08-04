@@ -978,7 +978,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
      * **labels** - the labels for this flow (array of objects)
      * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
      * **created_on** - when this flow was created (datetime)
-     * **runs** - the counts of completed and expired runs (object)
+     * **runs** - the counts of completed, interrupted and expired runs (object)
 
     Example:
 
@@ -999,6 +999,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
                     "created_on": "2016-01-06T15:33:00.813162Z",
                     "runs": {
                         "completed": 123,
+                        "interrupted": 2,
                         "expired": 34
                     }
                 },

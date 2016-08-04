@@ -1111,6 +1111,9 @@ class Flow(TembaModel):
     def get_completed_runs(self):
         return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_COMPLETED)
 
+    def get_interrupted_runs(self):
+        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_INTERRUPTED)
+
     def get_expired_runs(self):
         return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_EXPIRED)
 

@@ -729,7 +729,7 @@ class APITest(TembaTest):
         self.create_flow(org=self.org2, name="Other", uuid_start=2000)
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 8):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -741,7 +741,7 @@ class APITest(TembaTest):
                 'archived': False,
                 'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
                 'expires': 720,
-                'runs': {'completed': 1, 'expired': 0},
+                'runs': {'completed': 1, 'interrupted': 0, 'expired': 0},
                 'created_on': format_datetime(survey.created_on)
             },
             {
@@ -750,7 +750,7 @@ class APITest(TembaTest):
                 'archived': False,
                 'labels': [],
                 'expires': 720,
-                'runs': {'completed': 0, 'expired': 0},
+                'runs': {'completed': 0, 'interrupted': 0, 'expired': 0},
                 'created_on': format_datetime(registration.created_on)
             }
         ])
