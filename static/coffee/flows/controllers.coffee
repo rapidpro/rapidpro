@@ -1184,7 +1184,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.updateRules = (ruleset, rulesetConfig) ->
 
     # strip out exclusive rules if we have any
-    ruleset.rules = for rule in ruleset.rules when Flow.exclusiveRules[rule.test.type] == undefined or Flow.exclusiveRules[rule.test.type] == ruleset.ruleset_type then rule
+    ruleset.rules = for rule in ruleset.rules when Flow.isRuleAllowed(ruleset.ruleset_type, rule.test.type) then rule
 
     # start with an empty list of rules
     rules = []
@@ -1207,6 +1207,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         for new_rule in ruleset.rules
           if new_rule.test == rule.test
             found = true
+            break
 
         # construct a new rule accordingly and add it
         if not found

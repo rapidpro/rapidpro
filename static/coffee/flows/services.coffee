@@ -468,9 +468,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
       # rule type to ruleset type they are exclusive to
       @exclusiveRules = {
-        'subflow': 'subflow',
-        'timeout': 'wait_message',
-        'webhook': 'webhook'
+        'subflow': ['subflow'],
+        'timeout': ['wait_message'],
+        'webhook': ['webhook']
       }
 
       @supportsRules = ['wait_message', 'expression', 'flow_field', 'contact_field', 'wait_digits', 'form_field']
@@ -636,6 +636,13 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         , quietPeriod
 
+    # is the rule allowed for this ruleset_type?
+    isRuleAllowed: (ruleset_type, rule_type) ->
+      if rule_type
+        exclusives = @exclusiveRules[rule_type]
+        if exclusives
+          return ruleset_type in exclusives
+        return true
 
     getNode: (uuid) ->
       for actionset in @flow.action_sets
