@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0061_flowrun_timeout_on'),
+        ('flows', '0062_flowlabel_uuid'),
     ]
 
     operations = [
