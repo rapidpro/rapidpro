@@ -22,7 +22,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
-from temba.locations.models import AdminBoundary
+from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label
 from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
 from temba.values.models import Value
@@ -2510,6 +2510,12 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
             return []
 
         queryset = org.country.get_descendants(include_self=True).order_by('level', 'name')
+
+        if self.request.GET.get('aliases'):
+            queryset = queryset.prefetch_related(
+                Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org).order_by('name')),
+            )
+
         return queryset.select_related('parent')
 
     def get_serializer_class(self):
