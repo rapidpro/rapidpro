@@ -449,6 +449,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           { name: 'Failure', test: { type: 'webhook', result: 'failure'}},
         ]},
 
+        { type: 'airtime', name:'Transfer Airtime', verbose_name: 'Transfer Airtime', split: 'transfer airtime', filter:[TEXT, VOICE], rules: [
+          { name: 'Success', test: { type: 'airtime_status', exit_status: 'success'}},
+          { name: 'Failure', test: { type: 'airtime_status', exit_status: 'failed'}},
+        ]},
+
         # all flows
         { type: 'subflow', name: 'Run Flow', verbose_name: 'Run a flow', filter: ALL, rules: [
           { name: 'Completed', test: { type: 'subflow', exit_type: 'completed' }},
@@ -932,6 +937,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         for actionset in flow.action_sets
           for action in actionset.actions
             action.uuid = uuid()
+
+        # save the channel countries
+        Flow.channel_countries = data.channel_countries
 
         # save away the available channels
         Flow.channels = data.channels

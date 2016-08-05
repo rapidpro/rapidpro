@@ -22,10 +22,10 @@ describe 'Controllers:', ->
 
     # wire up our mock flows
     flows = {
-      'favorites': { id: 1, languages:[] },
-      'rules_first': { id: 2, languages:[] },
-      'loop_detection': { id: 3, languages:[] },
-      'webhook_rule_first': { id: 4, languages:[] },
+      'favorites': { id: 1, languages:[], channel_countries: [] },
+      'rules_first': { id: 2, languages:[], channel_countries: [] },
+      'loop_detection': { id: 3, languages:[], channel_countries: [] },
+      'webhook_rule_first': { id: 4, languages:[], channel_countries: [] },
     }
 
     $http.whenGET('/contactfield/json/').respond([])
@@ -37,7 +37,8 @@ describe 'Controllers:', ->
       $http.whenGET('/flow/json/' + config.id + '/').respond(
         {
           flow: getJSONFixture(file + '.json').flows[0],
-          languages: config.languages
+          languages: config.languages,
+          channel_countries: config.channel_countries
         }
       )
 
@@ -311,7 +312,6 @@ describe 'Controllers:', ->
 
       # now save it as a regular wait
       $scope.clickRuleset(ruleset)
-
       $scope.dialog.opened.then ->
         modalScope = $modalStack.getTop().value.modalScope
 
@@ -326,6 +326,36 @@ describe 'Controllers:', ->
         if rule.test.type == 'subflow'
           fail('Subflow rule found on non subflow ruleset')
           break
+
+     it 'should save airtime rulesets', ->
+      # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      $http.flush()
+
+      getRuleConfig = (type) ->
+        for ruleset in flowService.rulesets
+          if ruleset.type == type
+            return ruleset
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # simulate selecting airtime ruleset
+        modalScope.ruleset.ruleset_type = 'airtime'
+        modalScope.formData.rulesetConfig = getRuleConfig('airtime')
+        modalScope.okRules()
+
+      $timeout.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+
+      # our ruleset should have 2 rules
+      expect(ruleset.ruleset_type).toBe('airtime')
+      expect(ruleset.rules.length).toBe(2)
 
     it 'should filter action options based on flow type', ->
 

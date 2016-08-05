@@ -221,10 +221,11 @@ INSTALLED_APPS = (
     'temba.ivr',
     'temba.locations',
     'temba.values',
+    'temba.airtime',
 )
 
 # the last installed app that uses smartmin permissions
-PERMISSIONS_APP = 'temba.values'
+PERMISSIONS_APP = 'temba.airtime'
 
 LOGGING = {
     'version': 1,
@@ -375,6 +376,7 @@ PERMISSIONS = {
                  'service',
                  'signup',
                  'surveyor',
+                 'transfer_to_account',
                  'trial',
                  'twilio_account',
                  'twilio_connect',
@@ -531,6 +533,9 @@ GROUP_PERMISSIONS = {
         'orgs.topup_update',
     ),
     "Administrators": (
+        'airtime.airtimetransfer_list',
+        'airtime.airtimetransfer_read',
+
         'api.apitoken_refresh',
         'api.webhookevent_list',
         'api.webhookevent_read',
@@ -583,6 +588,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_nexmo_configuration',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
+        'orgs.org_transfer_to_account',
         'orgs.org_twilio_account',
         'orgs.org_twilio_connect',
         'orgs.org_webhook',
@@ -1072,6 +1078,12 @@ SEND_WEBHOOKS = False
 # DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
+
+######
+# DANGER: only turn this on if you know what you are doing!
+#         could cause airtime transfers in test environment
+SEND_AIRTIME = False
+
 
 MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',
                     'temba.flows.handlers.FlowHandler',
