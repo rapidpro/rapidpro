@@ -1639,8 +1639,12 @@ class OrgCRUDL(SmartCRUDL):
                 formax.add_section('country', reverse('orgs.org_country'), icon='icon-location2')
 
             if self.has_org_perm('orgs.org_transfer_to_account'):
-                formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
-                                   action='redirect')
+                if not self.object.is_connected_to_transferto():
+                    formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
+                                       action='redirect', button=_("Connect"))
+                else:
+                    formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
+                                       action='redirect', nobutton=True)
 
             if self.has_org_perm('orgs.org_webhook'):
                 formax.add_section('webhook', reverse('orgs.org_webhook'), icon='icon-cloud-upload')
