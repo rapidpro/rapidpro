@@ -5276,10 +5276,10 @@ class AirtimeStatusTest(Test):
     TYPE = 'airtime_status'
     EXIT = 'exit_status'
 
-    STATUS_COMPLETED = 'completed'
+    STATUS_SUCCESS = 'success'
     STATUS_FAILED = 'failed'
 
-    STATUS_MAP = {STATUS_COMPLETED: AirtimeTransfer.COMPLETE,
+    STATUS_MAP = {STATUS_SUCCESS: AirtimeTransfer.SUCCESS,
                   STATUS_FAILED: AirtimeTransfer.FAILED}
 
     def __init__(self, exit_status):
