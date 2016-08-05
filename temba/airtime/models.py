@@ -20,11 +20,11 @@ class AirtimeTransfer(SmartModel):
     LOG_DIVIDER = "%s\n\n\n" % ('=' * 20)
 
     PENDING = 'P'
-    COMPLETE = 'C'
+    SUCCESS = 'S'
     FAILED = 'F'
 
     STATUS_CHOICES = ((PENDING, "Pending"),
-                      (COMPLETE, "Complete"),
+                      (SUCCESS, "Success"),
                       (FAILED, "Failed"))
 
     org = models.ForeignKey(Org, help_text="The organization that this airtime was triggered for")
@@ -196,7 +196,7 @@ class AirtimeTransfer(SmartModel):
                 raise Exception(message)
 
             message = "Airtime Transferred Successfully"
-            airtime.status = AirtimeTransfer.COMPLETE
+            airtime.status = AirtimeTransfer.SUCCESS
 
         except Exception as e:
             import traceback

@@ -1626,10 +1626,6 @@ class OrgCRUDL(SmartCRUDL):
                 if client:
                     formax.add_section('twilio', reverse('orgs.org_twilio_account'), icon='icon-channel-twilio')
 
-            if self.has_org_perm('orgs.org_transferto_account'):
-                formax.add_section('transferto', reverse('orgs.org_transferto_account'), icon='icon-transferto',
-                                   action='redirect')
-
             if self.has_org_perm('orgs.org_profile'):
                 formax.add_section('user', reverse('orgs.user_edit'), icon='icon-user', action='redirect')
 
@@ -1641,6 +1637,10 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm('orgs.org_country'):
                 formax.add_section('country', reverse('orgs.org_country'), icon='icon-location2')
+
+            if self.has_org_perm('orgs.org_transfer_to_account'):
+                formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
+                                   action='redirect')
 
             if self.has_org_perm('orgs.org_webhook'):
                 formax.add_section('webhook', reverse('orgs.org_webhook'), icon='icon-cloud-upload')
@@ -1654,8 +1654,8 @@ class OrgCRUDL(SmartCRUDL):
         success_message = ""
 
         class TransferToAccountForm(forms.ModelForm):
-            account_login = forms.CharField(label=_("TransfetTo Account API Login"), required=False)
-            airtime_api_token = forms.CharField(label=_("TransferTo Airtime API Token"), required=False)
+            account_login = forms.CharField(label=_("Login"), required=False)
+            airtime_api_token = forms.CharField(label=_("API Token"), required=False)
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
             def clean(self):
