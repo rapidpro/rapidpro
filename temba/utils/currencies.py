@@ -60,7 +60,7 @@ CURRENCY_EXCEPTIONS = {
 def currency_for_country(alpha2):
     country = pycountry.countries.get(alpha2=str(alpha2))
     try:
-        currency = pycountry.currencies.get(numeric=country.numeric)
-        return currency.letter
+        return pycountry.currencies.get(numeric=country.numeric)
     except:
-        return CURRENCY_EXCEPTIONS.get(str(alpha2))
+        currency_code = CURRENCY_EXCEPTIONS.get(str(alpha2))
+        return pycountry.currencies.get(letter=currency_code)

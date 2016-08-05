@@ -4587,7 +4587,7 @@ class FlowsTest(FlowFileTest):
 
         contact_urn = self.contact.get_urn(TEL_SCHEME)
 
-        airtime_event = AirtimeTransfer.objects.create(org=self.org, status=AirtimeTransfer.COMPLETE, amount=10, contact=self.contact,
+        airtime_event = AirtimeTransfer.objects.create(org=self.org, status=AirtimeTransfer.SUCCESS, amount=10, contact=self.contact,
                                                        recipient=contact_urn.path, created_by=self.admin, modified_by=self.admin)
 
         with patch('temba.flows.models.AirtimeTransfer.trigger_airtime_event') as mock_trigger_event:
@@ -4625,7 +4625,7 @@ class FlowsTest(FlowFileTest):
 
         self.assertEquals(1, AirtimeTransfer.objects.all().count())
         airtime = AirtimeTransfer.objects.all().first()
-        self.assertEqual(airtime.status, AirtimeTransfer.COMPLETE)
+        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
         self.assertEqual(airtime.contact, self.contact)
         self.assertEqual(airtime.message, "Airtime Transferred Successfully")
         self.assertEqual(mock_post_transferto.call_count, 3)
@@ -4674,7 +4674,7 @@ class FlowsTest(FlowFileTest):
 
         self.assertEquals(3, AirtimeTransfer.objects.all().count())
         airtime = AirtimeTransfer.objects.all().last()
-        self.assertEqual(airtime.status, AirtimeTransfer.COMPLETE)
+        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
         self.assertEqual(airtime.recipient, '+250788123123')
         self.assertNotEqual(airtime.recipient, 'biyombo')
         self.assertEqual(mock_post_transferto.call_count, 3)

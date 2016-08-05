@@ -3148,7 +3148,7 @@ class RuleSet(models.Model):
                     log_txt = "Simulate Complete airtime transfer"
                     ActionLog.create(run, log_txt, safe=True)
 
-                    airtime = AirtimeTransfer(status=AirtimeTransfer.COMPLETE)
+                    airtime = AirtimeTransfer(status=AirtimeTransfer.SUCCESS)
                 else:
                     airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
 
