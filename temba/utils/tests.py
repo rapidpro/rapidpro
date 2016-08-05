@@ -26,7 +26,7 @@ from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
-from . import datetime_to_str, chunk_list
+from . import datetime_to_str, chunk_list, get_country_code_by_name
 
 
 class InitTest(TembaTest):
@@ -171,6 +171,14 @@ class InitTest(TembaTest):
         self.assertEquals(0, percentage(100, 0))
         self.assertEquals(75, percentage(75, 100))
         self.assertEquals(76, percentage(759, 1000))
+
+    def test_get_country_code_by_name(self):
+        self.assertEqual('RW', get_country_code_by_name('Rwanda'))
+        self.assertEqual('US', get_country_code_by_name('United States of America'))
+        self.assertEqual('US', get_country_code_by_name('United States'))
+        self.assertEqual('GB', get_country_code_by_name('United Kingdom'))
+        self.assertEqual('CI', get_country_code_by_name('Ivory Coast'))
+        self.assertEqual('CD', get_country_code_by_name('Democratic Republic of the Congo'))
 
 
 class TemplateTagTest(TembaTest):

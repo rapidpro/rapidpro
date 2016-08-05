@@ -28,6 +28,7 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
+from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
@@ -2928,6 +2929,7 @@ class RuleSet(models.Model):
     TYPE_WAIT_AUDIO = 'wait_audio'
     TYPE_WAIT_GPS = 'wait_gps'
 
+    TYPE_AIRTIME = 'airtime'
     TYPE_WEBHOOK = 'webhook'
     TYPE_FLOW_FIELD = 'flow_field'
     TYPE_FORM_FIELD = 'form_field'
@@ -2944,7 +2946,10 @@ class RuleSet(models.Model):
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
                     (TYPE_WAIT_DIGIT, "Wait for digit"),
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
+                    (TYPE_SUBFLOW, "Subflow"),
                     (TYPE_WEBHOOK, "Webhook"),
+                    (TYPE_AIRTIME, "Transfer Airtime"),
+                    (TYPE_FORM_FIELD, "Split by message form"),
                     (TYPE_FLOW_FIELD, "Split on flow field"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
                     (TYPE_EXPRESSION, "Split by expression"))
@@ -3133,6 +3138,25 @@ class RuleSet(models.Model):
                 (text, errors) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
             elif msg:
                 text = msg.text
+
+            if self.ruleset_type == RuleSet.TYPE_AIRTIME:
+
+                # flow simulation will always simulate a suceessful airtime transfer
+                # without saving the object in the DB
+                if run.contact.is_test:
+                    from temba.flows.models import ActionLog
+                    log_txt = "Simulate Complete airtime transfer"
+                    ActionLog.create(run, log_txt, safe=True)
+
+                    airtime = AirtimeTransfer(status=AirtimeTransfer.COMPLETE)
+                else:
+                    airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
+
+                # rebuild our context again, the webhook may have populated something
+                context = run.flow.build_message_context(run.contact, msg)
+
+                # airtime test evaluate against the status of the airtime
+                text = airtime.status
 
             try:
                 rules = self.get_rules()
@@ -5216,6 +5240,7 @@ class Test(object):
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest,
                 TimeoutTest.TYPE: TimeoutTest,
+                AirtimeStatusTest.TYPE: AirtimeStatusTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -5242,6 +5267,36 @@ class Test(object):
         side effects.
         """
         raise FlowException("Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested")
+
+
+class AirtimeStatusTest(Test):
+    """
+    {op: 'airtime_status'}
+    """
+    TYPE = 'airtime_status'
+    EXIT = 'exit_status'
+
+    STATUS_COMPLETED = 'completed'
+    STATUS_FAILED = 'failed'
+
+    STATUS_MAP = {STATUS_COMPLETED: AirtimeTransfer.COMPLETE,
+                  STATUS_FAILED: AirtimeTransfer.FAILED}
+
+    def __init__(self, exit_status):
+        self.exit_status = exit_status
+
+    @classmethod
+    def from_json(cls, org, json):
+        return AirtimeStatusTest(json.get('exit_status'))
+
+    def as_json(self):
+        return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
+
+    def evaluate(self, run, sms, context, text):
+        status = text
+        if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
+            return 1, status
+        return 0, None
 
 
 class SubflowTest(Test):

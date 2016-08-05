@@ -82,6 +82,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
   # inject into our gear menu
   $rootScope.gearLinks = []
   $rootScope.ivr = window.ivr
+  $rootScope.hasAirtimeService = window.hasAirtimeService
 
   $scope.getContactFieldName = (ruleset) ->
     if not ruleset._contactFieldName
@@ -125,6 +126,16 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     $scope.dialog = utils.openModal("/partials/modal", SimpleMessageController, resolveObj)
     return $scope.dialog
+
+  showConnectTransferTo = ->
+    modal = new ConfirmationModal(gettext("TransferTo Disconnected"), gettext("No TransferTo account connected. Please first connect your TransferTo account."))
+    modal.addClass('airtime-warning')
+    modal.setPrimaryButton(gettext("Connect TransferTo Account"))
+    modal.setListeners
+      onPrimary: ->
+        document.location.href = window.connectAirtimeServiceURL
+    modal.show()
+    return
 
   $scope.showRevisionHistory = ->
     $scope.$evalAsync ->
@@ -411,6 +422,11 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       return
 
     DragHelper.hide()
+
+    # show message asking to connect TransferTo account for existing airtime node
+    if ruleset.ruleset_type == 'airtime' and not $rootScope.hasAirtimeService
+      showConnectTransferTo()
+      return
 
     if Flow.language and Flow.flow.base_language != Flow.language.iso_code
       resolveObj =
@@ -934,6 +950,25 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   formData.fieldIndex = Flow.getFieldSelection($scope.fieldIndexOptions, config.field_index, true)
   formData.fieldDelimiter = Flow.getFieldSelection($scope.fieldDelimiterOptions, config.field_delimiter, true)
 
+  airtimeAmountConfig = []
+  seenOrgCountries = []
+  for country in angular.copy(Flow.channel_countries)
+    countryAirtime = country
+    countryCode = country.code
+    if config[countryCode]
+      countryAirtime.amount = parseFloat(config[countryCode]['amount'])
+    else
+      countryAirtime.amount = 0
+    seenOrgCountries.push(countryCode)
+
+    airtimeAmountConfig.push(countryAirtime)
+
+  for countryCode, countryConfig of config
+    if countryCode not in seenOrgCountries
+      airtimeAmountConfig.push(countryConfig)
+
+  formData.airtimeAmountConfig = airtimeAmountConfig
+
   if ruleset.config
     formData.flow = ruleset.config.flow
   else
@@ -1074,6 +1109,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if rulesetConfig.type == 'contact_field' and $scope.contactFields.length == 0
       return false
 
+    if rulesetConfig.type == 'airtime' and not $rootScope.hasAirtimeService
+      return false
+
     return valid
 
   $scope.getDefaultCategory = (rule) ->
@@ -1163,7 +1201,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
-      if rule._config.type == 'subflow'
+      if rule._config.type == 'airtime_status' or rule._config.type == 'subflow'
         continue
       complete = complete and $scope.isRuleComplete(rule)
       if not complete
@@ -1185,6 +1223,46 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     # start with an empty list of rules
     rules = []
+
+    # airtime rulesets have their own kind of rules
+    if ruleset.ruleset_type == 'airtime'
+
+      needs_completed = true
+      needs_failed = true
+
+      # see which airtime status rules we already have
+      for rule in ruleset.rules
+        if rule.type == 'airtime_status'
+          if rule.test.exit_status == 'completed'
+            needs_completed = false
+            rules.push(rule)
+          if rule.test.exit_status == 'failed'
+            needs_failed = false
+            rules.push(rule)
+
+      # if we don't have the completed rule add it
+      if needs_completed
+        rule =
+          uuid: uuid()
+          type: 'airtime_status'
+          test:
+            type: 'airtime_status'
+            exit_status: 'completed'
+          category: {}
+        rule['category'][Flow.flow.base_language] = 'Completed'
+        rules.push(rule)
+
+      # if we don't have the failed rule add it
+      if needs_failed
+        rule =
+          uuid: uuid()
+          type: 'airtime_status'
+          test:
+            type: 'airtime_status'
+            exit_status: 'failed'
+          category: {}
+        rule['category'][Flow.flow.base_language] = 'Failed'
+        rules.push(rule)
 
     # subflow rulesets have their own kind of rules
     if ruleset.ruleset_type == 'subflow'
@@ -1219,7 +1297,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         rule =
           uuid: uuid(),
           type: 'subflow'
-          test: 
+          test:
             type: 'subflow'
             exit_type: 'expired'
           category: {}
@@ -1307,7 +1385,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     otherCategory[Flow.flow.base_language] = otherCategoryName
 
     # for all rules that require a catch all, append a true rule
-    if ruleset.ruleset_type != 'subflow'
+    if ruleset.ruleset_type != 'airtime' and ruleset.ruleset_type != 'subflow'
       rules.push
         _config: Flow.getOperatorConfig("true")
         test:
@@ -1336,7 +1414,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $modalInstance.close ""
 
     $timeout ->
-
       # changes from the user
       ruleset = $scope.ruleset
 
@@ -1346,10 +1423,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       rulesetConfig = $scope.formData.rulesetConfig
       contactField = $scope.formData.contactField
       flowField = $scope.formData.flowField
+      airtimeAmountConfig = $scope.formData.airtimeAmountConfig
       flow = $scope.formData.flow
 
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
+
+      # clear previous config
+      ruleset.config = {}
 
       if rulesetConfig.type == 'subflow'
         # configure our subflow settings
@@ -1380,6 +1461,25 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         ruleset.config =
           field_index: $scope.formData.fieldIndex.id
           field_delimiter: $scope.formData.fieldDelimiter.id
+
+      else if rulesetConfig.type == 'airtime'
+        airtimeConfig = {}
+        for elt in airtimeAmountConfig
+          amount = elt.amount
+          try
+            elt.amount = parseFloat(amount)
+          catch
+            elt.amount = 0
+          airtimeConfig[elt.code] = elt
+        ruleset.config = airtimeConfig
+
+        # remove any non airtime rule
+        rules = []
+        for rule in ruleset.rules
+          if rule.type == 'airtime_status'
+            rules.push(rule)
+
+        ruleset.rules = rules
 
       # update our operand if they selected a contact field explicitly
       else if ruleset.ruleset_type == 'contact_field'

@@ -158,7 +158,7 @@ class ChannelTest(TembaTest):
         self.assertEquals('Sorry, a caller cannot be added for that number', response.context['form'].errors['channel'][0])
 
         # disable our twilio connection
-        self.org.remove_twilio_account()
+        self.org.remove_twilio_account(self.admin)
         self.assertFalse(self.org.supports_ivr())
 
         # we should lose our caller
@@ -1004,7 +1004,7 @@ class ChannelTest(TembaTest):
         # now connect to nexmo
         with patch('temba.nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456')
+            self.org.connect_nexmo('123', '456', self.admin)
             self.org.save()
         self.assertTrue(self.org.is_connected_to_nexmo())
 
@@ -1727,7 +1727,7 @@ class ChannelTest(TembaTest):
         # connect org to Nexmo and add bulk sender
         with patch('temba.nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456')
+            self.org.connect_nexmo('123', '456', self.admin)
             self.org.save()
 
         claim_nexmo_url = reverse('channels.channel_create_bulk_sender') + "?connection=NX&channel=%d" % android.pk
