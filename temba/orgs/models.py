@@ -34,6 +34,7 @@ from temba.utils.email import send_template_email
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
 from temba.utils import timezone_to_country_code
 from temba.utils.cache import get_cacheable_result, incrby_existing
+from temba.utils.currencies import currency_for_country
 from twilio.rest import TwilioRestClient
 from urlparse import urlparse
 from uuid import uuid4
@@ -566,7 +567,7 @@ class Org(SmartModel):
         for country_code in channel_country_codes:
             country_obj = pycountry.countries.get(alpha2=country_code)
             country_name = country_obj.name
-            currency = pycountry.currencies.get(numeric=country_obj.numeric)
+            currency = currency_for_country(country_code)
             channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.letter,
                                           currency_name=currency.name))
 
