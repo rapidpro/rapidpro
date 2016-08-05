@@ -1,10 +1,13 @@
 from __future__ import absolute_import, unicode_literals
 
+import json
+
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStep
+from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
@@ -39,6 +42,32 @@ class UUIDField(serializers.CharField):
 # ============================================================
 # Serializers (A-Z)
 # ============================================================
+
+class AdminBoundaryReadSerializer(ReadSerializer):
+    id = serializers.ReadOnlyField(source='osm_id')
+    parent = serializers.SerializerMethodField()
+    aliases = serializers.SerializerMethodField()
+    geometry = serializers.SerializerMethodField()
+
+    def get_id(self, obj):
+        return obj.osm_id
+
+    def get_parent(self, obj):
+        return obj.parent.osm_id if obj.parent else None
+
+    def get_aliases(self, obj):
+        return [alias.name for alias in obj.aliases.all()]
+
+    def get_geometry(self, obj):
+        if self.context['include_geometry'] and obj.simplified_geometry:
+            return json.loads(obj.simplified_geometry.geojson)
+        else:
+            return None
+
+    class Meta:
+        model = AdminBoundary
+        fields = ('id', 'name', 'parent', 'level', 'aliases', 'geometry')
+
 
 class BroadcastReadSerializer(ReadSerializer):
     urns = serializers.SerializerMethodField()
