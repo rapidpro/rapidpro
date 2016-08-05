@@ -475,7 +475,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @exclusiveRules = {
         'subflow': ['subflow'],
         'timeout': ['wait_message'],
-        'webhook': ['webhook']
+        'webhook': ['webhook'],
+        'airtime_status': ['airtime']
       }
 
       @supportsRules = ['wait_message', 'expression', 'flow_field', 'contact_field', 'wait_digits', 'form_field']
@@ -500,6 +501,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'ward', name: 'Has a ward', verbose_name:'has a ward', operands: 2, operand_required: false, auto_complete: true, show:true}
         { type: 'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true, show:true }
         { type: 'subflow', name: 'Subflow', verbose_name:'subflow', operands: 0, show:false }
+        { type: 'airtime_status', name: 'Airtime Status', verbose_name:'airtime', operands: 0, show:false }
         { type: 'webhook', name: 'Webhook', verbose_name:'webhook', operands: 0, show:false }
         { type: 'true', name: 'Other', verbose_name:'contains anything', operands: 0, show:false }
         { type: 'timeout', name:'Timeout', verbose_name:'timeout', operands:0, show:false }
@@ -646,7 +648,16 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       if rule_type
         exclusives = @exclusiveRules[rule_type]
         if exclusives
-          return ruleset_type in exclusives
+          allowed = ruleset_type in exclusives
+          return allowed
+
+        # check if our ruleset has a prescribed set of rules
+        rulesetConfig = @getRulesetConfig({type: ruleset_type})
+        if rulesetConfig.rules
+          for rule in rulesetConfig.rules
+            if rule.test.type == rule_type
+              return true
+          return false
         return true
 
     getNode: (uuid) ->

@@ -438,7 +438,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       $scope.dialog = utils.openModal("/partials/translate_rules", TranslateRulesController, resolveObj)
 
     else
-
       if window.ivr
         resolveObj =
           options: ->
@@ -454,7 +453,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             nodeType: 'rules'
             ruleset: ruleset
             dragSource: dragSource
-
         $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
 
   $scope.confirmRemoveWebhook = (event, ruleset) ->
@@ -1220,7 +1218,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   , true
 
   $scope.updateRules = (ruleset, rulesetConfig) ->
-
     # strip out exclusive rules if we have any
     ruleset.rules = for rule in ruleset.rules when Flow.isRuleAllowed(ruleset.ruleset_type, rule.test.type) then rule
 
@@ -1229,11 +1226,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       # find out the allowed rules for our ruleset
       validRules = {}
       for rule in rulesetConfig.rules
-        validRules[rule.test.type]
+        validRules[rule.test.type] = true
 
       # collect our existing rules that are valid
       for rule in ruleset.rules
-        if rule.test.type in validRules
+        if validRules[rule.test.type]
           rules.push(rule)
 
       # fill in any missing rules
@@ -1386,11 +1383,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           flow:
             name: flow.text
             uuid: flow.id
-      else
-        delete ruleset.config['flow']
 
       # settings for a message form
-      if rulesetConfig.type == 'form_field'
+      else if rulesetConfig.type == 'form_field'
         ruleset.operand = '@flow.' + flowField.id
         ruleset.config =
           field_index: $scope.formData.fieldIndex.id
@@ -1407,29 +1402,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           airtimeConfig[elt.code] = elt
         ruleset.config = airtimeConfig
 
-        # remove any non airtime rule
-        rules = []
-        for rule in ruleset.rules
-          if rule.type == 'airtime_status'
-            rules.push(rule)
-
-        ruleset.rules = rules
-
       # update our operand if they selected a contact field explicitly
-      else if ruleset.ruleset_type == 'contact_field'
+      else if rulesetConfig.type == 'contact_field'
         ruleset.operand = '@contact.' + contactField.id
 
       # or if they picked a flow field
-      else if ruleset.ruleset_type == 'flow_field'
+      else if rulesetConfig.type == 'flow_field'
         ruleset.operand = '@flow.' + flowField.id
 
       # or just want to evaluate against a message
-      else if ruleset.ruleset_type == 'wait_message'
+      else if rulesetConfig.type == 'wait_message'
         ruleset.operand = '@step.value'
 
       # clear our webhook if we aren't the right type
       # TODO: this should live in a json config blob
-      if ruleset.ruleset_type != 'webhook'
+      if rulesetConfig.type != 'webhook'
         ruleset.webhook = null
         ruleset.webhook_action = null
 

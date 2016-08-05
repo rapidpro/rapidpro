@@ -357,6 +357,48 @@ describe 'Controllers:', ->
       expect(ruleset.ruleset_type).toBe('airtime')
       expect(ruleset.rules.length).toBe(2)
 
+    it 'should maintain connections on prescribed rulesets', ->
+      $rootScope.hasAirtimeService = true
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      $http.flush()
+
+      getRuleConfig = (type) ->
+        for ruleset in flowService.rulesets
+          if ruleset.type == type
+            return ruleset
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+        modalScope.ruleset.ruleset_type = 'airtime'
+        modalScope.formData.rulesetConfig = getRuleConfig('airtime')
+        modalScope.okRules()
+      $timeout.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+      ruleset.rules[0].destination = 'destination a'
+      ruleset.rules[1].destination = 'destination b'
+
+      # now click on the ruleset again
+      $scope.clickRuleset(ruleset)
+      $scope.dialog.opened.then ->
+
+        #console.log($scope.dialog)
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # simulate selecting airtime ruleset
+        modalScope.ruleset.ruleset_type = 'airtime'
+        modalScope.formData.rulesetConfig = getRuleConfig('airtime')
+        modalScope.okRules()
+
+      $timeout.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules[0].destination).toBe('destination a')
+      expect(ruleset.rules[1].destination).toBe('destination b')
+
     it 'should filter action options based on flow type', ->
 
       # load a flow

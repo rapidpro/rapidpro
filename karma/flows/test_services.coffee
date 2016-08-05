@@ -72,12 +72,15 @@ describe 'Services:', ->
 
     it 'should restrict rules according to exclusivity', ->
       expect(flowService.isRuleAllowed('subflow', 'subflow')).toBe(true)
+      expect(flowService.isRuleAllowed('subflow', 'contains_any')).toBe(false)
       expect(flowService.isRuleAllowed('wait_message', 'subflow')).toBe(false)
       expect(flowService.isRuleAllowed('wait_message', 'contains_any')).toBe(true)
       expect(flowService.isRuleAllowed('wait_message', 'webhook')).toBe(false)
       expect(flowService.isRuleAllowed('wait_message', 'timeout')).toBe(true)
       expect(flowService.isRuleAllowed('webhook', 'webhook')).toBe(true)
       expect(flowService.isRuleAllowed('webhook', 'timeout')).toBe(false)
+      expect(flowService.isRuleAllowed('airtime', 'contains_any')).toBe(false)
+
 
     it 'should determine the flow entry', ->
       flowService.fetch(flows.favorites.id).then ->
