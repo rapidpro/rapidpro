@@ -339,7 +339,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0], {
             'id': "1708283",
             'name': "Kigali City",
-            'parent': "171496",
+            'parent': {'id': "171496", 'name': "Rwanda"},
             'level': 1,
             'aliases': ["Kigali", "Kigari"],
             'geometry': None
@@ -352,7 +352,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0], {
             'id': "1708283",
             'name': "Kigali City",
-            'parent': "171496",
+            'parent': {'id': "171496", 'name': "Rwanda"},
             'level': 1,
             'aliases': ["Kigali", "Kigari"],
             'geometry': {

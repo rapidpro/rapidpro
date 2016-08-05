@@ -53,7 +53,7 @@ class AdminBoundaryReadSerializer(ReadSerializer):
         return obj.osm_id
 
     def get_parent(self, obj):
-        return obj.parent.osm_id if obj.parent else None
+        return {'id': obj.parent.osm_id, 'name': obj.parent.name} if obj.parent else None
 
     def get_aliases(self, obj):
         return [alias.name for alias in obj.aliases.all()]
