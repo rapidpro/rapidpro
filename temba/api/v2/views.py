@@ -280,11 +280,11 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
             "previous": null,
             "results": [
             {
-                "id": "R3713502",
-                "name": "Aba North",
-                "parent": "R3713501",
+                "id": "1708283",
+                "name": "Kigali City",
+                "parent": {"id": "171496", "name": "Rwanda"},
                 "level": 1,
-                "aliases": ["Abanorth"],
+                "aliases": ["Kigari"],
                 "geometry": {
                     "type": "MultiPolygon",
                     "coordinates": [
