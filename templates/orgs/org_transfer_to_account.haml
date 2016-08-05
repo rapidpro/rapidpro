@@ -14,7 +14,14 @@
     -trans "Connected to TransferTo Account"
     {{transferto_account_login}}
   -else
-    -trans "Disconnected from TransferTo"
+    -trans "No TransferTo account connected"
+
+-block pre-form
+  -blocktrans
+    Adding a TransferTo account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected
+    you can transfer airtime credit within your Flows. To signup for an account, visit
+  <a target='_new' href='https://www.transfer-to.com/about#contact_us'>TransferTo</a>.
+  %hr
 
 -block post-form
   -if object.is_connected_to_transferto and request.META.HTTP_X_FORMAX
@@ -27,9 +34,13 @@
         -trans "Disconnect TransferTo"
       .body
         -blocktrans
-          Disconnecting your TransferTo account. Are you sure you want to proceed?
-    %a#disconnect-transferto-form.posterize{href:'{% url "orgs.org_transferto_account" %}?disconnect=true'}
-
+          This will disconnect your TransferTo account. Once you do this, no payment actions will be processed. Are you sure you want to proceed?
+    %a#disconnect-transferto-form.posterize{href:'{% url "orgs.org_transfer_to_account" %}?disconnect=true'}
+  -else
+    -trans "You can find your API Token by clicking on "
+    %a{href:'https://shop.transferto.com/cgi-bin/developer_page', target:'_new'}><
+      Developer
+    -trans " on the TransferTo site."
   -if object.has_airtime_transfers
     %hr
       %a.btn{href:'{% url "airtime.airtime_list" %}'}

@@ -1082,7 +1082,7 @@ SEND_EMAILS = False
 ######
 # DANGER: only turn this on if you know what you are doing!
 #         could cause airtime transfers in test environment
-SEND_AIRTIME = False
+SEND_AIRTIME = True
 
 
 MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',
