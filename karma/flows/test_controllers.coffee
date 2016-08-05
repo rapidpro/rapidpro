@@ -222,6 +222,57 @@ describe 'Controllers:', ->
       expect(lastRule['test']['type']).toBe('timeout')
       expect(lastRule['test']['minutes']).toBe(10)
 
+    it 'should save webhook rulesets', ->
+
+      # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      $http.flush()
+
+      getRuleConfig = (type) ->
+        for ruleset in flowService.rulesets
+          if ruleset.type == type
+            return ruleset
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # simulate selecting a webhook
+        modalScope.ruleset.ruleset_type = 'webhook'
+        modalScope.formData.rulesetConfig = getRuleConfig('webhook')
+        modalScope.okRules()
+
+      $timeout.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+
+      # our ruleset should be
+      expect(ruleset.ruleset_type).toBe('webhook')
+      expect(ruleset.rules.length).toBe(2)
+      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"webhook","result":"success"}')
+      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"webhook","result":"failure"}')
+
+      # now save it as a regular wait
+      $scope.clickRuleset(ruleset)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # simulate selecting a child flow
+        modalScope.ruleset.ruleset_type = 'wait_message'
+        modalScope.formData.rulesetConfig = getRuleConfig('wait_message')
+        modalScope.okRules()
+      $timeout.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+      for rule in ruleset.rules
+        if rule.test.type == 'webhook'
+          fail('Webhook rule found on non webhook ruleset')
+          break
+
     it 'should save subflow rulesets', ->
        # load a flow
       flowService.fetch(flows.favorites.id)
@@ -256,9 +307,25 @@ describe 'Controllers:', ->
       # our ruleset should be
       expect(ruleset.ruleset_type).toBe('subflow')
       expect(ruleset.rules.length).toBe(2)
-      config = JSON.stringify(ruleset.config)
-
       expect(JSON.stringify(ruleset.config)).toBe('{"flow":{"name":"Child Flow","uuid":"cf785f12-658a-4821-ae62-7735ea5c6cef"}}')
+
+      # now save it as a regular wait
+      $scope.clickRuleset(ruleset)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        # simulate selecting a child flow
+        modalScope.ruleset.ruleset_type = 'wait_message'
+        modalScope.formData.rulesetConfig = getRuleConfig('wait_message')
+        modalScope.okRules()
+      $timeout.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+      for rule in ruleset.rules
+        if rule.test.type == 'subflow'
+          fail('Subflow rule found on non subflow ruleset')
+          break
 
     it 'should filter action options based on flow type', ->
 

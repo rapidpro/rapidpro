@@ -1183,48 +1183,39 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   $scope.updateRules = (ruleset, rulesetConfig) ->
 
+    # strip out exclusive rules if we have any
+    ruleset.rules = for rule in ruleset.rules when Flow.exclusiveRules[rule.test.type] == undefined or Flow.exclusiveRules[rule.test.type] == ruleset.ruleset_type then rule
+
     # start with an empty list of rules
     rules = []
 
-    # subflow rulesets have their own kind of rules
-    if ruleset.ruleset_type == 'subflow'
+    if rulesetConfig.rules
 
-      needs_completed = true
-      needs_expired = true
-      
-      # see which subflow rules we already have
+      # find out the allowed rules for our ruleset
+      validRules = {}
+      for rule in rulesetConfig.rules
+        validRules[rule.test.type]
+
+      # collect our existing rules that are valid
       for rule in ruleset.rules
-        if rule.type == 'subflow'
-          if rule.test.exit_type == 'completed'
-            needs_completed = false
-            rules.push(rule)
-          if rule.test.exit_type == 'expired'
-            needs_expired = false
-            rules.push(rule)
+        if rule.test.type in validRules
+          rules.push(rule)
 
-      # if we don't have a completed rule add it
-      if needs_completed
-        rule =
-          uuid: uuid(),
-          type: 'subflow'
-          test: 
-            type: 'subflow'
-            exit_type: 'completed'
-          category: {}
-        rule['category'][Flow.flow.base_language] = 'Completed'
-        rules.push(rule)
+      # fill in any missing rules
+      for rule in rulesetConfig.rules
+        found = false
+        for new_rule in ruleset.rules
+          if new_rule.test == rule.test
+            found = true
 
-      # if we don't have an expired rule, add it
-      if needs_expired
-        rule =
-          uuid: uuid(),
-          type: 'subflow'
-          test: 
-            type: 'subflow'
-            exit_type: 'expired'
-          category: {}
-        rule['category'][Flow.flow.base_language] = 'Expired'
-        rules.push(rule)
+        # construct a new rule accordingly and add it
+        if not found
+          newRule =
+            uuid: uuid()
+            test: rule.test
+            category: {}
+          newRule.category[Flow.flow.base_language] = rule.name
+          rules.push(newRule)
 
     # create rules off of an IVR menu configuration
     if ruleset.ruleset_type == 'wait_digit'
@@ -1238,7 +1229,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
               type: 'eq'
               test: option.number
           rule.category[Flow.flow.base_language] = option.category._base
-
           rules.push(rule)
 
     # rules configured from our select widgets
@@ -1306,8 +1296,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       otherCategory = {}
     otherCategory[Flow.flow.base_language] = otherCategoryName
 
-    # for all rules that require a catch all, append a true rule
-    if ruleset.ruleset_type != 'subflow'
+    # add an alwys true rule if not configured
+    if not rulesetConfig.rules
       rules.push
         _config: Flow.getOperatorConfig("true")
         test:
@@ -1317,7 +1307,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         uuid: otherRuleUuid
         category: otherCategory
 
-    if $scope.formData.hasTimeout
+    if $scope.formData.hasTimeout and ruleset.ruleset_type == 'wait_message'
       rules.push
         _config: Flow.getOperatorConfig("timeout")
         test:
@@ -1351,28 +1341,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
 
+      # update our subflow config
       if rulesetConfig.type == 'subflow'
-        # configure our subflow settings
         flow = splitEditor.flow.selected[0]
         ruleset.config =
           flow:
             name: flow.text
             uuid: flow.id
-
-        # remove any non subflow actions
-        rules = []
-        for rule in ruleset.rules
-          if rule.type == 'subflow'
-            rules.push(rule)
-        ruleset.rules = rules
       else
-
-        # remove subflow rules
-        rules = []
-        for rule in ruleset.rules
-          if rule.type != 'subflow'
-            rules.push(rule)
-        ruleset.rules = rules
+        delete ruleset.config['flow']
 
       # settings for a message form
       if rulesetConfig.type == 'form_field'
