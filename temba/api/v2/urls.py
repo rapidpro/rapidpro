@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
 from .views import api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, ChannelsEndpoint, ChannelEventsEndpoint
-from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint
+from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
 from .views import FieldsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
 from .views import OrgEndpoint, RunsEndpoint
 
@@ -20,8 +20,9 @@ urlpatterns = [
     url(r'^/channels$', ChannelsEndpoint.as_view(), name='api.v2.channels'),
     url(r'^/channel_events$', ChannelEventsEndpoint.as_view(), name='api.v2.channel_events'),
     url(r'^/contacts$', ContactsEndpoint.as_view(), name='api.v2.contacts'),
-    url(r'^/fields$', FieldsEndpoint.as_view(), name='api.v2.fields'),
     url(r'^/definitions$', DefinitionsEndpoint.as_view(), name='api.v2.definitions'),
+    url(r'^/fields$', FieldsEndpoint.as_view(), name='api.v2.fields'),
+    url(r'^/flows$', FlowsEndpoint.as_view(), name='api.v2.flows'),
     url(r'^/groups$', GroupsEndpoint.as_view(), name='api.v2.groups'),
     url(r'^/labels$', LabelsEndpoint.as_view(), name='api.v2.labels'),
     url(r'^/media$', MediaEndpoint.as_view(), name='api.v2.media'),
