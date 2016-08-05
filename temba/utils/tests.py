@@ -23,6 +23,7 @@ from .expressions import migrate_template, evaluate_template, evaluate_template_
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
+from .currencies import currency_for_country
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
@@ -800,3 +801,12 @@ class TableExporterTest(TembaTest):
 
         self.assertEquals(67000 + 2 - 65536, sheet2.nrows)
         self.assertEquals(32, sheet2.ncols)
+
+
+class CurrencyTest(TembaTest):
+
+    def test_currencies(self):
+        self.assertEqual(currency_for_country('US'), 'USD')
+        self.assertEqual(currency_for_country('EC'), 'USD')
+        self.assertEqual(currency_for_country('FR'), 'EUR')
+        self.assertEqual(currency_for_country('DE'), 'EUR')
