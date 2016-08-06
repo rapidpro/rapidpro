@@ -806,7 +806,7 @@ class TableExporterTest(TembaTest):
 class CurrencyTest(TembaTest):
 
     def test_currencies(self):
-        self.assertEqual(currency_for_country('US'), 'USD')
-        self.assertEqual(currency_for_country('EC'), 'USD')
-        self.assertEqual(currency_for_country('FR'), 'EUR')
-        self.assertEqual(currency_for_country('DE'), 'EUR')
+        self.assertEqual(currency_for_country('US').letter, 'USD')
+        self.assertEqual(currency_for_country('EC').letter, 'USD')
+        self.assertEqual(currency_for_country('FR').letter, 'EUR')
+        self.assertEqual(currency_for_country('DE').letter, 'EUR')
