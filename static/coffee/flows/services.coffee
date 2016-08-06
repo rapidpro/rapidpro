@@ -444,10 +444,11 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', split:'digits', filter:VOICE },
 
         # online flows
-        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE], rules:[
-          { name: 'Success', test: { type: 'webhook', result: 'success'}},
-          { name: 'Failure', test: { type: 'webhook', result: 'failure'}},
-        ]},
+        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE] }
+        #, rules:[
+        #  { name: 'Success', test: { type: 'webhook', result: 'success'}},
+        #  { name: 'Failure', test: { type: 'webhook', result: 'failure'}},
+        #]},
 
         { type: 'airtime', name:'Transfer Airtime', verbose_name: 'Transfer Airtime', split: 'transfer airtime', filter:[TEXT, VOICE], rules: [
           { name: 'Success', test: { type: 'airtime_status', exit_status: 'success'}},

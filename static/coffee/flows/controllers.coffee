@@ -418,6 +418,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     Flow.removeNote(note)
 
   $scope.clickRuleset = (ruleset, dragSource=null) ->
+
     if window.dragging or not window.mutable
       return
 
@@ -882,12 +883,19 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     {value:60, text:'1 hour'},
     {value:120, text:'2 hours'},
     {value:180, text:'3 hours'},
-    {value:360, text:'6 hours'}
+    {value:360, text:'6 hours'},
+    {value:720, text:'12 hours'},
+    {value:1080, text:'18 hours'},
+    {value:1440, text:'1 day'},
+    {value:2880, text:'2 days'},
+    {value:4320, text:'3 days'},
+    {value:10080, text:'1 week'},
   ]
 
   minutes = 5
   formData.hasTimeout = false
 
+  # check if we have a timeout rule present
   for rule in ruleset.rules
     if rule.test.type == 'timeout'
       minutes = rule.test.minutes
@@ -1199,7 +1207,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
-      if rule._config.type == 'airtime_status' or rule._config.type == 'subflow'
+      if rule._config.type in ['airtime_status','subflow','timeout']
         continue
       complete = complete and $scope.isRuleComplete(rule)
       if not complete
@@ -1218,8 +1226,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   , true
 
   $scope.updateRules = (ruleset, rulesetConfig) ->
-    # strip out exclusive rules if we have any
-    ruleset.rules = for rule in ruleset.rules when Flow.isRuleAllowed(ruleset.ruleset_type, rule.test.type) then rule
 
     rules = []
     if rulesetConfig.rules
@@ -1329,7 +1335,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       otherCategory = {}
     otherCategory[Flow.flow.base_language] = otherCategoryName
 
-    # add an alawys true rule if not configured
+    # add an always true rule if not configured
     if not rulesetConfig.rules
       rules.push
         _config: Flow.getOperatorConfig("true")
@@ -1349,6 +1355,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         destination: timeoutDestination
         uuid: timeoutRuleUuid
         category: timeoutCategory
+
+    # strip out exclusive rules if we have any
+    rules = for rule in rules when Flow.isRuleAllowed($scope.ruleset.ruleset_type, rule.test.type) then rule
 
     $scope.ruleset.rules = rules
 
@@ -1385,7 +1394,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
             uuid: flow.id
 
       # settings for a message form
-      else if rulesetConfig.type == 'form_field'
+      if rulesetConfig.type == 'form_field'
         ruleset.operand = '@flow.' + flowField.id
         ruleset.config =
           field_index: $scope.formData.fieldIndex.id
@@ -1614,7 +1623,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.field = field.id
     $scope.action.label = field.text
     $scope.action.value = value
-
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
