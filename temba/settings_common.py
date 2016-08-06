@@ -199,10 +199,6 @@ INSTALLED_APPS = (
     # django-timezones
     'timezones',
 
-    # sentry
-    'raven.contrib.django',
-    'raven.contrib.django.celery',
-
     # temba apps
     'temba.assets',
     'temba.auth_tweaks',
