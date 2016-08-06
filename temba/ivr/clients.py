@@ -24,22 +24,16 @@ class IVRException(Exception):
 
 class TwilioClient(TwilioRestClient):
 
-    def __init__(self, account, token, org=None, base=None, **kwargs):
+    def __init__(self, account, token, org=None, **kwargs):
         self.org = org
-        self.base = base
-        super(TwilioClient, self).__init__(account=account, token=token, base=base, **kwargs)
+        super(TwilioClient, self).__init__(account=account, token=token, **kwargs)
 
     def start_call(self, call, to, from_, status_callback):
 
         try:
-            url = status_callback
-
-            if self.base:
-                url = self.base
-
             twilio_call = self.calls.create(to=to,
                                             from_=call.channel.address,
-                                            url=url,
+                                            url=status_callback,
                                             status_callback=status_callback)
             call.external_id = unicode(twilio_call.sid)
             call.save()
