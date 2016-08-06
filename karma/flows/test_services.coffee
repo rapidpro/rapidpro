@@ -80,12 +80,10 @@ describe 'Services:', ->
       expect(flowService.isRuleAllowed('wait_message', 'timeout')).toBe(true)
       expect(flowService.isRuleAllowed('subflow', 'timeout')).toBe(false)
       expect(flowService.isRuleAllowed('webhook', 'timeout')).toBe(false)
-
-      #expect(flowService.isRuleAllowed('webhook', 'webhook')).toBe(true)
-      #expect(flowService.isRuleAllowed('webhook', 'timeout')).toBe(false)
-      #expect(flowService.isRuleAllowed('airtime', 'contains_any')).toBe(false)
-      #expect(flowService.isRuleAllowed('wait_message', 'webhook')).toBe(false)
-
+      expect(flowService.isRuleAllowed('webhook', 'webhook')).toBe(true)
+      expect(flowService.isRuleAllowed('webhook', 'timeout')).toBe(false)
+      expect(flowService.isRuleAllowed('airtime', 'contains_any')).toBe(false)
+      expect(flowService.isRuleAllowed('wait_message', 'webhook')).toBe(false)
 
     it 'should determine the flow entry', ->
       flowService.fetch(flows.favorites.id).then ->
@@ -417,5 +415,5 @@ describe 'Services:', ->
         # green should have moved there too automatically
         red = getRule(flow, colorRulesId, redRuleId)
         green = getRule(flow, colorRulesId, greenRuleId)
-        expect(green.destination).toBe(nameActionsId, 'green rule didnt update')
-        expect(red.destination).toBe(nameActionsId, 'red rule didnt update')
+        expect(green.destination).toBe(nameActionsId, "green rule didn't update")
+        expect(red.destination).toBe(nameActionsId, "red rule didn't update")
