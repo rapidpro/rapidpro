@@ -125,7 +125,7 @@ class AirtimeEventTest(TembaTest):
                                      MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
 
         airtime = AirtimeTransfer.trigger_airtime_event(org, ruleset, self.contact, None)
-        self.assertEqual(airtime.status, AirtimeTransfer.COMPLETE)
+        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
         self.assertEqual(airtime.contact, self.contact)
         self.assertEqual(airtime.message, "Airtime Transferred Successfully")
         self.assertEqual(mock_response.call_count, 3)

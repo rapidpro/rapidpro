@@ -3148,7 +3148,7 @@ class RuleSet(models.Model):
                     log_txt = "Simulate Complete airtime transfer"
                     ActionLog.create(run, log_txt, safe=True)
 
-                    airtime = AirtimeTransfer(status=AirtimeTransfer.COMPLETE)
+                    airtime = AirtimeTransfer(status=AirtimeTransfer.SUCCESS)
                 else:
                     airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
 
@@ -5276,10 +5276,10 @@ class AirtimeStatusTest(Test):
     TYPE = 'airtime_status'
     EXIT = 'exit_status'
 
-    STATUS_COMPLETED = 'completed'
+    STATUS_SUCCESS = 'success'
     STATUS_FAILED = 'failed'
 
-    STATUS_MAP = {STATUS_COMPLETED: AirtimeTransfer.COMPLETE,
+    STATUS_MAP = {STATUS_SUCCESS: AirtimeTransfer.SUCCESS,
                   STATUS_FAILED: AirtimeTransfer.FAILED}
 
     def __init__(self, exit_status):
