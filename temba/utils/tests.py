@@ -810,3 +810,5 @@ class CurrencyTest(TembaTest):
         self.assertEqual(currency_for_country('EC').letter, 'USD')
         self.assertEqual(currency_for_country('FR').letter, 'EUR')
         self.assertEqual(currency_for_country('DE').letter, 'EUR')
+        self.assertEqual(currency_for_country('YE').letter, 'YER')
+        self.assertEqual(currency_for_country('AF').letter, 'AFN')
