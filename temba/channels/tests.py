@@ -5016,7 +5016,7 @@ class TwimlAPITest(TembaTest):
                                           SEND_URL: send_url})
         self.channel.save()
 
-        post_data = dict(To='+250785551212', From='+250788383300', Body="Hello World")
+        post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
         twiml_api_url = reverse('handlers.twiml_api_handler', args=[self.channel.uuid])
 
         try:
