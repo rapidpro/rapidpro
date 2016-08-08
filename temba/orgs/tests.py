@@ -1277,6 +1277,17 @@ class OrgTest(TembaTest):
             self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_transferto())
 
+        # No account connected, do not show the button to Transfer logs
+        response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
+        self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+        self.org.connect_transferto('login', 'token', self.admin)
+
+        response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
+        self.assertContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
     def test_connect_nexmo(self):
         self.login(self.admin)
 
