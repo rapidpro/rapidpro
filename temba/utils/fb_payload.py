@@ -30,8 +30,11 @@ def get_fb_payload(msg, text):
         destination = step.get_step().destination
 
         try:
-            rules = RuleSet.objects.filter(uuid=destination).first().as_json()
+            rule = RuleSet.objects.filter(uuid=destination).first()
+            lang = rule.flow.base_language
+            rules = rule.as_json()
         except:
+            lang = BASE
             rules = None
 
         if rules:
@@ -40,7 +43,7 @@ def get_fb_payload(msg, text):
 
                 buttons = []
                 for rule in rules.get(RULES):
-                    category, value = get_value_payload(rule)
+                    category, value = get_value_payload(rule, lang)
 
                     if category and value:
                         if model == BUTTON:
@@ -74,7 +77,7 @@ def get_model(rules):
     return response
 
 
-def get_value_payload(rule):
+def get_value_payload(rule, lang):
     category = rule.get(CATEGORY)
     test = rule.get(TEST).get(TEST)
     value = None
@@ -83,12 +86,15 @@ def get_value_payload(rule):
 
     if test == STR_TRUE or rule.get(TEST).get(TYPE) not in PERM:
         pass
-    elif category.get(BASE) != OTHER.capitalize():
+    elif category.get(lang) != OTHER.capitalize():
         try:
             base = test.get(BASE)
         except:
             base = test
 
+        print(base)
         value = base.split(' ')[0]
 
-    return category.get(BASE), value
+    print("--- %s" % category.get(lang))
+
+    return category.get(lang), value
