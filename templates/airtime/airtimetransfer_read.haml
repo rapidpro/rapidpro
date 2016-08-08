@@ -15,20 +15,13 @@
     %h3
       -trans "Data posted Log"
       %pre.data.prettyprint{ style:'margin-top:10px;' }<
-        -if object.data
-          {{ object.data|default:"" }}
-        -else
-          -trans "No Data"
+        {% if object.data %}{{ object.data|default:"" }}{% else %}{% trans "No Data" %}{% endif %}
 
     %hr
     %h3
       -trans "Responses Log"
     %pre.responses.prettyprint{ style:'margin-top:10px;' }<
-      -if object.response
-        {{ object.response|default:"" }}
-      -else
-        -trans "No Response"
-
+      {% if object.response %}{{ object.response|default:"" }}{% else %}{% trans "No Response" %}{% endif %}
 
 -block extra-script
   {{ block.super }}
