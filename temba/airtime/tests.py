@@ -205,7 +205,8 @@ class AirtimeEventTest(TembaTest):
 
         self.login(self.editor)
         response = self.client.get(list_url)
-        self.assertRedirect(response, '/users/login/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(self.airtime in response.context['object_list'])
 
         self.login(self.admin)
         response = self.client.get(list_url)
@@ -221,7 +222,8 @@ class AirtimeEventTest(TembaTest):
 
         self.login(self.editor)
         response = self.client.get(read_url)
-        self.assertRedirect(response, '/users/login/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.airtime.pk, response.context['object'].pk)
 
         self.login(self.admin)
         response = self.client.get(read_url)

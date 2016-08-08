@@ -17,7 +17,7 @@ from temba.utils import get_country_code_by_name
 
 class AirtimeTransfer(SmartModel):
     TRANSFERTO_AIRTIME_API_URL = 'https://fm.transfer-to.com/cgi-bin/shop/topup'
-    LOG_DIVIDER = "%s\n\n\n" % ('=' * 20)
+    LOG_DIVIDER = "\n\n%s\n\n" % ('=' * 20)
 
     PENDING = 'P'
     SUCCESS = 'S'
@@ -66,7 +66,7 @@ class AirtimeTransfer(SmartModel):
         response = requests.post(cls.TRANSFERTO_AIRTIME_API_URL, data)
 
         if airtime_obj is not None:
-            airtime_obj.data += json.dumps(data) + AirtimeTransfer.LOG_DIVIDER
+            airtime_obj.data += json.dumps(data, indent=2) + AirtimeTransfer.LOG_DIVIDER
             airtime_obj.response += response.content + AirtimeTransfer.LOG_DIVIDER
             airtime_obj.save()
 

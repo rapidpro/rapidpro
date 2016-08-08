@@ -529,8 +529,8 @@ GROUP_PERMISSIONS = {
         'orgs.topup_update',
     ),
     "Administrators": (
-        # 'airtime.airtimetransfer_list',
-        # 'airtime.airtimetransfer_read',
+        'airtime.airtimetransfer_list',
+        'airtime.airtimetransfer_read',
 
         'api.apitoken_refresh',
         'api.webhookevent_list',
@@ -584,7 +584,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_nexmo_configuration',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
-        # 'orgs.org_transfer_to_account',
+        'orgs.org_transfer_to_account',
         'orgs.org_twilio_account',
         'orgs.org_twilio_connect',
         'orgs.org_webhook',
@@ -670,6 +670,9 @@ GROUP_PERMISSIONS = {
         'api.apitoken_refresh',
         'api.webhookevent_list',
         'api.webhookevent_read',
+
+        'airtime.airtimetransfer_list',
+        'airtime.airtimetransfer_read',
 
         'campaigns.campaign.*',
         'campaigns.campaignevent.*',

@@ -1317,8 +1317,12 @@ class FlowCRUDL(SmartCRUDL):
             # all the translation languages for our org
             languages = [lang.as_json() for lang in flow.org.languages.all().order_by('orgs')]
 
-            # all countries we have a channel for
-            channel_countries = flow.org.get_channel_countries()
+            # all countries we have a channel for, never fail here
+            try:
+                channel_countries = flow.org.get_channel_countries()
+            except Exception:
+                logger.error('Unable to get currency for channel countries.', exc_info=True)
+                channel_countries = []
 
             # all the channels available for our org
             channels = [dict(uuid=chan.uuid, name=u"%s: %s" % (chan.get_channel_type_display(), chan.get_address_display())) for chan in flow.org.channels.filter(is_active=True)]
