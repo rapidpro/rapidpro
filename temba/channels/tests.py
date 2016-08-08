@@ -5089,8 +5089,6 @@ class TwimlAPITest(TembaTest):
         self.assertEquals(FAILED, sms.status)
 
     def test_send(self):
-        channel_config = Channel.objects.filter(org=self.org, channel_type=TWIML_API).first()
-        config = channel_config.config
 
         joe = self.create_contact("Joe", "+250788383383")
         bcast = joe.send("Test message", self.admin, trigger_send=False)
