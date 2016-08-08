@@ -1282,8 +1282,18 @@ class OrgTest(TembaTest):
         self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
         self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
 
+        response = self.client.get(transferto_account_url)
+        self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
         self.org.connect_transferto('login', 'token', self.admin)
 
+        # links not show if request is not from formax
+        response = self.client.get(transferto_account_url)
+        self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+        # link show for formax requests
         response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
         self.assertContains(response, reverse('airtime.airtimetransfer_list'))
         self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
