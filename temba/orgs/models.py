@@ -561,8 +561,8 @@ class Org(SmartModel):
     def get_channel_countries(self):
         channel_countries = []
 
-        # temporary disabled
-        return []
+        if not self.is_connected_to_transferto():
+            return channel_countries
 
         channel_country_codes = self.channels.filter(is_active=True).exclude(country=None)
         channel_country_codes = channel_country_codes.values_list('country', flat=True).distinct()

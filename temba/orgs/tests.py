@@ -81,6 +81,10 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug('Allo'), 'allo-2')
 
     def test_get_channel_countries(self):
+        self.assertEqual(self.org.get_channel_countries(), [])
+
+        self.org.connect_transferto('mylogin', 'api_token', self.admin)
+
         self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
                                                                  currency_code='RWF')])
 
