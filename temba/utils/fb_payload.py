@@ -88,13 +88,10 @@ def get_value_payload(rule, lang):
         pass
     elif category.get(lang) != OTHER.capitalize():
         try:
-            base = test.get(BASE)
+            base = test.get(lang)
         except:
             base = test
 
-        print(base)
         value = base.split(' ')[0]
-
-    print("--- %s" % category.get(lang))
 
     return category.get(lang), value
