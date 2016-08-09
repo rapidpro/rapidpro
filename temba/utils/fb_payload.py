@@ -94,4 +94,6 @@ def get_value_payload(rule, lang):
 
         value = base.split(' ')[0]
 
-    return category.get(lang), value
+    category = category.get(lang)[:20] if category.get(lang) else category.get(BASE)
+
+    return category, value
