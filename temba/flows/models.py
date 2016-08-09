@@ -28,6 +28,7 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
+from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
@@ -35,7 +36,7 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INI
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
 from temba.utils.email import send_template_email, is_valid_address
-from temba.utils.models import TembaModel, ChunkIterator
+from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
@@ -1110,6 +1111,9 @@ class Flow(TembaModel):
 
     def get_completed_runs(self):
         return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_COMPLETED)
+
+    def get_interrupted_runs(self):
+        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_INTERRUPTED)
 
     def get_expired_runs(self):
         return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_EXPIRED)
@@ -2925,6 +2929,7 @@ class RuleSet(models.Model):
     TYPE_WAIT_AUDIO = 'wait_audio'
     TYPE_WAIT_GPS = 'wait_gps'
 
+    TYPE_AIRTIME = 'airtime'
     TYPE_WEBHOOK = 'webhook'
     TYPE_RESTHOOK = 'resthook'
     TYPE_FLOW_FIELD = 'flow_field'
@@ -2942,9 +2947,11 @@ class RuleSet(models.Model):
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
                     (TYPE_WAIT_DIGIT, "Wait for digit"),
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
+                    (TYPE_SUBFLOW, "Subflow"),
                     (TYPE_WEBHOOK, "Webhook"),
                     (TYPE_RESTHOOK, "Resthook"),
-                    (TYPE_FLOW_FIELD, "Split on flow field"),
+                    (TYPE_AIRTIME, "Transfer Airtime"),
+                    (TYPE_FORM_FIELD, "Split by message form"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
                     (TYPE_EXPRESSION, "Split by expression"))
 
@@ -3148,6 +3155,25 @@ class RuleSet(models.Model):
                 (text, errors) = Msg.substitute_variables(self.operand, run.contact, context, org=run.flow.org)
             elif msg:
                 text = msg.text
+
+            if self.ruleset_type == RuleSet.TYPE_AIRTIME:
+
+                # flow simulation will always simulate a suceessful airtime transfer
+                # without saving the object in the DB
+                if run.contact.is_test:
+                    from temba.flows.models import ActionLog
+                    log_txt = "Simulate Complete airtime transfer"
+                    ActionLog.create(run, log_txt, safe=True)
+
+                    airtime = AirtimeTransfer(status=AirtimeTransfer.SUCCESS)
+                else:
+                    airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
+
+                # rebuild our context again, the webhook may have populated something
+                context = run.flow.build_message_context(run.contact, msg)
+
+                # airtime test evaluate against the status of the airtime
+                text = airtime.status
 
             try:
                 rules = self.get_rules()
@@ -4054,10 +4080,13 @@ class FlowStart(SmartModel):
 
 
 class FlowLabel(models.Model):
+    org = models.ForeignKey(Org)
+
+    uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid,
+                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this label"))
     name = models.CharField(max_length=64, verbose_name=_("Name"),
                             help_text=_("The name of this flow label"))
     parent = models.ForeignKey('FlowLabel', verbose_name=_("Parent"), null=True, related_name="children")
-    org = models.ForeignKey(Org)
 
     def get_flows_count(self):
         """
@@ -5228,6 +5257,7 @@ class Test(object):
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest,
                 TimeoutTest.TYPE: TimeoutTest,
+                AirtimeStatusTest.TYPE: AirtimeStatusTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -5254,6 +5284,36 @@ class Test(object):
         side effects.
         """
         raise FlowException("Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested")
+
+
+class AirtimeStatusTest(Test):
+    """
+    {op: 'airtime_status'}
+    """
+    TYPE = 'airtime_status'
+    EXIT = 'exit_status'
+
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+
+    STATUS_MAP = {STATUS_SUCCESS: AirtimeTransfer.SUCCESS,
+                  STATUS_FAILED: AirtimeTransfer.FAILED}
+
+    def __init__(self, exit_status):
+        self.exit_status = exit_status
+
+    @classmethod
+    def from_json(cls, org, json):
+        return AirtimeStatusTest(json.get('exit_status'))
+
+    def as_json(self):
+        return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
+
+    def evaluate(self, run, sms, context, text):
+        status = text
+        if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
+            return 1, status
+        return 0, None
 
 
 class SubflowTest(Test):

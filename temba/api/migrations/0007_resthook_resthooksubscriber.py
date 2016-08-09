@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 ('slug', models.SlugField(help_text='A simple label for this event')),
                 ('created_by', models.ForeignKey(related_name='api_resthook_creations', to=settings.AUTH_USER_MODEL, help_text='The user which originally created this item')),
                 ('modified_by', models.ForeignKey(related_name='api_resthook_modifications', to=settings.AUTH_USER_MODEL, help_text='The user which last modified this item')),
-                ('org', models.ForeignKey(help_text='The organization this resthook belongs to', to='orgs.Org')),
+                ('org', models.ForeignKey(help_text='The organization this resthook belongs to', related_name='resthooks', to='orgs.Org')),
             ],
             options={
                 'abstract': False,

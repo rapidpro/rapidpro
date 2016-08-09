@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?5u1bbo');
-  src:  url('fonts/temba.eot?5u1bbo#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?5u1bbo') format('truetype'),
-    url('fonts/temba.woff?5u1bbo') format('woff'),
-    url('fonts/temba.svg?5u1bbo#temba') format('svg');
+  src:  url('fonts/temba.eot?n5zh88');
+  src:  url('fonts/temba.eot?n5zh88#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?n5zh88') format('truetype'),
+    url('fonts/temba.woff?n5zh88') format('woff'),
+    url('fonts/temba.svg?n5zh88#temba') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -26,6 +26,9 @@
 
 .icon-cloud-lightning:before {
   content: "\e903";
+}
+.icon-transferto:before {
+  content: "\e0d2";
 }
 .icon-headphones:before {
   content: "\e948";
@@ -741,9 +744,6 @@
 .icon-telegram:before {
   content: "\e900";
 }
-.icon-facebook-official:before {
-  content: "\e902";
-}
 .icon-file_download:before {
   content: "\e901";
 }
@@ -764,5 +764,8 @@
 }
 .icon-language:before {
   content: "\e602";
+}
+.icon-facebook-official:before {
+  content: "\e902";
 }
 

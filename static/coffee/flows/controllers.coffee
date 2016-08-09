@@ -82,6 +82,7 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
   # inject into our gear menu
   $rootScope.gearLinks = []
   $rootScope.ivr = window.ivr
+  $rootScope.hasAirtimeService = window.hasAirtimeService
 
   $scope.getContactFieldName = (ruleset) ->
     if not ruleset._contactFieldName
@@ -125,6 +126,16 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     $scope.dialog = utils.openModal("/partials/modal", SimpleMessageController, resolveObj)
     return $scope.dialog
+
+  showConnectTransferTo = ->
+    modal = new ConfirmationModal(gettext("TransferTo Disconnected"), gettext("No TransferTo account connected. Please first connect your TransferTo account."))
+    modal.addClass('airtime-warning')
+    modal.setPrimaryButton(gettext("Connect TransferTo Account"))
+    modal.setListeners
+      onPrimary: ->
+        document.location.href = window.connectAirtimeServiceURL
+    modal.show()
+    return
 
   $scope.showRevisionHistory = ->
     $scope.$evalAsync ->
@@ -407,10 +418,16 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
     Flow.removeNote(note)
 
   $scope.clickRuleset = (ruleset, dragSource=null) ->
+
     if window.dragging or not window.mutable
       return
 
     DragHelper.hide()
+
+    # show message asking to connect TransferTo account for existing airtime node
+    if ruleset.ruleset_type == 'airtime' and not $rootScope.hasAirtimeService
+      showConnectTransferTo()
+      return
 
     if Flow.language and Flow.flow.base_language != Flow.language.iso_code
       resolveObj =
@@ -422,7 +439,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       $scope.dialog = utils.openModal("/partials/translate_rules", TranslateRulesController, resolveObj)
 
     else
-
       if window.ivr
         resolveObj =
           options: ->
@@ -438,7 +454,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             nodeType: 'rules'
             ruleset: ruleset
             dragSource: dragSource
-
         $scope.dialog = utils.openModal("/partials/node_editor", NodeEditorController, resolveObj)
 
   $scope.confirmRemoveWebhook = (event, ruleset) ->
@@ -868,12 +883,19 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     {value:60, text:'1 hour'},
     {value:120, text:'2 hours'},
     {value:180, text:'3 hours'},
-    {value:360, text:'6 hours'}
+    {value:360, text:'6 hours'},
+    {value:720, text:'12 hours'},
+    {value:1080, text:'18 hours'},
+    {value:1440, text:'1 day'},
+    {value:2880, text:'2 days'},
+    {value:4320, text:'3 days'},
+    {value:10080, text:'1 week'},
   ]
 
   minutes = 5
   formData.hasTimeout = false
 
+  # check if we have a timeout rule present
   for rule in ruleset.rules
     if rule.test.type == 'timeout'
       minutes = rule.test.minutes
@@ -933,6 +955,25 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   formData.fieldIndex = Flow.getFieldSelection($scope.fieldIndexOptions, config.field_index, true)
   formData.fieldDelimiter = Flow.getFieldSelection($scope.fieldDelimiterOptions, config.field_delimiter, true)
+
+  airtimeAmountConfig = []
+  seenOrgCountries = []
+  for country in angular.copy(Flow.channel_countries)
+    countryAirtime = country
+    countryCode = country.code
+    if config[countryCode]
+      countryAirtime.amount = parseFloat(config[countryCode]['amount'])
+    else
+      countryAirtime.amount = 0
+    seenOrgCountries.push(countryCode)
+
+    airtimeAmountConfig.push(countryAirtime)
+
+  for countryCode, countryConfig of config
+    if countryCode not in seenOrgCountries
+      airtimeAmountConfig.push(countryConfig)
+
+  formData.airtimeAmountConfig = airtimeAmountConfig
 
   if ruleset.config
     formData.flow = ruleset.config.flow
@@ -1074,6 +1115,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if rulesetConfig.type == 'contact_field' and $scope.contactFields.length == 0
       return false
 
+    if rulesetConfig.type == 'airtime' and not $rootScope.hasAirtimeService
+      return false
+
     return valid
 
   $scope.getDefaultCategory = (rule) ->
@@ -1163,7 +1207,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
-      if rule._config.type == 'subflow'
+      if rule._config.type in ['airtime_status','subflow','timeout']
         continue
       complete = complete and $scope.isRuleComplete(rule)
       if not complete
@@ -1183,48 +1227,34 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   $scope.updateRules = (ruleset, rulesetConfig) ->
 
-    # start with an empty list of rules
     rules = []
+    if rulesetConfig.rules
+      # find out the allowed rules for our ruleset
+      validRules = {}
+      for rule in rulesetConfig.rules
+        validRules[rule.test.type] = true
 
-    # subflow rulesets have their own kind of rules
-    if ruleset.ruleset_type == 'subflow'
-
-      needs_completed = true
-      needs_expired = true
-      
-      # see which subflow rules we already have
+      # collect our existing rules that are valid
       for rule in ruleset.rules
-        if rule.type == 'subflow'
-          if rule.test.exit_type == 'completed'
-            needs_completed = false
-            rules.push(rule)
-          if rule.test.exit_type == 'expired'
-            needs_expired = false
-            rules.push(rule)
+        if validRules[rule.test.type]
+          rules.push(rule)
 
-      # if we don't have a completed rule add it
-      if needs_completed
-        rule =
-          uuid: uuid(),
-          type: 'subflow'
-          test: 
-            type: 'subflow'
-            exit_type: 'completed'
-          category: {}
-        rule['category'][Flow.flow.base_language] = 'Completed'
-        rules.push(rule)
+      # fill in any missing rules
+      for rule in rulesetConfig.rules
+        found = false
+        for new_rule in ruleset.rules
+          if new_rule.test == rule.test
+            found = true
+            break
 
-      # if we don't have an expired rule, add it
-      if needs_expired
-        rule =
-          uuid: uuid(),
-          type: 'subflow'
-          test: 
-            type: 'subflow'
-            exit_type: 'expired'
-          category: {}
-        rule['category'][Flow.flow.base_language] = 'Expired'
-        rules.push(rule)
+        # construct a new rule accordingly and add it
+        if not found
+          newRule =
+            uuid: uuid()
+            test: rule.test
+            category: {}
+          newRule.category[Flow.flow.base_language] = rule.name
+          rules.push(newRule)
 
     # create rules off of an IVR menu configuration
     if ruleset.ruleset_type == 'wait_digit'
@@ -1238,7 +1268,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
               type: 'eq'
               test: option.number
           rule.category[Flow.flow.base_language] = option.category._base
-
           rules.push(rule)
 
     # rules configured from our select widgets
@@ -1306,8 +1335,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       otherCategory = {}
     otherCategory[Flow.flow.base_language] = otherCategoryName
 
-    # for all rules that require a catch all, append a true rule
-    if ruleset.ruleset_type != 'subflow'
+    # add an always true rule if not configured
+    if not rulesetConfig.rules
       rules.push
         _config: Flow.getOperatorConfig("true")
         test:
@@ -1317,7 +1346,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         uuid: otherRuleUuid
         category: otherCategory
 
-    if $scope.formData.hasTimeout
+    if $scope.formData.hasTimeout and ruleset.ruleset_type == 'wait_message'
       rules.push
         _config: Flow.getOperatorConfig("timeout")
         test:
@@ -1326,6 +1355,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         destination: timeoutDestination
         uuid: timeoutRuleUuid
         category: timeoutCategory
+
+    # strip out exclusive rules if we have any
+    rules = for rule in rules when Flow.isRuleAllowed($scope.ruleset.ruleset_type, rule.test.type) then rule
 
     $scope.ruleset.rules = rules
 
@@ -1336,7 +1368,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $modalInstance.close ""
 
     $timeout ->
-
       # changes from the user
       ruleset = $scope.ruleset
 
@@ -1346,33 +1377,21 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       rulesetConfig = $scope.formData.rulesetConfig
       contactField = $scope.formData.contactField
       flowField = $scope.formData.flowField
+      airtimeAmountConfig = $scope.formData.airtimeAmountConfig
       flow = $scope.formData.flow
 
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
 
+      # clear previous config
+      ruleset.config = {}
+
       if rulesetConfig.type == 'subflow'
-        # configure our subflow settings
         flow = splitEditor.flow.selected[0]
         ruleset.config =
           flow:
             name: flow.text
             uuid: flow.id
-
-        # remove any non subflow actions
-        rules = []
-        for rule in ruleset.rules
-          if rule.type == 'subflow'
-            rules.push(rule)
-        ruleset.rules = rules
-      else
-
-        # remove subflow rules
-        rules = []
-        for rule in ruleset.rules
-          if rule.type != 'subflow'
-            rules.push(rule)
-        ruleset.rules = rules
 
       # settings for a message form
       if rulesetConfig.type == 'form_field'
@@ -1381,21 +1400,32 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           field_index: $scope.formData.fieldIndex.id
           field_delimiter: $scope.formData.fieldDelimiter.id
 
+      else if rulesetConfig.type == 'airtime'
+        airtimeConfig = {}
+        for elt in airtimeAmountConfig
+          amount = elt.amount
+          try
+            elt.amount = parseFloat(amount)
+          catch
+            elt.amount = 0
+          airtimeConfig[elt.code] = elt
+        ruleset.config = airtimeConfig
+
       # update our operand if they selected a contact field explicitly
-      else if ruleset.ruleset_type == 'contact_field'
+      else if rulesetConfig.type == 'contact_field'
         ruleset.operand = '@contact.' + contactField.id
 
       # or if they picked a flow field
-      else if ruleset.ruleset_type == 'flow_field'
+      else if rulesetConfig.type == 'flow_field'
         ruleset.operand = '@flow.' + flowField.id
 
       # or just want to evaluate against a message
-      else if ruleset.ruleset_type == 'wait_message'
+      else if rulesetConfig.type == 'wait_message'
         ruleset.operand = '@step.value'
 
       # clear our webhook if we aren't the right type
       # TODO: this should live in a json config blob
-      if ruleset.ruleset_type != 'webhook'
+      if rulesetConfig.type != 'webhook'
         ruleset.webhook = null
         ruleset.webhook_action = null
 
@@ -1593,7 +1623,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     $scope.action.field = field.id
     $scope.action.label = field.text
     $scope.action.value = value
-
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()

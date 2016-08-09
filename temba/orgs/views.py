@@ -34,15 +34,15 @@ from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient, NexmoValidationError
-from temba.orgs.models import get_stripe_credentials, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
 from twilio.rest import TwilioRestClient
 from .bundles import WELCOME_TOPUP_SIZE
-from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings
+from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
-from .models import SUSPENDED, WHITELISTED, RESTORED
+from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
+from .models import TRANSFERTO_AIRTIME_API_TOKEN, TRANSFERTO_ACCOUNT_LOGIN
 
 
 def check_login(request):
@@ -426,7 +426,7 @@ class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'accounts', 'create_login', 'choose',
                'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect', 'export',
-               'import', 'plivo_connect', 'resthooks', 'service', 'surveyor')
+               'import', 'plivo_connect', 'resthooks', 'service', 'surveyor', 'transfer_to_account')
 
     model = Org
 
@@ -611,7 +611,7 @@ class OrgCRUDL(SmartCRUDL):
             account_token = form.cleaned_data['account_token']
 
             org = self.get_object()
-            org.connect_twilio(account_sid, account_token)
+            org.connect_twilio(account_sid, account_token, self.request.user)
             org.save()
 
             response = self.render_to_response(self.get_context_data(form=form,
@@ -669,7 +669,7 @@ class OrgCRUDL(SmartCRUDL):
             return reverse("orgs.org_home")
 
         def save(self, obj):
-            obj.remove_nexmo_account()
+            obj.remove_nexmo_account(self.request.user)
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.NexmoAccount, self).get_context_data(**kwargs)
@@ -712,7 +712,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
 
-            org.connect_nexmo(api_key, api_secret)
+            org.connect_nexmo(api_key, api_secret, self.request.user)
 
             org.save()
 
@@ -1696,6 +1696,14 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm('orgs.org_country'):
                 formax.add_section('country', reverse('orgs.org_country'), icon='icon-location2')
 
+            if self.has_org_perm('orgs.org_transfer_to_account'):
+                if not self.object.is_connected_to_transferto():
+                    formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
+                                       action='redirect', button=_("Connect"))
+                else:
+                    formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
+                                       action='redirect', nobutton=True)
+
             if self.has_org_perm('orgs.org_webhook'):
                 formax.add_section('webhook', reverse('orgs.org_webhook'), icon='icon-cloud-upload')
 
@@ -1705,6 +1713,79 @@ class OrgCRUDL(SmartCRUDL):
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_pro():
                 formax.add_section('accounts', reverse('orgs.org_accounts'), icon='icon-users', action='redirect')
+
+    class TransferToAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+
+        success_message = ""
+
+        class TransferToAccountForm(forms.ModelForm):
+            account_login = forms.CharField(label=_("Login"), required=False)
+            airtime_api_token = forms.CharField(label=_("API Token"), required=False)
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
+
+            def clean(self):
+                super(OrgCRUDL.TransferToAccount.TransferToAccountForm, self).clean()
+                if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    account_login = self.cleaned_data.get('account_login', None)
+                    airtime_api_token = self.cleaned_data.get('airtime_api_token', None)
+
+                    try:
+                        from temba.airtime.models import AirtimeTransfer
+                        response = AirtimeTransfer.post_transferto_api_response(account_login, airtime_api_token, action='ping')
+                        parsed_response = AirtimeTransfer.parse_transferto_response(response.content)
+
+                        error_code = int(parsed_response.get('error_code', None))
+                        info_txt = parsed_response.get('info_txt', None)
+                        error_txt = parsed_response.get('error_txt', None)
+
+                    except:
+                        raise ValidationError(_("Your TransferTo API key and secret seem invalid. "
+                                                "Please check them again and retry."))
+
+                    if error_code != 0 and info_txt != 'pong':
+                        raise ValidationError(_("Connecting to your TransferTo account "
+                                                "failed with error text: %s") % error_txt)
+
+                return self.cleaned_data
+
+            class Meta:
+                model = Org
+                fields = ('account_login', 'airtime_api_token', 'disconnect')
+
+        form_class = TransferToAccountForm
+        submit_button_name = "Save"
+        success_url = '@orgs.org_home'
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.TransferToAccount, self).get_context_data(**kwargs)
+            if self.object.is_connected_to_transferto():
+                config = self.object.config_json()
+                account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
+                context['transferto_account_login'] = account_login
+
+            return context
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.TransferToAccount, self).derive_initial()
+            config = self.object.config_json()
+            initial['account_login'] = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
+            initial['airtime_api_token'] = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
+            initial['disconnect'] = 'false'
+            return initial
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
+            if disconnect:
+                org.remove_transferto_account(user)
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+            else:
+                account_login = form.cleaned_data['account_login']
+                airtime_api_token = form.cleaned_data['airtime_api_token']
+
+                org.connect_transferto(account_login, airtime_api_token, user)
+                return super(OrgCRUDL.TransferToAccount, self).form_valid(form)
 
     class TwilioAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
@@ -1764,19 +1845,17 @@ class OrgCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
+            user = self.request.user
+            org = user.get_org()
+
             if disconnect:
-                user = self.request.user
-                org = user.get_org()
-                org.remove_twilio_account()
+                org.remove_twilio_account(user)
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             else:
-
-                user = self.request.user
-                org = user.get_org()
                 account_sid = form.cleaned_data['account_sid']
                 account_token = form.cleaned_data['account_token']
 
-                org.connect_twilio(account_sid, account_token)
+                org.connect_twilio(account_sid, account_token, user)
                 return super(OrgCRUDL.TwilioAccount, self).form_valid(form)
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):

@@ -446,9 +446,21 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         # online flows
         { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE] },
         { type: 'resthook', name:'Trigger Zap', verbose_name: 'Trigger Zap', split:'zapier response', filter:[TEXT,VOICE] },
+        #, rules:[
+        #  { name: 'Success', test: { type: 'webhook', result: 'success'}},
+        #  { name: 'Failure', test: { type: 'webhook', result: 'failure'}},
+        #]},
+
+        { type: 'airtime', name:'Transfer Airtime', verbose_name: 'Transfer Airtime', split: 'transfer airtime', filter:[TEXT, VOICE], rules: [
+          { name: 'Success', test: { type: 'airtime_status', exit_status: 'success'}},
+          { name: 'Failure', test: { type: 'airtime_status', exit_status: 'failed'}},
+        ]},
 
         # all flows
-        { type: 'subflow', name:'Run Flow', verbose_name: 'Run a flow', filter:ALL },
+        { type: 'subflow', name: 'Run Flow', verbose_name: 'Run a flow', filter: ALL, rules: [
+          { name: 'Completed', test: { type: 'subflow', exit_type: 'completed' }},
+          { name: 'Expired', test: { type: 'subflow', exit_type: 'expired' }}
+        ]},
 
         { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', filter:ALL },
         { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', filter:ALL },
@@ -460,6 +472,14 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         # { type: 'random', verbose_name: 'Split randomly', ivr:true, text:true},
         # { type: 'pause', verbose_name: 'Pause the flow', ivr:true, text:true},
       ]
+
+      # rule type to ruleset type they are exclusive to
+      @exclusiveRules = {
+        'subflow': ['subflow'],
+        'timeout': ['wait_message'],
+        'webhook': ['webhook'],
+        'airtime_status': ['airtime']
+      }
 
       @supportsRules = ['wait_message', 'expression', 'flow_field', 'contact_field', 'wait_digits', 'form_field']
 
@@ -483,6 +503,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'ward', name: 'Has a ward', verbose_name:'has a ward', operands: 2, operand_required: false, auto_complete: true, show:true}
         { type: 'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true, show:true }
         { type: 'subflow', name: 'Subflow', verbose_name:'subflow', operands: 0, show:false }
+        { type: 'airtime_status', name: 'Airtime Status', verbose_name:'airtime', operands: 0, show:false }
+        { type: 'webhook', name: 'Webhook', verbose_name:'webhook', operands: 0, show:false }
         { type: 'true', name: 'Other', verbose_name:'contains anything', operands: 0, show:false }
         { type: 'timeout', name:'Timeout', verbose_name:'timeout', operands:0, show:false }
       ]
@@ -623,6 +645,22 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         , quietPeriod
 
+    # is the rule allowed for this ruleset_type?
+    isRuleAllowed: (ruleset_type, rule_type) ->
+      if rule_type
+        exclusives = @exclusiveRules[rule_type]
+        if exclusives
+          allowed = ruleset_type in exclusives
+          return allowed
+
+        # check if our ruleset has a prescribed set of rules
+        rulesetConfig = @getRulesetConfig({type: ruleset_type})
+        if rulesetConfig.rules
+          for rule in rulesetConfig.rules
+            if rule.test.type == rule_type
+              return true
+          return false
+        return true
 
     getNode: (uuid) ->
       for actionset in @flow.action_sets
@@ -912,6 +950,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         for actionset in flow.action_sets
           for action in actionset.actions
             action.uuid = uuid()
+
+        # save the channel countries
+        Flow.channel_countries = data.channel_countries
 
         # save away the available channels
         Flow.channels = data.channels
