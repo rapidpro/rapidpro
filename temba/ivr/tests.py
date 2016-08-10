@@ -589,7 +589,7 @@ class IVRTests(FlowFileTest):
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_download_media(self):
-        self.org.connect_twilio("TEST_SID", "TEST_TOKEN")
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
 
         with patch('requests.get') as response:
