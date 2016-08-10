@@ -5,7 +5,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 from .views import api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, ChannelsEndpoint, ChannelEventsEndpoint
 from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
 from .views import FieldsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
-from .views import OrgEndpoint, RunsEndpoint
+from .views import OrgEndpoint, ResthookEndpoint, RunsEndpoint
 
 
 urlpatterns = [
@@ -29,6 +29,7 @@ urlpatterns = [
     url(r'^/messages$', MessagesEndpoint.as_view(), name='api.v2.messages'),
     url(r'^/org$', OrgEndpoint.as_view(), name='api.v2.org'),
     url(r'^/runs$', RunsEndpoint.as_view(), name='api.v2.runs'),
+    url(r'^/resthooks$', ResthookEndpoint.as_view(), name='api.v2.resthooks'),
 
 ]
 

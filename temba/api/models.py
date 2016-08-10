@@ -133,7 +133,7 @@ class ResthookSubscriber(SmartModel):
     target_url = models.URLField(help_text=_("The URL that we will call when our ruleset is reached"))
 
     def as_json(self):
-        return dict(id=self.id, resthook=self.resthook.slug, target_url=self.url, created_on=self.created_on)
+        return dict(id=self.id, resthook=self.resthook.slug, target_url=self.target_url, created_on=self.created_on)
 
     def release(self, user):
         self.is_active = False

@@ -420,17 +420,17 @@ class ResthookWriteSerializer(WriteSerializer):
         target_url = data.get('target_url')
 
         # make sure this combination doesn't already exist
-        if ResthookSubscriber.objects.filter(is_actie=True, resthook=resthook, target_url=target_url):
+        if ResthookSubscriber.objects.filter(is_active=True, resthook=resthook, target_url=target_url):
             raise serializers.ValidationError("URL is already subscribed to this event.")
 
         return data
 
     def save(self):
         resthook = self.get_resthook(self.validated_data['resthook'])
-        target_url = self.get_ruleset(self.validated_data['target_url'])
+        target_url = self.validated_data['target_url']
 
-        self.instance = ResthookSubscriber.objects.create(resthook=resthook, target_url=target_url,
-                                                          created_by=self.user, modified_by=self.user)
+        return ResthookSubscriber.objects.create(resthook=resthook, target_url=target_url,
+                                                 created_by=self.user, modified_by=self.user)
 
     class Meta:
         fields = ('resthook', 'target_url')

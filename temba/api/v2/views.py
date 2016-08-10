@@ -1559,8 +1559,8 @@ class ResthookEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView
         return spec
 
     # overridden as we want to return just the subscriber object, not all resthooks
-    def render_write_response(self, flow, context):
-        return Response(self.instance.as_json(), status=status.HTTP_201_CREATED)
+    def render_write_response(self, resthook_subscriber, context):
+        return Response(resthook_subscriber.as_json(), status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
         subscriber_id = request.query_params.get('id')

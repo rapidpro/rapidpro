@@ -313,6 +313,8 @@ PERMISSIONS = {
 
     'api.apitoken': ('refresh',),
 
+    'api.resthook': ('api',),
+
     'campaigns.campaign': ('api',
                            'archived',
                            ),
@@ -534,6 +536,7 @@ GROUP_PERMISSIONS = {
         'airtime.airtimetransfer_read',
 
         'api.apitoken_refresh',
+        'api.resthook_api',
         'api.webhookevent_list',
         'api.webhookevent_read',
 
@@ -1024,7 +1027,8 @@ REST_FRAMEWORK = {
         'v2': '2500/hour',
         'v2.contacts': '2500/hour',
         'v2.messages': '2500/hour',
-        'v2.runs': '2500/hour'
+        'v2.runs': '2500/hour',
+        'v2.api': '2500/hour',
     },
     'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (
