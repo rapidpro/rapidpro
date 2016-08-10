@@ -1368,16 +1368,17 @@ NodeEditorController = ($rootScope, $scope, $modal, $modalInstance, $timeout, $l
 
 
   # Saving the add to or remove from group actions
-  $scope.saveGroups = (actionType, omnibox) ->
+  $scope.saveGroups = (actionType, omnibox, allGroups) ->
 
     $scope.action.type = actionType
-    if omnibox
-      $scope.action.groups = omnibox.groups
+    $scope.action.groups = omnibox.groups
 
     # add our list of variables
-    if omnibox
-      for variable in omnibox.variables
-        $scope.action.groups.push(variable.id)
+    for variable in omnibox.variables
+      $scope.action.groups.push(variable.id)
+
+    if allGroups
+      $scope.action.groups.splice(0)
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()

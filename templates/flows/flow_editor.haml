@@ -387,8 +387,7 @@
                     [[group]]
 
                 // removing from all groups
-                %span{ng-show:'action.type == "del_group"'}
-                  Contact will be removed from
+                %span{ng-show:'action.type == "del_group" && action.groups.length == 0'}
                   %span.attn
                     All Groups
 

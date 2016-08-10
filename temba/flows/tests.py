@@ -1297,10 +1297,9 @@ class RuleTest(TembaTest):
         self.assertTrue(group2.contacts.filter(id=self.contact.pk))
         self.assertEquals(1, group2.contacts.all().count())
 
-        # TODO
-        test = DeleteFromAllGroupsAction(["@step.contact"])
+        test = DeleteFromGroupAction([None, "@step.contact"])
         action_json = test.as_json()
-        test = DeleteFromAllGroupsAction.from_json(self.org, action_json)
+        test = DeleteFromGroupAction.from_json(self.org, action_json)
 
         test.execute(run, None, sms)
 

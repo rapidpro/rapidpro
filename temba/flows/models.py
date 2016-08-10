@@ -3672,9 +3672,6 @@ class AddToGroupAction(Action):
 
         groups = []
 
-        if group_data is None:
-            return ContactGroup.user_groups.filter(org=org)
-
         for g in group_data:
             if isinstance(g, dict):
                 group_id = g.get(AddToGroupAction.ID, None)
@@ -3778,7 +3775,7 @@ class DeleteFromGroupAction(AddToGroupAction):
         return "Removed from group %s" % ", ".join([g.name for g in self.groups])
 
     def execute(self, run, actionset, sms):
-        if self.groups is None:
+        if len(self.groups) == 0:
             contact = run.contact
             if contact:
                 # remove from all active and inactive groups
