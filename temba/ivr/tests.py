@@ -7,13 +7,14 @@ import re
 from urlparse import urlparse
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.core.files import File
 from django.core.urlresolvers import reverse
 from mock import patch
 from temba.channels.models import TWILIO, CALL, ANSWER, SEND
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.msgs.models import Msg, IVR
-from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator
+from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
 from .models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER, FAILED
 
 
@@ -583,3 +584,29 @@ class IVRTests(FlowFileTest):
         # get just the path and hit it
         response = self.client.post(urlparse(redirect_url).path, post_data)
         self.assertContains(response, "You are not part of group.")
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_download_media(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        with patch('requests.get') as response:
+            mock1 = MockResponse(404, 'No such file')
+            mock2 = MockResponse(200, 'Fake VCF Bits')
+            mock2.add_header('Content-Type', 'text/x-vcard')
+            mock2.add_header('Content-Disposition', 'inline')
+            response.side_effect = (mock1, mock2)
+
+            twilio_client = self.org.get_twilio_client()
+
+            with patch('temba.orgs.models.Org.save_media') as mock_save_media:
+                mock_save_media.return_value = 'SAVED'
+
+                output = twilio_client.download_media('http://api.twilio.com/ASID/Media/SID')
+                self.assertIsNotNone(output)
+                self.assertEqual(output, 'text/x-vcard:SAVED')
+                # saved_media was called with a file as first argument and the guessed extension as second argument
+                self.assertIsInstance(mock_save_media.call_args_list[0][0][0], File)
+                self.assertEqual(mock_save_media.call_args_list[0][0][1], 'vcf')
