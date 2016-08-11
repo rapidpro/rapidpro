@@ -29,7 +29,6 @@ from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.nexmo import NexmoClient
 from temba.utils.email import send_template_email
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
 from temba.utils import timezone_to_country_code
@@ -716,11 +715,13 @@ class Org(SmartModel):
 
     def get_nexmo_client(self):
         config = self.config_json()
+        from temba.ivr.clients import NexmoClient
+
         if config:
             api_key = config.get(NEXMO_KEY, None)
             api_secret = config.get(NEXMO_SECRET, None)
             if api_key and api_secret:
-                return NexmoClient(api_key, api_secret)
+                return NexmoClient(api_key, api_secret, org=self)
 
         return None
 

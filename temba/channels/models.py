@@ -32,7 +32,7 @@ from smartmin.models import SmartModel
 from temba.nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
 from temba.utils.email import send_template_email
-from temba.utils import analytics, random_string, dict_to_struct, dict_to_json
+from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, voicexml
 from time import sleep
 
 from twilio import twiml
@@ -686,6 +686,8 @@ class Channel(TembaModel):
     def generate_ivr_response(self):
         if self.channel_type in [TWILIO, VERBOICE]:
             return twiml.Response()
+        if self.channel_type in [NEXMO]:
+            return voicexml.Response()
         return None
 
     def get_ivr_client(self):
@@ -693,6 +695,9 @@ class Channel(TembaModel):
             return self.org.get_twilio_client()
         if self.channel_type == VERBOICE:
             return self.org.get_verboice_client()
+        if self.channel_type == NEXMO:
+            return self.org.get_nexmo_client()
+
         return None
 
     def supports_ivr(self):

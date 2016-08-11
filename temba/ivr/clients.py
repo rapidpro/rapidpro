@@ -8,11 +8,13 @@ import time
 from django.conf import settings
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
+from django.core.urlresolvers import reverse
 from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow
 from temba.ivr.models import IN_PROGRESS
+from temba.nexmo import NexmoClient as NexmoCli
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from twilio.util import RequestValidator
@@ -20,6 +22,46 @@ from twilio.util import RequestValidator
 
 class IVRException(Exception):
     pass
+
+
+class NexmoClient(NexmoCli):
+
+    def __init__(self, api_key, api_secret, org=None):
+        self.org = org
+        super(NexmoClient, self).__init__(api_key=api_key, api_secret=api_secret)
+
+    def validate(self, request):
+        return True
+
+    def start_call(self, call, to, from_, status_callback):
+
+        voice_xml = unicode(Flow.handle_call(call, {}))
+
+        temp = NamedTemporaryFile(delete=True)
+        temp.write(voice_xml)
+        temp.flush()
+
+        url = self.org.save_media(File(temp), 'vxml')
+
+        params = dict(api_key=self.api_key, api_secret=self.api_secret)
+        params['answer_url'] = url
+        params['to'] = to.strip('+')
+        params['from'] = from_.strip('+')
+        params['status_url'] = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
+        params['status_method'] = "POST"
+        params['error_url'] = "https://fc665be8.ngrok.io/handlers/nexmo/status/d3f6421a-db8d-4a03-9581-1c28beb9e12e/"
+        params['error_method'] = "POST"
+
+        response = requests.post('https://rest.nexmo.com/call/json', params=params)
+        response_json = response.json()
+
+        if 'call-id' not in response_json:
+            raise IVRException(_("Nexmo call failed, with status %s") % response_json.get('status'))
+
+        call_id = response_json.get('call-id')
+
+        call.external_id = unicode(call_id)
+        call.save()
 
 
 class TwilioClient(TwilioRestClient):

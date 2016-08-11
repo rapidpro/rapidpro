@@ -10,13 +10,13 @@ class Response(object):
     def __init__(self, **kwargs):
         self.document = '<?xml version="1.0" encoding="UTF-8"?>'
 
-        result = '<vxml>'
+        result = '<vxml version = "2.1"><form>'
         self.document += result
 
     def __str__(self):
-        if self.document.find('</vxml>') > 0:
+        if self.document.find('</form></vxml>') > 0:
             return self.document
-        return self.document + '</vxml'
+        return self.document + '</form></vxml>'
 
     def __enter__(self):
         return self
@@ -72,16 +72,16 @@ class Response(object):
         self.document += result
 
     def record(self, **kwargs):
-        generated_name = unicode(uuid4())
-        result = '<record name="' + generated_name + 'beep="true"'
+        generated_name = "blabla"
+        result = '<record name="' + generated_name + '" beep="true"'
         if kwargs.get('maxLength', False):
             result += 'maxtime="' + kwargs.get('maxLength') + 's"'
 
-        result += 'finalsilence="4000ms" dtmfterm="true" type="audio/x-wav">'
+        result += ' finalsilence="4000ms" dtmfterm="true" type="audio/x-wav">'
 
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
-            result += '<filled><submit next="' + kwargs.get('action') + ' method="' + method + '" /></filled>'
+            result += '<filled><submit next="' + kwargs.get('action') + '" method="' + method + '"/></filled>'
 
         result += '</record>'
 
