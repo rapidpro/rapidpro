@@ -4235,13 +4235,14 @@ class DeleteFromGroupAction(AddToGroupAction):
     def execute(self, run, actionset, sms):
         if len(self.groups) == 0:
             contact = run.contact
+            user = get_flow_user()
             if contact:
                 # remove from all active and inactive groups
                 for group in ContactGroup.user_groups.filter(org=contact.org):
                     if group:
-                        group.update_contacts([contact], False)
+                        group.update_contacts(user, [contact], False)
                         if run.contact.is_test:
-                            ActionLog.create(run, _("Removed %s from %s") % (run.contact.name, group.name))
+                            ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
             return []
         return AddToGroupAction.execute(self, run, actionset, sms)
 
