@@ -1782,6 +1782,26 @@ form.smartmin-form ul.errorlist li {
     }
   }
 
+  &.airtime-warning {
+    .modal-header {
+      background: @flat-grey + #333;
+      border-bottom-color: @flat-grey + #111;
+    }
+
+    #modal-title {
+      color:  @flat-white;
+      text-shadow: none;
+    }
+
+    .modal-footer {
+      .primary {
+        background: @flat-grey + #333;
+        border-bottom-color: @flat-grey + #111;
+      }
+    }
+
+  }
+
   &.alert {
     color: @color-font-black;
     padding: 0px;
@@ -1791,19 +1811,19 @@ form.smartmin-form ul.errorlist li {
       border-bottom: 1px solid @color-alert-error - #111;
 
       #modal-title {
-	color:  @flat-white;
-	text-shadow: none;
+	    color:  @flat-white;
+        text-shadow: none;
       }
 
       .close {
-	margin-right: 20px;
+        margin-right: 20px;
       }
     }
 
     .modal-footer {
       .primary {
-	background: @color-alert-error;        
-	border: 1px solid @color-alert-error - #111;
+        background: @color-alert-error;
+        border: 1px solid @color-alert-error - #111;
       }
     }
 

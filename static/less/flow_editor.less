@@ -1053,6 +1053,29 @@
     padding: 0 20px;
   }
 
+  .country-config {
+
+    display: block;
+    line-height: 40px;
+
+    .country {
+      display: inline-block;
+      width: 300px;
+      line-height: 40px;
+      text-align: right;
+
+    }
+
+    .airtime-amount {
+      width: 300px;
+      display: inline-block;
+      float: right;
+      text-align: right;
+
+    }
+
+  }
+
   input[type=text] {
     height: 20px;
 
@@ -1132,6 +1155,38 @@
         display:inline-block;
       }
       background: #f9f9f9;
+    }
+  }
+
+  .modal-footer {
+    .timeout {
+
+      margin-top: 4px;
+
+      &.disabled {
+        color: @color-disabled;
+      }
+
+      label {
+        padding-top:6px;
+        margin-bottom: 0;
+
+        input {
+          margin-top: -2px;
+          margin-right: 4px;
+        }
+
+        span {
+          height: 100px;
+          padding-top: 3px;
+        }
+
+        select {
+          width: 100px;
+          margin-bottom: 0;
+          margin-top: -5px;
+        }
+      }
     }
   }
 }

@@ -22,10 +22,10 @@ describe 'Controllers:', ->
 
     # wire up our mock flows
     flows = {
-      'favorites': { id: 1, languages:[] },
-      'rules_first': { id: 2, languages:[] },
-      'loop_detection': { id: 3, languages:[] },
-      'webhook_rule_first': { id: 4, languages:[] },
+      'favorites': { id: 1, languages:[], channel_countries: [] },
+      'rules_first': { id: 2, languages:[], channel_countries: [] },
+      'loop_detection': { id: 3, languages:[], channel_countries: [] },
+      'webhook_rule_first': { id: 4, languages:[], channel_countries: [] },
     }
 
     $http.whenGET('/contactfield/json/').respond([])
@@ -37,7 +37,8 @@ describe 'Controllers:', ->
       $http.whenGET('/flow/json/' + config.id + '/').respond(
         {
           flow: getJSONFixture(file + '.json').flows[0],
-          languages: config.languages
+          languages: config.languages,
+          channel_countries: config.channel_countries
         }
       )
 
@@ -83,6 +84,35 @@ describe 'Controllers:', ->
         Flow: flowService
     )
 
+    getRuleConfig = (type) ->
+      for ruleset in flowService.rulesets
+        if ruleset.type == type
+          return ruleset
+
+    loadFavoritesFlow = ->
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      $http.flush()
+
+    getAction = (type) ->
+      for action in flowService.actions
+        if action.type == type
+          return action
+
+    editRules = (ruleset, edits) ->
+      $scope.clickRuleset(ruleset)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+        edits(modalScope)
+        modalScope.formData.rulesetConfig = getRuleConfig(modalScope.ruleset.ruleset_type)
+
+        if not modalScope.splitEditor
+          modalScope.splitEditor = {}
+        modalScope.okRules(modalScope.splitEditor)
+
+      $timeout.flush()
+      return ruleset
+
     it 'should show warning when attempting an infinite loop', ->
 
       flowService.fetch(flows.webhook_rule_first.id).then ->
@@ -121,7 +151,7 @@ describe 'Controllers:', ->
 
       $http.flush()
 
-    it 'should ruleset category translation', ->
+    it 'should allow ruleset category translation', ->
 
       # go grab our flow
       flowService.fetch(flows.webhook_rule_first.id)
@@ -129,17 +159,13 @@ describe 'Controllers:', ->
       $http.flush()
 
       ruleset = flowService.flow.rule_sets[0]
-      $scope.clickRuleset(ruleset)
-      $scope.dialog.opened.then ->
-        modalScope = $modalStack.getTop().value.modalScope
 
+      editRules ruleset, (scope) ->
         expect(flowService.language.iso_code).toBe('eng')
 
         # but we do have base language
-        expect(modalScope.base_language).toBe('eng')
-        expect(modalScope.ruleset.uuid).toBe(ruleset.uuid)
-
-      $timeout.flush()
+        expect(scope.base_language).toBe('eng')
+        expect(scope.ruleset.uuid).toBe(ruleset.uuid)
 
       # now toggle our language so we are in translation mode
       flowService.language = {iso_code:'ara', name:'Arabic'}
@@ -155,94 +181,178 @@ describe 'Controllers:', ->
 
     it 'should filter split options based on flow type', ->
 
-      # load a flow
-      flowService.fetch(flows.favorites.id)
-      flowService.contactFieldSearch = []
-      $http.flush()
-
-      getRuleConfig = (type) ->
-        for ruleset in flowService.rulesets
-          if ruleset.type == type
-            return ruleset
+      loadFavoritesFlow()
 
       ruleset = flowService.flow.rule_sets[0]
-      $scope.clickRuleset(ruleset)
-      $scope.dialog.opened.then ->
-        modalScope = $modalStack.getTop().value.modalScope
+      editRules ruleset, (scope) ->
 
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(true)
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('webhook'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('webhook'))).toBe(true)
 
         # these are for ivr
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(false)
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digit'))).toBe(false)
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_recording'))).toBe(false)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(false)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_digit'))).toBe(false)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_recording'))).toBe(false)
 
         # now pretend we are a voice flow
         flowService.flow.flow_type = 'V'
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(true)
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digit'))).toBe(true)
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_recording'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_digit'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_recording'))).toBe(true)
 
         # and now a survey flow
         flowService.flow.flow_type = 'S'
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(true)
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(false)
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('webhook'))).toBe(false)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(false)
+        expect(scope.isVisibleRulesetType(getRuleConfig('webhook'))).toBe(false)
 
-      $timeout.flush()
+    it 'should create timeout rules if necessary', ->
 
+      loadFavoritesFlow()
+      ruleset = flowService.flow.rule_sets[0]
+
+      # three rules and our other
+      expect(ruleset.rules.length).toBe(4)
+
+      editRules ruleset, (scope) ->
+        scope.formData.hasTimeout = true
+        scope.formData.timeout = scope.formData.timeoutOptions[5]
+
+      # now we have three rules, our other, and a timeout
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(5)
+
+      # checkout our timeout rule as the right settings
+      lastRule = ruleset.rules[ruleset.rules.length - 1]
+      expect(lastRule['test']['type']).toBe('timeout')
+      expect(lastRule['test']['minutes']).toBe(10)
+
+#    it 'should save webhook rulesets', ->
+#
+#      loadFavoritesFlow()
+#
+#      ruleset = flowService.flow.rule_sets[0]
+#      editRules ruleset, (scope) ->
+#        scope.ruleset.ruleset_type = 'webhook'
+#
+#      ruleset = flowService.flow.rule_sets[0]
+#      expect(ruleset.ruleset_type).toBe('webhook')
+#      expect(ruleset.rules.length).toBe(2)
+#      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"webhook","result":"success"}')
+#      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"webhook","result":"failure"}')
+#
+#      # now save it as a regular wait
+#      editRules ruleset, (scope) ->
+#        scope.ruleset.ruleset_type = 'wait_message'
+#
+#      ruleset = flowService.flow.rule_sets[0]
+#      for rule in ruleset.rules
+#        if rule.test.type == 'webhook'
+#          fail('Webhook rule found on non webhook ruleset')
+#          break
 
     it 'should save subflow rulesets', ->
-       # load a flow
-      flowService.fetch(flows.favorites.id)
-      flowService.contactFieldSearch = []
-      $http.flush()
-
-      getRuleConfig = (type) ->
-        for ruleset in flowService.rulesets
-          if ruleset.type == type
-            return ruleset
+      loadFavoritesFlow()
 
       ruleset = flowService.flow.rule_sets[0]
-      $scope.clickRuleset(ruleset)
 
-      $scope.dialog.opened.then ->
-        modalScope = $modalStack.getTop().value.modalScope
-
+      editRules ruleset, (scope) ->
         # simulate selecting a child flow
-        modalScope.ruleset.ruleset_type = 'subflow'
-        modalScope.formData.rulesetConfig = getRuleConfig('subflow')
-
-        splitEditor =
+        scope.ruleset.ruleset_type = 'subflow'
+        scope.splitEditor =
           flow:
             selected:[{id: 'cf785f12-658a-4821-ae62-7735ea5c6cef', text: 'Child Flow'}]
-        
-        modalScope.okRules(splitEditor)
-
-      $timeout.flush()
 
       ruleset = flowService.flow.rule_sets[0]
-
-      # our ruleset should be
       expect(ruleset.ruleset_type).toBe('subflow')
       expect(ruleset.rules.length).toBe(2)
-      config = JSON.stringify(ruleset.config)
-
       expect(JSON.stringify(ruleset.config)).toBe('{"flow":{"name":"Child Flow","uuid":"cf785f12-658a-4821-ae62-7735ea5c6cef"}}')
+
+      # now save it as a regular wait
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'wait_message'
+
+      ruleset = flowService.flow.rule_sets[0]
+      for rule in ruleset.rules
+        if rule.test.type == 'subflow'
+          fail('Subflow rule found on non subflow ruleset')
+          break
+
+     it 'should save airtime rulesets', ->
+
+      loadFavoritesFlow()
+
+      ruleset = flowService.flow.rule_sets[0]
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'airtime'
+
+      # our ruleset should have 2 rules
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.ruleset_type).toBe('airtime')
+      expect(ruleset.rules.length).toBe(2)
+
+    it 'should maintain connections which toggling timeouts', ->
+
+      loadFavoritesFlow()
+
+      # our first ruleset, starts off with four rules
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(4)
+
+      # make our last "true" rule route to the entry node
+      ruleset.rules[3].destination = '127f3736-77ce-4006-9ab0-0c07cea88956'
+
+      # click on the ruleset and then ok
+      editRules(ruleset, (scope) -> scope.ruleset.ruleset_type = 'wait_message')
+
+      # our route should still be there
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules[3].destination).toBe('127f3736-77ce-4006-9ab0-0c07cea88956')
+
+      # click on ruleset, then check timeout option
+      editRules(ruleset, (scope) -> scope.formData.hasTimeout = true)
+
+      # should now have 5 rules to account for the timeout
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(5)
+
+      # but our route should still be there
+      expect(ruleset.rules[3].destination).toBe('127f3736-77ce-4006-9ab0-0c07cea88956')
+
+    it 'should maintain connections on prescribed rulesets', ->
+
+      loadFavoritesFlow()
+
+      # our subflow selection, used on each edit
+      splitEditor =
+        flow:
+          selected: [{id: 'cf785f12-658a-4821-ae62-7735ea5c6cef', text: 'Child Flow'}]
+
+      # turn our first ruleset into a subflow
+      ruleset = flowService.flow.rule_sets[0]
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'subflow'
+        scope.splitEditor = splitEditor
+
+      # route our two subflow rules
+      ruleset = flowService.flow.rule_sets[0]
+      ruleset.rules[0].destination = 'destination a'
+      ruleset.rules[1].destination = 'destination b'
+
+      # now click on the ruleset again
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'subflow'
+        scope.splitEditor = splitEditor
+
+      # destinations should still be there
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules[0].destination).toBe('destination a')
+      expect(ruleset.rules[1].destination).toBe('destination b')
+
 
     it 'should filter action options based on flow type', ->
 
-      # load a flow
-      flowService.fetch(flows.favorites.id)
-      flowService.contactFieldSearch = []
-      flowService.language = {iso_code:'base'}
-      $http.flush()
-
-      getAction = (type) ->
-        for action in flowService.actions
-          if action.type == type
-            return action
+      loadFavoritesFlow()
 
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
@@ -276,12 +386,8 @@ describe 'Controllers:', ->
 
     it 'updateContactAction should not duplicate fields on save', ->
 
-      # load a flow
-      flowService.fetch(flows.favorites.id)
-      flowService.contactFieldSearch = []
-      flowService.updateContactSearch = []
-      flowService.language = {iso_code:'base'}
-      $http.flush()
+      loadFavoritesFlow()
+
       flowService.contactFieldSearch = [{id:'national_id',text:'National ID'}]
       flowService.updateContactSearch = [{id:'national_id',text:'National ID'}]
 
@@ -293,7 +399,6 @@ describe 'Controllers:', ->
       $scope.clickAction(actionset, action)
       $scope.dialog.opened.then ->
         modalScope = $modalStack.getTop().value.modalScope
-
         field =
           id: 'national_id'
           text: 'National ID'
@@ -333,11 +438,7 @@ describe 'Controllers:', ->
 
     it 'should give proper language choices', ->
 
-      # load a flow
-      flowService.fetch(flows.favorites.id)
-      flowService.contactFieldSearch = []
-      flowService.language = {iso_code:'base'}
-      $http.flush()
+      loadFavoritesFlow()
 
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
@@ -361,11 +462,7 @@ describe 'Controllers:', ->
 
     it 'isRuleComplete should have proper validation', ->
 
-      # load a flow
-      flowService.fetch(flows.favorites.id)
-      flowService.contactFieldSearch = []
-      flowService.language = {iso_code:'base'}
-      $http.flush()
+      loadFavoritesFlow()
 
       ruleset = flowService.flow.rule_sets[0]
       $scope.clickRuleset(ruleset)

@@ -199,10 +199,6 @@ INSTALLED_APPS = (
     # django-timezones
     'timezones',
 
-    # sentry
-    'raven.contrib.django',
-    'raven.contrib.django.celery',
-
     # temba apps
     'temba.assets',
     'temba.auth_tweaks',
@@ -221,10 +217,11 @@ INSTALLED_APPS = (
     'temba.ivr',
     'temba.locations',
     'temba.values',
+    'temba.airtime',
 )
 
 # the last installed app that uses smartmin permissions
-PERMISSIONS_APP = 'temba.values'
+PERMISSIONS_APP = 'temba.airtime'
 
 LOGGING = {
     'version': 1,
@@ -273,7 +270,7 @@ BRANDING = {
         'support_email': 'support@rapidpro.io',
         'link': 'https://app.rapidpro.io',
         'api_link': 'https://api.rapidpro.io',
-        'docs_link': 'http://knowledge.rapidpro.io',
+        'docs_link': 'http://docs.rapidpro.io',
         'domain': 'app.rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
         'splash': '/brands/rapidpro/splash.jpg',
@@ -380,6 +377,7 @@ PERMISSIONS = {
                  'sub_orgs',
                  'surveyor',
                  'transfer_credits',
+                 'transfer_to_account',
                  'trial',
                  'twilio_account',
                  'twilio_connect',
@@ -536,6 +534,9 @@ GROUP_PERMISSIONS = {
         'orgs.topup_update',
     ),
     "Administrators": (
+        'airtime.airtimetransfer_list',
+        'airtime.airtimetransfer_read',
+
         'api.apitoken_refresh',
         'api.webhookevent_list',
         'api.webhookevent_read',
@@ -593,6 +594,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_profile',
         'orgs.org_sub_orgs',
         'orgs.org_transfer_credits',
+        'orgs.org_transfer_to_account',
         'orgs.org_twilio_account',
         'orgs.org_twilio_connect',
         'orgs.org_webhook',
@@ -678,6 +680,9 @@ GROUP_PERMISSIONS = {
         'api.apitoken_refresh',
         'api.webhookevent_list',
         'api.webhookevent_read',
+
+        'airtime.airtimetransfer_list',
+        'airtime.airtimetransfer_read',
 
         'campaigns.campaign.*',
         'campaigns.campaignevent.*',
@@ -918,6 +923,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'check_flows_task',
         'schedule': timedelta(seconds=60),
     },
+    "check-flow-timeouts": {
+        'task': 'check_flow_timeouts_task',
+        'schedule': timedelta(seconds=20),
+    },
     "check-credits": {
         'task': 'check_credits_task',
         'schedule': timedelta(seconds=900)
@@ -1078,6 +1087,12 @@ SEND_WEBHOOKS = False
 # DANGER: only turn this on if you know what you are doing!
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
+
+######
+# DANGER: only turn this on if you know what you are doing!
+#         could cause airtime transfers in test environment
+SEND_AIRTIME = False
+
 
 MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',
                     'temba.flows.handlers.FlowHandler',

@@ -158,7 +158,7 @@ class ChannelTest(TembaTest):
         self.assertEquals('Sorry, a caller cannot be added for that number', response.context['form'].errors['channel'][0])
 
         # disable our twilio connection
-        self.org.remove_twilio_account()
+        self.org.remove_twilio_account(self.admin)
         self.assertFalse(self.org.supports_ivr())
 
         # we should lose our caller
@@ -1004,7 +1004,7 @@ class ChannelTest(TembaTest):
         # now connect to nexmo
         with patch('temba.nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456')
+            self.org.connect_nexmo('123', '456', self.admin)
             self.org.save()
         self.assertTrue(self.org.is_connected_to_nexmo())
 
@@ -1727,7 +1727,7 @@ class ChannelTest(TembaTest):
         # connect org to Nexmo and add bulk sender
         with patch('temba.nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456')
+            self.org.connect_nexmo('123', '456', self.admin)
             self.org.save()
 
         claim_nexmo_url = reverse('channels.channel_create_bulk_sender') + "?connection=NX&channel=%d" % android.pk
@@ -4756,10 +4756,27 @@ class TwilioTest(TembaTest):
             signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
             response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-        # jsut a single message this time
+        # just a single message this time
         msg = Msg.all_messages.get()
         self.assertTrue(msg.media.startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msg.media.endswith('.wav'))
+
+        Msg.all_messages.all().delete()
+
+        with patch('requests.get') as response:
+            mock1 = MockResponse(404, 'No such file')
+            mock2 = MockResponse(200, 'Fake VCF Bits')
+            mock2.add_header('Content-Type', 'text/x-vcard')
+            mock2.add_header('Content-Disposition', 'inline')
+            response.side_effect = (mock1, mock2)
+
+            post_data['Body'] = ''
+            signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        msg = Msg.all_messages.get()
+        self.assertTrue(msg.media.startswith('text/x-vcard:https://%s' % settings.AWS_BUCKET_DOMAIN))
+        self.assertTrue(msg.media.endswith('.vcf'))
 
     def test_receive(self):
         post_data = dict(To=self.channel.address, From='+250788383383', Body="Hello World")
@@ -5375,20 +5392,18 @@ class TelegramTest(TembaTest):
                     self.assertEquals(200, response.status_code)
 
                     # should have a media message now with an image
-                    msgs = Msg.all_messages.all().order_by('-created_on')
+                    msgs = Msg.all_messages.all().order_by('-pk')
 
-                    offset = 1 if caption else 0
                     if caption:
                         self.assertEqual(msgs.count(), 2)
-                        self.assertEqual(msgs[0].text, caption)
+                        self.assertEqual(msgs[1].text, caption)
                     else:
                         self.assertEqual(msgs.count(), 1)
 
-                    self.assertTrue(msgs[offset].media.startswith('%s:https://' % content_type))
-                    self.assertTrue(msgs[offset].media.endswith(extension))
-
-                    self.assertTrue(msgs[offset].text.startswith('https://'))
-                    self.assertTrue(msgs[offset].text.endswith(extension))
+                    self.assertTrue(msgs[0].media.startswith('%s:https://' % content_type))
+                    self.assertTrue(msgs[0].media.endswith(extension))
+                    self.assertTrue(msgs[0].text.startswith('https://'))
+                    self.assertTrue(msgs[0].text.endswith(extension))
 
         # stickers are allowed
         sticker_data = """

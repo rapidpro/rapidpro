@@ -61,6 +61,18 @@
       #split-on
         -trans "If the keypad entry before the # symbol.."
 
+    .airtime{ng-if:'formData.rulesetConfig.type == "airtime"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            You can configure the amount of the airtime in local currency to send
+            for each country you have a channel for.
+
+        .country-config{ng-repeat:"option in formData.airtimeAmountConfig"}
+          .country
+            [[option.name]] ([[option.currency_code]])
+          %input.airtime-amount{type:"text", ng-model:"option.amount", ng-required:"true", type:"number"}
+
     .webhook{ng-if:'formData.rulesetConfig.type == "webhook"'}><
       .split-margin
         %p{class:"description"}
@@ -157,6 +169,18 @@
                 -trans "Please enter a category name."
             </ng-form>
 .modal-footer
+  .timeout{ng-show:'flow.type == "F" && isPausingRuleset()', style:'float:left'}
+
+    %label
+      %input{type:'checkbox', ng-model:'formData.hasTimeout'}
+
+      %span{ng-show:'!formData.hasTimeout'}
+        Continue when there is no response
+
+      %span{ng-show:'formData.hasTimeout'}
+        Continue when there is no response for
+        %select{ng-model:'formData.timeout', ng-options:'option as option.text for option in formData.timeoutOptions'}
+
   <!--[[splitEditor]]-->
   %button{ng-click:"cancel()",class:"btn btn-secondary"}
     -trans "Cancel"

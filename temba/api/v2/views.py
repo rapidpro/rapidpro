@@ -25,8 +25,8 @@ from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
-from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
-from .serializers import LabelReadSerializer, MsgReadSerializer
+from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
+from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -48,6 +48,7 @@ def api(request, format=None):
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
+     * [/api/v2/flows](/api/v2/flows) - to list flows
      * [/api/v2/groups](/api/v2/groups) - to list contact groups
      * [/api/v2/labels](/api/v2/labels) - to list message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
@@ -65,6 +66,7 @@ def api(request, format=None):
         'contacts': reverse('api.v2.contacts', request=request),
         'definitions': reverse('api.v2.definitions', request=request),
         'fields': reverse('api.v2.fields', request=request),
+        'flows': reverse('api.v2.flows', request=request),
         'groups': reverse('api.v2.groups', request=request),
         'labels': reverse('api.v2.labels', request=request),
         'messages': reverse('api.v2.messages', request=request),
@@ -90,6 +92,7 @@ class ApiExplorerView(SmartTemplateView):
             ContactsEndpoint.get_read_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
+            FlowsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_read_explorer(),
             LabelsEndpoint.get_read_explorer(),
             MessagesEndpoint.get_read_explorer(),
@@ -759,22 +762,20 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
 
 class DefinitionsEndpoint(BaseAPIView):
     """
-    This endpoint exports flows, campaigns, and triggers and optionally will determine
-    the dependency graph for the provided uuids.
+    ## Exporting Definitions
 
-    ## Getting Definitions
+    A **GET** exports a set of flows and campaigns, and can automatically include dependencies for the requested items,
+    such as groups, triggers and other flows.
 
-    Returns json export for all items requested
-
-      * **flow_uuid** - the UUID of the flow to export (string, repeatable)
-      * **campaign_uuid** - the UUID of the campaign to export (string, repeatable)
+      * **flow** - the UUIDs of flows to include (string, repeatable)
+      * **campaign** - the UUIDs of campaigns to include (string, repeatable)
       * **dependencies** - whether to include dependencies (boolean, default: true)
 
     Example:
 
-        GET /api/v2/definitions.json?flow_uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c0b
+        GET /api/v2/definitions.json?flow=f14e4ff0-724d-43fe-a953-1d16aefd1c0b&flow=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab
 
-    Response is a collection of definitions
+    Response is a collection of definitions:
 
         {
           version: 8,
@@ -785,9 +786,9 @@ class DefinitionsEndpoint(BaseAPIView):
               "name": "Water Point Survey",
               "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
               "saved_on": "2015-09-23T00:25:50.709164Z",
-              "revision":28,
-              "expires":7880,
-              "id":12712,
+              "revision": 28,
+              "expires": 7880,
+              "id": 12712,
             },
             "version": 7,
             "flow_type": "S",
@@ -846,18 +847,25 @@ class DefinitionsEndpoint(BaseAPIView):
     permission = 'orgs.org_api'
 
     def get(self, request, *args, **kwargs):
+        org = request.user.get_org()
+        params = request.query_params
 
-        depends = self.request.GET.get('dependencies', 'true').lower() == 'true'
-        org = self.request.user.get_org()
+        if 'flow_uuid' in params or 'campaign_uuid' in params:  # deprecated
+            flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+            campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
+        else:
+            flow_uuids = params.getlist('flow')
+            campaign_uuids = params.getlist('campaign')
 
-        flows = set()
-        flow_uuids = splitting_getlist(self.request, 'flow_uuid')
+        depends = str_to_bool(params.get('dependencies', 'true'))
+
         if flow_uuids:
             flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
+        else:
+            flows = set()
 
         # any fetched campaigns
         campaigns = []
-        campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
         if campaign_uuids:
             campaigns = Campaign.objects.filter(uuid__in=campaign_uuids, org=org)
 
@@ -880,7 +888,7 @@ class DefinitionsEndpoint(BaseAPIView):
         # add in our primary requested flows
         to_export['flows'].update(flows)
 
-        export = self.request.user.get_org().export_definitions(self.request.branding['link'], **to_export)
+        export = org.export_definitions(self.request.branding['link'], **to_export)
 
         return Response(export, status=status.HTTP_200_OK)
 
@@ -888,10 +896,15 @@ class DefinitionsEndpoint(BaseAPIView):
     def get_read_explorer(cls):
         return {
             'method': "GET",
-            'title': "Definitions",
+            'title': "Export Definitions",
             'url': reverse('api.v2.definitions'),
-            'slug': 'org-definitions',
-            'request': ""
+            'slug': 'export-definitions',
+            'request': "flow=f14e4ff0-724d-43fe-a953-1d16aefd1c0b&flow=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+            'fields': [
+                {'name': "flow", 'required': False, 'help': "One or more flow UUIDs to include"},
+                {'name': "campaign", 'required': False, 'help': "One or more campaign UUIDs to include"},
+                {'name': "dependencies", 'required': False, 'help': "Whether to include dependencies of the requested items. ex: false"}
+            ]
         }
 
 
@@ -949,6 +962,78 @@ class FieldsEndpoint(ListAPIMixin, BaseAPIView):
             'request': "key=nick_name",
             'fields': [
                 {'name': "key", 'required': False, 'help': "A field key to filter by. ex: nick_name"}
+            ]
+        }
+
+
+class FlowsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    ## Listing Flows
+
+    A **GET** returns the list of flows for your organization, in the order of last created.
+
+     * **uuid** - the UUID of the flow (string), filterable as `uuid`
+     * **name** - the name of the flow (string)
+     * **archived** - whether this flow is archived (boolean)
+     * **labels** - the labels for this flow (array of objects)
+     * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
+     * **created_on** - when this flow was created (datetime)
+     * **runs** - the counts of completed, interrupted and expired runs (object)
+
+    Example:
+
+        GET /api/v2/flows.json
+
+    Response containing the groups for your organization:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+                {
+                    "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
+                    "name": "Survey",
+                    "archived": false,
+                    "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
+                    "expires": 600,
+                    "created_on": "2016-01-06T15:33:00.813162Z",
+                    "runs": {
+                        "completed": 123,
+                        "interrupted": 2,
+                        "expired": 34
+                    }
+                },
+                ...
+            ]
+        }
+    """
+    permission = 'flows.flow_api'
+    model = Flow
+    serializer_class = FlowReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+
+        # filter by UUID (optional)
+        uuid = params.get('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        queryset = queryset.prefetch_related('labels')
+
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Flows",
+            'url': reverse('api.v2.flows'),
+            'slug': 'flow-list',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
         }
 
