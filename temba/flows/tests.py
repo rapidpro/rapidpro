@@ -2638,13 +2638,13 @@ class ActionTest(TembaTest):
         action_json = test.as_json()
         test = AddToGroupAction.from_json(self.org, action_json)
 
-        test.execute(run, None, sms)
+        test.execute(run, None, test_msg)
 
         test = AddToGroupAction([group2, "@step.contact"])
         action_json = test.as_json()
         test = AddToGroupAction.from_json(self.org, action_json)
 
-        test.execute(run, None, sms)
+        test.execute(run, None, test_msg)
 
         # user should be in both groups now
         self.assertTrue(group1.contacts.filter(id=self.contact.pk))
@@ -2656,7 +2656,7 @@ class ActionTest(TembaTest):
         action_json = test.as_json()
         test = DeleteFromGroupAction.from_json(self.org, action_json)
 
-        test.execute(run, None, sms)
+        test.execute(run, None, test_msg)
 
         # user should be gone from both groups now
         self.assertFalse(group1.contacts.filter(id=self.contact.pk))
