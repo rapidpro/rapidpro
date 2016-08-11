@@ -112,6 +112,9 @@ class Resthook(SmartModel):
     def get_subscriber_urls(self):
         return [s.target_url for s in self.subscribers.filter(is_active=True)]
 
+    def remove_subscriber(self, url):
+        self.subscribers.filter(target_url=url).update(is_active=False)
+
     def release(self, user):
         # release any active subscribers
         for s in self.subscribers.filter(is_active=True):

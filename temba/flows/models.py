@@ -3122,7 +3122,7 @@ class RuleSet(models.Model):
                 from temba.api.models import Resthook
 
                 # look up the rest hook
-                resthook = Resthook.objects.filter(is_active=True, org=run.org, slug=self.config_json()[RuleSet.RESTHOOK]).first()
+                resthook = Resthook.objects.filter(is_active=True, org=run.org, slug=self.config_json()[RuleSet.TYPE_RESTHOOK]).first()
                 urls = resthook.get_subscriber_urls()
                 action = 'POST'
 
@@ -3135,6 +3135,11 @@ class RuleSet(models.Model):
 
                 result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
                                                          run.contact, msg, action, resthook=resthook)
+
+                # our subscriber is no longer interested, remove this URL as a subscriber
+                if result.status_code == 410:
+                    print "unsubscribing %s" % url
+                    resthook.remove_subscriber(url)
 
             rule = self.get_rules()[0]
             rule.category = run.flow.get_base_text(rule.category)

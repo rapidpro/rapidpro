@@ -55,8 +55,8 @@ def api(request, format=None):
      * [/api/v2/messages](/api/v2/messages) - to list messages
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
-     * [/api/v2/resthooks(api/v2/resthooks) - to list resthooks
-     * [/api/v2/resthooks(api/v2/resthook_events) - to list resthook events
+     * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
+     * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
 
     You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
     """
@@ -103,6 +103,7 @@ class ApiExplorerView(SmartTemplateView):
             MessagesEndpoint.get_read_explorer(),
             OrgEndpoint.get_read_explorer(),
             ResthookEndpoint.get_read_explorer(),
+            ResthookEventEndpoint.get_read_explorer(),
             RunsEndpoint.get_read_explorer()
         ]
         return context
@@ -1576,7 +1577,7 @@ class ResthookEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ResthookEventEndpoint(ListAPIMixin):
+class ResthookEventEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint lists recent events for the passed in Resthook.
 
@@ -1585,7 +1586,7 @@ class ResthookEventEndpoint(ListAPIMixin):
     By making a ```GET``` request you can list all the recent resthook events on your organization.
     Each event has the following attributes:
 
-     * **resthook** - the slug for the resthook
+     * **resthook** - the slug for the resthook (filterable)
      * **data** - the data for the resthook
      * **created_on** - the datetime when this resthook was created (datetime)
 
@@ -1620,15 +1621,22 @@ class ResthookEventEndpoint(ListAPIMixin):
             ...
         }
     """
-    permission = 'api.resthook_events_api'
+    permission = 'api.webhookevent_api'
     model = WebHookEvent
     serializer_class = WebHookEventReadSerializer
     pagination_class = CreatedOnCursorPagination
     throttle_scope = 'v2.api'
 
     def filter_queryset(self, queryset):
+        params = self.request.query_params
         org = self.request.user.get_org()
-        return WebHookEvent.objects.filter(org=org).exclude(resthook=None).order_by('-modified_on')
+        queryset = queryset.filter(org=org).exclude(resthook=None)
+
+        resthook = params.get('resthook')
+        if resthook:
+            queryset = queryset.filter(resthook__slug=resthook)
+
+        return queryset.order_by('-created_on')
 
     @classmethod
     def get_read_explorer(cls):
