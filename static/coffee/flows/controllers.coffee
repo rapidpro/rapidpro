@@ -1403,7 +1403,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
 
   # Saving the add to or remove from group actions
-  $scope.saveGroups = (actionType, omnibox) ->
+  $scope.saveGroups = (actionType, omnibox, allGroups) ->
 
     $scope.action.type = actionType
     $scope.action.groups = omnibox.groups
@@ -1412,8 +1412,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     for variable in omnibox.variables
       $scope.action.groups.push(variable.id)
 
+    if allGroups
+      $scope.action.groups.splice(0)
+
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()
+
 
   # Save the updating of a contact
   $scope.saveUpdateContact = (field, value) ->

@@ -2631,6 +2631,40 @@ class ActionTest(TembaTest):
 
         self.assertEqual(ActionLog.objects.filter(level='E').count(), 1)
 
+        group1 = self.create_group("Flow Group 1", [])
+        group2 = self.create_group("Flow Group 2", [])
+
+        test = AddToGroupAction([group1, "@step.contact"])
+        action_json = test.as_json()
+        test = AddToGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, sms)
+
+        test = AddToGroupAction([group2, "@step.contact"])
+        action_json = test.as_json()
+        test = AddToGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, sms)
+
+        # user should be in both groups now
+        self.assertTrue(group1.contacts.filter(id=self.contact.pk))
+        self.assertEquals(1, group1.contacts.all().count())
+        self.assertTrue(group2.contacts.filter(id=self.contact.pk))
+        self.assertEquals(1, group2.contacts.all().count())
+
+        test = DeleteFromGroupAction([None, "@step.contact"])
+        action_json = test.as_json()
+        test = DeleteFromGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, sms)
+
+        # user should be gone from both groups now
+        self.assertFalse(group1.contacts.filter(id=self.contact.pk))
+        self.assertEquals(0, group1.contacts.all().count())
+        self.assertFalse(group2.contacts.filter(id=self.contact.pk))
+        self.assertEquals(0, group2.contacts.all().count())
+
+
     def test_set_channel_action(self):
         flow = self.flow
         run = FlowRun.create(flow, self.contact.pk)

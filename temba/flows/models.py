@@ -4121,6 +4121,7 @@ class AddToGroupAction(Action):
             group_data = [group_data]
 
         groups = []
+
         for g in group_data:
             if isinstance(g, dict):
                 group_id = g.get(AddToGroupAction.ID, None)
@@ -4216,9 +4217,33 @@ class DeleteFromGroupAction(AddToGroupAction):
     def get_type(self):
         return DeleteFromGroupAction.TYPE
 
+    def as_json(self):
+        groups = []
+        for g in self.groups:
+            if isinstance(g, ContactGroup):
+                groups.append(dict(id=g.pk, name=g.name))
+            else:
+                groups.append(g)
+
+        return dict(type=self.get_type(), groups=groups)
+
     @classmethod
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
+
+
+    def execute(self, run, actionset, sms):
+        if len(self.groups) == 0:
+            contact = run.contact
+            if contact:
+                # remove from all active and inactive groups
+                for group in ContactGroup.user_groups.filter(org=contact.org):
+                    if group:
+                        group.update_contacts([contact], False)
+                        if run.contact.is_test:
+                            ActionLog.create(run, _("Removed %s from %s") % (run.contact.name, group.name))
+            return []
+        return AddToGroupAction.execute(self, run, actionset, sms)
 
 
 class AddLabelAction(Action):

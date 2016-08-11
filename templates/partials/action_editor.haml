@@ -49,11 +49,14 @@
         -trans "Ok"
 
     %div{ng-if:'config.type == "add_group" || config.type == "del_group"'}
-      %p{class:"description"}
+      %p{class:"description", ng-if:'!checked'}
         -blocktrans
           Choose one or more groups below.
       %input{ng-model:"omnibox",name:"omnibox",required:"",omnibox:'{"types":"s", "arbitraryAdd":true, "completions":true, "allowExtra": true}',groups:"action.groups",type:"hidden"}
-      %button{ng-click:"saveGroups(config.type, action_editor.omnibox.selected)",class:"submit hide"}
+      %p{class:"description", ng-show:'config.type == "del_group"'}
+          %input{id: "all_groups", name:"all_groups", type:"checkbox", ng-model:"checked", ng-checked:"checked", ng-init:'checked=action.groups.length == 0 && config.type == "del_group"'}
+          %label{for:"all_groups"} Remove from All Groups
+      %button{ng-click:"saveGroups(config.type, action_editor.omnibox.selected, checked)", class:"submit hide"}
         -trans "Ok"
 
     %div{ng-if:'config.type == "lang"'}
