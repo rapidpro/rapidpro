@@ -4167,7 +4167,6 @@ class AddToGroupAction(Action):
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
 
-                    contact = run.contact
                     message_context = run.flow.build_message_context(contact, msg)
                     (value, errors) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
                     group = None
@@ -4237,12 +4236,13 @@ class DeleteFromGroupAction(AddToGroupAction):
             contact = run.contact
             user = get_flow_user()
             if contact:
-                # remove from all active and inactive groups
-                for group in ContactGroup.user_groups.filter(org=contact.org):
-                    if group:
-                        group.update_contacts(user, [contact], False)
-                        if run.contact.is_test:
-                            ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
+                # remove from all active and inactive user-defined, static groups
+                for group in ContactGroup.user_groups.filter(org=contact.org,
+                                                             group_type=ContactGroup.TYPE_USER_DEFINED,
+                                                             query__isnull=True):
+                    group.update_contacts(user, [contact], False)
+                    if run.contact.is_test:
+                        ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
             return []
         return AddToGroupAction.execute(self, run, actionset, sms)
 
