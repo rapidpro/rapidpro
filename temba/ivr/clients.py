@@ -1,14 +1,20 @@
+from __future__ import unicode_literals
+
+import json
+import re
+import requests
+import time
+
+from django.conf import settings
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
+from django.utils.http import urlencode
+from django.utils.translation import ugettext_lazy as _
+from temba.contacts.models import Contact, URN
+from temba.flows.models import Flow
+from temba.ivr.models import IN_PROGRESS
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
-from temba.contacts.models import Contact, TEL_SCHEME
-from temba.flows.models import Flow, FlowRun
-from temba.ivr.models import IN_PROGRESS
-from django.utils.http import urlencode
-from django.conf import settings
-import json
-from django.utils.translation import ugettext_lazy as _
-
-import requests
 from twilio.util import RequestValidator
 
 
@@ -17,6 +23,11 @@ class IVRException(Exception):
 
 
 class TwilioClient(TwilioRestClient):
+
+    def __init__(self, account, token, org=None, **kwargs):
+        self.org = org
+        super(TwilioClient, self).__init__(account=account, token=token, **kwargs)
+
     def start_call(self, call, to, from_, status_callback):
 
         try:
@@ -41,6 +52,43 @@ class TwilioClient(TwilioRestClient):
         url = "https://%s%s" % (base_url, request.get_full_path())
         return validator.validate(url, request.POST, signature)
 
+    def download_media(self, media_url):
+        """
+        Fetches the recording and stores it with the provided recording_id
+        :param media_url: the url where the media lives
+        :return: the url for our downloaded media with full content type prefix
+        """
+        attempts = 0
+        while attempts < 4:
+            response = requests.get(media_url, stream=True, auth=self.auth)
+
+            # in some cases Twilio isn't ready for us to fetch the recording URL yet, if we get a 404
+            # sleep for a bit then try again up to 4 times
+            if response.status_code == 200:
+                break
+            else:
+                attempts += 1
+                time.sleep(.250)
+
+        disposition = response.headers.get('Content-Disposition', None)
+        content_type = response.headers.get('Content-Type', None)
+
+        if content_type:
+            extension = None
+            if disposition:
+                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                extension = filename.rpartition('.')[2]
+            elif content_type == 'audio/x-wav':
+                extension = 'wav'
+
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
+
+        return None
+
 
 class VerboiceClient:
 
@@ -60,7 +108,7 @@ class VerboiceClient:
     def start_call(self, call, to, from_, status_callback):
 
         channel = call.channel
-        Contact.get_or_create(channel.org, channel.created_by, urns=[(TEL_SCHEME, to)])
+        Contact.get_or_create(channel.org, channel.created_by, urns=[URN.from_tel(to)])
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
         payload = unicode(Flow.handle_call(call, {}))

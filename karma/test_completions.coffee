@@ -78,6 +78,17 @@ describe 'Matcher:', ->
     matched = matcher "@", "some texts before @(SUM(contact.age, step.value)))) "
     expect(matched).toBe(null)
 
+  it 'should match if quote is not in function', ->
+    matched = matcher "@", "Hi \"@contact.na"
+    expect(matched).toBe('contact.na')
+
+    matched = matcher "@", "Hey @(SUM(1, 2)) for \"@contact.nam"
+    expect(matched).toBe('contact.nam')
+
+    matched = matcher "@", "Hey @(SUM(1, 2)) for \"@(SUM(contact.na"
+    expect(matched).toBe('(SUM(contact.na')
+
+
 describe 'find context query', ->
 
   ac = new AutoComplete()
@@ -95,48 +106,40 @@ describe 'find context query', ->
     expect(ac.parseQuery("contact.age")).toBe('contact.age')
     expect(ac.parseQuery("contact.added_on")).toBe('contact.added_on')
 
-  ###
   it 'no ( for function only', ->
-    ctxtQuery = findContextQuery "(SUM"
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM")).toBe('SUM')
 
   it 'ignore ( after function', ->
-    ctxtQuery = findContextQuery "(SUM("
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM(")).toBe('SUM')
 
   it 'ignore ( followed by spaces after function', ->
-    ctxtQuery = findContextQuery "(SUM( "
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM( ")).toBe('SUM')
 
-    ctxtQuery = findContextQuery "(SUM(  "
-    expect(ctxtQuery).toBe('SUM')
-  ###
+    expect(ac.parseQuery("(SUM(  ")).toBe('SUM')
 
   it 'should give the last variable', ->
     expect(ac.parseQuery("(SUM(contact.date_added")).toBe('contact.date_added')
 
-  ###
   it 'should return function after comma', ->
-    ctxtQuery = findContextQuery "(SUM(contact.date_added,"
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM(contact.date_added,")).toBe('SUM')
 
   it 'should return empty string after comma followed by space', ->
-    ctxtQuery = findContextQuery "(SUM(contact.date_added,  "
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM(contact.date_added,  ")).toBe('SUM')
 
   it 'should ignore function out of balanced paratheses', ->
-    ctxtQuery = findContextQuery "(SUM(contact.date_added, step)"
-    expect(ctxtQuery).toBe('SUM')
+    expect(ac.parseQuery("(SUM(contact.date_added, step)")).toBe('')
 
-    ctxtQuery = findContextQuery "(SUM(contact.date_added, ABS(step.value)"
-    expect(ctxtQuery).toBe('ABS')
+    expect(ac.parseQuery("(SUM(contact.date_added, ABS(step.value)")).toBe('SUM')
 
-    ctxtQuery = findContextQuery "(SUM(contact.date_added, ABS(step.value))"
-    expect(ctxtQuery).toBe('SUM')
-  ###
+    expect(ac.parseQuery("(SUM(contact.date_added, ABS(step.value))")).toBe('')
 
   it 'should not include previous (', ->
     expect(ac.parseQuery("(contact.age")).toBe('contact.age')
+
+  it 'should not match string literal in function', ->
+    expect(ac.parseQuery("(CONCAT(\"@con")).toBe(null)
+    expect(ac.parseQuery("(\"!\" & \"@con")).toBe(null)
+
 
 describe 'Find matches:', ->
 

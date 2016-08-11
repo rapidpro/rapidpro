@@ -6,6 +6,7 @@ from temba.triggers.models import Trigger
 from temba.utils.mage import mage_handle_new_contact
 from temba.channels.models import Channel
 
+
 @task(track_started=True, name='fire_follow_triggers')  # pragma: no cover
 def fire_follow_triggers(channel_id, contact_urn_id, new_mage_contact=False):
     """

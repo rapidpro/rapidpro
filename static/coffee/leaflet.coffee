@@ -55,18 +55,19 @@ app.directive "uniqueAlias", ->
 
       # this is pretty inefficient, should cache some of this info for quicker comparisons
       if scope.currentBoundary
+        scopeLevel = scope.currentBoundary.level
 
         for boundary in scope.boundaries
           if not valid
             break
 
           if boundary.osm_id != scope.currentBoundary.osm_id
-            if boundary.name.toLowerCase() in values
+            if boundary.name.toLowerCase() in values and boundary.level == scopeLevel
               valid = false
 
             if valid and boundary.aliases
                 for alias in boundary.aliases.trim().split('\n')
-                  if alias.toLowerCase() in values
+                  if alias.toLowerCase() in values and boundary.level == scopeLevel
                     valid = false
 
             if not valid
@@ -75,11 +76,11 @@ app.directive "uniqueAlias", ->
           if boundary.children?
             for child in boundary.children
               if child.osm_id != scope.currentBoundary.osm_id
-                if child.name.toLowerCase() in values
+                if child.name.toLowerCase() in values and child.level == scopeLevel
                   valid = false
                 if valid and child.aliases
                   for alias in child.aliases.split('\n')
-                    if alias.toLowerCase() in values
+                    if alias.toLowerCase() in values and child.level == scopeLevel
                       valid = false
 
                 if not valid
@@ -112,15 +113,17 @@ app.directive "leaflet", ["$http", ($http) ->
       else
         @$apply fn
 
-    # when state or district change
+    # when state, district or ward change
     scope.$watchCollection ->
-      [scope.stateBoundary, scope.districtBoundary]
+      [scope.stateBoundary, scope.districtBoundary, scope.wardBoundary]
     , (current, previous) ->
 
       scope.safeApply ->
         if current
-          if scope.districtBoundary
-            loadState(scope.stateBoundary.osm_id, [scope.districtBoundary.osm_id])
+          if scope.wardBoundary
+            loadAdminLevel(scope.districtBoundary.osm_id, [scope.wardBoundary.osm_id])
+          else if scope.districtBoundary
+            loadAdminLevel(scope.stateBoundary.osm_id, [scope.districtBoundary.osm_id])
           else if scope.stateBoundary
             resetStates([scope.stateBoundary.osm_id])
           else
@@ -179,7 +182,7 @@ app.directive "leaflet", ["$http", ($http) ->
               highlightFeature(scope.layerMap[id])
 
 
-    loadState = (osmId, highlightOsmIds) ->
+    loadAdminLevel = (osmId, highlightOsmIds) ->
 
       if not osmId
         return
@@ -194,6 +197,7 @@ app.directive "leaflet", ["$http", ($http) ->
 
           scope.districts = L.geoJson(data, { style: visibleStyle, onEachFeature: onEachFeature })
           scope.districts.addTo(scope.map)
+
 
           scope.map.fitBounds(scope.districts.getBounds())
 
@@ -252,6 +256,7 @@ app.directive "leaflet", ["$http", ($http) ->
       osmId:"=osmId",
       hoveredBoundary:"="
       stateBoundary:"="
+      wardBoundary:"="
       districtBoundary:"="
       selectedLayer:"="
     }
@@ -276,7 +281,6 @@ BoundaryController = ($scope, $http) ->
       @$apply fn
 
   $scope.safeApply ->
-    console.log($scope.osmId)
     $http.get("/adminboundary/boundaries/" + $scope.osmId + "/").success (boundaries) ->
       $scope.boundaries = boundaries
 
@@ -305,6 +309,13 @@ BoundaryController = ($scope, $http) ->
                 if child.osm_id == current.osm_id
                   $scope.currentBoundary = child
 
+          else if current.level == 3
+            for boundary in $scope.boundaries
+              for child in boundary.children
+                for subChild in child.children
+                  if subChild.osm_id == current.osm_id
+                    $scope.currentBoundary = subChild
+
   # when the current boundary changes
   $scope.$watch ->
     $scope.currentBoundary
@@ -315,13 +326,18 @@ BoundaryController = ($scope, $http) ->
       if boundary
         if boundary.level == 1
           $scope.districtBoundary = null
+          $scope.wardBoundary = null
           $scope.stateBoundary = boundary
         else if boundary.level == 2
+          $scope.wardBoundary = null
           $scope.districtBoundary = boundary
+        else if boundary.level == 3
+          $scope.wardBoundary = boundary
         $scope.currentAliases = $scope.currentBoundary.aliases
       else
         $scope.stateBoundary = null
         $scope.districtBoundary = null
+        $scope.wardBoundary = null
 
       $scope.aliasForm.$setPristine(true)
 
@@ -332,13 +348,15 @@ BoundaryController = ($scope, $http) ->
         return boundary.name.toLowerCase().indexOf($scope.query.toLowerCase()) > -1
       return true
 
-  $scope.clickBoundary = (state, district) ->
-
+  $scope.clickBoundary = (state, district, ward) ->
     $scope.safeApply ->
       $scope.stateBoundary = state
       $scope.districtBoundary = district
+      $scope.wardBoundary = ward
 
-      if district
+      if ward
+        $scope.currentBoundary = ward
+      else if district
         $scope.currentBoundary = district
       else
         $scope.currentBoundary = state
@@ -354,33 +372,41 @@ BoundaryController = ($scope, $http) ->
       $scope.query = ''
       $scope.stateBoundary = null
       $scope.districtBoundary = null
+      $scope.wardBoundary = null
 
   $scope.saveAliases = ->
     $scope.safeApply ->
-
       # cleanse our aliases before saving them
       aliases = $scope.currentAliases.split('\n')
-      console.log(aliases)
       new_aliases = ''
       delim = ''
       for alias in aliases
-        console.log(alias.strip())
-        console.log(alias.strip().length)
         if alias.strip().length > 0
           new_aliases += delim + alias
           delim = '\n'
 
       $scope.currentBoundary.aliases = new_aliases
 
-      if $scope.currentBoundary.level == 2
+      if $scope.currentBoundary.level == 3
+        newMatch = ' ' + $scope.currentBoundary.name.toLowerCase() + ' ' + $scope.currentBoundary.aliases.toLowerCase()
+        $scope.districtBoundary.match += newMatch
+        newMatch = $scope.districtBoundary.name.toLowerCase() + ' ' + $scope.districtBoundary.aliases.toLowerCase() + newMatch
+        $scope.stateBoundary.match += newMatch
+        $scope.currentBoundary.match = $scope.stateBoundary.name.toLowerCase() + ' ' + $scope.stateBoundary.aliases.toLowerCase() + newMatch
+      else if $scope.currentBoundary.level == 2
         # update our querying to include aliases
         newMatch = ' ' + $scope.currentBoundary.name.toLowerCase() + ' ' + $scope.currentBoundary.aliases.toLowerCase()
+        if $scope.currentBoundary.children?
+          for child in $scope.currentBoundary.children
+            child.match += newMatch
+
         $scope.currentBoundary.match = $scope.stateBoundary.name.toLowerCase() + ' ' + $scope.stateBoundary.aliases.toLowerCase() + newMatch
         $scope.stateBoundary.match += newMatch
         # $scope.currentBoundary = $scope.stateBoundary
       else
         parentMatch = ' ' + $scope.currentBoundary.name.toLowerCase() + ' ' + $scope.currentBoundary.aliases.toLowerCase()
         childMatch = ''
+        subChildMatch = ''
         if $scope.currentBoundary.children?
           for child in $scope.currentBoundary.children
             child.match += parentMatch
@@ -388,7 +414,14 @@ BoundaryController = ($scope, $http) ->
             if child.aliases
               childMatch += ' ' + child.aliases.toLowerCase()
 
-        $scope.currentBoundary.match = parentMatch + childMatch
+            if child.children
+              for subChild in child.children
+                subChild.match += childMatch
+                subChildMatch += '' + subChild.name.toLowerCase()
+                if subChildMatch.aliases
+                  subChildMatch += '' + subChild.aliases.toLowerCase()
+
+        $scope.currentBoundary.match = parentMatch + childMatch + subChildMatch
         #$scope.currentBoundary = null
 
       $scope.aliasForm.$setPristine(true)

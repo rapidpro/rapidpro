@@ -1,14 +1,16 @@
 from __future__ import unicode_literals
 
-from datetime import timedelta
-from mock import patch
 import json
+
+from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+from mock import patch
 from temba.contacts.models import ContactField
 from temba.flows.models import RuleSet
+from temba.orgs.models import Language
 from temba.tests import FlowFileTest
-from temba.values.models import Value, STATE, DISTRICT, DECIMAL, TEXT, DATETIME
+from .models import Value
 
 
 class ResultTest(FlowFileTest):
@@ -18,31 +20,31 @@ class ResultTest(FlowFileTest):
         self.assertEquals(category, result['categories'][index]['label'])
 
     def test_field_results(self):
-        (c1, c2, c3, c4) = (self.create_contact("Contact1", '0788111111'),
-                            self.create_contact("Contact2", '0788222222'),
-                            self.create_contact("Contact3", '0788333333'),
-                            self.create_contact("Contact4", '0788444444'))
+        c1 = self.create_contact("Contact1", '0788111111')
+        c2 = self.create_contact("Contact2", '0788222222')
+        c3 = self.create_contact("Contact3", '0788333333')
+        self.create_contact("Contact4", '0788444444')
 
         # create a gender field that uses strings
-        gender = ContactField.get_or_create(self.org, 'gender', label="Gender", value_type=TEXT)
+        gender = ContactField.get_or_create(self.org, self.admin, 'gender', label="Gender", value_type=Value.TYPE_TEXT)
 
-        c1.set_field('gender', "Male")
-        c2.set_field('gender', "Female")
-        c3.set_field('gender', "Female")
+        c1.set_field(self.user, 'gender', "Male")
+        c2.set_field(self.user, 'gender', "Female")
+        c3.set_field(self.user, 'gender', "Female")
 
         result = Value.get_value_summary(contact_field=gender)[0]
         self.assertEquals(2, len(result['categories']))
         self.assertEquals(3, result['set'])
-        self.assertEquals(2, result['unset']) # this is two as we have the default contact created by our unit tests
+        self.assertEquals(2, result['unset'])  # this is two as we have the default contact created by our unit tests
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "Female", 2)
         self.assertResult(result, 1, "Male", 1)
 
         # create an born field that uses decimals
-        born = ContactField.get_or_create(self.org, 'born', label="Born", value_type=DECIMAL)
-        c1.set_field('born', 1977)
-        c2.set_field('born', 1990)
-        c3.set_field('born', 1977)
+        born = ContactField.get_or_create(self.org, self.admin, 'born', label="Born", value_type=Value.TYPE_DECIMAL)
+        c1.set_field(self.user, 'born', 1977)
+        c2.set_field(self.user, 'born', 1990)
+        c3.set_field(self.user, 'born', 1977)
 
         result = Value.get_value_summary(contact_field=born)[0]
         self.assertEquals(2, len(result['categories']))
@@ -53,9 +55,9 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 1, "1990", 1)
 
         # ok, state field!
-        state = ContactField.get_or_create(self.org, 'state', label="State", value_type=STATE)
-        c1.set_field('state', "Kigali City")
-        c2.set_field('state', "Kigali City")
+        state = ContactField.get_or_create(self.org, self.admin, 'state', label="State", value_type=Value.TYPE_STATE)
+        c1.set_field(self.user, 'state', "Kigali City")
+        c2.set_field(self.user, 'state', "Kigali City")
 
         result = Value.get_value_summary(contact_field=state)[0]
         self.assertEquals(1, len(result['categories']))
@@ -63,12 +65,12 @@ class ResultTest(FlowFileTest):
         self.assertEquals(3, result['unset'])
         self.assertResult(result, 0, "1708283", 2)
 
-        reg_date = ContactField.get_or_create(self.org, 'reg_date', label="Registration Date", value_type=DATETIME)
+        reg_date = ContactField.get_or_create(self.org, self.admin, 'reg_date', label="Registration Date", value_type=Value.TYPE_DATETIME)
         now = timezone.now()
 
-        c1.set_field('reg_date', now.replace(hour=9))
-        c2.set_field('reg_date', now.replace(hour=4))
-        c3.set_field('reg_date', now - timedelta(days=1))
+        c1.set_field(self.user, 'reg_date', now.replace(hour=9))
+        c2.set_field(self.user, 'reg_date', now.replace(hour=4))
+        c3.set_field(self.user, 'reg_date', now - timedelta(days=1))
         result = Value.get_value_summary(contact_field=reg_date)[0]
         self.assertEquals(2, len(result['categories']))
         self.assertEquals(3, result['set'])
@@ -77,26 +79,26 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 1, (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0), 1)
 
         # make sure categories returned are sorted by count, not name
-        c2.set_field('gender', "Male")
+        c2.set_field(self.user, 'gender', "Male")
         result = Value.get_value_summary(contact_field=gender)[0]
         self.assertEquals(2, len(result['categories']))
         self.assertEquals(3, result['set'])
-        self.assertEquals(2, result['unset']) # this is two as we have the default contact created by our unit tests
+        self.assertEquals(2, result['unset'])  # this is two as we have the default contact created by our unit tests
         self.assertFalse(result['open_ended'])
         self.assertResult(result, 0, "Male", 2)
         self.assertResult(result, 1, "Female", 1)
 
         # check the modified date is tracked for fields
         original_value = Value.objects.get(contact=c1, contact_field=gender)
-        c1.set_field('gender', 'unknown')
+        c1.set_field(self.user, 'gender', 'unknown')
         new_value = Value.objects.get(contact=c1, contact_field=gender)
         self.assertTrue(new_value.modified_on > original_value.modified_on)
         self.assertNotEqual(new_value.string_value, original_value.string_value)
 
     def run_color_gender_flow(self, contact, color, gender, age):
-        self.assertEquals("What is your gender?", self.send_message(self.flow, color, contact=contact, restart_participants=True))
-        self.assertEquals("What is your age?", self.send_message(self.flow, gender, contact=contact))
-        self.assertEquals("Thanks.", self.send_message(self.flow, age, contact=contact))
+        self.assertEqual(self.send_message(self.flow, color, contact=contact, restart_participants=True), "What is your gender?")
+        self.assertEqual(self.send_message(self.flow, gender, contact=contact), "What is your age?")
+        self.assertEqual(self.send_message(self.flow, age, contact=contact), "Thanks.")
 
     def setup_color_gender_flow(self):
         self.flow = self.get_flow('color_gender_age')
@@ -111,12 +113,13 @@ class ResultTest(FlowFileTest):
 
         # create a state field:
         # assign c1 and c2 to Kigali
-        state = ContactField.get_or_create(self.org, 'state', label="State", value_type=STATE)
-        district = ContactField.get_or_create(self.org, 'district', label="District", value_type=DISTRICT)
-        self.c1.set_field('state', "Kigali City")
-        self.c1.set_field('district', "Kigali")
-        self.c2.set_field('state', "Kigali City")
-        self.c2.set_field('district', "Kigali")
+        ContactField.get_or_create(self.org, self.admin, 'state', label="State", value_type=Value.TYPE_STATE)
+        ContactField.get_or_create(self.org, self.admin, 'district', label="District", value_type=Value.TYPE_DISTRICT)
+
+        self.c1.set_field(self.user, 'state', "Kigali City")
+        self.c1.set_field(self.user, 'district', "Nyarugenge")
+        self.c2.set_field(self.user, 'state', "Kigali City")
+        self.c2.set_field(self.user, 'district', "Nyarugenge")
 
         self.run_color_gender_flow(self.c1, "red", "male", "16")
         self.run_color_gender_flow(self.c2, "blue", "female", "19")
@@ -130,6 +133,20 @@ class ResultTest(FlowFileTest):
         color = RuleSet.objects.get(flow=self.flow, label="Color")
         gender = RuleSet.objects.get(flow=self.flow, label="Gender")
         age = RuleSet.objects.get(flow=self.flow, label="Age")
+
+        # fetch our results through the view
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.ruleset_results', args=[color.pk]))
+        response = json.loads(response.content)
+
+        categories = response['results'][0]['categories']
+        self.assertEqual('Red', categories[0]['label'])
+        self.assertEqual('Blue', categories[1]['label'])
+        self.assertEqual('Green', categories[2]['label'])
+
+        self.assertEqual(2, categories[0]['count'])
+        self.assertEqual(1, categories[1]['count'])
+        self.assertEqual(1, categories[2]['count'])
 
         # categories should be in the same order as our rules, should have correct counts
         result = Value.get_value_summary(ruleset=color)[0]
@@ -183,7 +200,7 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 2, "Green", 0)
 
         # remove one of the women from the group
-        ladies.update_contacts([self.c2], False)
+        ladies.update_contacts(self.user, [self.c2], False)
 
         # get a new summary
         result = Value.get_value_summary(ruleset=color, filters=[dict(groups=[ladies.pk]), dict(ruleset=age.pk, categories="Adult")])[0]
@@ -193,10 +210,10 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 2, "Green", 0)
 
         # ok, back in she goes
-        ladies.update_contacts([self.c2], True)
+        ladies.update_contacts(self.user, [self.c2], True)
 
         # do another run for contact 1
-        run5 = self.run_color_gender_flow(self.c1, "blue", "male", "16")
+        self.run_color_gender_flow(self.c1, "blue", "male", "16")
 
         # totals should reflect the new value, not the old
         result = Value.get_value_summary(ruleset=color)[0]
@@ -214,7 +231,7 @@ class ResultTest(FlowFileTest):
         self.assertResult(result, 1, "Female", 2)
 
         # back to a full flow
-        run5 = self.run_color_gender_flow(self.c1, "blue", "male", "16")
+        self.run_color_gender_flow(self.c1, "blue", "male", "16")
 
         # ok, now segment by gender
         result = Value.get_value_summary(ruleset=color, filters=[], segment=dict(ruleset=gender.pk, categories=["Male", "Female"]))
@@ -272,7 +289,7 @@ class ResultTest(FlowFileTest):
         self.assertResult(kigali_result, 2, "Green", 0)
 
         # updating state location leads to updated data
-        self.c2.set_field('state', "Eastern Province")
+        self.c2.set_field(self.user, 'state', "Eastern Province")
         result = Value.get_value_summary(ruleset=color, segment=dict(location="State"))
 
         eastern_result = result[0]
@@ -295,8 +312,8 @@ class ResultTest(FlowFileTest):
         # only on district in kigali
         self.assertEquals(1, len(result))
         kigali_result = result[0]
-        self.assertEquals('60485579', kigali_result['boundary'])
-        self.assertEquals('Kigali', kigali_result['label'])
+        self.assertEquals('3963734', kigali_result['boundary'])
+        self.assertEquals('Nyarugenge', kigali_result['label'])
         self.assertResult(kigali_result, 0, "Red", 0)
         self.assertResult(kigali_result, 1, "Blue", 2)
         self.assertResult(kigali_result, 2, "Green", 0)
@@ -334,7 +351,7 @@ class ResultTest(FlowFileTest):
             mock.return_value = []
 
             response = self.client.get(reverse('flows.ruleset_choropleth', args=[color.pk]) +
-                                   "?_format=json&boundary=" + self.org.country.osm_id)
+                                       "?_format=json&boundary=" + self.org.country.osm_id)
 
             # response should be valid json
             response = json.loads(response.content)
@@ -379,12 +396,33 @@ class ResultTest(FlowFileTest):
         run_flow(c1, "1 better place")
         run_flow(c2, "the great coffee")
         run_flow(c3, "1 cup of black tea")
-        run_flow(c4, "awesome than this")
+        run_flow(c4, "awesome than this encore")
         run_flow(c5, "from an awesome place in kigali")
         run_flow(c6, "awesome coffee")
 
         random = RuleSet.objects.get(flow=flow, label="Random")
 
+        result = Value.get_value_summary(ruleset=random)[0]
+        self.assertEquals(10, len(result['categories']))
+        self.assertTrue(result['open_ended'])
+        self.assertResult(result, 0, "awesome", 2)
+        self.assertResult(result, 1, "place", 2)
+        self.assertResult(result, 2, "better", 1)
+        self.assertResult(result, 3, "black", 1)
+        self.assertResult(result, 4, "coffee", 1)
+        self.assertResult(result, 5, "cup", 1)
+        self.assertResult(result, 6, "encore", 1)
+        self.assertResult(result, 7, "great", 1)
+        self.assertResult(result, 8, "kigali", 1)
+        self.assertResult(result, 9, "tea", 1)
+
+        # add French to org languages
+        Language.create(self.org, self.admin, 'French', 'fre')
+
+        # make sure we cleared the cache
+        Value.invalidate_cache(ruleset=random)
+
+        # encore is a french stop word and should not be included this time
         result = Value.get_value_summary(ruleset=random)[0]
         self.assertEquals(9, len(result['categories']))
         self.assertTrue(result['open_ended'])

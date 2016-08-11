@@ -173,6 +173,10 @@ input, textarea {
   width: 350px;
 }
 
+.controls .uneditable-input {
+  width: 350px;
+}
+
 select, textarea, input[type="text"], input[type="password"], input[type="datetime"], input[type="datetime-local"], input[type="date"], input[type="month"], input[type="time"], input[type="week"], input[type="number"], input[type="email"], input[type="url"], input[type="search"], input[type="tel"], input[type="color"], .uneditable-input {
   display: inline-block;
   height: 25px;
@@ -1243,6 +1247,12 @@ form.smartmin-form {
   }
 }
 
+form.smartmin-form.form-horizontal {
+  ul.errorlist {
+    margin-left: 150px;
+  }
+}
+
 .sort-placeholder {
   border-top: 1px solid @flat-white - #111;
   border-bottom: 1px solid @flat-white - #111;
@@ -1535,6 +1545,11 @@ tr.checked {
   .omni-twitter:before {
     content: "\e007";
   }
+
+  .omni-telegram:before {
+    content: "\e900";
+    padding-top: 5px;
+  }
 }
 
 .select2-temba-field, .select2-temba-user-group-field {
@@ -1614,6 +1629,23 @@ tr.checked {
   }
 
 }
+
+// *******************************
+// Smartmin
+// *******************************
+form.smartmin-form ul.errorlist li {
+  color: #b94a48;
+}
+
+.form-horizontal .form-actions {
+  padding-left: 160px;
+}
+
+.form-actions {
+  padding:0px;
+  margin-top:0px;
+}
+
 
 // *******************************
 // Modals
@@ -2057,7 +2089,7 @@ input[type='radio'] {
   background-color: @color-alert-error + #222;
   border: 1px solid @color-alert-error;
   text-shadow: none;
-  width:520px;
+  width:560px;
 
   ul.errorlist {
     margin: 0px;
@@ -2245,7 +2277,7 @@ input[type='radio'] {
             margin-top: -1px;
           }
 
-          .icon-channel-android {
+          .icon-mobile {
             color: @color-font-lightgrey;
             font-size:16px;
             margin-right: 5px;
@@ -2565,3 +2597,48 @@ span.label a {
   bottom: 60px;
   right: 12px;
 }
+
+.featherlight .featherlight-image{
+    max-width:100%;
+    max-height:500px;
+    width:auto;
+}
+
+.image-preview {
+  max-height:200px;
+}
+
+.image-full {
+  // max-width:800px;
+}
+
+.download-link {
+  position:absolute;
+  right:50px;
+  bottom:15px;
+  font-size:30px;
+  color: @color-font-white;
+}
+
+.video-js {
+  min-width:300px;
+  @big-play-bg-color: #ff00b7;
+  @big-play-bg-alpha: 1;
+}
+
+.download {
+  margin-top:5px;
+  padding:5px;
+  background: @color-font-lightestgrey;
+
+  .icon {
+    margin-right:5px;
+    margin-top:2px;
+  }
+
+}
+
+.select2-hidden-accessible {
+  display:none;
+}
+

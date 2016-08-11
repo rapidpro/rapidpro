@@ -15,13 +15,17 @@ app.config [ '$httpProvider', '$sceDelegateProvider', ($httpProvider, $sceDelega
     'http://*.s3.amazonaws.com/**',
     'https://*.s3.amazonaws.com/**',
     'http://textit.ngrok.com/**',
+    'https://textit.ngrok.com/**',
+    'http://textit.ngrok.io/**',
+    'https://textit.ngrok.io/**',
   ])
 ]
 
 #============================================================================
 # Since Django uses {{ }}, we will have angular use [[ ]] instead.
 #============================================================================
-app.config ($interpolateProvider) ->
+app.config [ '$compileProvider', '$interpolateProvider' , ($compileProvider, $interpolateProvider) ->
   $interpolateProvider.startSymbol "[["
   $interpolateProvider.endSymbol "]]"
-
+  # $compileProvider.debugInfoEnabled false
+]

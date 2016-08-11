@@ -20,12 +20,13 @@ from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .email import is_valid_address
 from .exporter import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
+from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
-from . import datetime_to_str
+from . import datetime_to_str, chunk_list
 
 
 class InitTest(TembaTest):
@@ -170,6 +171,38 @@ class InitTest(TembaTest):
         self.assertEquals(0, percentage(100, 0))
         self.assertEquals(75, percentage(75, 100))
         self.assertEquals(76, percentage(759, 1000))
+
+
+class TemplateTagTest(TembaTest):
+
+    def test_icon(self):
+        from temba.campaigns.models import Campaign
+        from temba.triggers.models import Trigger
+        from temba.flows.models import Flow
+        from temba.utils.templatetags.temba import icon
+
+        campaign = Campaign.create(self.org, self.admin, 'Test Campaign', self.create_group('Test group', []))
+        flow = Flow.create(self.org, self.admin, 'Test Flow')
+        trigger = Trigger.objects.create(org=self.org, keyword='trigger', flow=flow, created_by=self.admin, modified_by=self.admin)
+
+        self.assertEquals('icon-instant', icon(campaign))
+        self.assertEquals('icon-feed', icon(trigger))
+        self.assertEquals('icon-tree', icon(flow))
+        self.assertEquals("", icon(None))
+
+    def test_format_seconds(self):
+        from temba.utils.templatetags.temba import format_seconds
+
+        self.assertIsNone(format_seconds(None))
+
+        # less than a minute
+        self.assertEquals("30 sec", format_seconds(30))
+
+        # round down
+        self.assertEquals("1 min", format_seconds(89))
+
+        # round up
+        self.assertEquals("2 min", format_seconds(100))
 
 
 class CacheTest(TembaTest):
@@ -335,7 +368,6 @@ class QueueTest(TembaTest):
         push_task(self.org, None, 'test', args[1])
         push_task(self.org, None, 'test', args[0], HIGH_PRIORITY)
 
-
         push_task(self.org2, None, 'test', args[4])
         push_task(self.org2, None, 'test', args[3], HIGH_PRIORITY)
         push_task(self.org2, None, 'test', args[5], LOW_PRIORITY)
@@ -428,11 +460,11 @@ class ExpressionsTest(TembaTest):
         self.assertEquals(('Hello "World"', []),
                           evaluate_template('@( "Hello ""World""" )', self.context))  # string with escaping
         self.assertEquals(("Hello World", []),
-                          evaluate_template('@( "Hello" & " " & "World" )',  self.context))  # string concatenation
+                          evaluate_template('@( "Hello" & " " & "World" )', self.context))  # string concatenation
         self.assertEquals(('("', []),
-                          evaluate_template('@("(" & """")',  self.context))  # string literals containing delimiters
+                          evaluate_template('@("(" & """")', self.context))  # string literals containing delimiters
         self.assertEquals(('Joe Blow and Joe Blow', []),
-                          evaluate_template('@contact and @(contact)',  self.context))  # old and new style
+                          evaluate_template('@contact and @(contact)', self.context))  # old and new style
         self.assertEquals(("Joe Blow language is set to 'eng'", []),
                           evaluate_template("@contact language is set to '@contact.language'", self.context))  # language
 
@@ -442,9 +474,9 @@ class ExpressionsTest(TembaTest):
         self.assertEquals(("one اثنين ثلاثة four", []),
                           evaluate_template("one @flow.arabic four", self.context))  # LTR var, RTL value, LTR text
         self.assertEquals(("واحد اثنين ثلاثة أربعة", []),
-                          evaluate_template("واحد @flow.arabic أربعة",  self.context))  # LTR var, RTL value, RTL text
+                          evaluate_template("واحد @flow.arabic أربعة", self.context))  # LTR var, RTL value, RTL text
         self.assertEquals(("واحد two three أربعة", []),
-                          evaluate_template("واحد @flow.english أربعة",  self.context))  # LTR var, LTR value, RTL text
+                          evaluate_template("واحد @flow.english أربعة", self.context))  # LTR var, LTR value, RTL text
 
         # test decimal arithmetic
         self.assertEquals(("Result: 7", []),
@@ -532,40 +564,40 @@ class ExpressionsTest(TembaTest):
 
     def test_evaluate_template_compat(self):
         # test old style expressions, i.e. @ and with filters
-        self.assertEquals(("Hello World Joe Joe", []),
-                          evaluate_template_compat("Hello World @contact.first_name @contact.first_name", self.context))
-        self.assertEquals(("Hello World Joe Blow", []),
-                          evaluate_template_compat("Hello World @contact", self.context))
-        self.assertEquals(("Hello World: Well", []),
-                          evaluate_template_compat("Hello World: @flow.water_source", self.context))
-        self.assertEquals(("Hello World: ", []),
-                          evaluate_template_compat("Hello World: @flow.blank", self.context))
-        self.assertEquals(("Hello اثنين ثلاثة thanks", []),
-                          evaluate_template_compat("Hello @flow.arabic thanks", self.context))
+        self.assertEqual(("Hello World Joe Joe", []),
+                         evaluate_template_compat("Hello World @contact.first_name @contact.first_name", self.context))
+        self.assertEqual(("Hello World Joe Blow", []),
+                         evaluate_template_compat("Hello World @contact", self.context))
+        self.assertEqual(("Hello World: Well", []),
+                         evaluate_template_compat("Hello World: @flow.water_source", self.context))
+        self.assertEqual(("Hello World: ", []),
+                         evaluate_template_compat("Hello World: @flow.blank", self.context))
+        self.assertEqual(("Hello اثنين ثلاثة thanks", []),
+                         evaluate_template_compat("Hello @flow.arabic thanks", self.context))
         self.assertEqual((' %20%3D%26%D8%A8 ', []),
-                          evaluate_template_compat(' @flow.urlstuff ', self.context, True))  # url encoding enabled
-        self.assertEquals(("Hello Joe", []),
-                          evaluate_template_compat("Hello @contact.first_name|notthere", self.context))
-        self.assertEquals(("Hello joe", []),
-                          evaluate_template_compat("Hello @contact.first_name|lower_case", self.context))
-        self.assertEquals(("Hello Joe", []),
-                          evaluate_template_compat("Hello @contact.first_name|lower_case|capitalize", self.context))
-        self.assertEquals(("Hello Joe", []),
-                          evaluate_template_compat("Hello @contact|first_word", self.context))
-        self.assertEquals(("Hello Blow", []),
-                          evaluate_template_compat("Hello @contact|remove_first_word|title_case", self.context))
-        self.assertEquals(("Hello Joe Blow", []),
-                          evaluate_template_compat("Hello @contact|title_case", self.context))
-        self.assertEquals(("Hello JOE", []),
-                          evaluate_template_compat("Hello @contact.first_name|upper_case", self.context))
-        self.assertEquals(("Hello Joe from info@example.com", []),
-                          evaluate_template_compat("Hello @contact.first_name from info@example.com", self.context))
-        self.assertEquals(("Joe", []),
-                          evaluate_template_compat("@contact.first_name", self.context))
-        self.assertEquals(("foo@nicpottier.com", []),
-                          evaluate_template_compat("foo@nicpottier.com", self.context))
-        self.assertEquals(("@nicpottier is on twitter", []),
-                          evaluate_template_compat("@nicpottier is on twitter", self.context))
+                         evaluate_template_compat(' @flow.urlstuff ', self.context, True))  # url encoding enabled
+        self.assertEqual(("Hello Joe", []),
+                         evaluate_template_compat("Hello @contact.first_name|notthere", self.context))
+        self.assertEqual(("Hello joe", []),
+                         evaluate_template_compat("Hello @contact.first_name|lower_case", self.context))
+        self.assertEqual(("Hello Joe", []),
+                         evaluate_template_compat("Hello @contact.first_name|lower_case|capitalize", self.context))
+        self.assertEqual(("Hello Joe", []),
+                         evaluate_template_compat("Hello @contact|first_word", self.context))
+        self.assertEqual(("Hello Blow", []),
+                         evaluate_template_compat("Hello @contact|remove_first_word|title_case", self.context))
+        self.assertEqual(("Hello Joe Blow", []),
+                         evaluate_template_compat("Hello @contact|title_case", self.context))
+        self.assertEqual(("Hello JOE", []),
+                         evaluate_template_compat("Hello @contact.first_name|upper_case", self.context))
+        self.assertEqual(("Hello Joe from info@example.com", []),
+                         evaluate_template_compat("Hello @contact.first_name from info@example.com", self.context))
+        self.assertEqual(("Joe", []),
+                         evaluate_template_compat("@contact.first_name", self.context))
+        self.assertEqual(("foo@nicpottier.com", []),
+                         evaluate_template_compat("foo@nicpottier.com", self.context))
+        self.assertEqual(("@nicpottier is on twitter", []),
+                         evaluate_template_compat("@nicpottier is on twitter", self.context))
 
     def test_migrate_template(self):
         self.assertEqual(migrate_template("Hi @contact.name|upper_case|capitalize from @flow.chw|lower_case"),
@@ -589,7 +621,58 @@ class ExpressionsTest(TembaTest):
 
     def test_get_function_listing(self):
         listing = get_function_listing()
-        self.assertEqual(listing[0], {'name': 'ABS', 'display': "Returns the absolute value of a number"})
+        self.assertEqual(listing[0], {
+            'signature': 'ABS(number)',
+            'name': 'ABS',
+            'display': "Returns the absolute value of a number"
+        })
+
+    def test_build_function_signature(self):
+        self.assertEqual('ABS()',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[])))
+
+        self.assertEqual('ABS(number)',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=False)])))
+
+        self.assertEqual('ABS(number, ...)',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=True)])))
+
+        self.assertEqual('ABS([number])',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=True,
+                                                                     name='number',
+                                                                     vararg=False)])))
+
+        self.assertEqual('ABS([number], ...)',
+                         _build_function_signature(dict(name='ABS',
+                                                        params=[dict(optional=True,
+                                                                     name='number',
+                                                                     vararg=True)])))
+
+        self.assertEqual('MOD(number, divisor)',
+                         _build_function_signature(dict(name='MOD',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=False),
+                                                                dict(optional=False,
+                                                                     name='divisor',
+                                                                     vararg=False)])))
+
+        self.assertEqual('MOD(number, ..., divisor)',
+                         _build_function_signature(dict(name='MOD',
+                                                        params=[dict(optional=False,
+                                                                     name='number',
+                                                                     vararg=True),
+                                                                dict(optional=False,
+                                                                     name='divisor',
+                                                                     vararg=False)])))
 
     def test_percentage(self):
         self.assertEquals(0, percentage(0, 100))
@@ -609,6 +692,29 @@ class GSM7Test(TembaTest):
         replaced = replace_non_gsm7_accents("No capital accented È!")
         self.assertEquals("No capital accented E!", replaced)
         self.assertTrue(is_gsm7(replaced))
+
+        replaced = replace_non_gsm7_accents("No crazy “word” quotes.")
+        self.assertEquals('No crazy "word" quotes.', replaced)
+        self.assertTrue(is_gsm7(replaced))
+
+
+class ChunkTest(TembaTest):
+
+    def test_chunking(self):
+        curr = 0
+        for chunk in chunk_list(xrange(100), 7):
+            batch_curr = curr
+            for item in chunk:
+                self.assertEqual(item, curr)
+                curr += 1
+
+            # again to make sure things work twice
+            curr = batch_curr
+            for item in chunk:
+                self.assertEqual(item, curr)
+                curr += 1
+
+        self.assertEqual(curr, 100)
 
 
 class TableExporterTest(TembaTest):
@@ -684,5 +790,5 @@ class TableExporterTest(TembaTest):
         self.assertEquals(cols, sheet2.row_values(0))
         self.assertEquals(values, sheet2.row_values(1))
 
-        self.assertEquals(67000+2-65536, sheet2.nrows)
+        self.assertEquals(67000 + 2 - 65536, sheet2.nrows)
         self.assertEquals(32, sheet2.ncols)

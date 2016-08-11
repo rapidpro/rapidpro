@@ -29,7 +29,7 @@
       -trans "on the right to open it."
 
   -elif object.flow_type == 'V' and not call_channel
-       %p
+    %p
       -blocktrans with name=brand.name
         To get started you need to add a calling channel to your account. A channel is a phone account which
         {{ name }} can use to make and receive calls on your behalf.
@@ -54,16 +54,14 @@
 
 -block summary
   %p
-    -if not participant_count
-      -trans "No contacts have started this flow."
-    -elif participant_count == 1
+    -if not run_count
+      -trans "This flow has never been started."
+    -elif run_count == 1
       %span.attn1
-        -trans "1 Contact"
-      -trans "has started this flow."
+        -trans "This flow has been started once."
     -else
       %span.attn
-        -trans "{{ participant_count }} Contacts"
-      -trans "have started this flow."
+        -trans "This flow has been started {{ run_count }} times."
 
     -if complete_count == 1
       -trans "It has been completed"

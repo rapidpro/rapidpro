@@ -240,9 +240,11 @@ describe 'Controllers:', ->
       # load a flow
       flowService.fetch(flows.favorites.id)
       flowService.contactFieldSearch = []
+      flowService.updateContactSearch = []
       flowService.language = {iso_code:'base'}
       $http.flush()
       flowService.contactFieldSearch = [{id:'national_id',text:'National ID'}]
+      flowService.updateContactSearch = [{id:'national_id',text:'National ID'}]
 
       # find an actin to edit
       actionset = flowService.flow.action_sets[0]
@@ -262,6 +264,7 @@ describe 'Controllers:', ->
 
         # should still have one to choose from
         expect(flowService.contactFieldSearch.length).toBe(1)
+        expect(flowService.updateContactSearch.length).toBe(1)
       $timeout.flush()
 
       # now open our modal and try adding a field
@@ -276,9 +279,14 @@ describe 'Controllers:', ->
 
         # new fields should be tacked on the end
         expect(flowService.contactFieldSearch.length).toBe(2)
+        expect(flowService.updateContactSearch.length).toBe(2)
 
         # check that the NEW markers are stripped off
         added = flowService.contactFieldSearch[1]
+        expect(added.id).toBe('a_new_field')
+        expect(added.text).toBe('A New Field')
+
+        added = flowService.updateContactSearch[1]
         expect(added.id).toBe('a_new_field')
         expect(added.text).toBe('A New Field')
       $timeout.flush()
@@ -311,3 +319,40 @@ describe 'Controllers:', ->
         expect(modalScope.languages.length).toEqual(1)
 
       $timeout.flush()
+
+    it 'isRuleComplete should have proper validation', ->
+
+      # load a flow
+      flowService.fetch(flows.favorites.id)
+      flowService.contactFieldSearch = []
+      flowService.language = {iso_code:'base'}
+      $http.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        rule_tests = [
+          {rule: {category: null, _config: {operands: null}, test: {}}, complete: false},
+          {rule: {category: {_base: null}, _config: {operands: 0}, test: {}}, complete: false},
+          {rule: {category: {_base: 'Red'},_config: {operands: 0}, test: {}}, complete: true},
+          {rule: {category: {_base: 'Red'}, _config: {operands: 1}, test: {}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {operands: 1}, test: {_base: 'Red'}}, complete: true},
+          {rule: {category: {_base: 'Red'}, _config: {operands: 1}, test: {_base: 'Red'}}, complete: true},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'between', operands: 2}, test: {min: null, max: null}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'between', operands: 2}, test: {min: 5, max: null}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'between', operands: 2}, test: {min: null, max: 10}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'between', operands: 2}, test: {min: 5, max: 10}}, complete: true},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'ward', operands: 2}, test: {state: null, district: null}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'ward', operands: 2}, test: {state: 'state', district: null}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'ward', operands: 2}, test: {state: null, district: 'district'}}, complete: false},
+          {rule: {category: {_base: 'Red'}, _config: {type: 'ward', operands: 2}, test: {state: 'state', district: 'district'}}, complete: true},
+        ]
+
+        for rule_test in rule_tests
+          expect(modalScope.isRuleComplete(rule_test['rule'])).toBe(rule_test['complete'])
+
+      $timeout.flush()
+        

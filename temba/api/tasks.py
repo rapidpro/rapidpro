@@ -29,7 +29,7 @@ def deliver_event_task(event_id):  # pragma: no cover
 
 
 @task(track_started=True, name='retry_events_task')
-def retry_events_task(): # pragma: no cover
+def retry_events_task():  # pragma: no cover
     print "** retrying errored webhook events"
 
     # get all events that have an error and need to be retried

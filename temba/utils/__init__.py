@@ -11,33 +11,35 @@ import resource
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
-from django.core.serializers.json import DjangoJSONEncoder
 from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timezone import is_aware
 from django.http import HttpResponse
-from itertools import islice, chain
+from itertools import islice
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
+MAX_UTC_OFFSET = 14 * 60 * 60  # max offset postgres supports for a timezone
 
 # these are not mapped by pytz.country_timezones
-INITIAL_TIMEZONE_COUNTRY = {'US/Hawaii': 'US',
-                            'US/Alaska': 'US',
-                            'Canada/Pacific': 'CA',
-                            'US/Pacific': 'US',
-                            'Canada/Mountain': 'CA',
-                            'US/Arizona': 'US',
-                            'US/Mountain': 'US',
-                            'Canada/Central': 'CA',
-                            'US/Central': 'US',
-                            'America/Montreal': 'CA',
-                            'Canada/Eastern': 'CA',
-                            'US/Eastern': 'US',
-                            'Canada/Atlantic': 'CA',
-                            'Canada/Newfoundland': 'CA',
-                            'GMT': '',
-                            'UTC': ''}
+INITIAL_TIMEZONE_COUNTRY = {
+    'US/Hawaii': 'US',
+    'US/Alaska': 'US',
+    'Canada/Pacific': 'CA',
+    'US/Pacific': 'US',
+    'Canada/Mountain': 'CA',
+    'US/Arizona': 'US',
+    'US/Mountain': 'US',
+    'Canada/Central': 'CA',
+    'US/Central': 'US',
+    'America/Montreal': 'CA',
+    'Canada/Eastern': 'CA',
+    'US/Eastern': 'US',
+    'Canada/Atlantic': 'CA',
+    'Canada/Newfoundland': 'CA',
+    'GMT': '',
+    'UTC': ''
+}
 
 
 def datetime_to_str(date_obj, format=None, ms=True, tz=None):
@@ -86,20 +88,29 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     try:
+        output_date = None
         if fill_time:
             date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=DEFAULT_DATE)
             if date != DEFAULT_DATE:
                 output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=timezone.now().astimezone(tz))
-                return output_date
             else:
-                return None
+                output_date = None
         else:
             default = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
-            parsed = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
-            parsed = tz.localize(parsed)  # localize in timezone
-            return parsed if parsed.year != 1 else None  # only return parsed value if year at least differs from 1CE
+            output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
+            output_date = tz.localize(output_date)  # localize in timezone
+
+            # only return date if it actually got parsed
+            if output_date.year == 1:
+                output_date = None
     except Exception:
-        return None
+        output_date = None
+
+    # if we've been parsed into something Postgres can't store (offset is > 12 hours) then throw it away
+    if output_date and abs(output_date.utcoffset().total_seconds()) > MAX_UTC_OFFSET:
+        output_date = None
+
+    return output_date
 
 
 def str_to_time(value):
@@ -122,13 +133,16 @@ def get_datetime_format(dayfirst):
     return format_date, format_time
 
 
-def datetime_to_json_date(dt):
+def datetime_to_json_date(dt, micros=False):
     """
     Formats a datetime as a string for inclusion in JSON
+    :param dt: the datetime to format
+    :param micros: whether to include microseconds
     """
     # always output as UTC / Z and always include milliseconds
     as_utc = dt.astimezone(pytz.utc)
-    return as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+    as_str = as_utc.strftime('%Y-%m-%dT%H:%M:%S.%f')
+    return (as_str if micros else as_str[:-3]) + 'Z'
 
 
 def json_date_to_datetime(date_str):
@@ -153,7 +167,7 @@ def ms_to_datetime(ms):
     """
     Converts a millisecond accuracy timestamp to a datetime
     """
-    dt = datetime.datetime.utcfromtimestamp(ms/1000)
+    dt = datetime.datetime.utcfromtimestamp(ms / 1000)
     return dt.replace(microsecond=(ms % 1000) * 1000).replace(tzinfo=pytz.utc)
 
 
@@ -233,12 +247,13 @@ def get_dict_from_cursor(cursor):
         for row in cursor.fetchall()
     ]
 
+
 class DictStruct(object):
     """
     Wraps a dictionary turning it into a structure looking object. This is useful to 'mock' dictionaries
     coming from Redis to look like normal objects
     """
-    def __init__(self, classname, entries, datetime_fields=[]):
+    def __init__(self, classname, entries, datetime_fields=()):
         self._classname = classname
         self._values = entries
 
@@ -251,17 +266,17 @@ class DictStruct(object):
         self._initialized = True
 
     def __getattr__(self, item):
-        if not item in self._values:
+        if item not in self._values:
             raise Exception("%s does not have a %s field" % (self._classname, item))
 
         return self._values[item]
 
     def __setattr__(self, item, value):
         # needed to prevent infinite loop
-        if not self.__dict__.has_key('_initialized'):
+        if '_initialized' not in self.__dict__:
             return object.__setattr__(self, item, value)
 
-        if not item in self._values:
+        if item not in self._values:
             raise Exception("%s does not have a %s field" % (self._classname, item))
 
         self._values[item] = value
@@ -399,18 +414,6 @@ class PageableQuery(object):
         return self._count
 
 
-class JsonResponse(HttpResponse):
-    """
-    Borrowed from Django 1.7 until we upgrade to that...
-    """
-    def __init__(self, data, encoder=DjangoJSONEncoder, safe=True, **kwargs):
-        if safe and not isinstance(data, dict):
-            raise TypeError('In order to allow non-dict objects to be serialized set the safe parameter to False')
-        kwargs.setdefault('content_type', 'application/json')
-        data = json.dumps(data, cls=encoder)
-        super(JsonResponse, self).__init__(content=data, **kwargs)
-
-
 def non_atomic_when_eager(view_func):
     """
     Decorator which disables atomic requests for a view/dispatch function when celery is running in eager mode
@@ -436,27 +439,33 @@ def timezone_to_country_code(tz):
     timezone_country = INITIAL_TIMEZONE_COUNTRY
     for countrycode in country_timezones:
         timezones = country_timezones[countrycode]
-        for timezone in timezones:
-            timezone_country[timezone] = countrycode
+        for zone in timezones:
+            timezone_country[zone] = countrycode
 
     return timezone_country.get(tz, '')
 
+
 def splitting_getlist(request, name, default=None):
-    vals = request.QUERY_PARAMS.getlist(name, default)
+    """
+    Used for backward compatibility in the API where some list params can be provided as comma separated values
+    """
+    vals = request.query_params.getlist(name, default)
     if vals and len(vals) == 1:
         return vals[0].split(',')
     else:
         return vals
+
 
 def chunk_list(iterable, size):
     """
     Splits a very large list into evenly sized chunks.
     Returns an iterator of lists that are no more than the size passed in.
     """
-    source_iter = iter(iterable)
-    while True:
-        chunk_iter = islice(source_iter, size)
-        yield chain([chunk_iter.next()], chunk_iter)
+    it = iter(iterable)
+    item = list(islice(it, size))
+    while item:
+        yield item
+        item = list(islice(it, size))
 
 
 def print_max_mem_usage(msg=None):

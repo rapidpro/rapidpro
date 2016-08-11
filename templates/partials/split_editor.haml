@@ -70,7 +70,7 @@
           -blocktrans
             We'll include the message text along with data specified in
             the
-            %a{href:"/api/v1/webhook/#flow"}<
+            %a{href:"/webhooks/webhook/#flow"}<
               Webhook Flow Event API
             .
 
@@ -114,11 +114,18 @@
               .icon.icon-menu
               %select{ng-model:"rule._config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:isVisibleOperator', class:"operator-select",ng-change:"updateCategory(rule)"}
 
-              // between is the only one with two operands
-              .operation{ng-if:"rule._config.operands == 2"}
+              // between and ward are the only with two operands
+              .operation{ng-if:'rule._config.operands == 2 && rule._config.type != "ward"'}
                 %input{ng-model:"rule.test.min",name:"min",number:"",ng-required:"rule.test.min.length > 0 || rule.test.max.length > 0 || rule.category._base.length > 0",ng-change:"updateCategory(rule)",lower-than:"[[rule.test.max]]",type:"text",class:"operand-small"}
                 -trans "and"
                 %input{ng-model:"rule.test.max", name:"max",number:"",ng-required:"rule.test.min.length > 0 || rule.test.max.length > 0 || rule.category._base.length > 0",ng-change:"updateCategory(rule)",type:"text",class:"operand-small"}
+
+              // ward level
+              .operation{ng-if:'rule._config.operands == 2 && rule._config.type == "ward"'}
+                %input{ng-model:"rule.test.state",name:"state",ng-change:"updateCategory(rule)",type:"text",class:"operand-small", placeholder:"@flow.state", auto-complete:"rule._config.auto_complete",flow:"[[flowId]]", uuid:"[[ruleset.uuid]]", ng-required:"rule.category._base"}
+                -trans "and"
+                %input{ng-model:"rule.test.district", name:"district",ng-change:"updateCategory(rule)",type:"text",class:"operand-small", placeholder:"@flow.district", auto-complete:"rule._config.auto_complete",flow:"[[flowId]]", uuid:"[[ruleset.uuid]]", ng-required:"rule.category._base"}
+
 
               // single operand based rules that aren't dates
               .operation{ng-if:'rule._config.operands == 1 && rule._config.validate !="date"'}

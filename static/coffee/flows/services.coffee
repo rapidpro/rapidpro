@@ -5,7 +5,7 @@ version = new Date().getTime()
 quietPeriod = 500
 errorRetries = 10
 
-app.service "utils", ->
+app.service "utils", ['$modal', ($modal) ->
 
   isWindow = (obj) ->
     obj and obj.document and obj.location and obj.alert and obj.setInterval
@@ -95,6 +95,14 @@ app.service "utils", ->
       return false
     return true
 
+  openModal: (templateUrl, controller, resolveObj) ->
+    $modal.open
+      keyboard: false
+      templateUrl: templateUrl
+      controller: controller
+      resolve: resolveObj
+
+]
 #============================================================================
 # DragHelper is all kinds of bad. This facilitates the little helper cues
 # for the user so they learn the mechanics of building a flow. We should
@@ -272,8 +280,6 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
     Plumb = @
     Plumb.disconnectOutboundConnections(sourceId)
 
-    $('html').scope().plumb = Plumb
-
     # connect to our new target if we have one
     if targetId?
       existing = jsPlumb.getEndpoints(targetId)
@@ -350,9 +356,12 @@ app.service "Plumb", ["$timeout", "$rootScope", "$log", ($timeout, $rootScope, $
         jsPlumb.repaint(element)
       else
         jsPlumb.repaintEverything()
+    , 0
 
+    $timeout ->
       service.setPageHeight()
     , 0
+
 
   disconnectRules: (rules) ->
     for rule in rules
@@ -390,7 +399,7 @@ app.factory "Revisions", ['$http', '$log', ($http, $log) ->
 
 ]
 
-app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', '$modal', 'utils', 'Plumb', 'Revisions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, $modal, utils, Plumb, Revisions, DragHelper) ->
+app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', '$log', 'utils', 'Plumb', 'Revisions', 'DragHelper', ($rootScope, $window, $http, $timeout, $interval, $log, utils, Plumb, Revisions, DragHelper) ->
 
   new class Flow
 
@@ -414,6 +423,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type:'api', name:'Webhook', verbose_name:'Make a call to an external server', icon: 'icon-cloud-upload', filter:[TEXT,VOICE] }
         { type:'email', name:'Send Email', verbose_name: 'Send an email', icon: 'icon-bubble-3', filter:[TEXT,VOICE] }
         { type:'lang', name:'Set Language', verbose_name:'Set language for contact', icon: 'icon-language', filter:ALL }
+        { type:'channel', name:'Set Channel', verbose_name:'Set preferred channel', icon: 'icon-phone', filter:[TEXT, VOICE] }
         { type:'flow', name:'Start Another Flow', verbose_name:'Start another flow', icon: 'icon-tree', flows:true, filter:[TEXT,VOICE] }
         { type:'trigger-flow',   name:'Start Someone in a Flow', verbose_name:'Start someone else in a flow', icon: 'icon-tree', flows:true, filter:[TEXT,VOICE] }
       ]
@@ -421,6 +431,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @rulesets = [
 
         { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', split:'message response', filter:[TEXT,SURVEY] },
+
+        # survey media types
+        { type: 'wait_photo', name:'Wait for a photo', verbose_name: 'Wait for photo', filter:[SURVEY] },
+        { type: 'wait_audio', name:'Wait for an audio recording', verbose_name: 'Wait for audio', filter:[SURVEY] },
+        { type: 'wait_video', name:'Wait for a video', verbose_name: 'Wait for video', filter:[SURVEY] },
+        { type: 'wait_gps', name:'Wait for GPS coordinates', verbose_name: 'Wait for GPS', filter:[SURVEY] },
 
         # voice flows only
         { type: 'wait_recording', name:'Get Recording', verbose_name: 'Wait for recording', filter:VOICE },
@@ -461,6 +477,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type:'phone', name: 'Has a phone', verbose_name:'has a phone number', operands: 0, voice:true }
         { type:'state', name: 'Has a state', verbose_name:'has a state', operands: 0 }
         { type:'district', name: 'Has a district', verbose_name:'has a district', operands: 1, auto_complete: true, placeholder:'@flow.state' }
+        { type:'ward', name: 'Has a ward', verbose_name:'has a ward', operands: 2, operand_required: false,  auto_complete: true, }
         { type:'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true }
         { type:'true', name: 'Other', verbose_name:'contains anything', operands: 0 }
       ]
@@ -540,15 +557,14 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               if UserVoice
                 UserVoice.push(['set', 'ticket_custom_fields', {'Error': data.description}]);
 
-              modalInstance = $modal.open
-                templateUrl: "/partials/modal?v=" + version
-                controller: ModalController
-                resolve:
-                  type: -> "error"
-                  title: -> "Error Saving"
-                  body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
-                  details: -> data.description
-                  ok: -> 'Reload'
+              resolveObj =
+                type: -> "error"
+                title: -> "Error Saving"
+                body: -> "Sorry, but we were unable to save your flow. Please reload the page and try again, this may clear your latest changes."
+                details: -> data.description
+                ok: -> 'Reload'
+
+              modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
               modalInstance.result.then (reload) ->
                 if reload
@@ -573,14 +589,12 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
             $rootScope.error = null
             $rootScope.errorDelay = quietPeriod
             if data.status == 'unsaved'
-              modalInstance = $modal.open
-                templateUrl: "/partials/modal?v=" + version
-                controller: ModalController
-                resolve:
-                  type: -> "error"
-                  title: -> "Editing Conflict"
-                  body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
-                  ok: -> 'Reload'
+              resolveObj =
+                type: -> "error"
+                title: -> "Editing Conflict"
+                body: -> data.saved_by + " is currently editing this Flow. Your changes will not be saved until the Flow is reloaded."
+                ok: -> 'Reload'
+              modalInstance = utils.openModal("/partials/modal?v=" + version, ModalController, resolveObj)
 
               modalInstance.result.then (reload) ->
                 if reload
@@ -649,6 +663,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           @detectLoop(node.uuid, node.destination, path)
 
     isConnectionAllowed: (sourceId, targetId) ->
+      return @getConnectionError(sourceId, targetId) == null
+
+    getConnectionError: (sourceId, targetId) ->
 
       source = sourceId.split('_')[0]
       path = [ source ]
@@ -657,14 +674,14 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       targetNode = @getNode(targetId)
 
       if @isPausingRuleset(sourceNode) and @isPausingRuleset(targetNode)
-        return false
+        return 'The flow cannot wait for two consecutive responses from the contact. Instead, send them a message between waiting for a response.'
 
       try
         @detectLoop(source, targetId, path)
       catch e
         $log.debug(e.message)
-        return false
-      return true
+        return 'Connecting these together would create an infinite loop in your flow. To connect these, make sure to pass it through an action that waits for a response.'
+      return null
 
     # translates a string into a slug
     slugify: (label) ->
@@ -678,13 +695,15 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       flowFields = {}
       if @flow
         for ruleset in @flow.rule_sets
-          if ruleset.uuid != excludeRuleset?.uuid
-            flowFields[@slugify(ruleset.label)] = ruleset.label
+          flowFields[@slugify(ruleset.label)] = [ruleset.uuid, ruleset.label]
 
       # as an array
       result = []
-      for id, name of flowFields
-        result.push({ id: id, text: name})
+      for id, details of flowFields
+        uuid = details[0]
+        label = details[1]
+        if uuid != excludeRuleset?.uuid
+          result.push({ id: id, text: label})
 
       return result
 
@@ -886,6 +905,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           for action in actionset.actions
             action.uuid = uuid()
 
+        # save away the available channels
+        Flow.channels = data.channels
+
         languages = []
 
         # show our base language first
@@ -919,29 +941,35 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         # update our auto completion options
         $http.get('/flow/completion/?flow=' + flowId).success (data) ->
-          Flow.completions = data.message_completions
-          Flow.function_completions = data.function_completions
-          Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
+          if data.function_completions and data.message_completions
+            Flow.completions = data.message_completions
+            Flow.function_completions = data.function_completions
+            Flow.variables_and_functions = [Flow.completions...,Flow.function_completions...]
 
         $http.get('/contactfield/json/').success (fields) ->
           Flow.contactFields = fields
 
           # now create a version that's select2 friendly
           contactFieldSearch = []
-
-          contactFieldSearch.push
-             id: "name"
-             text: "Full Name"
-
-          contactFieldSearch.push
-             id: "tel_e164"
-             text: "Phone Numbers"
+          updateContactSearch = []
 
           for field in fields
-            contactFieldSearch.push
-              id: field.key
-              text: field.label
+
+            id = field.key
+            text = field.label
+
+            contactFieldSearch.push({ id: id, text: text })
+
+            if field.key == 'groups'
+              continue
+
+            if id == 'tel_e164'
+              text = 'Phone Numbers'
+
+            updateContactSearch.push({ id: id, text: text })
+
           Flow.contactFieldSearch = contactFieldSearch
+          Flow.updateContactSearch = updateContactSearch
 
         $http.get('/label/').success (labels) ->
           Flow.labels = labels
@@ -952,6 +980,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         , 0
 
     replaceRuleset: (ruleset, markDirty=true) ->
+
+      # make sure we don't have a cached field names
+      ruleset._flowFieldName = null
+      ruleset._contactFieldName = null
 
       # find the ruleset we are replacing by uuid
       found = false
@@ -1072,6 +1104,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       idx = actionset.actions.indexOf(action)
       actionset.actions.splice(idx, 1)
       actionset.actions.splice(idx-1, 0, action)
+
+      # clear our last action marker
+      actionset._lastActionMissingTranslation = null
+
       @markDirty()
 
 
@@ -1144,6 +1180,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     saveAction: (actionset, action) ->
 
+      actionset._lastActionMissingTranslation = null
+
       found = false
       lastAction = null
       for previous, idx in actionset.actions
@@ -1183,9 +1221,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         Flow.flow.action_sets.push(actionset)
 
       if Flow.flow.action_sets.length == 1
-        $timeout ->
-          DragHelper.showSaveResponse($('#' + Flow.flow.action_sets[0].uuid + ' .source'))
-        ,0
+        if not Flow.flow.action_sets[0].destination
+          $timeout ->
+            DragHelper.showSaveResponse($('#' + Flow.flow.action_sets[0].uuid + ' .source'))
+          ,0
 
       @checkTerminal(actionset)
       @markDirty()

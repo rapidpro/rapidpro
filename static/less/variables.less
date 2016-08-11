@@ -25,9 +25,12 @@
 
 @color-collision: rgba(167, 19, 29, 0.74);
 
+@color-primary: @flat-blue;
+@color-secondary: @flat-darkblue;
+
 // main color components
-@color-navbar: @flat-blue - #111;
-@color-links: @flat-darkblue;
+@color-navbar: @color-primary - #111;
+@color-links: @color-secondary;
 
 // buttons
 @color-button: @flat-white;
@@ -181,6 +184,9 @@
   background-image: linear-gradient(bottom, @bottom @stop1, @top @stop2);
 }
 
+.greyed {
+  color: @color-font-lightgrey;
+}
 
 .box-sizing {
     -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
@@ -233,7 +239,15 @@
   }
 
   &.grey {
-    color: @color-status-grey
+    color: @color-status-grey;
+  }
+
+  &.blue {
+    color: @color-status-blue;
+  }
+
+  &.primary {
+    color: @color-primary;
   }
 
 }

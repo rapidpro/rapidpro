@@ -38,7 +38,10 @@ class Campaign(SmartModel):
         return qs
 
     @classmethod
-    def get_unique_name(cls, base_name, org, ignore=None):
+    def get_unique_name(cls, org, base_name, ignore=None):
+        """
+        Generates a unique campaign name based on the given base name
+        """
         name = base_name[:255].strip()
 
         count = 2
@@ -46,8 +49,10 @@ class Campaign(SmartModel):
             campaigns = Campaign.objects.filter(name=name, org=org, is_active=True)
             if ignore:
                 campaigns = campaigns.exclude(pk=ignore.pk)
-            if campaigns.first() is None:
+
+            if not campaigns.exists():
                 break
+
             name = '%s %d' % (base_name[:255].strip(), count)
             count += 1
 
@@ -70,29 +75,29 @@ class Campaign(SmartModel):
 
                 # first check if we have the objects by id
                 if same_site:
-                    group = ContactGroup.user_groups.filter(id=campaign_spec['group']['id'], org=org, is_active=True).first()
+                    group = ContactGroup.user_groups.filter(id=campaign_spec['group']['id'], org=org).first()
                     if group:
                         group.name = campaign_spec['group']['name']
                         group.save()
 
                     campaign = Campaign.objects.filter(org=org, id=campaign_spec['id']).first()
                     if campaign:
-                        campaign.name = Campaign.get_unique_name(name, org, ignore=campaign)
+                        campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
                         campaign.save()
 
                 # fall back to lookups by name
                 if not group:
-                    group = ContactGroup.user_groups.filter(name=campaign_spec['group']['name'], org=org).first()
+                    group = ContactGroup.get_user_group(org, campaign_spec['group']['name'])
 
                 if not campaign:
                     campaign = Campaign.objects.filter(org=org, name=name).first()
 
                 # all else fails, create the objects from scratch
                 if not group:
-                    group = ContactGroup.create(org, user, campaign_spec['group']['name'])
+                    group = ContactGroup.create_static(org, user, campaign_spec['group']['name'])
 
                 if not campaign:
-                    campaign_name = Campaign.get_unique_name(name, org)
+                    campaign_name = Campaign.get_unique_name(org, name)
                     campaign = Campaign.create(org, user, campaign_name, group)
                 else:
                     campaign.group = group
@@ -101,19 +106,19 @@ class Campaign(SmartModel):
                 # we want to nuke old single message flows
                 for event in campaign.events.all():
                     if event.flow.flow_type == Flow.MESSAGE:
-                        event.flow.delete()
+                        event.flow.release()
 
                 # and all of the events, we'll recreate these
                 campaign.events.all().delete()
 
                 # fill our campaign with events
                 for event_spec in campaign_spec['events']:
-                    relative_to = ContactField.get_or_create(org,
+                    relative_to = ContactField.get_or_create(org, user,
                                                              key=event_spec['relative_to']['key'],
                                                              label=event_spec['relative_to']['label'])
 
                     # create our message flow for message events
-                    if event_spec['event_type'] == MESSAGE_EVENT:
+                    if event_spec['event_type'] == CampaignEvent.TYPE_MESSAGE:
                         event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
                                                                    event_spec['offset'],
                                                                    event_spec['unit'],
@@ -121,7 +126,7 @@ class Campaign(SmartModel):
                                                                    event_spec['delivery_hour'])
                         event.update_flow_name()
                     else:
-                        flow = Flow.objects.filter(org=org, id=event_spec['flow']['id']).first()
+                        flow = Flow.objects.filter(org=org, is_active=True, id=event_spec['flow']['id']).first()
                         if flow:
                             CampaignEvent.create_flow_event(org, user, campaign, relative_to,
                                                             event_spec['offset'],
@@ -133,8 +138,8 @@ class Campaign(SmartModel):
                 EventFire.update_campaign_events(campaign)
 
     @classmethod
-    def apply_action_archive(cls, campaigns):
-        campaigns.update(is_archived=True)
+    def apply_action_archive(cls, user, campaigns):
+        campaigns.update(is_archived=True, modified_by=user, modified_on=timezone.now())
 
         # update the events for each campaign
         for campaign in campaigns:
@@ -143,8 +148,8 @@ class Campaign(SmartModel):
         return [each_campaign.pk for each_campaign in campaigns]
 
     @classmethod
-    def apply_action_restore(cls, campaigns):
-        campaigns.update(is_archived=False)
+    def apply_action_restore(cls, user, campaigns):
+        campaigns.update(is_archived=False, modified_by=user, modified_on=timezone.now())
 
         # update the events for each campaign
         for campaign in campaigns:
@@ -197,36 +202,43 @@ class Campaign(SmartModel):
         return self.name
 
 
-FLOW_EVENT = 'F'
-MESSAGE_EVENT = 'M'
-EVENT_TYPES = ((FLOW_EVENT, "Flow Event"),
-               (MESSAGE_EVENT, "Message Event"))
-
-MINUTES = 'M'
-HOURS = 'H'
-DAYS = 'D'
-WEEKS = 'W'
-
-UNIT_CHOICES = ((MINUTES, "Minutes"),
-                (HOURS, "Hours"),
-                (DAYS, "Days"),
-                (WEEKS, "Weeks"))
-
-
 class CampaignEvent(SmartModel):
+    """
+    An event within a campaign that can send a message to a contact or start them in a flow
+    """
+    TYPE_FLOW = 'F'
+    TYPE_MESSAGE = 'M'
+
+    # single char flag, human readable name, API readable name
+    TYPE_CONFIG = ((TYPE_FLOW, _("Flow Event"), 'flow'),
+                   (TYPE_MESSAGE, _("Message Event"), 'message'))
+
+    TYPE_CHOICES = [(t[0], t[1]) for t in TYPE_CONFIG]
+
+    UNIT_MINUTES = 'M'
+    UNIT_HOURS = 'H'
+    UNIT_DAYS = 'D'
+    UNIT_WEEKS = 'W'
+
+    UNIT_CONFIG = ((UNIT_MINUTES, _("Minutes"), 'minutes'),
+                   (UNIT_HOURS, _("Hours"), 'hours'),
+                   (UNIT_DAYS, _("Days"), 'days'),
+                   (UNIT_WEEKS, _("Weeks"), 'weeks'))
+
+    UNIT_CHOICES = [(u[0], u[1]) for u in UNIT_CONFIG]
 
     campaign = models.ForeignKey(Campaign, related_name='events',
                                  help_text="The campaign this event is part of")
     offset = models.IntegerField(default=0,
                                  help_text="The offset in days from our date (positive is after, negative is before)")
-    unit = models.CharField(max_length=1, choices=UNIT_CHOICES, default=DAYS,
+    unit = models.CharField(max_length=1, choices=UNIT_CHOICES, default=UNIT_DAYS,
                             help_text="The unit for the offset for this event")
     relative_to = models.ForeignKey(ContactField, related_name='campaigns',
                                     help_text="The field our offset is relative to")
 
     flow = models.ForeignKey(Flow, help_text="The flow that will be triggered")
 
-    event_type = models.CharField(max_length=1, choices=EVENT_TYPES, default=FLOW_EVENT,
+    event_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_FLOW,
                                   help_text='The type of this event')
 
     # when sending single message events, we store the message here (as well as on the flow) for convenience
@@ -245,7 +257,7 @@ class CampaignEvent(SmartModel):
         flow = Flow.create_single_message(org, user, message)
 
         return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
-                                  event_type=MESSAGE_EVENT, message=message, flow=flow, delivery_hour=delivery_hour,
+                                  event_type=cls.TYPE_MESSAGE, message=message, flow=flow, delivery_hour=delivery_hour,
                                   created_by=user, modified_by=user)
 
     @classmethod
@@ -254,7 +266,7 @@ class CampaignEvent(SmartModel):
             raise ValueError("Org mismatch")
 
         return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
-                                  event_type=FLOW_EVENT, flow=flow, delivery_hour=delivery_hour,
+                                  event_type=cls.TYPE_FLOW, flow=flow, delivery_hour=delivery_hour,
                                   created_by=user, modified_by=user)
 
     @classmethod
@@ -274,7 +286,7 @@ class CampaignEvent(SmartModel):
         """
         Updates our flow name to include our Event id, keeps flow names from colliding. No-op for non-message events.
         """
-        if self.event_type != MESSAGE_EVENT:
+        if self.event_type != self.TYPE_MESSAGE:
             return
 
         self.flow.name = "Single Message (%d)" % self.pk
@@ -293,11 +305,11 @@ class CampaignEvent(SmartModel):
         # by default our offset is in minutes
         offset = self.offset
 
-        if self.unit == HOURS:
+        if self.unit == self.UNIT_HOURS:
             offset = self.offset * 60
-        elif self.unit == DAYS:
+        elif self.unit == self.UNIT_DAYS:
             offset = self.offset * 60 * 24
-        elif self.unit == WEEKS:
+        elif self.unit == self.UNIT_WEEKS:
             offset = self.offset * 60 * 24 * 7
 
         # if there is a specified hour, use that
@@ -314,19 +326,19 @@ class CampaignEvent(SmartModel):
         if date_value:
             date_value = date_value.replace(second=0, microsecond=0)
 
-        if not self.relative_to.is_active: # pragma: no cover
+        if not self.relative_to.is_active:  # pragma: no cover
             return None
 
         # try to parse it to a datetime
         try:
             if date_value:
-                if self.unit == MINUTES:
+                if self.unit == self.UNIT_MINUTES:
                     delta = timedelta(minutes=self.offset)
-                elif self.unit == HOURS:
+                elif self.unit == self.UNIT_HOURS:
                     delta = timedelta(hours=self.offset)
-                elif self.unit == DAYS:
+                elif self.unit == self.UNIT_DAYS:
                     delta = timedelta(days=self.offset)
-                elif self.unit == WEEKS:
+                elif self.unit == self.UNIT_WEEKS:
                     delta = timedelta(weeks=self.offset)
 
                 scheduled = date_value + delta
@@ -337,10 +349,21 @@ class CampaignEvent(SmartModel):
                 if scheduled > now:
                     return scheduled
 
-        except Exception as e:
+        except Exception:  # pragma: no cover
             pass
 
         return None
+
+    def release(self):
+        """
+        Removes this event.. also takes care of removing any event fires that were scheduled and unfired
+        """
+        # mark ourselves inactive
+        self.is_active = False
+        self.save()
+
+        # delete any pending event fires
+        EventFire.update_eventfires_for_event(self)
 
     def calculate_scheduled_fire(self, contact):
         date_value = EventFire.parse_relative_to_date(contact, self.relative_to.key)

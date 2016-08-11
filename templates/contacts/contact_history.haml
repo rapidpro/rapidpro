@@ -1,82 +1,172 @@
--extends "contacts/contact_read.html"
+-load contacts humanize smartmin temba i18n
 
--block contact-groups
+-for item in activity
 
--block read-buttons
+  %tr.item{data-created:'{{item.created_on|date:"U.u"}}', class:'msg_{{item.msg_type}} {%if item.media|slice:":6" == "video:" %}video{%endif%} {% if item.created_on > recent_date%}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
+    -with media_type=item.media|media_type media_content_type=item.media|media_content_type media_url=item.media|media_url
 
--block content
-  .row
-    .span12
-      -for event in events
-        -with event.1 as e
-          .history-event
-            .event-header
-              .event-type
-                -if e.direction == 'I'
-                  incoming msg
-                -elif e.direction == 'O'
-                  outgoing msg
-                -elif e.fired
-                  campaign event
-                -elif e.step_type == 'R'
-                  flow ruleset
-                -elif e.step_type == 'A'
-                  flow action
-              .event-time
-                {{ event.0|date:"N j, Y G:i:s.u" }}
-                &nbsp;
+      %td.icon
+        -if item.media
+          -if media_type == 'audio'
+            -if media_content_type|is_supported_audio
+              .recording{onClick:'playMessage("{{item.pk}}");'}
+                %audio{id:'message-{{item.pk}}', type:"{{media_content_type}}", src:'{{media_url}}'}
+                .play
+                  .icon-phone{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+                .stop.hide
+                  .icon-nav-channels-inverted
+            -else
+              .icon-phone.greyed
+          -else
+            %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+            -if media_type == 'geo'
+              .glyph.icon-location.user.boost
+            -elif media_type == 'image'
+              .glyph.icon-photo_camera.user.boost
+            -elif media_type == 'video'
+              .glyph.icon-videocam.user.boost
+            -elif item.media|is_document
+              .glyph.icon-docs.user.boost
 
-            .event-details
-              -if e.direction == 'I'
-                .event-msg-in
-                  {{ e.text }}
-              -elif e.direction == 'O'
-                .event-msg-out
-                  {{ e.text }}
-              -elif e.fired
-                .event-campaign
-                  Scheduled start of <a href="{% url 'flows.flow_editor' e.event.flow.pk %}">{{ e.event.flow }}</a> from campaign <a href="{% url 'campaigns.campaignevent_read' e.event.pk %}">{{ e.event.campaign.name }}</a>
-              -elif e.step_type
-                .event-flow
-                  -if e.step_type == 'R'
-                    Handled by ruleset in <a href="{% url 'flows.flow_editor' e.run.flow.pk %}">{{ e.run.flow }}</a> categorized as <b>{{ e.rule_category }}</b> with value <b>"{{ e.rule_value }}"</b>
+        -else
+          %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+            -if not user_org.is_anon or perms.contacts.contact_break_anon
+              -with item.channellog_set.all.first as log
+                -if log
+                  %a{href:"{% url 'channels.channellog_read' log.pk%}"}
+                    {{item|activity_icon}}
+                -else
+                  {{item|activity_icon}}
+            -else
+              {{item|activity_icon}}
+
+      %td.details
+        -if item.recipient_count
+          -with item as broadcast
+            .activity-broadcast
+              .sent-to
+                .summary
+                  Broadcast to {{broadcast.recipient_count|intcomma}} recipients
+
+              .activity-body
+                {{broadcast.text}}
+        -elif item.event_type
+          -with item as call
+            -if call.event_type == 'mt_miss'
+              Missed call
+            -else
+              Phone call ({{call.duration|format_seconds}})
+
+        -elif item.call_type
+          -with item as call
+            {{call.get_status_display}}
+
+        -elif item.flow
+          -with item as run
+            .activity-run
+              .activity-body
+                .summary
+                Started
+                %a{href:'{% url "flows.flow_editor" run.flow.pk%}'}
+                  {{run.flow.name}}
+        -elif item.fired
+          -with item as eventfire
+            %a{href:'{%url "campaigns.campaign_read" eventfire.event.campaign.pk %}'}><
+              {{eventfire.event.campaign.name}}
+
+            &nbsp;triggered
+
+            %a{href:'{%url "campaigns.campaignevent_read" eventfire.event.pk %}'}
+              {{eventfire.event|event_time}}
+
+        -elif media_type == 'geo'
+          .activity-message
+            .activity-body
+              .text
+                <a href="{{item.media|osm_link}}" target="_loc">{{item.media|location}}</a>
+
+        -elif media_type == 'image'
+          .activity-message
+            .activity-body
+              .text
+                <a href="#" data-featherlight="<a class='download-link' href='{{media_url}}' download><span class='icon-file_download'></span></a><img class='image-full' src='{{media_url}}'>">
+                  <img class="image-preview" src="{{media_url}}">
+                </a>
+
+        -elif media_type == 'video'
+          .activity-message
+            .activity-body
+              <video id="video_{{item.id}}" height="240px" class="video-js vjs-default-skin" controls preload="auto">
+                <source src="{{media_url}}" type='video/mp4'/>
+              </video>
+
+              :javascript
+
+                // keep track of previously initiated players and dispose on reload if necessary
+                if (!window.players) {
+                  window.players = []
+                } else {
+                  active = []
+                  for (idx in window.players) {
+                    var player = window.players[idx];
+                    if (player.id_ == "video_{{item.id}}") {
+                      player.dispose();
+                    } else {
+                      active.push(player);
+                    }
+                  }
+                  window.players = active;
+                }
+
+                // initialize and push our current video
+                window.players.push(videojs("video_{{item.id}}", {plugins : {
+                   vjsdownload:{
+                     beforeElement: 'playbackRateMenuButton',
+                     textControl: 'Download',
+                     name: 'downloadButton'
+                   }
+                }}, function(){
+                }));
+
+        -elif item.media|is_document
+          .activity-message
+            .activity-body
+              {{media_url|extension|upper}} document (<a href="{{media_url}}" download>download</a>)
+        -else
+          -with item as message
+
+            .activity-message
+              -if message.direction == 'O'
+                -if message.broadcast.recipient_count > 1
+                  .sent-to
+                    .summary
+                      Broadcast to {{message.broadcast.recipient_count|intcomma}} recipients
+
+              .activity-body
+                .text
+                  -if item.media and media_type == 'audio'
+                    .left-recording
+                      -if message.direction == 'O'
+                        -trans "Listened to a recording"
+                      -else
+                        -trans "Audio recording"
+
+                      (<a href="{{media_url}}" download>download</a>)
+
                   -else
-                    Actions performed in <a href="{% url 'flows.flow_editor' e.run.flow.pk %}">{{ e.run.flow }}</a>
-                  <p>{{ e.get_step.get_description|linebreaks }}</p>
-              -else
-                {{ e }}
+                    {{message.text}}
 
+    %td.created_on
+      %span.time
+        %span.short
+          {{item.created_on|gmail_time}}
+        %span.long.hide
+          {{item.created_on}}
 
--block extra-style
-  {{ block.super }}
-  :css
-    .history-event {
-      margin-bottom: 5px;
-      border-bottom: 1px solid #ccc;
-      padding-bottom: 5px;
-    }
-
-    .event-type {
-      float: right;
-      font-style: italic;
-      color: #888;
-    }
-
-    .event-time {
-      font-weight: 600;
-    }
-
-    .event-msg-in {
-      font-style: italic;
-      text-align: left;
-
-    }
-
-    .event-msg-out {
-    font-style: italic;
-      text-align: left;
-    }
-
-    .event-campaign, .event-flow {
-      padding-left: 300px;
-    }
+-if not recent
+  %tr.since
+    %td{colspan:3}
+      %span.loading
+      -if more
+        %a.btn.btn-tiny.btn-secondary.load-more
+          Load More

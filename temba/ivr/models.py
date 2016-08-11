@@ -7,10 +7,10 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from smartmin.models import SmartModel
-from temba.contacts.models import Contact, TEL_SCHEME, ContactURN
-from temba.flows.models import Flow, FlowStep, ActionLog, FlowRun
+from temba.contacts.models import Contact, ContactURN
+from temba.flows.models import Flow, ActionLog, FlowRun
 from temba.channels.models import Channel
-from temba.orgs.models import Org, TopUp
+from temba.orgs.models import Org
 
 PENDING = 'P'
 QUEUED = 'Q'
@@ -50,6 +50,7 @@ class IVRCall(SmartModel):
                                    help_text="The external id for this call, our twilio id usually")
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING,
                               help_text="The status of this call")
+
     channel = models.ForeignKey(Channel,
                                 help_text="The channel that made this call")
     contact = models.ForeignKey(Contact,
@@ -73,13 +74,11 @@ class IVRCall(SmartModel):
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this call in seconds")
 
+    parent = models.ForeignKey('IVRCall', verbose_name=_("Parent Call"), related_name='child_calls', null=True,
+                               help_text=_("The call that triggered this one"))
 
     @classmethod
-    def create_outgoing(cls, channel, contact, flow, user, call_type=FLOW):
-        contact_urn = contact.get_urn(TEL_SCHEME)
-        if not contact_urn:
-            raise ValueError("Can't call contact with no tel URN")
-
+    def create_outgoing(cls, channel, contact, contact_urn, flow, user, call_type=FLOW):
         call = IVRCall.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
                                       direction=OUTGOING, org=channel.org,
                                       created_by=user, modified_by=user, call_type=call_type)
@@ -117,27 +116,13 @@ class IVRCall(SmartModel):
                 print "Hanging up %s for %s" % (self.external_id, self.get_status_display())
                 client.calls.hangup(self.external_id)
 
-    def do_update_call(self, qs=None):
-        client = self.channel.get_ivr_client()
-        if client:
-            try:
-                url = "http://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.pk]))
-                if qs:
-                    url = "%s?%s" % (url, qs)
-                client.calls.update(self.external_id, url=url)
-            except Exception as e: # pragma: no cover
-                import traceback
-                traceback.print_exc()
-                self.status = FAILED
-                self.save()
-
     def do_start_call(self, qs=None):
         client = self.channel.get_ivr_client()
         from temba.ivr.clients import IVRException
         if client:
             try:
                 url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[self.pk]))
-                if qs:
+                if qs:  # pragma: no cover
                     url = "%s?%s" % (url, qs)
 
                 tel = None
@@ -157,6 +142,8 @@ class IVRCall(SmartModel):
                 client.start_call(self, to=tel, from_=self.channel.address, status_callback=url)
 
             except IVRException as e:
+                import traceback
+                traceback.print_exc()
                 self.status = FAILED
                 self.save()
                 if self.contact.is_test:
@@ -172,8 +159,6 @@ class IVRCall(SmartModel):
                 if self.contact.is_test:
                     run = FlowRun.objects.filter(call=self)
                     ActionLog.create(run[0], "Call ended.")
-
-
 
     def update_status(self, status, duration):
         """

@@ -11,6 +11,7 @@ class window.AutoComplete
     # mark our functions as functions
     for f in @functions
       f['function'] = true
+      f['example'] = f['signature']
 
     ac = this
 
@@ -30,9 +31,6 @@ class window.AutoComplete
         highlighter: (li, query) -> return li
 
         matcher: (flag, subtext) ->
-          if ac.parser.isInStringLiteral(subtext)
-            return null
-
           return ac.parser.expressionContext(subtext)
 
         filter: (query, data, searchKey) ->
@@ -40,8 +38,8 @@ class window.AutoComplete
           if query and query[0] is '('
             data = ac.completions
 
-          subQuery = ac.parseQuery(query)
-          lastIdx = subQuery.lastIndexOf('.')
+          subQuery = ac.parseFilterQuery(query)
+          lastIdx = if subQuery then subQuery.lastIndexOf('.') else -1
           start = subQuery.substring(0, lastIdx)
           results = ac.findCompletions(subQuery, data, start, lastIdx)
 
@@ -155,15 +153,35 @@ class window.AutoComplete
 
     template
 
-  parseQuery: (query) ->
+  parseFilterQuery: (query) ->
     if not query
       return query
+
+    if query.match(/[(]*[^"]*["]/)
+      if @parser.isInStringLiteral(query)
+        return null;
+
     return @parser.autoCompleteContext(query) or ''
+
+  parseQuery: (query) ->
+    parsedQuery = @parseFilterQuery(query)
+    if not parsedQuery
+      return parsedQuery
+
+    if parsedQuery[0] == '#'
+      parsedQuery = parsedQuery.slice(1)
+
+    parsedQuery
 
   findCompletions: (query, data, start, lastIdx, prependChar=undefined) ->
 
     matched = {}
     results = []
+    justFirstResult = false
+
+    if query[0] == '#'
+      query = query.slice(1)
+      justFirstResult = true
 
     for option in data
       if option.name.toLowerCase().indexOf(query.toLowerCase()) == 0
@@ -200,6 +218,8 @@ class window.AutoComplete
 
           results.push(matchingOption)
 
+    if justFirstResult
+      return results.slice(0,1)
     return results
 
 
@@ -243,8 +263,8 @@ class window.AutoComplete
         content = $inputor.val()
         caretPos = $inputor.caret 'pos'
         subtext = content.slice(0, caretPos)
-        if subtext.slice(-2) is '@('
+        nextPart = content.slice(caretPos)
+        if subtext.slice(-2) is '@(' and (not nextPart or nextPart.slice(0,1) is not ')')
           text = subtext + ')' + content.slice(caretPos + 1)
           $inputor.val(text)
-
-        $inputor.caret('pos', caretPos)
+          $inputor.caret('pos', caretPos)

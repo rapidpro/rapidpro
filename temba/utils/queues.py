@@ -11,6 +11,7 @@ DEFAULT_PRIORITY = 0
 HIGH_PRIORITY = -10000000  # -10M ~ 110 days
 HIGHER_PRIORITY = -20000000  # -20M ~ 220 days
 
+
 def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
     """
     Adds a task to queue_name with the supplied arguments.
@@ -26,7 +27,7 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
 
     # push our task onto the right queue and make sure it is in the active list (atomically)
     with r.pipeline() as pipe:
-        key = "%s:%d" % (task_name, org.id)
+        key = "%s:%d" % (task_name, org if isinstance(org, int) else org.id)
         pipe.zadd(key, dict_to_json(args), score)
 
         # and make sure this key is in our list of queues so this job will get worked on
@@ -43,6 +44,7 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
             task_function()
         else:
             current_app.send_task(task_name, args=[], kwargs={}, queue=queue)
+
 
 def pop_task(task_name):
     """
@@ -69,7 +71,7 @@ def pop_task(task_name):
         task = r.eval(lua, 2, 'active_set', 'queue', active_set, queue)
 
         # found a task? then break out
-        if not task is None:
+        if task is not None:
             task = json.loads(task)
             break
 

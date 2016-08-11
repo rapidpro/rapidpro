@@ -133,7 +133,7 @@
                           -if object.flow_type == 'V'
                             .icon-phone
                           -elif object.flow_type == 'S'
-                            .icon-channel-android
+                            .icon-mobile
 
                           {{ object.name }}
 
@@ -152,17 +152,17 @@
                                     %a{href:"{% url 'flows.flow_filter' label.pk%}"}
                                       ={label.name}
 
-                        -if not object.get_total_contacts
+                        -if not object.get_total_runs
                           %td.value-status
                           %td.value-status
-                            -trans "No participants"
+                            -trans "No runs"
 
                         -else
                           %td.value-status
-                            {% blocktrans count participant_count=object.get_total_contacts|intcomma %}
-                              {{ participant_count }} participant
+                            {% blocktrans count run_count=object.get_total_runs %}
+                              {{ run_count }} run
                             {% plural %}
-                              {{ participant_count }} participants
+                              {{ run_count }} runs
                             {% endblocktrans %}
 
                           %td.value-status
@@ -180,7 +180,6 @@
                   .paginator
                     - include "smartmin/sidebar_pagination.haml"
 
-
 -block extra-script
   {{ block.super }}
 
@@ -189,9 +188,11 @@
     {% if org_perms.flows.flow_update %}
     function exportFlows(){
       var flowIds = getCheckedIds();
-      document.location = '/flow/export_results/' + "?ids=" + flowIds.join();
+      var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids=' + flowIds.join());
+      modal.setIcon('icon-excel');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
     }
-
     {% endif %}
 
     {% if org_perms.flows.flow_update %}

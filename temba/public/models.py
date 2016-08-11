@@ -4,9 +4,11 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 
+
 class Lead(SmartModel):
     email = models.EmailField(unique=False,
-                              error_messages={'unique':'{% trans "This email has already been registered." %}'})
+                              error_messages={'unique': '{% trans "This email has already been registered." %}'})
+
 
 class Video(SmartModel):
     name = models.CharField(verbose_name=_("Name"),

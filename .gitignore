@@ -8,6 +8,7 @@
 # temba
 dump.rdb
 .coverage
+coverage_html_report
 env
 build
 config/gen
@@ -28,6 +29,7 @@ static/javascripts/
 temba/settings.py
 temba/smartmin
 temba.db
+smartmin
 
 
 # Exclude media folder except files used for import testing
@@ -106,3 +108,8 @@ docs/_build/
 # PyBuilder
 target/
 textit
+
+# Vagrant/Ansible
+.vagrant/
+ansible/vendor/
+ansible/site.retry

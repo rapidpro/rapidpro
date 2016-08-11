@@ -28,8 +28,34 @@ def get_function_listing():
     global listing
 
     if listing is None:
-        listing = [{'name': f['name'], 'display': f['description']} for f in DEFAULT_FUNCTION_MANAGER.build_listing()]
+        listing = [{'name': f['name'], 'display': f['description'], 'signature': _build_function_signature(f)} for f in DEFAULT_FUNCTION_MANAGER.build_listing()]
     return listing
+
+
+def _build_function_signature(f):
+    signature = f['name'] + "("
+    params_len = len(f['params'])
+
+    formatted_params_list = []
+    for param in f['params']:
+        formatted_param = param['name']
+        optional = param['optional']
+        vararg = param['vararg']
+
+        if optional and vararg:
+            formatted_param = "[" + formatted_param + "], ..."
+
+        elif optional:
+            formatted_param = "[" + formatted_param + "]"
+
+        elif vararg:
+            formatted_param += ", ..."
+
+        if len(formatted_params_list) < params_len - 1:
+            formatted_param += ","
+        formatted_params_list.append(formatted_param)
+
+    return signature + " ".join(formatted_params_list) + ")"
 
 
 # ======================================================================================================================
@@ -137,7 +163,8 @@ def replace_equals_style(text):
         return '@' + convert_equals_style(expression_body)
 
     # determines whether the given character is a word character, i.e. \w in a regex
-    is_word_char = lambda c: c and (c.isalnum() or c == '_')
+    def is_word_char(c):
+        return c and (c.isalnum() or c == '_')
 
     for pos, ch in enumerate(input_chars):
         # in order to determine if the b in a.b terminates an identifier, we have to peek two characters ahead as it
@@ -230,34 +257,3 @@ def convert_equals_style(expression):
         expression = '(%s)' % expression
 
     return expression
-
-
-#
-# TESTING...
-#
-def test():
-    from django.db.models import Q
-    from temba.msgs.models import Broadcast
-    from temba.flows.models import FlowVersion, CURRENT_EXPORT_VERSION
-
-    #print "Flow definitions..."
-
-    #for flow_version in FlowVersion.objects.filter(version_number=CURRENT_EXPORT_VERSION):
-    #    json_flow = flow_version.get_definition_json()
-    #    migrate_flow_definition(json_flow)
-
-    print "Broadcasts..."
-
-    migrations = []
-    for broadcast in Broadcast.objects.filter(Q(text__contains='|') | Q(text__contains='=')):
-        migrated = migrate_template(broadcast.text)
-        if migrated != broadcast.text:
-            migrations.append((broadcast.text, migrated))
-
-    import unicodecsv
-    with open('expression_migrations.csv', 'wb') as csvfile:
-        writer = unicodecsv.writer(csvfile)
-        for m in migrations:
-            writer.writerow(m)
-
-    print 'Migrated %d broadcasts' % len(migrations)

@@ -18,7 +18,6 @@
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
     -load compress
-
     :javascript
 
       function conditionalLoad(local, remote) {
@@ -72,6 +71,10 @@
       %script{src:"{{ STATIC_URL }}js/moment-timezone.js"}
       %script{src:"{{ STATIC_URL }}js/jquery-ui-timepicker-addon.js"}
       %script{src:"{{ STATIC_URL }}js/uuid.js"}
+      %script{src:"{{ STATIC_URL }}js/featherlight.min.js"}
+      %script{src:"{{ STATIC_URL }}js/video.js"}
+      %script{src:"{{ STATIC_URL }}js/videojs-vjsdownload.js"}
+
 
       -if not debug and not testing
         %script{src:"{{ STATIC_URL }}js/raven.min.js"}
@@ -84,6 +87,7 @@
       %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:'text/coffeescript'}
       %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:'text/coffeescript'}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
+
 
     -include "includes/frame_top.html"
 
@@ -108,6 +112,9 @@
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/select2.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}css/jquery.atwho.css', media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/redmond/jquery-ui-1.10.2.custom.min.css", media:'all'}
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/featherlight.min.css", media:'all'}
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/video-js.css", media:'all'}
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}css/videojs-vjsdownload.css", media:'all'}
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
@@ -130,6 +137,7 @@
   <![endif]-->
 
 -load smartmin
+{% block body %}
 %body#pageBody{style:'width:100%'}
   <!-- Header -->
   #print-header
@@ -219,6 +227,16 @@
 
     :javascript
 
+      function removalConfirmation(removal, buttonName) {
+        modal = new ConfirmationModal($('.' + removal + ' > .title').html(), $('.' + removal + ' > .body').html());
+        modal.addClass('alert');
+        modal.setListeners({onPrimary: function(){
+          $('#' + removal + '-form').click();
+        }}, false);
+        modal.setPrimaryButton(buttonName);
+        modal.show();
+      }
+
       function formatContact(item) {
         if (item.text.indexOf(" (") > -1) {
          var name = item.text.split("(")[0];
@@ -257,6 +275,7 @@
     -block extra-script
 
     <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
+
     <form id="posterizer" method="post">
       {% csrf_token %}
     </form>
@@ -316,4 +335,6 @@
           $("#posterizer").submit();
         });
       });
+{% endblock body %}
+
 </html>

@@ -1,0 +1,20 @@
+---
+
+- name: Pip | Install via PIP and virtualenv
+  become: no
+  pip: |
+    chdir={{ project_path }}
+    virtualenv={{ project_path }}/.venv
+    requirements={{ pip_requirements_file }}
+
+- name: Django | Settings symlink
+  file: |
+    state=link
+    src={{ project_path }}/temba/settings.py.dev
+    dest={{ project_path }}/temba/settings.py
+
+- name: Django | Syncdb
+  become: no
+  command: |
+    {{ project_path }}/.venv/bin/python manage.py syncdb
+    chdir={{ project_path }}

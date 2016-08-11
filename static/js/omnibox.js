@@ -184,6 +184,8 @@ function formatOmniboxItem(item) {
             clazz = 'omni-tel';
         } else if (item.scheme == 'twitter') {
             clazz = 'omni-twitter';
+        } else if (item.scheme == 'telegram') {
+            clazz = 'omni-telegram';
         }
     }
 

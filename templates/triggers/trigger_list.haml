@@ -106,7 +106,7 @@
                               %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
                                 -trans "inbound call"
                             - else
-                                -trans "inbound call"
+                              -trans "inbound call"
 
                         -if obj.trigger_type == 'F'
                           A new
@@ -119,7 +119,20 @@
                           -if obj.channel
                             on
                             %span.attn
-                              %a{href:'{%url "channels.channel_read" obj.channel.pk%}'}= obj.channel
+                              %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
+
+                        -if obj.trigger_type == 'N'
+                          A new
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                -trans "conversation"
+                            - else
+                              -trans "conversation"
+                          -if obj.channel
+                            on
+                            %span.attn
+                              %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
 
                         -if obj.schedule
                           -trans "The"
@@ -128,9 +141,13 @@
                         %span.attn
                           %a{href:'{%url "flows.flow_editor" obj.flow.pk%}'}= obj.flow
                         -trans "flow"
-                      
+
+                        -if obj.groups.all
+                          -trans "for contacts in"
+                          {{ obj.groups.all|join:", " }}
+
                         -if obj.schedule
-                          -if obj.schedule.next_fire
+                          -if obj.schedule.next_fire and not obj.is_archived
                             -trans "will start in"
                             %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
                               - if org_perms.triggers.trigger_update

@@ -17,7 +17,7 @@
 
     .span4
       .pull-right
-        %a.btn.btn-success{ href: "{% url 'flows.flow_export_results' %}?ids={{ object.id }}" }
+        %a.btn.btn-success{ href: "#", onClick:"exportFlow()" }
           -trans "Export Flow Results"
         %span.btn-group.gear-menu
           %button.btn.dropdown-toggle{ data-toggle:"dropdown" }
@@ -228,6 +228,14 @@
   {{block.super}}
 
   :javascript
+    function exportFlow(){
+      var flowIds = getCheckedIds();
+      var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
+      modal.setIcon('icon-excel');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    }
+
     function playMessage (messageId) {
       var audio = $('audio#message-' + messageId)
       var parent = audio.parent();
@@ -343,7 +351,7 @@
                   -if last_message
                     - blocktrans with created_on=last_message.created_on
                       Last message sent {{created_on}}
-                -if last_message.text|length > 1 and last_message.text != last_message.recording_url
+                -if last_message.text|length > 1 and last_message.text != last_message.get_media_path
                   {{last_message}}
 
 
@@ -363,11 +371,11 @@
               -for msg in messages
                 -if msg.direction == 'O'
                   .imsg.from
-                    -if msg.text != msg.recording_url
+                    -if msg.text != msg.get_media_path
                       {{msg.text}}
-                    -if msg.recording_url
+                    -if msg.media.is_media_type_audio
                       .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
-                        %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
+                        %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.get_media_path}}'}
                         .play
                           %a{href:'javascript:void();'}
                             -trans "listen"
@@ -380,11 +388,11 @@
                       -trans "Empty message"
                   -else
                     .imsg.to
-                      -if msg.text != msg.recording_url
+                      -if msg.text != msg.get_media_path
                         {{msg.text}}
-                      -if msg.recording_url
+                      -if msg.is_media_type_audio
                         .recording{class:'direction-{{msg.direction}}', onClick:'playMessage("{{msg.pk}}");'}
-                          %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.recording_url}}'}
+                          %audio{id:'message-{{msg.pk}}', type:"audio/wav", src:'{{msg.get_media_path}}'}
                           .play
                             %a{href:'javascript:void();'}
                               -trans "listen"
@@ -400,11 +408,11 @@
                         Categorized as {{category}}
 
 
-              -if not run.is_active
+              -if run.exited_on
                 .ilog.from
-                  -if run.expired_on
-                    - blocktrans with expired_on=run.expired_on
-                      This run expired {{ expired_on }}
+                  -if run.exit_type == 'E'
+                    - blocktrans with exited_on=run.exited_on
+                      This run expired {{ exited_on }}
                   -else
                     - blocktrans with name=contact|name_or_urn:user_org
                       {{name}} exited from this flow

@@ -1,17 +1,15 @@
+from __future__ import unicode_literals
+
+from collections import defaultdict
 from django.core.urlresolvers import reverse
-from .models import get_stripe_credentials, UNREAD_INBOX_MSGS, UNREAD_FLOW_MSGS
 from django.utils import timezone
-from django.conf import settings
+from .models import get_stripe_credentials, UNREAD_INBOX_MSGS, UNREAD_FLOW_MSGS
 
-
-class defaultdict(dict):
-  def __missing__(self, key):
-    return False
 
 class GroupPermWrapper(object):
     def __init__(self, group):
         self.group = group
-        self.empty = defaultdict()
+        self.empty = defaultdict(lambda: False)
 
         self.apps = dict()
         if self.group:
@@ -20,7 +18,7 @@ class GroupPermWrapper(object):
                 app_perms = self.apps.get(app_name, None)
 
                 if not app_perms:
-                    app_perms = defaultdict()
+                    app_perms = defaultdict(lambda: False)
                     self.apps[app_name] = app_perms
 
                 app_perms[perm.codename] = True
@@ -46,6 +44,7 @@ class GroupPermWrapper(object):
             else:
                 return False
 
+
 def user_group_perms_processor(request):
     """
     return context variables with org permissions to the user.
@@ -70,12 +69,14 @@ def user_group_perms_processor(request):
 
     return context
 
+
 def settings_includer(request):
     """
     Includes a few settings that we always want in our context
     """
     context = dict(STRIPE_PUBLIC_KEY=get_stripe_credentials()[0])
     return context
+
 
 def unread_count_processor(request):
     """

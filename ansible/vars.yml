@@ -1,0 +1,13 @@
+---
+
+supervisor_enabled: yes
+
+supervisor_tasks:
+  - name: rapidpro_celery
+    directory: "{{ project_path }}"
+    command: "{{ project_path }}/.venv/bin/python manage.py celery worker --beat -l debug -Q flows,msgs,handler,celery -c 2"
+    user: "{{ ansible_ssh_user }}"
+    stdout_logfile: /var/log/supervisor/rapidpro.log
+    stderr_logfile: /var/log/supervisor/rapidpro.error.log
+    autostart: true
+    autorestart: true

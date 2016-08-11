@@ -1,7 +1,10 @@
-from __future__ import unicode_literals
+# coding=utf-8
+from __future__ import absolute_import, unicode_literals
 
+import inspect
 import json
 import os
+import re
 import redis
 import shutil
 import string
@@ -9,21 +12,46 @@ import time
 
 from datetime import datetime
 from django.conf import settings
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test import LiveServerTestCase
+from django.test.runner import DiscoverRunner
 from django.utils import timezone
+from HTMLParser import HTMLParser
+from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
-from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, FLOW, RULE_SET, ACTION_SET
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
+from xlrd import xldate_as_tuple
+from xlrd.sheet import XL_CELL_DATE
+
+
+class ExcludeTestRunner(DiscoverRunner):
+    def __init__(self, *args, **kwargs):
+        from django.conf import settings
+        settings.TESTING = True
+        super(ExcludeTestRunner, self).__init__(*args, **kwargs)
+
+    def build_suite(self, *args, **kwargs):
+        suite = super(ExcludeTestRunner, self).build_suite(*args, **kwargs)
+        excluded = getattr(settings, 'TEST_EXCLUDE', [])
+        if not getattr(settings, 'RUN_ALL_TESTS', False):
+            tests = []
+            for case in suite:
+                pkg = case.__class__.__module__.split('.')[0]
+                if pkg not in excluded:
+                    tests.append(case)
+            suite._tests = tests
+        return suite
+
 
 def add_testing_flag_to_context(*args):
     return dict(testing=settings.TESTING)
@@ -36,6 +64,11 @@ def uuid(val):
 class TembaTest(SmartminTest):
 
     def setUp(self):
+
+        # if we are super verbose, turn on debug for sql queries
+        if self.get_verbosity() > 2:
+            settings.DEBUG = True
+
         self.clear_cache()
 
         self.superuser = User.objects.create_superuser(username="super", email="super@user.com", password="super")
@@ -52,11 +85,14 @@ class TembaTest(SmartminTest):
         self.state1 = AdminBoundary.objects.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
         self.state2 = AdminBoundary.objects.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
         self.district1 = AdminBoundary.objects.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
-        self.district2 = AdminBoundary.objects.create(osm_id='1711163', name='Kayonza', level=2, parent=self.state2)
-        self.district3 = AdminBoundary.objects.create(osm_id='60485579', name='Kigali', level=2, parent=self.state1)
+        self.district2 = AdminBoundary.objects.create(osm_id='1711163', name='Kayônza', level=2, parent=self.state2)
+        self.district3 = AdminBoundary.objects.create(osm_id='3963734', name='Nyarugenge', level=2, parent=self.state1)
         self.district4 = AdminBoundary.objects.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
+        self.ward1 = AdminBoundary.objects.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
+        self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
+        self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
 
-        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country,
+        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand='rapidpro.io',
                                       created_by=self.user, modified_by=self.user)
         self.org.initialize()
 
@@ -80,10 +116,51 @@ class TembaTest(SmartminTest):
 
         # a single Android channel
         self.channel = Channel.create(self.org, self.user, 'RW', 'A', name="Test Channel", address="+250785551212",
-                                      secret="12345", gcm_id="123")
+                                      device="Nexus 5X", secret="12345", gcm_id="123")
 
         # reset our simulation to False
         Contact.set_simulation(False)
+
+    def get_verbosity(self):
+        for s in reversed(inspect.stack()):
+            options = s[0].f_locals.get('options')
+            if isinstance(options, dict):
+                return int(options['verbosity'])
+        return 1
+
+    def explain(self, query):
+        cursor = connection.cursor()
+        cursor.execute('explain %s' % query)
+        plan = cursor.fetchall()
+        indexes = []
+        for match in re.finditer('Index Scan using (.*?) on (.*?) \(cost', unicode(plan), re.DOTALL):
+            index = match.group(1).strip()
+            table = match.group(2).strip()
+            indexes.append((table, index))
+
+        indexes = sorted(indexes, key=lambda i: i[0])
+        return indexes
+
+    def tearDown(self):
+
+        if self.get_verbosity() > 2:
+            details = []
+            for query in connection.queries:
+                query = query['sql']
+                if 'SAVEPOINT' not in query:
+                    indexes = self.explain(query)
+                    details.append(dict(query=query, indexes=indexes))
+
+            for stat in details:
+                print
+                print stat['query']
+                for table, index in stat['indexes']:
+                    print '  Index Used: %s.%s' % (table, index)
+
+                if not len(stat['indexes']):
+                    print '  No Index Used'
+
+            settings.DEBUG = False
 
     def clear_cache(self):
         """
@@ -97,21 +174,23 @@ class TembaTest(SmartminTest):
         """
         If a test has written files to storage, it should remove them by calling this
         """
-        shutil.rmtree('media/test_orgs', ignore_errors=True)
+        shutil.rmtree('%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
-    def import_file(self, file, site='http://rapidpro.io', substitutions=None):
+    def import_file(self, filename, site='http://rapidpro.io', substitutions=None):
+        data = self.get_import_json(filename, substitutions=substitutions)
+        self.org.import_app(json.loads(data), self.admin, site=site)
 
-        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
+    def get_import_json(self, filename, substitutions=None):
+        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, filename), 'r+')
         data = handle.read()
         handle.close()
 
         if substitutions:
-            for k,v in substitutions.iteritems():
-                print 'Replacing "%s" with "%s"' % (k,v)
+            for k, v in substitutions.iteritems():
+                print 'Replacing "%s" with "%s"' % (k, v)
                 data = data.replace(k, str(v))
 
-        # import all our bits
-        self.org.import_app(json.loads(data), self.admin, site=site)
+        return data
 
     def get_flow(self, filename, substitutions=None):
         last_flow = Flow.objects.all().order_by('-pk').first()
@@ -122,39 +201,56 @@ class TembaTest(SmartminTest):
 
         return Flow.objects.all().order_by('-created_on').first()
 
-    def get_flow_json(self, file):
-        handle = open('%s/test_flows/%s.json' % (settings.MEDIA_ROOT, file), 'r+')
-        data = handle.read()
-        handle.close()
+    def get_flow_json(self, filename, substitutions=None):
+        data = self.get_import_json(filename, substitutions=substitutions)
         return json.loads(data)['flows'][0]
 
     def create_secondary_org(self):
         self.admin2 = self.create_user("Administrator2")
-        self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", created_by=self.admin2, modified_by=self.admin2)
+        self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", brand='rapidpro.io',
+                                       created_by=self.admin2, modified_by=self.admin2)
         self.org2.administrators.add(self.admin2)
         self.admin2.set_org(self.org)
 
         self.org2.initialize()
 
-    def create_contact(self, name=None, number=None, twitter=None, is_test=False):
+    def create_contact(self, name=None, number=None, twitter=None, urn=None, is_test=False, **kwargs):
         """
         Create a contact in the master test org
         """
         urns = []
         if number:
-            urns.append((TEL_SCHEME, number))
+            urns.append(URN.from_tel(number))
         if twitter:
-            urns.append((TWITTER_SCHEME, twitter))
+            urns.append(URN.from_twitter(twitter))
+        if urn:
+            urns.append(urn)
 
         if not name and not urns:  # pragma: no cover
             raise ValueError("Need a name or URN to create a contact")
 
-        return Contact.get_or_create(self.org, self.user, name, urns=urns, is_test=is_test)
+        kwargs['name'] = name
+        kwargs['urns'] = urns
+        kwargs['is_test'] = is_test
 
-    def create_group(self, name, contacts):
-        group = ContactGroup.create(self.org, self.user, name)
-        group.contacts.add(*contacts)
-        return group
+        if 'org' not in kwargs:
+            kwargs['org'] = self.org
+        if 'user' not in kwargs:
+            kwargs['user'] = self.user
+
+        return Contact.get_or_create(**kwargs)
+
+    def create_group(self, name, contacts=(), query=None):
+        if contacts and query:
+            raise ValueError("Can't provide contact list for a dynamic group")
+
+        if query:
+            return ContactGroup.create_dynamic(self.org, self.user, name, query=query)
+        else:
+            group = ContactGroup.create_static(self.org, self.user, name)
+            if contacts:
+                group.contacts.add(*contacts)
+            return group
 
     def create_msg(self, **kwargs):
         if 'org' not in kwargs:
@@ -169,10 +265,17 @@ class TembaTest(SmartminTest):
         if not kwargs['contact'].is_test:
             kwargs['topup_id'] = kwargs['org'].decrement_credit()
 
-        return Msg.objects.create(**kwargs)
+        return Msg.all_messages.create(**kwargs)
 
-    def create_flow(self, uuid_start=None):
-        flow = Flow.create(self.org, self.admin, "Color Flow")
+    def create_flow(self, uuid_start=None, **kwargs):
+        if 'org' not in kwargs:
+            kwargs['org'] = self.org
+        if 'user' not in kwargs:
+            kwargs['user'] = self.user
+        if 'name' not in kwargs:
+            kwargs['name'] = "Color Flow"
+
+        flow = Flow.create(**kwargs)
         flow.update(self.create_flow_definition(uuid_start))
         return Flow.objects.get(pk=flow.pk)
 
@@ -187,11 +290,11 @@ class TembaTest(SmartminTest):
                     action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
                                       actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
                                  dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
-                                      actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color You are: @step.contact.tel SMS: @step Flow: @flow'))]),
+                                      actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
                                  dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
                                       actions=[dict(type='reply', msg=dict(base='Blue is sad. :('))]),
-                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=None,
-                                      actions=[dict(type='reply', msg=dict(base='That is a funny color.'))])],
+                                 dict(uuid=uuid(uuid_start + 4), x=4, y=4, destination=uuid(uuid_start + 5),
+                                      actions=[dict(type='reply', msg=dict(base='That is a funny color. Try again.'))])],
                     rule_sets=[dict(uuid=uuid(uuid_start + 5), x=5, y=5,
                                     label='color',
                                     finished_key=None,
@@ -225,13 +328,13 @@ class TembaTest(SmartminTest):
         flow.update(flow_json)
         return Flow.objects.get(pk=flow.pk)
 
-    def update_destination_no_check(self, flow, node, destination, rule=None):
+    def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
         # look up our destination, we need this in order to set the correct destination_type
-        destination_type = ACTION_SET
+        destination_type = FlowStep.TYPE_ACTION_SET
         action_destination = Flow.get_node(flow, destination, destination_type)
         if not action_destination:
-            destination_type = RULE_SET
+            destination_type = FlowStep.TYPE_RULE_SET
             ruleset_destination = Flow.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 
@@ -253,6 +356,30 @@ class TembaTest(SmartminTest):
         else:
             self.fail("Couldn't find node with uuid: %s" % node)
 
+    def assertExcelRow(self, sheet, row_num, values, tz=None):
+        """
+        Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
+        """
+        expected_values = []
+        for expected in values:
+            # if expected value is datetime, localize and remove microseconds
+            if isinstance(expected, datetime):
+                expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
+
+            expected_values.append(expected)
+
+        actual_values = []
+        for c in range(0, sheet.ncols):
+            cell = sheet.cell(row_num, c)
+            actual = cell.value
+
+            if cell.ctype == XL_CELL_DATE:
+                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
+
+            actual_values.append(actual)
+
+        self.assertEqual(actual_values, expected_values)
+
 
 class FlowFileTest(TembaTest):
 
@@ -261,7 +388,7 @@ class FlowFileTest(TembaTest):
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
 
     def assertLastResponse(self, message):
-        response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
+        response = Msg.all_messages.filter(contact=self.contact).order_by('-created_on', '-pk').first()
 
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
@@ -294,7 +421,7 @@ class FlowFileTest(TembaTest):
 
             # our message should have gotten a reply
             if assert_reply:
-                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
                 self.assertGreaterEqual(len(replies), 1)
 
                 if len(replies) == 1:
@@ -306,7 +433,7 @@ class FlowFileTest(TembaTest):
 
             else:
                 # assert we got no reply
-                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
+                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
                 self.assertFalse(replies)
 
             return None
@@ -315,10 +442,7 @@ class FlowFileTest(TembaTest):
             Contact.set_simulation(False)
 
 
-from selenium.webdriver.firefox.webdriver import WebDriver
-from HTMLParser import HTMLParser
-
-class MLStripper(HTMLParser):
+class MLStripper(HTMLParser):  # pragma: no cover
     def __init__(self):
         self.reset()
         self.fed = []
@@ -339,7 +463,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         try:
             import os
             os.mkdir('screenshots')
-        except:
+        except Exception:
             pass
 
         super(BrowserTest, cls).setUpClass()
@@ -347,8 +471,8 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
     @classmethod
     def tearDownClass(cls):
         pass
-        #cls.driver.quit()
-        #super(BrowserTest, cls).tearDownClass()
+        # cls.driver.quit()
+        # super(BrowserTest, cls).tearDownClass()
 
     def strip_tags(self, html):
         s = MLStripper()
@@ -412,8 +536,6 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         if text not in (self.strip_tags(element.text) if strip_html else element.text):
             self.fail("Couldn't find '%s' in  '%s'" % (text, element.text))
 
-    #def flow_basics(self):
-
     def browser(self):
 
         self.driver.set_window_size(1024, 2000)
@@ -465,13 +587,17 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
 
 class MockResponse(object):
 
-    def __init__(self, status_code, text, method='GET', url='http://foo.com/'):
+    def __init__(self, status_code, text, method='GET', url='http://foo.com/', headers=None):
         self.text = text
         self.content = text
         self.status_code = status_code
+        self.headers = headers if headers else {}
 
         # mock up a request object on our response as well
         self.request = dict_to_struct('MockRequest', dict(method=method, url=url))
+
+    def add_header(self, key, value):
+        self.headers[key] = value
 
     def json(self):
         return json.loads(self.text)
@@ -508,7 +634,8 @@ class MockRequestValidator(RequestValidator):
 
 class MockTwilioClient(TwilioClient):
 
-    def __init__(self, sid, token):
+    def __init__(self, sid, token, org=None):
+        self.org = org
         self.applications = MockTwilioClient.MockApplications()
         self.calls = MockTwilioClient.MockCalls()
         self.accounts = MockTwilioClient.MockAccounts()
@@ -519,12 +646,12 @@ class MockTwilioClient(TwilioClient):
     def validate(self, request):
         return True
 
-    class MockShortCode():
+    class MockShortCode(object):
         def __init__(self, short_code):
             self.short_code = short_code
             self.sid = "ShortSid"
 
-    class MockShortCodes():
+    class MockShortCodes(object):
         def __init__(self, *args):
             pass
 
@@ -534,12 +661,12 @@ class MockTwilioClient(TwilioClient):
         def update(self, sid, **kwargs):
             print "Updating short code with sid %s" % sid
 
-    class MockSMS():
+    class MockSMS(object):
         def __init__(self, *args):
             self.uri = "/SMS"
             self.short_codes = MockTwilioClient.MockShortCodes()
 
-    class MockCall():
+    class MockCall(object):
         def __init__(self, to=None, from_=None, url=None, status_callback=None):
             self.to = to
             self.from_ = from_
@@ -547,30 +674,30 @@ class MockTwilioClient(TwilioClient):
             self.status_callback = status_callback
             self.sid = 'CallSid'
 
-    class MockApplication():
+    class MockApplication(object):
         def __init__(self, friendly_name):
             self.friendly_name = friendly_name
             self.sid = 'TwilioTestSid'
 
-    class MockPhoneNumber():
+    class MockPhoneNumber(object):
         def __init__(self, phone_number):
             self.phone_number = phone_number
             self.sid = 'PhoneNumberSid'
 
-    class MockAccount():
+    class MockAccount(object):
         def __init__(self, account_type, auth_token='AccountToken'):
             self.type = account_type
             self.auth_token = auth_token
             self.sid = 'AccountSid'
 
-    class MockAccounts():
+    class MockAccounts(object):
         def __init__(self, *args):
             pass
 
         def get(self, account_type):
             return MockTwilioClient.MockAccount(account_type)
 
-    class MockPhoneNumbers():
+    class MockPhoneNumbers(object):
         def __init__(self, *args):
             pass
 
@@ -580,13 +707,14 @@ class MockTwilioClient(TwilioClient):
         def update(self, sid, **kwargs):
             print "Updating phone number with sid %s" % sid
 
-    class MockApplications():
+    class MockApplications(object):
         def __init__(self, *args):
             pass
+
         def list(self, friendly_name=None):
             return [MockTwilioClient.MockApplication(friendly_name)]
 
-    class MockCalls():
+    class MockCalls(object):
         def __init__(self):
             pass
 

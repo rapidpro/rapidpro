@@ -5,25 +5,13 @@ import time
 from collections import defaultdict
 from django.db import models, connection
 from django.db.models import Q
-from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from redis_cache import get_redis_connection
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
 from temba.utils import format_decimal, get_dict_from_cursor, dict_to_json, json_to_dict
-from stop_words import get_stop_words
+from stop_words import safe_get_stop_words
 
-TEXT = 'T'
-DECIMAL = 'N'
-DATETIME = 'D'
-STATE = 'S'
-DISTRICT = 'I'
-
-VALUE_TYPE_CHOICES = ((TEXT, "Text"),
-                      (DECIMAL, "Numeric"),
-                      (DATETIME, "Date & Time"),
-                      (STATE, "State"),
-                      (DISTRICT, "District"))
 
 VALUE_SUMMARY_CACHE_KEY = 'value_summary'
 CONTACT_KEY = 'vsd::vsc%d'
@@ -35,11 +23,35 @@ VALUE_SUMMARY_CACHE_TIME = 60 * 60 * 24 * 30
 
 
 class Value(models.Model):
-
     """
     A Value is created to store the most recent result for a step in a flow. Value will store typed
     values of the raw text that was received during the flow.
     """
+    TYPE_TEXT = 'T'
+    TYPE_DECIMAL = 'N'
+    TYPE_DATETIME = 'D'
+    TYPE_STATE = 'S'
+    TYPE_DISTRICT = 'I'
+    TYPE_WARD = 'W'
+
+    TYPE_CONFIG = ((TYPE_TEXT, _("Text"), 'text'),
+                   (TYPE_DECIMAL, _("Numeric"), 'numeric'),
+                   (TYPE_DATETIME, _("Date & Time"), 'datetime'),
+                   (TYPE_STATE, _("State"), 'state'),
+                   (TYPE_DISTRICT, _("District"), 'district'),
+                   (TYPE_WARD, _("Ward"), 'ward'))
+
+    TYPE_CHOICES = [(c[0], c[1]) for c in TYPE_CONFIG]
+
+    GPS = 'G'
+    AUDIO = 'A'
+    VIDEO = 'V'
+    IMAGE = 'I'
+
+    MEDIA_TYPES = ((GPS, _("GPS Coordinates")),
+                   (VIDEO, _("Video")),
+                   (AUDIO, _("Audio")),
+                   (IMAGE, _("Image")))
 
     contact = models.ForeignKey('contacts.Contact', related_name='values')
 
@@ -49,7 +61,7 @@ class Value(models.Model):
     ruleset = models.ForeignKey('flows.RuleSet', null=True, on_delete=models.SET_NULL,
                                 help_text="The RuleSet this value is for, if any")
 
-    run = models.ForeignKey('flows.FlowRun', null=True, on_delete=models.SET_NULL, related_name='values',
+    run = models.ForeignKey('flows.FlowRun', null=True, related_name='values', on_delete=models.SET_NULL,
                             help_text="The FlowRun this value is for, if any")
 
     rule_uuid = models.CharField(max_length=255, null=True, db_index=True,
@@ -68,8 +80,7 @@ class Value(models.Model):
     location_value = models.ForeignKey(AdminBoundary, on_delete=models.SET_NULL, null=True,
                                        help_text="The location value of this value if any.")
 
-    recording_value = models.TextField(max_length=640, null=True,
-                                       help_text="The recording url if any.")
+    media_value = models.TextField(max_length=640, null=True, help_text="The media value if any.")
 
     org = models.ForeignKey(Org)
 
@@ -117,7 +128,7 @@ class Value(models.Model):
             { location: 1515, boundary: "f1551" }
             { contact_field: fieldId, values: ["UK", "RW"] }
         """
-        from temba.flows.models import RuleSet, FlowRun, FlowStep
+        from temba.flows.models import RuleSet, FlowStep
         from temba.contacts.models import Contact
 
         start = time.time()
@@ -248,23 +259,23 @@ class Value(models.Model):
         else:
             values = Value.objects.filter(contact_field=contact_field)
 
-            if contact_field.value_type == TEXT:
+            if contact_field.value_type == Value.TYPE_TEXT:
                 values = values.values('string_value', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'string_value',
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type == DECIMAL:
+            elif contact_field.value_type == Value.TYPE_DECIMAL:
                 values = values.values('decimal_value', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'decimal_value',
                                                                               formatter=format_decimal,
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type == DATETIME:
+            elif contact_field.value_type == Value.TYPE_DATETIME:
                 values = values.extra({'date_value': "date_trunc('day', datetime_value)"}).values('date_value', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'date_value',
                                                                               return_contacts=return_contacts)
 
-            elif contact_field.value_type in [STATE, DISTRICT]:
+            elif contact_field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
                 values = values.values('location_value__osm_id', 'contact')
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
                                                                               return_contacts=return_contacts)
@@ -330,7 +341,7 @@ class Value(models.Model):
         from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import TrueTest, RuleSet
 
-        start = time.time()
+        # start = time.time()
         results = []
 
         if (not ruleset and not contact_field) or (ruleset and contact_field):
@@ -391,7 +402,7 @@ class Value(models.Model):
         if cached is not None:
             try:
                 return json_to_dict(cached)
-            except:
+            except Exception:
                 # failed decoding, oh well, go calculate it instead
                 pass
 
@@ -412,7 +423,7 @@ class Value(models.Model):
             elif 'groups' in segment:
                 for group_id in segment['groups']:
                     # load our group
-                    group = ContactGroup.user_groups.get(is_active=True, org=org, pk=group_id)
+                    group = ContactGroup.user_groups.get(org=org, pk=group_id)
 
                     category_filter = list(filters)
                     category_filter.append(dict(groups=[group_id]))
@@ -442,7 +453,7 @@ class Value(models.Model):
                 field = ContactField.get_by_label(org, segment['location'])
 
                 # make sure they are segmenting on a location type that makes sense
-                if field.value_type not in [STATE, DISTRICT]:
+                if field.value_type not in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
                     raise ValueError(_("Cannot segment on location for field that is not a State or District type"))
 
                 # make sure our org has a country for location based responses
@@ -461,12 +472,15 @@ class Value(models.Model):
                 boundaries = list(AdminBoundary.objects.filter(parent=parent).order_by('name'))
 
                 # if the field is a district field, they need to specify the parent state
-                if not parent_osm_id and field.value_type == DISTRICT:
+                if not parent_osm_id and field.value_type == Value.TYPE_DISTRICT:
                     raise ValueError(_("You must specify a parent state to segment results by district"))
+
+                if not parent_osm_id and field.value_type == Value.TYPE_WARD:
+                    raise ValueError(_("You must specify a parent state to segment results by ward"))
 
                 # if this is a district, we can speed things up by only including those districts in our parent, build
                 # the filter for that
-                if parent and field.value_type == DISTRICT:
+                if parent and field.value_type in [Value.TYPE_DISTRICT, Value.TYPE_WARD]:
                     location_filters = [filters, dict(location=field.pk, boundary=[b.osm_id for b in boundaries])]
                 else:
                     location_filters = filters
@@ -531,7 +545,15 @@ class Value(models.Model):
                 cursor.execute(custom_sql)
                 unclean_categories = get_dict_from_cursor(cursor)
                 categories = []
-                ignore_words = get_stop_words('english')
+
+                org_languages = [lang.name.lower() for lang in org.languages.filter(orgs=None).distinct()]
+
+                if 'english' not in org_languages:
+                    org_languages.append('english')
+
+                ignore_words = []
+                for lang in org_languages:
+                    ignore_words += safe_get_stop_words(lang)
 
                 for category in unclean_categories:
                     if len(category['label']) > 1 and category['label'] not in ignore_words and len(categories) < 100:
@@ -553,14 +575,14 @@ class Value(models.Model):
         pipe.execute()
 
         # leave me: nice for profiling..
-        #from django.db import connection as db_connection, reset_queries
-        #print "=" * 80
-        #for query in db_connection.queries:
+        # from django.db import connection as db_connection, reset_queries
+        # print "=" * 80
+        # for query in db_connection.queries:
         #    print "%s - %s" % (query['time'], query['sql'][:1000])
-        #print "-" * 80
-        #print "took: %f" % (time.time() - start)
-        #print "=" * 80
-        #reset_queries()
+        # print "-" * 80
+        # print "took: %f" % (time.time() - start)
+        # print "=" * 80
+        # reset_queries()
 
         return results
 

@@ -1,12 +1,11 @@
 from __future__ import unicode_literals
 
-from django.test import TestCase
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
-from temba.orgs.models import Org
 from smartmin.tests import SmartminTest, _CRUDLTest
-from .models import *
+from .models import Lead, Video
 from .views import VideoCRUDL
+
 
 class PublicTest(SmartminTest):
 
@@ -15,7 +14,7 @@ class PublicTest(SmartminTest):
         self.user = self.create_user("tito")
 
     def test_index(self):
-        home_url = reverse('public.public_index');
+        home_url = reverse('public.public_index')
         response = self.client.get(home_url, follow=True)
         self.assertEquals(response.request['PATH_INFO'], '/')
 
@@ -24,7 +23,7 @@ class PublicTest(SmartminTest):
         post_data = dict()
         response = self.client.post(lead_create_url, post_data, follow=True)
         self.assertEquals(response.request['PATH_INFO'], '/')
-        self.assertTrue(response.context['errors']);
+        self.assertTrue(response.context['errors'])
         self.assertEquals(response.context['error_msg'], 'This field is required.')
 
         post_data['email'] = 'wrong_email_format'
@@ -40,8 +39,6 @@ class PublicTest(SmartminTest):
     def test_privacy(self):
         response = self.client.get(reverse('public.public_privacy'))
         self.assertContains(response, "Privacy")
-
-
 
     def test_welcome(self):
         welcome_url = reverse('public.public_welcome')
@@ -117,16 +114,25 @@ class PublicTest(SmartminTest):
     def test_sitemaps(self):
         sitemap_url = reverse('public.sitemaps')
 
-        # get the count of items, we are expecting only 13 items for now. We have no video item yet.
+        # number of fixed items (i.e. not videos, differs between configurations)
         response = self.client.get(sitemap_url)
-        self.assertEquals(len(response.context['urlset']), 12)
 
-        # add a video on the item, we will now have 14 items
+        # but first item is always home page
+        self.assertEquals(response.context['urlset'][0], {'priority': '0.5',
+                                                          'item': 'public.public_index',
+                                                          'lastmod': None,
+                                                          'changefreq': 'daily',
+                                                          'location': u'http://example.com/'})
+
+        num_fixed_items = len(response.context['urlset'])
+
+        # adding a video will dynamically add a new item
         Video.objects.create(name="Item14", summary="Unicorn", description="Video of unicorns", vimeo_id="1234",
                              order=0, created_by=self.superuser, modified_by=self.superuser)
 
         response = self.client.get(sitemap_url)
-        self.assertEquals(len(response.context['urlset']), 13)
+        self.assertEqual(len(response.context['urlset']), num_fixed_items + 1)
+
 
 class VideoCRUDLTest(_CRUDLTest):
 

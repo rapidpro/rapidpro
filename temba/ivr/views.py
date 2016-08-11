@@ -1,19 +1,15 @@
+from __future__ import unicode_literals
+
 import json
-import urllib2
-from temba.contacts.models import Contact, TEL_SCHEME
-from django.core.files import File
-from django.core.files.storage import default_storage
-from django.core.files.temp import NamedTemporaryFile
+
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from django.conf import settings
-from twilio import twiml
-
 from temba.utils import build_json_response
-from temba.flows.models import Flow, FlowRun, ActionSet
-from .models import IVRCall, IN_PROGRESS, COMPLETED
+from temba.flows.models import Flow, FlowRun
+from .models import IVRCall, IN_PROGRESS, COMPLETED, RINGING
+
 
 class CallHandler(View):
 
@@ -25,8 +21,6 @@ class CallHandler(View):
         return HttpResponse("ILLEGAL METHOD")
 
     def post(self, request, *args, **kwargs):
-        from twilio.util import RequestValidator
-
         call = IVRCall.objects.filter(pk=kwargs['pk']).first()
 
         if not call:
@@ -43,24 +37,37 @@ class CallHandler(View):
                     return HttpResponse("Not found", status=404)
 
         if client.validate(request):
-            call.update_status(request.POST.get('CallStatus', None),
-                               request.POST.get('CallDuration', None))
+            status = request.POST.get('CallStatus', None)
+            duration = request.POST.get('CallDuration', None)
+            call.update_status(status, duration)
+
+            # update any calls we have spawned with the same
+            for child in call.child_calls.all():
+                child.update_status(status, duration)
+                child.save()
+
             call.save()
 
-            hangup = 'hangup' == request.POST.get('Digits', None)
+            # figure out if this is a callback due to an empty gather
+            is_empty = '1' == request.GET.get('empty', '0')
+            user_response = request.POST.copy()
 
-            if call.status == IN_PROGRESS or hangup:
+            # if the user pressed pound, then record no digits as the input
+            if is_empty:
+                user_response['Digits'] = ''
+
+            hangup = 'hangup' == user_response.get('Digits', None)
+
+            if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():
-                    response = Flow.handle_call(call, request.POST, hangup=hangup)
+                    response = Flow.handle_call(call, user_response, hangup=hangup)
                     return HttpResponse(unicode(response))
             else:
-
                 if call.status == COMPLETED:
                     # if our call is completed, hangup
                     run = FlowRun.objects.filter(call=call).first()
                     if run:
                         run.set_completed()
-                        run.expire()
                 return build_json_response(dict(message="Updated call status"))
 
         else:  # pragma: no cover
