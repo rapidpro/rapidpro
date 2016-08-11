@@ -2664,7 +2664,6 @@ class ActionTest(TembaTest):
         self.assertFalse(group2.contacts.filter(id=self.contact.pk))
         self.assertEquals(0, group2.contacts.all().count())
 
-
     def test_set_channel_action(self):
         flow = self.flow
         run = FlowRun.create(flow, self.contact.pk)

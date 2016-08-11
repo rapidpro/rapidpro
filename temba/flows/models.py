@@ -4230,7 +4230,6 @@ class DeleteFromGroupAction(AddToGroupAction):
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
 
-
     def execute(self, run, actionset, sms):
         if len(self.groups) == 0:
             contact = run.contact
