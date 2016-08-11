@@ -17,7 +17,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.db.models import Sum, Q
+from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
@@ -1935,6 +1935,7 @@ class OrgCRUDL(SmartCRUDL):
 
         success_message = ''
         form_class = OrgForm
+        fields = ('name', 'slug', 'timezone', 'date_format')
 
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
@@ -2186,11 +2187,8 @@ class TopUpCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
-            from django.db.models import F
             queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
-            queryset = queryset.annotate(credits_remaining=F('credits') - Sum(F('topupcredits__used')))
-            queryset = queryset.order_by('-credits_remaining', '-expires_on')
-            return queryset
+            return queryset.annotate(credits_remaining=ExpressionWrapper(F('credits') - Sum(F('topupcredits__used')), IntegerField()))
 
         def get_context_data(self, **kwargs):
             context = super(TopUpCRUDL.List, self).get_context_data(**kwargs)
@@ -2199,6 +2197,42 @@ class TopUpCRUDL(SmartCRUDL):
             now = timezone.now()
             context['now'] = now
             context['expiration_period'] = now + timedelta(days=30)
+
+            # show our topups in a meaningful order
+            topups = list(self.get_queryset())
+
+            def compare(topup1, topup2):
+
+                # non expired first
+                now = timezone.now()
+                if topup1.expires_on > now and topup2.expires_on <= now:
+                    return -1
+                elif topup2.expires_on > now and topup1.expires_on <= now:
+                    return 1
+
+                # then push those without credits remaining to the bottom
+                if topup1.credits_remaining is None:
+                    topup1.credits_remaining = topup1.credits
+
+                if topup2.credits_remaining is None:
+                    topup2.credits_remaining = topup2.credits
+
+                if topup1.credits_remaining and not topup2.credits_remaining:
+                    return -1
+                elif topup2.credits_remaining and not topup1.credits_remaining:
+                    return 1
+
+                # sor the rest by their expiration date
+                if topup1.expires_on > topup2.expires_on:
+                    return -1
+                elif topup1.expires_on < topup2.expires_on:
+                    return 1
+
+                # if we end up with the same expiration, show the oldest first
+                return topup2.id - topup1.id
+
+            topups.sort(cmp=compare)
+            context['topups'] = topups
             return context
 
         def get_template_names(self):
