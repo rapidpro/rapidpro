@@ -211,6 +211,8 @@ class Org(SmartModel):
     surveyor_password = models.CharField(null=True, max_length=128, default=None,
                                          help_text=_('A password that allows users to register as surveyors'))
 
+    parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=('The parent org that manages this org'))
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -225,6 +227,31 @@ class Org(SmartModel):
                 count += 1
 
             return unique_slug
+
+    def create_sub_org(self, name, timezone=None, created_by=None):
+
+        if not timezone:
+            timezone = self.timezone
+
+        if not created_by:
+            created_by = self.created_by
+
+        # generate a unique slug
+        slug = Org.get_unique_slug(name)
+
+        org = Org.objects.create(name=name, timezone=timezone, brand=self.brand, parent=self, slug=slug,
+                                 created_by=created_by, modified_by=created_by)
+
+        org.administrators.add(created_by)
+
+        # initialize our org, but without any credits
+        org.initialize(brand=org.get_branding(), topup_size=0)
+
+        return org
+
+    def get_branding(self):
+        from temba.middleware import BrandingMiddleware
+        return BrandingMiddleware.get_branding_for_host(self.brand)
 
     def lock_on(self, lock, qualifier=None):
         """
@@ -927,7 +954,9 @@ class Org(SmartModel):
         return self.channels.filter(channel_type=NEXMO)
 
     def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
-        return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
+        if topup_size:
+            return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
+        return None
 
     def create_system_labels_and_groups(self):
         """
@@ -1097,13 +1126,55 @@ class Org(SmartModel):
         """
         return self.get_credits_total() - self.get_credits_used()
 
-    def decrement_credit(self):
+    def allocate_credits(self, user, org, amount):
         """
-        Decrements this orgs credit by 1. Returns the id of the active topup which can then be assigned to the message
-        or IVR action which is being paid for with this credit
+        Allocates credits to a sub org of the current org, but only if it
+        belongs to us and we have enough credits to do so.
+        """
+        if org.parent == self or self.parent == org.parent or self.parent == org:
+            if self.get_credits_remaining() > amount:
+
+                # now debit our account
+                debited = None
+                while amount or debited == 0:
+
+                    # remove the credits from ourselves
+                    (topup_id, debited) = self.decrement_credit(amount)
+
+                    if topup_id:
+                        topup = TopUp.objects.get(id=topup_id)
+
+                        # create the topup for our child, expiring on the same date
+                        new_topup = TopUp.create(user, credits=debited, org=org, expires_on=topup.expires_on, price=None)
+
+                        # create a debit for transaction history
+                        Debit.objects.create(topup_id=topup_id, amount=debited, beneficiary=new_topup,
+                                             type=Debit.TYPE_ALLOCATION, created_by=user, modified_by=user)
+
+                        # decrease the amount of credits we need
+                        amount -= debited
+
+                    else:
+                        break
+
+            # recalculate our caches
+            self._calculate_credit_caches()
+            org._calculate_credit_caches()
+
+            return True
+
+        # couldn't allocate credits
+        return False
+
+    def decrement_credit(self, amount=1):
+        """
+        Decrements this orgs credit by amount.
+
+        Determines the active topup and returns that along with how many credits we were able
+        to decrement it by. Amount decremented is not guaranteed to be the full amount requested.
         """
         total_used_key = ORG_CREDITS_USED_CACHE_KEY % self.pk
-        incrby_existing(total_used_key, 1)
+        incrby_existing(total_used_key, amount)
 
         r = get_redis_connection()
         active_topup_key = ORG_ACTIVE_TOPUP_KEY % self.pk
@@ -1112,7 +1183,7 @@ class Org(SmartModel):
             remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, int(active_topup_pk))
 
             # decrement our active # of credits
-            remaining = r.decr(remaining_key)
+            remaining = r.decr(remaining_key, amount)
 
             # near the edge? calculate our active topup from scratch
             if not remaining or int(remaining) < 100:
@@ -1125,10 +1196,14 @@ class Org(SmartModel):
                 active_topup_pk = active_topup.pk
                 r.set(active_topup_key, active_topup_pk, ORG_CREDITS_CACHE_TTL)
 
-                remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, active_topup_pk)
-                r.set(remaining_key, active_topup.get_remaining() - 1, ORG_CREDITS_CACHE_TTL)
+                # can only reduce as much as we have available
+                if active_topup.get_remaining() < amount:
+                    amount = active_topup.get_remaining()
 
-        return active_topup_pk
+                remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, active_topup_pk)
+                r.set(remaining_key, active_topup.get_remaining() - amount, ORG_CREDITS_CACHE_TTL)
+
+        return (active_topup_pk, amount)
 
     def _calculate_active_topup(self):
         """
@@ -1737,20 +1812,40 @@ class TopUp(SmartModel):
                                help_text="Any comment associated with this topup, used when we credit accounts")
 
     @classmethod
-    def create(cls, user, price, credits, stripe_charge=None, org=None):
+    def create(cls, user, price, credits, stripe_charge=None, org=None, expires_on=None):
         """
         Creates a new topup
         """
         if not org:
             org = user.get_org()
 
-        expires_on = timezone.now() + timedelta(days=365)  # credits last 1 year
+        if not expires_on:
+            expires_on = timezone.now() + timedelta(days=365)  # credits last 1 year
 
         topup = TopUp.objects.create(org=org, price=price, credits=credits, expires_on=expires_on,
                                      stripe_charge=stripe_charge, created_by=user, modified_by=user)
 
         org.update_caches(OrgEvent.topup_new, topup)
         return topup
+
+    def get_ledger(self):
+        debits = self.debits.filter(type=Debit.TYPE_ALLOCATION).order_by('-created_by')
+        balance = self.credits
+        ledger = []
+        for debit in debits:
+            balance -= debit.amount
+            ledger.append(dict(date=debit.created_on,
+                          comment=_('Transfer to %(org)s') % dict(org=debit.beneficiary.org.name),
+                          amount=-debit.amount,
+                          balance=balance))
+
+        # add a line for used message credits
+        if self.get_remaining() < balance:
+            ledger.append(dict(date=timezone.now(),
+                               comment=_('Messaging credits used'),
+                               amount=self.get_remaining() - balance,
+                               balance=self.get_remaining()))
+        return ledger
 
     def get_price_display(self):
         if self.price is None:
@@ -1797,6 +1892,28 @@ class TopUp(SmartModel):
 
     def __unicode__(self):
         return "%s Credits" % self.credits
+
+
+class Debit(SmartModel):
+    """
+    Transactional history of credits allocated to other topups or chunks of archived messages
+    """
+
+    TYPE_ALLOCATION = 'A'
+    TYPE_PURGE = 'P'
+
+    DEBIT_TYPES = ((TYPE_ALLOCATION, 'Allocation'),
+                   (TYPE_PURGE, 'Purge'))
+
+    topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
+
+    amount = models.IntegerField(help_text=_('How many credits were debited'))
+
+    beneficiary = models.ForeignKey(TopUp, null=True,
+                                    related_name="allocations",
+                                    help_text=_('Optional topup that was allocated with these credits'))
+
+    type = models.CharField(max_length=1, choices=DEBIT_TYPES, null=False, help_text=_('What caused this debit'))
 
 
 class TopUpCredits(models.Model):

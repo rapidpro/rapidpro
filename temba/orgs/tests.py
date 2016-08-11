@@ -1274,6 +1274,69 @@ class OrgTest(TembaTest):
         response = self.client.get('/org/download/flows/123/')
         self.assertRedirect(response, '/assets/download/results_export/123/')
 
+    def test_sub_orgs(self):
+
+        from temba.orgs.models import Debit
+
+        # lets start with two topups
+        expires = timezone.now() + timedelta(days=400)
+        first_topup = TopUp.objects.filter(org=self.org).first()
+        second_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
+
+        sub_org = self.org.create_sub_org('Sub Org')
+
+        # we should be linked to our parent with the same brand
+        self.assertEqual(self.org, sub_org.parent)
+        self.assertEqual(self.org.brand, sub_org.brand)
+
+        # our sub account should have zero credits
+        self.assertEqual(0, sub_org.get_credits_remaining())
+
+        # default values should be the same as parent
+        self.assertEqual(self.org.timezone, sub_org.timezone)
+        self.assertEqual(self.org.created_by, sub_org.created_by)
+
+        # now allocate some credits to our sub org
+        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
+        self.assertEqual(700, sub_org.get_credits_remaining())
+        self.assertEqual(1300, self.org.get_credits_remaining())
+
+        # we should have a debit to track this transaction
+        debits = Debit.objects.filter(topup__org=self.org)
+        self.assertEqual(1, len(debits))
+
+        debit = debits.first()
+        self.assertEqual(700, debit.amount)
+        self.assertEqual(Debit.TYPE_ALLOCATION, debit.type)
+        self.assertEqual(first_topup.expires_on, debit.beneficiary.expires_on)
+
+        # try allocating more than we have
+        self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
+        self.assertEqual(700, sub_org.get_credits_remaining())
+        self.assertEqual(1300, self.org.get_credits_remaining())
+        self.assertEqual(700, self.org._calculate_credits_used())
+
+        # now allocate across our remaining topups
+        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 1200))
+        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(1900, self.org.get_credits_used())
+        self.assertEqual(100, self.org.get_credits_remaining())
+
+        # now clear our cache, we ought to have proper amount still
+        self.org._calculate_credit_caches()
+        sub_org._calculate_credit_caches()
+
+        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(100, self.org.get_credits_remaining())
+
+        # this creates two more debits, for a total of three
+        debits = Debit.objects.filter(topup__org=self.org).order_by('id')
+        self.assertEqual(3, len(debits))
+
+        # the last two debits should expire at same time as topup they were funded by
+        self.assertEqual(first_topup.expires_on, debits[1].topup.expires_on)
+        self.assertEqual(second_topup.expires_on, debits[2].topup.expires_on)
+
 
 class AnonOrgTest(TembaTest):
     """
