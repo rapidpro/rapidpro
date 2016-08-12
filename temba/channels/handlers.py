@@ -17,7 +17,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN, TELEGRAM
+from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN, TELEGRAM, TWILIO
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
@@ -83,7 +83,8 @@ class TwilioHandler(View):
 
                 call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
                 call.update_status(request.POST.get('CallStatus', None),
-                                   request.POST.get('CallDuration', None))
+                                   request.POST.get('CallDuration', None),
+                                   TWILIO)
                 call.save()
 
                 if flow:
@@ -939,7 +940,7 @@ class VerboiceHandler(View):
             from temba.ivr.models import IVRCall
             call = IVRCall.objects.filter(external_id=call_sid).first()
             if call:
-                call.update_status(call_status, None)
+                call.update_status(call_status, None, VERBOICE)
                 call.save()
                 return HttpResponse("Call Status Updated")
 

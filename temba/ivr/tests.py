@@ -357,7 +357,7 @@ class IVRTests(FlowFileTest):
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
 
         # explicitly hanging up on a test call should remove it
-        call.update_status('in-progress', 0)
+        call.update_status('in-progress', 0, TWILIO)
         call.save()
         IVRCall.hangup_test_call(flow)
         self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())
@@ -445,7 +445,7 @@ class IVRTests(FlowFileTest):
 
         # test other our call status mappings with twilio
         def test_status_update(call_to_update, twilio_status, temba_status):
-            call_to_update.update_status(twilio_status, 0)
+            call_to_update.update_status(twilio_status, 0, TWILIO)
             call_to_update.save()
             self.assertEquals(temba_status, IVRCall.objects.get(pk=call_to_update.pk).status)
 
@@ -489,7 +489,7 @@ class IVRTests(FlowFileTest):
         Contact.set_simulation(True)
         flow.start([], [test_contact])
         call = IVRCall.objects.filter(direction=OUTGOING).order_by('-pk').first()
-        call.update_status('completed', 30)
+        call.update_status('completed', 30, TWILIO)
         call.save()
         call.refresh_from_db()
 
@@ -497,7 +497,7 @@ class IVRTests(FlowFileTest):
         self.assertEqual(call.duration, 30)
 
         # now look at implied duration
-        call.update_status('in-progress', None)
+        call.update_status('in-progress', None, TWILIO)
         call.save()
         call.refresh_from_db()
         self.assertIsNotNone(call.get_duration())

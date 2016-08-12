@@ -3,9 +3,12 @@ from __future__ import unicode_literals
 import json
 
 from django.core.exceptions import ValidationError
+from django.core.files.temp import NamedTemporaryFile
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
+from temba.channels.models import TWILIO, NEXMO
+from temba.channels.models import VERBOICE
 from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
 from .models import IVRCall, IN_PROGRESS, COMPLETED, RINGING
@@ -26,8 +29,11 @@ class CallHandler(View):
         if not call:
             return HttpResponse("Not found", status=404)
 
-        client = call.channel.get_ivr_client()
-        if request.REQUEST.get('hangup', 0):
+        channel = call.channel
+        channel_type = channel.channel_type
+        client = channel.get_ivr_client()
+
+        if channel_type in [TWILIO, VERBOICE] and request.REQUEST.get('hangup', 0):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
@@ -37,26 +43,45 @@ class CallHandler(View):
                     return HttpResponse("Not found", status=404)
 
         if client.validate(request):
-            status = request.POST.get('CallStatus', None)
-            duration = request.POST.get('CallDuration', None)
-            call.update_status(status, duration)
+            status = None
+            duration = None
+            if channel_type in [TWILIO, VERBOICE]:
+                status = request.POST.get('CallStatus', None)
+                duration = request.POST.get('CallDuration', None)
+            elif channel_type in [NEXMO]:
+                status = request.POST.get('status')
+                duration = request.POST.get('call-duration')
+
+            call.update_status(status, duration, channel_type)
 
             # update any calls we have spawned with the same
             for child in call.child_calls.all():
-                child.update_status(status, duration)
+                child.update_status(status, duration, channel_type)
                 child.save()
 
             call.save()
 
-            # figure out if this is a callback due to an empty gather
-            is_empty = '1' == request.GET.get('empty', '0')
             user_response = request.POST.copy()
 
-            # if the user pressed pound, then record no digits as the input
-            if is_empty:
-                user_response['Digits'] = ''
+            hangup = False
 
-            hangup = 'hangup' == user_response.get('Digits', None)
+            if channel_type in [TWILIO, VERBOICE]:
+                # figure out if this is a callback due to an empty gather
+                is_empty = '1' == request.GET.get('empty', '0')
+
+                # if the user pressed pound, then record no digits as the input
+                if is_empty:
+                    user_response['Digits'] = ''
+
+                hangup = 'hangup' == user_response.get('Digits', None)
+
+            elif channel_type in [NEXMO]:
+                file_content = request.POST.get('UserRecording', None)
+
+                if file_content is not None:
+                    temp = NamedTemporaryFile(delete=True)
+                    temp.write(file_content)
+                    temp.flush()
 
             if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():

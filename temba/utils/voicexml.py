@@ -1,7 +1,4 @@
 
-from uuid import uuid4
-
-
 class VoiceXMLException(Exception):
     pass
 
@@ -63,8 +60,7 @@ class Response(object):
         self.hangup()
 
     def gather(self, **kwargs):
-        generated_name = unicode(uuid4())
-        result = '<field name="' + generated_name + '">'
+        result = '<field name="Digits">'
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
             result += '<filled><submit next="' + kwargs.get('action') + ' method="' + method + '" /></filled>'
@@ -72,8 +68,7 @@ class Response(object):
         self.document += result
 
     def record(self, **kwargs):
-        generated_name = "blabla"
-        result = '<record name="' + generated_name + '" beep="true"'
+        result = '<record name="UserRecording" beep="true"'
         if kwargs.get('maxLength', False):
             result += 'maxtime="' + kwargs.get('maxLength') + 's"'
 
@@ -81,7 +76,8 @@ class Response(object):
 
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
-            result += '<filled><submit next="' + kwargs.get('action') + '" method="' + method + '"/></filled>'
+            result += '<filled><submit next="' + kwargs.get('action') + '" method="' + method + '" '
+            result += 'enctype="multipart/form-data" /></filled>'
 
         result += '</record>'
 
