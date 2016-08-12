@@ -965,8 +965,9 @@ class OrgTest(TembaTest):
         self.assertIsNone(test_msg.topup_id)
         self.assertEquals(30, self.org.get_credits_used())
 
-        # test pro user status
-        self.assertFalse(self.org.is_pro())
+        # test special status
+        self.assertFalse(self.org.is_multi_user_level())
+        self.assertFalse(self.org.is_multi_org_level())
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
@@ -978,10 +979,11 @@ class OrgTest(TembaTest):
         self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=True).exclude(topup=None))
         self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
-        # now we're pro
-        self.assertTrue(self.org.is_pro())
+        # we aren't yet multi user since this topup was free
+        self.assertEquals(0, self.org.get_purchased_credits())
+        self.assertFalse(self.org.is_multi_user_level())
+
         self.assertEquals(100025, self.org.get_credits_total())
-        self.assertEquals(100025, self.org.get_purchased_credits())
         self.assertEquals(30, self.org.get_credits_used())
         self.assertEquals(99995, self.org.get_credits_remaining())
 
@@ -1004,11 +1006,8 @@ class OrgTest(TembaTest):
         # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
-        # we're still pro though
-        self.assertTrue(self.org.is_pro())
-
-        with self.assertNumQueries(2):
-            self.assertEquals(100025, self.org.get_purchased_credits())
+        with self.assertNumQueries(3):
+            self.assertEquals(0, self.org.get_purchased_credits())
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
@@ -1093,6 +1092,18 @@ class OrgTest(TembaTest):
 
         with self.assertNumQueries(0):
             self.assertEquals(0, self.org.get_low_credits_threshold())
+
+        # now buy some credits to make us multi user
+        TopUp.create(self.admin, price=100, credits=100000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertTrue(self.org.is_multi_user_level())
+        self.assertFalse(self.org.is_multi_org_level())
+
+        # good deal!
+        TopUp.create(self.admin, price=100, credits=1000000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertTrue(self.org.is_multi_user_level())
+        self.assertTrue(self.org.is_multi_org_level())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -1417,6 +1428,14 @@ class OrgTest(TembaTest):
 
         sub_org = self.org.create_sub_org('Sub Org')
 
+        # we won't create sub orgs if the org isn't the proper level
+        self.assertIsNone(sub_org)
+
+        # upgrade our org and go again
+        self.org.multi_org = True
+        self.org.save()
+        sub_org = self.org.create_sub_org('Sub Org')
+
         # we should be linked to our parent with the same brand
         self.assertEqual(self.org, sub_org.parent)
         self.assertEqual(self.org.brand, sub_org.brand)
@@ -1468,6 +1487,62 @@ class OrgTest(TembaTest):
         # the last two debits should expire at same time as topup they were funded by
         self.assertEqual(first_topup.expires_on, debits[1].topup.expires_on)
         self.assertEqual(second_topup.expires_on, debits[2].topup.expires_on)
+
+    def test_sub_org_ui(self):
+
+        self.login(self.admin)
+        response = self.client.get(reverse('orgs.org_home'))
+        self.assertNotContains(response, 'Manage Organizations')
+
+        # attempting to manage orgs should redirect
+        response = self.client.get(reverse('orgs.org_sub_orgs'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # creating a new sub org should also redirect
+        response = self.client.get(reverse('orgs.org_create_sub_org'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # make sure posting is gated too
+        new_org = dict(name='Sub Org', timezone=self.org.timezone, date_format=self.org.date_format)
+        response = self.client.post(reverse('orgs.org_create_sub_org'), new_org)
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # same thing with trying to transfer credits
+        response = self.client.get(reverse('orgs.org_transfer_credits'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # support multi orgs and see our button shows up
+        self.org.multi_org = True
+        self.org.save()
+        response = self.client.get(reverse('orgs.org_home'))
+        self.assertContains(response, 'Manage Organizations')
+
+        # now we can manage our orgs
+        response = self.client.get(reverse('orgs.org_sub_orgs'))
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, 'Organizations')
+
+        # add a sub org
+        response = self.client.post(reverse('orgs.org_create_sub_org'), new_org)
+        self.assertRedirect(response, reverse('orgs.org_sub_orgs'))
+        sub_org = Org.objects.filter(name='Sub Org').first()
+        self.assertIsNotNone(sub_org)
+        self.assertIn(self.admin, sub_org.administrators.all())
+
+        # load the transfer credit page
+        session = self.client.session
+        session['org_id'] = self.org.id
+        session.save()
+
+        response = self.client.get(reverse('orgs.org_transfer_credits'))
+        self.assertEqual(200, response.status_code)
+
+        # now transfer some creditos
+        post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
+        response = self.client.post(reverse('orgs.org_transfer_credits'), post_data)
+
+        self.assertEqual(400, self.org.get_credits_remaining())
+        self.assertEqual(600, sub_org.get_credits_remaining())
 
 
 class AnonOrgTest(TembaTest):

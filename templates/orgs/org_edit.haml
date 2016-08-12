@@ -23,9 +23,10 @@
 
 
 -block summary
-  %p.pull-right
-    %a.sub-orgs.btn.btn-secondary{url:'{% url "orgs.org_sub_orgs" %}'}
-      Manage Organizations
+  -if object.is_multi_org_level
+    %p.pull-right
+      %a.sub-orgs.btn.btn-secondary{url:'{% url "orgs.org_sub_orgs" %}'}
+        Manage Organizations
 
   -blocktrans with org=object.name
     Your organization is <span class='attn'>{{org}}</span>
@@ -33,7 +34,7 @@
   -blocktrans with timezone=object.timezone
     which is in the <span class='attn'>{{timezone}}</span> timezone.
 
-  -if sub_orgs
+  -if object.is_multi_org_level and sub_orgs
     %br
     You have <span class='attn'>{{sub_orgs|length|apnumber}}</span> child orgranization{{sub_orgs|length|pluralize}}.
 

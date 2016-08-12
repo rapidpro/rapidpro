@@ -54,9 +54,9 @@ ALARM_EVENTS = 1 << 4
 
 ALL_EVENTS = MT_SMS_EVENTS | MO_SMS_EVENTS | MT_CALL_EVENTS | MO_CALL_EVENTS | ALARM_EVENTS
 
-# number of credits before they get special features
-# such as adding extra users
-PRO_CREDITS_THRESHOLD = 100000
+# number of credits before they get user management
+MULTI_USER_THRESHOLD = 100000
+MULTI_ORG_THRESHOLD = 1000000
 
 FREE_PLAN = 'FREE'
 TRIAL_PLAN = 'TRIAL'
@@ -215,7 +215,9 @@ class Org(SmartModel):
     surveyor_password = models.CharField(null=True, max_length=128, default=None,
                                          help_text=_('A password that allows users to register as surveyors'))
 
-    parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=('The parent org that manages this org'))
+    parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=_('The parent org that manages this org'))
+
+    multi_org = models.BooleanField(default=False, help_text=_('Put this org on the multi org level'))
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -234,24 +236,26 @@ class Org(SmartModel):
 
     def create_sub_org(self, name, timezone=None, created_by=None):
 
-        if not timezone:
-            timezone = self.timezone
+        if self.is_multi_org_level():
 
-        if not created_by:
-            created_by = self.created_by
+            if not timezone:
+                timezone = self.timezone
 
-        # generate a unique slug
-        slug = Org.get_unique_slug(name)
+            if not created_by:
+                created_by = self.created_by
 
-        org = Org.objects.create(name=name, timezone=timezone, brand=self.brand, parent=self, slug=slug,
-                                 created_by=created_by, modified_by=created_by)
+            # generate a unique slug
+            slug = Org.get_unique_slug(name)
 
-        org.administrators.add(created_by)
+            org = Org.objects.create(name=name, timezone=timezone, brand=self.brand, parent=self, slug=slug,
+                                     created_by=created_by, modified_by=created_by)
 
-        # initialize our org, but without any credits
-        org.initialize(brand=org.get_branding(), topup_size=0)
+            org.administrators.add(created_by)
 
-        return org
+            # initialize our org, but without any credits
+            org.initialize(brand=org.get_branding(), topup_size=0)
+
+            return org
 
     def get_branding(self):
         from temba.middleware import BrandingMiddleware
@@ -979,14 +983,17 @@ class Org(SmartModel):
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
-    def is_pro(self):
-        return self.get_purchased_credits() >= PRO_CREDITS_THRESHOLD
+    def is_multi_user_level(self):
+        return self.get_purchased_credits() >= MULTI_USER_THRESHOLD
+
+    def is_multi_org_level(self):
+        return self.multi_org or self.get_purchased_credits() >= MULTI_ORG_THRESHOLD
 
     def has_added_credits(self):
         return self.get_credits_total() > WELCOME_TOPUP_SIZE
 
     def get_credits_until_pro(self):
-        return max(PRO_CREDITS_THRESHOLD - self.get_purchased_credits(), 0)
+        return max(MULTI_USER_THRESHOLD - self.get_purchased_credits(), 0)
 
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
@@ -1074,13 +1081,7 @@ class Org(SmartModel):
         return self.webhook_events & ALARM_EVENTS > 0
 
     def get_user(self):
-        user = self.administrators.filter(is_active=True).first()
-        if user:
-            org_user = user
-            org_user.set_org(self)
-            return org_user
-        else:
-            return None
+        return self.administrators.filter(is_active=True).first()
 
     def get_credits_expiring_soon(self):
         """
@@ -1138,7 +1139,7 @@ class Org(SmartModel):
                                     self._calculate_purchased_credits)
 
     def _calculate_purchased_credits(self):
-        purchased_credits = self.topups.filter(is_active=True).aggregate(Sum('credits')).get('credits__sum')
+        purchased_credits = self.topups.filter(is_active=True, price__gt=0).aggregate(Sum('credits')).get('credits__sum')
         return purchased_credits if purchased_credits else 0
 
     def _calculate_credits_total(self):
