@@ -2,9 +2,6 @@
 -load smartmin humanize
 -load i18n
 
-//-block form-span
-//  span8
-
 -block fields
   .field.formax-vertical
     {% render_field 'name' %}
@@ -19,8 +16,6 @@
     {% render_field 'date_format' %}
 
 -block post-form
-
-
 
 -block summary
   -if object.is_multi_org_level

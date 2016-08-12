@@ -992,9 +992,6 @@ class Org(SmartModel):
     def has_added_credits(self):
         return self.get_credits_total() > WELCOME_TOPUP_SIZE
 
-    def get_credits_until_pro(self):
-        return max(MULTI_USER_THRESHOLD - self.get_purchased_credits(), 0)
-
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
             user._org_group = Group.objects.get(name="Administrators")

@@ -10,7 +10,6 @@
         -include "gear_links_include.haml"
 
 -block post-form
-
   -if perms.auth.org_clear_cache
     <form class="smartmin-form form-horizontal" action="{% url 'orgs.org_clear_cache' object.id %}" method="post" enctype="multipart/form-data">
       {% csrf_token %}

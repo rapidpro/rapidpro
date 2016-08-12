@@ -375,6 +375,7 @@ class OrgTest(TembaTest):
         post_data['language'] = ''
         post_data['country'] = ''
         post_data['primary_language'] = ''
+        post_data['parent'] = ''
 
         # change to the trial plan
         response = self.client.post(update_url, post_data)
@@ -1491,6 +1492,12 @@ class OrgTest(TembaTest):
     def test_sub_org_ui(self):
 
         self.login(self.admin)
+
+        # set our org on the session
+        session = self.client.session
+        session['org_id'] = self.org.id
+        session.save()
+
         response = self.client.get(reverse('orgs.org_home'))
         self.assertNotContains(response, 'Manage Organizations')
 
@@ -1509,6 +1516,10 @@ class OrgTest(TembaTest):
 
         # same thing with trying to transfer credits
         response = self.client.get(reverse('orgs.org_transfer_credits'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # cant manage users either
+        response = self.client.get(reverse('orgs.org_manage_accounts_sub_org'))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
         # support multi orgs and see our button shows up
@@ -1530,10 +1541,6 @@ class OrgTest(TembaTest):
         self.assertIn(self.admin, sub_org.administrators.all())
 
         # load the transfer credit page
-        session = self.client.session
-        session['org_id'] = self.org.id
-        session.save()
-
         response = self.client.get(reverse('orgs.org_transfer_credits'))
         self.assertEqual(200, response.status_code)
 
@@ -1543,6 +1550,10 @@ class OrgTest(TembaTest):
 
         self.assertEqual(400, self.org.get_credits_remaining())
         self.assertEqual(600, sub_org.get_credits_remaining())
+
+        # we can reach the manage accounts page too now
+        response = self.client.get('%s?org=%d' % (reverse('orgs.org_manage_accounts_sub_org'), sub_org.id))
+        self.assertEqual(200, response.status_code)
 
 
 class AnonOrgTest(TembaTest):

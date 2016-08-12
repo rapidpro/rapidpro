@@ -838,6 +838,7 @@ class OrgCRUDL(SmartCRUDL):
             editors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
             surveyors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
             administrators = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
+            parent = forms.ModelChoiceField(Org.objects.all(), required=False)
 
             class Meta:
                 model = Org
@@ -1058,6 +1059,11 @@ class OrgCRUDL(SmartCRUDL):
             return reverse('orgs.org_manage_accounts') if still_in_org else reverse('orgs.org_choose')
 
     class ManageAccountsSubOrg(ManageAccounts):
+
+        # if we don't support multi orgs, go home
+        def pre_process(self, request, *args, **kwargs):
+            if not request.user.get_org().is_multi_org_level():
+                return HttpResponseRedirect(reverse('orgs.org_home'))
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.ManageAccountsSubOrg, self).get_context_data(**kwargs)
