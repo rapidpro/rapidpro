@@ -4056,6 +4056,10 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
+    def async_start(self):
+        from temba.flows.tasks import start_flow_task
+        start_flow_task.delay(self.id)
+
     def start(self):
         self.status = FlowStart.STATUS_STARTING
         self.save(update_fields=['status'])

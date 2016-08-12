@@ -1,13 +1,14 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+from django.forms import ValidationError
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import Contact, ContactField, ContactGroup, URN
 
-from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
+from temba.flows.models import Flow, FlowRun, FlowStart, FlowStep, RuleSet
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
@@ -54,9 +55,28 @@ class WriteSerializer(serializers.Serializer):
 
 
 class UUIDField(serializers.CharField):
-
     def __init__(self, **kwargs):
         super(UUIDField, self).__init__(max_length=36, **kwargs)
+
+
+class UUIDListField(serializers.ListField):
+    child = UUIDField()
+
+
+class URNField(serializers.CharField):
+    def to_representation(self, obj):
+        return unicode(obj)
+
+    def to_internal_value(self, data):
+        if not URN.validate(data):
+            raise ValidationError("Invalid URN: %s" % data)
+
+        return URN.normalize(data)
+
+
+class URNListField(serializers.ListField):
+    child = URNField()
+
 
 # ============================================================
 # Serializers (A-Z)
@@ -454,3 +474,106 @@ class WebHookEventReadSerializer(ReadSerializer):
     class Meta:
         model = WebHookEvent
         fields = ('resthook', 'data', 'created_on')
+
+
+class FlowStartReadSerializer(ReadSerializer):
+    STATUSES = {
+        FlowStart.STATUS_PENDING: 'pending',
+        FlowStart.STATUS_STARTING: 'starting',
+        FlowStart.STATUS_COMPLETE: 'complete',
+        FlowStart.STATUS_FAILED: 'failed'
+    }
+
+    flow = serializers.SerializerMethodField()
+    status = serializers.SerializerMethodField()
+    groups = serializers.SerializerMethodField()
+    contacts = serializers.SerializerMethodField()
+
+    def get_contacts(self, obj):
+        contacts = []
+        for contact in obj.contacts.all():
+            contacts.append(dict(uuid=contact.uuid, name=contact.name))
+        return contacts
+
+    def get_groups(self, obj):
+        groups = []
+        for group in obj.groups.all():
+            groups.append(dict(uuid=group.uuid, name=group.name))
+        return groups
+
+    def get_flow(self, obj):
+        return dict(uuid=obj.flow.uuid, name=obj.flow.name)
+
+    def get_status(self, obj):
+        return FlowStartReadSerializer.STATUSES.get(obj.status)
+
+    class Meta:
+        model = FlowStart
+        fields = ('id', 'flow', 'status', 'groups', 'contacts', 'restart_participants', 'created_on', 'modified_on')
+
+
+class FlowStartWriteSerializer(WriteSerializer):
+    flow = UUIDField()
+    contacts = UUIDListField(required=False)
+    groups = UUIDListField(required=False)
+    urns = URNListField(required=False)
+
+    def validate_flow(self, value):
+        flow = Flow.objects.filter(org=self.org, is_active=True, uuid=value).first()
+        if not flow:
+            raise ValidationError("No flow found with UUID: %s" % value)
+        return flow
+
+    def validate_contacts(self, value):
+        contacts = []
+        for contact_uuid in value:
+            contact = Contact.objects.filter(org=self.org, is_active=True, uuid=contact_uuid).first()
+            if not contact:
+                raise ValidationError("No contact found with UUID: %s" % value)
+            contacts.append(contact)
+
+        return contacts
+
+    def validate_groups(self, value):
+        groups = []
+        for group_uuid in value:
+            group = ContactGroup.objects.filter(org=self.org, is_active=True, uuid=group_uuid).first()
+            if not group:
+                raise ValidationError("No group found with UUID: %s" % value)
+            groups.append(group)
+
+        return groups
+
+    def validate_urns(self, value):
+        urn_contacts = []
+        for urn in value:
+            contact = Contact.get_or_create(self.org, self.user, urns=[urn])
+            urn_contacts.append(contact)
+
+        return urn_contacts
+
+    def validate(self, data):
+        # need at least one of urns, groups or contacts
+        args = data.get('groups', []) + data.get('contacts', []) + data.get('urns', [])
+        if not args:
+            raise ValidationError("Must specify at least one group, contact or URN")
+
+        return data
+
+    def save(self):
+        # ok, let's go create our flow start, the actual starting will happen in our view
+        start = FlowStart.objects.create(flow=self.validated_data['flow'],
+                                         restart_participants=self.validated_data.get('restart_participants', True),
+                                         created_by=self.user, modified_by=self.user)
+
+        for contact in self.validated_data.get('contacts', []) + self.validated_data.get('urns', []):
+            start.contacts.add(contact)
+
+        for group in self.validated_data.get('groups', []):
+            start.groups.add(group)
+
+        return start
+
+    class Meta:
+        model = FlowStart
+        fields = ('resthook', 'target_url')

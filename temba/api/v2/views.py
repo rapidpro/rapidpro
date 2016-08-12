@@ -19,12 +19,13 @@ from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEven
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
-from temba.flows.models import Flow, FlowRun, FlowStep
+from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
+from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
@@ -49,6 +50,7 @@ def api(request, format=None):
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
+     * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
      * [/api/v2/flows](/api/v2/flows) - to list flows
      * [/api/v2/groups](/api/v2/groups) - to list contact groups
      * [/api/v2/labels](/api/v2/labels) - to list message labels
@@ -69,6 +71,7 @@ def api(request, format=None):
         'contacts': reverse('api.v2.contacts', request=request),
         'definitions': reverse('api.v2.definitions', request=request),
         'fields': reverse('api.v2.fields', request=request),
+        'flow_starts': reverse('api.v2.flow_starts', request=request),
         'flows': reverse('api.v2.flows', request=request),
         'groups': reverse('api.v2.groups', request=request),
         'labels': reverse('api.v2.labels', request=request),
@@ -98,6 +101,8 @@ class ApiExplorerView(SmartTemplateView):
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FlowsEndpoint.get_read_explorer(),
+            FlowStartsEndpoint.get_read_explorer(),
+            FlowStartsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_read_explorer(),
             LabelsEndpoint.get_read_explorer(),
             MessagesEndpoint.get_read_explorer(),
@@ -256,6 +261,12 @@ class CreateAPIMixin(object):
     """
     write_serializer_class = None
 
+    def post_save(self, instance):
+        """
+        Can be overridden to add custom handling after object creation
+        """
+        pass
+
     def post(self, request, *args, **kwargs):
         user = request.user
         context = self.get_serializer_context()
@@ -263,6 +274,7 @@ class CreateAPIMixin(object):
 
         if serializer.is_valid():
             output = serializer.save()
+            self.post_save(output)
             return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1714,7 +1726,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             },
             ...
         }
-
     """
     permission = 'flows.flow_api'
     model = FlowRun
@@ -1785,3 +1796,178 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'after', 'required': False, 'help': "Only return runs modified after this date, ex: 2015-01-28T18:00:00.000"}
             ]
         }
+
+
+class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list manual flow starts on your account and add or start contacts in a flow.
+
+    ## Listing Flow Starts
+
+    By making a ```GET``` request you can list all the manual flow starts on your organization.  Each
+    flow start has the following attributes:
+
+     * **id** - the id of this flow start (integer)
+     * **flow** - the flow which was started (object)
+     * **contacts** - the list of contacts that were started in the flow (objects)
+     * **groups** - the list of groups that were started in the flow (objects)
+     * **restart_particpants** - whether the contacts were restarted in this flow (boolean)
+     * **status** - the status of this flow start
+     * **created_on** - the datetime when this flow start was created (datetime)
+
+    Example:
+
+        GET /api/v2/flow_starts.json
+
+    Response is the list of flow starts on your organization, most recently modified first:
+
+        {
+            "next": "http://example.com/api/v2/flow_starts.json?cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
+            "previous": null,
+            "results": [
+            {
+                "id": 150051,
+                "flow": {
+                    name: "Thrift Shop",
+                    uuid: "f5901b62-ba76-4003-9c62-72fdacc1b7b7"
+                },
+                "groups": [
+                     {
+                          "name": "Ryan & Macklemore",
+                          "uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7"
+                     }
+                ],
+                "contacts": [
+                     {
+                         "name": "Wanz",
+                         "uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553"
+
+                     }
+                ],
+                "restart_participants": true,
+                "status": "complete",
+                "created_on": "2013-08-19T19:11:21.082Z"
+            },
+            ...
+            ]
+        }
+
+    ## Starting contacts down a flow
+
+    By making a ```POST``` request with the contacts, groups and URNs you want to start down a flow you can trigger a flow
+    start. Note that that contacts will be added to the flow asynchronously, you can use the runs endpoint to monitor the
+    runs created by this start.
+
+     * **flow** - the UUID of the flow to start contacts in (required)
+     * **groups** - a list of the UUIDs of the groups you want to start in this flow (optional)
+     * **contacts** - a list of the UUIDs of the contacts you want to start in this flow (optional)
+     * **urns** - a list of URNs you want to start in this flow (optional)
+     * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
+
+    Example:
+
+        POST /api/v2/flow_starts.json
+        {
+            "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
+            "groups": ["f5901b62-ba76-4003-9c62-72fdacc15515"],
+            "contacts": ["f5901b62-ba76-4003-9c62-fjjajdsi15553"]
+            "urns": ["twitter:sirmixalot", "tel:+12065551212"]
+        }
+
+    Response is the created flow start:
+
+        {
+            "flow": {
+                name: "Thrift Shop",
+                uuid: "f5901b62-ba76-4003-9c62-72fdacc1b7b7"
+            },
+            "groups": [
+                 {
+                      "name": "Ryan & Macklemore",
+                      "uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7"
+                 }
+            ],
+            "contacts": [
+                 {
+                     "name": "Wanz",
+                     "uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553"
+                 },
+                 {
+                     "name": "Sir Mixa Lot",
+                     "uuid": "f5901b62-ba76-4003-9c62-72fftww881256"
+                 }
+            ],
+            "restart_participants": true,
+            "status": "pending",
+            "created_on": "2013-08-19T19:11:21.082Z"
+        }
+
+    """
+    permission = 'api.flowstart_api'
+    model = FlowStart
+    serializer_class = FlowStartReadSerializer
+    write_serializer_class = FlowStartWriteSerializer
+    pagination_class = CreatedOnCursorPagination
+    throttle_scope = 'v2.api'
+
+    def get_queryset(self):
+        org = self.request.user.get_org()
+        return FlowStart.objects.filter(flow__org=org, is_active=True).order_by('-modified_on', '-id')
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+
+        # filter by id (optional)
+        start_id = params.get('id')
+        if start_id:
+            queryset = queryset.filter(id=start_id)
+
+        # use prefetch rather than select_related for foreign keys to avoid joins
+        queryset = queryset.prefetch_related(
+            Prefetch('contacts', queryset=Contact.objects.only('uuid', 'name')),
+            Prefetch('groups', queryset=ContactGroup.user_groups.only('uuid', 'name')),
+        )
+
+        return self.filter_before_after(queryset, 'modified_on')
+
+    def post_save(self, instance):
+        # actually start our flow
+        instance.async_start()
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Flow Starts",
+            'url': reverse('api.v2.flow_starts'),
+            'slug': 'flow_start-list',
+            'request': "?after=2014-01-01T00:00:00.000",
+            'fields': [dict(name='id', required=False,
+                            help="Only return the flow start with this id"),
+                       dict(name='after', required=False,
+                            help="Only return flow starts modified after this date"),
+                       dict(name='before', required=False,
+                            help="Only return flow starts modified before this date")]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        spec = dict(method="POST",
+                    title="Start contacts in a flow",
+                    url=reverse('api.v2.flow_starts'),
+                    slug='flow_start-create',
+                    request='{ "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "urns": ["twitter:sirmixalot"] }')
+
+        spec['fields'] = [dict(name='flow', required=True,
+                               help="The UUID of the flow to start"),
+                          dict(name='groups', required=False,
+                               help="The UUIDs of any contact groups you want to start"),
+                          dict(name='contacts', required=False,
+                               help="The UUIDs of any contacts you want to start"),
+                          dict(name='urns', required=False,
+                               help="The URNS of any contacts you want to start"),
+                          dict(name='restart_participants', required=False,
+                               help="Whether to restart any participants already in the flow")
+                          ]
+
+        return spec

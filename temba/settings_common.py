@@ -429,6 +429,8 @@ PERMISSIONS = {
     'channels.channelevent': ('api',
                               'calls'),
 
+    'flows.flowstart': ('api',),
+
     'flows.flow': ('activity',
                    'activity_list',
                    'analytics',
@@ -649,6 +651,7 @@ GROUP_PERMISSIONS = {
         'reports.report.*',
 
         'flows.flow.*',
+        'flows.flowstart_api',
         'flows.flowlabel.*',
         'flows.ruleset.*',
 
@@ -774,6 +777,7 @@ GROUP_PERMISSIONS = {
         'reports.report.*',
 
         'flows.flow.*',
+        'flows.flowstart_api',
         'flows.flowlabel.*',
         'flows.ruleset.*',
 
