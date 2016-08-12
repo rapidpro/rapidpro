@@ -25,8 +25,8 @@ from temba.orgs.models import Org
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
-from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowRunReadSerializer
-from .serializers import LabelReadSerializer, MsgReadSerializer
+from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
+from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -48,6 +48,7 @@ def api(request, format=None):
      * [/api/v2/contacts](/api/v2/contacts) - to list contacts
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
+     * [/api/v2/flows](/api/v2/flows) - to list flows
      * [/api/v2/groups](/api/v2/groups) - to list contact groups
      * [/api/v2/labels](/api/v2/labels) - to list message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
@@ -65,6 +66,7 @@ def api(request, format=None):
         'contacts': reverse('api.v2.contacts', request=request),
         'definitions': reverse('api.v2.definitions', request=request),
         'fields': reverse('api.v2.fields', request=request),
+        'flows': reverse('api.v2.flows', request=request),
         'groups': reverse('api.v2.groups', request=request),
         'labels': reverse('api.v2.labels', request=request),
         'messages': reverse('api.v2.messages', request=request),
@@ -90,6 +92,7 @@ class ApiExplorerView(SmartTemplateView):
             ContactsEndpoint.get_read_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
+            FlowsEndpoint.get_read_explorer(),
             GroupsEndpoint.get_read_explorer(),
             LabelsEndpoint.get_read_explorer(),
             MessagesEndpoint.get_read_explorer(),
@@ -959,6 +962,78 @@ class FieldsEndpoint(ListAPIMixin, BaseAPIView):
             'request': "key=nick_name",
             'fields': [
                 {'name': "key", 'required': False, 'help': "A field key to filter by. ex: nick_name"}
+            ]
+        }
+
+
+class FlowsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    ## Listing Flows
+
+    A **GET** returns the list of flows for your organization, in the order of last created.
+
+     * **uuid** - the UUID of the flow (string), filterable as `uuid`
+     * **name** - the name of the flow (string)
+     * **archived** - whether this flow is archived (boolean)
+     * **labels** - the labels for this flow (array of objects)
+     * **expires** - the time (in minutes) when this flow's inactive contacts will expire (integer)
+     * **created_on** - when this flow was created (datetime)
+     * **runs** - the counts of completed, interrupted and expired runs (object)
+
+    Example:
+
+        GET /api/v2/flows.json
+
+    Response containing the groups for your organization:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+                {
+                    "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
+                    "name": "Survey",
+                    "archived": false,
+                    "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
+                    "expires": 600,
+                    "created_on": "2016-01-06T15:33:00.813162Z",
+                    "runs": {
+                        "completed": 123,
+                        "interrupted": 2,
+                        "expired": 34
+                    }
+                },
+                ...
+            ]
+        }
+    """
+    permission = 'flows.flow_api'
+    model = Flow
+    serializer_class = FlowReadSerializer
+    pagination_class = CreatedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+
+        # filter by UUID (optional)
+        uuid = params.get('uuid')
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+
+        queryset = queryset.prefetch_related('labels')
+
+        return queryset
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Flows",
+            'url': reverse('api.v2.flows'),
+            'slug': 'flow-list',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
         }
 

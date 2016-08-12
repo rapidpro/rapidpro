@@ -49,6 +49,8 @@
     window.ivr = '{{object.flow_type}}' == 'V';
     window.flow_type = '{{object.flow_type}}';
     window.mediaURL = '{{media_url}}';
+    window.hasAirtimeService = {{has_airtime_service|lower}};
+    window.connectAirtimeServiceURL = '{% url "orgs.org_home" %}#id-transferto';
 
     $('.draggable').draggable();
     // TODO: All inline javascript below should be replaced with corresponding angular implementations
@@ -498,6 +500,9 @@
 
             .title.passive.expression{ng-show:'ruleset.ruleset_type=="expression"'}
               -trans "Split by Expression"
+
+            .title.passive.transfer-airtime-header{ng-show:'ruleset.ruleset_type=="airtime"'}
+              -trans "Transfer Airtime"
 
             .title.passive.subflow-header{ng-show:'ruleset.ruleset_type=="subflow"'}
               -trans "Run Flow"

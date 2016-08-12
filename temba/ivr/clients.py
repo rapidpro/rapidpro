@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
 import json
+import mimetypes
+
 import re
 import requests
 import time
@@ -117,7 +119,10 @@ class TwilioClient(TwilioRestClient):
 
         if content_type:
             extension = None
-            if disposition:
+            if disposition == 'inline':
+                extension = mimetypes.guess_extension(content_type)
+                extension = extension.strip('.')
+            elif disposition:
                 filename = re.findall("filename=\"(.+)\"", disposition)[0]
                 extension = filename.rpartition('.')[2]
             elif content_type == 'audio/x-wav':
