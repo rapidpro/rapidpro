@@ -84,6 +84,9 @@ def mage_handle_new_message(org, msg):
         (msg.topup_id, amount) = org.decrement_credit()
         msg.save(update_fields=('topup_id',))
 
+    # set the preferred channel for this contact
+    msg.contact.set_preferred_channel(msg.channel)
+
     analytics.gauge('temba.msg_incoming_%s' % msg.channel.channel_type.lower())
 
 
