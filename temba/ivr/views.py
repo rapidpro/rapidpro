@@ -1,8 +1,10 @@
 from __future__ import unicode_literals
 
 import json
+import mimetypes
 
 from django.core.exceptions import ValidationError
+from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -64,6 +66,7 @@ class CallHandler(View):
             user_response = request.POST.copy()
 
             hangup = False
+            saved_media_url = None
 
             if channel_type in [TWILIO, VERBOICE]:
                 # figure out if this is a callback due to an empty gather
@@ -75,17 +78,31 @@ class CallHandler(View):
 
                 hangup = 'hangup' == user_response.get('Digits', None)
 
-            elif channel_type in [NEXMO]:
-                file_content = request.POST.get('UserRecording', None)
+                media_url = user_response.get('RecordingUrl', None)
+                # if we've been sent a recording, go grab it
+                if media_url:
+                    saved_media_url = client.download_media(media_url)
 
-                if file_content is not None:
+            elif channel_type in [NEXMO]:
+                user_recording = request.FILES.get('UserRecording', None)
+                if user_recording is not None:
+                    content_type = user_recording.content_type
+                    extension = mimetypes.guess_extension(content_type)
+                    extension = extension.strip('.')
+
                     temp = NamedTemporaryFile(delete=True)
-                    temp.write(file_content)
+                    for chunk in user_recording.chunks():
+                        temp.write(chunk)
                     temp.flush()
+
+                    saved_media_url = '%s:%s' % (content_type, client.org.save_media(File(temp), extension))
+
+            # parse the user response
+            text = user_response.get('Digits', None)
 
             if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():
-                    response = Flow.handle_call(call, user_response, hangup=hangup)
+                    response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
                     return HttpResponse(unicode(response))
             else:
                 if call.status == COMPLETED:

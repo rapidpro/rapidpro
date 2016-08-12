@@ -383,10 +383,7 @@ class Flow(TembaModel):
             return ActionSet.get(flow, uuid)
 
     @classmethod
-    def handle_call(cls, call, user_response=None, hangup=False):
-        if not user_response:
-            user_response = {}
-
+    def handle_call(cls, call, text=None, saved_media_url=None, hangup=False):
         flow = call.flow
         run = FlowRun.objects.filter(call=call).first()
 
@@ -398,24 +395,16 @@ class Flow(TembaModel):
         if call.contact.is_test:
             Contact.set_simulation(True)
 
-        # parse the user response
-        text = user_response.get('Digits', None)
-        media_url = user_response.get('RecordingUrl', None)
-
-        # if we've been sent a recording, go grab it
-        if media_url:
-            media_url = call.channel.get_ivr_client().download_media(media_url)
-
         # create a message to hold our inbound message
         from temba.msgs.models import IVR
-        if text is not None or media_url:
+        if text is not None or saved_media_url:
 
             # we don't have text for media, so lets use the media value there too
-            if media_url and ':' in media_url:
-                text = media_url.partition(':')[2]
+            if saved_media_url and ':' in saved_media_url:
+                text = saved_media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=PENDING, msg_type=IVR, media=media_url)
+                                      text, status=PENDING, msg_type=IVR, media=saved_media_url)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 

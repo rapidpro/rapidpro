@@ -35,7 +35,7 @@ class NexmoClient(NexmoCli):
 
     def start_call(self, call, to, from_, status_callback):
 
-        voice_xml = unicode(Flow.handle_call(call, {}))
+        voice_xml = unicode(Flow.handle_call(call))
 
         temp = NamedTemporaryFile(delete=True)
         temp.write(voice_xml)
@@ -153,7 +153,7 @@ class VerboiceClient:
         Contact.get_or_create(channel.org, channel.created_by, urns=[URN.from_tel(to)])
 
         # Verboice differs from Twilio in that they expect the first block of twiml up front
-        payload = unicode(Flow.handle_call(call, {}))
+        payload = unicode(Flow.handle_call(call))
 
         # now we can post that to verboice
         url = "%s?%s" % (self.endpoint, urlencode(dict(channel=self.verboice_channel, address=to)))
