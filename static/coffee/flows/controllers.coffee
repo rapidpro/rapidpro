@@ -1245,7 +1245,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       for rule in rulesetConfig.rules
         found = false
         for new_rule in ruleset.rules
-          if new_rule.test == rule.test
+          if angular.equals(new_rule.test, rule.test)
             found = true
             break
 

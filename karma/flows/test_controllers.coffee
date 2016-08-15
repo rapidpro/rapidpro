@@ -268,6 +268,18 @@ describe 'Controllers:', ->
       expect(ruleset.rules.length).toBe(2)
       expect(JSON.stringify(ruleset.config)).toBe('{"flow":{"name":"Child Flow","uuid":"cf785f12-658a-4821-ae62-7735ea5c6cef"}}')
 
+      # click on it a second time and save it to make sure we
+      # still end up with only two rules
+      editRules ruleset, (scope) ->
+        # simulate selecting a child flow
+        scope.ruleset.ruleset_type = 'subflow'
+        scope.splitEditor =
+          flow:
+            selected:[{id: 'cf785f12-658a-4821-ae62-7735ea5c6cef', text: 'Child Flow'}]
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(2)
+
       # now save it as a regular wait
       editRules ruleset, (scope) ->
         scope.ruleset.ruleset_type = 'wait_message'
