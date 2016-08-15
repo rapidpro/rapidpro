@@ -31,7 +31,7 @@
 
   -if object.is_multi_org_level and sub_orgs
     %br
-    {% blocktrans count suborgs|length as org_count%}
+    {% blocktrans count sub_orgs|length as org_count%}
       You have <span class='attn'>{{org_count}}</span> child organization.
       {% plural %}
       You have <span class='attn'>{{org_count}}</span> child organizations.

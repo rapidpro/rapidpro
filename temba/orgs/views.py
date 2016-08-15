@@ -1104,7 +1104,6 @@ class OrgCRUDL(SmartCRUDL):
     class SubOrgs(MultiOrgMixin, InferOrgMixin, SmartListView):
 
         fields = ('credits', 'name', 'manage', 'created_on')
-        default_order = ('-credits', '-created_on',)
         link_fields = ()
         title = "Organizations"
 
@@ -1152,10 +1151,10 @@ class OrgCRUDL(SmartCRUDL):
             ids.append(org.id)
 
             queryset = queryset.filter(is_active=True)
-            queryset = queryset.filter(id__in=ids).order_by('-created_on')
+            queryset = queryset.filter(id__in=ids)
             queryset = queryset.annotate(credits=Sum('topups__credits'))
             queryset = queryset.annotate(paid=Sum('topups__price'))
-            return queryset
+            return queryset.order_by('-parent', 'name')
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.SubOrgs, self).get_context_data(**kwargs)
