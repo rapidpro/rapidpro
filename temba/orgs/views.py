@@ -1195,12 +1195,6 @@ class OrgCRUDL(SmartCRUDL):
             initial['date_format'] = parent.date_format
             return initial
 
-        def pre_save(self, obj):
-            parent = self.request.user.get_org()
-            obj = super(OrgCRUDL.CreateSubOrg, self).pre_save(obj)
-            obj.parent = parent
-            return obj
-
         def form_valid(self, form):
             self.object = form.save(commit=False)
             parent = self.org
@@ -2224,7 +2218,7 @@ class TopUpCRUDL(SmartCRUDL):
             # show our topups in a meaningful order
             topups = list(self.get_queryset())
 
-            def compare(topup1, topup2):
+            def compare(topup1, topup2):  # pragma: no cover
 
                 # non expired first
                 now = timezone.now()

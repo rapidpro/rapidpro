@@ -1544,6 +1544,11 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_transfer_credits'))
         self.assertEqual(200, response.status_code)
 
+        # try to transfer more than we have
+        post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=1500)
+        response = self.client.post(reverse('orgs.org_transfer_credits'), post_data)
+        self.assertContains(response, "Pick a different organization to transfer from")
+
         # now transfer some creditos
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
         response = self.client.post(reverse('orgs.org_transfer_credits'), post_data)
@@ -1554,6 +1559,20 @@ class OrgTest(TembaTest):
         # we can reach the manage accounts page too now
         response = self.client.get('%s?org=%d' % (reverse('orgs.org_manage_accounts_sub_org'), sub_org.id))
         self.assertEqual(200, response.status_code)
+
+        # edit our sub org's name
+        new_org['name'] = 'New Sub Org Name'
+        new_org['slug'] = 'new-sub-org-name'
+        response = self.client.post('%s?org=%s' % (reverse('orgs.org_edit_sub_org'), sub_org.pk), new_org)
+        self.assertIsNotNone(Org.objects.filter(name='New Sub Org Name').first())
+
+        # now we should see new topups on our sub org
+        session['org_id'] = sub_org.id
+        session.save()
+
+        response = self.client.get(reverse('orgs.topup_list'))
+        print response.content
+        self.assertContains(response, '600 credits')
 
 
 class AnonOrgTest(TembaTest):
