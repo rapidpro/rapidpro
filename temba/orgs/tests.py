@@ -980,7 +980,7 @@ class OrgTest(TembaTest):
         self.org.apply_topups()
         self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=False, topup=None))
         self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=True).exclude(topup=None))
-        self.assertEquals(5, TopUp.objects.aet(pk=mega_topup.pk).get_used())
+        self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # we aren't yet multi user since this topup was free
         self.assertEquals(0, self.org.get_purchased_credits())
