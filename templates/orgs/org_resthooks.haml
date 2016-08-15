@@ -8,15 +8,15 @@
 -block pre-form
 
   -blocktrans
-    You can create events or "zaps" which you can trigger within flows. You can then use
-    services like Zapier to subscribe to those events when they occur in your flows.
+    You can create flow events which external services can subscribe to. For example, Zapier can subscribe
+    to flow events you create and trigger any number of Zapier integrations when they occur in your flows.
 
 -block fields
     -if current_resthooks
       %table#table-resthooks.table.table-condensed
         %thead
           %tr
-            %th Events
+            %th Flow Event
             %th.permission Remove
 
         %tbody
@@ -41,12 +41,12 @@
 
     %span.attn
       -if resthooks|length == 0
-        -trans "no zaps"
+        -trans "no flow events"
       -elif resthooks|length == 1
-        -trans "one zap"
+        -trans "one flow event"
       -else
         {{ resthooks|length }}
-        -trans "zaps"
+        -trans "flow events"
 
     -trans "configured."
 

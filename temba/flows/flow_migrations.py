@@ -10,6 +10,30 @@ from uuid import uuid4
 import regex
 
 
+def migrate_export_to_version_10(exported_json, same_site=True):
+    """
+    Looks for webhook ruleset_types, adding success and failure cases and moving
+    webhook_action and webhook to config
+    """
+    def replace_webhook_ruleset(ruleset):
+        if not ruleset['config']:
+            ruleset['config'] = dict()
+
+        ruleset['config']['webhook_action'] = ruleset['webhook_action']
+        del ruleset['webhook_action']
+
+        return ruleset
+
+    rulesets = []
+    for ruleset in exported_json['rule_sets']:
+        if ruleset['ruleset_type'] == 'webhook':
+            ruleset = replace_webhook_ruleset(ruleset)
+        rulesets.append(ruleset)
+
+    exported_json['rule_sets'] = rulesets
+    return exported_json
+
+
 def migrate_export_to_version_9(exported_json, org, same_site=True):
     """
     Migrates remaining ids to uuids. Changes to uuids for Flows, Groups,
@@ -166,6 +190,14 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
                 remap_flow(event['flow'])
 
     return exported_json
+
+
+def migrate_to_version_10(json_flow, flow):
+    """
+    This version adds routing for webhook status and moves the action and webhook URL
+    to the webhook config.
+    """
+    return migrate_export_to_version_10(json_flow)
 
 
 def migrate_to_version_9(json_flow, flow):

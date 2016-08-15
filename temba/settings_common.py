@@ -313,7 +313,7 @@ PERMISSIONS = {
 
     'api.apitoken': ('refresh',),
 
-    'api.resthook': ('api',),
+    'api.resthook': ('api', 'list'),
 
     'api.webhookevent': ('api',),
 
@@ -541,6 +541,7 @@ GROUP_PERMISSIONS = {
 
         'api.apitoken_refresh',
         'api.resthook_api',
+        'api.resthook_list',
         'api.webhookevent_api',
         'api.webhookevent_list',
         'api.webhookevent_read',
@@ -680,6 +681,7 @@ GROUP_PERMISSIONS = {
     "Editors": (
         'api.apitoken_refresh',
         'api.resthook_api',
+        'api.resthook_list',
         'api.webhookevent_api',
         'api.webhookevent_list',
         'api.webhookevent_read',
@@ -804,6 +806,8 @@ GROUP_PERMISSIONS = {
 
     ),
     "Viewers": (
+        'api.resthook_list',
+
         'campaigns.campaign_archived',
         'campaigns.campaign_list',
         'campaigns.campaign_read',

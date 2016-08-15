@@ -810,6 +810,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.channels = Flow.channels
 
   formData = {}
+  formData.resthook = ""
 
   if options.nodeType == 'rules' or options.nodeType == 'ivr'
 
@@ -1379,7 +1380,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       flowField = $scope.formData.flowField
       airtimeAmountConfig = $scope.formData.airtimeAmountConfig
       flow = $scope.formData.flow
-
+      
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
 
@@ -1410,6 +1411,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
             elt.amount = 0
           airtimeConfig[elt.code] = elt
         ruleset.config = airtimeConfig
+
+      else if rulesetConfig.type == 'resthook'
+        ruleset.config = {'resthook': splitEditor.resthook.selected[0]['id']}
 
       # update our operand if they selected a contact field explicitly
       else if rulesetConfig.type == 'contact_field'

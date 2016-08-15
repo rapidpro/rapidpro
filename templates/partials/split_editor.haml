@@ -73,6 +73,17 @@
             [[option.name]] ([[option.currency_code]])
           %input.airtime-amount{type:"text", ng-model:"option.amount", ng-required:"true", type:"number"}
 
+    .resthook{ng-if:'formData.rulesetConfig.type == "resthook"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Select which flow event you want to notify Zapier of below. You can configure your flow events
+            on your account page.
+
+        %input{ng-model:"formData.resthook", search:"true", init-text:"[[ruleset.config.resthook]]", name:"resthook",
+               placeholder:"Select the flow event to notify subscribers of", required:"", init-id:"[[ruleset.config.resthook]]",
+               select-server:"/api/resthooks/?_format=select2", type:"hidden"}
+
     .webhook{ng-if:'formData.rulesetConfig.type == "webhook"'}><
       .split-margin
         %p{class:"description"}

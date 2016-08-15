@@ -5266,7 +5266,8 @@ class Test(object):
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest,
                 TimeoutTest.TYPE: TimeoutTest,
-                AirtimeStatusTest.TYPE: AirtimeStatusTest
+                AirtimeStatusTest.TYPE: AirtimeStatusTest,
+                WebhookStatusTest.TYPE: WebhookStatusTest,
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -5293,6 +5294,38 @@ class Test(object):
         side effects.
         """
         raise FlowException("Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested")
+
+
+class WebhookStatusTest(Test):
+    """
+    {op: 'webhook', status: 'success' }
+    """
+    TYPE = 'webhook_status'
+    STATUS = 'status'
+
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+
+    def __init__(self, status):
+        self.status = status
+
+    @classmethod
+    def from_json(cls, org, json):
+        return WebhookStatusTest(json.get('status'))
+
+    def as_json(self):
+        return dict(type=WebhookStatusTest.TYPE, status=self.status)
+
+    def evaluate(self, run, sms, context, text):
+        # we treat any 20* return code as successful
+        success = 200 <= int(text) < 300
+
+        if success and self.status == WebhookStatusTest.STATUS_SUCCESS:
+            return 1, text
+        elif not success and self.status == WebhookStatusTest.STATUS_FAILED:
+            return 1, text
+        else:
+            return 0, None
 
 
 class AirtimeStatusTest(Test):

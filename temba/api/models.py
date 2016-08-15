@@ -126,6 +126,12 @@ class Resthook(SmartModel):
         self.modified_on = timezone.now()
         self.save(update_fields=['is_active', 'modified_on', 'modified_by'])
 
+    def as_select2(self):
+        return dict(text=self.slug, id=self.slug)
+
+    def __unicode__(self):
+        return unicode(self.slug)
+
 
 class ResthookSubscriber(SmartModel):
     """
