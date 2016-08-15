@@ -1571,8 +1571,7 @@ class OrgTest(TembaTest):
         session.save()
 
         response = self.client.get(reverse('orgs.topup_list'))
-        print response.content
-        self.assertContains(response, '600 credits')
+        self.assertContains(response, '600 Credits')
 
 
 class AnonOrgTest(TembaTest):
