@@ -967,6 +967,8 @@ class OrgTest(TembaTest):
         self.assertEquals(30, self.org.get_credits_used())
 
         # test special status
+        settings.MULTI_USER_THRESHOLD = 100000
+        settings.MULTI_ORG_THRESHOLD = 1000000
         self.assertFalse(self.org.is_multi_user_level())
         self.assertFalse(self.org.is_multi_org_level())
 
@@ -978,7 +980,7 @@ class OrgTest(TembaTest):
         self.org.apply_topups()
         self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=False, topup=None))
         self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=True).exclude(topup=None))
-        self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
+        self.assertEquals(5, TopUp.objects.aet(pk=mega_topup.pk).get_used())
 
         # we aren't yet multi user since this topup was free
         self.assertEquals(0, self.org.get_purchased_credits())
@@ -1421,6 +1423,7 @@ class OrgTest(TembaTest):
     def test_sub_orgs(self):
 
         from temba.orgs.models import Debit
+        settings.MULTI_ORG_THRESHOLD = 1000000
 
         # lets start with two topups
         expires = timezone.now() + timedelta(days=400)
@@ -1436,6 +1439,9 @@ class OrgTest(TembaTest):
         self.org.multi_org = True
         self.org.save()
         sub_org = self.org.create_sub_org('Sub Org')
+
+        # suborgs can't create suborgs
+        self.assertIsNone(sub_org.create_sub_org('Grandchild Org'))
 
         # we should be linked to our parent with the same brand
         self.assertEqual(self.org, sub_org.parent)
@@ -1459,7 +1465,7 @@ class OrgTest(TembaTest):
 
         debit = debits.first()
         self.assertEqual(700, debit.amount)
-        self.assertEqual(Debit.TYPE_ALLOCATION, debit.type)
+        self.assertEqual(Debit.TYPE_ALLOCATION, debit.debit_type)
         self.assertEqual(first_topup.expires_on, debit.beneficiary.expires_on)
 
         # try allocating more than we have
@@ -1489,9 +1495,16 @@ class OrgTest(TembaTest):
         self.assertEqual(first_topup.expires_on, debits[1].topup.expires_on)
         self.assertEqual(second_topup.expires_on, debits[2].topup.expires_on)
 
+        # allocate the exact number of credits remaining
+        self.org.allocate_credits(self.admin, sub_org, 100)
+        self.assertEqual(2000, sub_org.get_credits_remaining())
+        self.assertEqual(0, self.org.get_credits_remaining())
+
     def test_sub_org_ui(self):
 
         self.login(self.admin)
+
+        settings.MULTI_ORG_THRESHOLD = 1000000
 
         # set our org on the session
         session = self.client.session

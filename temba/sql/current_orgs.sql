@@ -87,14 +87,14 @@ BEGIN
   -- Debit is being created
   IF TG_OP = 'INSERT' THEN
     -- If we are an allocation and have a topup, increment our # of used credits
-    IF NEW.topup_id IS NOT NULL AND NEW.type = 'A' THEN
+    IF NEW.topup_id IS NOT NULL AND NEW.debit_type = 'A' THEN
       PERFORM temba_insert_topupcredits(NEW.topup_id, NEW.amount);
     END IF;
 
   -- Debit is being updated
   ELSIF TG_OP = 'UPDATE' THEN
     -- If the topup has changed
-    IF NEW.topup_id IS DISTINCT FROM OLD.topup_id AND NEW.type = 'A' THEN
+    IF NEW.topup_id IS DISTINCT FROM OLD.topup_id AND NEW.debit_type = 'A' THEN
       -- If our old topup wasn't null then decrement our used credits on it
       IF OLD.topup_id IS NOT NULL THEN
         PERFORM temba_insert_topupcredits(OLD.topup_id, OLD.amount);
@@ -109,7 +109,7 @@ BEGIN
   -- Debit is being deleted
   ELSIF TG_OP = 'DELETE' THEN
     -- Remove a used credit if this Debit had one assigned
-    IF OLD.topup_id IS NOT NULL AND NEW.type = 'A' THEN
+    IF OLD.topup_id IS NOT NULL AND NEW.debit_type = 'A' THEN
       PERFORM temba_insert_topupcredits(OLD.topup_id, OLD.amount);
     END IF;
   END IF;

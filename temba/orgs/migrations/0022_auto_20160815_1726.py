@@ -8,7 +8,7 @@ from temba.sql import InstallSQL
 class Migration(migrations.Migration):
 
     dependencies = [
-      ('orgs', '0021_auto_20160801_1953'),
+        ('orgs', '0021_auto_20160815_1725'),
     ]
 
     operations = [

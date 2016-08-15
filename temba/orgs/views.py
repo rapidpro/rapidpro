@@ -1058,12 +1058,15 @@ class OrgCRUDL(SmartCRUDL):
             # if current user no longer belongs to this org, redirect to org chooser
             return reverse('orgs.org_manage_accounts') if still_in_org else reverse('orgs.org_choose')
 
-    class ManageAccountsSubOrg(ManageAccounts):
-
+    class MultiOrgMixin(OrgPermsMixin):
         # if we don't support multi orgs, go home
         def pre_process(self, request, *args, **kwargs):
-            if not request.user.get_org().is_multi_org_level():
+            response = super(OrgPermsMixin, self).pre_process(request, *args, **kwargs)
+            if not response and not request.user.get_org().is_multi_org_level():
                 return HttpResponseRedirect(reverse('orgs.org_home'))
+            return response
+
+    class ManageAccountsSubOrg(MultiOrgMixin, ManageAccounts):
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.ManageAccountsSubOrg, self).get_context_data(**kwargs)
@@ -1098,17 +1101,12 @@ class OrgCRUDL(SmartCRUDL):
             self.request.session['org_id'] = None
             return HttpResponseRedirect(reverse('orgs.org_manage'))
 
-    class SubOrgs(InferOrgMixin, OrgPermsMixin, SmartListView):
+    class SubOrgs(MultiOrgMixin, InferOrgMixin, SmartListView):
 
         fields = ('credits', 'name', 'manage', 'created_on')
         default_order = ('-credits', '-created_on',)
         link_fields = ()
         title = "Organizations"
-
-        # if we don't support multi orgs, go home
-        def pre_process(self, request, *args, **kwargs):
-            if not self.get_object().is_multi_org_level():
-                return HttpResponseRedirect(reverse('orgs.org_home'))
 
         def get_gear_links(self):
             links = []
@@ -1167,7 +1165,7 @@ class OrgCRUDL(SmartCRUDL):
         def get_created_by(self, obj):
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
-    class CreateSubOrg(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartCreateView):
+    class CreateSubOrg(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
 
         class CreateOrgForm(forms.ModelForm):
             name = forms.CharField(label=_("Organization"),
@@ -1183,10 +1181,6 @@ class OrgCRUDL(SmartCRUDL):
         form_class = CreateOrgForm
         success_url = '@orgs.org_sub_orgs'
         permission = 'orgs.org_create_sub_org'
-
-        def pre_process(self, request, *args, **kwargs):
-            if not self.org.is_multi_org_level():
-                return HttpResponseRedirect(reverse('orgs.org_home'))
 
         def derive_initial(self):
             initial = super(OrgCRUDL.CreateSubOrg, self).derive_initial()
@@ -1960,7 +1954,7 @@ class OrgCRUDL(SmartCRUDL):
             org_id = self.request.REQUEST.get('org')
             return Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
 
-    class TransferCredits(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+    class TransferCredits(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartFormView):
 
         class TransferForm(forms.Form):
 
@@ -2003,13 +1997,6 @@ class OrgCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             self.org = self.request.user.get_org()
             return self.request.user.has_perm(self.permission) or self.has_org_perm(self.permission)
-
-        # if we don't support multi orgs, go home
-        def pre_process(self, request, *args, **kwargs):
-            response = super(OrgCRUDL.TransferCredits, self).pre_process(request, *args, **kwargs)
-            if not self.org.is_multi_org_level():
-                return HttpResponseRedirect(reverse('orgs.org_home'))
-            return response
 
         def get_form_kwargs(self):
             form_kwargs = super(OrgCRUDL.TransferCredits, self).get_form_kwargs()

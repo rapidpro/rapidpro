@@ -87,6 +87,10 @@ USE_I18N = True
 # calendars according to the current locale
 USE_L10N = True
 
+# number of credits before they get user management
+MULTI_USER_THRESHOLD = 0
+MULTI_ORG_THRESHOLD = 0
+
 # URL prefix for admin static files -- CSS, JavaScript and images.
 # Make sure to use a trailing slash.
 # Examples: "http://foo.com/static/admin/", "/static/admin/".

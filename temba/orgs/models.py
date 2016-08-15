@@ -10,7 +10,6 @@ import random
 import regex
 import stripe
 import traceback
-import time
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -53,10 +52,6 @@ MO_CALL_EVENTS = 1 << 3
 ALARM_EVENTS = 1 << 4
 
 ALL_EVENTS = MT_SMS_EVENTS | MO_SMS_EVENTS | MT_CALL_EVENTS | MO_CALL_EVENTS | ALARM_EVENTS
-
-# number of credits before they get user management
-MULTI_USER_THRESHOLD = 100000
-MULTI_ORG_THRESHOLD = 1000000
 
 FREE_PLAN = 'FREE'
 TRIAL_PLAN = 'TRIAL'
@@ -236,7 +231,7 @@ class Org(SmartModel):
 
     def create_sub_org(self, name, timezone=None, created_by=None):
 
-        if self.is_multi_org_level():
+        if self.is_multi_org_level() and not self.parent:
 
             if not timezone:
                 timezone = self.timezone
@@ -984,10 +979,10 @@ class Org(SmartModel):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
     def is_multi_user_level(self):
-        return self.get_purchased_credits() >= MULTI_USER_THRESHOLD
+        return self.get_purchased_credits() >= settings.MULTI_USER_THRESHOLD
 
     def is_multi_org_level(self):
-        return self.multi_org or self.get_purchased_credits() >= MULTI_ORG_THRESHOLD
+        return not self.parent and (self.multi_org or self.get_purchased_credits() >= settings.MULTI_ORG_THRESHOLD)
 
     def has_added_credits(self):
         return self.get_credits_total() > WELCOME_TOPUP_SIZE
@@ -1189,34 +1184,36 @@ class Org(SmartModel):
         belongs to us and we have enough credits to do so.
         """
         if org.parent == self or self.parent == org.parent or self.parent == org:
-            if self.get_credits_remaining() > amount:
+            if self.get_credits_remaining() >= amount:
 
-                # now debit our account
-                debited = None
-                while amount or debited == 0:
+                with self.lock_on(OrgLock.credits):
 
-                    # remove the credits from ourselves
-                    (topup_id, debited) = self.decrement_credit(amount)
+                    # now debit our account
+                    debited = None
+                    while amount or debited == 0:
 
-                    if topup_id:
-                        topup = TopUp.objects.get(id=topup_id)
+                        # remove the credits from ourselves
+                        (topup_id, debited) = self.decrement_credit(amount)
 
-                        # create the topup for our child, expiring on the same date
-                        new_topup = TopUp.create(user, credits=debited, org=org, expires_on=topup.expires_on, price=None)
+                        if topup_id:
+                            topup = TopUp.objects.get(id=topup_id)
 
-                        # create a debit for transaction history
-                        Debit.objects.create(topup_id=topup_id, amount=debited, beneficiary=new_topup,
-                                             type=Debit.TYPE_ALLOCATION, created_by=user, modified_by=user)
+                            # create the topup for our child, expiring on the same date
+                            new_topup = TopUp.create(user, credits=debited, org=org, expires_on=topup.expires_on, price=None)
 
-                        # decrease the amount of credits we need
-                        amount -= debited
+                            # create a debit for transaction history
+                            Debit.objects.create(topup_id=topup_id, amount=debited, beneficiary=new_topup,
+                                                 debit_type=Debit.TYPE_ALLOCATION, created_by=user, modified_by=user)
 
-                    else:
-                        break
+                            # decrease the amount of credits we need
+                            amount -= debited
 
-                # recalculate our caches
-                self._calculate_credit_caches()
-                org._calculate_credit_caches()
+                        else:
+                            break
+
+                    # recalculate our caches
+                    self._calculate_credit_caches()
+                    org._calculate_credit_caches()
 
                 return True
 
@@ -1886,7 +1883,7 @@ class TopUp(SmartModel):
         return topup
 
     def get_ledger(self):
-        debits = self.debits.filter(type=Debit.TYPE_ALLOCATION).order_by('-created_by')
+        debits = self.debits.filter(debit_type=Debit.TYPE_ALLOCATION).order_by('-created_by')
         balance = self.credits
         ledger = []
         for debit in debits:
@@ -1970,7 +1967,7 @@ class Debit(SmartModel):
                                     related_name="allocations",
                                     help_text=_('Optional topup that was allocated with these credits'))
 
-    type = models.CharField(max_length=1, choices=DEBIT_TYPES, null=False, help_text=_('What caused this debit'))
+    debit_type = models.CharField(max_length=1, choices=DEBIT_TYPES, null=False, help_text=_('What caused this debit'))
 
 
 class TopUpCredits(models.Model):
@@ -1992,11 +1989,8 @@ class TopUpCredits(models.Model):
             last_squash = 0
 
         # get the unique flow ids for all new ones
-        start = time.time()
         squash_count = 0
         for credits in TopUpCredits.objects.filter(id__gt=last_squash).order_by('topup_id').distinct('topup_id'):
-            print "Squashing: %d" % credits.topup_id
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_topupcredits(%s);", (credits.topup_id,))
@@ -2007,8 +2001,6 @@ class TopUpCredits(models.Model):
         max_id = TopUpCredits.objects.all().order_by('-id').first()
         if max_id:
             r.set(TopUpCredits.LAST_SQUASH_KEY, max_id.id)
-
-        print "Squashed topupcredits for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
 
 class CreditAlert(SmartModel):

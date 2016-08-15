@@ -21,15 +21,20 @@ class Migration(migrations.Migration):
                 ('created_on', models.DateTimeField(help_text='When this item was originally created', auto_now_add=True)),
                 ('modified_on', models.DateTimeField(help_text='When this item was last modified', auto_now=True)),
                 ('amount', models.IntegerField(help_text='How many credits were debited')),
-                ('type', models.CharField(help_text='What caused this debit', max_length=1, choices=[('A', 'Allocation'), ('P', 'Purge')])),
-                ('beneficiary', models.ForeignKey(related_name='debits', to='orgs.TopUp', help_text='Optional topup that was allocated with these credits', null=True)),
+                ('debit_type', models.CharField(help_text='What caused this debit', max_length=1, choices=[('A', 'Allocation'), ('P', 'Purge')])),
+                ('beneficiary', models.ForeignKey(related_name='allocations', to='orgs.TopUp', help_text='Optional topup that was allocated with these credits', null=True)),
                 ('created_by', models.ForeignKey(related_name='orgs_debit_creations', to=settings.AUTH_USER_MODEL, help_text='The user which originally created this item')),
                 ('modified_by', models.ForeignKey(related_name='orgs_debit_modifications', to=settings.AUTH_USER_MODEL, help_text='The user which last modified this item')),
-                ('topup', models.ForeignKey(help_text='The topup these credits are applied against', to='orgs.TopUp')),
+                ('topup', models.ForeignKey(related_name='debits', to='orgs.TopUp', help_text='The topup these credits are applied against')),
             ],
             options={
                 'abstract': False,
             },
+        ),
+        migrations.AddField(
+            model_name='org',
+            name='multi_org',
+            field=models.BooleanField(default=False, help_text='Put this org on the multi org level'),
         ),
         migrations.AddField(
             model_name='org',
