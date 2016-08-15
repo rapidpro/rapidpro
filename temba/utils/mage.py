@@ -81,7 +81,7 @@ def mage_handle_new_message(org, msg):
     """
     # Mage no longer assigns topups
     if not msg.topup_id:
-        msg.topup_id = org.decrement_credit()
+        (msg.topup_id, amount) = org.decrement_credit()
         msg.save(update_fields=('topup_id',))
 
     # set the preferred channel for this contact
