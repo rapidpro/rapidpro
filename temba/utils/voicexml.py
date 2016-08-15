@@ -60,7 +60,9 @@ class Response(object):
         self.hangup()
 
     def gather(self, **kwargs):
-        result = '<field name="Digits">'
+        result = '<field name="Digits" type="digits">'
+
+        result += '</field>'
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
             result += '<filled><submit next="' + kwargs.get('action') + ' method="' + method + '" /></filled>'

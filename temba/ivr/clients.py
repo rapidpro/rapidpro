@@ -36,22 +36,14 @@ class NexmoClient(NexmoCli):
         return True
 
     def start_call(self, call, to, from_, status_callback):
-
-        voice_xml = unicode(Flow.handle_call(call))
-
-        temp = NamedTemporaryFile(delete=True)
-        temp.write(voice_xml)
-        temp.flush()
-
-        url = self.org.save_media(File(temp), 'vxml')
-
         params = dict(api_key=self.api_key, api_secret=self.api_secret)
-        params['answer_url'] = url
+        params['answer_url'] = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
         params['to'] = to.strip('+')
         params['from'] = from_.strip('+')
         params['status_url'] = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
         params['status_method'] = "POST"
-        params['error_url'] = "https://fc665be8.ngrok.io/handlers/nexmo/status/d3f6421a-db8d-4a03-9581-1c28beb9e12e/"
+        params['error_url'] = "https://%s%s" % (settings.TEMBA_HOST,
+                                                reverse('handlers.nexmo_handler', args=['status', call.channel.uuid]))
         params['error_method'] = "POST"
 
         response = requests.post('https://rest.nexmo.com/call/json', params=params)

@@ -23,7 +23,7 @@ class CallHandler(View):
         return super(CallHandler, self).dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        return HttpResponse("ILLEGAL METHOD")
+        return self.post(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         call = IVRCall.objects.filter(pk=kwargs['pk']).first()
@@ -100,6 +100,10 @@ class CallHandler(View):
             # parse the user response
             text = user_response.get('Digits', None)
 
+            if channel_type in [NEXMO]:
+                if call.is_flow():
+                    response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
+                    return HttpResponse(unicode(response))
             if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
