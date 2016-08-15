@@ -17,7 +17,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.core.validators import validate_email
 from django.db import IntegrityError
-from django.db.models import Sum
+from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
@@ -91,7 +91,6 @@ class OrgPermsMixin(object):
     def has_org_perm(self, permission):
         if self.org:
             return self.get_user().has_org_perm(self.org, permission)
-
         return False
 
     def has_permission(self, request, *args, **kwargs):
@@ -423,10 +422,11 @@ class UserSettingsCRUDL(SmartCRUDL):
 
 
 class OrgCRUDL(SmartCRUDL):
-    actions = ('signup', 'home', 'webhook', 'edit', 'join', 'grant', 'accounts', 'create_login', 'choose',
-               'manage_accounts', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
-               'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect', 'export',
-               'import', 'plivo_connect', 'resthooks', 'service', 'surveyor', 'transfer_to_account')
+    actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login', 'choose',
+               'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
+               'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
+               'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
+               'transfer_credits', 'transfer_to_account')
 
     model = Org
 
@@ -838,6 +838,7 @@ class OrgCRUDL(SmartCRUDL):
             editors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
             surveyors = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
             administrators = forms.ModelMultipleChoiceField(User.objects.all(), required=False)
+            parent = forms.ModelChoiceField(Org.objects.all(), required=False)
 
             class Meta:
                 model = Org
@@ -1049,7 +1050,6 @@ class OrgCRUDL(SmartCRUDL):
             context['org_users'] = self.org_users
             context['group_fields'] = self.fields_by_users
             context['invites'] = Invitation.objects.filter(org=org, is_active=True).order_by('email')
-
             return context
 
         def get_success_url(self):
@@ -1057,6 +1057,30 @@ class OrgCRUDL(SmartCRUDL):
 
             # if current user no longer belongs to this org, redirect to org chooser
             return reverse('orgs.org_manage_accounts') if still_in_org else reverse('orgs.org_choose')
+
+    class MultiOrgMixin(OrgPermsMixin):
+        # if we don't support multi orgs, go home
+        def pre_process(self, request, *args, **kwargs):
+            response = super(OrgPermsMixin, self).pre_process(request, *args, **kwargs)
+            if not response and not request.user.get_org().is_multi_org_level():
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+            return response
+
+    class ManageAccountsSubOrg(MultiOrgMixin, ManageAccounts):
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.ManageAccountsSubOrg, self).get_context_data(**kwargs)
+            org_id = self.request.REQUEST.get('org')
+            context['parent'] = Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
+            return context
+
+        def get_object(self, *args, **kwargs):
+            org_id = self.request.REQUEST.get('org')
+            return Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
+
+        def get_success_url(self):
+            org_id = self.request.REQUEST.get('org')
+            return '%s?org=%s' % (reverse('orgs.org_manage_accounts_sub_org'), org_id)
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
@@ -1076,6 +1100,106 @@ class OrgCRUDL(SmartCRUDL):
         def form_invalid(self, form):
             self.request.session['org_id'] = None
             return HttpResponseRedirect(reverse('orgs.org_manage'))
+
+    class SubOrgs(MultiOrgMixin, InferOrgMixin, SmartListView):
+
+        fields = ('credits', 'name', 'manage', 'created_on')
+        link_fields = ()
+        title = "Organizations"
+
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("orgs.org_create_sub_org"):
+                links.append(dict(title='New',
+                                  js_class='add-sub-org',
+                                  href='#'))
+
+            if self.has_org_perm("orgs.org_transfer_credits"):
+                links.append(dict(title='Transfer Credits',
+                                  js_class='transfer-credits',
+                                  href='#'))
+
+            if self.has_org_perm("orgs.org_home"):
+                links.append(dict(title='Manage Account',
+                                  href=reverse('orgs.org_home')))
+
+            return links
+
+        def get_manage(self, obj):
+            if obj.parent:
+                return '<a href="%s?org=%s"><div class="btn btn-tiny">Manage Accounts</div></a>' % (reverse('orgs.org_manage_accounts_sub_org'), obj.id)
+            return ''
+
+        def get_credits(self, obj):
+            credits = obj.get_credits_remaining()
+            return '<div class="edit-org" data-url="%s?org=%d"><div class="num-credits">%s</div></div>' % (reverse('orgs.org_edit_sub_org'), obj.id, format(credits, ",d"))
+
+        def get_name(self, obj):
+            org_type = 'child'
+            if not obj.parent:
+                org_type = 'parent'
+
+            return "<div class='%s-org-name'>%s</div><div class='org-timezone'>%s</div>" % (org_type, obj.name, obj.timezone)
+
+        def derive_queryset(self, **kwargs):
+            queryset = super(OrgCRUDL.SubOrgs, self).derive_queryset(**kwargs)
+
+            # all our children and ourselves
+            org = self.get_object()
+            ids = [child.id for child in Org.objects.filter(parent=org)]
+            ids.append(org.id)
+
+            queryset = queryset.filter(is_active=True)
+            queryset = queryset.filter(id__in=ids)
+            queryset = queryset.annotate(credits=Sum('topups__credits'))
+            queryset = queryset.annotate(paid=Sum('topups__price'))
+            return queryset.order_by('-parent', 'name')
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.SubOrgs, self).get_context_data(**kwargs)
+            context['searches'] = ['Nyaruka', ]
+            return context
+
+        def get_created_by(self, obj):
+            return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
+
+    class CreateSubOrg(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
+
+        class CreateOrgForm(forms.ModelForm):
+            name = forms.CharField(label=_("Organization"),
+                                   help_text=_("The name of your organization"))
+
+            timezone = TimeZoneField(help_text=_("The timezone your organization is in"))
+
+            class Meta:
+                model = Org
+                fields = '__all__'
+
+        fields = ('name', 'date_format', 'timezone')
+        form_class = CreateOrgForm
+        success_url = '@orgs.org_sub_orgs'
+        permission = 'orgs.org_create_sub_org'
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.CreateSubOrg, self).derive_initial()
+            parent = self.request.user.get_org()
+            initial['timezone'] = parent.timezone
+            initial['date_format'] = parent.date_format
+            return initial
+
+        def form_valid(self, form):
+            self.object = form.save(commit=False)
+            parent = self.org
+            parent.create_sub_org(self.object.name, self.object.timezone, self.request.user)
+            if 'HTTP_X_PJAX' not in self.request.META:
+                return HttpResponseRedirect(self.get_success_url())
+            else:  # pragma: no cover
+                response = self.render_to_response(self.get_context_data(form=form,
+                                                                         success_url=self.get_success_url(),
+                                                                         success_script=getattr(self, 'success_script', None)))
+                response['Temba-Success'] = self.get_success_url()
+                return response
 
     class Choose(SmartFormView):
         class ChooseForm(forms.Form):
@@ -1134,7 +1258,6 @@ class OrgCRUDL(SmartCRUDL):
     class CreateLogin(SmartUpdateView):
         title = ""
         form_class = OrgSignupForm
-        permission = None
         fields = ('first_name', 'last_name', 'email', 'password')
         success_message = ''
         success_url = '@msgs.msg_inbox'
@@ -1667,12 +1790,12 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_formax_sections(self, formax, context):
 
-            if self.has_org_perm('orgs.topup_list'):
-                formax.add_section('topups', reverse('orgs.topup_list'), icon='icon-coins', action='link')
-
             # add the channel option if we have one
             user = self.request.user
             org = user.get_org()
+
+            if self.has_org_perm('orgs.topup_list'):
+                formax.add_section('topups', reverse('orgs.topup_list'), icon='icon-coins', action='link')
 
             if self.has_org_perm("channels.channel_update"):
                 # get any channel thats not a delegate
@@ -1711,7 +1834,7 @@ class OrgCRUDL(SmartCRUDL):
                 formax.add_section('resthooks', reverse('orgs.org_resthooks'), icon='icon-cloud-lightning', dependents="resthooks")
 
             # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_pro():
+            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_level():
                 formax.add_section('accounts', reverse('orgs.org_accounts'), icon='icon-users', action='redirect')
 
     class TransferToAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
@@ -1871,10 +1994,88 @@ class OrgCRUDL(SmartCRUDL):
 
         success_message = ''
         form_class = OrgForm
+        fields = ('name', 'slug', 'timezone', 'date_format')
 
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
             return self.has_org_perm('orgs.org_edit')
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Edit, self).get_context_data(**kwargs)
+            sub_orgs = Org.objects.filter(parent=self.get_object())
+            context['sub_orgs'] = sub_orgs
+            return context
+
+    class EditSubOrg(ModalMixin, Edit):
+
+        success_url = '@orgs.org_sub_orgs'
+
+        def get_object(self, *args, **kwargs):
+            org_id = self.request.REQUEST.get('org')
+            return Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
+
+    class TransferCredits(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartFormView):
+
+        class TransferForm(forms.Form):
+
+            class OrgChoiceField(forms.ModelChoiceField):
+                def label_from_instance(self, org):
+                    return '%s (%s)' % (org.name, "{:,}".format(org.get_credits_remaining()))
+
+            from_org = OrgChoiceField(None, required=True, label=_("From Organization"),
+                                      help_text=_("Select which organization to take credits from"))
+
+            to_org = OrgChoiceField(None, required=True, label=_("To Organization"),
+                                    help_text=_("Select which organization to receive the credits"))
+
+            amount = forms.IntegerField(required=True, label=_('Credits'),
+                                        help_text=_("How many credits to transfer"))
+
+            def __init__(self, *args, **kwargs):
+                org = kwargs['org']
+                del kwargs['org']
+
+                super(OrgCRUDL.TransferCredits.TransferForm, self).__init__(*args, **kwargs)
+
+                self.fields['from_org'].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by('-parent', 'id')
+                self.fields['to_org'].queryset = Org.objects.filter(Q(parent=org) | Q(id=org.id)).order_by('-parent', 'id')
+
+            def clean(self):
+                cleaned_data = super(OrgCRUDL.TransferCredits.TransferForm, self).clean()
+
+                if 'amount' in cleaned_data and 'from_org' in cleaned_data:
+                    from_org = cleaned_data['from_org']
+
+                    if cleaned_data['amount'] > from_org.get_credits_remaining():
+                        raise ValidationError(_("Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different organization to transfer from or reduce the transfer amount.") % dict(org_name=from_org.name))
+
+        success_url = '@orgs.org_sub_orgs'
+        form_class = TransferForm
+        fields = ('from_org', 'to_org', 'amount')
+        permission = 'orgs.org_transfer_credits'
+
+        def has_permission(self, request, *args, **kwargs):
+            self.org = self.request.user.get_org()
+            return self.request.user.has_perm(self.permission) or self.has_org_perm(self.permission)
+
+        def get_form_kwargs(self):
+            form_kwargs = super(OrgCRUDL.TransferCredits, self).get_form_kwargs()
+            form_kwargs['org'] = self.get_object()
+            return form_kwargs
+
+        def form_valid(self, form):
+            from_org = form.cleaned_data['from_org']
+            to_org = form.cleaned_data['to_org']
+            amount = form.cleaned_data['amount']
+
+            from_org.allocate_credits(from_org.created_by, to_org, amount)
+
+            response = self.render_to_response(self.get_context_data(form=form,
+                                               success_url=self.get_success_url(),
+                                               success_script=getattr(self, 'success_script', None)))
+
+            response['Temba-Success'] = self.get_success_url()
+            return response
 
     class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
@@ -2050,7 +2251,8 @@ class TopUpCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         def derive_queryset(self, **kwargs):
-            return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by('-expires_on')
+            queryset = TopUp.objects.filter(is_active=True, org=self.request.user.get_org())
+            return queryset.annotate(credits_remaining=ExpressionWrapper(F('credits') - Sum(F('topupcredits__used')), IntegerField()))
 
         def get_context_data(self, **kwargs):
             context = super(TopUpCRUDL.List, self).get_context_data(**kwargs)
@@ -2059,6 +2261,42 @@ class TopUpCRUDL(SmartCRUDL):
             now = timezone.now()
             context['now'] = now
             context['expiration_period'] = now + timedelta(days=30)
+
+            # show our topups in a meaningful order
+            topups = list(self.get_queryset())
+
+            def compare(topup1, topup2):  # pragma: no cover
+
+                # non expired first
+                now = timezone.now()
+                if topup1.expires_on > now and topup2.expires_on <= now:
+                    return -1
+                elif topup2.expires_on > now and topup1.expires_on <= now:
+                    return 1
+
+                # then push those without credits remaining to the bottom
+                if topup1.credits_remaining is None:
+                    topup1.credits_remaining = topup1.credits
+
+                if topup2.credits_remaining is None:
+                    topup2.credits_remaining = topup2.credits
+
+                if topup1.credits_remaining and not topup2.credits_remaining:
+                    return -1
+                elif topup2.credits_remaining and not topup1.credits_remaining:
+                    return 1
+
+                # sor the rest by their expiration date
+                if topup1.expires_on > topup2.expires_on:
+                    return -1
+                elif topup1.expires_on < topup2.expires_on:
+                    return 1
+
+                # if we end up with the same expiration, show the oldest first
+                return topup2.id - topup1.id
+
+            topups.sort(cmp=compare)
+            context['topups'] = topups
             return context
 
         def get_template_names(self):

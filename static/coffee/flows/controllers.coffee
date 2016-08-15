@@ -408,8 +408,9 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
       lastAction = actionset.actions[actionset.actions.length - 1]
       return lastAction._missingTranslation
 
-  $scope.broadcastToStep = (uuid) ->
+  $scope.broadcastToStep = (event, uuid) ->
     window.broadcastToNode(uuid)
+    event.stopPropagation()
 
   $scope.addNote = (event) ->
     Flow.addNote(event.offsetX, event.offsetY)
