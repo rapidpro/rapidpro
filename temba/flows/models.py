@@ -1720,7 +1720,9 @@ class Flow(TembaModel):
         r = get_redis_connection()
         if run_ids:
             for key in self.calculate_active_step_keys():
-                r.srem(key, *run_ids)
+                # remove keys 1,000 at a time
+                for batch in chunk_list(run_ids, 1000):
+                    r.srem(key, *batch)
 
     def remove_active_for_step(self, step):
         """

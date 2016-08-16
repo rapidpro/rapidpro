@@ -39,6 +39,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('contacts', '0035_auto_20160414_0642'),
         ('orgs', '0019_org_surveyor_password'),
+        ('orgs', '0022_auto_20160815_1726')
     ]
 
     operations = [
