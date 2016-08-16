@@ -406,7 +406,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
   # this is necessary to style the bottom of the action set node container accordingly
   $scope.lastActionMissingTranslation = (actionset) ->
       lastAction = actionset.actions[actionset.actions.length - 1]
-      return lastAction._missingTranslation
+      if lastAction
+        return lastAction._missingTranslation
 
   $scope.broadcastToStep = (event, uuid) ->
     window.broadcastToNode(uuid)
@@ -1589,10 +1590,15 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     groups = []
     for group in omnibox.groups
-      groups.push
-        uuid: group.id
-        name: group.name
+      if group.id and group.name
+        groups.push
+          uuid: group.id
+          name: group.name
+      else
+        # other
+        groups.push(group)
 
+    $scope.action.msg = undefined
     $scope.action.groups = groups
 
     # add our list of variables
