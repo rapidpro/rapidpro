@@ -335,7 +335,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             uuid: targetId,
             label: "Response " + (Flow.flow.rule_sets.length + 1)
             operand: "@step.value"
-            webhook_action: null,
             ruleset_type: if window.ivr then 'wait_digit' else 'wait_message',
             rules: [
               test:
@@ -466,8 +465,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     # if our warning is already visible, go ahead and delete
     if removeWarning.is(':visible')
-      ruleset.webhook = null
-      ruleset.webhook_action = null
       Plumb.repaint()
       Flow.markDirty()
 
@@ -834,7 +831,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       uuid: uuid(),
       label: "Response " + (Flow.flow.rule_sets.length + 1)
       operand: "@step.value"
-      webhook_action: null,
       ruleset_type: if window.ivr then 'wait_digit' else 'wait_message',
       rules: [
         test:
