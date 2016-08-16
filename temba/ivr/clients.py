@@ -37,13 +37,15 @@ class NexmoClient(NexmoCli):
 
     def start_call(self, call, to, from_, status_callback):
         params = dict(api_key=self.api_key, api_secret=self.api_secret)
-        params['answer_url'] = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
+
+        url = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
+
+        params['answer_url'] = url
         params['to'] = to.strip('+')
         params['from'] = from_.strip('+')
-        params['status_url'] = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
+        params['status_url'] = url
         params['status_method'] = "POST"
-        params['error_url'] = "https://%s%s" % (settings.TEMBA_HOST,
-                                                reverse('handlers.nexmo_handler', args=['status', call.channel.uuid]))
+        params['error_url'] = url
         params['error_method'] = "POST"
 
         response = requests.post('https://rest.nexmo.com/call/json', params=params)

@@ -189,10 +189,12 @@ class IVRCall(SmartModel):
                 self.status = CANCELED
 
         elif channel_type in [NEXMO]:
-            if status != 'ok':
+            if status is None:
+                self.status = IN_PROGRESS
+            elif status != 'ok':
                 self.status = FAILED
             else:
-                self.status = IN_PROGRESS
+                self.status = COMPLETED
 
         self.duration = duration
 

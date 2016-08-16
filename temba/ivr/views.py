@@ -51,8 +51,8 @@ class CallHandler(View):
                 status = request.POST.get('CallStatus', None)
                 duration = request.POST.get('CallDuration', None)
             elif channel_type in [NEXMO]:
-                status = request.POST.get('status')
-                duration = request.POST.get('call-duration')
+                status = request.POST.get('status', None)
+                duration = request.POST.get('call-duration', None)
 
             call.update_status(status, duration, channel_type)
 
@@ -101,10 +101,6 @@ class CallHandler(View):
             # parse the user response
             text = user_response.get('Digits', None)
 
-            if channel_type in [NEXMO]:
-                if call.is_flow():
-                    response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
-                    return HttpResponse(unicode(response))
             if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
