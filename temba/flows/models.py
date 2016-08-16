@@ -2147,8 +2147,6 @@ class Flow(TembaModel):
                 uuid = ruleset.get(Flow.UUID)
                 rules = ruleset.get(Flow.RULES)
                 label = ruleset.get(Flow.LABEL, None)
-                webhook_url = ruleset.get(Flow.WEBHOOK_URL, None)
-                webhook_action = ruleset.get(Flow.WEBHOOK_ACTION, None)
                 operand = ruleset.get(Flow.OPERAND, None)
                 finished_key = ruleset.get(Flow.FINISHED_KEY)
                 ruleset_type = ruleset.get(Flow.RULESET_TYPE)
@@ -2162,9 +2160,6 @@ class Flow(TembaModel):
 
                 if operand:
                     operand = operand[:128]
-
-                if webhook_url:
-                    webhook_url = webhook_url[:255]
 
                 (x, y) = (ruleset.get(Flow.X), ruleset.get(Flow.Y))
 
@@ -2196,8 +2191,6 @@ class Flow(TembaModel):
                 if existing:
                     existing.label = ruleset.get(Flow.LABEL, None)
                     existing.set_rules_dict(rules)
-                    existing.webhook_url = webhook_url
-                    existing.webhook_action = webhook_action
                     existing.operand = operand
                     existing.label = label
                     existing.finished_key = finished_key
@@ -2211,8 +2204,6 @@ class Flow(TembaModel):
                                                       uuid=uuid,
                                                       label=label,
                                                       rules=json.dumps(rules),
-                                                      webhook_url=webhook_url,
-                                                      webhook_action=webhook_action,
                                                       finished_key=finished_key,
                                                       ruleset_type=ruleset_type,
                                                       operand=operand,
@@ -2940,6 +2931,10 @@ class RuleSet(models.Model):
     TYPE_EXPRESSION = 'expression'
     TYPE_SUBFLOW = 'subflow'
 
+    CONFIG_WEBHOOK = 'webhook'
+    CONFIG_WEBHOOK_ACTION = 'webhook_action'
+    CONFIG_RESTHOOK = 'resthook'
+
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
 
     TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS,
@@ -3117,18 +3112,21 @@ class RuleSet(models.Model):
             # figure out which URLs will be called
             if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
                 resthook = None
-                urls = [self.webhook_url]
-                action = self.webhook_action
+                urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
+                action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
 
             elif self.ruleset_type == RuleSet.TYPE_RESTHOOK:
                 from temba.api.models import Resthook
 
                 # look up the rest hook
-                resthook = Resthook.objects.filter(is_active=True, org=run.org, slug=self.config_json()[RuleSet.TYPE_RESTHOOK]).first()
+                resthook = Resthook.objects.filter(is_active=True, org=run.org, slug=self.config_json()[RuleSet.CONFIG_RESTHOOK]).first()
                 urls = resthook.get_subscriber_urls()
                 action = 'POST'
 
-            # fire off each of our URLs
+            # by default we are a failure (there are no resthooks for example)
+            status_code = 418
+            body = ""
+
             for url in urls:
                 from temba.api.models import WebHookEvent
 
@@ -3140,14 +3138,19 @@ class RuleSet(models.Model):
 
                 # our subscriber is no longer interested, remove this URL as a subscriber
                 if result.status_code == 410:
-                    print "unsubscribing %s" % url
                     resthook.remove_subscriber(url)
 
-            rule = self.get_rules()[0]
-            rule.category = run.flow.get_base_text(rule.category)
+                # our overall status will be successful if any of our statuses are successful
+                if 200 <= result.status_code < 300 and not (200 <= status_code < 300):
+                    status_code = result.status_code
+                    body = result.body
 
-            # return the webhook result body as the value
-            return rule, result.body
+            # find our matching rule, we pass in the status from our calls
+            for rule in self.get_rules():
+                (result, value) = rule.matches(run, msg, context, str(status_code))
+                if result > 0:
+                    rule.category = run.flow.get_base_text(rule.category)
+                    return rule, body
 
         else:
             # if it's a form field, construct an expression accordingly
@@ -3248,10 +3251,16 @@ class RuleSet(models.Model):
         self.set_rules_dict(rules_dict)
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
-                    rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
-                    finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
-                    operand=self.operand, config=self.config_json())
+        ruleset_def = dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
+                           finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
+                           operand=self.operand, config=self.config_json())
+
+        # if we are pre-version 10, include our webhook and webhook_action in our dict
+        if self.flow.version_number < 10:
+            ruleset_def['webhook'] = self.webhook_url
+            ruleset_def['webhook_action'] = self.webhook_action
+
+        return ruleset_def
 
     def __unicode__(self):
         if self.label:
@@ -5306,7 +5315,7 @@ class WebhookStatusTest(Test):
     STATUS = 'status'
 
     STATUS_SUCCESS = 'success'
-    STATUS_FAILED = 'failed'
+    STATUS_FAILURE = 'failure'
 
     def __init__(self, status):
         self.status = status
@@ -5324,7 +5333,7 @@ class WebhookStatusTest(Test):
 
         if success and self.status == WebhookStatusTest.STATUS_SUCCESS:
             return 1, text
-        elif not success and self.status == WebhookStatusTest.STATUS_FAILED:
+        elif not success and self.status == WebhookStatusTest.STATUS_FAILURE:
             return 1, text
         else:
             return 0, None

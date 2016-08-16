@@ -10,28 +10,59 @@ from uuid import uuid4
 import regex
 
 
-def migrate_export_to_version_10(exported_json, same_site=True):
+def migrate_to_version_10(json_flow, flow):
     """
     Looks for webhook ruleset_types, adding success and failure cases and moving
     webhook_action and webhook to config
     """
-    def replace_webhook_ruleset(ruleset):
-        if not ruleset['config']:
+    def replace_webhook_ruleset(ruleset, base_lang):
+        # not a webhook? delete any turds of webhook or webhook_action
+        if ruleset['ruleset_type'] != 'webhook':
+            del ruleset['webhook_action']
+            del ruleset['webhook']
+            return ruleset
+
+        if 'config' not in ruleset:
             ruleset['config'] = dict()
 
+        # webhook_action and webhook now live in config
         ruleset['config']['webhook_action'] = ruleset['webhook_action']
         del ruleset['webhook_action']
+        ruleset['config']['webhook'] = ruleset['webhook']
+        del ruleset['webhook']
 
+        # we now can route differently on success and failure, route old flows to the same destination
+        # for both
+        destination = ruleset['rules'][0].get('destination', None)
+        destination_type = ruleset['rules'][0].get('destination_type', None)
+        rules = []
+        for status in ['success', 'failure']:
+            new_rule = dict(test=dict(status=status, type='webhook_status'),
+                            category={base_lang: status.capitalize()},
+                            uuid=str(uuid4()))
+
+            if destination:
+                new_rule['destination'] = destination
+                new_rule['destination_type'] = destination_type
+
+            rules.append(new_rule)
+
+        ruleset['rules'] = rules
         return ruleset
 
-    rulesets = []
-    for ruleset in exported_json['rule_sets']:
-        if ruleset['ruleset_type'] == 'webhook':
-            ruleset = replace_webhook_ruleset(ruleset)
-        rulesets.append(ruleset)
+    # if we have rulesets, we need to fix those up with our new webhook types
+    base_lang = json_flow.get('base_language', 'base')
+    if 'rule_sets' in json_flow:
+        rulesets = []
+        for ruleset in json_flow['rule_sets']:
+            if ruleset['ruleset_type'] == 'webhook':
+                ruleset = replace_webhook_ruleset(ruleset, base_lang)
 
-    exported_json['rule_sets'] = rulesets
-    return exported_json
+            rulesets.append(ruleset)
+
+        json_flow['rule_sets'] = rulesets
+
+    return json_flow
 
 
 def migrate_export_to_version_9(exported_json, org, same_site=True):
@@ -190,14 +221,6 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
                 remap_flow(event['flow'])
 
     return exported_json
-
-
-def migrate_to_version_10(json_flow, flow):
-    """
-    This version adds routing for webhook status and moves the action and webhook URL
-    to the webhook config.
-    """
-    return migrate_export_to_version_10(json_flow)
 
 
 def migrate_to_version_9(json_flow, flow):

@@ -1380,7 +1380,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       flowField = $scope.formData.flowField
       airtimeAmountConfig = $scope.formData.airtimeAmountConfig
       flow = $scope.formData.flow
-      
+
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
 
@@ -1412,6 +1412,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           airtimeConfig[elt.code] = elt
         ruleset.config = airtimeConfig
 
+      else if rulesetConfig.type == 'webhook'
+        ruleset.config = {'webhook': splitEditor.url, 'webhook_action': splitEditor.action}
+
       else if rulesetConfig.type == 'resthook'
         ruleset.config = {'resthook': splitEditor.resthook.selected[0]['id']}
 
@@ -1426,12 +1429,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       # or just want to evaluate against a message
       else if rulesetConfig.type == 'wait_message'
         ruleset.operand = '@step.value'
-
-      # clear our webhook if we aren't the right type
-      # TODO: this should live in a json config blob
-      if rulesetConfig.type != 'webhook'
-        ruleset.webhook = null
-        ruleset.webhook_action = null
 
       # update our rules accordingly
       $scope.updateRules(ruleset, rulesetConfig)
