@@ -263,7 +263,7 @@ class TembaTest(SmartminTest):
             kwargs['created_on'] = timezone.now()
 
         if not kwargs['contact'].is_test:
-            kwargs['topup_id'] = kwargs['org'].decrement_credit()
+            (kwargs['topup_id'], amount) = kwargs['org'].decrement_credit()
 
         return Msg.all_messages.create(**kwargs)
 

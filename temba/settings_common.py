@@ -87,6 +87,10 @@ USE_I18N = True
 # calendars according to the current locale
 USE_L10N = True
 
+# number of credits before they get user management
+MULTI_USER_THRESHOLD = 0
+MULTI_ORG_THRESHOLD = 0
+
 # URL prefix for admin static files -- CSS, JavaScript and images.
 # Make sure to use a trailing slash.
 # Examples: "http://foo.com/static/admin/", "/static/admin/".
@@ -358,8 +362,10 @@ PERMISSIONS = {
                  'country',
                  'clear_cache',
                  'create_login',
+                 'create_sub_org',
                  'download',
                  'edit',
+                 'edit_sub_org',
                  'export',
                  'grant',
                  'home',
@@ -368,6 +374,7 @@ PERMISSIONS = {
                  'languages',
                  'manage',
                  'manage_accounts',
+                 'manage_accounts_sub_org',
                  'nexmo_configuration',
                  'nexmo_account',
                  'nexmo_connect',
@@ -376,7 +383,9 @@ PERMISSIONS = {
                  'resthooks',
                  'service',
                  'signup',
+                 'sub_orgs',
                  'surveyor',
+                 'transfer_credits',
                  'transfer_to_account',
                  'trial',
                  'twilio_account',
@@ -582,19 +591,24 @@ GROUP_PERMISSIONS = {
         'orgs.org_accounts',
         'orgs.org_api',
         'orgs.org_country',
+        'orgs.org_create_sub_org',
         'orgs.org_download',
         'orgs.org_edit',
+        'orgs.org_edit_sub_org',
         'orgs.org_export',
         'orgs.org_home',
         'orgs.org_import',
         'orgs.org_languages',
         'orgs.org_manage_accounts',
+        'orgs.org_manage_accounts_sub_org',
         'orgs.org_nexmo_account',
         'orgs.org_nexmo_connect',
         'orgs.org_nexmo_configuration',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
         'orgs.org_resthooks',
+        'orgs.org_sub_orgs',
+        'orgs.org_transfer_credits',
         'orgs.org_transfer_to_account',
         'orgs.org_twilio_account',
         'orgs.org_twilio_connect',
