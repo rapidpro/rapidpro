@@ -68,13 +68,14 @@ class CallHandler(View):
             hangup = False
             saved_media_url = None
 
-            if channel_type in [TWILIO, VERBOICE]:
-                # figure out if this is a callback due to an empty gather
-                is_empty = '1' == request.GET.get('empty', '0')
+            # figure out if this is a callback due to an empty gather
+            is_empty = '1' == request.GET.get('empty', '0')
 
-                # if the user pressed pound, then record no digits as the input
-                if is_empty:
-                    user_response['Digits'] = ''
+            # if the user pressed pound, then record no digits as the input
+            if is_empty:
+                user_response['Digits'] = ''
+
+            if channel_type in [TWILIO, VERBOICE]:
 
                 hangup = 'hangup' == user_response.get('Digits', None)
 

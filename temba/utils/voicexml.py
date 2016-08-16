@@ -21,9 +21,14 @@ class Response(object):
     def __exit__(self, exc_type, exc_value, traceback):
         return False
 
+    def append(self, parts):
+        self.document += parts
+        return self
+
     def say(self, text, **kwargs):
         result = '<block><prompt>' + text + '</prompt></block>'
         self.document += result
+        return self
 
     def play(self, url=None, digits=None, **kwargs):
         if url is None and digits is None:
@@ -37,6 +42,7 @@ class Response(object):
             result += '<block><prompt><audio src="' + url + '"/></prompt></block>'
 
         self.document += result
+        return self
 
     def pause(self, **kwargs):
         result = '<block><prompt><break '
@@ -46,28 +52,42 @@ class Response(object):
         result += '/></prompt></block>'
 
         self.document += result
+        return self
 
     def redirect(self, url=None, **kwargs):
-        result = '<goto nextitem="' + url + '"/>'
+        result = '<goto nextitem="' + url + '" />'
 
         self.document += result
+        return self
 
     def hangup(self, **kwargs):
         result = '<exit/>'
         self.document += result
+        return self
 
     def reject(self, reason=None, **kwargs):
         self.hangup()
+        return self
 
     def gather(self, **kwargs):
-        result = '<field name="Digits" type="digits">'
+        result = '<field name="Digits">'
+        result += '<grammar termtimeout="60s" '
 
-        result += '</field>'
+        if kwargs.get('finishOnKey', False):
+            result += 'termchar="%s" ' % kwargs.get('finishOnKey')
+
+        result += 'src="builtin:dtmf/digits'
+
+        if kwargs.get('numDigits', False):
+            result += '?minlength=%s;maxlength=%s' % (kwargs.get('numDigits'), kwargs.get('numDigits'))
+
+        result += '" /></field>'
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
-            result += '<filled><submit next="' + kwargs.get('action') + ' method="' + method + '" /></filled>'
+            result += '<filled><submit next="' + kwargs.get('action') + '" method="' + method + '" /></filled>'
 
         self.document += result
+        return self
 
     def record(self, **kwargs):
         result = '<record name="UserRecording" beep="true"'
@@ -84,3 +104,4 @@ class Response(object):
         result += '</record>'
 
         self.document += result
+        return self
