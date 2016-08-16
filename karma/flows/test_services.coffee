@@ -71,19 +71,26 @@ describe 'Services:', ->
       expect(flowService.variables_and_functions).toEqual([flowService.completions..., flowService.function_completions...])
 
     it 'should restrict rules according to exclusivity', ->
+
       expect(flowService.isRuleAllowed('subflow', 'subflow')).toBe(true)
       expect(flowService.isRuleAllowed('subflow', 'contains_any')).toBe(false)
-      expect(flowService.isRuleAllowed('wait_message', 'subflow')).toBe(false)
+      expect(flowService.isRuleAllowed('subflow', 'timeout')).toBe(false)
+
       expect(flowService.isRuleAllowed('wait_message', 'contains_any')).toBe(true)
       expect(flowService.isRuleAllowed('wait_message', 'timeout')).toBe(true)
       expect(flowService.isRuleAllowed('wait_message', 'true')).toBe(true)
       expect(flowService.isRuleAllowed('wait_message', 'timeout')).toBe(true)
-      expect(flowService.isRuleAllowed('subflow', 'timeout')).toBe(false)
+      expect(flowService.isRuleAllowed('wait_message', 'subflow')).toBe(false)
+      expect(flowService.isRuleAllowed('wait_message', 'webhook_status')).toBe(false)
+      expect(flowService.isRuleAllowed('wait_message', 'webhook_status')).toBe(false)
+
+      expect(flowService.isRuleAllowed('webhook', 'webhook_status')).toBe(true)
       expect(flowService.isRuleAllowed('webhook', 'timeout')).toBe(false)
-      expect(flowService.isRuleAllowed('webhook', 'webhook')).toBe(true)
       expect(flowService.isRuleAllowed('webhook', 'timeout')).toBe(false)
+      expect(flowService.isRuleAllowed('webhook', 'contains_any')).toBe(false)
+
+      expect(flowService.isRuleAllowed('airtime', 'airtime_status')).toBe(true)
       expect(flowService.isRuleAllowed('airtime', 'contains_any')).toBe(false)
-      expect(flowService.isRuleAllowed('wait_message', 'webhook')).toBe(false)
 
     it 'should determine the flow entry', ->
       flowService.fetch(flows.favorites.id).then ->

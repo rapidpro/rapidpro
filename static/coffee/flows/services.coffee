@@ -480,7 +480,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @exclusiveRules = {
         'subflow': ['subflow'],
         'timeout': ['wait_message'],
-        'webhook': ['webhook'],
+        'webhook_status': ['webhook'],
         'airtime_status': ['airtime']
       }
 
