@@ -32,7 +32,8 @@ from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, OUTGOING
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
+from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
 from temba.utils.email import send_template_email, is_valid_address
@@ -1264,7 +1265,8 @@ class Flow(TembaModel):
             if filter_ruleset:
                 flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
 
-            flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
+            flow_steps = flow_steps.order_by('arrived_on', 'pk')
+            flow_steps = flow_steps.select_related('run').prefetch_related('messages', 'broadcasts')
 
         steps_cache = {}
         for step in flow_steps:
@@ -2864,9 +2866,23 @@ class FlowStep(models.Model):
 
         self.save(update_fields=['rule_category', 'rule_uuid', 'rule_value', 'rule_decimal_value'])
 
-    def get_text(self):
+    def get_text(self, run=None):
+        """
+        Returns a single text value for this step. Since steps can have multiple outgoing messages, this isn't very
+        useful but needed for backwards compatibility in API v1.
+        """
         msg = self.messages.all().first()
-        return msg.text if msg else None
+        if msg:
+            return msg.text
+
+        # It's possible that messages have been purged but we still have broadcasts. Broadcast isn't implicitly ordered
+        # like Msg is so .all().first() would cause an extra db hit even if all() has been prefetched.
+        broadcasts = list(self.broadcasts.all())
+        if broadcasts:
+            run = run or self.run
+            return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
+
+        return None
 
     def add_message(self, msg):
         # no-op for no msg or mock msgs
@@ -3779,6 +3795,7 @@ class ExportFlowResultsTask(SmartModel):
                                       select_related=['run', 'contact'],
                                       prefetch_related=['messages__contact_urn',
                                                         'messages__channel',
+                                                        'broadcasts',
                                                         'contact__all_groups'],
                                       contact_fields=contact_fields):
 
@@ -4648,23 +4665,26 @@ class ReplyAction(Action):
         return dict(type=ReplyAction.TYPE, msg=self.msg)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
+        reply = None
 
         if self.msg:
             user = get_flow_user()
             text = run.flow.get_localized_text(self.msg, run.contact)
 
             if offline_on:
-                return [Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg)]
-
-            context = run.flow.build_message_context(run.contact, msg)
-            if msg:
-                broadcast = msg.reply(text, user, trigger_send=False, message_context=context)
+                reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
+                                            created_on=offline_on, response_to=msg)
             else:
-                broadcast = run.contact.send(text, user, trigger_send=False, message_context=context)
+                context = run.flow.build_message_context(run.contact, msg)
+                try:
+                    if msg:
+                        reply = msg.reply(text, user, trigger_send=False, message_context=context)
+                    else:
+                        reply = run.contact.send(text, user, trigger_send=False, message_context=context)
+                except UnreachableException:
+                    pass
 
-            return list(broadcast.get_messages())
-        return []
+        return [reply] if reply else []
 
 
 class VariableContactAction(Action):

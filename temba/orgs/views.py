@@ -2171,37 +2171,16 @@ class OrgCRUDL(SmartCRUDL):
             return super(OrgCRUDL.Languages, self).get(request, *args, **kwargs)
 
         def form_valid(self, form):
-
             user = self.request.user
-            org = user.get_org()
-
             primary = form.cleaned_data['primary_lang']
             iso_codes = form.cleaned_data['languages'].split(',')
-            if primary not in iso_codes:
+
+            # remove empty codes and ensure primary is included in list
+            iso_codes = [code for code in iso_codes if code]
+            if primary and primary not in iso_codes:
                 iso_codes.append(primary)
 
-            # create new languages
-            for iso_code in iso_codes:
-                if iso_code:
-                    name = languages.get_language_name(iso_code)
-                    language = org.languages.filter(iso_code=iso_code).first()
-
-                    # if it doesn't exist yet, create it
-                    if name and not language:
-                        language = org.languages.create(created_by=user, modified_by=user, iso_code=iso_code, name=name)
-
-                    # store our primary language
-                    if iso_code == primary:
-                        self.object.primary_language = language
-                        self.object.save(update_fields=['primary_language'])
-
-            # remove our primary language if necessary
-            if org.primary_language and org.primary_language.iso_code not in iso_codes:
-                org.primary_language = None
-                org.save()
-
-            # remove any languages that are not in our new list
-            org.languages.exclude(iso_code__in=iso_codes).delete()
+            self.object.set_languages(user, iso_codes, primary)
 
             return super(OrgCRUDL.Languages, self).form_valid(form)
 

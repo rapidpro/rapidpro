@@ -235,7 +235,7 @@ class WebHookEvent(SmartModel):
             channel_id = -1
 
         steps = []
-        for step in run.steps.all().order_by('arrived_on'):
+        for step in run.steps.prefetch_related('messages', 'broadcasts').order_by('arrived_on'):
             steps.append(dict(type=step.step_type,
                               node=step.step_uuid,
                               arrived_on=datetime_to_str(step.arrived_on),
