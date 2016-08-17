@@ -20,7 +20,7 @@ django-appconf==0.6
 django-celery==3.1.17
 -e git+http://github.com/nyaruka/django-celery-transactions.git@f7adf7f2d5ce0bcd7992e0d4f3624fb96a7d80b8#egg=django_celery_transactions
 django-compressor==1.5
-django-countries==3.0.1
+django-countries==3.4.1
 django-debug-toolbar==1.2.2
 django-digest==1.13
 django-extensions==1.5.7
@@ -76,7 +76,7 @@ ply==3.4
 prettytable==0.7.2
 psycopg2==2.5.2
 pyasn1==0.1.7
-pycountry==1.18
+pycountry==1.20
 pycrypto==2.6.1
 pyflakes==1.0.0
 Pygments==1.6
