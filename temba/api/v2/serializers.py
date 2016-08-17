@@ -44,13 +44,9 @@ class UUIDField(serializers.CharField):
 # ============================================================
 
 class AdminBoundaryReadSerializer(ReadSerializer):
-    id = serializers.ReadOnlyField(source='osm_id')
     parent = serializers.SerializerMethodField()
     aliases = serializers.SerializerMethodField()
     geometry = serializers.SerializerMethodField()
-
-    def get_id(self, obj):
-        return obj.osm_id
 
     def get_parent(self, obj):
         return {'id': obj.parent.osm_id, 'name': obj.parent.name} if obj.parent else None
@@ -66,7 +62,7 @@ class AdminBoundaryReadSerializer(ReadSerializer):
 
     class Meta:
         model = AdminBoundary
-        fields = ('id', 'name', 'parent', 'level', 'aliases', 'geometry')
+        fields = ('osm_id', 'name', 'parent', 'level', 'aliases', 'geometry')
 
 
 class BroadcastReadSerializer(ReadSerializer):

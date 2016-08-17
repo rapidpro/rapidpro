@@ -336,7 +336,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['next'], None)
         self.assertEqual(len(response.json['results']), 10)
         self.assertEqual(response.json['results'][0], {
-            'id': "1708283",
+            'osm_id': "1708283",
             'name': "Kigali City",
             'parent': {'id': "171496", 'name': "Rwanda"},
             'level': 1,
@@ -349,7 +349,7 @@ class APITest(TembaTest):
             response = self.fetchJSON(url, 'geometry=true')
 
         self.assertEqual(response.json['results'][0], {
-            'id': "1708283",
+            'osm_id': "1708283",
             'name': "Kigali City",
             'parent': {'id': "171496", 'name': "Rwanda"},
             'level': 1,
