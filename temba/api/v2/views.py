@@ -20,12 +20,13 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowStep
+from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
-from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
+from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -39,6 +40,7 @@ def api(request, format=None):
 
     The following endpoints are provided:
 
+     * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list campaigns
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
@@ -57,6 +59,7 @@ def api(request, format=None):
     You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
     """
     return Response({
+        'boundaries': reverse('api.v2.boundaries', request=request),
         'broadcasts': reverse('api.v2.broadcasts', request=request),
         'campaigns': reverse('api.v2.campaigns', request=request),
         'campaign_events': reverse('api.v2.campaign_events', request=request),
@@ -83,6 +86,7 @@ class ApiExplorerView(SmartTemplateView):
     def get_context_data(self, **kwargs):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
+            BoundariesEndpoint.get_read_explorer(),
             BroadcastEndpoint.get_read_explorer(),
             CampaignsEndpoint.get_read_explorer(),
             CampaignEventsEndpoint.get_read_explorer(),
@@ -250,6 +254,96 @@ class ListAPIMixin(mixins.ListModelMixin):
 # Endpoints (A-Z)
 # ============================================================
 
+
+class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the administrative boundaries for the country associated with your organization
+    along with the simplified GPS geometry for those boundaries in GEOJSON format.
+
+    ## Listing Boundaries
+
+    Returns the boundaries for your organization with the following fields. To include geometry,
+    specify `geometry=true`.
+
+      * **osm_id** - the OSM ID for this boundary prefixed with the element type (string)
+      * **name** - the name of the administrative boundary (string)
+      * **parent** - the id of the containing parent of this boundary or null if this boundary is a country (string)
+      * **level** - the level: 0 for country, 1 for state, 2 for district (int)
+      * **geometry** - the geometry for this boundary, which will usually be a MultiPolygon (GEOJSON)
+
+    **Note that including geometry may produce a very large result so it is recommended to cache the results on the
+    client side.**
+
+    Example:
+
+        GET /api/v2/boundaries.json?geometry=true
+
+    Response is a list of the boundaries on your account
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "id": "1708283",
+                "name": "Kigali City",
+                "parent": {"id": "171496", "name": "Rwanda"},
+                "level": 1,
+                "aliases": ["Kigari"],
+                "geometry": {
+                    "type": "MultiPolygon",
+                    "coordinates": [
+                        [
+                            [
+                                [7.5251021, 5.0504713],
+                                [7.5330272, 5.0423498]
+                            ]
+                        ]
+                    ]
+                }
+            },
+            ...
+        }
+
+    """
+    class Pagination(CursorPagination):
+        ordering = ('osm_id',)
+
+    permission = 'locations.adminboundary_api'
+    model = AdminBoundary
+    serializer_class = AdminBoundaryReadSerializer
+    pagination_class = Pagination
+
+    def get_queryset(self):
+        org = self.request.user.get_org()
+        if not org.country:
+            return AdminBoundary.objects.none()
+
+        queryset = org.country.get_descendants(include_self=True)
+
+        queryset = queryset.prefetch_related(
+            Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org).order_by('name')),
+        )
+
+        return queryset.select_related('parent')
+
+    def get_serializer_context(self):
+        context = super(BoundariesEndpoint, self).get_serializer_context()
+        context['include_geometry'] = str_to_bool(self.request.query_params.get('geometry', 'false'))
+        return context
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Administrative Boundaries",
+            'url': reverse('api.v2.boundaries'),
+            'slug': 'boundary-list',
+            'request': "",
+            'fields': []
+        }
+
+
 class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list message broadcasts on your account using the ```GET``` method.
@@ -315,7 +409,7 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
     def get_read_explorer(cls):
         return {
             'method': "GET",
-            'title': "List broadcasts",
+            'title': "List Broadcasts",
             'url': reverse('api.v2.broadcasts'),
             'slug': 'broadcast-list',
             'request': "",

@@ -6,6 +6,7 @@ import pytz
 
 from datetime import datetime
 from django.contrib.auth.models import Group
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db import connection
@@ -16,6 +17,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowLabel
+from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
@@ -308,10 +310,65 @@ class APITest(TembaTest):
 
         # and can fetch flows, contacts, and fields, but not campaigns
         client.credentials(HTTP_AUTHORIZATION="Token " + token_obj3.key)
-        # self.assertEqual(client.get(reverse('api.v1.flows') + '.json').status_code, 200)  # TODO re-enable when added
+        self.assertEqual(client.get(reverse('api.v2.flows') + '.json').status_code, 200)
         self.assertEqual(client.get(reverse('api.v2.contacts') + '.json').status_code, 200)
         self.assertEqual(client.get(reverse('api.v2.fields') + '.json').status_code, 200)
         self.assertEqual(client.get(reverse('api.v2.campaigns') + '.json').status_code, 403)
+
+    def test_boundaries(self):
+        url = reverse('api.v2.boundaries')
+
+        self.assertEndpointAccess(url)
+
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigali")
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
+        BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
+        BoundaryAlias.create(self.org2, self.admin2, self.state1, "Other Org")  # shouldn't be returned
+
+        self.state1.simplified_geometry = GEOSGeometry('MULTIPOLYGON(((1 1, 1 -1, -1 -1, -1 1, 1 1)))')
+        self.state1.save()
+
+        # test without geometry
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 10)
+        self.assertEqual(response.json['results'][0], {
+            'osm_id': "1708283",
+            'name': "Kigali City",
+            'parent': {'id': "171496", 'name': "Rwanda"},
+            'level': 1,
+            'aliases': ["Kigali", "Kigari"],
+            'geometry': None
+        })
+
+        # test without geometry
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+            response = self.fetchJSON(url, 'geometry=true')
+
+        self.assertEqual(response.json['results'][0], {
+            'osm_id': "1708283",
+            'name': "Kigali City",
+            'parent': {'id': "171496", 'name': "Rwanda"},
+            'level': 1,
+            'aliases': ["Kigali", "Kigari"],
+            'geometry': {
+                'type': "MultiPolygon",
+                'coordinates': [
+                    [
+                        [
+                            [1.0, 1.0],
+                            [1.0, -1.0],
+                            [-1.0, -1.0],
+                            [-1.0, 1.0],
+                            [1.0, 1.0]
+                        ]
+                    ]
+                ],
+            }
+        })
 
     def test_broadcasts(self):
         url = reverse('api.v2.broadcasts')
