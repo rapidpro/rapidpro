@@ -16,8 +16,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
 from temba.flows.models import Flow, FlowRun, FlowLabel
-from temba.msgs.models import Broadcast, Label
-from temba.orgs.models import Language
+from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from ..models import APIToken
@@ -329,7 +328,7 @@ class APITest(TembaTest):
         Broadcast.create(self.org2, self.admin2, "Different org...", [self.hans])
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -566,7 +565,7 @@ class APITest(TembaTest):
         self.joe.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -875,7 +874,7 @@ class APITest(TembaTest):
         joe_msg3.refresh_from_db(fields=('modified_on',))
 
         # filter by inbox
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, 'folder=INBOX')
 
         self.assertEqual(response.status_code, 200)
@@ -884,7 +883,7 @@ class APITest(TembaTest):
         self.assertMsgEqual(response.json['results'][0], frank_msg1, msg_type='inbox', msg_status='queued', msg_visibility='visible')
 
         # filter by incoming, should get deleted messages too
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, 'folder=incoming')
 
         self.assertEqual(response.status_code, 200)
@@ -978,10 +977,7 @@ class APITest(TembaTest):
             'anon': False
         })
 
-        eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
-        self.org.primary_language = eng
-        self.org.save()
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
 
         response = self.fetchJSON(url)
         self.assertEqual(response.json, {
@@ -1026,6 +1022,11 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
+        # allow Frank to run the flow in French
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.frank.language = 'fre'
+        self.frank.save()
+
         flow1 = self.create_flow(uuid_start=0)
         flow2 = Flow.copy(flow1, self.user)
 
@@ -1054,7 +1055,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -1063,6 +1064,9 @@ class APITest(TembaTest):
 
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
         frank_run2_steps = list(frank_run2.steps.order_by('pk'))
+
+        joe_msgs = list(Msg.all_messages.filter(contact=self.joe).order_by('pk'))
+        frank_msgs = list(Msg.all_messages.filter(contact=self.frank).order_by('pk'))
 
         self.assertEqual(response.json['results'][2], {
             'id': frank_run2.pk,
@@ -1074,7 +1078,14 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000001",
                     'arrived_on': format_datetime(frank_run2_steps[0].arrived_on),
                     'left_on': format_datetime(frank_run2_steps[0].left_on),
-                    'text': "What is your favorite color?",
+                    'messages': [
+                        {
+                            'id': frank_msgs[3].id,
+                            'broadcast': frank_msgs[3].broadcast_id,
+                            'text': "Quelle est votre couleur préférée?"
+                        }
+                    ],
+                    'text': "Quelle est votre couleur préférée?",
                     'value': None,
                     'category': None,
                     'type': 'actionset'
@@ -1083,6 +1094,7 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000005",
                     'arrived_on': format_datetime(frank_run2_steps[1].arrived_on),
                     'left_on': None,
+                    'messages': [],
                     'text': None,
                     'value': None,
                     'category': None,
@@ -1104,6 +1116,13 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000001",
                     'arrived_on': format_datetime(joe_run1_steps[0].arrived_on),
                     'left_on': format_datetime(joe_run1_steps[0].left_on),
+                    'messages': [
+                        {
+                            'id': joe_msgs[0].id,
+                            'broadcast': joe_msgs[0].broadcast_id,
+                            'text': "What is your favorite color?"
+                        }
+                    ],
                     'text': "What is your favorite color?",
                     'value': None,
                     'category': None,
@@ -1113,7 +1132,14 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000005",
                     'arrived_on': format_datetime(joe_run1_steps[1].arrived_on),
                     'left_on': format_datetime(joe_run1_steps[1].left_on),
-                    'text': 'it is blue',
+                    'messages': [
+                        {
+                            'id': joe_msgs[1].id,
+                            'broadcast': joe_msgs[1].broadcast_id,
+                            'text': "it is blue"
+                        }
+                    ],
+                    'text': "it is blue",
                     'value': 'blue',
                     'category': "Blue",
                     'type': 'ruleset'
@@ -1122,7 +1148,14 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000003",
                     'arrived_on': format_datetime(joe_run1_steps[2].arrived_on),
                     'left_on': format_datetime(joe_run1_steps[2].left_on),
-                    'text': 'Blue is sad. :(',
+                    'messages': [
+                        {
+                            'id': joe_msgs[2].id,
+                            'broadcast': joe_msgs[2].broadcast_id,
+                            'text': "Blue is sad. :("
+                        }
+                    ],
+                    'text': "Blue is sad. :(",
                     'value': None,
                     'category': None,
                     'type': 'actionset'
@@ -1133,6 +1166,22 @@ class APITest(TembaTest):
             'exited_on': format_datetime(joe_run1.exited_on),
             'exit_type': 'completed'
         })
+
+        # check when all broadcasts have been purged
+        Broadcast.objects.all().update(purged=True)
+        Msg.all_messages.filter(direction='O').delete()
+
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.json['results'][2]['steps'][0]['messages'], [
+            {
+                'id': None,
+                'broadcast': frank_msgs[3].broadcast_id,
+                'text': "Quelle est votre couleur préférée?"
+            }
+        ])
+        self.assertEqual(response.json['results'][2]['steps'][0]['text'], "Quelle est votre couleur préférée?")
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)

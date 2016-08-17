@@ -1089,7 +1089,9 @@ class FlowCRUDL(SmartCRUDL):
                 for run in runs:
                     contacts.append(run['contact__pk'])
 
-                steps = FlowStep.objects.filter(run__flow=self.object, run__contact__in=contacts).exclude(rule_value=None).order_by('run__contact__pk', 'step_uuid', '-arrived_on').distinct('run__contact__pk', 'step_uuid')
+                steps = FlowStep.objects.filter(run__flow=self.object, run__contact__in=contacts).exclude(rule_value=None)
+                steps = steps.order_by('run__contact__pk', 'step_uuid', '-arrived_on').distinct('run__contact__pk', 'step_uuid')
+                steps = steps.prefetch_related('messages', 'broadcasts')
 
                 # now create an nice table for them
                 contacts = dict()

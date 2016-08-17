@@ -46,7 +46,7 @@ class BroadcastReadSerializer(ReadSerializer):
     groups = serializers.SerializerMethodField()
 
     def get_urns(self, obj):
-        if obj.org.is_anon:
+        if self.context['org'].is_anon:
             return None
         else:
             return [urn.urn for urn in obj.urns.all()]
@@ -162,7 +162,7 @@ class ContactReadSerializer(ReadSerializer):
         return obj.language if obj.is_active else None
 
     def get_urns(self, obj):
-        if obj.org.is_anon or not obj.is_active:
+        if self.context['org'].is_anon or not obj.is_active:
             return []
 
         return [urn.urn for urn in obj.get_urns()]
@@ -264,6 +264,10 @@ class FlowRunReadSerializer(ReadSerializer):
         return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
 
     def get_steps(self, obj):
+        # avoiding fetching org again
+        run = obj
+        run.org = self.context['org']
+
         steps = []
         for step in obj.steps.all():
             val = step.rule_decimal_value if step.rule_decimal_value is not None else step.rule_value
@@ -271,13 +275,27 @@ class FlowRunReadSerializer(ReadSerializer):
                           'node': step.step_uuid,
                           'arrived_on': format_datetime(step.arrived_on),
                           'left_on': format_datetime(step.left_on),
-                          'text': step.get_text(),
+                          'messages': self.get_step_messages(run, step),
+                          'text': step.get_text(run=run),  # TODO remove
                           'value': val,
                           'category': step.rule_category})
         return steps
 
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)
+
+    @staticmethod
+    def get_step_messages(run, step):
+        messages = []
+        for m in step.messages.all():
+            messages.append({'id': m.id, 'broadcast': m.broadcast_id, 'text': m.text})
+
+        for b in step.broadcasts.all():
+            if b.purged:
+                text = b.get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
+                messages.append({'id': None, 'broadcast': b.id, 'text': text})
+
+        return messages
 
     class Meta:
         model = FlowRun
@@ -327,7 +345,7 @@ class MsgReadSerializer(ReadSerializer):
         return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
 
     def get_urn(self, obj):
-        if obj.org.is_anon:
+        if self.context['org'].is_anon:
             return None
         elif obj.contact_urn_id:
             return obj.contact_urn.urn

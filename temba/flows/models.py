@@ -1264,7 +1264,8 @@ class Flow(TembaModel):
             if filter_ruleset:
                 flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
 
-            flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
+            flow_steps = flow_steps.order_by('arrived_on', 'pk')
+            flow_steps = flow_steps.select_related('run').prefetch_related('messages', 'broadcasts')
 
         steps_cache = {}
         for step in flow_steps:
@@ -2873,9 +2874,23 @@ class FlowStep(models.Model):
 
         self.save(update_fields=['rule_category', 'rule_uuid', 'rule_value', 'rule_decimal_value'])
 
-    def get_text(self):
+    def get_text(self, run=None):
+        """
+        Returns a single text value for this step. Since steps can have multiple outgoing messages, this isn't very
+        useful but needed for backwards compatibility in API v1.
+        """
         msg = self.messages.all().first()
-        return msg.text if msg else None
+        if msg:
+            return msg.text
+
+        # It's possible that messages have been purged but we still have broadcasts. Broadcast isn't implicitly ordered
+        # like Msg is so .all().first() would cause an extra db hit even if all() has been prefetched.
+        broadcasts = list(self.broadcasts.all())
+        if broadcasts:
+            run = run or self.run
+            return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
+
+        return None
 
     def add_message(self, msg):
         # no-op for no msg or mock msgs
@@ -3738,6 +3753,7 @@ class ExportFlowResultsTask(SmartModel):
                                       select_related=['run', 'contact'],
                                       prefetch_related=['messages__contact_urn',
                                                         'messages__channel',
+                                                        'broadcasts',
                                                         'contact__all_groups'],
                                       contact_fields=contact_fields):
 
