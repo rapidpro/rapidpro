@@ -19,7 +19,7 @@ from temba.flows.models import Flow, FlowRun, FlowLabel
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
-from ..models import APIToken, Resthook
+from ..models import APIToken, Resthook, WebHookEvent
 from ..v2.serializers import format_datetime
 
 
@@ -86,6 +86,8 @@ class APITest(TembaTest):
         return response
 
     def assertEndpointAccess(self, url, query=None):
+        self.client.logout()
+
         # 403 if not authenticated but can read docs
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
@@ -1267,7 +1269,7 @@ class APITest(TembaTest):
         resthook = Resthook.get_or_create(self.org, 'new-mother', self.admin)
 
         # create a resthook for another org
-        Resthook.get_or_create(self.org2, 'new-father', self.admin2)
+        other_org_resthook = Resthook.get_or_create(self.org2, 'new-father', self.admin2)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -1284,14 +1286,62 @@ class APITest(TembaTest):
 
         # ok, let's look at subscriptions
         url = reverse('api.v2.resthook_subscribers')
+        self.assertEndpointAccess(url)
+
+        # let's try to create a new one but with an invalid resthook
+        response = self.postJSON(url, dict(resthook='new-father', target_url='https://foo.bar/'))
+        self.assertEqual(response.status_code, 400)
 
         # let's try to create a new one
         response = self.postJSON(url, dict(resthook='new-mother', target_url='https://foo.bar/'))
         self.assertEqual(response.status_code, 201)
         subscriber = resthook.subscribers.all().first()
-        self.assertEqual(response.json, {
-            'id': subscriber.id,
+        subscriber_json = dict(id=subscriber.id, resthook='new-mother', target_url='https://foo.bar/',
+                               created_on=format_datetime(subscriber.created_on))
+        self.assertEqual(response.json, subscriber_json)
+
+        # create a subscriber on our other resthook
+        other_org_subscriber = other_org_resthook.add_subscriber('https://bar.foo', self.admin2)
+
+        # list org subscribers, should have only ours
+        response = self.fetchJSON(url)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], subscriber_json)
+
+        # remove our subscriber
+        response = self.deleteJSON(url, "id=%d" % subscriber.id)
+        self.assertEqual(response.status_code, 204)
+
+        # subscriber should no longer be active
+        subscriber.refresh_from_db()
+        self.assertFalse(subscriber.is_active)
+
+        # missing id
+        response = self.deleteJSON(url, "")
+        self.assertEqual(response.status_code, 400)
+
+        # invalid id (other org)
+        response = self.deleteJSON(url, "id=%d" % other_org_subscriber.id)
+        self.assertEqual(response.status_code, 404)
+
+        # ok, let's look at the events on this resthook
+        url = reverse('api.v2.resthook_events')
+        self.assertEndpointAccess(url)
+
+        event = WebHookEvent.objects.create(org=self.org, resthook=resthook, event='F',
+                                            data=json.dumps(dict(event='new mother',
+                                                                 values=json.dumps(dict(name="Greg")),
+                                                                 steps=json.dumps(dict(uuid='abcde')))),
+                                            created_by=self.admin, modified_by=self.admin)
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], {
             'resthook': 'new-mother',
-            'target_url': 'https://foo.bar/',
-            'created_on': format_datetime(subscriber.created_on),
+            'created_on': format_datetime(event.created_on),
+            'data': dict(event='new mother',
+                         values=dict(name="Greg"),
+                         steps=dict(uuid='abcde'))
         })

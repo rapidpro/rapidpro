@@ -218,7 +218,6 @@ class ListAPIMixin(mixins.ListModelMixin):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-
         return getattr(self.model, self.model_manager).filter(org=org)
 
     def filter_before_after(self, queryset, field):
@@ -273,9 +272,8 @@ class CreateAPIMixin(object):
         pass
 
     def post(self, request, *args, **kwargs):
-        user = request.user
         context = self.get_serializer_context()
-        serializer = self.write_serializer_class(user=user, data=request.data, context=context)
+        serializer = self.write_serializer_class(data=request.data, context=context)
 
         if serializer.is_valid():
             output = serializer.save()
@@ -1488,7 +1486,7 @@ class ResthookEndpoint(ListAPIMixin, BaseAPIView):
     permission = 'api.resthook_api'
     model = Resthook
     serializer_class = ResthookReadSerializer
-    pagination_class = CreatedOnCursorPagination
+    pagination_class = ModifiedOnCursorPagination
     throttle_scope = 'v2.api'
 
     def filter_queryset(self, queryset):
@@ -1593,9 +1591,9 @@ class ResthookSubscriberEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, B
     pagination_class = CreatedOnCursorPagination
     throttle_scope = 'v2.api'
 
-    def filter_queryset(self, queryset):
+    def get_queryset(self):
         org = self.request.user.get_org()
-        return ResthookSubscriber.objects.filter(org=org, is_active=True).order_by('-created_on')
+        return ResthookSubscriber.objects.filter(resthook__org=org, is_active=True).order_by('-created_on')
 
     @classmethod
     def get_read_explorer(cls):
@@ -1640,11 +1638,11 @@ class ResthookSubscriberEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, B
         if not subscriber_id:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        subscriber = ResthookSubscriber.objects.filter(id=subscriber_id, org=request.user.get_org()).first()
+        subscriber = ResthookSubscriber.objects.filter(resthook__org=request.user.get_org(), id=subscriber_id).first()
         if not subscriber:
-            return Response(status=status.HTTP_404_BAD_REQUEST)
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
-        subscriber.release()
+        subscriber.release(request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

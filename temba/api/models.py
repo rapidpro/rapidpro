@@ -127,7 +127,8 @@ class Resthook(SmartModel):
     def add_subscriber(self, url, user):
         subscriber = self.subscribers.create(target_url=url, created_by=user, modified_by=user)
         self.modified_on = timezone.now()
-        self.save(update_fields=['modified_on'])
+        self.modified_by = user
+        self.save(update_fields=['modified_on', 'modified_by'])
         return subscriber
 
     def release(self, user):
@@ -168,7 +169,7 @@ class ResthookSubscriber(SmartModel):
         # update our parent as well
         self.resthook.modified_on = self.modified_on
         self.resthook.modified_by = user
-        self.resthook.save(updated_fields=['modified_on', 'modified_by'])
+        self.resthook.save(update_fields=['modified_on', 'modified_by'])
 
 
 class WebHookEvent(SmartModel):

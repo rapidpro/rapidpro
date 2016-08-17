@@ -8,7 +8,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
 from temba.contacts.models import Contact, ContactField, ContactGroup, URN
 
-from temba.flows.models import Flow, FlowRun, FlowStart, FlowStep, RuleSet
+from temba.flows.models import Flow, FlowRun, FlowStart, FlowStep
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
@@ -41,9 +41,6 @@ class WriteSerializer(serializers.Serializer):
     """
 
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user')
-        self.org = kwargs.pop('org') if 'org' in kwargs else self.user.get_org()
-
         super(WriteSerializer, self).__init__(*args, **kwargs)
         self.instance = None
 
@@ -431,17 +428,18 @@ class ResthookReadSerializer(ReadSerializer):
         return obj.slug
 
     class Meta:
-        model = RuleSet
+        model = Resthook
         fields = ('resthook', 'modified_on', 'created_on')
 
 
-class ResthookSubscriberReadSerializer(WriteSerializer):
+class ResthookSubscriberReadSerializer(ReadSerializer):
     resthook = serializers.SlugField()
 
-    def get_resthook(self, slug):
-        return Resthook.objects.filter(is_active=True, org=self.org, slug=slug).first()
+    def get_resthook(self, obj):
+        return obj.resthook.slug
 
     class Meta:
+        model = ResthookSubscriber
         fields = ('id', 'resthook', 'target_url', 'created_on')
 
 
@@ -450,7 +448,7 @@ class ResthookSubscriberWriteSerializer(WriteSerializer):
     target_url = serializers.URLField()
 
     def get_resthook(self, slug):
-        return Resthook.objects.filter(is_active=True, org=self.org, slug=slug).first()
+        return Resthook.objects.filter(is_active=True, org=self.context['org'], slug=slug).first()
 
     def validate_resthook(self, value):
         if value:
@@ -464,7 +462,7 @@ class ResthookSubscriberWriteSerializer(WriteSerializer):
         target_url = data.get('target_url')
 
         # make sure this combination doesn't already exist
-        if ResthookSubscriber.objects.filter(is_active=True, resthook=resthook, target_url=target_url):
+        if ResthookSubscriber.objects.filter(resthook=resthook, target_url=target_url, is_active=True):
             raise serializers.ValidationError("URL is already subscribed to this event.")
 
         return data
@@ -472,9 +470,10 @@ class ResthookSubscriberWriteSerializer(WriteSerializer):
     def save(self):
         resthook = self.get_resthook(self.validated_data['resthook'])
         target_url = self.validated_data['target_url']
-        return resthook.add_subscriber(target_url, self.user)
+        return resthook.add_subscriber(target_url, self.context['user'])
 
     class Meta:
+        model = ResthookSubscriber
         fields = ('resthook', 'target_url')
 
 
