@@ -3290,10 +3290,10 @@ class WebhookTest(TembaTest):
         # clear out our messages
         Msg.all_messages.filter(contact=self.contact).delete()
 
-        # startover have our first webhook fail, check that routing still works with failure
+        # start over, have our first webhook fail, check that routing still works with failure
         with patch('requests.post') as mock_post:
-            mock_post.return_value = [MockResponse(200, '{ "code": "ABABUUDDLRS" }'), MockResponse(400, "Failure"),
-                                      MockResponse(410, '{ "code": "ABABUUDDLRS" }'), MockResponse(400, "Failure")]
+            mock_post.side_effect = [MockResponse(200, '{ "code": "ABABUUDDLRS" }'), MockResponse(400, "Failure"),
+                                     MockResponse(410, 'Unsubscribe'), MockResponse(400, "Failure")]
 
             webhook_flow.start([], [self.contact], restart_participants=True)
 
@@ -3303,8 +3303,15 @@ class WebhookTest(TembaTest):
             self.assertEqual(mock_post.call_args_list[2][0][0], 'https://foo.bar/')
             self.assertEqual(mock_post.call_args_list[3][0][0], 'https://bar.foo/')
 
+            # first should be a success because we had at least one success
             self.assertEqual("That was a success.", Msg.all_messages.filter(contact=self.contact).last().text)
+
+            # second, both failed so should be a failure
             self.assertEqual("The second failed.", Msg.all_messages.filter(contact=self.contact).first().text)
+
+            # we should also have unsubscribed from one of our endpoints
+            self.assertTrue(resthook.subscribers.filter(is_active=False, target_url='https://foo.bar/'))
+            self.assertTrue(resthook.subscribers.filter(is_active=True, target_url='https://bar.foo/'))
 
 
 class SimulationTest(FlowFileTest):

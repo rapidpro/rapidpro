@@ -3125,7 +3125,7 @@ class RuleSet(models.Model):
                 action = 'POST'
 
             # by default we are a failure (there are no resthooks for example)
-            status_code = 418
+            status_code = None
             body = ""
 
             for url in urls:
@@ -3137,14 +3137,23 @@ class RuleSet(models.Model):
                 result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
                                                          run.contact, msg, action, resthook=resthook)
 
+                # we haven't recorded any status yet, do so
+                if not status_code:
+                    status_code = result.status_code
+                    body = result.body
+
                 # our subscriber is no longer interested, remove this URL as a subscriber
                 if result.status_code == 410:
                     resthook.remove_subscriber(url)
 
-                # our overall status will be successful if any of our statuses are successful
-                if 200 <= result.status_code < 300 and not (200 <= status_code < 300):
+                # if this is a success and we haven't ever succeeded, set our code and body
+                elif 200 <= result.status_code < 300 and not (200 <= status_code < 300):
                     status_code = result.status_code
                     body = result.body
+
+            # default to a status code of 418 if we made no calls
+            if not status_code:
+                status_code = 418
 
             # find our matching rule, we pass in the status from our calls
             for rule in self.get_rules():
