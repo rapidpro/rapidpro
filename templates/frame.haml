@@ -152,25 +152,19 @@
 
   -if user_org
     .org-header
+      .pull-right.toggle
+        .icon-menu-2
+
       .org
-        %a{href:'javascript:void(0);'}
-          {{ user_org.name }}
+        {{ user_org.name|truncatechars:30 }}
 
       .other-orgs.hide
-
-        .account-details
-          .org
-            %a{href:'{% url "orgs.org_home" %}'}
-              .icon-home
-              Account Details
 
         -for org in user.get_user_orgs
           -if org != user_org
             .org
               %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                 {{ org.name }}
-
-
 
 
   -block post-header
@@ -290,20 +284,19 @@
 
         $(".btn").tooltip();
 
-        {% if request.user.get_user_orgs.count > 1 %}
-          $('.org-header > .org > a').on('click', function() {
-            var header = $('.org-header');
-            if (header.hasClass('expanded')) {
-              header.removeClass('expanded');
-            } else {
-              header.addClass('expanded');
-            }
-          });
-        {% else %}
-          $('.org-header > .org > a').on('click', function() {
-            document.location.href = '{% url "orgs.org_home" %}';
-          });
-        {% endif %}
+        $('.org-header > .toggle').live('click', function(evt) {
+          evt.stopPropagation();
+          var header = $('.org-header');
+          if (header.hasClass('expanded')) {
+            header.removeClass('expanded');
+          } else {
+            header.addClass('expanded');
+          }
+        });
+
+        $('.org-header').live('click', function() {
+          window.location = '{% url "orgs.org_home" %}';
+        });
 
         $('#top-menu li').hoverIntent({
           over:function() {

@@ -16,6 +16,7 @@ from django.db.models import Prefetch
 from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
+from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
@@ -1787,6 +1788,10 @@ class FlowTest(TembaTest):
 
         # test getting the json
         response = self.client.get(reverse('flows.flow_json', args=[flow.pk]))
+        self.assertTrue('channels' in json.loads(response.content))
+        self.assertTrue('languages' in json.loads(response.content))
+        self.assertTrue('channel_countries' in json.loads(response.content))
+
         json_dict = json.loads(response.content)['flow']
 
         # test setting the json
@@ -4578,6 +4583,127 @@ class FlowsTest(FlowFileTest):
         simulate_url = "%s?lang=kli" % reverse('flows.flow_simulate', args=[favorites.pk])
         response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
         self.assertEquals('Bleck', response['messages'][1]['text'])
+
+    def test_airtime_flow(self):
+        flow = self.get_flow('airtime')
+
+        contact_urn = self.contact.get_urn(TEL_SCHEME)
+
+        airtime_event = AirtimeTransfer.objects.create(org=self.org, status=AirtimeTransfer.SUCCESS, amount=10, contact=self.contact,
+                                                       recipient=contact_urn.path, created_by=self.admin, modified_by=self.admin)
+
+        with patch('temba.flows.models.AirtimeTransfer.trigger_airtime_event') as mock_trigger_event:
+            mock_trigger_event.return_value = airtime_event
+
+            runs = flow.start_msg_flow([self.contact.id])
+            self.assertEquals(1, len(runs))
+            self.assertEquals(1, self.contact.msgs.all().count())
+            self.assertEquals('Message complete', self.contact.msgs.all()[0].text)
+
+            airtime_event.status = AirtimeTransfer.FAILED
+            airtime_event.save()
+
+            mock_trigger_event.return_value = airtime_event
+
+            runs = flow.start_msg_flow([self.contact.id])
+            self.assertEquals(1, len(runs))
+            self.assertEquals(2, self.contact.msgs.all().count())
+            self.assertEquals('Message failed', self.contact.msgs.all()[0].text)
+
+    @patch('temba.airtime.models.AirtimeTransfer.post_transferto_api_response')
+    def test_airtime_trigger_event(self, mock_post_transferto):
+        mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                              "product_list=5,10,20,30\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        self.org.connect_transferto('mylogin', 'api_token', self.admin)
+
+        flow = self.get_flow('airtime')
+        runs = flow.start_msg_flow([self.contact.id])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(1, self.contact.msgs.all().count())
+        self.assertEquals('Message complete', self.contact.msgs.all()[0].text)
+
+        self.assertEquals(1, AirtimeTransfer.objects.all().count())
+        airtime = AirtimeTransfer.objects.all().first()
+        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
+        self.assertEqual(airtime.contact, self.contact)
+        self.assertEqual(airtime.message, "Airtime Transferred Successfully")
+        self.assertEqual(mock_post_transferto.call_count, 3)
+        mock_post_transferto.reset_mock()
+
+        mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=Rwanda\r\n"
+                                                              "product_list=5,10,20,30\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        runs = flow.start_msg_flow([self.contact.id])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(2, self.contact.msgs.all().count())
+        self.assertEquals('Message failed', self.contact.msgs.all()[0].text)
+
+        self.assertEquals(2, AirtimeTransfer.objects.all().count())
+        airtime = AirtimeTransfer.objects.all().last()
+        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
+        self.assertEqual(airtime.message, "Error transferring airtime: Failed by invalid amount "
+                                          "configuration or missing amount configuration for Rwanda")
+
+        self.assertEqual(mock_post_transferto.call_count, 1)
+        mock_post_transferto.reset_mock()
+
+        mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                              "product_list=5,10,20,30\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        test_contact = Contact.get_test_contact(self.admin)
+
+        runs = flow.start_msg_flow([test_contact.id])
+        self.assertEquals(1, len(runs))
+
+        # no saved airtime event in DB
+        self.assertEquals(2, AirtimeTransfer.objects.all().count())
+        self.assertEqual(mock_post_transferto.call_count, 0)
+
+        contact2 = self.create_contact(name='Bismack Biyombo', number='+250788123123', twitter='biyombo')
+        self.assertEqual(contact2.get_urn().path, 'biyombo')
+
+        runs = flow.start_msg_flow([contact2.id])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(1, contact2.msgs.all().count())
+        self.assertEquals('Message complete', contact2.msgs.all()[0].text)
+
+        self.assertEquals(3, AirtimeTransfer.objects.all().count())
+        airtime = AirtimeTransfer.objects.all().last()
+        self.assertEqual(airtime.status, AirtimeTransfer.SUCCESS)
+        self.assertEqual(airtime.recipient, '+250788123123')
+        self.assertNotEqual(airtime.recipient, 'biyombo')
+        self.assertEqual(mock_post_transferto.call_count, 3)
+        mock_post_transferto.reset_mock()
+
+        self.org.remove_transferto_account(self.admin)
+
+        mock_post_transferto.side_effect = [MockResponse(200, "error_code=0\r\nerror_txt=\r\ncountry=United States\r\n"
+                                                              "product_list=5,10,20,30\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\nreserved_id=234\r\n"),
+                                            MockResponse(200, "error_code=0\r\nerror_txt=\r\n")]
+
+        runs = flow.start_msg_flow([self.contact.id])
+        self.assertEquals(1, len(runs))
+        self.assertEquals(3, self.contact.msgs.all().count())
+        self.assertEquals('Message failed', self.contact.msgs.all()[0].text)
+
+        self.assertEquals(4, AirtimeTransfer.objects.all().count())
+        airtime = AirtimeTransfer.objects.all().last()
+        self.assertEqual(airtime.status, AirtimeTransfer.FAILED)
+        self.assertEqual(airtime.contact, self.contact)
+        self.assertEqual(airtime.message, "Error transferring airtime: No transferTo Account connected to "
+                                          "this organization")
+
+        # we never call TransferTo API if no accoutnis connected
+        self.assertEqual(mock_post_transferto.call_count, 0)
+        mock_post_transferto.reset_mock()
 
 
 class FlowMigrationTest(FlowFileTest):
