@@ -86,8 +86,12 @@ describe 'Services:', ->
 
       expect(flowService.isRuleAllowed('webhook', 'webhook_status')).toBe(true)
       expect(flowService.isRuleAllowed('webhook', 'timeout')).toBe(false)
-      expect(flowService.isRuleAllowed('webhook', 'timeout')).toBe(false)
       expect(flowService.isRuleAllowed('webhook', 'contains_any')).toBe(false)
+
+      expect(flowService.isRuleAllowed('resthook', 'webhook_status')).toBe(true)
+      expect(flowService.isRuleAllowed('resthook', 'contains_any')).toBe(false)
+      expect(flowService.isRuleAllowed('resthook', 'timeout')).toBe(false)
+      expect(flowService.isRuleAllowed('resthook', 'subflow')).toBe(false)
 
       expect(flowService.isRuleAllowed('airtime', 'airtime_status')).toBe(true)
       expect(flowService.isRuleAllowed('airtime', 'contains_any')).toBe(false)

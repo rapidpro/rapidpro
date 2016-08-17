@@ -1366,16 +1366,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           airtimeConfig[elt.code] = elt
         ruleset.config = airtimeConfig
 
-      else if rulesetConfig.type == 'webhook'
-        ruleset.config = {'webhook': splitEditor.url, 'webhook_action': splitEditor.action}
-
       else if rulesetConfig.type == 'resthook'
         ruleset.config = {'resthook': splitEditor.resthook.selected[0]['id']}
 
       else if rulesetConfig.type == 'webhook'
         ruleset.config =
-          webhook: formData.webhook_url
-          webhook_action: formData.webhook_method
+          webhook: formData.webhook
+          webhook_action: formData.webhook_action
 
       # update our operand if they selected a contact field explicitly
       else if rulesetConfig.type == 'contact_field'
