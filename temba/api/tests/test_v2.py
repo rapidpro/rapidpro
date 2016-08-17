@@ -1345,3 +1345,71 @@ class APITest(TembaTest):
                          values=dict(name="Greg"),
                          steps=dict(uuid='abcde'))
         })
+
+    def test_flow_starts(self):
+        url = reverse('api.v2.flow_starts')
+        self.assertEndpointAccess(url)
+
+        flow = self.get_flow('favorites')
+
+        # start the flow
+        hans_group = self.create_group("hans", contacts=[self.hans])
+        response = self.postJSON(url, dict(urns=['tel:+12067791212'],
+                                           contacts=[self.joe.uuid],
+                                           groups=[hans_group.uuid],
+                                           flow=flow.uuid,
+                                           restart_participants=True))
+        self.assertEqual(response.status_code, 201)
+
+        # assert our new start
+        start = flow.starts.all().first()
+        self.assertEqual(start.flow, flow)
+        self.assertTrue(start.contacts.filter(urns__path='+12067791212'))
+        self.assertTrue(start.contacts.filter(id=self.joe.id))
+        self.assertTrue(start.groups.filter(id=hans_group.id))
+        self.assertTrue(start.restart_participants)
+
+        # error cases:
+
+        # nobody to send to
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid URN
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['foo:bar'], contacts=[self.joe.uuid]))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid contact uuid
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], contacts=['abcde']))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid group uuid
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], groups=['abcde']))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid flow uuid
+        response = self.postJSON(url, dict(flow='abcde', restart_participants=True, urns=['tel:+12067791212']))
+        self.assertEqual(response.status_code, 400)
+
+        # check our list
+        anon_contact = Contact.objects.get(urns__path="+12067791212")
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], {
+            'contacts': [{'name': 'Joe Blow',
+                          'uuid': self.joe.uuid},
+                         {'name': None,
+                          'uuid': anon_contact.uuid}],
+            'created_on': format_datetime(start.created_on),
+            'flow': {'name': 'Favorites',
+                     'uuid': flow.uuid},
+            'groups': [{'name': 'hans',
+                        'uuid': hans_group.uuid}],
+            'id': start.id,
+            'modified_on': format_datetime(start.modified_on),
+            'restart_participants': True,
+            'status': 'complete'
+        })
