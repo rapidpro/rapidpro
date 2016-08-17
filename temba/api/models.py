@@ -131,6 +131,13 @@ class Resthook(SmartModel):
         self.save(update_fields=['modified_on', 'modified_by'])
         return subscriber
 
+    def remove_subscriber(self, url, user):
+        now = timezone.now()
+        self.subscribers.filter(target_url=url, is_active=True).update(is_active=False, modified_on=now, modified_by=user)
+        self.modified_on = now
+        self.modified_by = user
+        self.save(update_fields=['modified_on', 'modified_by'])
+
     def release(self, user):
         # release any active subscribers
         for s in self.subscribers.filter(is_active=True):
