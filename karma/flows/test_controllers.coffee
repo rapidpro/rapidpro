@@ -227,6 +227,23 @@ describe 'Controllers:', ->
       expect(lastRule['test']['type']).toBe('timeout')
       expect(lastRule['test']['minutes']).toBe(10)
 
+    it 'should save resthook rulesets', ->
+
+      loadFavoritesFlow()
+
+      ruleset = flowService.flow.rule_sets[0]
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'resthook'
+        scope.splitEditor =
+          resthook:
+            selected: [{id:'resthook-name'}]
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.ruleset_type).toBe('resthook')
+      expect(ruleset.rules.length).toBe(2)
+      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"webhook_status","status":"success"}')
+      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"webhook_status","status":"failure"}')
+
     it 'should save webhook rulesets', ->
 
       loadFavoritesFlow()
@@ -234,8 +251,8 @@ describe 'Controllers:', ->
       ruleset = flowService.flow.rule_sets[0]
       editRules ruleset, (scope) ->
         scope.ruleset.ruleset_type = 'webhook'
-        scope.formData.webhook_url = 'http://www.nyaruka.com'
-        scope.formData.webhook_method = 'POST'
+        scope.formData.webhook = 'http://www.nyaruka.com'
+        scope.formData.webhook_action = 'POST'
 
       ruleset = flowService.flow.rule_sets[0]
       expect(ruleset.ruleset_type).toBe('webhook')
@@ -244,8 +261,8 @@ describe 'Controllers:', ->
       expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"webhook_status","status":"failure"}')
 
       # our config should have a url
-      expect(ruleset.config.url).toBe('http://www.nyaruka.com')
-      expect(ruleset.config.method).toBe('POST')
+      expect(ruleset.config.webhook).toBe('http://www.nyaruka.com')
+      expect(ruleset.config.webhook_action).toBe('POST')
 
       # do it again, make sure we have the right number of rules
       editRules ruleset, (scope) ->
