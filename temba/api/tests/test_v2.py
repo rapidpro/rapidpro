@@ -15,9 +15,8 @@ from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow, FlowRun, FlowLabel
 from temba.msgs.models import Broadcast, Label, Msg
-from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from ..models import APIToken
@@ -709,6 +708,56 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'key=nick_name')
         self.assertEqual(response.json['results'], [{'key': 'nick_name', 'label': "Nick Name", 'value_type': "text"}])
 
+    def test_flows(self):
+        url = reverse('api.v2.flows')
+
+        self.assertEndpointAccess(url)
+
+        registration = self.create_flow(name="Registration", uuid_start=0)
+        survey = self.create_flow(name="Survey", uuid_start=1000)
+
+        # add a flow label
+        reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
+        survey.labels.add(reporting)
+
+        # run joe through through a flow
+        survey.start([], [self.joe])
+        self.create_msg(direction='I', contact=self.joe, text="it is blue").handle()
+
+        # flow belong to other org
+        self.create_flow(org=self.org2, name="Other", uuid_start=2000)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 8):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(response.json['results'], [
+            {
+                'uuid': survey.uuid,
+                'name': "Survey",
+                'archived': False,
+                'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
+                'expires': 720,
+                'runs': {'completed': 1, 'interrupted': 0, 'expired': 0},
+                'created_on': format_datetime(survey.created_on)
+            },
+            {
+                'uuid': registration.uuid,
+                'name': "Registration",
+                'archived': False,
+                'labels': [],
+                'expires': 720,
+                'runs': {'completed': 0, 'interrupted': 0, 'expired': 0},
+                'created_on': format_datetime(registration.created_on)
+            }
+        ])
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % survey.uuid)
+        self.assertResultsByUUID(response, [survey])
+
     def test_groups(self):
         url = reverse('api.v2.groups')
 
@@ -928,10 +977,7 @@ class APITest(TembaTest):
             'anon': False
         })
 
-        eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
-        self.org.primary_language = eng
-        self.org.save()
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
 
         response = self.fetchJSON(url)
         self.assertEqual(response.json, {
@@ -977,8 +1023,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # allow Frank to run the flow in French
-        Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
         self.frank.language = 'fre'
         self.frank.save()
 
@@ -1007,6 +1052,7 @@ class APITest(TembaTest):
         joe_run1.refresh_from_db()
         joe_run2.refresh_from_db()
         frank_run1.refresh_from_db()
+        frank_run2.refresh_from_db()
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
@@ -1125,7 +1171,7 @@ class APITest(TembaTest):
         Broadcast.objects.all().update(purged=True)
         Msg.all_messages.filter(direction='O').delete()
 
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 8):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.json['results'][2]['steps'][0]['messages'], [

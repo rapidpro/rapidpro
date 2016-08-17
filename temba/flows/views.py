@@ -883,6 +883,9 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm('flows.flow_update') and not self.request.user.is_superuser:
                 context['mutable'] = True
 
+            org = self.request.user.get_org()
+            context['has_airtime_service'] = bool(org.is_connected_to_transferto())
+
             return context
 
         def get_template_names(self):
@@ -1316,9 +1319,17 @@ class FlowCRUDL(SmartCRUDL):
             # all the translation languages for our org
             languages = [lang.as_json() for lang in flow.org.languages.all().order_by('orgs')]
 
+            # all countries we have a channel for, never fail here
+            try:
+                channel_countries = flow.org.get_channel_countries()
+            except Exception:
+                logger.error('Unable to get currency for channel countries.', exc_info=True)
+                channel_countries = []
+
             # all the channels available for our org
             channels = [dict(uuid=chan.uuid, name=u"%s: %s" % (chan.get_channel_type_display(), chan.get_address_display())) for chan in flow.org.channels.filter(is_active=True)]
-            return build_json_response(dict(flow=flow.as_json(expand_contacts=True), languages=languages, channels=channels))
+            return build_json_response(dict(flow=flow.as_json(expand_contacts=True), languages=languages,
+                                            channel_countries=channel_countries, channels=channels))
 
         def post(self, request, *args, **kwargs):
 

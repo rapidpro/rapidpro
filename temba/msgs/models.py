@@ -44,6 +44,7 @@ HANDLER_QUEUE = 'handler'
 HANDLE_EVENT_TASK = 'handle_event_task'
 MSG_EVENT = 'msg'
 FIRE_EVENT = 'fire'
+TIMEOUT_EVENT = 'timeout'
 
 BATCH_SIZE = 500
 
@@ -1068,7 +1069,7 @@ class Msg(models.Model):
         Resends this message by creating a clone and triggering a send of that clone
         """
         now = timezone.now()
-        topup_id = self.org.decrement_credit()  # costs 1 credit to resend message
+        (topup_id, amount) = self.org.decrement_credit()  # costs 1 credit to resend message
 
         # see if we should use a new channel
         channel = self.org.get_send_channel(contact_urn=self.contact_urn)
@@ -1170,7 +1171,7 @@ class Msg(models.Model):
         if topup:
             topup_id = topup.pk
         elif not contact.is_test:
-            topup_id = org.decrement_credit()
+            (topup_id, amount) = org.decrement_credit()
 
         # we limit text messages to 640 characters
         if text:
@@ -1334,7 +1335,7 @@ class Msg(models.Model):
 
         # costs 1 credit to send a message
         if not topup_id and not contact.is_test:
-            topup_id = org.decrement_credit()
+            (topup_id, amount) = org.decrement_credit()
 
         if response_to:
             msg_type = response_to.msg_type

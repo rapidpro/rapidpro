@@ -3124,6 +3124,35 @@ class ContactTest(TembaTest):
         self.assertTrue(other_contact in response.context['object_list'])
         self.assertFalse("Simulator Contact" in response.content)
 
+    def test_preferred_channel(self):
+        from temba.msgs.tasks import process_message_task
+
+        # create some channels of various types
+        twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel", address="@rapidpro")
+        Channel.create(self.org, self.user, None, 'TG', name="Twitter Channel", address="@rapidpro")
+
+        # update our contact URNs, give them telegram and twitter with telegram being preferred
+        self.joe.update_urns(self.admin, ['telegram:12515', 'twitter:macklemore'])
+
+        # set the preferred channel to twitter
+        self.joe.set_preferred_channel(twitter)
+
+        # preferred URN should be twitter
+        self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
+
+        # reset back to telegram being preferred
+        self.joe.update_urns(self.admin, ['telegram:12515', 'twitter:macklemore'])
+
+        # simulate an incoming message from Mage on Twitter
+        msg = Msg.all_messages.create(org=self.org, channel=twitter, contact=self.joe,
+                                      contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
+                                      text="Incoming twitter DM", created_on=timezone.now())
+
+        process_message_task(msg.id, from_mage=True, new_contact=False)
+
+        # twitter should be preferred outgoing again
+        self.assertEqual(self.joe.urns.all()[0].scheme, TWITTER_SCHEME)
+
 
 class ContactURNTest(TembaTest):
     def setUp(self):

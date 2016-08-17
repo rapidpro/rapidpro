@@ -16,6 +16,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch, Mock
 from smartmin.tests import SmartminTest
+from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
@@ -78,6 +79,46 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug('foo'), 'foo')
         self.assertEqual(Org.get_unique_slug('Which part?'), 'which-part')
         self.assertEqual(Org.get_unique_slug('Allo'), 'allo-2')
+
+    def test_languages(self):
+        self.assertEqual(self.org.get_language_codes(), set())
+
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.refresh_from_db()
+
+        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
+        self.assertEqual(self.org.primary_language.name, "English")
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'fre'})
+
+        self.org.set_languages(self.admin, ['eng', 'kin'], 'kin')
+        self.org.refresh_from_db()
+
+        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "Kinyarwanda"})
+        self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'kin'})
+
+    def test_get_channel_countries(self):
+        self.assertEqual(self.org.get_channel_countries(), [])
+
+        self.org.connect_transferto('mylogin', 'api_token', self.admin)
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF')])
+
+        Channel.create(self.org, self.user, 'US', 'A', None, "+12001112222", gcm_id="asdf", secret="asdf")
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF'),
+                                                            dict(code='US', name='United States',
+                                                                 currency_name='US Dollar', currency_code='USD')])
+
+        Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
+                       address="billy_bob", role="SR", scheme='twitter')
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF'),
+                                                            dict(code='US', name='United States',
+                                                                 currency_name='US Dollar', currency_code='USD')])
 
     def test_edit(self):
         # use a manager now
@@ -351,6 +392,7 @@ class OrgTest(TembaTest):
         post_data['language'] = ''
         post_data['country'] = ''
         post_data['primary_language'] = ''
+        post_data['parent'] = ''
 
         # change to the trial plan
         response = self.client.post(update_url, post_data)
@@ -941,8 +983,11 @@ class OrgTest(TembaTest):
         self.assertIsNone(test_msg.topup_id)
         self.assertEquals(30, self.org.get_credits_used())
 
-        # test pro user status
-        self.assertFalse(self.org.is_pro())
+        # test special status
+        settings.MULTI_USER_THRESHOLD = 100000
+        settings.MULTI_ORG_THRESHOLD = 1000000
+        self.assertFalse(self.org.is_multi_user_level())
+        self.assertFalse(self.org.is_multi_org_level())
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
@@ -954,10 +999,11 @@ class OrgTest(TembaTest):
         self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=True).exclude(topup=None))
         self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
-        # now we're pro
-        self.assertTrue(self.org.is_pro())
+        # we aren't yet multi user since this topup was free
+        self.assertEquals(0, self.org.get_purchased_credits())
+        self.assertFalse(self.org.is_multi_user_level())
+
         self.assertEquals(100025, self.org.get_credits_total())
-        self.assertEquals(100025, self.org.get_purchased_credits())
         self.assertEquals(30, self.org.get_credits_used())
         self.assertEquals(99995, self.org.get_credits_remaining())
 
@@ -980,11 +1026,8 @@ class OrgTest(TembaTest):
         # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
-        # we're still pro though
-        self.assertTrue(self.org.is_pro())
-
-        with self.assertNumQueries(2):
-            self.assertEquals(100025, self.org.get_purchased_credits())
+        with self.assertNumQueries(3):
+            self.assertEquals(0, self.org.get_purchased_credits())
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
@@ -1069,6 +1112,18 @@ class OrgTest(TembaTest):
 
         with self.assertNumQueries(0):
             self.assertEquals(0, self.org.get_low_credits_threshold())
+
+        # now buy some credits to make us multi user
+        TopUp.create(self.admin, price=100, credits=100000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertTrue(self.org.is_multi_user_level())
+        self.assertFalse(self.org.is_multi_org_level())
+
+        # good deal!
+        TopUp.create(self.admin, price=100, credits=1000000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertTrue(self.org.is_multi_user_level())
+        self.assertTrue(self.org.is_multi_org_level())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -1166,6 +1221,114 @@ class OrgTest(TembaTest):
                     org.refresh_from_db()
                     self.assertFalse(org.is_connected_to_twilio())
 
+    def test_has_airtime_transfers(self):
+        AirtimeTransfer.objects.filter(org=self.org).delete()
+        self.assertFalse(self.org.has_airtime_transfers())
+        contact = self.create_contact('Bob', number='+250788123123')
+
+        AirtimeTransfer.objects.create(org=self.org, recipient='+250788123123', amount='100',
+                                       contact=contact, created_by=self.admin, modified_by=self.admin)
+
+        self.assertTrue(self.org.has_airtime_transfers())
+
+    def test_transferto_model_methods(self):
+        org = self.org
+
+        org.refresh_from_db()
+        self.assertFalse(org.is_connected_to_transferto())
+
+        org.connect_transferto('login', 'token', self.admin)
+
+        org.refresh_from_db()
+        self.assertTrue(org.is_connected_to_transferto())
+        self.assertEqual(org.modified_by, self.admin)
+
+        org.remove_transferto_account(self.admin)
+
+        org.refresh_from_db()
+        self.assertFalse(org.is_connected_to_transferto())
+        self.assertEqual(org.modified_by, self.admin)
+
+    def test_transferto_account(self):
+        self.login(self.admin)
+
+        # connect transferTo
+        transferto_account_url = reverse('orgs.org_transfer_to_account')
+
+        with patch('temba.airtime.models.AirtimeTransfer.post_transferto_api_response') as mock_post_transterto_request:
+            mock_post_transterto_request.return_value = MockResponse(200, 'Unexpected content')
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='false'))
+
+            self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_transferto())
+
+            mock_post_transterto_request.return_value = MockResponse(200, 'authentication_key=123\r\n'
+                                                                          'error_code=400\r\n'
+                                                                          'error_txt=Failed Authentication\r\n')
+
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='false'))
+
+            self.assertContains(response, "Connecting to your TransferTo account failed "
+                                          "with error text: Failed Authentication")
+
+            self.assertFalse(self.org.is_connected_to_transferto())
+
+            mock_post_transterto_request.return_value = MockResponse(200, 'info_txt=pong\r\n'
+                                                                          'authentication_key=123\r\n'
+                                                                          'error_code=0\r\n'
+                                                                          'error_txt=Transaction successful\r\n')
+
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='false'))
+            self.assertNoFormErrors(response)
+            # transferTo should be connected
+            self.org = Org.objects.get(pk=self.org.pk)
+            self.assertTrue(self.org.is_connected_to_transferto())
+            self.assertEqual(self.org.config_json()['TRANSFERTO_ACCOUNT_LOGIN'], 'login')
+            self.assertEqual(self.org.config_json()['TRANSFERTO_AIRTIME_API_TOKEN'], 'token')
+
+            response = self.client.get(transferto_account_url)
+            self.assertEqual(response.context['transferto_account_login'], 'login')
+
+            # and disconnect
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='true'))
+
+            self.assertNoFormErrors(response)
+            self.org = Org.objects.get(pk=self.org.pk)
+            self.assertFalse(self.org.is_connected_to_transferto())
+            self.assertFalse(self.org.config_json()['TRANSFERTO_ACCOUNT_LOGIN'])
+            self.assertFalse(self.org.config_json()['TRANSFERTO_AIRTIME_API_TOKEN'])
+
+            mock_post_transterto_request.side_effect = Exception('foo')
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='false'))
+            self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_transferto())
+
+        # No account connected, do not show the button to Transfer logs
+        response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
+        self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+        response = self.client.get(transferto_account_url)
+        self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+        self.org.connect_transferto('login', 'token', self.admin)
+
+        # links not show if request is not from formax
+        response = self.client.get(transferto_account_url)
+        self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+        # link show for formax requests
+        response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
+        self.assertContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
     def test_connect_nexmo(self):
         self.login(self.admin)
 
@@ -1194,7 +1357,7 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
         # and disconnect
-        self.org.remove_nexmo_account()
+        self.org.remove_nexmo_account(self.admin)
         self.assertFalse(self.org.is_connected_to_nexmo())
         self.assertFalse(self.org.config_json()['NEXMO_KEY'])
         self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
@@ -1212,7 +1375,7 @@ class OrgTest(TembaTest):
 
         self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_nexmo_connect'))
 
-        self.org.connect_nexmo('key', 'secret')
+        self.org.connect_nexmo('key', 'secret', self.admin)
 
         with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
             # try automatic nexmo settings update
@@ -1273,6 +1436,172 @@ class OrgTest(TembaTest):
 
         response = self.client.get('/org/download/flows/123/')
         self.assertRedirect(response, '/assets/download/results_export/123/')
+
+    def test_sub_orgs(self):
+
+        from temba.orgs.models import Debit
+        settings.MULTI_ORG_THRESHOLD = 1000000
+
+        # lets start with two topups
+        expires = timezone.now() + timedelta(days=400)
+        first_topup = TopUp.objects.filter(org=self.org).first()
+        second_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
+
+        sub_org = self.org.create_sub_org('Sub Org')
+
+        # we won't create sub orgs if the org isn't the proper level
+        self.assertIsNone(sub_org)
+
+        # upgrade our org and go again
+        self.org.multi_org = True
+        self.org.save()
+        sub_org = self.org.create_sub_org('Sub Org')
+
+        # suborgs can't create suborgs
+        self.assertIsNone(sub_org.create_sub_org('Grandchild Org'))
+
+        # we should be linked to our parent with the same brand
+        self.assertEqual(self.org, sub_org.parent)
+        self.assertEqual(self.org.brand, sub_org.brand)
+
+        # our sub account should have zero credits
+        self.assertEqual(0, sub_org.get_credits_remaining())
+
+        # default values should be the same as parent
+        self.assertEqual(self.org.timezone, sub_org.timezone)
+        self.assertEqual(self.org.created_by, sub_org.created_by)
+
+        # now allocate some credits to our sub org
+        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
+        self.assertEqual(700, sub_org.get_credits_remaining())
+        self.assertEqual(1300, self.org.get_credits_remaining())
+
+        # we should have a debit to track this transaction
+        debits = Debit.objects.filter(topup__org=self.org)
+        self.assertEqual(1, len(debits))
+
+        debit = debits.first()
+        self.assertEqual(700, debit.amount)
+        self.assertEqual(Debit.TYPE_ALLOCATION, debit.debit_type)
+        self.assertEqual(first_topup.expires_on, debit.beneficiary.expires_on)
+
+        # try allocating more than we have
+        self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
+        self.assertEqual(700, sub_org.get_credits_remaining())
+        self.assertEqual(1300, self.org.get_credits_remaining())
+        self.assertEqual(700, self.org._calculate_credits_used())
+
+        # now allocate across our remaining topups
+        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 1200))
+        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(1900, self.org.get_credits_used())
+        self.assertEqual(100, self.org.get_credits_remaining())
+
+        # now clear our cache, we ought to have proper amount still
+        self.org._calculate_credit_caches()
+        sub_org._calculate_credit_caches()
+
+        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(100, self.org.get_credits_remaining())
+
+        # this creates two more debits, for a total of three
+        debits = Debit.objects.filter(topup__org=self.org).order_by('id')
+        self.assertEqual(3, len(debits))
+
+        # the last two debits should expire at same time as topup they were funded by
+        self.assertEqual(first_topup.expires_on, debits[1].topup.expires_on)
+        self.assertEqual(second_topup.expires_on, debits[2].topup.expires_on)
+
+        # allocate the exact number of credits remaining
+        self.org.allocate_credits(self.admin, sub_org, 100)
+        self.assertEqual(2000, sub_org.get_credits_remaining())
+        self.assertEqual(0, self.org.get_credits_remaining())
+
+    def test_sub_org_ui(self):
+
+        self.login(self.admin)
+
+        settings.MULTI_ORG_THRESHOLD = 1000000
+
+        # set our org on the session
+        session = self.client.session
+        session['org_id'] = self.org.id
+        session.save()
+
+        response = self.client.get(reverse('orgs.org_home'))
+        self.assertNotContains(response, 'Manage Organizations')
+
+        # attempting to manage orgs should redirect
+        response = self.client.get(reverse('orgs.org_sub_orgs'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # creating a new sub org should also redirect
+        response = self.client.get(reverse('orgs.org_create_sub_org'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # make sure posting is gated too
+        new_org = dict(name='Sub Org', timezone=self.org.timezone, date_format=self.org.date_format)
+        response = self.client.post(reverse('orgs.org_create_sub_org'), new_org)
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # same thing with trying to transfer credits
+        response = self.client.get(reverse('orgs.org_transfer_credits'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # cant manage users either
+        response = self.client.get(reverse('orgs.org_manage_accounts_sub_org'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # support multi orgs and see our button shows up
+        self.org.multi_org = True
+        self.org.save()
+        response = self.client.get(reverse('orgs.org_home'))
+        self.assertContains(response, 'Manage Organizations')
+
+        # now we can manage our orgs
+        response = self.client.get(reverse('orgs.org_sub_orgs'))
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, 'Organizations')
+
+        # add a sub org
+        response = self.client.post(reverse('orgs.org_create_sub_org'), new_org)
+        self.assertRedirect(response, reverse('orgs.org_sub_orgs'))
+        sub_org = Org.objects.filter(name='Sub Org').first()
+        self.assertIsNotNone(sub_org)
+        self.assertIn(self.admin, sub_org.administrators.all())
+
+        # load the transfer credit page
+        response = self.client.get(reverse('orgs.org_transfer_credits'))
+        self.assertEqual(200, response.status_code)
+
+        # try to transfer more than we have
+        post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=1500)
+        response = self.client.post(reverse('orgs.org_transfer_credits'), post_data)
+        self.assertContains(response, "Pick a different organization to transfer from")
+
+        # now transfer some creditos
+        post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
+        response = self.client.post(reverse('orgs.org_transfer_credits'), post_data)
+
+        self.assertEqual(400, self.org.get_credits_remaining())
+        self.assertEqual(600, sub_org.get_credits_remaining())
+
+        # we can reach the manage accounts page too now
+        response = self.client.get('%s?org=%d' % (reverse('orgs.org_manage_accounts_sub_org'), sub_org.id))
+        self.assertEqual(200, response.status_code)
+
+        # edit our sub org's name
+        new_org['name'] = 'New Sub Org Name'
+        new_org['slug'] = 'new-sub-org-name'
+        response = self.client.post('%s?org=%s' % (reverse('orgs.org_edit_sub_org'), sub_org.pk), new_org)
+        self.assertIsNotNone(Org.objects.filter(name='New Sub Org Name').first())
+
+        # now we should see new topups on our sub org
+        session['org_id'] = sub_org.id
+        session.save()
+
+        response = self.client.get(reverse('orgs.topup_list'))
+        self.assertContains(response, '600 Credits')
 
 
 class AnonOrgTest(TembaTest):
@@ -1703,16 +2032,17 @@ class OrgCRUDLTest(TembaTest):
 
 class LanguageTest(TembaTest):
 
-    def test_setting_language(self):
+    def test_languages(self):
+        url = reverse('orgs.org_languages')
+
         self.login(self.admin)
 
         # update our org with some language settings
-        post_data = dict(primary_lang='fre', languages='hat,arc')
-        response = self.client.post(reverse('orgs.org_languages'), post_data)
-        self.assertEquals(302, response.status_code)
+        response = self.client.post(url, dict(primary_lang='fre', languages='hat,arc'))
+        self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
 
-        self.assertEquals('French', self.org.primary_language.name)
+        self.assertEqual(self.org.primary_language.name, 'French')
         self.assertIsNotNone(self.org.languages.filter(name='French'))
 
         # everything after the paren should be stripped for aramaic
@@ -1722,35 +2052,36 @@ class LanguageTest(TembaTest):
         self.assertIsNotNone(self.org.languages.filter(name='Haitian'))
 
         # check that the last load shows our new languages
-        response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEquals('Haitian and Official Aramaic', response.context['languages'])
+        response = self.client.get(url)
+        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic')
         self.assertContains(response, 'fre')
         self.assertContains(response, 'hat,arc')
 
         # three translation languages
-        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='fre', languages='hat,arc,spa'))
+        self.client.post(url, dict(primary_lang='fre', languages='hat,arc,spa'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEquals('Haitian, Official Aramaic and Spanish', response.context['languages'])
+        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic and Spanish')
 
         # one translation language
-        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='fre', languages='hat'))
+        self.client.post(url, dict(primary_lang='fre', languages='hat'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEquals('Haitian', response.context['languages'])
+        self.assertEqual(response.context['languages'], 'Haitian')
 
-        # remove our primary language
-        self.client.post(reverse('orgs.org_languages'), dict())
+        # remove all languages
+        self.client.post(url, dict())
         self.org.refresh_from_db()
         self.assertIsNone(self.org.primary_language)
+        self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get('%s?search=fre' % reverse('orgs.org_languages'))
+        response = self.client.get('%s?search=fre' % url)
         results = json.loads(response.content)['results']
-        self.assertEquals(4, len(results))
+        self.assertEqual(len(results), 4)
 
         # initial should do a match on code only
-        response = self.client.get('%s?initial=fre' % reverse('orgs.org_languages'))
+        response = self.client.get('%s?initial=fre' % url)
         results = json.loads(response.content)['results']
-        self.assertEquals(1, len(results))
+        self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
         self.assertEquals('French', languages.get_language_name('fre'))
