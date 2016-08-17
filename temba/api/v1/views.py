@@ -2065,14 +2065,19 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
                                        contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
-        steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
-
         rulesets_prefetch = Prefetch('flow__rule_sets',
                                      queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
                                      to_attr='ruleset_prefetch')
 
         # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
-        queryset = queryset.prefetch_related('flow', rulesets_prefetch, steps_prefetch, 'steps__messages', 'contact')
+        queryset = queryset.prefetch_related(
+            'flow',
+            'contact',
+            rulesets_prefetch,
+            Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
+            Prefetch('steps__messages', queryset=Msg.all_messages.only('broadcast', 'text').order_by('created_on')),
+            Prefetch('steps__broadcasts', queryset=Broadcast.objects.only('text').order_by('created_on')),
+        )
 
         return queryset.order_by('-modified_on')
 
