@@ -84,11 +84,11 @@ class ChannelTest(TembaTest):
         broadcast = Broadcast.create(org, user, message, [group])
         broadcast.send()
 
-        sms = Msg.all_messages.filter(broadcast=broadcast).order_by('text', 'pk')
+        msg = Msg.all_messages.filter(broadcast=broadcast).order_by('text', 'pk')
         if len(numbers) == 1:
-            return sms.first()
+            return msg.first()
         else:
-            return list(sms)
+            return list(msg)
 
     def assertHasCommand(self, cmd_name, response):
         self.assertEquals(200, response.status_code)
@@ -188,25 +188,25 @@ class ChannelTest(TembaTest):
         tigo = Channel.create(self.org, self.user, 'RW', 'A', "Tigo", "+250725551212", secret="11111", gcm_id="456")
 
         # new contact on MTN should send with the MTN channel
-        sms = self.send_message(['+250788382382'], "Sent to an MTN number")
-        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=sms.contact_urn))
-        self.assertEquals(mtn, sms.channel)
+        msg = self.send_message(['+250788382382'], "Sent to an MTN number")
+        self.assertEquals(mtn, self.org.get_send_channel(contact_urn=msg.contact_urn))
+        self.assertEquals(mtn, msg.channel)
 
         # new contact on Tigo should send with the Tigo channel
-        sms = self.send_message(['+250728382382'], "Sent to a Tigo number")
-        self.assertEquals(tigo, self.org.get_send_channel(contact_urn=sms.contact_urn))
-        self.assertEquals(tigo, sms.channel)
+        msg = self.send_message(['+250728382382'], "Sent to a Tigo number")
+        self.assertEquals(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
+        self.assertEquals(tigo, msg.channel)
 
         # now our MTN contact texts, the tigo number which should change their affinity
-        sms = Msg.create_incoming(tigo, "tel:+250788382382", "Send an inbound message to Tigo")
-        self.assertEquals(tigo, sms.channel)
-        self.assertEquals(tigo, self.org.get_send_channel(contact_urn=sms.contact_urn))
+        msg = Msg.create_incoming(tigo, "tel:+250788382382", "Send an inbound message to Tigo")
+        self.assertEquals(tigo, msg.channel)
+        self.assertEquals(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
         self.assertEquals(tigo, ContactURN.objects.get(path='+250788382382').channel)
 
         # new contact on Airtel (some overlap) should send with the Tigo channel since it is newest
-        sms = self.send_message(['+250738382382'], "Sent to a Airtel number")
-        self.assertEquals(tigo, self.org.get_send_channel(contact_urn=sms.contact_urn))
-        self.assertEquals(tigo, sms.channel)
+        msg = self.send_message(['+250738382382'], "Sent to a Airtel number")
+        self.assertEquals(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
+        self.assertEquals(tigo, msg.channel)
 
         # add a voice caller
         caller = Channel.add_call_channel(self.org, self.user, self.tel_channel)
@@ -222,9 +222,9 @@ class ChannelTest(TembaTest):
         tigo.save()
 
         # should return the newest channel which is TIGO
-        sms = self.send_message(['+250788382382'], "Sent to an MTN number, but with shortcode channels")
-        self.assertEquals(tigo, sms.channel)
-        self.assertEquals(tigo, self.org.get_send_channel(contact_urn=sms.contact_urn))
+        msg = self.send_message(['+250788382382'], "Sent to an MTN number, but with shortcode channels")
+        self.assertEquals(tigo, msg.channel)
+        self.assertEquals(tigo, self.org.get_send_channel(contact_urn=msg.contact_urn))
 
         # check for twitter
         self.assertEquals(self.twitter_channel, self.org.get_send_channel(scheme=TWITTER_SCHEME))
@@ -2847,11 +2847,9 @@ class AfricasTalkingTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        sms = broadcast.get_messages()[0]
-
-        sms.external_id = "external1"
-        sms.save()
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg.external_id = "external1"
+        msg.save(update_fields=('external_id',))
 
         def assertStatus(sms, post_status, assert_status):
             post_data['status'] = post_status
@@ -2860,11 +2858,11 @@ class AfricasTalkingTest(TembaTest):
             sms = Msg.all_messages.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
 
-        assertStatus(sms, 'Success', DELIVERED)
-        assertStatus(sms, 'Sent', SENT)
-        assertStatus(sms, 'Buffered', SENT)
-        assertStatus(sms, 'Failed', FAILED)
-        assertStatus(sms, 'Rejected', FAILED)
+        assertStatus(msg, 'Success', DELIVERED)
+        assertStatus(msg, 'Sent', SENT)
+        assertStatus(msg, 'Buffered', SENT)
+        assertStatus(msg, 'Failed', FAILED)
+        assertStatus(msg, 'Rejected', FAILED)
 
     def test_callback(self):
         post_data = {'from': "0788123123", 'text': "Hello World"}
@@ -2875,19 +2873,16 @@ class AfricasTalkingTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+254788123123", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals("+254788123123", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World", msg.text)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -2896,10 +2891,10 @@ class AfricasTalkingTest(TembaTest):
                 mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1')]))))
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('msg1', msg.external_id)
@@ -2917,7 +2912,7 @@ class AfricasTalkingTest(TembaTest):
                 mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1')]))))
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # assert we didn't send the short code in our data
                 self.assertTrue('from' not in mock.call_args[1]['data'])
@@ -2927,10 +2922,10 @@ class AfricasTalkingTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -2963,11 +2958,9 @@ class ExternalTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        sms = broadcast.get_messages()[0]
-        sms.save()
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
 
-        data['id'] = sms.pk
+        data['id'] = msg.pk
 
         def assertStatus(sms, status, assert_status):
             response = self.client.post(reverse('handlers.external_handler', args=[status, self.channel.uuid]), data)
@@ -2975,15 +2968,15 @@ class ExternalTest(TembaTest):
             sms = Msg.all_messages.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
 
-        assertStatus(sms, 'delivered', DELIVERED)
-        assertStatus(sms, 'sent', SENT)
-        assertStatus(sms, 'failed', FAILED)
+        assertStatus(msg, 'delivered', DELIVERED)
+        assertStatus(msg, 'sent', SENT)
+        assertStatus(msg, 'failed', FAILED)
 
         # check when called with phone number rather than UUID
-        response = self.client.post(reverse('handlers.external_handler', args=['sent', '250788123123']), {'id': sms.pk})
+        response = self.client.post(reverse('handlers.external_handler', args=['sent', '250788123123']), {'id': msg.pk})
         self.assertEquals(200, response.status_code)
-        sms.refresh_from_db()
-        self.assertEqual(sms.status, SENT)
+        msg.refresh_from_db()
+        self.assertEqual(msg.status, SENT)
 
     def test_receive(self):
         data = {'from': '5511996458779', 'text': 'Hello World!'}
@@ -2993,12 +2986,12 @@ class ExternalTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+5511996458779", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World!", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals("+5511996458779", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World!", msg.text)
 
         data = {'from': "", 'text': "Hi there"}
         response = self.client.post(callback_url, data)
@@ -3015,9 +3008,9 @@ class ExternalTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message, make sure the date was saved properly
-        sms = Msg.all_messages.get()
-        self.assertEquals(2012, sms.created_on.year)
-        self.assertEquals(18, sms.created_on.hour)
+        msg = Msg.all_messages.get()
+        self.assertEquals(2012, msg.created_on.year)
+        self.assertEquals(18, msg.created_on.hour)
 
     def test_receive_external(self):
         self.channel.scheme = 'ext'
@@ -3039,8 +3032,7 @@ class ExternalTest(TembaTest):
 
     def test_send_replacement(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send&text={{text}}&to={{to_no_plus}}',
                                           SEND_METHOD: 'GET'})
@@ -3049,7 +3041,7 @@ class ExternalTest(TembaTest):
         with self.settings(SEND_MESSAGES=True):
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "Sent")
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send&text=Test+message&to=250788383383')
 
         self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send',
@@ -3060,11 +3052,11 @@ class ExternalTest(TembaTest):
         with self.settings(SEND_MESSAGES=True):
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, "Sent")
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
                 self.assertEqual(mock.call_args[1]['data'], 'id=%d&text=Test+message&to=%%2B250788383383&to_no_plus=250788383383&'
                                                             'from=%%2B250788123123&from_no_plus=250788123123&'
-                                                            'channel=%d' % (sms.id, self.channel.id))
+                                                            'channel=%d' % (msg.id, self.channel.id))
 
         self.channel.config = json.dumps({SEND_URL: 'http://foo.com/send',
                                           SEND_BODY: 'text={{text}}&to={{to_no_plus}}',
@@ -3075,7 +3067,7 @@ class ExternalTest(TembaTest):
         with self.settings(SEND_MESSAGES=True):
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, "Sent")
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
                 self.assertEqual(mock.call_args[1]['data'], 'text=Test+message&to=250788383383')
 
@@ -3089,16 +3081,13 @@ class ExternalTest(TembaTest):
         with self.settings(SEND_MESSAGES=True):
             with patch('requests.put') as mock:
                 mock.return_value = MockResponse(200, "Sent")
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                 self.assertEqual(mock.call_args[0][0], 'http://foo.com/send')
                 self.assertEqual(mock.call_args[1]['data'], 'text=Test+message&to=250788383383')
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -3107,10 +3096,10 @@ class ExternalTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3120,10 +3109,10 @@ class ExternalTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -3201,12 +3190,12 @@ class YoTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+252788123123", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals("+252788123123", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World", msg.text)
 
         # fails if missing sender
         response = self.client.get(callback_url + "?sender=252788123123")
@@ -3218,10 +3207,7 @@ class YoTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+252788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -3230,10 +3216,10 @@ class YoTest(TembaTest):
                 mock.return_value = MockResponse(200, "ybs_autocreate_status=OK")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3243,10 +3229,10 @@ class YoTest(TembaTest):
                 mock.side_effect = [MockResponse(401, "Error"), MockResponse(200, 'ybs_autocreate_status=OK')]
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3258,10 +3244,10 @@ class YoTest(TembaTest):
                 mock.return_value = MockResponse(400, "Kaboom")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -3274,12 +3260,12 @@ class YoTest(TembaTest):
                                                       "+due+to+wrong+authorization+code")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
                 # contact should not be stopped
@@ -3293,12 +3279,12 @@ class YoTest(TembaTest):
                                                  "256794224665%3ABLACKLISTED")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as a failure
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(FAILED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
                 # contact should also be stopped
@@ -3332,19 +3318,16 @@ class ShaqodoonTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+252788123456", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World!", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals("+252788123456", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World!", msg.text)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message ☺", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message ☺", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -3353,10 +3336,10 @@ class ShaqodoonTest(TembaTest):
                 mock.return_value = MockResponse(200, "Sent")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3366,10 +3349,10 @@ class ShaqodoonTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -3397,52 +3380,49 @@ class M3TechTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+252788123456", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World!", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals("+252788123456", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World!", msg.text)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message ☺", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message ☺", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
-                sms.text = "Test message"
+                msg.text = "Test message"
                 mock.return_value = MockResponse(200,
                                                  """[{"Response":"0"}]""")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 self.assertEqual(mock.call_args[1]['params']['SMSType'], '0')
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
 
             with patch('requests.get') as mock:
-                sms.text = "Test message ☺"
+                msg.text = "Test message ☺"
                 mock.return_value = MockResponse(200,
                                                  """[{"Response":"0"}]""")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 self.assertEqual(mock.call_args[1]['params']['SMSType'], '7')
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3452,10 +3432,10 @@ class M3TechTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -3467,12 +3447,12 @@ class M3TechTest(TembaTest):
                                                  """[{"Response":"1"}]""")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
                 self.clear_cache()
@@ -3503,11 +3483,9 @@ class KannelTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        sms = broadcast.get_messages()[0]
-        sms.save()
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
 
-        data['id'] = sms.pk
+        data['id'] = msg.pk
 
         def assertStatus(sms, status, assert_status):
             data['status'] = status
@@ -3516,9 +3494,9 @@ class KannelTest(TembaTest):
             sms = Msg.all_messages.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
 
-        assertStatus(sms, '4', SENT)
-        assertStatus(sms, '1', DELIVERED)
-        assertStatus(sms, '16', FAILED)
+        assertStatus(msg, '4', SENT)
+        assertStatus(msg, '1', DELIVERED)
+        assertStatus(msg, '16', FAILED)
 
     def test_receive(self):
         data = {
@@ -3533,19 +3511,16 @@ class KannelTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+250788383383", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World!", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals("+250788383383", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World!", msg.text)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -3554,10 +3529,10 @@ class KannelTest(TembaTest):
                 mock.return_value = MockResponse(200, 'Accepted 201')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3572,17 +3547,17 @@ class KannelTest(TembaTest):
                                                   send_url='http://foo/', verify_ssl=False))
             self.channel.save()
 
-            sms.text = "No capital accented È!"
-            sms.save()
+            msg.text = "No capital accented È!"
+            msg.save()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, 'Accepted 201')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3592,17 +3567,17 @@ class KannelTest(TembaTest):
                 self.assertFalse('coding' in mock.call_args[1]['params'])
                 self.clear_cache()
 
-            sms.text = "Unicode. ☺"
-            sms.save()
+            msg.text = "Unicode. ☺"
+            msg.save()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, 'Accepted 201')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3612,17 +3587,17 @@ class KannelTest(TembaTest):
 
                 self.clear_cache()
 
-            sms.text = "Normal"
-            sms.save()
+            msg.text = "Normal"
+            msg.save()
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, 'Accepted 201')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3641,10 +3616,10 @@ class KannelTest(TembaTest):
                 mock.return_value = MockResponse(200, 'Accepted 201')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -3662,13 +3637,13 @@ class KannelTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # assert verify was set to False
                 self.assertFalse(mock.call_args[1]['verify'])
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -3710,10 +3685,9 @@ class NexmoTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        sms = broadcast.get_messages()[0]
-        sms.external_id = 'external1'
-        sms.save()
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg.external_id = 'external1'
+        msg.save(update_fields=('external_id',))
 
         data['messageId'] = 'external1'
 
@@ -3724,11 +3698,11 @@ class NexmoTest(TembaTest):
             sms = Msg.all_messages.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
 
-        assertStatus(sms, 'delivered', DELIVERED)
-        assertStatus(sms, 'expired', FAILED)
-        assertStatus(sms, 'failed', FAILED)
-        assertStatus(sms, 'accepted', SENT)
-        assertStatus(sms, 'buffered', SENT)
+        assertStatus(msg, 'delivered', DELIVERED)
+        assertStatus(msg, 'expired', FAILED)
+        assertStatus(msg, 'failed', FAILED)
+        assertStatus(msg, 'accepted', SENT)
+        assertStatus(msg, 'buffered', SENT)
 
     def test_receive(self):
         data = dict(to='250788123123', msisdn='250788111222', text='Hello World!', messageId='external1')
@@ -3738,13 +3712,13 @@ class NexmoTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+250788111222", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World!", sms.text)
-        self.assertEquals('external1', sms.external_id)
+        msg = Msg.all_messages.get()
+        self.assertEquals("+250788111222", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World!", msg.text)
+        self.assertEquals('external1', msg.external_id)
 
     def test_send(self):
         from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
@@ -3757,10 +3731,7 @@ class NexmoTest(TembaTest):
         self.channel.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -3770,10 +3741,10 @@ class NexmoTest(TembaTest):
                 mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id': 12}])), method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('12', msg.external_id)
@@ -3783,10 +3754,10 @@ class NexmoTest(TembaTest):
                 # test some throttling by sending three messages right after another
                 start = time.time()
                 for i in range(3):
-                    Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                    Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
                     r.delete(timezone.now().strftime(MSG_SENT_KEY))
 
-                    msg = bcast.get_messages()[0]
+                    msg.refresh_from_db()
                     self.assertEquals(SENT, msg.status)
 
                 # assert we sent the messages out in a reasonable amount of time
@@ -3798,14 +3769,14 @@ class NexmoTest(TembaTest):
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, json.dumps(dict(messages=[{'status': 0, 'message-id': 12}])), method='POST')
 
-                sms.text = u"Unicode ☺"
-                sms.save()
+                msg.text = u"Unicode ☺"
+                msg.save()
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('12', msg.external_id)
@@ -3829,10 +3800,10 @@ class NexmoTest(TembaTest):
                 ChannelLog.objects.all().delete()
 
                 # then send it
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check status
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
 
                 # and that we have a decent log
@@ -3857,10 +3828,10 @@ class NexmoTest(TembaTest):
                 mock.side_effect = return_valid
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # should be sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(SENT, msg.status)
 
                 self.clear_cache()
@@ -3869,12 +3840,12 @@ class NexmoTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
@@ -3908,23 +3879,23 @@ class VumiTest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
 
-        sms = Msg.all_messages.get()
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello from Vumi", sms.text)
-        self.assertEquals('123456', sms.external_id)
+        msg = Msg.all_messages.get()
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello from Vumi", msg.text)
+        self.assertEquals('123456', msg.external_id)
 
     def test_delivery_reports(self):
 
-        sms = self.create_msg(direction='O', text='Outgoing message', contact=self.trey, status=WIRED,
+        msg = self.create_msg(direction='O', text='Outgoing message', contact=self.trey, status=WIRED,
                               external_id=unicode(uuid.uuid4()),)
 
         data = dict(event_type='delivery_report',
                     event_id=unicode(uuid.uuid4()),
                     message_type='event',
                     delivery_status='failed',
-                    user_message_id=sms.external_id)
+                    user_message_id=msg.external_id)
 
         callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
 
@@ -3953,18 +3924,15 @@ class VumiTest(TembaTest):
 
         # if we are wired we can now be successful again
         data['delivery_status'] = 'delivered'
-        Msg.all_messages.filter(pk=sms.pk).update(status=WIRED)
+        Msg.all_messages.filter(pk=msg.pk).update(status=WIRED)
         self.client.post(callback_url, json.dumps(data), content_type="application/json")
-        sms = Msg.all_messages.get(pk=sms.pk)
-        self.assertEquals(DELIVERED, sms.status)
+        msg.refresh_from_db()
+        self.assertEquals(DELIVERED, msg.status)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
         r = get_redis_connection()
 
         try:
@@ -3974,10 +3942,10 @@ class VumiTest(TembaTest):
                 mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals("1515", msg.external_id)
@@ -3987,7 +3955,7 @@ class VumiTest(TembaTest):
                 self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
 
                 # try sending again, our failsafe should kick in
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # we shouldn't have been called again
                 self.assertEquals(1, mock.call_count)
@@ -4002,7 +3970,7 @@ class VumiTest(TembaTest):
                 self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
                 # get the message again
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 # self.assertTrue(msg.next_attempt)
                 # self.assertFalse(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
@@ -4013,10 +3981,10 @@ class VumiTest(TembaTest):
                 mock.return_value = MockResponse(500, "Error")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as errored, we'll retry in a bit
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt > timezone.now())
@@ -4028,12 +3996,12 @@ class VumiTest(TembaTest):
                 mock.return_value = MockResponse(503, "<html><body><h1>503 Service Unavailable</h1>")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as errored, we'll retry in a bit
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt > timezone.now())
                 self.assertEquals(1, mock.call_count)
 
@@ -4052,12 +4020,12 @@ class VumiTest(TembaTest):
                 mock.return_value = MockResponse(400, "User has opted out")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as failed
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(FAILED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt < timezone.now())
                 self.assertEquals(1, mock.call_count)
 
@@ -4095,11 +4063,9 @@ class ZenviaTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        sms = broadcast.get_messages()[0]
-        sms.save()
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
 
-        data['id'] = sms.pk
+        data['id'] = msg.pk
 
         def assertStatus(sms, status, assert_status):
             data['status'] = status
@@ -4108,11 +4074,11 @@ class ZenviaTest(TembaTest):
             sms = Msg.all_messages.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
 
-        assertStatus(sms, '120', DELIVERED)
-        assertStatus(sms, '111', SENT)
-        assertStatus(sms, '140', FAILED)
-        assertStatus(sms, '999', FAILED)
-        assertStatus(sms, '131', FAILED)
+        assertStatus(msg, '120', DELIVERED)
+        assertStatus(msg, '111', SENT)
+        assertStatus(msg, '140', FAILED)
+        assertStatus(msg, '999', FAILED)
+        assertStatus(msg, '131', FAILED)
 
     def test_receive(self):
         data = {'from': '5511996458779', 'date': '31/07/2013 14:45:00'}
@@ -4124,19 +4090,16 @@ class ZenviaTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+5511996458779", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Héllo World!", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals("+5511996458779", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Héllo World!", msg.text)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -4145,10 +4108,10 @@ class ZenviaTest(TembaTest):
                 mock.return_value = MockResponse(200, '000-ok', method='GET')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -4158,10 +4121,10 @@ class ZenviaTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -4189,12 +4152,12 @@ class InfobipTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals('+2347030767143', sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals('+2347030767143', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World", msg.text)
 
         # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
         data['receiver'] = '2347030767145'
@@ -4208,9 +4171,9 @@ class InfobipTest(TembaTest):
 
     def test_delivered(self):
         contact = self.create_contact("Joe", '+2347030767143')
-        sms = Msg.create_outgoing(self.org, self.user, contact, "Hi Joe")
-        sms.external_id = '254021015120766124'
-        sms.save()
+        msg = Msg.create_outgoing(self.org, self.user, contact, "Hi Joe")
+        msg.external_id = '254021015120766124'
+        msg.save(update_fields=('external_id',))
 
         # mark it as delivered
         base_body = '<DeliveryReport><message id="254021015120766124" sentdate="2014/02/10 16:12:07" ' \
@@ -4220,27 +4183,24 @@ class InfobipTest(TembaTest):
         # assert our SENT status
         response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'SENT'), content_type='application/xml')
         self.assertEquals(200, response.status_code)
-        sms = Msg.all_messages.get()
-        self.assertEquals(SENT, sms.status)
+        msg = Msg.all_messages.get()
+        self.assertEquals(SENT, msg.status)
 
         # assert our DELIVERED status
         response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'DELIVERED'), content_type='application/xml')
         self.assertEquals(200, response.status_code)
-        sms = Msg.all_messages.get()
-        self.assertEquals(DELIVERED, sms.status)
+        msg = Msg.all_messages.get()
+        self.assertEquals(DELIVERED, msg.status)
 
         # assert our FAILED status
         response = self.client.post(delivery_url, data=base_body.replace('STATUS', 'NOT_SENT'), content_type='application/xml')
         self.assertEquals(200, response.status_code)
-        sms = Msg.all_messages.get()
-        self.assertEquals(FAILED, sms.status)
+        msg = Msg.all_messages.get()
+        self.assertEquals(FAILED, msg.status)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -4249,10 +4209,10 @@ class InfobipTest(TembaTest):
                 mock.return_value = MockResponse(200, json.dumps(dict(results=[{'status': 0, 'messageid': 12}])))
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('12', msg.external_id)
@@ -4263,10 +4223,10 @@ class InfobipTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -4294,12 +4254,12 @@ class BlackmynaTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals('+977788123123', sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World", msg.text)
 
         # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
         data['to'] = '1515'
@@ -4313,10 +4273,7 @@ class BlackmynaTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+977788123123")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -4326,10 +4283,10 @@ class BlackmynaTest(TembaTest):
                                                                    'id': 'asdf-asdf-asdf-asdf'}]))
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals('asdf-asdf-asdf-asdf', msg.external_id)
@@ -4341,10 +4298,10 @@ class BlackmynaTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -4354,16 +4311,16 @@ class BlackmynaTest(TembaTest):
                 mock.return_value = MockResponse(200, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
                 # we should have "Error" in our error log
-                log = ChannelLog.objects.filter(msg=sms).order_by('-pk')[0]
+                log = ChannelLog.objects.filter(msg=msg).order_by('-pk')[0]
                 self.assertEquals("Error", log.response)
                 self.assertEquals(503, log.response_status)
 
@@ -4386,12 +4343,11 @@ class BlackmynaTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        sms = broadcast.get_messages()[0]
-        sms.external_id = 'msg-uuid'
-        sms.save()
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg.external_id = 'msg-uuid'
+        msg.save(update_fields=('external_id',))
 
-        data['id'] = sms.external_id
+        data['id'] = msg.external_id
 
         def assertStatus(sms, status, assert_status):
             sms.status = WIRED
@@ -4402,13 +4358,13 @@ class BlackmynaTest(TembaTest):
             sms = Msg.all_messages.get(external_id=sms.external_id)
             self.assertEquals(assert_status, sms.status)
 
-        assertStatus(sms, '0', WIRED)
-        assertStatus(sms, '1', DELIVERED)
-        assertStatus(sms, '2', FAILED)
-        assertStatus(sms, '3', WIRED)
-        assertStatus(sms, '4', WIRED)
-        assertStatus(sms, '8', SENT)
-        assertStatus(sms, '16', FAILED)
+        assertStatus(msg, '0', WIRED)
+        assertStatus(msg, '1', DELIVERED)
+        assertStatus(msg, '2', FAILED)
+        assertStatus(msg, '3', WIRED)
+        assertStatus(msg, '4', WIRED)
+        assertStatus(msg, '8', SENT)
+        assertStatus(msg, '16', FAILED)
 
 
 class SMSCentralTest(TembaTest):
@@ -4431,12 +4387,12 @@ class SMSCentralTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals('+977788123123', sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World", msg.text)
 
         # try it with an invalid channel
         callback_url = reverse('handlers.smscentral_handler', args=['receive', '1234-asdf']) + "?" + encoded_message
@@ -4447,10 +4403,7 @@ class SMSCentralTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+977788123123")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -4459,10 +4412,10 @@ class SMSCentralTest(TembaTest):
                 mock.return_value = MockResponse(200, '')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -4479,10 +4432,10 @@ class SMSCentralTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -4520,12 +4473,12 @@ class Hub9Test(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals('+6289881134560', sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals('+6289881134560', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World", msg.text)
 
         # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
         data['sendto'] = '6289881131111'
@@ -4553,19 +4506,16 @@ class Hub9Test(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.all().order_by('-pk').first()
-        self.assertEquals('+62811999374', sms.contact.raw_tel())
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello Jakarta", sms.text)
+        msg = Msg.all_messages.all().order_by('-pk').first()
+        self.assertEquals('+62811999374', msg.contact.raw_tel())
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello Jakarta", msg.text)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -4574,10 +4524,10 @@ class Hub9Test(TembaTest):
                 mock.return_value = MockResponse(200, "000")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -4587,10 +4537,10 @@ class Hub9Test(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -4654,10 +4604,7 @@ class HighConnectionTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        msg = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -4669,7 +4616,7 @@ class HighConnectionTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -4682,7 +4629,7 @@ class HighConnectionTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -4820,10 +4767,10 @@ class TwilioTest(TembaTest):
         Msg.all_messages.all().delete()
 
         contact.send("outgoing message", self.admin)
-        sms = Msg.all_messages.get()
+        msg = Msg.all_messages.get()
 
         # now update the status via a callback
-        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms.id
+        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % msg.id
         post_data['SmsStatus'] = 'sent'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
@@ -4831,24 +4778,24 @@ class TwilioTest(TembaTest):
 
         self.assertEquals(200, response.status_code)
 
-        sms = Msg.all_messages.get()
-        self.assertEquals(SENT, sms.status)
+        msg = Msg.all_messages.get()
+        self.assertEquals(SENT, msg.status)
 
         # try it with a failed SMS
         Msg.all_messages.all().delete()
         contact.send("outgoing message", self.admin)
-        sms = Msg.all_messages.get()
+        msg = Msg.all_messages.get()
 
         # now update the status via a callback (also test old api/v1 URL)
-        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms.id
+        twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % msg.id
         post_data['SmsStatus'] = 'failed'
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(200, response.status_code)
-        sms = Msg.all_messages.get()
-        self.assertEquals(FAILED, sms.status)
+        msg = Msg.all_messages.get()
+        self.assertEquals(FAILED, msg.status)
 
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
@@ -4860,10 +4807,7 @@ class TwilioTest(TembaTest):
         self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -4872,10 +4816,10 @@ class TwilioTest(TembaTest):
                 mock.return_value = "Sent"
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -4885,10 +4829,10 @@ class TwilioTest(TembaTest):
                 mock.side_effect = Exception("Failed to send message")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -4988,10 +4932,7 @@ class TwilioMessagingServiceTest(TembaTest):
         self.org.save()
 
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -5000,10 +4941,10 @@ class TwilioMessagingServiceTest(TembaTest):
                 mock.return_value = "Sent"
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -5013,10 +4954,10 @@ class TwilioMessagingServiceTest(TembaTest):
                 mock.side_effect = Exception("Failed to send message")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -5024,7 +4965,7 @@ class TwilioMessagingServiceTest(TembaTest):
             # check that our channel log works as well
             self.login(self.admin)
 
-            response = self.client.get(reverse('channels.channellog_list') + "?channel=%d" % (self.channel.pk))
+            response = self.client.get(reverse('channels.channellog_list') + "?channel=%d" % self.channel.pk)
 
             # there should be two log items for the two times we sent
             self.assertEquals(2, len(response.context['channellog_list']))
@@ -5218,9 +5159,9 @@ class ClickatellTest(TembaTest):
         self.channel.org.save()
 
         contact = self.create_contact("Joe", "+250788383383")
-        sms = Msg.create_outgoing(self.org, self.user, contact, "test")
-        sms.external_id = 'id1234'
-        sms.save()
+        msg = Msg.create_outgoing(self.org, self.user, contact, "test")
+        msg.external_id = 'id1234'
+        msg.save(update_fields=('external_id',))
 
         data = {'apiMsgId': 'id1234', 'status': '001'}
         encoded_message = urlencode(data)
@@ -5231,14 +5172,14 @@ class ClickatellTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # reload our message
-        sms = Msg.all_messages.get(pk=sms.pk)
+        msg = Msg.all_messages.get(pk=msg.pk)
 
         # make sure it is marked as failed
-        self.assertEquals(FAILED, sms.status)
+        self.assertEquals(FAILED, msg.status)
 
         # reset our status to WIRED
-        sms.status = WIRED
-        sms.save()
+        msg.status = WIRED
+        msg.save()
 
         # and do it again with a received state
         data = {'apiMsgId': 'id1234', 'status': '004'}
@@ -5248,30 +5189,27 @@ class ClickatellTest(TembaTest):
         response = self.client.get(callback_url)
 
         # load our message
-        sms = Msg.all_messages.all().order_by('-pk').first()
+        msg = Msg.all_messages.all().order_by('-pk').first()
 
         # make sure it is marked as delivered
-        self.assertEquals(DELIVERED, sms.status)
+        self.assertEquals(DELIVERED, msg.status)
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
 
             with patch('requests.get') as mock:
-                sms.text = "Test message"
+                msg.text = "Test message"
                 mock.return_value = MockResponse(200, "000")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 params = {'api_id': 'api1',
@@ -5290,14 +5228,14 @@ class ClickatellTest(TembaTest):
                 self.clear_cache()
 
             with patch('requests.get') as mock:
-                sms.text = "Test message ☺"
+                msg.text = "Test message ☺"
                 mock.return_value = MockResponse(200, "000")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 params = {'api_id': 'api1',
@@ -5319,10 +5257,10 @@ class ClickatellTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -5609,10 +5547,7 @@ class TelegramTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -5621,10 +5556,10 @@ class TelegramTest(TembaTest):
                 mock.return_value = MockResponse(200, json.dumps({"result": {"message_id": 1234}}))
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.clear_cache()
@@ -5633,10 +5568,10 @@ class TelegramTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -5695,12 +5630,11 @@ class PlivoTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        sms = broadcast.get_messages()[0]
-        sms.external_id = 'msg-uuid'
-        sms.save()
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg.external_id = 'msg-uuid'
+        msg.save(update_fields=('external_id',))
 
-        data['MessageUUID'] = sms.external_id
+        data['MessageUUID'] = msg.external_id
 
         def assertStatus(sms, status, assert_status):
             sms.status = WIRED
@@ -5711,18 +5645,14 @@ class PlivoTest(TembaTest):
             sms = Msg.all_messages.get(external_id=sms.external_id)
             self.assertEquals(assert_status, sms.status)
 
-        assertStatus(sms, 'queued', WIRED)
-        assertStatus(sms, 'sent', SENT)
-        assertStatus(sms, 'delivered', DELIVERED)
-        assertStatus(sms, 'undelivered', SENT)
-        assertStatus(sms, 'rejected', FAILED)
+        assertStatus(msg, 'queued', WIRED)
+        assertStatus(msg, 'sent', SENT)
+        assertStatus(msg, 'delivered', DELIVERED)
+        assertStatus(msg, 'undelivered', SENT)
+        assertStatus(msg, 'rejected', FAILED)
 
     def test_send(self):
-
-        bcast = self.joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = self.joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -5734,10 +5664,10 @@ class PlivoTest(TembaTest):
                                                              "api_id": "db342550-7f1d-11e1-8ea7-1231380bc196"}))
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -5747,10 +5677,10 @@ class PlivoTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -5775,13 +5705,10 @@ class TwitterTest(TembaTest):
         joe = self.create_contact("Joe", number="+250788383383", twitter="joe1981")
         testers = self.create_group("Testers", [joe])
 
-        bcast = joe.send("This is a long message, longer than just 160 characters, it spans what was before "
-                         "more than one message but which is now but one, solitary message, going off into the "
-                         "Twitterverse to tweet away.",
-                         self.admin, trigger_send=False)
-
-        # our outgoing message
-        msg = bcast.get_messages()[0]
+        msg = joe.send("This is a long message, longer than just 160 characters, it spans what was before "
+                       "more than one message but which is now but one, solitary message, going off into the "
+                       "Twitterverse to tweet away.",
+                       self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -5796,7 +5723,7 @@ class TwitterTest(TembaTest):
                 self.assertEquals(1, mock.call_count)
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertEquals('1234567890', msg.external_id)
                 self.assertTrue(msg.sent_on)
@@ -5812,7 +5739,7 @@ class TwitterTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -5829,7 +5756,7 @@ class TwitterTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -5850,7 +5777,7 @@ class TwitterTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # should fail the message
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(FAILED, msg.status)
                 self.assertEquals(2, msg.error_count)
 
@@ -5873,7 +5800,7 @@ class TwitterTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # should fail the message
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(FAILED, msg.status)
                 self.assertEquals(2, msg.error_count)
 
@@ -5895,7 +5822,7 @@ class TwitterTest(TembaTest):
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # should fail the message
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEqual(msg.status, FAILED)
                 self.assertEqual(msg.error_count, 2)
 
@@ -6100,12 +6027,12 @@ class StartMobileTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals('+250788123123', sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals('+250788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World", msg.text)
 
         # try it with an invalid body
         response = self.client.post(callback_url, content_type='application/xml', data="invalid body")
@@ -6129,12 +6056,12 @@ class StartMobileTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals('+250788123123', sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals('+250788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("", msg.text)
 
         # try it with an invalid channel
         callback_url = reverse('handlers.start_handler', args=['receive', '1234-asdf'])
@@ -6145,11 +6072,8 @@ class StartMobileTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+977788123123")
-        bcast = joe.send("Вітаємо в U-Report, системі опитувань про майбутнє країни.Зараз невеличка реєстрація.?",
-                         self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Вітаємо в U-Report, системі опитувань про майбутнє країни.Зараз невеличка реєстрація.?",
+                       self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -6160,10 +6084,10 @@ class StartMobileTest(TembaTest):
                                                  <id>380502535130309161501</id><state>Accepted</state></status>""")
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEqual(msg.external_id, "380502535130309161501")
@@ -6176,10 +6100,10 @@ class StartMobileTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -6190,12 +6114,12 @@ class StartMobileTest(TembaTest):
                 mock.return_value = MockResponse(200, "<error>This is an error</error>", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
                 self.clear_cache()
 
@@ -6228,9 +6152,8 @@ class ChikkaTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+63911231234")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        sms = broadcast.get_messages()[0]
-        data['message_id'] = sms.id
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        data['message_id'] = msg.id
 
         # valid id, invalid status, 400
         data['status'] = 'INVALID'
@@ -6247,8 +6170,8 @@ class ChikkaTest(TembaTest):
             updated_sms = Msg.all_messages.get(pk=sms.id)
             self.assertEquals(assert_status, updated_sms.status)
 
-        assertStatus(sms, 'FAILED', FAILED)
-        assertStatus(sms, 'SENT', SENT)
+        assertStatus(msg, 'FAILED', FAILED)
+        assertStatus(msg, 'SENT', SENT)
 
     def test_receive(self):
         data = dict(message_type='incoming', mobile_number='639178020779', request_id='4004',
@@ -6259,14 +6182,14 @@ class ChikkaTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+639178020779", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("Hello World!", sms.text)
-        self.assertEquals('4004', sms.external_id)
-        self.assertEquals(sms.created_on.date(), date(day=11, month=3, year=2016))
+        msg = Msg.all_messages.get()
+        self.assertEquals("+639178020779", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World!", msg.text)
+        self.assertEquals('4004', msg.external_id)
+        self.assertEquals(msg.created_on.date(), date(day=11, month=3, year=2016))
 
     def test_send(self):
         joe = self.create_contact("Joe", '+63911231234')
@@ -6276,10 +6199,7 @@ class ChikkaTest(TembaTest):
         incoming.external_id = '4004'
         incoming.save()
 
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
@@ -6288,10 +6208,10 @@ class ChikkaTest(TembaTest):
                 mock.return_value = MockResponse(200, "Success", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -6302,14 +6222,14 @@ class ChikkaTest(TembaTest):
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, "Success", method='POST')
 
-                sms.response_to = incoming
-                sms.save()
+                msg.response_to = incoming
+                msg.save()
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
@@ -6323,10 +6243,10 @@ class ChikkaTest(TembaTest):
                 mock.return_value = MockResponse(400, "Error", method='POST')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # message should be marked as an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
@@ -6335,12 +6255,12 @@ class ChikkaTest(TembaTest):
 
             with patch('requests.get') as mock:
                 mock.side_effect = Exception("Couldn't reach server")
-                Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # should also have an error
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
         finally:
@@ -6374,12 +6294,11 @@ class JasminTest(TembaTest):
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        sms = broadcast.get_messages()[0]
-        sms.external_id = "jasmin-external-id"
-        sms.save()
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg.external_id = "jasmin-external-id"
+        msg.save(update_fields=('external_id',))
 
-        data['id'] = sms.external_id
+        data['id'] = msg.external_id
 
         def assertStatus(sms, dlvrd, err, assert_status):
             data['dlvrd'] = dlvrd
@@ -6389,9 +6308,9 @@ class JasminTest(TembaTest):
             sms = Msg.all_messages.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
 
-        assertStatus(sms, 0, 0, WIRED)
-        assertStatus(sms, 1, 0, DELIVERED)
-        assertStatus(sms, 0, 1, FAILED)
+        assertStatus(msg, 0, 0, WIRED)
+        assertStatus(msg, 1, 0, DELIVERED)
+        assertStatus(msg, 0, 1, FAILED)
 
     def test_receive(self):
         from temba.utils import gsm7
@@ -6410,21 +6329,18 @@ class JasminTest(TembaTest):
         self.assertEqual(response.content, "ACK/Jasmin")
 
         # load our message
-        sms = Msg.all_messages.get()
-        self.assertEquals("+250788383383", sms.contact.get_urn(TEL_SCHEME).path)
-        self.assertEquals(INCOMING, sms.direction)
-        self.assertEquals(self.org, sms.org)
-        self.assertEquals(self.channel, sms.channel)
-        self.assertEquals("événement", sms.text)
+        msg = Msg.all_messages.get()
+        self.assertEquals("+250788383383", msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("événement", msg.text)
 
     def test_send(self):
         from temba.utils import gsm7
 
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("événement", self.admin, trigger_send=False)
-
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
+        msg = joe.send("événement", self.admin, trigger_send=False)
 
         settings.SEND_MESSAGES = True
 
@@ -6432,10 +6348,10 @@ class JasminTest(TembaTest):
             mock.return_value = MockResponse(200, 'Success "07033084-5cfd-4812-90a4-e4d24ffb6e3d"')
 
             # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # check the status of the message is now sent
-            msg = bcast.get_messages()[0]
+            msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
             self.assertEqual(msg.external_id, '07033084-5cfd-4812-90a4-e4d24ffb6e3d')
@@ -6449,10 +6365,10 @@ class JasminTest(TembaTest):
             mock.return_value = MockResponse(412, 'Error “No route found”')
 
             # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # check the status of the message now errored
-            msg = bcast.get_messages()[0]
+            msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
 
 
@@ -6496,10 +6412,9 @@ class MbloxTest(TembaTest):
 
         # create test message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        msg = broadcast.get_messages()[0]
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
         msg.external_id = "mblox-id"
-        msg.save()
+        msg.save(update_fields=('external_id',))
 
         data['batch_id'] = msg.external_id
 
@@ -6546,20 +6461,18 @@ class MbloxTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
-        bcast = joe.send("MT", self.admin, trigger_send=False)
+        msg = joe.send("MT", self.admin, trigger_send=False)
 
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
         settings.SEND_MESSAGES = True
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "id":"OzYDlvf3SQVc" }')
 
             # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # check the status of the message is now sent
-            msg = bcast.get_messages()[0]
+            msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
             self.assertEqual(msg.external_id, 'OzYDlvf3SQVc')
@@ -6569,10 +6482,10 @@ class MbloxTest(TembaTest):
             mock.return_value = MockResponse(412, 'Error')
 
             # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # check the status of the message now errored
-            msg = bcast.get_messages()[0]
+            msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
 
 
@@ -6632,10 +6545,9 @@ class FacebookTest(TembaTest):
 
         # create test message to update
         joe = self.create_contact("Joe Biden", urn='facebook:1234')
-        broadcast = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        msg = broadcast.get_messages()[0]
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
         msg.external_id = "mblox-id"
-        msg.save()
+        msg.save(update_fields=('external_id',))
 
         body = dict(entry=[dict(messaging=[dict(delivery=dict(mids=[msg.external_id]))])])
         response = self.client.post(reverse('handlers.facebook_handler', args=[self.channel.uuid]), json.dumps(body),
@@ -6896,10 +6808,8 @@ class FacebookTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
-        bcast = joe.send("Facebook Msg", self.admin, trigger_send=False)
+        msg = joe.send("Facebook Msg", self.admin, trigger_send=False)
 
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
         settings.SEND_MESSAGES = True
 
         with patch('requests.post') as mock:
@@ -6907,10 +6817,10 @@ class FacebookTest(TembaTest):
                                                   '"message_id":"mid.external"}')
 
             # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # check the status of the message is now sent
-            msg = bcast.get_messages()[0]
+            msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
             self.assertEqual(msg.external_id, 'mid.external')
@@ -6920,10 +6830,10 @@ class FacebookTest(TembaTest):
             mock.return_value = MockResponse(412, 'Error')
 
             # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # check the status of the message now errored
-            msg = bcast.get_messages()[0]
+            msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
 
 
@@ -6997,20 +6907,18 @@ class GlobeTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", "+639171234567")
-        bcast = joe.send("MT", self.admin, trigger_send=False)
+        msg = joe.send("MT", self.admin, trigger_send=False)
 
-        # our outgoing sms
-        sms = bcast.get_messages()[0]
         settings.SEND_MESSAGES = True
 
         with patch('requests.post') as mock:
             mock.return_value = MockResponse(200, '{ "status":"accepted" }')
 
             # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # check the status of the message is now sent
-            msg = bcast.get_messages()[0]
+            msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
             self.clear_cache()
@@ -7019,10 +6927,10 @@ class GlobeTest(TembaTest):
             mock.return_value = MockResponse(401, 'Error')
 
             # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # check the status of the message now errored
-            msg = bcast.get_messages()[0]
+            msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
             self.clear_cache()
 
@@ -7030,9 +6938,9 @@ class GlobeTest(TembaTest):
             mock.side_effect = Exception("Unable to reach host")
 
             # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', sms.as_task_json()))
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
             # check the status of the message now errored
-            msg = bcast.get_messages()[0]
+            msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
             self.clear_cache()
