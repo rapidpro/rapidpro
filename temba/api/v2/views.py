@@ -265,7 +265,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
     Returns the boundaries for your organization with the following fields. To include geometry,
     specify `geometry=true`.
 
-      * **id** - the internal id for this boundary which is a variation on the OSM ID (string)
+      * **osm_id** - the OSM ID for this boundary prefixed with the element type (string)
       * **name** - the name of the administrative boundary (string)
       * **parent** - the id of the containing parent of this boundary or null if this boundary is a country (string)
       * **level** - the level: 0 for country, 1 for state, 2 for district (int)
