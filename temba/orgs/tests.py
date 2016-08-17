@@ -1343,6 +1343,12 @@ class OrgTest(TembaTest):
         response = self.client.post(resthook_url, dict(resthook='Mother-Registration'))
         self.assertTrue(response.context['form'].errors)
 
+        # hit our list page used by select2, checking it lists our resthook
+        response = self.client.get(reverse('api.resthook_list') + "?_format=select2")
+        results = json.loads(response.content)['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], dict(text='mother-registration', id='mother-registration'))
+
         # finally, let's remove that resthook
         self.client.post(resthook_url, {'resthook_%d' % resthook.id: 'checked'})
         resthook.refresh_from_db()

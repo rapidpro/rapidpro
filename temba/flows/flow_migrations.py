@@ -17,9 +17,9 @@ def migrate_to_version_10(json_flow, flow):
     """
     def replace_webhook_ruleset(ruleset, base_lang):
         # not a webhook? delete any turds of webhook or webhook_action
-        if ruleset['ruleset_type'] != 'webhook':
-            del ruleset['webhook_action']
-            del ruleset['webhook']
+        if ruleset.get('ruleset_type', None) != 'webhook':
+            ruleset.pop('webhook_action', None)
+            ruleset.pop('webhook', None)
             return ruleset
 
         if 'config' not in ruleset:
@@ -55,9 +55,7 @@ def migrate_to_version_10(json_flow, flow):
     if 'rule_sets' in json_flow:
         rulesets = []
         for ruleset in json_flow['rule_sets']:
-            if ruleset['ruleset_type'] == 'webhook':
-                ruleset = replace_webhook_ruleset(ruleset, base_lang)
-
+            ruleset = replace_webhook_ruleset(ruleset, base_lang)
             rulesets.append(ruleset)
 
         json_flow['rule_sets'] = rulesets
