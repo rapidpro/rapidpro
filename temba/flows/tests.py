@@ -17,7 +17,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import WebHookEvent
+from temba.api.models import WebHookEvent, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -3268,6 +3268,43 @@ class WebhookTest(TembaTest):
             self.assertIsNone(match)
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
+
+    def test_resthook(self):
+        self.contact = self.create_contact("Macklemore", "+12067799294")
+        webhook_flow = self.get_flow('resthooks')
+
+        # we don't have the resthook registered yet, so this won't trigger any calls
+        with patch('requests.post') as mock_post:
+            webhook_flow.start([], [self.contact])
+            self.assertEqual(mock_post.call_count, 0)
+
+            # should have two messages of failures
+            self.assertEqual("That was a failure.", Msg.all_messages.filter(contact=self.contact).last().text)
+            self.assertEqual("The second failed.", Msg.all_messages.filter(contact=self.contact).first().text)
+
+        # ok, let's go add a listener for that event (should have been created automatically)
+        resthook = Resthook.objects.get(org=self.org, slug='new-registration')
+        resthook.subscribers.create(target_url='https://foo.bar/', created_by=self.admin, modified_by=self.admin)
+        resthook.subscribers.create(target_url='https://bar.foo/', created_by=self.admin, modified_by=self.admin)
+
+        # clear out our messages
+        Msg.all_messages.filter(contact=self.contact).delete()
+
+        # startover have our first webhook fail, check that routing still works with failure
+        with patch('requests.post') as mock_post:
+            mock_post.return_value = [MockResponse(200, '{ "code": "ABABUUDDLRS" }'), MockResponse(400, "Failure"),
+                                      MockResponse(410, '{ "code": "ABABUUDDLRS" }'), MockResponse(400, "Failure")]
+
+            webhook_flow.start([], [self.contact], restart_participants=True)
+
+            # should have called all our subscribers
+            self.assertEqual(mock_post.call_args_list[0][0][0], 'https://foo.bar/')
+            self.assertEqual(mock_post.call_args_list[1][0][0], 'https://bar.foo/')
+            self.assertEqual(mock_post.call_args_list[2][0][0], 'https://foo.bar/')
+            self.assertEqual(mock_post.call_args_list[3][0][0], 'https://bar.foo/')
+
+            self.assertEqual("That was a success.", Msg.all_messages.filter(contact=self.contact).last().text)
+            self.assertEqual("The second failed.", Msg.all_messages.filter(contact=self.contact).first().text)
 
 
 class SimulationTest(FlowFileTest):

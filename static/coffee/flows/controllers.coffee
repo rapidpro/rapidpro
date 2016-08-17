@@ -881,10 +881,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if option.value == minutes
       formData.timeout = option
 
-  formData.webhook_method = 'GET'
+  formData.webhook_action = 'GET'
   if ruleset.config
-    formData.webhook_url = ruleset.config.url
-    formData.webhook_method = ruleset.config.method
+    formData.webhook = ruleset.config.webhook
+    formData.webhook_action = ruleset.config.webhook_action
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
@@ -1374,8 +1374,8 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
       else if rulesetConfig.type == 'webhook'
         ruleset.config =
-          url: formData.webhook_url
-          method: formData.webhook_method
+          webhook: formData.webhook_url
+          webhook_action: formData.webhook_method
 
       # update our operand if they selected a contact field explicitly
       else if rulesetConfig.type == 'contact_field'

@@ -3119,7 +3119,8 @@ class RuleSet(models.Model):
                 from temba.api.models import Resthook
 
                 # look up the rest hook
-                resthook = Resthook.objects.filter(is_active=True, org=run.org, slug=self.config_json()[RuleSet.CONFIG_RESTHOOK]).first()
+                resthook_slug = self.config_json()[RuleSet.CONFIG_RESTHOOK]
+                resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
                 urls = resthook.get_subscriber_urls()
                 action = 'POST'
 

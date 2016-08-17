@@ -109,8 +109,19 @@ class Resthook(SmartModel):
                             help_text=_("The organization this resthook belongs to"))
     slug = models.SlugField(help_text=_("A simple label for this event"))
 
+    @classmethod
+    def get_or_create(self, org, slug, user):
+        """
+        Looks up (or creates) the resthook for the passed in org and slug
+        """
+        resthook = Resthook.objects.filter(is_active=True, org=org, slug=slug).first()
+        if not resthook:
+            resthook = Resthook.objects.create(org=org, slug=slug, created_by=user, modified_by=user)
+
+        return resthook
+
     def get_subscriber_urls(self):
-        return [s.target_url for s in self.subscribers.filter(is_active=True)]
+        return [s.target_url for s in self.subscribers.filter(is_active=True).order_by('created_on')]
 
     def remove_subscriber(self, url):
         self.subscribers.filter(target_url=url).update(is_active=False)
