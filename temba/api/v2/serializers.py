@@ -408,20 +408,26 @@ class MsgReadSerializer(ReadSerializer):
 
 class ResthookReadSerializer(ReadSerializer):
     resthook = serializers.SerializerMethodField()
-    subscribers = serializers.SerializerMethodField()
 
     def get_resthook(self, obj):
         return obj.slug
 
-    def get_subscribers(self, obj):
-        return [s.as_json() for s in obj.subscribers.filter(is_active=True)]
-
     class Meta:
         model = RuleSet
-        fields = ('resthook', 'subscribers', 'created_on')
+        fields = ('resthook', 'modified_on', 'created_on')
 
 
-class ResthookWriteSerializer(WriteSerializer):
+class ResthookSubscriberReadSerializer(WriteSerializer):
+    resthook = serializers.SlugField()
+
+    def get_resthook(self, slug):
+        return Resthook.objects.filter(is_active=True, org=self.org, slug=slug).first()
+
+    class Meta:
+        fields = ('id', 'resthook', 'target_url', 'created_on')
+
+
+class ResthookSubscriberWriteSerializer(WriteSerializer):
     resthook = serializers.SlugField()
     target_url = serializers.URLField()
 
@@ -448,9 +454,7 @@ class ResthookWriteSerializer(WriteSerializer):
     def save(self):
         resthook = self.get_resthook(self.validated_data['resthook'])
         target_url = self.validated_data['target_url']
-
-        return ResthookSubscriber.objects.create(resthook=resthook, target_url=target_url,
-                                                 created_by=self.user, modified_by=self.user)
+        return resthook.add_subscriber(target_url, self.user)
 
     class Meta:
         fields = ('resthook', 'target_url')

@@ -5,7 +5,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 from .views import api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, ChannelsEndpoint, ChannelEventsEndpoint
 from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
 from .views import FlowStartsEndpoint, FieldsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
-from .views import OrgEndpoint, ResthookEndpoint, ResthookEventEndpoint, RunsEndpoint
+from .views import OrgEndpoint, ResthookEndpoint, ResthookEventEndpoint, ResthookSubscriberEndpoint, RunsEndpoint
 
 
 urlpatterns = [
@@ -31,6 +31,7 @@ urlpatterns = [
     url(r'^/org$', OrgEndpoint.as_view(), name='api.v2.org'),
     url(r'^/resthooks$', ResthookEndpoint.as_view(), name='api.v2.resthooks'),
     url(r'^/resthook_events$', ResthookEventEndpoint.as_view(), name='api.v2.resthook_events'),
+    url(r'^/resthook_subscribers$', ResthookSubscriberEndpoint.as_view(), name='api.v2.resthook_subscribers'),
     url(r'^/runs$', RunsEndpoint.as_view(), name='api.v2.runs'),
 
 ]

@@ -124,8 +124,11 @@ class Resthook(SmartModel):
     def get_subscriber_urls(self):
         return [s.target_url for s in self.subscribers.filter(is_active=True).order_by('created_on')]
 
-    def remove_subscriber(self, url):
-        self.subscribers.filter(target_url=url).update(is_active=False)
+    def add_subscriber(self, url, user):
+        subscriber = self.subscribers.create(target_url=url, created_by=user, modified_by=user)
+        self.modified_on = timezone.now()
+        self.save(update_fields=['modified_on'])
+        return subscriber
 
     def release(self, user):
         # release any active subscribers
@@ -161,6 +164,11 @@ class ResthookSubscriber(SmartModel):
         self.modified_by = user
         self.modified_on = timezone.now()
         self.save(update_fields=['is_active', 'modified_on', 'modified_by'])
+
+        # update our parent as well
+        self.resthook.modified_on = self.modified_on
+        self.resthook.modified_by = user
+        self.resthook.save(updated_fields=['modified_on', 'modified_by'])
 
 
 class WebHookEvent(SmartModel):

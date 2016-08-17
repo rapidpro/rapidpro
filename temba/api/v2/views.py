@@ -26,7 +26,7 @@ from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
 from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer
-from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookWriteSerializer
+from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer
 from ..models import APIPermission, SSLPermission
@@ -1452,9 +1452,9 @@ class OrgEndpoint(BaseAPIView):
         }
 
 
-class ResthookEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
+class ResthookEndpoint(ListAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to list possible resthooks on your account and add or remove subscribers.
+    This endpoint allows you to list the resthooks on your account.
 
     ## Listing Resthooks
 
@@ -1462,14 +1462,14 @@ class ResthookEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView
     resthook has the following attributes:
 
      * **resthook** - the slug for the resthook (string)
-     * **subscribers** - the list of URLs that will be notified when this resthook fires (objects)
      * **created_on** - the datetime when this resthook was created (datetime)
+     * **modified_on** - the datetime when this resthook was last modified (datetime)
 
     Example:
 
         GET /api/v2/resthooks.json
 
-    Response is the list of resthooks on your organization, most recently created first:
+    Response is the list of resthooks on your organization, most recently modified first:
 
         {
             "next": "http://example.com/api/v2/resthooks.json?cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
@@ -1477,55 +1477,15 @@ class ResthookEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView
             "results": [
             {
                 "resthook": "new-report",
-                "subscribers": [
-                    {
-                        "id": "10404016"
-                        "event": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
-                        "target_url": "https://zapier.com/receive/505019595",
-                        "created_on": "2013-08-19T19:11:21.082Z"
-                    },
-                    {
-                        "id": "10404055",
-                        "event": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
-                        "target_url": "https://zapier.com/receive/605010501",
-                        "created_on": "2013-08-19T19:11:21.082Z"
-                    }
-                ],
                 "created_on": "2015-11-11T13:05:57.457742Z",
+                "modified_on": "2015-11-11T13:05:57.457742Z",
             },
             ...
         }
-
-    ## Subscribing to a Resthook
-
-    By making a ```POST``` request with the event you want to subscribe to and the target URL, you can subscribe to be notified
-    whenever your resthook event is triggered.
-
-     * **resthook** - the slug of the resthook to subscribe to
-     * **target_url** - the URL you want called (will be called with a POST)
-
-    Example:
-
-        POST /api/v2/resthooks.json
-        {
-            "resthook": "new-report",
-            "target_url": "https://zapier.com/receive/505019595"
-        }
-
-    Response is the created subscription:
-
-        {
-            "resthook": "new-report",
-            "id": "10404016",
-            "target_url": "https://zapier.com/receive/505019595",
-            "created_on": "2013-08-19T19:11:21.082Z"
-        }
-
     """
     permission = 'api.resthook_api'
     model = Resthook
     serializer_class = ResthookReadSerializer
-    write_serializer_class = ResthookWriteSerializer
     pagination_class = CreatedOnCursorPagination
     throttle_scope = 'v2.api'
 
@@ -1544,12 +1504,114 @@ class ResthookEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView
             'fields': []
         }
 
+
+class ResthookSubscriberEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list, add or remove subscribers to resthooks.
+
+    ## Listing Resthook Subscribers
+
+    By making a ```GET``` request you can list all the subscribers on your organization.  Each
+    resthook subscriber has the following attributes:
+
+     * **id** - the id of the subscriber (integer)
+     * **resthook** - the resthook they are subscribed to (string, filterable)
+     * **target_url** - the url that will be notified when this event occurs
+     * **created_on** - when this subscriber was added
+
+    Example:
+
+        GET /api/v2/resthook_subscribers.json
+
+    Response is the list of resthook subscribers on your organization, most recently created first:
+
+        {
+            "next": "http://example.com/api/v2/resthook_subscribers.json?cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
+            "previous": null,
+            "results": [
+            {
+                "id": "10404016"
+                "resthook": "mother-registration",
+                "target_url": "https://zapier.com/receive/505019595",
+                "created_on": "2013-08-19T19:11:21.082Z"
+            },
+            {
+                "id": "10404055",
+                "resthook": "new-birth",
+                "target_url": "https://zapier.com/receive/605010501",
+                "created_on": "2013-08-19T19:11:21.082Z"
+            },
+            ...
+        }
+
+    ## Subscribing to a Resthook
+
+    By making a ```POST``` request with the event you want to subscribe to and the target URL, you can subscribe to be notified
+    whenever your resthook event is triggered.
+
+     * **resthook** - the slug of the resthook to subscribe to
+     * **target_url** - the URL you want called (will be called with a POST)
+
+    Example:
+
+        POST /api/v2/resthook_subscribers.json
+        {
+            "resthook": "new-report",
+            "target_url": "https://zapier.com/receive/505019595"
+        }
+
+    Response is the created subscription:
+
+        {
+            "id": "10404016",
+            "resthook": "new-report",
+            "target_url": "https://zapier.com/receive/505019595",
+            "created_on": "2013-08-19T19:11:21.082Z"
+        }
+
+    ## Deleting a Subscription
+
+    By making a ```DELETE``` request with the id of the subscription, you can remove it.
+
+     * **id** - the id of the resthook subscription you want to remove, on success you will receive a 204 and empty body
+
+    Example:
+
+        POST /api/v2/resthook_subscribers.json?id=10404016
+
+    Response is status code 204 and an empty response
+
+        status code: 204
+
+    """
+    permission = 'api.resthooksubscriber_api'
+    model = ResthookSubscriber
+    serializer_class = ResthookSubscriberReadSerializer
+    write_serializer_class = ResthookSubscriberWriteSerializer
+    pagination_class = CreatedOnCursorPagination
+    throttle_scope = 'v2.api'
+
+    def filter_queryset(self, queryset):
+        org = self.request.user.get_org()
+        return ResthookSubscriber.objects.filter(org=org, is_active=True).order_by('-created_on')
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "List Resthook Subscribers",
+            'url': reverse('api.v2.resthooksubscribers'),
+            'slug': 'resthooksubscriber-list',
+            'request': "?",
+            'fields': []
+        }
+
     @classmethod
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Add a subscriber for a resthook",
-                    url=reverse('api.v2.resthooks'),
-                    slug='resthook-create',
+                    url=reverse('api.v2.resthooksubscribers'),
+                    slug='resthooksubscriber-create',
                     request='{ "resthook": "new-report", "target_url": "https://zapier.com/handle/1515155" }')
 
         spec['fields'] = [dict(name='resthook', required=True,
@@ -1563,26 +1625,21 @@ class ResthookEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView
     def get_delete_explorer(cls):
         spec = dict(method="DELETE",
                     title="Delete resthook subscriber",
-                    url=reverse('api.v2.resthooks'),
-                    slug='resthook-delete',
+                    url=reverse('api.v2.resthooksubscribers'),
+                    slug='resthooksubscriber-delete',
                     request="id=10404055")
         spec['fields'] = [dict(name='id', required=True,
                                help="The id of the subscriber you want to remove")]
 
         return spec
 
-    # overridden as we want to return just the subscriber object, not all resthooks
-    def render_write_response(self, resthook_subscriber, context):
-        return Response(resthook_subscriber.as_json(), status=status.HTTP_201_CREATED)
-
     def destroy(self, request, *args, **kwargs):
         subscriber_id = request.query_params.get('id')
-
         if not subscriber_id:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        subscriber = ResthookSubscriber.objects.filter(id=subscriber_id).first()
-        if not subscriber_id:
+        subscriber = ResthookSubscriber.objects.filter(id=subscriber_id, org=request.user.get_org()).first()
+        if not subscriber:
             return Response(status=status.HTTP_404_BAD_REQUEST)
 
         subscriber.release()

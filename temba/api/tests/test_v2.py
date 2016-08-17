@@ -20,7 +20,7 @@ from temba.msgs.models import Broadcast, Label
 from temba.orgs.models import Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
-from ..models import APIToken
+from ..models import APIToken, Resthook
 from ..v2.serializers import format_datetime
 
 
@@ -68,6 +68,22 @@ class APITest(TembaTest):
 
         # this will fail if our response isn't valid json
         response.json = json.loads(response.content)
+        return response
+
+    def postJSON(self, url, data):
+        response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        if response.content:
+            response.json = json.loads(response.content)
+        return response
+
+    def deleteJSON(self, url, query=None):
+        url += ".json"
+        if query:
+            url = url + "?" + query
+
+        response = self.client.delete(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        if response.content:
+            response.json = json.loads(response.content)
         return response
 
     def assertEndpointAccess(self, url, query=None):
@@ -1193,3 +1209,40 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'contact=%s&flow=%s' % (self.joe.uuid, flow1.uuid))
         self.assertResponseError(response, None,
                                  "You may only specify one of the contact, flow parameters")
+
+    def test_resthooks(self):
+        url = reverse('api.v2.resthooks')
+        self.assertEndpointAccess(url)
+
+        # create a resthook
+        resthook = Resthook.get_or_create(self.org, 'new-mother', self.admin)
+
+        # create a resthook for another org
+        Resthook.get_or_create(self.org2, 'new-father', self.admin2)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], {
+            'resthook': 'new-mother',
+            'created_on': format_datetime(resthook.created_on),
+            'modified_on': format_datetime(resthook.modified_on),
+        })
+
+        # ok, let's look at subscriptions
+        url = reverse('api.v2.resthook_subscribers')
+
+        # let's try to create a new one
+        response = self.postJSON(url, dict(resthook='new-mother', target_url='https://foo.bar/'))
+        self.assertEqual(response.status_code, 201)
+        subscriber = resthook.subscribers.all().first()
+        self.assertEqual(response.json, {
+            'id': subscriber.id,
+            'resthook': 'new-mother',
+            'target_url': 'https://foo.bar/',
+            'created_on': format_datetime(subscriber.created_on),
+        })
