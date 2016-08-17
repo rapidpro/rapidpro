@@ -110,10 +110,11 @@ class Resthook(SmartModel):
     slug = models.SlugField(help_text=_("A simple label for this event"))
 
     @classmethod
-    def get_or_create(self, org, slug, user):
+    def get_or_create(cls, org, slug, user):
         """
         Looks up (or creates) the resthook for the passed in org and slug
         """
+        slug = slug.lower()
         resthook = Resthook.objects.filter(is_active=True, org=org, slug=slug).first()
         if not resthook:
             resthook = Resthook.objects.create(org=org, slug=slug, created_by=user, modified_by=user)

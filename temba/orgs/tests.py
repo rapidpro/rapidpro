@@ -17,7 +17,7 @@ from django.utils import timezone
 from mock import patch, Mock
 from smartmin.tests import SmartminTest
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import APIToken
+from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
@@ -1311,6 +1311,46 @@ class OrgTest(TembaTest):
         response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
         self.assertContains(response, reverse('airtime.airtimetransfer_list'))
         self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+    def test_resthooks(self):
+        # no hitting this page without auth
+        resthook_url = reverse('orgs.org_resthooks')
+        response = self.client.get(resthook_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        # get our resthook management page
+        response = self.client.get(resthook_url)
+
+        # shouldn't have any resthooks listed yet
+        self.assertFalse(response.context['current_resthooks'])
+
+        # ok, let's create one
+        self.client.post(resthook_url, dict(resthook='mother-registration'))
+
+        # should now have a resthook
+        resthook = Resthook.objects.get()
+        self.assertEqual(resthook.slug, 'mother-registration')
+        self.assertEqual(resthook.org, self.org)
+        self.assertEqual(resthook.created_by, self.admin)
+
+        # fetch our read page, should have have our resthook
+        response = self.client.get(resthook_url)
+        self.assertTrue(response.context['current_resthooks'])
+
+        # let's try to create a repeat, should fail due to duplicate slug
+        response = self.client.post(resthook_url, dict(resthook='Mother-Registration'))
+        self.assertTrue(response.context['form'].errors)
+
+        # finally, let's remove that resthook
+        self.client.post(resthook_url, {'resthook_%d' % resthook.id: 'checked'})
+        resthook.refresh_from_db()
+        self.assertFalse(resthook.is_active)
+
+        # no more resthooks!
+        response = self.client.get(resthook_url)
+        self.assertFalse(response.context['current_resthooks'])
 
     def test_connect_nexmo(self):
         self.login(self.admin)

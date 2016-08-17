@@ -1656,7 +1656,7 @@ class OrgCRUDL(SmartCRUDL):
                 new_resthook = self.data.get('resthook')
 
                 if new_resthook:
-                    if self.instance.resthooks.filter(is_active=True, slug=new_resthook):
+                    if self.instance.resthooks.filter(is_active=True, slug__iexact=new_resthook):
                         raise ValidationError("This event name has already been used")
 
                 return new_resthook
@@ -1679,10 +1679,11 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def pre_save(self, obj):
+            from temba.api.models import Resthook
+
             new_resthook = self.form.data.get('resthook')
             if new_resthook:
-                obj.resthooks.create(slug=new_resthook,
-                                     created_by=self.request.user, modified_by=self.request.user)
+                Resthook.get_or_create(obj, new_resthook, self.request.user)
 
             # release any resthooks that the user removed
             for resthook in self.current_resthooks:
