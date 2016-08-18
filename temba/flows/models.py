@@ -3160,7 +3160,7 @@ class RuleSet(models.Model):
 
                 # our subscriber is no longer interested, remove this URL as a subscriber
                 if result.status_code == 410:
-                    resthook.remove_subscriber(url, run.flow.created_on)
+                    resthook.remove_subscriber(url, run.flow.created_by)
 
                 # if this is a success and we haven't ever succeeded, set our code and body
                 elif 200 <= result.status_code < 300 and not (200 <= status_code < 300):
