@@ -31,7 +31,8 @@ from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, \
+    INTERRUPTED
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
 from temba.utils.cache import get_cacheable
@@ -2559,6 +2560,9 @@ class FlowRun(models.Model):
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
+
+    def is_interrupted(self):
+        return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 
@@ -5136,7 +5140,8 @@ class Test(object):
                 HasWardTest.TYPE: HasWardTest,
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasStateTest.TYPE: HasStateTest,
-                NotEmptyTest.TYPE: NotEmptyTest
+                NotEmptyTest.TYPE: NotEmptyTest,
+                InterruptTest.TYPE: InterruptTest
             }
 
         type = json_dict.get(cls.TYPE, None)
