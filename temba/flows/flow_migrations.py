@@ -35,11 +35,15 @@ def migrate_to_version_10(json_flow, flow):
         # for both
         destination = ruleset['rules'][0].get('destination', None)
         destination_type = ruleset['rules'][0].get('destination_type', None)
+        old_rule_uuid = ruleset['rules'][0]['uuid']
+
         rules = []
         for status in ['success', 'failure']:
+            # maintain our rule uuid for the success case
+            rule_uuid = old_rule_uuid if status == 'success' else unicode(uuid4())
             new_rule = dict(test=dict(status=status, type='webhook_status'),
                             category={base_lang: status.capitalize()},
-                            uuid=str(uuid4()))
+                            uuid=rule_uuid)
 
             if destination:
                 new_rule['destination'] = destination

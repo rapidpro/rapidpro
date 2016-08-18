@@ -13,8 +13,9 @@ def migrate_webhooks(apps, schema_editor):
     current = 0
 
     for ruleset in webhook_rulesets:
-        # migrate this flow forward, this will move webhook_url and webhook_action to the config JSON instead
-        ruleset.flow.ensure_current_version()
+        if ruleset.flow.version_number < 10:
+            # migrate this flow forward, this will move webhook_url and webhook_action to the config JSON instead
+            ruleset.flow.ensure_current_version()
 
         current += 1
         print "%d / %d flows with webhooks migrated" % (current, total)
