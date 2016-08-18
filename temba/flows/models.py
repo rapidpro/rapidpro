@@ -2516,6 +2516,27 @@ class FlowRun(models.Model):
         self.is_active = False
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
+    def set_interrupted(self, final_step=None):
+        """
+        Mark run as interrupted
+        """
+        if self.contact.is_test:
+            ActionLog.create(self, _('%s has interrupted this flow') % self.contact.get_display(self.flow.org, short=True))
+
+        now = timezone.now()
+
+        if final_step:
+            final_step.left_on = now
+            final_step.save(update_fields=['left_on'])
+            self.flow.remove_active_for_step(final_step)
+
+        # mark this flow as inactive
+        self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
+        self.exited_on = now
+        self.modified_on = now
+        self.is_active = False
+        self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
+
     def update_expiration(self, point_in_time):
         """
         Set our expiration according to the flow settings
