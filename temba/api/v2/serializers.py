@@ -2,13 +2,15 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 from django.forms import ValidationError
+
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
-from temba.contacts.models import Contact, ContactField, ContactGroup, URN
 
-from temba.flows.models import Flow, FlowRun, FlowStart, FlowStep
+from temba.contacts.models import Contact, ContactField, ContactGroup, URN
+from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
+from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
@@ -78,6 +80,27 @@ class URNListField(serializers.ListField):
 # ============================================================
 # Serializers (A-Z)
 # ============================================================
+
+class AdminBoundaryReadSerializer(ReadSerializer):
+    parent = serializers.SerializerMethodField()
+    aliases = serializers.SerializerMethodField()
+    geometry = serializers.SerializerMethodField()
+
+    def get_parent(self, obj):
+        return {'id': obj.parent.osm_id, 'name': obj.parent.name} if obj.parent else None
+
+    def get_aliases(self, obj):
+        return [alias.name for alias in obj.aliases.all()]
+
+    def get_geometry(self, obj):
+        if self.context['include_geometry'] and obj.simplified_geometry:
+            return json.loads(obj.simplified_geometry.geojson)
+        else:
+            return None
+
+    class Meta:
+        model = AdminBoundary
+        fields = ('osm_id', 'name', 'parent', 'level', 'aliases', 'geometry')
 
 
 class BroadcastReadSerializer(ReadSerializer):

@@ -4,9 +4,9 @@ from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
 from .views import api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, ChannelsEndpoint, ChannelEventsEndpoint
 from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
-from .views import FlowStartsEndpoint, FieldsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
-from .views import OrgEndpoint, ResthookEndpoint, ResthookEventEndpoint, ResthookSubscriberEndpoint, RunsEndpoint
 
+from .views import FieldsEndpoint, FlowStartsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
+from .views import OrgEndpoint, ResthookEndpoint, ResthookEventEndpoint, ResthookSubscriberEndpoint, RunsEndpoint, BoundariesEndpoint
 
 urlpatterns = [
     url(r'^$', api, name='api.v2'),
@@ -14,6 +14,7 @@ urlpatterns = [
     url(r'^/authenticate$', AuthenticateView.as_view(), name='api.v2.authenticate'),
 
     # ========== endpoints A-Z ===========
+    url(r'^/boundaries$', BoundariesEndpoint.as_view(), name='api.v2.boundaries'),
     url(r'^/broadcasts$', BroadcastEndpoint.as_view(), name='api.v2.broadcasts'),
     url(r'^/campaigns$', CampaignsEndpoint.as_view(), name='api.v2.campaigns'),
     url(r'^/campaign_events$', CampaignEventsEndpoint.as_view(), name='api.v2.campaign_events'),
