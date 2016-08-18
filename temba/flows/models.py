@@ -3032,6 +3032,15 @@ class RuleSet(models.Model):
 
             return None, None
 
+    def find_interrupt_rule(self, step, run, msg):
+        rules = self.get_rules()
+        for rule in rules:
+            result, value = rule.matches(run, msg, {}, "")
+
+            if result and value == INTERRUPTED:
+                return rule, value
+        return None, None
+
     def save_run_value(self, run, rule, value):
         value = unicode(value)[:640]
         location_value = None
