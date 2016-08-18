@@ -2183,7 +2183,7 @@ class FlowTest(TembaTest):
         self.assertTrue(Trigger.find_and_handle(other_incoming))
 
     @patch('temba.flows.models.Flow.handle_ussd_ruleset_action',
-           return_value=dict(handled=True, destination=None, step=None))
+           return_value=dict(handled=True, destination=None, step=None, msgs=[]))
     def test_ussd_ruleset_sends_message(self, handle_ussd_ruleset_action):
         # set flow to USSD
         self.definition['flow_type'] = 'U'
@@ -2198,7 +2198,7 @@ class FlowTest(TembaTest):
         self.assertEqual(handle_ussd_ruleset_action.call_count, 1)
 
     @patch('temba.flows.models.Flow.handle_ussd_ruleset_action',
-           return_value=dict(handled=True, destination=None, step=None))
+           return_value=dict(handled=True, destination=None, step=None, msgs=[]))
     def test_triggered_start_with_ussd(self, handle_ussd_ruleset_action):
         # set flow to USSD
         self.definition['flow_type'] = 'U'
