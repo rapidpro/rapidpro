@@ -40,7 +40,7 @@ class Trigger(SmartModel):
     keyword = models.CharField(verbose_name=_("Keyword"), max_length=16, null=True, blank=True,
                                help_text=_("The first word in the message text"))
 
-    flow = models.ForeignKey(Flow, verbose_name=_("Flow"), null=True, blank=True,
+    flow = models.ForeignKey(Flow, verbose_name=_("Flow"),
                              help_text=_("Which flow will be started"), related_name="triggers")
 
     last_triggered = models.DateTimeField(verbose_name=_("Last Triggered"), default=None, null=True,
