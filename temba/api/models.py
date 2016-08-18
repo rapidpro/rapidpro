@@ -209,11 +209,6 @@ class WebHookEvent(SmartModel):
     def trigger_flow_event(cls, webhook_url, flow, run, node_uuid, contact, event, action='POST', resthook=None):
         org = flow.org
         api_user = get_api_user()
-
-        # no-op if no webhook configured
-        if not webhook_url:
-            return
-
         json_time = datetime_to_str(timezone.now())
 
         # get the results for this contact
@@ -288,6 +283,10 @@ class WebHookEvent(SmartModel):
             # only send webhooks when we are configured to, otherwise fail
             if not settings.SEND_WEBHOOKS:
                 raise Exception("!! Skipping WebHook send, SEND_WEBHOOKS set to False")
+
+            # no url, bail!
+            if not webhook_url:
+                raise Exception("No webhook_url specified, skipping send")
 
             # some hosts deny generic user agents, use Temba as our user agent
             if action == 'GET':

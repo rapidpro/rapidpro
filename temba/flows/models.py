@@ -3138,6 +3138,11 @@ class RuleSet(models.Model):
                 resthook_slug = self.config_json()[RuleSet.CONFIG_RESTHOOK]
                 resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
                 urls = resthook.get_subscriber_urls()
+
+                # no urls? use None, as our empty case
+                if not urls:
+                    urls = [None]
+
                 action = 'POST'
 
             # by default we are a failure (there are no resthooks for example)
@@ -3166,6 +3171,11 @@ class RuleSet(models.Model):
                 elif 200 <= result.status_code < 300 and not (200 <= status_code < 300):
                     status_code = result.status_code
                     body = result.body
+
+                # this was an empty URL, treat it as success regardless
+                if url is None:
+                    status_code = 200
+                    body = _("No subscribers to this event")
 
             # default to a status code of 418 if we made no calls
             if not status_code:

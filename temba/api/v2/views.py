@@ -59,6 +59,7 @@ def api(request, format=None):
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
+     * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list subscribers on your resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
 
     You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
@@ -81,6 +82,7 @@ def api(request, format=None):
         'org': reverse('api.v2.org', request=request),
         'resthooks': reverse('api.v2.resthooks', request=request),
         'resthook_events': reverse('api.v2.resthook_events', request=request),
+        'resthook_subscribers': reverse('api.v2.resthook_subscribers', request=request),
         'runs': reverse('api.v2.runs', request=request),
     })
 
@@ -112,6 +114,9 @@ class ApiExplorerView(SmartTemplateView):
             OrgEndpoint.get_read_explorer(),
             ResthookEndpoint.get_read_explorer(),
             ResthookEventEndpoint.get_read_explorer(),
+            ResthookSubscriberEndpoint.get_read_explorer(),
+            ResthookSubscriberEndpoint.get_write_explorer(),
+            ResthookSubscriberEndpoint.get_delete_explorer(),
             RunsEndpoint.get_read_explorer()
         ]
         return context
@@ -1694,7 +1699,7 @@ class ResthookSubscriberEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, B
         return {
             'method': "GET",
             'title': "List Resthook Subscribers",
-            'url': reverse('api.v2.resthooksubscribers'),
+            'url': reverse('api.v2.resthook_subscribers'),
             'slug': 'resthooksubscriber-list',
             'request': "?",
             'fields': []
@@ -1704,7 +1709,7 @@ class ResthookSubscriberEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, B
     def get_write_explorer(cls):
         spec = dict(method="POST",
                     title="Add a subscriber for a resthook",
-                    url=reverse('api.v2.resthooksubscribers'),
+                    url=reverse('api.v2.resthook_subscribers'),
                     slug='resthooksubscriber-create',
                     request='{ "resthook": "new-report", "target_url": "https://zapier.com/handle/1515155" }')
 
@@ -1719,7 +1724,7 @@ class ResthookSubscriberEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, B
     def get_delete_explorer(cls):
         spec = dict(method="DELETE",
                     title="Delete resthook subscriber",
-                    url=reverse('api.v2.resthooksubscribers'),
+                    url=reverse('api.v2.resthook_subscribers'),
                     slug='resthooksubscriber-delete',
                     request="id=10404055")
         spec['fields'] = [dict(name='id', required=True,
@@ -1767,17 +1772,40 @@ class ResthookEventEndpoint(ListAPIMixin, BaseAPIView):
                 "resthook": "new-report",
                 "data": {
                     channel=105,
-                    relayer=105,
                     flow=50505,
+                    "flow_base_language": "eng",
                     run=50040405,
                     text="Incoming text",
                     step="d33e9ad5-5c35-414c-abd4-e7451c69ff1d",
-                    phone="+12067781234",
                     contact=d33e9ad5-5c35-414c-abd4-e7451casdf",
                     urn="tel:+12067781234",
-                    values=,
-                    steps=,
-                    time=json_time
+                    values=[{
+                        "category": {
+                            "eng": "All Responses"
+                        },
+                        "node": "c33724d7-1064-4dd6-9aa3-efd29252cb88",
+                        "text": "Ryan Lewis",
+                        "rule_value": "Ryan Lewis",
+                        "value": "Ryan Lewis",
+                        "label": "Name",
+                        "time": "2016-08-10T21:18:51.186826Z"
+                    }],
+                    steps=[{
+                        "node": "2d4f8c9a-cf12-4f6c-ad55-a6cc633954f6",
+                        "left_on": "2016-08-10T21:18:45.391114Z",
+                        "text": "What is your name?",
+                        "value": null,
+                        "arrived_on": "2016-08-10T21:18:45.378598Z",
+                        "type": "A"
+                    },
+                    {
+                        "node": "c33724d7-1064-4dd6-9aa3-efd29252cb88",
+                        "left_on": "2016-08-10T21:18:51.186826Z",
+                        "text": "Eric Newcomer",
+                        "value": "Eric Newcomer",
+                        "arrived_on": "2016-08-10T21:18:45.391114Z",
+                        "type": "R"
+                    }],
                 },
                 "created_on": "2015-11-11T13:05:57.457742Z",
             },

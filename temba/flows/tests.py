@@ -3281,8 +3281,11 @@ class WebhookTest(TembaTest):
             self.assertEqual(mock_post.call_count, 0)
 
             # should have two messages of failures
-            self.assertEqual("That was a failure.", Msg.all_messages.filter(contact=self.contact).last().text)
-            self.assertEqual("The second failed.", Msg.all_messages.filter(contact=self.contact).first().text)
+            self.assertEqual("That was a success.", Msg.all_messages.filter(contact=self.contact).last().text)
+            self.assertEqual("The second succeeded.", Msg.all_messages.filter(contact=self.contact).first().text)
+
+            # but we should have created a webhook event regardless
+            self.assertTrue(WebHookEvent.objects.filter(resthook__slug='new-registration'))
 
         # ok, let's go add a listener for that event (should have been created automatically)
         resthook = Resthook.objects.get(org=self.org, slug='new-registration')
