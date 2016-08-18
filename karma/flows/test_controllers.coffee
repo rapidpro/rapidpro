@@ -415,6 +415,22 @@ describe 'Controllers:', ->
       # our reply should be gone now
       expect(action.msg).toBe(undefined)
 
+    it 'should let you remove all groups', ->
+      loadFavoritesFlow()
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+
+      # remove all groups
+      editAction actionset, action, (modalScope) ->
+        modalScope.saveGroups('del_group', null, true)
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+
+      expect(action.type).toBe('del_group')
+      expect(action.groups.length).toBe(0)
+
     it 'updateContactAction should not duplicate fields on save', ->
 
       loadFavoritesFlow()
