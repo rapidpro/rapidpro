@@ -396,8 +396,7 @@
 
                 // removing from all groups
                 %span{ng-show:'action.type == "del_group" && action.groups.length == 0'}
-                  %span.attn
-                    All Groups
+                  -trans "Remove from all groups"
 
                 // updating contacts
                 %span{ng-show:'action.type == "save"'}
