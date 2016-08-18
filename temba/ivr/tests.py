@@ -553,7 +553,16 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.get_flow('call_me_maybe')
+        flow = self.get_flow('call_me_maybe')
+        flow.version_number = 3
+        flow.save()
+
+        # go back to our original version
+        flow_json = self.get_flow_json('call_me_maybe')['definition']
+
+        from temba.flows.models import FlowRevision
+        FlowRevision.objects.create(flow=flow, definition=json.dumps(flow_json, indent=2),
+                                    spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
@@ -563,6 +572,10 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().first()
         self.assertEquals('+250788382382', call.contact_urn.path)
+
+        from temba.orgs.models import CURRENT_EXPORT_VERSION
+        flow.refresh_from_db()
+        self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

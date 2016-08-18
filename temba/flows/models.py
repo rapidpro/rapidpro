@@ -393,6 +393,9 @@ class Flow(TembaModel):
         flow = call.flow
         run = FlowRun.objects.filter(call=call).first()
 
+        # make sure we have the latest version
+        flow.ensure_current_version()
+
         # what we will send back
         voice_response = twiml.Response()
         run.voice_response = voice_response
