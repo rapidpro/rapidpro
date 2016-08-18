@@ -12,7 +12,7 @@ from mock import patch
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
-from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
+from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Language
@@ -1634,12 +1634,10 @@ class ScheduleTest(TembaTest):
         channel_models.SEND_QUEUE_DEPTH = 500
         channel_models.SEND_BATCH_SIZE = 100
 
-        from temba.msgs import models as sms_models
-        sms_models.BULK_THRESHOLD = 50
+        Broadcast.BULK_THRESHOLD = 50
 
     def test_batch(self):
-        from temba.msgs import models as sms_models
-        sms_models.BULK_THRESHOLD = 10
+        Broadcast.BULK_THRESHOLD = 10
 
         # broadcast out to 11 contacts to test our batching
         contacts = []
@@ -1658,7 +1656,7 @@ class ScheduleTest(TembaTest):
 
         # get one of our messages, should be at bulk priority since it was in a broadcast over our bulk threshold
         sms = broadcast.get_messages()[0]
-        self.assertEquals(SMS_BULK_PRIORITY, sms.priority)
+        self.assertEqual(sms.priority, Msg.PRIORITY_BULK)
 
         # we should now have 11 messages pending
         self.assertEquals(11, Msg.all_messages.filter(channel=self.channel, status=PENDING).count())

@@ -21,7 +21,7 @@ from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW
 from temba.msgs.models import OUTGOING
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
@@ -342,7 +342,7 @@ class FlowTest(TembaTest):
         msg = Msg.all_messages.get(contact=self.contact)
         self.assertEquals("What is your favorite color?", msg.text)
         self.assertEquals(PENDING, msg.status)
-        self.assertEquals(SMS_NORMAL_PRIORITY, msg.priority)
+        self.assertEquals(Msg.PRIORITY_NORMAL, msg.priority)
 
         # should have a flow run for each contact
         contact1_run = FlowRun.objects.get(contact=self.contact)
@@ -427,7 +427,7 @@ class FlowTest(TembaTest):
         self.assertEquals("I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange", reply.text)
 
         # should be high priority
-        self.assertEquals(SMS_HIGH_PRIORITY, reply.priority)
+        self.assertEqual(reply.priority, Msg.PRIORITY_HIGH)
 
         # our previous state should be executed
         step = FlowStep.objects.get(run__contact=self.contact, pk=step.id)
@@ -572,7 +572,7 @@ class FlowTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             workbook = self.export_flow_results(self.flow)
 
         tz = pytz.timezone(self.org.timezone)
@@ -665,7 +665,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(47):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = pytz.timezone(self.org.timezone)
@@ -692,7 +692,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(52):
+        with self.assertNumQueries(53):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age])
 
@@ -870,9 +870,10 @@ class FlowTest(TembaTest):
 
         entry = ActionSet.objects.get(uuid=uuid(1))
         actions = entry.get_actions()
-        self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction(dict(base='What is your favorite color?')).as_json(), actions[0].as_json())
-        self.assertEquals(entry.uuid, self.flow.entry_uuid)
+        self.assertEqual(len(actions), 1)
+        self.assertIsInstance(actions[0], ReplyAction)
+        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
+        self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
         orange = ActionSet.objects.get(uuid=uuid(2))
         actions = orange.get_actions()
@@ -928,9 +929,10 @@ class FlowTest(TembaTest):
 
         entry = ActionSet.objects.get(uuid=uuid(1))
         actions = entry.get_actions()
-        self.assertEquals(1, len(actions))
-        self.assertEquals(ReplyAction(dict(base='What is your favorite color?')).as_json(), actions[0].as_json())
-        self.assertEquals(entry.uuid, self.flow.entry_uuid)
+        self.assertEqual(len(actions), 1)
+        self.assertIsInstance(actions[0], ReplyAction)
+        self.assertEqual(actions[0].msg, dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))
+        self.assertEqual(entry.uuid, self.flow.entry_uuid)
 
         orange = ActionSet.objects.get(uuid=uuid(2))
         actions = orange.get_actions()
@@ -2704,6 +2706,39 @@ class ActionTest(TembaTest):
         self.assertEqual(dynamic_group.contacts.count(), 0)
 
         self.assertEqual(ActionLog.objects.filter(level='E').count(), 1)
+
+        group1 = self.create_group("Flow Group 1", [])
+        group2 = self.create_group("Flow Group 2", [])
+
+        test = AddToGroupAction([group1])
+        action_json = test.as_json()
+        test = AddToGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, test_msg)
+
+        test = AddToGroupAction([group2])
+        action_json = test.as_json()
+        test = AddToGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, test_msg)
+
+        # user should be in both groups now
+        self.assertTrue(group1.contacts.filter(id=self.contact.pk))
+        self.assertEquals(1, group1.contacts.all().count())
+        self.assertTrue(group2.contacts.filter(id=self.contact.pk))
+        self.assertEquals(1, group2.contacts.all().count())
+
+        test = DeleteFromGroupAction([])
+        action_json = test.as_json()
+        test = DeleteFromGroupAction.from_json(self.org, action_json)
+
+        test.execute(run, None, test_msg)
+
+        # user should be gone from both groups now
+        self.assertFalse(group1.contacts.filter(id=self.contact.pk))
+        self.assertEquals(0, group1.contacts.all().count())
+        self.assertFalse(group2.contacts.filter(id=self.contact.pk))
+        self.assertEquals(0, group2.contacts.all().count())
 
     def test_set_channel_action(self):
         flow = self.flow
