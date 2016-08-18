@@ -4337,6 +4337,7 @@ class AddToGroupAction(Action):
             group_data = [group_data]
 
         groups = []
+
         for g in group_data:
             if isinstance(g, dict):
                 group_uuid = g.get(AddToGroupAction.UUID, None)
@@ -4377,7 +4378,6 @@ class AddToGroupAction(Action):
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
 
-                    contact = run.contact
                     message_context = run.flow.build_message_context(contact, msg)
                     (value, errors) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
                     group = None
@@ -4427,9 +4427,34 @@ class DeleteFromGroupAction(AddToGroupAction):
     def get_type(self):
         return DeleteFromGroupAction.TYPE
 
+    def as_json(self):
+        groups = []
+        for g in self.groups:
+            if isinstance(g, ContactGroup):
+                groups.append(dict(id=g.pk, name=g.name))
+            else:
+                groups.append(g)
+
+        return dict(type=self.get_type(), groups=groups)
+
     @classmethod
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
+
+    def execute(self, run, actionset, sms):
+        if len(self.groups) == 0:
+            contact = run.contact
+            user = get_flow_user()
+            if contact:
+                # remove from all active and inactive user-defined, static groups
+                for group in ContactGroup.user_groups.filter(org=contact.org,
+                                                             group_type=ContactGroup.TYPE_USER_DEFINED,
+                                                             query__isnull=True):
+                    group.update_contacts(user, [contact], False)
+                    if run.contact.is_test:
+                        ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
+            return []
+        return AddToGroupAction.execute(self, run, actionset, sms)
 
 
 class AddLabelAction(Action):
