@@ -248,6 +248,7 @@ def migrate_to_version_6(json_flow, flow=None):
     text will be a dict from the outset. If no language is set, we will use 'base' as the
     default language.
     """
+
     definition = json_flow.get('definition')
 
     # the name of the base language if its not set yet
