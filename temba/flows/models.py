@@ -5868,3 +5868,23 @@ class RegexTest(Test):
             traceback.print_exc()
 
         return False, None
+
+
+class InterruptTest(Test):
+    """
+    Test if it's an interrupt status message
+    """
+    TYPE = INTERRUPTED
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):
+        return dict(type=self.TYPE)
+
+    def evaluate(self, run, msg, context, text):
+        return (True, self.TYPE) if msg.status == self.TYPE else (False, None)
