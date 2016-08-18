@@ -717,7 +717,7 @@ class Msg(models.Model):
         """
         handlers = get_message_handlers()
 
-        if msg.contact.is_blocked:
+        if msg.contact.is_blocked and not msg.status == INTERRUPTED:
             msg.visibility = Msg.VISIBILITY_ARCHIVED
             msg.modified_on = timezone.now()
             msg.save(update_fields=['visibility', 'modified_on'])
@@ -731,7 +731,7 @@ class Msg(models.Model):
                     handled = handler.handle(msg)
 
                     if start:  # pragma: no cover
-                        print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk)
+                        print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0)
 
                     if handled:
                         break
@@ -740,7 +740,8 @@ class Msg(models.Model):
                     traceback.print_exc(e)
                     logger.exception("Error in message handling: %s" % e)
 
-        cls.mark_handled(msg)
+        if not msg.status == INTERRUPTED:
+            cls.mark_handled(msg)
 
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
@@ -1170,7 +1171,11 @@ class Msg(models.Model):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        msg = Msg.all_messages.create(**msg_args)
+        # fake interrupt message to handle the flow properly
+        if status == INTERRUPTED:
+            msg = Msg(**msg_args)
+        else:
+            msg = Msg.all_messages.create(**msg_args)
 
         # if this contact is currently stopped, unstop them
         if contact.is_stopped:
@@ -1179,7 +1184,7 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
-        if status == PENDING:
+        if status in (PENDING, INTERRUPTED):
             msg.handle()
 
             # fire an event off for this message
