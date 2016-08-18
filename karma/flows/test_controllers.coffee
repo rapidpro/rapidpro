@@ -113,6 +113,14 @@ describe 'Controllers:', ->
       $timeout.flush()
       return ruleset
 
+    editAction = (actionset, action, edits) ->
+      # open our editor modal so we can save it
+      $scope.clickAction(actionset, action)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+        edits(modalScope)
+      $timeout.flush()
+
     it 'should show warning when attempting an infinite loop', ->
 
       flowService.fetch(flows.webhook_rule_first.id).then ->
@@ -384,6 +392,45 @@ describe 'Controllers:', ->
 
       $timeout.flush()
 
+    it 'should allow users to create groups in place', ->
+
+      loadFavoritesFlow()
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+
+      editAction actionset, action, (modalScope) ->
+        omnibox =
+          groups: ["Can't Hold Us"]
+          variables: []
+        modalScope.saveGroups('add_group', omnibox)
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+
+      expect(action.type).toBe('add_group')
+      expect(action.groups.length).toBe(1)
+      expect(action.groups[0]).toBe("Can't Hold Us")
+
+      # our reply should be gone now
+      expect(action.msg).toBe(undefined)
+
+    it 'should let you remove all groups', ->
+      loadFavoritesFlow()
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+
+      # remove all groups
+      editAction actionset, action, (modalScope) ->
+        modalScope.saveGroups('del_group', null, true)
+
+      actionset = flowService.flow.action_sets[0]
+      action = actionset.actions[0]
+
+      expect(action.type).toBe('del_group')
+      expect(action.groups.length).toBe(0)
+
     it 'updateContactAction should not duplicate fields on save', ->
 
       loadFavoritesFlow()
@@ -395,45 +442,34 @@ describe 'Controllers:', ->
       actionset = flowService.flow.action_sets[0]
       action = actionset.actions[0]
 
-      # open our editor modal so we can save it
-      $scope.clickAction(actionset, action)
-      $scope.dialog.opened.then ->
-        modalScope = $modalStack.getTop().value.modalScope
+      editAction actionset, action, (modalScope) ->
         field =
           id: 'national_id'
           text: 'National ID'
-
-        # save an update contact action
         modalScope.saveUpdateContact(field, '@flow.natl_id')
 
-        # should still have one to choose from
-        expect(flowService.contactFieldSearch.length).toBe(1)
-        expect(flowService.updateContactSearch.length).toBe(1)
-      $timeout.flush()
+      # should still have one to choose from
+      expect(flowService.contactFieldSearch.length).toBe(1)
+      expect(flowService.updateContactSearch.length).toBe(1)
 
-      # now open our modal and try adding a field
-      $scope.clickAction(actionset, action)
-      $scope.dialog.opened.then ->
-        modalScope = $modalStack.getTop().value.modalScope
-
+      editAction actionset, action, (modalScope) ->
         field =
           id: '[_NEW_]a_new_field'
           text: 'Add new variable: A New Field'
-        modalScope.saveUpdateContact(field, 'save me')
+        modalScope.saveUpdateContact(field, 'save ,e')
 
-        # new fields should be tacked on the end
-        expect(flowService.contactFieldSearch.length).toBe(2)
-        expect(flowService.updateContactSearch.length).toBe(2)
+      # new fields should be tacked on the end
+      expect(flowService.contactFieldSearch.length).toBe(2)
+      expect(flowService.updateContactSearch.length).toBe(2)
 
-        # check that the NEW markers are stripped off
-        added = flowService.contactFieldSearch[1]
-        expect(added.id).toBe('a_new_field')
-        expect(added.text).toBe('A New Field')
+      # check that the NEW markers are stripped off
+      added = flowService.contactFieldSearch[1]
+      expect(added.id).toBe('a_new_field')
+      expect(added.text).toBe('A New Field')
 
-        added = flowService.updateContactSearch[1]
-        expect(added.id).toBe('a_new_field')
-        expect(added.text).toBe('A New Field')
-      $timeout.flush()
+      added = flowService.updateContactSearch[1]
+      expect(added.id).toBe('a_new_field')
+      expect(added.text).toBe('A New Field')
 
 
     it 'should give proper language choices', ->
