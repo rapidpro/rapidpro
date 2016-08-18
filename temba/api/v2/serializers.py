@@ -53,13 +53,8 @@ class WriteSerializer(serializers.Serializer):
         return super(WriteSerializer, self).run_validation(data)
 
 
-class UUIDField(serializers.CharField):
-    def __init__(self, **kwargs):
-        super(UUIDField, self).__init__(max_length=36, **kwargs)
-
-
 class UUIDListField(serializers.ListField):
-    child = UUIDField()
+    child = serializers.UUIDField()
 
 
 class URNField(serializers.CharField):
@@ -403,7 +398,7 @@ class FlowStartReadSerializer(ReadSerializer):
 
 
 class FlowStartWriteSerializer(WriteSerializer):
-    flow = UUIDField()
+    flow = serializers.UUIDField()
     contacts = UUIDListField(required=False)
     groups = UUIDListField(required=False)
     urns = URNListField(required=False)
