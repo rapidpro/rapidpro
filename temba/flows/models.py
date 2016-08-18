@@ -4431,7 +4431,7 @@ class DeleteFromGroupAction(AddToGroupAction):
         groups = []
         for g in self.groups:
             if isinstance(g, ContactGroup):
-                groups.append(dict(id=g.pk, name=g.name))
+                groups.append(dict(uuid=g.uuid, name=g.name))
             else:
                 groups.append(g)
 
