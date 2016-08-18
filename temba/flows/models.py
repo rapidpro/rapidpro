@@ -4094,6 +4094,25 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
+    @classmethod
+    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True):
+        if contacts is None:
+            contacts = []
+
+        if groups is None:
+            groups = []
+
+        start = FlowStart.objects.create(flow=flow, restart_participants=restart_participants,
+                                         created_by=user, modified_by=user)
+
+        for contact in contacts:
+            start.contacts.add(contact)
+
+        for group in groups:
+            start.groups.add(group)
+
+        return start
+
     def async_start(self):
         from temba.flows.tasks import start_flow_task
         start_flow_task.delay(self.id)

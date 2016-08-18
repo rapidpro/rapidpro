@@ -452,15 +452,10 @@ class FlowStartWriteSerializer(WriteSerializer):
 
     def save(self):
         # ok, let's go create our flow start, the actual starting will happen in our view
-        start = FlowStart.objects.create(flow=self.validated_data['flow'],
-                                         restart_participants=self.validated_data.get('restart_participants', True),
-                                         created_by=self.context['user'], modified_by=self.context['user'])
-
-        for contact in self.validated_data.get('contacts', []) + self.validated_data.get('urns', []):
-            start.contacts.add(contact)
-
-        for group in self.validated_data.get('groups', []):
-            start.groups.add(group)
+        start = FlowStart.create(self.validated_data['flow'], self.context['user'],
+                                 restart_participants=self.validated_data.get('restart_participants', True),
+                                 contacts=self.validated_data.get('contacts', []) + self.validated_data.get('urns', []),
+                                 groups=self.validated_data.get('groups', []))
 
         return start
 
