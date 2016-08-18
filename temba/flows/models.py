@@ -665,8 +665,15 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg):
-        # find a matching rule
-        rule, value = ruleset.find_matching_rule(step, run, msg)
+
+        if msg.status == INTERRUPTED:  # check interrupt
+            rule, value = ruleset.find_interrupt_rule(step, run, msg)
+            if not rule:
+                run.set_interrupted(final_step=step)
+                return dict(handled=True, destination=None, destination_type=None)
+        else:  # find a matching rule
+            rule, value = ruleset.find_matching_rule(step, run, msg)
+
         flow = ruleset.flow
 
         # add the message to our step
@@ -677,17 +684,26 @@ class Flow(TembaModel):
             # store the media path as the value
             value = msg.media.split(':', 1)[1]
 
-        step.save_rule_match(rule, value)
-        ruleset.save_run_value(run, rule, value)
+        if not msg.status == INTERRUPTED:
+            step.save_rule_match(rule, value)
+            ruleset.save_run_value(run, rule, value)
 
         # output the new value if in the simulator
         if run.contact.is_test:
-            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
+            if msg.status == INTERRUPTED:
+                ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
+            else:
+                ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
-            # log it for our test contacts
-            run.set_completed(final_step=step)
+            if msg.status == INTERRUPTED:
+                # run was interrupted and interrupt state not handled (not connected)
+                run.set_interrupted(final_step=step)
+            else:
+                # log it for our test contacts
+                run.set_completed(final_step=step)
+
             return dict(handled=True, destination=None, destination_type=None)
 
         # Create the step for our destination
