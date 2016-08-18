@@ -162,11 +162,8 @@ class Broadcast(models.Model):
     urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"), related_name='addressed_broadcasts',
                                   help_text=_("Individual URNs included in this message"))
 
-    recipients = models.ManyToManyField(ContactURN, verbose_name=_("Recipients"), related_name='broadcasts',
-                                        help_text=_("The URNs which received this message"))
-
-    recipient_contacts = models.ManyToManyField(Contact, verbose_name=_("Recipients"), related_name='broadcasts',
-                                                help_text=_("The contacts which received this message"))
+    recipients = models.ManyToManyField(Contact, verbose_name=_("Recipients"), related_name='broadcasts',
+                                        help_text=_("The contacts which received this message"))
 
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
                                           help_text=_("Number of urns which received this broadcast"))
@@ -399,7 +396,7 @@ class Broadcast(models.Model):
         Contact.bulk_cache_initialize(self.org, contacts)
         recipients = list(urns) + list(contacts)
 
-        RelatedRecipient = Broadcast.recipient_contacts.through
+        RelatedRecipient = Broadcast.recipients.through
 
         # we batch up our SQL calls to speed up the creation of our SMS objects
         batch = []
