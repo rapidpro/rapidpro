@@ -458,8 +458,7 @@ class Flow(TembaModel):
                 voice_response.record(action=callback)
             elif gather:
                 if hasattr(gather, 'document'):
-                    doc_start = '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-                    gather.document = gather.document.replace(doc_start, voice_response.document)
+                    gather.join(voice_response)
                 else:
                     # nest all of our previous verbs in our gather
                     for verb in voice_response.verbs:

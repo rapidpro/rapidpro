@@ -10,6 +10,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.utils import timezone
+from temba.utils import voicexml
+from temba.utils.voicexml import VoiceXMLException
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from mock import patch
 from redis_cache import get_redis_connection
@@ -812,3 +814,130 @@ class CurrencyTest(TembaTest):
         self.assertEqual(currency_for_country('DE').letter, 'EUR')
         self.assertEqual(currency_for_country('YE').letter, 'YER')
         self.assertEqual(currency_for_country('AF').letter, 'AFN')
+
+
+class VoiceXMLTest(TembaTest):
+
+    def test_response(self):
+        response = voicexml.Response()
+        self.assertEqual(response.document, '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>')
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form></form></vxml>')
+
+    def test_join(self):
+        response1 = voicexml.Response()
+        response2 = voicexml.Response()
+
+        response1.document += 'Allo '
+        response2.document += 'Hey '
+
+        # the content of response2 should be prepended before the content of response1
+        self.assertEqual(unicode(response1.join(response2)),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>Hey Allo </form></vxml>')
+
+    def test_say(self):
+        response = voicexml.Response()
+        response.say('Hello')
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt>Hello</prompt></block></form></vxml>')
+
+    def test_play(self):
+        response = voicexml.Response()
+
+        with self.assertRaises(VoiceXMLException):
+            response.play()
+
+        response.play(digits='123')
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt>123</prompt></block></form></vxml>')
+
+        response = voicexml.Response()
+        response.play(url='http://example.com/audio.wav')
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt><audio src="http://example.com/audio.wav" /></prompt></block></form></vxml>')
+
+    def test_pause(self):
+        response = voicexml.Response()
+
+        response.pause()
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt><break /></prompt></block></form></vxml>')
+
+        response = voicexml.Response()
+
+        response.pause(length=40)
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<block><prompt><break time="40s"/></prompt></block></form></vxml>')
+
+    def test_redirect(self):
+        response = voicexml.Response()
+        response.redirect('http://example.com/')
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<goto nextitem="http://example.com/" /></form></vxml>')
+
+    def test_hangup(self):
+        response = voicexml.Response()
+        response.hangup()
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form><exit /></form></vxml>')
+
+    def test_reject(self):
+        response = voicexml.Response()
+        response.reject(reason='some')
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form><exit /></form></vxml>')
+
+    def test_gather(self):
+        response = voicexml.Response()
+        response.gather()
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<field name="Digits"><grammar src="builtin:dtmf/digits" /></field></form></vxml>')
+
+        response = voicexml.Response()
+        response.gather(action='http://example.com')
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<field name="Digits"><grammar src="builtin:dtmf/digits" /></field>'
+                         '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>')
+
+        response = voicexml.Response()
+        response.gather(action='http://example.com', numDigits=1, timeout=45, finishOnKey='*')
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<field name="Digits"><grammar termtimeout="45s" termchar="*" '
+                         'src="builtin:dtmf/digits?minlength=1;maxlength=1" /></field>'
+                         '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>')
+
+    def test_record(self):
+        response = voicexml.Response()
+        response.record()
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<record name="UserRecording" beep="true" finalsilence="4000ms" '
+                         'dtmfterm="true" type="audio/x-wav"></record></form></vxml>')
+
+        response = voicexml.Response()
+        response.record(action="http://example.com", method="post", maxLength=60)
+
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
+                         '<record name="UserRecording" beep="true" maxtime="60s" finalsilence="4000ms" '
+                         'dtmfterm="true" type="audio/x-wav">'
+                         '<filled><submit next="http://example.com" method="post" '
+                         'enctype="multipart/form-data" /></filled></record></form></vxml>')
