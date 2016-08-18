@@ -53,7 +53,7 @@ class IVRCall(SmartModel):
 
     channel = models.ForeignKey(Channel,
                                 help_text="The channel that made this call")
-    contact = models.ForeignKey(Contact,
+    contact = models.ForeignKey(Contact, related_name='calls',
                                 help_text="Who this call is with")
 
     contact_urn = models.ForeignKey(ContactURN, verbose_name=_("Contact URN"),

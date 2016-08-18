@@ -17,6 +17,7 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from guardian.utils import get_anonymous_user
+from itertools import chain
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
@@ -459,16 +460,40 @@ class Contact(TembaModel):
 
         return scheduled_broadcasts.order_by('schedule__next_fire')
 
-    def get_purged_broadcasts(self):
+    def get_timeline(self, after, before):
         """
-        Gets purged broadcasts sent to URNs currently owned by this contact
+        Gets this contact's timeline of messages, calls, runs etc in the given time window
         """
-        from temba.msgs.models import Broadcast
+        from temba.flows.models import Flow
+        from temba.ivr.models import BUSY, FAILED, NO_ANSWER, CANCELED
+        from temba.msgs.models import Msg
 
-        q = Q()
-        for urn in self.urns.all():
-            q |= Q(recipients=urn)
-        return Broadcast.objects.filter(q, purged=True)
+        msgs = Msg.all_messages.filter(contact=self, created_on__gt=after, created_on__lt=before)
+        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).order_by('-created_on')
+
+        # we also include in the timeline purged broadcasts with a best guess at the translation used
+        broadcasts = self.broadcasts.filter(purged=True)
+        broadcasts = broadcasts.filter(created_on__gt=after, created_on__lt=before)
+        for broadcast in broadcasts:
+            broadcast.translated_text = broadcast.get_translated_text(contact=self,
+                                                                      org=self.org)  # TODO flow base language
+
+        # and all of this contact's runs, channel events such as missed calls, scheduled events
+        runs = self.runs.filter(created_on__gt=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        channel_events = self.channel_events.filter(created_on__gt=after, created_on__lt=before)
+        event_fires = self.fire_events.filter(fired__gt=after, fired__lt=before).exclude(fired=None)
+
+        # for easier comparison and display - give event fires same time attribute as other activity items
+        for event_fire in event_fires:
+            event_fire.created_on = event_fire.fired
+
+        # and the contact's failed IVR calls
+        error_calls = self.calls.filter(created_on__gt=after, created_on__lt=before)
+        error_calls = error_calls.filter(status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+
+        # chain them all together in the same list and sort by time
+        timeline = chain(msgs, broadcasts, runs, event_fires, channel_events, error_calls)
+        return sorted(timeline, key=lambda i: i.created_on, reverse=True)
 
     def get_field(self, key):
         """

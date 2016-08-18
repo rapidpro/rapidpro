@@ -867,7 +867,7 @@ class ContactCRUDL(SmartCRUDL):
                 end_time = msgs[0].created_on
 
             # we also include in the timeline purged broadcasts with a best guess at the translation used
-            broadcasts = contact.get_purged_broadcasts()
+            broadcasts = contact.broadcasts.filter(purged=True)
             broadcasts = broadcasts.filter(created_on__lt=end_time, created_on__gt=start_time)
             for broadcast in broadcasts:
                 broadcast.translated_text = broadcast.get_translated_text(contact=contact, org=contact.org)  # TODO flow base language
