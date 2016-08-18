@@ -1438,7 +1438,7 @@ class BoundarySerializer(ReadSerializer):
         return obj.parent.osm_id if obj.parent else None
 
     def get_geometry(self, obj):
-        return json.loads(obj.simplified_geometry.geojson)
+        return json.loads(obj.simplified_geometry.geojson) if obj.simplified_geometry else None
 
     def get_boundary(self, obj):
         return obj.osm_id

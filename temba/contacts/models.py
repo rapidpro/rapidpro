@@ -1551,15 +1551,14 @@ class Contact(TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
-        from temba.msgs.models import Broadcast
+        from temba.msgs.models import Msg
 
-        broadcast = Broadcast.create(self.org, user, text, [self])
-        broadcast.send(trigger_send=trigger_send, message_context=message_context)
+        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH,
+                                  response_to=response_to, message_context=message_context)
+        if trigger_send:
+            self.org.trigger_send([msg])
 
-        if response_to and response_to.id > 0:
-            broadcast.get_messages().update(response_to=response_to)
-
-        return broadcast
+        return msg
 
     def __unicode__(self):
         return self.get_display()
