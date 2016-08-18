@@ -582,14 +582,16 @@ class Flow(TembaModel):
                     should_pause = True
 
                 if triggered_start and destination.is_ussd():
-                    Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                    result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                    msgs += result['msgs']
                 elif user_input or not should_pause:
                     result = Flow.handle_ruleset(destination, step, run, msg)
                     add_to_path(path, destination.uuid)
                 # USSD ruleset has extra functionality to send out messages.
                 # This is handled as a shadow step for the ruleset.
                 elif destination.is_ussd():
-                    Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                    result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                    msgs += result['msgs']
 
                 # if we used this input, then mark our user input as used
                 if should_pause:
@@ -702,11 +704,10 @@ class Flow(TembaModel):
         action = UssdAction.from_ruleset(ruleset, run.flow.org)
         msgs = action.execute(run, ruleset.uuid, msg)
 
-        # sync our channels to trigger any messages if we have any
-        if msgs:
-            run.flow.org.trigger_send(msgs)
+        for msg in msgs:
+            step.add_message(msg)
 
-        return dict(handled=True, destination=None, step=step)
+        return dict(handled=True, destination=None, step=step, msgs=msgs)
 
     @classmethod
     def apply_action_label(cls, user, flows, label, add):
