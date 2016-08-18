@@ -20,7 +20,8 @@ from temba.api.models import WebHookEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, SMS_NORMAL_PRIORITY, SMS_HIGH_PRIORITY, PENDING, FLOW, \
+    INTERRUPTED
 from temba.msgs.models import OUTGOING
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
@@ -29,7 +30,8 @@ from temba.utils import datetime_to_str, str_to_datetime
 from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7, migrate_to_version_8
-from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
+from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, \
+    InterruptTest
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, get_flow_user
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
@@ -3050,6 +3052,17 @@ class FlowRunTest(TembaTest):
 
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
 
+    def test_is_interrupted(self):
+        self.flow.start([], [self.contact])
+
+        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
+
+        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
+                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
+        Flow.find_and_handle(msg)
+
+        self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
+
 
 class FlowLabelTest(FlowFileTest):
 
@@ -4511,6 +4524,88 @@ class FlowsTest(FlowFileTest):
         simulate_url = "%s?lang=kli" % reverse('flows.flow_simulate', args=[favorites.pk])
         response = json.loads(self.client.post(simulate_url, json.dumps(dict(has_refresh=True)), content_type="application/json").content)
         self.assertEquals('Bleck', response['messages'][1]['text'])
+
+    def test_interrupted_state(self):
+        flow = self.get_flow('ussd_interrupt_example')
+
+        # start the flow, check if we are interrupted yet
+        flow.start([], [self.contact])
+        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
+
+        # make an incoming (fake) interrupt message
+        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
+                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
+        Flow.find_and_handle(msg)
+
+        # as the example flow has an interrupt state connected to a valid destination,
+        # the flow will go on and reach the destination
+        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
+
+        # the contact should have been added to the "Interrupted" group as flow step describes
+        contact = flow.get_results()[0]['contact']
+        interrupted_group = ContactGroup.user_groups.get(name='Interrupted')
+        self.assertTrue(interrupted_group.contacts.filter(id=contact.id).exists())
+
+    def test_empty_interrupt_state(self):
+        flow = self.get_flow('ussd_interrupt_example')
+
+        # disconnect action from interrupt state
+        ruleset = flow.rule_sets.first()
+        rules = ruleset.get_rules()
+        interrupt_rule = filter(lambda rule: isinstance(rule.test, InterruptTest), rules)[0]
+        interrupt_rule.destination = None
+        interrupt_rule.destination_type = None
+        ruleset.set_rules(rules)
+        ruleset.save()
+
+        # start the flow, check if we are interrupted yet
+        flow.start([], [self.contact])
+
+        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
+
+        # make an incoming (fake) interrupt message
+        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
+                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
+        Flow.find_and_handle(msg)
+
+        # the interrupt state is empty, it should interrupt the flow
+        self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
+
+        # double check that the disconnected action wasn't run
+        contact = flow.get_results()[0]['contact']
+        interrupted_group = ContactGroup.user_groups.get(name='Interrupted')
+        self.assertFalse(interrupted_group.contacts.filter(id=contact.id).exists())
+
+    def test_interrupted_state_with_loop(self):
+        flow = self.get_flow('ussd_interrupt_example')
+
+        # disconnect action from interrupt state and connect to itself (create a self-loop)
+        ruleset = flow.rule_sets.first()
+        rules = ruleset.get_rules()
+        interrupt_rule = filter(lambda rule: isinstance(rule.test, InterruptTest), rules)[0]
+        interrupt_rule.destination = ruleset.uuid
+        interrupt_rule.destination_type = 'R'
+        ruleset.set_rules(rules)
+        ruleset.save()
+
+        # start the flow, check if we are interrupted yet
+        flow.start([], [self.contact])
+        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
+
+        # check if the message was sent out
+        self.assertEqual(len(flow.steps()), 1)
+
+        # make an incoming (fake) interrupt message
+        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
+                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
+        Flow.find_and_handle(msg)
+
+        # the interrupt state leads back to the USSD ruleset itself
+        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
+
+        # it should send out the same message again
+        self.assertEqual(len(flow.steps()), 2)
+        self.assertEqual(flow.steps()[0].messages.first().text, flow.steps()[1].messages.first().text)
 
 
 class FlowMigrationTest(FlowFileTest):
