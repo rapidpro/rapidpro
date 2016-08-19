@@ -2,7 +2,7 @@
 
 -for item in activity
 
-  %tr.item{data-created:'{{item.created_on|date:"U.u"}}', class:'msg_{{item.msg_type}} {%if item.media|slice:":6" == "video:" %}video{%endif%} {% if item.created_on > recent_date%}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
+  %tr.item{data-created:'{{item.created_on|date:"U.u"}}', class:'msg_{{item.msg_type}} {%if item.media|slice:":6" == "video:" %}video{%endif%} {% if item.is_recent %}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
     -with media_type=item.media|media_type media_content_type=item.media|media_content_type media_url=item.media|media_url
 
       %td.icon
@@ -172,3 +172,5 @@
       -if more
         %a.btn.btn-tiny.btn-secondary.load-more
           Load More
+      %span#start_time.hidden
+        {{ start_time }}
