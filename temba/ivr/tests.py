@@ -10,7 +10,7 @@ from django.contrib.auth.models import Group
 from django.core.files import File
 from django.core.urlresolvers import reverse
 from mock import patch
-from temba.channels.models import TWILIO, CALL, ANSWER, SEND
+from temba.channels.models import TWILIO, CALL, ANSWER, SEND, NEXMO
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.msgs.models import Msg, IVR
@@ -444,18 +444,26 @@ class IVRTests(FlowFileTest):
         step = FlowStep.objects.all().order_by('-pk').first()
         self.assertTrue(step.left_on)
 
-        # test other our call status mappings with twilio
-        def test_status_update(call_to_update, twilio_status, temba_status):
-            call_to_update.update_status(twilio_status, 0, TWILIO)
+        # test other our call status mappings
+        def test_status_update(call_to_update, twilio_status, temba_status, channel_type):
+            call_to_update.update_status(twilio_status, 0, channel_type)
             call_to_update.save()
             self.assertEquals(temba_status, IVRCall.objects.get(pk=call_to_update.pk).status)
 
-        test_status_update(call, 'queued', QUEUED)
-        test_status_update(call, 'ringing', RINGING)
-        test_status_update(call, 'canceled', CANCELED)
-        test_status_update(call, 'busy', BUSY)
-        test_status_update(call, 'failed', FAILED)
-        test_status_update(call, 'no-answer', NO_ANSWER)
+        test_status_update(call, 'queued', QUEUED, TWILIO)
+        test_status_update(call, 'ringing', RINGING, TWILIO)
+        test_status_update(call, 'canceled', CANCELED, TWILIO)
+        test_status_update(call, 'busy', BUSY, TWILIO)
+        test_status_update(call, 'failed', FAILED, TWILIO)
+        test_status_update(call, 'no-answer', NO_ANSWER, TWILIO)
+
+        test_status_update(call, None, IN_PROGRESS, NEXMO)
+        test_status_update(call, 'ok', COMPLETED, NEXMO)
+        test_status_update(call, 'failed', FAILED, NEXMO)
+        test_status_update(call, 'error', FAILED, NEXMO)
+        test_status_update(call, 'vxml_error', FAILED, NEXMO)
+        test_status_update(call, 'blocked', FAILED, NEXMO)
+        test_status_update(call, 'machine', FAILED, NEXMO)
 
         FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()
