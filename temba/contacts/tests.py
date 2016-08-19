@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 
 import json
 import pytz
-import time
 
 from datetime import datetime, date, timedelta
 from django.core.files.base import ContentFile
@@ -25,7 +24,7 @@ from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_str, get_datetime_format
+from temba.utils import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.values.models import Value
 from xlrd import open_workbook
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
@@ -1199,13 +1198,18 @@ class ContactTest(TembaTest):
             self.assertEqual(omnibox_request("search=1234"), [])
 
     def test_history(self):
+        url = reverse('contacts.contact_history', args=[self.joe.uuid])
+
+        self.joe.created_on = timezone.now() - timedelta(days=105)
+        self.joe.save()
 
         self.create_campaign()
 
         # create some messages
         msgs = []
-        for i in range(105):
-            msgs.append(self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i))
+        for i in range(100):
+            msgs.append(self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
+                                        created_on=timezone.now() - timedelta(days=(100 - i))))
 
         # start a joe flow
         self.reminder_flow.start([], [self.joe])
@@ -1224,70 +1228,71 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
-        self.assertTrue(response.context['more'])
+        response = self.fetch_protected(url, self.admin)
+        self.assertTrue(response.context['has_older'])
 
-        # activity should include last 100 messages, the channel event, the call, and the flow run
+        # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
         activity = response.context['activity']
-        self.assertEqual(103, len(activity))
+        self.assertEqual(len(activity), 94)
         self.assertIsInstance(activity[0], IVRCall)
         self.assertIsInstance(activity[1], ChannelEvent)
         self.assertIsInstance(activity[2], Msg)
         self.assertEqual(activity[2].direction, 'O')
         self.assertIsInstance(activity[3], FlowRun)
         self.assertIsInstance(activity[4], Msg)
-        self.assertEqual(activity[4].text, "Inbound message 104")
-        self.assertEqual(activity[-1].text, "Inbound message 6")
+        self.assertEqual(activity[4].text, "Inbound message 99")
+        self.assertIsInstance(activity[8], EventFire)
+        self.assertEqual(activity[-1].text, "Inbound message 11")
 
-        # fetch page 2
-        response = self.fetch_protected('%s?page=2' % reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
-        self.assertFalse(response.context['more'])
+        # fetch next page
+        before = response.context['start_time']
+        response = self.fetch_protected(url + '?before=%d' % before, self.admin)
+        self.assertFalse(response.context['has_older'])
 
-        # activity should include 6 remaining messages and the event fire
+        # activity should include 11 remaining messages and the event fire
         activity = response.context['activity']
-        self.assertEqual(len(activity), 7)
-        self.assertEqual(activity[0].text, "Inbound message 5")
-        self.assertEqual(activity[5].text, "Inbound message 0")
-        self.assertIsInstance(activity[6], EventFire)
+        self.assertEqual(len(activity), 11)
+        self.assertEqual(activity[0].text, "Inbound message 10")
+        self.assertEqual(activity[10].text, "Inbound message 0")
+
+        # if a broadcast is purged, it appears in place of the message
+        bcast = Broadcast.objects.get()
+        bcast.purged = True
+        bcast.save()
+        bcast.msgs.all().delete()
+
+        response = self.fetch_protected(url, self.admin)
+        activity = response.context['activity']
+        self.assertEqual(len(activity), 94)
+        self.assertIsInstance(activity[3], Broadcast)  # TODO fix order so initial broadcasts come after their run
+        self.assertEqual(activity[3].text, "What is your favorite color?")
+        self.assertEqual(activity[3].translated_text, "What is your favorite color?")
 
         # if a new message comes in
         self.create_msg(direction='I', contact=self.joe, text="Newer message")
-        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
-        activity = response.context['activity']
+        response = self.fetch_protected(url, self.admin)
 
         # now we'll see the message that just came in first, followed by the call event
+        activity = response.context['activity']
         self.assertIsInstance(activity[0], Msg)
         self.assertEqual(activity[0].text, "Newer message")
         self.assertIsInstance(activity[1], IVRCall)
 
-        # remove 50 messages
-        for i in range(50):
-            msgs[i].delete()
+        recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
+        response = self.fetch_protected(url + "?r=true&rs=%s" % recent_start, self.admin)
 
-        # add five more messages from eight days ago
-        for i in range(5):
-            self.create_msg(direction='I', contact=self.joe, text="Old Message", created_on=timezone.now() - timedelta(days=8))
-
-        # number of items on the first page should be 66 now
-        response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.admin)
+        # with our recent flag on, should not see the older messages
         activity = response.context['activity']
-        self.assertEquals(66, len(activity))
-
-        recent_seconds = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
-        response = self.fetch_protected("%s?r=true&rs=%s" % (reverse('contacts.contact_history', args=[self.joe.uuid]), recent_seconds), self.admin)
-        activity = response.context['activity']
-
-        # with our recent flag on, should not see the 5 older messages
-        self.assertEquals(61, len(activity))
+        self.assertEqual(len(activity), 5)
 
         # can view history as super user as well
-        response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.superuser)
+        response = self.fetch_protected(url, self.superuser)
         activity = response.context['activity']
-        self.assertEquals(66, len(activity))
+        self.assertEqual(len(activity), 95)
 
         self.login(self.admin)
         response = self.client.get(reverse('contacts.contact_history', args=['bad-uuid']))
-        self.assertEquals(response.status_code, 404)
+        self.assertEqual(response.status_code, 404)
 
     def test_event_times(self):
 

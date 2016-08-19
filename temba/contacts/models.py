@@ -460,23 +460,27 @@ class Contact(TembaModel):
 
         return scheduled_broadcasts.order_by('schedule__next_fire')
 
-    def get_timeline(self, after, before):
+    def get_activity(self, after, before):
         """
-        Gets this contact's timeline of messages, calls, runs etc in the given time window
+        Gets this contact's activity of messages, calls, runs etc in the given time window
         """
         from temba.flows.models import Flow
         from temba.ivr.models import BUSY, FAILED, NO_ANSWER, CANCELED
         from temba.msgs.models import Msg
 
         msgs = Msg.all_messages.filter(contact=self, created_on__gt=after, created_on__lt=before)
-        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).order_by('-created_on')
+        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED)
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
-        broadcasts = self.broadcasts.filter(purged=True)
-        broadcasts = broadcasts.filter(created_on__gt=after, created_on__lt=before)
+        broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gt=after, created_on__lt=before)
+        broadcasts = broadcasts.prefetch_related('steps__run__flow')
         for broadcast in broadcasts:
+            steps = list(broadcast.steps.all())
+            flow = steps[0].run.flow if steps else None
+            flow_language = flow.base_language if flow else None
             broadcast.translated_text = broadcast.get_translated_text(contact=self,
-                                                                      org=self.org)  # TODO flow base language
+                                                                      base_language=flow_language,
+                                                                      org=self.org)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gt=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
@@ -492,8 +496,8 @@ class Contact(TembaModel):
         error_calls = error_calls.filter(status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
 
         # chain them all together in the same list and sort by time
-        timeline = chain(msgs, broadcasts, runs, event_fires, channel_events, error_calls)
-        return sorted(timeline, key=lambda i: i.created_on, reverse=True)
+        activity = chain(msgs, broadcasts, runs, event_fires, channel_events, error_calls)
+        return sorted(activity, key=lambda i: i.created_on, reverse=True)
 
     def get_field(self, key):
         """

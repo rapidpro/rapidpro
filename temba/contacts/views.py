@@ -2,10 +2,9 @@ from __future__ import unicode_literals
 
 import json
 import regex
-import pytz
 
 from collections import OrderedDict
-from datetime import timedelta, datetime
+from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -17,11 +16,9 @@ from django.http import Http404, HttpResponseRedirect, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
-from temba.channels.models import ChannelEvent
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
@@ -814,28 +811,29 @@ class ContactCRUDL(SmartCRUDL):
             context = super(ContactCRUDL.History, self).get_context_data(*args, **kwargs)
             contact = self.get_object()
 
-            recent = self.request.REQUEST.get('r', False)
+            refresh_recent = self.request.REQUEST.get('r', False)
             recent_start = ms_to_datetime(int(self.request.GET.get('rs', 0)))
-            older_before = ms_to_datetime(int(self.request.GET.get('before', 0)))
 
-            if recent:
+            if 'before' in self.request.GET:
+                older_before = ms_to_datetime(int(self.request.GET['before']))
+            else:
+                older_before = timezone.now()  # this is the initial request for the timeline
+
+            if refresh_recent:
                 # if we are just grabbing recent history use that window
                 start_time = recent_start
                 end_time = timezone.now()
 
-                timeline = contact.get_timeline(start_time, end_time)
+                activity = contact.get_activity(start_time, end_time)
             else:
-                if 'before' not in self.request.GET:  # this is the initial request for the timeline
-                    older_before = timezone.now()
-
                 start_time = max(older_before - timedelta(days=90), contact.created_on)
                 end_time = older_before
 
                 while True:
-                    timeline = contact.get_timeline(start_time, end_time)
+                    activity = contact.get_activity(start_time, end_time)
 
                     # keep looking further back until we get at least 20 items
-                    if len(timeline) >= 20 or start_time == contact.created_on:
+                    if len(activity) >= 20 or start_time == contact.created_on:
                         break
                     else:
                         start_time = max(start_time - timedelta(days=90), contact.created_on)
@@ -846,13 +844,13 @@ class ContactCRUDL(SmartCRUDL):
                 has_older = False
 
             # make it easier to tell which items fall in the recent time window
-            for item in timeline:
-                item.is_recent = item.created_on > recent_start
+            for item in activity:
+                item.is_recent = refresh_recent or item.created_on > recent_start
 
-            context['recent'] = recent
-            context['activity'] = timeline
+            context['recent'] = refresh_recent
+            context['activity'] = activity
             context['start_time'] = datetime_to_ms(start_time)
-            context['more'] = has_older
+            context['has_older'] = has_older
             return context
 
     class List(ContactActionMixin, ContactListView):
