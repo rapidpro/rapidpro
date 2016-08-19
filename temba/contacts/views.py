@@ -839,7 +839,7 @@ class ContactCRUDL(SmartCRUDL):
                         start_time = max(start_time - timedelta(days=90), contact.created_on)
 
             if start_time > contact.created_on:
-                has_older = True  # TODO not always true
+                has_older = bool(contact.get_activity(contact.created_on, start_time))
             else:
                 has_older = False
 

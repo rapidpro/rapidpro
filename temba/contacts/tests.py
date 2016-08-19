@@ -1200,16 +1200,18 @@ class ContactTest(TembaTest):
     def test_history(self):
         url = reverse('contacts.contact_history', args=[self.joe.uuid])
 
-        self.joe.created_on = timezone.now() - timedelta(days=105)
+        self.joe.created_on = timezone.now() - timedelta(days=1000)
         self.joe.save()
 
         self.create_campaign()
 
         # create some messages
-        msgs = []
         for i in range(100):
-            msgs.append(self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
-                                        created_on=timezone.now() - timedelta(days=(100 - i))))
+            self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
+                            created_on=timezone.now() - timedelta(days=(100 - i)))
+
+        self.create_msg(direction='I', contact=self.joe, text="Very old inbound message",
+                        created_on=timezone.now() - timedelta(days=500))
 
         # start a joe flow
         self.reminder_flow.start([], [self.joe])
@@ -1251,9 +1253,10 @@ class ContactTest(TembaTest):
 
         # activity should include 11 remaining messages and the event fire
         activity = response.context['activity']
-        self.assertEqual(len(activity), 11)
+        self.assertEqual(len(activity), 12)
         self.assertEqual(activity[0].text, "Inbound message 10")
         self.assertEqual(activity[10].text, "Inbound message 0")
+        self.assertEqual(activity[11].text, "Very old inbound message")
 
         # if a broadcast is purged, it appears in place of the message
         bcast = Broadcast.objects.get()
