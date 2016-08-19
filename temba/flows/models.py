@@ -5569,6 +5569,10 @@ class ContainsTest(Test):
         words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
         raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
 
+        tests = [elt for elt in tests if elt != '']
+        words = [elt for elt in words if elt != '']
+        raw_words = [elt for elt in raw_words if elt != '']
+
         # run through each of our tests
         matches = set()
         matched_tests = 0
@@ -5608,6 +5612,10 @@ class ContainsAnyTest(ContainsTest):
         # tokenize our sms
         words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
         raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
+
+        tests = [elt for elt in tests if elt != '']
+        words = [elt for elt in words if elt != '']
+        raw_words = [elt for elt in raw_words if elt != '']
 
         # run through each of our tests
         matches = set()
