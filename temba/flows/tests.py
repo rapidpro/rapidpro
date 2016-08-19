@@ -1095,6 +1095,10 @@ class FlowTest(TembaTest):
         sms.text = "Greenn is ok though"
         self.assertTest(True, "Greenn", test)
 
+        test = ContainsTest(test=dict(base="Green green %%$"))
+        sms.text = "GReen is my favorite!, %%$"
+        self.assertTest(True, "GReen", test)
+
         # variable substitution
         test = ContainsTest(test=dict(base="@extra.color"))
         sms.text = "my favorite color is GREEN today"
@@ -1161,6 +1165,16 @@ class FlowTest(TembaTest):
         self.assertTest(True, "kLab good", test)
 
         sms.text = "kigali city"
+        self.assertTest(False, None, test)
+
+        sms.text = "blue white, allo$%%"
+        self.assertTest(False, None, test)
+
+        test = ContainsAnyTest(test=dict(base="%%$, &&,"))
+        sms.text = "blue white, allo$%%"
+        self.assertTest(False, None, test)
+
+        sms.text = "%%$"
         self.assertTest(False, None, test)
 
         test = LtTest(test="5")

@@ -47,7 +47,7 @@
       .row
         .span12
           #lead-form
-            %form{action:'{% ssl_url "public.lead_create" %}', method:'POST'}
+            %form{action:'{% ssl_brand_url "public.lead_create" %}', method:'POST'}
               -csrf_token
 
               %fieldset
@@ -64,7 +64,7 @@
       %br{clear:"both"}.clearfix
       #bottom.bottom-call
         #jumbotron
-          %form{action:'{% ssl_url "public.lead_create" %}#bottom', method:'POST'}
+          %form{action:'{% ssl_brand_url "public.lead_create" %}#bottom', method:'POST'}
             -csrf_token
 
             %fieldset

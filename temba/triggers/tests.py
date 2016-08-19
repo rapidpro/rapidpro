@@ -937,6 +937,9 @@ class TriggerTest(TembaTest):
         dependencies = flow.get_dependencies()
         del dependencies['groups']
 
+        # make sure our root flow is included
+        dependencies['flows'].add(flow)
+
         # export everything
         export = self.org.export_definitions('http://rapidpro.io', **dependencies)
 

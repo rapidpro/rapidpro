@@ -374,6 +374,14 @@ class Org(SmartModel):
 
     @classmethod
     def export_definitions(cls, site_link, flows=[], campaigns=[], triggers=[]):
+        # remove any triggers that aren't included in our flows
+        flow_uuids = set([f.uuid for f in flows])
+        filtered_triggers = []
+        for trigger in triggers:
+            if trigger.flow.uuid in flow_uuids:
+                filtered_triggers.append(trigger)
+
+        triggers = filtered_triggers
 
         exported_flows = []
         for flow in flows:

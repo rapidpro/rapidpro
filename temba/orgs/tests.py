@@ -2199,6 +2199,24 @@ class BulkExportTest(TembaTest):
         self.assertEquals(1, len(actions))
         self.assertEquals('Triggered Flow', actions[0]['flow']['name'])
 
+    def test_trigger_dependency(self):
+        # tests the case of us doing an export of only a single flow (despite dependencies) and making sure we
+        # don't include the triggers of our dependent flows (which weren't exported)
+        self.import_file('parent_child_trigger')
+
+        parent = Flow.objects.filter(name='Parent Flow').first()
+
+        self.login(self.admin)
+
+        # export only the parent
+        post_data = dict(flows=[parent.pk], campaigns=[])
+        response = self.client.post(reverse('orgs.org_export'), post_data)
+
+        exported = json.loads(response.content)
+
+        # shouldn't have any triggers
+        self.assertFalse(exported['triggers'])
+
     def test_subflow_dependencies(self):
         self.import_file('subflow')
 
