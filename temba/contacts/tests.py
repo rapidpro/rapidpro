@@ -339,6 +339,7 @@ class ContactGroupTest(TembaTest):
 
     def test_delete(self):
         group = self.create_group("one")
+        flow = self.get_flow('favorites')
 
         self.login(self.admin)
 
@@ -349,10 +350,10 @@ class ContactGroupTest(TembaTest):
         group = self.create_group("one")
         delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
 
-        trigger = Trigger.objects.create(org=self.org, keyword="join", created_by=self.admin, modified_by=self.admin)
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin, modified_by=self.admin)
         trigger.groups.add(group)
 
-        second_trigger = Trigger.objects.create(org=self.org, keyword="register", created_by=self.admin, modified_by=self.admin)
+        second_trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="register", created_by=self.admin, modified_by=self.admin)
         second_trigger.groups.add(group)
 
         response = self.client.post(delete_url, dict())
