@@ -137,11 +137,85 @@ class IVRTests(FlowFileTest):
 
         # each of our steps should have exactly one message
         for step in steps:
-            self.assertEquals(1, step.messages.all().count(), msg="Step '%s' does not have excatly one message" % step)
+            self.assertEquals(1, step.messages.all().count(), msg="Step '%s' does not have exactly one message" % step)
 
         # each message should have exactly one step
         for msg in messages:
-            self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exaclty one step" % msg.text)
+            self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
+
+    @patch('requests.post')
+    def test_ivr_recording_with_voicexml(self, mock_post):
+
+        # connect Nexmo
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        self.channel.channel_type = NEXMO
+        self.channel.save()
+
+        self.import_file('capture_recording')
+        flow = Flow.objects.filter(name='Capture Recording').first()
+
+        # start our flow
+        contact = self.create_contact('Chuck D', number='+13603621737')
+        flow.start([], [contact])
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+
+        # after a call is picked up, nexmo will make a get call back to our server
+        response = self.client.get(reverse('ivr.ivrcall_handle', args=[call.pk]))
+        self.assertContains(response, '<prompt>Please make a recording after the tone.</prompt>')
+
+        # we have a voicexml response
+        self.assertContains(response, '</form></vxml>')
+
+        with open('%s/test_media/allo.wav' % settings.MEDIA_ROOT) as audio_file:
+            # nexmo will call back with the audio recorded
+            response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), data={"UserRecording": audio_file})
+
+            # we have a voicexml response
+            self.assertContains(response, '</form></vxml>')
+
+        # nexmo will also send us a final completion message with the call duration
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), data={"status": "ok", "call-duration": "15"})
+
+        # we should have captured the recording, and ended the call
+        call = IVRCall.objects.get(pk=call.pk)
+        self.assertEquals(COMPLETED, call.status)
+        self.assertEquals(15, call.duration)
+
+        messages = Msg.all_messages.filter(msg_type=IVR).order_by('pk')
+        self.assertEquals(4, messages.count())
+        self.assertEquals(4, self.org.get_credits_used())
+
+        # we should have played a recording from the contact back to them
+        outbound_msg = messages[1]
+        self.assertTrue(outbound_msg.media.startswith('audio/x-wav:https://'))
+        self.assertTrue(outbound_msg.media.endswith('.wav'))
+        self.assertTrue(outbound_msg.text.startswith('https://'))
+        self.assertTrue(outbound_msg.text.endswith('.wav'))
+
+        media_msg = messages[2]
+        self.assertTrue(media_msg.media.startswith('audio/x-wav:https://'))
+        self.assertTrue(media_msg.media.endswith('.wav'))
+        self.assertTrue(media_msg.text.startswith('https://'))
+        self.assertTrue(media_msg.text.endswith('.wav'))
+
+        (host, directory, filename) = media_msg.media.rsplit('/', 2)
+        recording = '%s/%s/%s/media/%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR,
+                                              self.org.pk, directory, filename)
+        self.assertTrue(os.path.isfile(recording))
+
+        from temba.flows.models import FlowStep
+        steps = FlowStep.objects.all()
+        self.assertEquals(4, steps.count())
+
+        # each of our steps should have exactly one message
+        for step in steps:
+            self.assertEquals(1, step.messages.all().count(), msg="Step '%s' does not have exactly one message" % step)
+
+        # each message should have exactly one step
+        for msg in messages:
+            self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -317,6 +391,39 @@ class IVRTests(FlowFileTest):
 
         # make sure we have a redirect to deal with empty responses
         self.assertContains(response, 'empty=1')
+
+    @patch('requests.post')
+    def test_ivr_digital_gather_with_voicexml(self, mock_post):
+        mock_post.return_value = MockResponse(200, json.dumps({"call-id": '12345'}))
+
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        self.channel.channel_type = NEXMO
+        self.channel.save()
+
+        # import an ivr flow
+        self.import_file('gather_digits')
+
+        # make sure our flow is there as expected
+        flow = Flow.objects.filter(name='Gather Digits').first()
+
+        # start our flow
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        flow.start([], [eric])
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+
+        # after a call is picked up, nexmo will send a get call back to our server
+        response = self.client.get(reverse('ivr.ivrcall_handle', args=[call.pk]))
+
+        # make sure we send the termchar attribute to nexmo
+        self.assertContains(response, 'termchar="#"')
+
+        # make sure we have a redirect to deal with empty responses
+        self.assertContains(response, 'empty=1')
+
+        # it is in a voicexml format
+        self.assertContains(response, '</form></vxml>')
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

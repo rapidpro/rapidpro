@@ -904,14 +904,15 @@ class VoiceXMLTest(TembaTest):
 
         self.assertEqual(unicode(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-                         '<field name="Digits"><grammar src="builtin:dtmf/digits" /></field></form></vxml>')
+                         '<field name="Digits"><grammar termchar="#" src="builtin:dtmf/digits" />'
+                         '</field></form></vxml>')
 
         response = voicexml.Response()
         response.gather(action='http://example.com')
 
         self.assertEqual(unicode(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-                         '<field name="Digits"><grammar src="builtin:dtmf/digits" /></field>'
+                         '<field name="Digits"><grammar termchar="#" src="builtin:dtmf/digits" /></field>'
                          '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>')
 
         response = voicexml.Response()

@@ -74,8 +74,7 @@ class Response(object):
         if kwargs.get('timeout', False):
             result += 'termtimeout="' + str(kwargs.get('timeout')) + 's" '
 
-        if kwargs.get('finishOnKey', False):
-            result += 'termchar="%s" ' % kwargs.get('finishOnKey')
+        result += 'termchar="%s" ' % kwargs.get('finishOnKey', '#')
 
         result += 'src="builtin:dtmf/digits'
 
