@@ -356,7 +356,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0], {
             'osm_id': "1708283",
             'name': "Kigali City",
-            'parent': {'id': "171496", 'name': "Rwanda"},
+            'parent': {'osm_id': "171496", 'name': "Rwanda"},
             'level': 1,
             'aliases': ["Kigali", "Kigari"],
             'geometry': None
@@ -369,7 +369,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'][0], {
             'osm_id': "1708283",
             'name': "Kigali City",
-            'parent': {'id': "171496", 'name': "Rwanda"},
+            'parent': {'osm_id': "171496", 'name': "Rwanda"},
             'level': 1,
             'aliases': ["Kigali", "Kigari"],
             'geometry': {

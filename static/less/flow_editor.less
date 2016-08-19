@@ -826,7 +826,7 @@
     }
   }
 
-  .save, .lang, .channel {
+  .save, .lang .channel {
     .title {
       text-shadow: 0px 1px @color-save-to-contact - #222;
       .bg-gradient(@color-save-to-contact, @color-save-to-contact - #101010);
@@ -1239,7 +1239,20 @@
     margin-left:5px;
     height: 24px;
     margin-bottom: 0px;
+  }
 
+  .modal-body label{
+    text-align: left;
+    display:inline-block;
+    font-size:15px;
+    font-weight: 200;
+    line-height:18px;
+    margin: 10px 0px;
+  }
+  .modal-body input[type=checkbox]{
+    display:inline-block;
+    margin-top:-1px;
+    width:auto;
   }
 }
 

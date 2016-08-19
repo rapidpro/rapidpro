@@ -339,9 +339,9 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
             "previous": null,
             "results": [
             {
-                "id": "1708283",
+                "osm_id": "1708283",
                 "name": "Kigali City",
-                "parent": {"id": "171496", "name": "Rwanda"},
+                "parent": {"osm_id": "171496", "name": "Rwanda"},
                 "level": 1,
                 "aliases": ["Kigari"],
                 "geometry": {

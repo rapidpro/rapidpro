@@ -82,7 +82,7 @@ class AdminBoundaryReadSerializer(ReadSerializer):
     geometry = serializers.SerializerMethodField()
 
     def get_parent(self, obj):
-        return {'id': obj.parent.osm_id, 'name': obj.parent.name} if obj.parent else None
+        return {'osm_id': obj.parent.osm_id, 'name': obj.parent.name} if obj.parent else None
 
     def get_aliases(self, obj):
         return [alias.name for alias in obj.aliases.all()]
