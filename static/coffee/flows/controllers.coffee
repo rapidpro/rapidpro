@@ -1310,7 +1310,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       category[flow.base_language] = "Interrupted"
 
       rules.push
-        _config: Flow.getOperatorConfig("true")
         test:
           test: "interrupted"
           type: INTERRUPTED_TYPE

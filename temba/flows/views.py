@@ -32,7 +32,7 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, INCOMING, OUTGOING
+from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING, INTERRUPTED
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
@@ -1263,12 +1263,16 @@ class FlowCRUDL(SmartCRUDL):
                 media = '%s/mp4:%s/simulator_audio.m4a' % (Msg.MEDIA_AUDIO, media_url)
 
             if new_message or media:
+                status = PENDING
+                if new_message == "__interrupt__":
+                    status = INTERRUPTED
                 try:
                     Msg.create_incoming(None,
                                         test_contact.get_urn(TEL_SCHEME).urn,
                                         new_message,
                                         media=media,
-                                        org=user.get_org())
+                                        org=user.get_org(),
+                                        status=status)
                 except Exception as e:
                     traceback.print_exc(e)
                     return build_json_response(dict(status="error", description="Error creating message: %s" % str(e)), status=400)
