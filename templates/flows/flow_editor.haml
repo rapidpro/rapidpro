@@ -534,7 +534,7 @@
           %table{style:'width:100%;', ruleset:"ruleset", ng-click:'clickRuleset(ruleset)'}
             %tr.rules
               %td.rule{valign:'bottom', ng-repeat:'category in ruleset._categories', ng-attr-id:'[[category.source]]',
-                       ng-class:'{ missing: category._missingTranslation }'}
+                       ng-class:'{ missing: category._missingTranslation, interrupted: category.type == "X" }'}
                 .category
                   [[category._translation]]
                 .source{ng-attr-id:'[[ruleset.uuid]]_[[category.source]]_source', drop-scope:'actions', ng-class:'{connected:category.target}', ng-click:'clickRuleSource(category); $event.stopPropagation();'}
@@ -551,11 +551,6 @@
                 .visited{ng-show:'category._visited && category.target'}
                   .count{ng-mouseover:'showRecentMessages()', ng-mouseleave:'hideRecentMessages();'}
                     [[category._visited|number]]
-              // placeholder for USSD interrupted state
-              //%td.rule{class:'interrupted', valign:'bottom', ng-show:'ruleset.ruleset_type=="wait_menu" || ruleset.ruleset_type=="wait_ussd"'}
-                .category
-                  Interrupted
-                .source
 
         .note{ng-dblclick:'$event.stopPropagation();', ng-repeat:'note in flow.metadata.notes', note:'note'}
           %a.close{ng-click:'removeNote(note);'}
