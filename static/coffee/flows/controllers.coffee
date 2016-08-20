@@ -938,6 +938,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   # Rule editor
   #-----------------------------------------------------------------
 
+  INTERRUPTED_TYPE = 'X'
   $scope.ruleset = utils.clone(ruleset)
   $scope.removed = []
   flow = Flow.flow
@@ -1001,23 +1002,24 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       toRemove.push(rule)
       continue
 
-    # the config is the meta data about our type of operator
-    rule._config = Flow.getOperatorConfig(rule.test.type)
+    if rule.test.type != INTERRUPTED_TYPE
+      # the config is the meta data about our type of operator
+      rule._config = Flow.getOperatorConfig(rule.test.type)
 
-    # we need to parse our dates
-    if rule.test.type in ['date_before', 'date_after', 'date_equal']
-      # relative dates formatted as: @(date.today + n)
-      # lets rip out the delta parameter and use it as our test instead
-      rule.test._base = rule.test.test.slice(15, -1)
+      # we need to parse our dates
+      if rule.test.type in ['date_before', 'date_after', 'date_equal']
+        # relative dates formatted as: @(date.today + n)
+        # lets rip out the delta parameter and use it as our test instead
+        rule.test._base = rule.test.test.slice(15, -1)
 
-    # set the operands
-    else if rule.test.type != "between" and rule.test.type != "ward"
+      # set the operands
+      else if rule.test.type != "between" and rule.test.type != "ward"
 
-      if rule.test.test and rule._config.localized
-        rule.test._base = rule.test.test[flow.base_language]
-      else
-        rule.test =
-          _base: rule.test.test
+        if rule.test.test and rule._config.localized
+          rule.test._base = rule.test.test[flow.base_language]
+        else
+          rule.test =
+            _base: rule.test.test
 
     # and finally the category name
     rule.category._base = rule.category[flow.base_language]
@@ -1166,6 +1168,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if not rule.category or not rule.category._base
       complete = false
 
+    else if rule.test.type == INTERRUPTED_TYPE
+      complete = true
+
     else if rule._config.operands == 1 and not rule.test._base
       complete = false
 
@@ -1298,6 +1303,20 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       destination: destination
       uuid: ruleId
       category: category
+
+    # add interrupted rule for USSD ruleset
+    if ruleset.ruleset_type in ['wait_menu', 'wait_ussd']
+      category = {}
+      category[flow.base_language] = "Interrupted"
+
+      rules.push
+        _config: Flow.getOperatorConfig("true")
+        test:
+          test: "interrupted"
+          type: INTERRUPTED_TYPE
+        destination: destination
+        uuid: uuid()
+        category: category
 
     $scope.ruleset.rules = rules
 
