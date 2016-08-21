@@ -1670,11 +1670,15 @@ class Org(SmartModel):
 
 # ===================== monkey patch User class with a few extra functions ========================
 
-def get_user_orgs(user):
+def get_user_orgs(user, brand=None):
+    org = user.get_org()
+    if not brand:
+        brand = org.brand if org else settings.DEFAULT_BRAND
+
     if user.is_superuser:
         return Org.objects.all()
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-    return user_orgs.distinct().order_by('name')
+    return user_orgs.filter(brand=brand).distinct().order_by('name')
 
 
 def get_org(obj):

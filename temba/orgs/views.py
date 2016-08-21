@@ -11,7 +11,7 @@ from decimal import Decimal
 from django import forms
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
@@ -814,7 +814,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.Manage, self).derive_queryset(**kwargs)
-            queryset = queryset.filter(is_active=True)
+            queryset = queryset.filter(is_active=True, brand=self.request.branding['host'])
             queryset = queryset.annotate(credits=Sum('topups__credits'))
             queryset = queryset.annotate(paid=Sum('topups__price'))
             return queryset
@@ -1210,11 +1210,16 @@ class OrgCRUDL(SmartCRUDL):
         fields = ('organization',)
         title = _("Select your Organization")
 
-        def pre_process(self, request, *args, **kwargs):
-            if self.request.user.is_authenticated():
-                user_orgs = self.request.user.get_user_orgs()
+        def get_user_orgs(self):
+            host = self.request.branding.get('host', settings.DEFAULT_BRAND)
+            return self.request.user.get_user_orgs(host)
 
-                if self.request.user.is_superuser or self.request.user.is_staff:
+        def pre_process(self, request, *args, **kwargs):
+            user = self.request.user
+            if user.is_authenticated():
+                user_orgs = self.get_user_orgs()
+
+                if user.is_superuser or user.is_staff:
                     return HttpResponseRedirect(reverse('orgs.org_manage'))
 
                 elif user_orgs.count() == 1:
@@ -1225,12 +1230,19 @@ class OrgCRUDL(SmartCRUDL):
 
                     return HttpResponseRedirect(self.get_success_url())
 
+                elif user_orgs.count() == 0:
+                    if user.groups.filter(name='Customer Support').first():
+                        return HttpResponseRedirect(reverse('orgs.org_manage'))
+
+                    # for regular users, if there's no orgs, log them out with a message
+                    messages.info(request, _("No organizations for this account, please contact your administrator."))
+                    logout(request)
+                    return HttpResponseRedirect(reverse('users.user_login'))
             return None
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.Choose, self).get_context_data(**kwargs)
-
-            context['orgs'] = self.request.user.get_user_orgs()
+            context['orgs'] = self.get_user_orgs()
             return context
 
         def has_permission(self, request, *args, **kwargs):
@@ -1238,14 +1250,13 @@ class OrgCRUDL(SmartCRUDL):
 
         def customize_form_field(self, name, field):
             if name == 'organization':
-                user_orgs = self.request.user.get_user_orgs()
-                field.widget.choices.queryset = user_orgs
+                field.widget.choices.queryset = self.get_user_orgs()
             return field
 
         def form_valid(self, form):
             org = form.cleaned_data['organization']
 
-            if org in self.request.user.get_user_orgs():
+            if org in self.get_user_orgs():
                 self.request.session['org_id'] = org.pk
             else:
                 return HttpResponseRedirect(reverse('orgs.org_choose'))
@@ -1577,8 +1588,7 @@ class OrgCRUDL(SmartCRUDL):
 
             slug = Org.get_unique_slug(self.form.cleaned_data['name'])
             obj.slug = slug
-            obj.brand = self.request.get_host()
-
+            obj.brand = self.request.branding.get('host', settings.DEFAULT_BRAND)
             return obj
 
         def get_welcome_size(self):

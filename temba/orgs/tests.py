@@ -832,12 +832,10 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_home'))
         self.assertEquals(response.context_data['org'], self.org2)
 
-        # a non org user get a message to contact their administrator
+        # a non org user get's logged out
         self.login(self.non_org_user)
         response = self.client.get(choose_url)
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(0, len(response.context['orgs']))
-        self.assertContains(response, "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization.")
+        self.assertRedirect(response, reverse('users.user_login'))
 
         # superuser gets redirected to user management page
         self.login(self.superuser)
