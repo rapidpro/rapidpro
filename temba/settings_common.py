@@ -317,6 +317,12 @@ PERMISSIONS = {
 
     'api.apitoken': ('refresh',),
 
+    'api.resthook': ('api', 'list'),
+
+    'api.webhookevent': ('api',),
+
+    'api.resthooksubscriber': ('api',),
+
     'campaigns.campaign': ('api',
                            'archived',
                            ),
@@ -376,6 +382,7 @@ PERMISSIONS = {
                  'nexmo_connect',
                  'plivo_connect',
                  'profile',
+                 'resthooks',
                  'service',
                  'signup',
                  'sub_orgs',
@@ -432,6 +439,8 @@ PERMISSIONS = {
 
     'channels.channelevent': ('api',
                               'calls'),
+
+    'flows.flowstart': ('api',),
 
     'flows.flow': ('activity',
                    'activity_list',
@@ -542,6 +551,10 @@ GROUP_PERMISSIONS = {
         'airtime.airtimetransfer_read',
 
         'api.apitoken_refresh',
+        'api.resthook_api',
+        'api.resthook_list',
+        'api.resthooksubscriber_api',
+        'api.webhookevent_api',
         'api.webhookevent_list',
         'api.webhookevent_read',
 
@@ -596,6 +609,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_nexmo_configuration',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
+        'orgs.org_resthooks',
         'orgs.org_sub_orgs',
         'orgs.org_transfer_credits',
         'orgs.org_transfer_to_account',
@@ -655,6 +669,7 @@ GROUP_PERMISSIONS = {
         'reports.report.*',
 
         'flows.flow.*',
+        'flows.flowstart_api',
         'flows.flowlabel.*',
         'flows.ruleset.*',
 
@@ -682,6 +697,10 @@ GROUP_PERMISSIONS = {
     ),
     "Editors": (
         'api.apitoken_refresh',
+        'api.resthook_api',
+        'api.resthook_list',
+        'api.resthooksubscriber_api',
+        'api.webhookevent_api',
         'api.webhookevent_list',
         'api.webhookevent_read',
 
@@ -727,6 +746,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_home',
         'orgs.org_import',
         'orgs.org_profile',
+        'orgs.org_resthooks',
         'orgs.org_webhook',
         'orgs.topup_list',
         'orgs.topup_read',
@@ -777,6 +797,7 @@ GROUP_PERMISSIONS = {
         'reports.report.*',
 
         'flows.flow.*',
+        'flows.flowstart_api',
         'flows.flowlabel.*',
         'flows.ruleset.*',
 
@@ -803,6 +824,8 @@ GROUP_PERMISSIONS = {
 
     ),
     "Viewers": (
+        'api.resthook_list',
+
         'campaigns.campaign_archived',
         'campaigns.campaign_list',
         'campaigns.campaign_read',
@@ -1035,7 +1058,8 @@ REST_FRAMEWORK = {
         'v2': '2500/hour',
         'v2.contacts': '2500/hour',
         'v2.messages': '2500/hour',
-        'v2.runs': '2500/hour'
+        'v2.runs': '2500/hour',
+        'v2.api': '2500/hour',
     },
     'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (

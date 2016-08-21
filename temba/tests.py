@@ -299,8 +299,6 @@ class TembaTest(SmartminTest):
                                     label='color',
                                     finished_key=None,
                                     operand=None,
-                                    webhook=None,
-                                    webhook_action=None,
                                     response_type='',
                                     ruleset_type='wait_message',
                                     config={},

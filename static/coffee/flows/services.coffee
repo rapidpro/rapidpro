@@ -444,11 +444,15 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', split:'digits', filter:VOICE },
 
         # online flows
-        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE] }
-        #, rules:[
-        #  { name: 'Success', test: { type: 'webhook', result: 'success'}},
-        #  { name: 'Failure', test: { type: 'webhook', result: 'failure'}},
-        #]},
+        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE], rules:[
+          { name: 'Success', test: { type: 'webhook_status', status: 'success'}},
+          { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
+        ]},
+
+        { type: 'resthook', name:'Call Zapier', verbose_name: 'Call Zapier', split:'zapier response', filter:[TEXT,VOICE], rules:[
+          { name: 'Success', test: { type: 'webhook_status', status: 'success'}},
+          { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
+        ]},
 
         { type: 'airtime', name:'Transfer Airtime', verbose_name: 'Transfer Airtime', split: 'transfer airtime', filter:[TEXT, VOICE], rules: [
           { name: 'Success', test: { type: 'airtime_status', exit_status: 'success'}},
@@ -476,7 +480,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @exclusiveRules = {
         'subflow': ['subflow'],
         'timeout': ['wait_message'],
-        'webhook': ['webhook'],
+        'webhook_status': ['webhook', 'resthook'],
         'airtime_status': ['airtime']
       }
 
@@ -504,6 +508,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'subflow', name: 'Subflow', verbose_name:'subflow', operands: 0, show:false }
         { type: 'airtime_status', name: 'Airtime Status', verbose_name:'airtime', operands: 0, show:false }
         { type: 'webhook', name: 'Webhook', verbose_name:'webhook', operands: 0, show:false }
+        { type: 'webhook_status', name: 'Webhook Status', verbose_name:'webhook status', operands: 0, show:false }
         { type: 'true', name: 'Other', verbose_name:'contains anything', operands: 0, show:false }
         { type: 'timeout', name:'Timeout', verbose_name:'timeout', operands:0, show:false }
       ]

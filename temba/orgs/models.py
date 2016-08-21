@@ -42,7 +42,7 @@ from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 9
+CURRENT_EXPORT_VERSION = 10
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0
@@ -577,6 +577,12 @@ class Org(SmartModel):
             urns = ContactURN.objects.filter(org=self, scheme=TEL_SCHEME).exclude(path__startswith="+")
             for urn in urns:
                 urn.ensure_number_normalization(country_code)
+
+    def get_resthooks(self):
+        """
+        Returns the resthooks configured on this Org
+        """
+        return self.resthooks.filter(is_active=True).order_by('slug')
 
     def get_webhook_url(self):
         """
