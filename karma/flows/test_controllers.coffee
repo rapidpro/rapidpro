@@ -235,29 +235,61 @@ describe 'Controllers:', ->
       expect(lastRule['test']['type']).toBe('timeout')
       expect(lastRule['test']['minutes']).toBe(10)
 
-#    it 'should save webhook rulesets', ->
-#
-#      loadFavoritesFlow()
-#
-#      ruleset = flowService.flow.rule_sets[0]
-#      editRules ruleset, (scope) ->
-#        scope.ruleset.ruleset_type = 'webhook'
-#
-#      ruleset = flowService.flow.rule_sets[0]
-#      expect(ruleset.ruleset_type).toBe('webhook')
-#      expect(ruleset.rules.length).toBe(2)
-#      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"webhook","result":"success"}')
-#      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"webhook","result":"failure"}')
-#
-#      # now save it as a regular wait
-#      editRules ruleset, (scope) ->
-#        scope.ruleset.ruleset_type = 'wait_message'
-#
-#      ruleset = flowService.flow.rule_sets[0]
-#      for rule in ruleset.rules
-#        if rule.test.type == 'webhook'
-#          fail('Webhook rule found on non webhook ruleset')
-#          break
+    it 'should save resthook rulesets', ->
+
+      loadFavoritesFlow()
+
+      ruleset = flowService.flow.rule_sets[0]
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'resthook'
+        scope.splitEditor =
+          resthook:
+            selected: [{id:'resthook-name'}]
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.ruleset_type).toBe('resthook')
+      expect(ruleset.rules.length).toBe(2)
+      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"webhook_status","status":"success"}')
+      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"webhook_status","status":"failure"}')
+
+    it 'should save webhook rulesets', ->
+
+      loadFavoritesFlow()
+
+      ruleset = flowService.flow.rule_sets[0]
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'webhook'
+        scope.formData.webhook = 'http://www.nyaruka.com'
+        scope.formData.webhook_action = 'POST'
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.ruleset_type).toBe('webhook')
+      expect(ruleset.rules.length).toBe(2)
+      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"webhook_status","status":"success"}')
+      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"webhook_status","status":"failure"}')
+
+      # our config should have a url
+      expect(ruleset.config.webhook).toBe('http://www.nyaruka.com')
+      expect(ruleset.config.webhook_action).toBe('POST')
+
+      # do it again, make sure we have the right number of rules
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'webhook'
+      expect(flowService.flow.rule_sets[0].rules.length).toBe(2)
+
+      # now save it as a regular wait
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'wait_message'
+
+      ruleset = flowService.flow.rule_sets[0]
+      for rule in ruleset.rules
+        if rule.test.type == 'webhook_status'
+          fail('Webhook rule found on non webhook ruleset')
+          break
+
+      # it should be All Responses, not Other
+      expect(ruleset.rules.length).toBe(1)
+      expect(ruleset.rules[0].category.base).toBe('All Responses')
 
     it 'should save subflow rulesets', ->
       loadFavoritesFlow()
@@ -275,6 +307,18 @@ describe 'Controllers:', ->
       expect(ruleset.ruleset_type).toBe('subflow')
       expect(ruleset.rules.length).toBe(2)
       expect(JSON.stringify(ruleset.config)).toBe('{"flow":{"name":"Child Flow","uuid":"cf785f12-658a-4821-ae62-7735ea5c6cef"}}')
+
+      # click on it a second time and save it to make sure we
+      # still end up with only two rules
+      editRules ruleset, (scope) ->
+        # simulate selecting a child flow
+        scope.ruleset.ruleset_type = 'subflow'
+        scope.splitEditor =
+          flow:
+            selected:[{id: 'cf785f12-658a-4821-ae62-7735ea5c6cef', text: 'Child Flow'}]
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(2)
 
       # now save it as a regular wait
       editRules ruleset, (scope) ->

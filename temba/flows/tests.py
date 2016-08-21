@@ -17,7 +17,7 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import WebHookEvent
+from temba.api.models import WebHookEvent, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -956,14 +956,12 @@ class FlowTest(TembaTest):
         # updating with a label name that is too long should truncate it
         self.definition['rule_sets'][0]['label'] = ''.join('W' for x in range(75))
         self.definition['rule_sets'][0]['operand'] = ''.join('W' for x in range(135))
-        self.definition['rule_sets'][0]['webhook'] = ''.join('W' for x in range(265))
         self.flow.update(self.definition)
 
         # now check they are truncated to the max lengths
         ruleset = RuleSet.objects.get(uuid=uuid(5))
         self.assertEquals(64, len(ruleset.label))
         self.assertEquals(128, len(ruleset.operand))
-        self.assertEquals(255, len(ruleset.webhook_url))
 
     def test_expanding(self):
         # save our original flow
@@ -3177,8 +3175,9 @@ class WebhookTest(TembaTest):
 
         # webhook ruleset comes first
         webhook = RuleSet.objects.create(flow=self.flow, uuid=uuid(100), x=0, y=0, ruleset_type=RuleSet.TYPE_WEBHOOK)
-        webhook.webhook_url = "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164"
-        webhook.webhook_action = "GET"
+        config = {RuleSet.CONFIG_WEBHOOK: "http://ordercheck.com/check_order.php?phone=@step.contact.tel_e164",
+                  RuleSet.CONFIG_WEBHOOK_ACTION: "GET"}
+        webhook.config = json.dumps(config)
         webhook.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json()])
         webhook.save()
 
@@ -3212,7 +3211,9 @@ class WebhookTest(TembaTest):
                 self.assertEquals("http://ordercheck.com/check_order.php?phone=%2B250788383383", get.call_args[0][0])
 
                 # now do a POST
-                webhook.webhook_action = "POST"
+                config = webhook.config_json()
+                config[RuleSet.CONFIG_WEBHOOK_ACTION] = 'POST'
+                webhook.config = json.dumps(config)
                 webhook.save()
                 webhook.find_matching_rule(webhook_step, run, incoming)
                 self.assertEquals(dict(text="Post", blank=""), run.field_dict())
@@ -3316,6 +3317,53 @@ class WebhookTest(TembaTest):
             self.assertIsNone(match)
             self.assertIsNone(value)
             self.assertEquals("1001", incoming.text)
+
+    def test_resthook(self):
+        self.contact = self.create_contact("Macklemore", "+12067799294")
+        webhook_flow = self.get_flow('resthooks')
+
+        # we don't have the resthook registered yet, so this won't trigger any calls
+        with patch('requests.post') as mock_post:
+            webhook_flow.start([], [self.contact])
+            self.assertEqual(mock_post.call_count, 0)
+
+            # should have two messages of failures
+            self.assertEqual("That was a success.", Msg.all_messages.filter(contact=self.contact).last().text)
+            self.assertEqual("The second succeeded.", Msg.all_messages.filter(contact=self.contact).first().text)
+
+            # but we should have created a webhook event regardless
+            self.assertTrue(WebHookEvent.objects.filter(resthook__slug='new-registration'))
+
+        # ok, let's go add a listener for that event (should have been created automatically)
+        resthook = Resthook.objects.get(org=self.org, slug='new-registration')
+        resthook.subscribers.create(target_url='https://foo.bar/', created_by=self.admin, modified_by=self.admin)
+        resthook.subscribers.create(target_url='https://bar.foo/', created_by=self.admin, modified_by=self.admin)
+
+        # clear out our messages
+        Msg.all_messages.filter(contact=self.contact).delete()
+
+        # start over, have our first webhook fail, check that routing still works with failure
+        with patch('requests.post') as mock_post:
+            mock_post.side_effect = [MockResponse(200, '{ "code": "ABABUUDDLRS" }'), MockResponse(400, "Failure"),
+                                     MockResponse(410, 'Unsubscribe'), MockResponse(400, "Failure")]
+
+            webhook_flow.start([], [self.contact], restart_participants=True)
+
+            # should have called all our subscribers
+            self.assertEqual(mock_post.call_args_list[0][0][0], 'https://foo.bar/')
+            self.assertEqual(mock_post.call_args_list[1][0][0], 'https://bar.foo/')
+            self.assertEqual(mock_post.call_args_list[2][0][0], 'https://foo.bar/')
+            self.assertEqual(mock_post.call_args_list[3][0][0], 'https://bar.foo/')
+
+            # first should be a success because we had at least one success
+            self.assertEqual("That was a success.", Msg.all_messages.filter(contact=self.contact).last().text)
+
+            # second, both failed so should be a failure
+            self.assertEqual("The second failed.", Msg.all_messages.filter(contact=self.contact).first().text)
+
+            # we should also have unsubscribed from one of our endpoints
+            self.assertTrue(resthook.subscribers.filter(is_active=False, target_url='https://foo.bar/'))
+            self.assertTrue(resthook.subscribers.filter(is_active=True, target_url='https://bar.foo/'))
 
 
 class SimulationTest(FlowFileTest):
@@ -4326,10 +4374,9 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(run.expires_on > previous_expiration)
 
     def test_parsing(self):
-
         # test a preprocess url
         flow = self.get_flow('preprocess')
-        self.assertEquals('http://preprocessor.com/endpoint.php', flow.rule_sets.all().order_by('y')[0].webhook_url)
+        self.assertEquals('http://preprocessor.com/endpoint.php', flow.rule_sets.all().order_by('y')[0].config_json()[RuleSet.CONFIG_WEBHOOK])
 
     def test_flow_loops(self):
         # this tests two flows that start each other
@@ -4835,6 +4882,45 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals(5, len(flow_json['action_sets']))
         self.assertEquals(1, len(flow_json['rule_sets']))
 
+    @override_settings(SEND_WEBHOOKS=True)
+    def test_migrate_to_10(self):
+        # this is really just testing our rewriting of webhook rulesets
+        webhook_flow = self.get_flow('dual_webhook')
+
+        # get our definition out
+        flow_def = webhook_flow.as_json()
+
+        # make sure our rulesets no longer have 'webhook' or 'webhook_action'
+        for ruleset in flow_def['rule_sets']:
+            self.assertFalse('webhook' in ruleset)
+            self.assertFalse('webhook_action' in ruleset)
+
+        with patch('requests.post') as mock_post:
+            mock_post.return_value = MockResponse(200, '{ "code": "ABABUUDDLRS" }')
+
+            webhook_flow.start([], [self.contact])
+            self.assertEqual(mock_post.call_args[0][0], 'http://foo.bar/')
+
+            # assert the code we received was right
+            msg = Msg.all_messages.filter(direction='O', contact=self.contact).first()
+            self.assertEqual("Great, your code is ABABUUDDLRS. Enter your name", msg.text)
+
+            with patch('requests.get') as mock_get:
+                mock_get.return_value = MockResponse(400, "Error")
+                self.send_message(webhook_flow, "Ryan Lewis", assert_reply=False)
+                self.assertEqual(mock_get.call_args[0][0], 'http://bar.foo/')
+
+        # startover have our first webhook fail, check that routing still works with failure
+        with patch('requests.post') as mock_post:
+            mock_post.return_value = MockResponse(400, 'Error')
+
+            webhook_flow.start([], [self.contact], restart_participants=True)
+            self.assertEqual(mock_post.call_args[0][0], 'http://foo.bar/')
+
+            # assert the code we received was right
+            msg = Msg.all_messages.filter(direction='O', contact=self.contact).first()
+            self.assertEqual("Great, your code is @extra.code. Enter your name", msg.text)
+
     def test_migrate_to_9(self):
 
         # our group and flow to move to uuids
@@ -5036,10 +5122,8 @@ class FlowMigrationTest(FlowFileTest):
         self.assertEquals('All Responses', rules[0]['category']['eng'])
         self.assertEquals('Otro', rules[0]['category']['spa'])
 
+    @override_settings(SEND_WEBHOOKS=True)
     def test_migrate_to_5(self):
-
-        settings.SEND_WEBHOOKS = True
-
         flow = self.get_flow('favorites')
 
         # start the flow for our contact
@@ -5068,7 +5152,7 @@ class FlowMigrationTest(FlowFileTest):
         beer_ruleset.save()
 
         # now migrate our flow
-        flow = self.migrate_flow(flow, to_version=5)
+        flow = self.migrate_flow(flow)
 
         # we should be sitting at a wait node
         ruleset = RuleSet.objects.get(uuid=step.step_uuid)
@@ -5078,8 +5162,8 @@ class FlowMigrationTest(FlowFileTest):
         # we should be pointing to a newly created webhook rule
         webhook = RuleSet.objects.get(flow=flow, uuid=ruleset.get_rules()[0].destination)
         self.assertEquals('webhook', webhook.ruleset_type)
-        self.assertEquals('http://www.mywebhook.com/lookup', webhook.webhook_url)
-        self.assertEquals('POST', webhook.webhook_action)
+        self.assertEquals('http://www.mywebhook.com/lookup', webhook.config_json()[RuleSet.CONFIG_WEBHOOK])
+        self.assertEquals('POST', webhook.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION])
         self.assertEquals('@step.value', webhook.operand)
         self.assertEquals('Color Webhook', webhook.label)
 
@@ -5101,7 +5185,7 @@ class FlowMigrationTest(FlowFileTest):
         # and then split on the expression for various beer choices
         beer_expression = RuleSet.objects.get(flow=flow, uuid=wait_beer.get_rules()[0].destination)
         self.assertEquals('expression', beer_expression.ruleset_type)
-        self.assertEquals('@step.value|lower_case', beer_expression.operand)
+        self.assertEquals('@(LOWER(step.value))', beer_expression.operand)
         self.assertEquals(5, len(beer_expression.get_rules()))
 
         # set our expression to operate on the last inbound message
@@ -5137,7 +5221,7 @@ class FlowMigrationTest(FlowFileTest):
         # check replacement
         order_checker = self.org.flows.filter(name='Sample Flow - Order Status Checker').first()
         ruleset = order_checker.rule_sets.filter(y=298).first()
-        self.assertEqual('https://app.rapidpro.io/demo/status/', ruleset.webhook_url)
+        self.assertEqual('https://app.rapidpro.io/demo/status/', ruleset.config_json()[RuleSet.CONFIG_WEBHOOK])
 
         # our test user doesn't use an email address, check for Administrator for the email
         actionset = order_checker.action_sets.filter(y=991).first()

@@ -21,7 +21,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
-from ..models import APIToken
+from ..models import APIToken, Resthook, WebHookEvent
 from ..v2.serializers import format_datetime
 
 
@@ -71,7 +71,25 @@ class APITest(TembaTest):
         response.json = json.loads(response.content)
         return response
 
+    def postJSON(self, url, data):
+        response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        if response.content:
+            response.json = json.loads(response.content)
+        return response
+
+    def deleteJSON(self, url, query=None):
+        url += ".json"
+        if query:
+            url = url + "?" + query
+
+        response = self.client.delete(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        if response.content:
+            response.json = json.loads(response.content)
+        return response
+
     def assertEndpointAccess(self, url, query=None):
+        self.client.logout()
+
         # 403 if not authenticated but can read docs
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
@@ -1299,3 +1317,156 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'contact=%s&flow=%s' % (self.joe.uuid, flow1.uuid))
         self.assertResponseError(response, None,
                                  "You may only specify one of the contact, flow parameters")
+
+    def test_resthooks(self):
+        url = reverse('api.v2.resthooks')
+        self.assertEndpointAccess(url)
+
+        # create a resthook
+        resthook = Resthook.get_or_create(self.org, 'new-mother', self.admin)
+
+        # create a resthook for another org
+        other_org_resthook = Resthook.get_or_create(self.org2, 'new-father', self.admin2)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], {
+            'resthook': 'new-mother',
+            'created_on': format_datetime(resthook.created_on),
+            'modified_on': format_datetime(resthook.modified_on),
+        })
+
+        # ok, let's look at subscriptions
+        url = reverse('api.v2.resthook_subscribers')
+        self.assertEndpointAccess(url)
+
+        # let's try to create a new one but with an invalid resthook
+        response = self.postJSON(url, dict(resthook='new-father', target_url='https://foo.bar/'))
+        self.assertEqual(response.status_code, 400)
+
+        # let's try to create a new one
+        response = self.postJSON(url, dict(resthook='new-mother', target_url='https://foo.bar/'))
+        self.assertEqual(response.status_code, 201)
+        subscriber = resthook.subscribers.all().first()
+        subscriber_json = dict(id=subscriber.id, resthook='new-mother', target_url='https://foo.bar/',
+                               created_on=format_datetime(subscriber.created_on))
+        self.assertEqual(response.json, subscriber_json)
+
+        # create a subscriber on our other resthook
+        other_org_subscriber = other_org_resthook.add_subscriber('https://bar.foo', self.admin2)
+
+        # list org subscribers, should have only ours
+        response = self.fetchJSON(url)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], subscriber_json)
+
+        # remove our subscriber
+        response = self.deleteJSON(url, "id=%d" % subscriber.id)
+        self.assertEqual(response.status_code, 204)
+
+        # subscriber should no longer be active
+        subscriber.refresh_from_db()
+        self.assertFalse(subscriber.is_active)
+
+        # missing id
+        response = self.deleteJSON(url, "")
+        self.assertEqual(response.status_code, 400)
+
+        # invalid id (other org)
+        response = self.deleteJSON(url, "id=%d" % other_org_subscriber.id)
+        self.assertEqual(response.status_code, 404)
+
+        # ok, let's look at the events on this resthook
+        url = reverse('api.v2.resthook_events')
+        self.assertEndpointAccess(url)
+
+        event = WebHookEvent.objects.create(org=self.org, resthook=resthook, event='F',
+                                            data=json.dumps(dict(event='new mother',
+                                                                 values=json.dumps(dict(name="Greg")),
+                                                                 steps=json.dumps(dict(uuid='abcde')))),
+                                            created_by=self.admin, modified_by=self.admin)
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], {
+            'resthook': 'new-mother',
+            'created_on': format_datetime(event.created_on),
+            'data': dict(event='new mother',
+                         values=dict(name="Greg"),
+                         steps=dict(uuid='abcde'))
+        })
+
+    def test_flow_starts(self):
+        url = reverse('api.v2.flow_starts')
+        self.assertEndpointAccess(url)
+
+        flow = self.get_flow('favorites')
+
+        # start the flow
+        hans_group = self.create_group("hans", contacts=[self.hans])
+        response = self.postJSON(url, dict(urns=['tel:+12067791212'],
+                                           contacts=[self.joe.uuid],
+                                           groups=[hans_group.uuid],
+                                           flow=flow.uuid,
+                                           restart_participants=True))
+        self.assertEqual(response.status_code, 201)
+
+        # assert our new start
+        start = flow.starts.all().first()
+        self.assertEqual(start.flow, flow)
+        self.assertTrue(start.contacts.filter(urns__path='+12067791212'))
+        self.assertTrue(start.contacts.filter(id=self.joe.id))
+        self.assertTrue(start.groups.filter(id=hans_group.id))
+        self.assertTrue(start.restart_participants)
+
+        # error cases:
+
+        # nobody to send to
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid URN
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['foo:bar'], contacts=[self.joe.uuid]))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid contact uuid
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], contacts=['abcde']))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid group uuid
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], groups=['abcde']))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid flow uuid
+        response = self.postJSON(url, dict(flow='abcde', restart_participants=True, urns=['tel:+12067791212']))
+        self.assertEqual(response.status_code, 400)
+
+        # check our list
+        anon_contact = Contact.objects.get(urns__path="+12067791212")
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], {
+            'contacts': [{'name': 'Joe Blow',
+                          'uuid': self.joe.uuid},
+                         {'name': None,
+                          'uuid': anon_contact.uuid}],
+            'created_on': format_datetime(start.created_on),
+            'flow': {'name': 'Favorites',
+                     'uuid': flow.uuid},
+            'groups': [{'name': 'hans',
+                        'uuid': hans_group.uuid}],
+            'id': start.id,
+            'modified_on': format_datetime(start.modified_on),
+            'restart_participants': True,
+            'status': 'complete'
+        })

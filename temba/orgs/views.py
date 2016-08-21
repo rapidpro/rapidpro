@@ -425,8 +425,8 @@ class OrgCRUDL(SmartCRUDL):
     actions = ('signup', 'home', 'webhook', 'edit', 'edit_sub_org', 'join', 'grant', 'accounts', 'create_login', 'choose',
                'manage_accounts', 'manage_accounts_sub_org', 'manage', 'update', 'country', 'languages', 'clear_cache', 'download',
                'twilio_connect', 'twilio_account', 'nexmo_configuration', 'nexmo_account', 'nexmo_connect',
-               'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'service', 'surveyor', 'transfer_credits',
-               'transfer_to_account')
+               'sub_orgs', 'create_sub_org', 'export', 'import', 'plivo_connect', 'resthooks', 'service', 'surveyor',
+               'transfer_credits', 'transfer_to_account')
 
     model = Org
 
@@ -1633,6 +1633,65 @@ class OrgCRUDL(SmartCRUDL):
 
             return obj
 
+    class Resthooks(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        class ResthookForm(forms.ModelForm):
+            resthook = forms.SlugField(required=False, label=_("New Event"),
+                                       help_text="Enter a name for your event. ex: new-registration")
+
+            def add_resthook_fields(self):
+                resthooks = []
+                field_mapping = []
+
+                for resthook in self.instance.get_resthooks():
+                    check_field = forms.BooleanField(required=False)
+                    field_name = "resthook_%d" % resthook.pk
+
+                    field_mapping.append((field_name, check_field))
+                    resthooks.append(dict(resthook=resthook, field=field_name))
+
+                self.fields = OrderedDict(self.fields.items() + field_mapping)
+                return resthooks
+
+            def clean_resthook(self):
+                new_resthook = self.data.get('resthook')
+
+                if new_resthook:
+                    if self.instance.resthooks.filter(is_active=True, slug__iexact=new_resthook):
+                        raise ValidationError("This event name has already been used")
+
+                return new_resthook
+
+            class Meta:
+                model = Org
+                fields = ('id', 'resthook')
+
+        form_class = ResthookForm
+        success_message = ''
+
+        def get_form(self, form_class):
+            form = super(OrgCRUDL.Resthooks, self).get_form(form_class)
+            self.current_resthooks = form.add_resthook_fields()
+            return form
+
+        def get_context_data(self, **kwargs):
+            context = super(OrgCRUDL.Resthooks, self).get_context_data(**kwargs)
+            context['current_resthooks'] = self.current_resthooks
+            return context
+
+        def pre_save(self, obj):
+            from temba.api.models import Resthook
+
+            new_resthook = self.form.data.get('resthook')
+            if new_resthook:
+                Resthook.get_or_create(obj, new_resthook, self.request.user)
+
+            # release any resthooks that the user removed
+            for resthook in self.current_resthooks:
+                if self.form.data.get(resthook['field']):
+                    resthook['resthook'].release(self.request.user)
+
+            return super(OrgCRUDL.Resthooks, self).pre_save(obj)
+
     class Webhook(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
         class WebhookForm(forms.ModelForm):
@@ -1771,6 +1830,9 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm('orgs.org_webhook'):
                 formax.add_section('webhook', reverse('orgs.org_webhook'), icon='icon-cloud-upload')
+
+            if self.has_org_perm('orgs.org_resthooks'):
+                formax.add_section('resthooks', reverse('orgs.org_resthooks'), icon='icon-cloud-lightning', dependents="resthooks")
 
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_level():
