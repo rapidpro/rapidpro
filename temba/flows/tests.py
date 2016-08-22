@@ -2261,7 +2261,7 @@ class ActionTest(TembaTest):
         ussd_ruleset.save()
 
         # without USSD config we only get an empty UssdAction
-        action = UssdAction.from_ruleset(ussd_ruleset, run.flow.org)
+        action = UssdAction.from_ruleset(ussd_ruleset, run)
         execution = action.execute(run, None, msg)
 
         self.assertIsNone(action.msg)
@@ -2309,7 +2309,7 @@ class ActionTest(TembaTest):
             "ussd_message": {"eng": "testENG", "hun": "testHUN"}
         }
         ussd_ruleset.config = json.dumps(config)
-        action = UssdAction.from_ruleset(ussd_ruleset, run.flow.org)
+        action = UssdAction.from_ruleset(ussd_ruleset, run)
         execution = action.execute(run, None, msg)
 
         self.assertIsNotNone(action.msg)
