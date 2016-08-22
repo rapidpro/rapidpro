@@ -4523,10 +4523,13 @@ class UssdAction(ReplyAction):
     TYPE_WAIT_USSD_MENU = 'wait_menu'
     TYPE_WAIT_USSD = 'wait_ussd'
 
-    def __init__(self, msg=None, base_language=None, languages=None):
+    def __init__(self, msg=None, base_language=None, languages=None, primary_language=None):
         super(UssdAction, self).__init__(msg)
-        self.base_language = base_language
         self.languages = languages
+        if msg and base_language and primary_language:
+            self.base_language = base_language if base_language in msg else primary_language
+        else:
+            self.base_language = None
 
     @classmethod
     def from_ruleset(cls, rule, run):
@@ -4534,15 +4537,18 @@ class UssdAction(ReplyAction):
             # initial message, menu obj
             obj = json.loads(rule.config)
             msg = obj.get(cls.MESSAGE, '')
+            org = run.flow.org
 
             # define languages
             base_language = run.flow.base_language
-            org_languages = {l.iso_code for l in run.flow.org.languages.all()}
+            org_languages = {l.iso_code for l in org.languages.all()}
+            primary_language = getattr(getattr(org, 'primary_language', None), 'iso_code', None)
 
             # initialize UssdAction
-            ussd_action = cls(msg, base_language, org_languages)
+            ussd_action = cls(msg=msg, base_language=base_language, languages=org_languages,
+                              primary_language=primary_language)
 
-            ussd_action.prepare_localised_msg()
+            ussd_action.substitute_missing_languages()
 
             if rule.ruleset_type == cls.TYPE_WAIT_USSD_MENU:
                 ussd_action.add_menu_to_msg(obj)
@@ -4551,15 +4557,15 @@ class UssdAction(ReplyAction):
         else:
             return cls()
 
-    def prepare_localised_msg(self):
-        # if there is a translation missing fill it with the base language
+    def substitute_missing_languages(self):
+        # if there is a translation mcissing fill it with the base language
         for language in self.languages:
             if language not in self.msg:
-                self.msg[language] = self.msg[self.base_language]
+                self.msg[language] = self.msg.get(self.base_language)
 
     def get_menu_label(self, label, language):
         if language not in label:
-            return str(label[self.base_language])
+            return str(label.get(self.base_language))
         else:
             return str(label[language])
 
