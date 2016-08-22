@@ -1937,12 +1937,22 @@ class TopUp(SmartModel):
                           amount=-debit.amount,
                           balance=balance))
 
+        now = timezone.now()
+        expired = self.expires_on < now
+
         # add a line for used message credits
         if self.get_remaining() < balance:
-            ledger.append(dict(date=timezone.now(),
+            ledger.append(dict(date=self.expires_on if expired else now,
                                comment=_('Messaging credits used'),
                                amount=self.get_remaining() - balance,
                                balance=self.get_remaining()))
+
+        # add a line for expired credits
+        if expired and self.get_remaining() > 0:
+            ledger.append(dict(date=self.expires_on,
+                               comment=_('Expired credits'),
+                               amount=-self.get_remaining(),
+                               balance=0))
         return ledger
 
     def get_price_display(self):
