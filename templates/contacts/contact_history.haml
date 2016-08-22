@@ -31,7 +31,7 @@
         -else
           %span.det{title:'{% if item.channel %}{{item.channel.get_channel_type_name}} {{item.channel.get_name}}{% endif %}'}
             -if not user_org.is_anon or perms.contacts.contact_break_anon
-              -with item.channellog_set.all.first as log
+              -with item.channel_logs.all.first as log
                 -if log
                   %a{href:"{% url 'channels.channellog_read' log.pk%}"}
                     {{item|activity_icon}}
