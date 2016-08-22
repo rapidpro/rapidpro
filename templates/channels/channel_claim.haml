@@ -138,13 +138,29 @@
                   and receive messages on your shortcode.
 
     -if user_org.timezone == 'Asia/Manila'
-      .claim-row.chikka-channel{class:"{% if recommended_channel == 'chikka' %}recommended{% endif %}"}
+      .claim-row.globe-channel{class:"{% if recommended_channel == 'globe' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
-          -blocktrans with "<a href='http://api.chikka.com/'>" as link_start and "</a>" as link_end
-            We recommend using Chikka in the Phillipines. Visit {{link_start}}their website{{link_end}} for details.
+          -blocktrans with "<a href='http://www.globelabs.com.ph/'>" as link_start and "</a>" as link_end
+            We recommend using Globe Labs in the Phillipines. Visit {{link_start}}their website{{link_end}} for details.
 
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_globe' %}"}
+              .btn-container
+                .claim-glyph.icon-channel-external
+                %p.claim-text
+                  -trans "Globe Short Code"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans with brand.name as brand
+                  If you are based in the Phillipines, you can integrate {{ brand }} with Globe Labs to send
+                  and receive messages on your shortcode.
+
+      .claim-row.chikka-channel
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_chikka' %}"}

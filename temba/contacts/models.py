@@ -185,7 +185,7 @@ class URN(object):
         number = regex.sub('[^0-9a-z\+]', '', number.lower(), regex.V0)
 
         # add on a plus if it looks like it could be a fully qualified number
-        if len(number) >= 11 and number[0] != '+':
+        if len(number) >= 11 and number[0] not in ['+', '0']:
             number = '+' + number
 
         normalized = None
@@ -286,6 +286,14 @@ class ContactField(SmartModel):
 
         with org.lock_on(OrgLock.field, key):
             field = ContactField.objects.filter(org=org, key__iexact=key).first()
+
+            if not field:
+                # try to lookup the existing field by label
+                field = ContactField.get_by_label(org, label)
+
+            # we have a field with a invalid key we should ignore it
+            if field and not ContactField.is_valid_key(field.key):
+                field = None
 
             if field:
                 update_events = False
@@ -408,7 +416,7 @@ class Contact(TembaModel):
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
     def as_json(self):
-        obj = dict(id=self.pk, name=unicode(self))
+        obj = dict(id=self.pk, name=unicode(self), uuid=self.uuid)
 
         if not self.org.is_anon:
             urns = []
@@ -662,6 +670,10 @@ class Contact(TembaModel):
 
         contact = None
 
+        # limit our contact name to 128 chars
+        if name:
+            name = name[:128]
+
         # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
         # it is read only from a contacts perspective, but it is by far the most common case
         if not uuid and not name and urns and len(urns) == 1:
@@ -892,7 +904,11 @@ class Contact(TembaModel):
                 (normalized, is_valid) = URN.normalize_number(value, country)
 
                 if not is_valid:
-                    raise SmartImportRowError("Invalid Phone number %s" % value)
+                    error_msg = "Invalid Phone number %s" % value
+                    if not country:
+                        error_msg = "Invalid Phone number or no country code specified for %s" % value
+
+                    raise SmartImportRowError(error_msg)
 
                 # in the past, test contacts have ended up in exports. Don't re-import them
                 if value == OLD_TEST_CONTACT_TEL:
@@ -1069,6 +1085,9 @@ class Contact(TembaModel):
         finally:
             os.remove(tmp_file)
 
+        # save the import results even if no record was created
+        task.import_results = json.dumps(import_results)
+
         # don't create a group if there are no contacts
         if not contacts:
             return contacts
@@ -1112,6 +1131,7 @@ class Contact(TembaModel):
                 # if we fail to parse phone numbers for any reason just punt
                 pass
 
+        # overwrite the import results for adding the counts
         import_results['creates'] = num_creates
         import_results['updates'] = len(contacts) - num_creates
         task.import_results = json.dumps(import_results)
@@ -1531,14 +1551,14 @@ class Contact(TembaModel):
             return tel.path
 
     def send(self, text, user, trigger_send=True, response_to=None, message_context=None):
-        from temba.msgs.models import Broadcast
-        broadcast = Broadcast.create(self.org, user, text, [self])
-        broadcast.send(trigger_send=trigger_send, message_context=message_context)
+        from temba.msgs.models import Msg
 
-        if response_to and response_to.id > 0:
-            broadcast.get_messages().update(response_to=response_to)
+        msg = Msg.create_outgoing(self.org, user, self, text, priority=Msg.PRIORITY_HIGH,
+                                  response_to=response_to, message_context=message_context)
+        if trigger_send:
+            self.org.trigger_send([msg])
 
-        return broadcast
+        return msg
 
     def __unicode__(self):
         return self.get_display()
@@ -1760,11 +1780,11 @@ class ContactGroup(TembaModel):
         return groups
 
     @classmethod
-    def get_or_create(cls, org, user, name, group_id=None):
+    def get_or_create(cls, org, user, name, group_uuid=None):
         existing = None
 
-        if group_id is not None:
-            existing = ContactGroup.user_groups.filter(org=org, id=group_id).first()
+        if group_uuid is not None:
+            existing = ContactGroup.user_groups.filter(org=org, uuid=group_uuid).first()
 
         if not existing:
             existing = ContactGroup.get_user_group(org, name)

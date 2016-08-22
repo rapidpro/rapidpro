@@ -133,7 +133,6 @@ app.directive "select2", ["$timeout", ($timeout) ->
   }
 ]
 
-
 app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
   link = (scope, element, attrs, form) ->
 
@@ -147,7 +146,9 @@ app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
     if scope.ngModel
       initLabels = []
       for label in scope.ngModel
-        initLabels.push(label)
+        initLabels.push
+          id: label.uuid
+          text: label.name
 
       select2.data(initLabels)
 
@@ -437,9 +438,9 @@ app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
 
     for item in data
       if item.id[0] == 'g'
-        groups.push({id:parseInt(item.id.slice(2)), name:item.text})
+        groups.push({id:item.id.slice(2), name:item.text})
       else if item.id[0] == 'c'
-        contacts.push({id:parseInt(item.id.slice(2)), name:item.text})
+        contacts.push({id:item.id.slice(2), name:item.text})
       else if item.id[0] == '@'
         variables.push({id:item.id, name:item.id})
       else
@@ -469,14 +470,14 @@ app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
     if scope.groups
       for group in scope.groups
         if group.name
-          data.push({ id:'g-' + group.id, text:group.name})
+          data.push({ id:'g-' + group.uuid, text:group.name})
         else
           data.push({ id:group, text:group })
 
     if scope.contacts
       for contact in scope.contacts
         if contact.name
-          data.push({ id:'c-' + contact.id, text:contact.name})
+          data.push({ id:'c-' + contact.uuid, text:contact.name})
         else
           data.push({ id:contact, text:contact })
 

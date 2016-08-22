@@ -642,7 +642,7 @@
     $(".contact-send-button").on('click', function() {
       {% if has_sendable_urn %}
       $(".gear-menu").removeClass("open");
-      showComposeInitialized("c={{object.id}}", null, fetchRecentMessages);
+      showComposeInitialized("c={{object.uuid}}", null, fetchRecentMessages);
       {% else %}
       modal = new Modal('{% trans "Error" %}', '{% trans "This contact does not have any number which you can send to. Please edit the contact first or add a new phone." %}');
       modal.addClass('alert');
