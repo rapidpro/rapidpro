@@ -1230,7 +1230,9 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        response = self.fetch_protected(url, self.admin)
+        with self.assertNumQueries(70):
+            response = self.fetch_protected(url, self.admin)
+
         self.assertTrue(response.context['has_older'])
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run

@@ -469,7 +469,7 @@ class Contact(TembaModel):
         from temba.msgs.models import Msg
 
         msgs = Msg.all_messages.filter(contact=self, created_on__gt=after, created_on__lt=before)
-        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED)
+        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gt=after, created_on__lt=before)
@@ -484,16 +484,21 @@ class Contact(TembaModel):
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gt=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        runs = runs.select_related('flow')
+
         channel_events = self.channel_events.filter(created_on__gt=after, created_on__lt=before)
+        channel_events = channel_events.select_related('channel')
+
         event_fires = self.fire_events.filter(fired__gt=after, fired__lt=before).exclude(fired=None)
+        event_fires = event_fires.select_related('event__campaign')
 
         # for easier comparison and display - give event fires same time attribute as other activity items
         for event_fire in event_fires:
             event_fire.created_on = event_fire.fired
 
         # and the contact's failed IVR calls
-        error_calls = self.calls.filter(created_on__gt=after, created_on__lt=before)
-        error_calls = error_calls.filter(status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+        error_calls = self.calls.filter(created_on__gt=after, created_on__lt=before, status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+        error_calls = error_calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
         activity = chain(msgs, broadcasts, runs, event_fires, channel_events, error_calls)
