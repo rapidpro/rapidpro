@@ -6653,8 +6653,29 @@ class FacebookTest(TembaTest):
         }
         """
 
+        ATTACHMENT_UNAVAILABLE = """{
+          "sender":{
+            "id":"1001"
+          },
+          "recipient":{
+            "id":"%s"
+          },
+          "timestamp":1234567890,
+          "message":{
+            "mid":"mid.1471652393639:4ecd7f5649c8586032",
+            "seq":"77866",
+            "attachments":[{
+              "title":"Attachment Unavailable",
+              "url":null,
+              "type":"fallback",
+              "payload":null
+            }]
+          }
+        }
+        """
+
         callback_url = reverse('handlers.facebook_handler', args=[self.channel.uuid])
-        for entry in (READ_ENTRY, ECHO_ENTRY, LINK_ENTRY, AUTH_ENTRY):
+        for entry in (READ_ENTRY, ECHO_ENTRY, LINK_ENTRY, AUTH_ENTRY, ATTACHMENT_UNAVAILABLE):
             payload = json.loads(TEST_PAYLOAD)
             payload['entry'][0]['messaging'].append(json.loads(entry % self.channel.address))
 
