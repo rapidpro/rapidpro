@@ -8,7 +8,7 @@ from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
 
-from temba.contacts.models import Contact, ContactField, ContactGroup, URN
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
@@ -252,6 +252,134 @@ class ContactReadSerializer(ReadSerializer):
         model = Contact
         fields = ('uuid', 'name', 'language', 'urns', 'groups', 'fields', 'blocked', 'stopped',
                   'created_on', 'modified_on')
+
+
+class ContactWriteSerializer(WriteSerializer):
+    uuid = serializers.UUIDField(required=False)
+    name = serializers.CharField(required=False, max_length=64)
+    language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
+    urns = URNListField(required=False)
+    groups = UUIDListField(required=False)
+    fields = serializers.DictField()
+
+    def __init__(self, *args, **kwargs):
+        super(ContactWriteSerializer, self).__init__(*args, **kwargs)
+
+    def validate_uuid(self, value):
+        if value:
+            self.instance = Contact.objects.filter(org=self.org, uuid=value, is_active=True).first()
+            if not self.instance:
+                raise serializers.ValidationError("Invalid contact UUID: %s" % value)
+
+        return value
+
+    def validate_urns(self, value):
+        urns = []
+        for urn in value:
+            try:
+                normalized = URN.normalize(urn)
+                if not URN.validate(normalized):
+                    raise ValueError()
+            except ValueError:
+                raise serializers.ValidationError("Invalid URN: '%s'" % urn)
+
+            urns.append(normalized)
+
+        return urns
+
+    def validate_groups(self, value):
+        groups = []
+        for uuid in value:
+            group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org).first()
+            if not group:
+                raise serializers.ValidationError("Invalid contact group uuid: %s" % uuid)
+            groups.append(group)
+
+        return groups
+
+    def validate_fields(self, value):
+        valid_keys = {f.key for f in self.context['contact_fields']}
+
+        for field_key, field_val in value.items():
+            if field_key not in valid_keys:
+                raise serializers.ValidationError("Invalid contact field key: '%s'" % field_key)
+
+        return value
+
+    def validate(self, data):
+        if self.org.is_anon and self.instance and data['urns'] is not None:
+            raise serializers.ValidationError("Cannot update contact URNs on anonymous organizations")
+
+        if self.parsed_urns is not None:
+            # look up these URNs, keeping track of the contacts that are connected to them
+            urn_contacts = set()
+            for parsed_urn in self.parsed_urns:
+                urn = ContactURN.objects.filter(org=self.org, urn__exact=parsed_urn).first()
+                if urn and urn.contact:
+                    urn_contacts.add(urn.contact)
+
+            if len(urn_contacts) > 1:
+                raise serializers.ValidationError("URNs are used by multiple contacts")
+
+            contact_by_urns = urn_contacts.pop() if len(urn_contacts) > 0 else None
+
+            if self.instance and contact_by_urns and contact_by_urns != self.instance:
+                raise serializers.ValidationError("URNs are used by other contacts")
+        else:
+            contact_by_urns = None
+
+        contact = self.instance or contact_by_urns
+
+        # if contact is blocked, they can't be added to groups
+        if contact and contact.is_blocked and data['groups']:
+            raise serializers.ValidationError("Cannot add blocked contact to groups")
+
+        return data
+
+    def save(self):
+        """
+        Update our contact
+        """
+        name = self.validated_data.get('name')
+        language = self.validated_data.get('language')
+        groups = self.validated_data.get('groups')
+        fields = self.validated_data.get('fields')
+
+        changed = []
+
+        if self.instance:
+            if self.parsed_urns is not None:
+                self.instance.update_urns(self.user, self.parsed_urns)
+
+            # update our name and language
+            if name != self.instance.name:
+                self.instance.name = name
+                changed.append('name')
+        else:
+            self.instance = Contact.get_or_create(self.org, self.user, name, urns=self.parsed_urns, language=language)
+
+        # Contact.get_or_create doesn't nullify language so do that here
+        if 'language' in self.validated_data and language is None:
+            self.instance.language = language.lower() if language else None
+            self.instance.save()
+
+        # save our contact if it changed
+        if changed:
+            self.instance.save(update_fields=changed)
+
+        # update our fields
+        if fields is not None:
+            for key, value in fields.items():
+                existing_by_key = ContactField.objects.filter(org=self.org, key__iexact=key, is_active=True).first()
+                if existing_by_key:
+                    self.instance.set_field(self.user, existing_by_key.key, value)
+                    continue
+
+        # update our contact's groups
+        if groups is not None:
+            self.instance.update_static_groups(self.user, groups)
+
+        return self.instance
 
 
 class ContactFieldReadSerializer(ReadSerializer):

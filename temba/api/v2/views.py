@@ -48,7 +48,7 @@ def api(request, format=None):
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
-     * [/api/v2/contacts](/api/v2/contacts) - to list contacts
+     * [/api/v2/contacts](/api/v2/contacts) - to list, create or update contacts
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
@@ -59,8 +59,8 @@ def api(request, format=None):
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
-     * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list subscribers on your resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
+     * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list subscribers on your resthooks
 
     You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
     """
@@ -103,6 +103,7 @@ class ApiExplorerView(SmartTemplateView):
             ChannelsEndpoint.get_read_explorer(),
             ChannelEventsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
+            ContactsEndpoint.get_write_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FlowsEndpoint.get_read_explorer(),
@@ -801,6 +802,52 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
 
 class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     """
+    ## Adding or Updating Contacts
+
+    You can add a new contact to your account, or update the fields on a contact by sending a **POST** request to this
+    URL with the following JSON data:
+
+    * **uuid** - the UUID of the contact (string, optional)
+    * **name** - the full name of the contact (string, optional)
+    * **language** - the preferred language for the contact (3 letter iso code, optional)
+    * **urns** - a list of URNs you want associated with the contact (string array)
+    * **groups** - a list of the UUIDs of any groups this contact is part of (string array, optional)
+    * **fields** - the contact fields you want to set or update on this contact (dictionary, optional)
+
+    Example:
+
+        POST /api/v2/contacts.json
+        {
+            "name": "Ben Haggerty",
+            "language": "eng",
+            "urns": ["tel:+250788123123", "twitter:ben"],
+            "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
+            "fields": {
+              "nickname": "Macklemore",
+              "side_kick": "Ryan Lewis"
+            }
+        }
+
+    You will receive a contact object as a response if successful:
+
+        {
+            "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+            "name": "Ben Haggerty",
+            "language": "eng",
+            "urns": ["tel:+250788123123", "twitter:ben"],
+            "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
+            "fields": {
+              "nickname": "Macklemore",
+              "side_kick": "Ryan Lewis"
+            }
+            "blocked": false,
+            "stopped": false
+        }
+
+    You can update contacts in the same manner as adding them but we recommend you pass in the UUID for the contact
+    as a way of specifying which contact to update. Note that when you pass in the contact UUID and ```urns```, all
+    existing URNs will be evaluated against this new set and updated accordingly.
+
     ## Listing Contacts
 
     A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
