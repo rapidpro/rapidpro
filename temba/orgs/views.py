@@ -30,7 +30,7 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartRead
 from datetime import timedelta
 from temba.api.models import APIToken
 from temba.assets.models import AssetType
-from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.channels.models import Channel
 from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient, NexmoValidationError
@@ -758,8 +758,8 @@ class OrgCRUDL(SmartCRUDL):
             auth_token = form.cleaned_data['auth_token']
 
             # add the credentials to the session
-            self.request.session[PLIVO_AUTH_ID] = auth_id
-            self.request.session[PLIVO_AUTH_TOKEN] = auth_token
+            self.request.session[Channel.CONFIG_PLIVO_AUTH_ID] = auth_id
+            self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = auth_token
 
             response = self.render_to_response(self.get_context_data(form=form,
                                                success_url=self.get_success_url(),
