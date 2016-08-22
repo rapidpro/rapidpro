@@ -718,7 +718,7 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
-        action = UssdAction.from_ruleset(ruleset, run.flow.org)
+        action = UssdAction.from_ruleset(ruleset, run)
         msgs = action.execute(run, ruleset.uuid, msg)
 
         for msg in msgs:
@@ -4528,28 +4528,28 @@ class UssdAction(ReplyAction):
         self.base_language = base_language
         self.languages = languages
 
-    @staticmethod
-    def from_ruleset(rule, org):
+    @classmethod
+    def from_ruleset(cls, rule, run):
         if rule and hasattr(rule, 'config') and isinstance(rule.config, basestring):
             # initial message, menu obj
             obj = json.loads(rule.config)
-            msg = obj.get(UssdAction.MESSAGE, '')
+            msg = obj.get(cls.MESSAGE, '')
 
-            # define language
-            base_language = org.primary_language.iso_code if org.primary_language else 'base'
-            org_languages = {l.iso_code for l in org.languages.all()}
+            # define languages
+            base_language = run.flow.base_language
+            org_languages = {l.iso_code for l in run.flow.org.languages.all()}
 
             # initialize UssdAction
-            ussd_action = UssdAction(msg, base_language, org_languages)
+            ussd_action = cls(msg, base_language, org_languages)
 
             ussd_action.prepare_localised_msg()
 
-            if rule.ruleset_type == UssdAction.TYPE_WAIT_USSD_MENU:
+            if rule.ruleset_type == cls.TYPE_WAIT_USSD_MENU:
                 ussd_action.add_menu_to_msg(obj)
 
             return ussd_action
         else:
-            return UssdAction()
+            return cls()
 
     def prepare_localised_msg(self):
         # if there is a translation missing fill it with the base language
@@ -4568,7 +4568,7 @@ class UssdAction(ReplyAction):
         self.msg = {language: localised_msg + '\n' for language, localised_msg in self.msg.iteritems()}
 
         # add menu to the msg
-        for menu in obj[UssdAction.MENU]:
+        for menu in obj[self.MENU]:
             self.msg = {language: localised_msg + ": ".join(
                 (str(menu['option']), self.get_menu_label(menu['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
 
