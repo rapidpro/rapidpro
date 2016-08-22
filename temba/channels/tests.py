@@ -30,7 +30,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
 from temba.middleware import BrandingMiddleware
-from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
@@ -4207,6 +4207,32 @@ class VumiUssdTest(TembaTest):
                 self.clear_cache()
         finally:
             settings.SEND_MESSAGES = False
+
+    @patch('temba.msgs.models.Msg.create_incoming')
+    def test_interrupt(self, create_incoming):
+        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
+
+        response = self.client.get(callback_url)
+        self.assertEqual(response.status_code, 405)
+
+        response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
+        self.assertEqual(response.status_code, 404)
+
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="Hello from Vumi", transport_type='ussd', session_event="close")
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        # no real messages stored
+        self.assertEquals(Msg.all_messages.count(), 0)
+
+        self.assertTrue(create_incoming.called)
+        self.assertEqual(create_incoming.call_count, 1)
+
+        args, kwargs = create_incoming.call_args
+        self.assertEqual(kwargs['status'], INTERRUPTED)
 
 
 class ZenviaTest(TembaTest):

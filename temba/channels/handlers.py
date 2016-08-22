@@ -22,7 +22,7 @@ from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGIN
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
-from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
+from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, INTERRUPTED
 from temba.triggers.models import Trigger
 from temba.utils import json_date_to_datetime
 from temba.utils.middleware import disable_middleware
@@ -1020,13 +1020,17 @@ class VumiHandler(View):
             # dates come in the format "2014-04-18 03:54:20.570618" GMT
             message_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
             gmt_date = pytz.timezone('GMT').localize(message_date)
-            message = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), body['content'], date=gmt_date)
 
-            # use an update so there is no race with our handling
-            Msg.all_messages.filter(pk=message.id).update(external_id=body['message_id'])
+            status = PENDING
+            if body.get('session_event') == "close":
+                status = INTERRUPTED
+            message = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), body['content'], date=gmt_date, status=status)
+
+            if status != INTERRUPTED:
+                # use an update so there is no race with our handling
+                Msg.all_messages.filter(pk=message.id).update(external_id=body['message_id'])
 
             # TODO: handle "session_event" == "new" as USSD Trigger
-            # TODO: handle "session_event" == "close" as Interrupted state
 
             return HttpResponse("Message Accepted: %d" % message.id)
 
