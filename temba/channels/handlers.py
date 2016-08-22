@@ -1719,7 +1719,7 @@ class FacebookHandler(View):
                                 for attachment in envelope['message']['attachments']:
                                     if attachment['payload'] and 'url' in attachment['payload']:
                                         urls.append(attachment['payload']['url'])
-                                    elif 'url' in attachment:
+                                    elif 'url' in attachment and attachment['url']:
                                         if 'title' in attachment:
                                             urls.append(attachment['title'])
                                         urls.append(attachment['url'])
@@ -1770,6 +1770,9 @@ class FacebookHandler(View):
                         elif postback == Channel.GET_STARTED:
                             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
                             status.append("Postback handled.")
+
+                        else:
+                            status.append("Ignored, content unavailable")
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
