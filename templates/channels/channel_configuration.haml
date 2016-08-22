@@ -572,6 +572,34 @@
     %code
       {{ channel.secret }}
 
+  -elif object.channel_type == 'VI'
+    %h4
+      -blocktrans
+        To finish configuring your Viber connection you'll need to provide them the following IP addresses to whitelist as
+        well as the URLs for status and receive. They will provide you with a service ID which you need to send messages,
+        enter that below when you receive it.
+
+    %hr
+
+    %h4
+      -trans "IP Addresses"
+
+    -for ip_address in ip_addresses
+      %code= ip_address
+
+    %h4
+      -trans "Status URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_handler' 'status' object.uuid %}
+
+    %h4
+      -trans "Receive URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_handler' 'receive' object.uuid %}
+
+
   -elif object.channel_type == 'GL'
     %h4
       -blocktrans

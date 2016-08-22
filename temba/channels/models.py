@@ -192,6 +192,7 @@ class Channel(TembaModel):
                     (TYPE_ZENVIA, "Zenvia"))
 
     GET_STARTED = 'get_started'
+    VIBER_MISSING_SERVICE_ID = 'missing_service_id'
 
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=TYPE_ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
@@ -298,6 +299,10 @@ class Channel(TembaModel):
         bot.setWebhook("https://" + settings.TEMBA_HOST +
                        "%s" % reverse('handlers.telegram_handler', args=[channel.uuid]))
         return channel
+
+    @classmethod
+    def add_viber_channel(cls, org, user, name):
+        return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_MISSING_SERVICE_ID)
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
@@ -2424,6 +2429,51 @@ class Channel(TembaModel):
                                response_status=response.status_code)
 
     @classmethod
+    def send_viber_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+
+        url = 'https://services.viber.com/vibersrvc/1/send_message'
+        payload = {'service_id': channel.address,
+                   'dest': msg.urn_path.lstrip('+'),
+                   'seq': msg.id,
+                   'type': 206,
+                   'message': {'#txt': text}}
+
+        start = time.time()
+
+        headers = dict(Accept='application/json')
+        headers.update(TEMBA_HEADERS)
+
+        try:
+            response = requests.post(url, params=payload, headers=headers, timeout=5)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response="",
+                                response_status=503)
+
+        if response.status_code not in [200, 201, 202]:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response=response.content,
+                                response_status=response.status_code)
+
+        external_id = response.json()['message_token']
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=url,
+                               request=json.dumps(payload),
+                               response=response.content,
+                               response_status=response.status_code)
+
+    @classmethod
     def get_pending_messages(cls, org):
         """
         We want all messages that are:
@@ -2631,6 +2681,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_TWILIO: Channel.send_twilio_message,
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
                   Channel.TYPE_TWITTER: Channel.send_twitter_message,
+                  Channel.TYPE_VIBER: Channel.send_viber_message,
                   Channel.TYPE_VUMI: Channel.send_vumi_message,
                   Channel.TYPE_YO: Channel.send_yo_message,
                   Channel.TYPE_ZENVIA: Channel.send_zenvia_message}

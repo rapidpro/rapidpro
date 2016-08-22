@@ -1841,3 +1841,70 @@ class GlobeHandler(View):
             return HttpResponse("Msgs Accepted: %s" % ", ".join([str(m.id) for m in msgs]))
         else:  # pragma: no cover
             return HttpResponse("Not handled", status=400)
+
+
+class ViberHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(ViberHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Must be called as a POST", status=400)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        action = kwargs['action'].lower()
+        request_uuid = kwargs['uuid']
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VIBER).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
+
+        # parse our response
+        try:
+            body = json.loads(request.body)
+        except Exception as e:
+            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
+
+        # Viber is updating the delivery status for a message
+        if action == 'status':
+            # {
+            #    "message_token": 4727481224105516513,
+            #    "message_status": 0
+            # }
+            external_id = body['message_token']
+            msg = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
+            if not msg:
+                return HttpResponse("Message with external id of '%s' not found" % external_id, status=400)
+
+            msg.status_delivered()
+
+            # tell Viber we handled this
+            return HttpResponse('Msg %d updated' % msg.id)
+
+        # this is a new incoming message
+        elif action == 'receive':
+            # { "message_token": 44444444444444,
+            #   "phone_number": "972512222222",
+            #   "time": 2121212121,
+            #   "message": {
+            #      "text": "a message to the service",
+            #      "tracking_data": "tracking_id:100035"}
+            #  }
+            if not all(k in body for k in ['message_token', 'phone_number', 'time', 'message']):
+                return HttpResponse("Missing one of 'message_token', 'phone_number', 'time', or 'message' in request parameters.",
+                                    status=400)
+
+            msg_date = datetime.utcfromtimestamp(body['time']).replace(tzinfo=pytz.utc)
+            msg = Msg.create_incoming(channel,
+                                      URN.from_tel(body['phone_number']),
+                                      body['message']['text'],
+                                      date=msg_date)
+            Msg.all_messages.filter(pk=msg.id).update(external_id=body['message_token'])
+            return HttpResponse('Msg %d created' % msg.id)
+
+        else:
+            return HttpResponse("Not handled, unknown action", status=400)
