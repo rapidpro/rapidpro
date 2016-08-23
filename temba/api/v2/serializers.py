@@ -373,6 +373,7 @@ class FlowStartReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     groups = serializers.SerializerMethodField()
     contacts = serializers.SerializerMethodField()
+    extra = serializers.SerializerMethodField()
 
     def get_contacts(self, obj):
         contacts = []
@@ -392,9 +393,15 @@ class FlowStartReadSerializer(ReadSerializer):
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
 
+    def get_extra(self, obj):
+        if not obj.extra:
+            return None
+        else:
+            return json.loads(obj.extra)
+
     class Meta:
         model = FlowStart
-        fields = ('id', 'flow', 'status', 'groups', 'contacts', 'restart_participants', 'created_on', 'modified_on')
+        fields = ('id', 'flow', 'status', 'groups', 'contacts', 'restart_participants', 'extra', 'created_on', 'modified_on')
 
 
 class FlowStartWriteSerializer(WriteSerializer):
@@ -402,6 +409,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     contacts = UUIDListField(required=False)
     groups = UUIDListField(required=False)
     urns = URNListField(required=False)
+    extra = serializers.JSONField(required=False)
 
     def validate_flow(self, value):
         flow = Flow.objects.filter(org=self.context['org'], is_active=True, uuid=value).first()
@@ -437,6 +445,12 @@ class FlowStartWriteSerializer(WriteSerializer):
 
         return urn_contacts
 
+    def validate_extra(self, value):
+        if not value:
+            return None
+        else:
+            return FlowRun.normalize_fields(value)[0]
+
     def validate(self, data):
         # need at least one of urns, groups or contacts
         args = data.get('groups', []) + data.get('contacts', []) + data.get('urns', [])
@@ -450,13 +464,14 @@ class FlowStartWriteSerializer(WriteSerializer):
         start = FlowStart.create(self.validated_data['flow'], self.context['user'],
                                  restart_participants=self.validated_data.get('restart_participants', True),
                                  contacts=self.validated_data.get('contacts', []) + self.validated_data.get('urns', []),
-                                 groups=self.validated_data.get('groups', []))
+                                 groups=self.validated_data.get('groups', []),
+                                 extra=self.validated_data.get('extra', None))
 
         return start
 
     class Meta:
         model = FlowStart
-        fields = ('resthook', 'target_url')
+        fields = ('flow', 'contacts', 'groups', 'urns', 'extra')
 
 
 class LabelReadSerializer(ReadSerializer):

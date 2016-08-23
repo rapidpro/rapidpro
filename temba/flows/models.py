@@ -4107,8 +4107,11 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
+    extra = models.TextField(null=True,
+                             help_text=_("Any extra parameters to pass to the flow start (json)"))
+
     @classmethod
-    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True):
+    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None):
         if contacts is None:
             contacts = []
 
@@ -4116,6 +4119,7 @@ class FlowStart(SmartModel):
             groups = []
 
         start = FlowStart.objects.create(flow=flow, restart_participants=restart_participants,
+                                         extra=json.dumps(extra) if extra else None,
                                          created_by=user, modified_by=user)
 
         for contact in contacts:
@@ -4138,7 +4142,10 @@ class FlowStart(SmartModel):
             groups = [g for g in self.groups.all()]
             contacts = [c for c in self.contacts.all().only('is_test')]
 
-            self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
+            # load up our extra if any
+            extra = json.loads(self.extra) if self.extra else None
+
+            self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self, extra=extra)
 
         except Exception as e:  # pragma: no cover
             import traceback
