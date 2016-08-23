@@ -1868,6 +1868,9 @@ class ChannelTest(TembaTest):
         # add another message we'll pretend is in retry to see that we exclude them from sync
         msg6 = self.send_message(['250788382382'], "Pretend this message is in retry on the client, don't send it on sync")
 
+        # a pending outgoing message should be included
+        Msg.create_outgoing(self.org, self.admin, msg6.contact, "Hello, we heard from you.")
+
         post_data = dict(cmds=[
 
             # device gcm data
@@ -1906,7 +1909,9 @@ class ChannelTest(TembaTest):
         response = self.sync(self.tel_channel, post_data)
 
         # new batch, our ack and our claim command for new org
-        self.assertEquals(3, len(json.loads(response.content)['cmds']))
+        self.assertEquals(4, len(json.loads(response.content)['cmds']))
+        self.assertContains(response, "Hello, we heard from you.")
+        self.assertContains(response, "mt_bcast")
 
         # check that our messages were updated accordingly
         self.assertEqual(2, Msg.all_messages.filter(channel=self.tel_channel, status='S', direction='O').count())

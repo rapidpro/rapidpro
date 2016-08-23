@@ -27,7 +27,7 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
-from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING
+from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -234,6 +234,16 @@ def get_commands(channel, commands, sync_event=None):
 
     # we want to find all queued messages
 
+    pending_msgs = []
+    retry_msgs = []
+    if sync_event:
+        pending_msgs = sync_event.get_pending_messages()
+        retry_msgs = sync_event.get_retry_messages()
+
+    # messages without broadcast
+    msgs = list(Msg.all_messages.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel,
+                                        broadcast=None).select_related('contact_urn').order_by('text', 'pk'))
+
     # all outgoing messages for our channel that are queued up
     broadcasts = Broadcast.objects.filter(status__in=[QUEUED, PENDING], schedule=None,
                                           msgs__channel=channel).distinct().order_by('created_on', 'pk')
@@ -246,17 +256,17 @@ def get_commands(channel, commands, sync_event=None):
         #    "to":[{number:"250788382384", "id":26],
         #    "msg":"Is water point A19 still functioning?"
         # }
-        msgs = broadcast.get_messages().filter(status__in=[PENDING, QUEUED]).exclude(topup=None)
-
-        if sync_event:
-            pending_msgs = sync_event.get_pending_messages()
-            retry_msgs = sync_event.get_retry_messages()
-            msgs = msgs.exclude(pk__in=pending_msgs).exclude(pk__in=retry_msgs)
+        msgs += list(broadcast.get_messages().filter(status__in=[PENDING, QUEUED]).exclude(topup=None))
 
         outgoing_messages += len(msgs)
 
-        if msgs:
-            commands += broadcast.get_sync_commands(channel=channel)
+    msgs = Msg.all_messages.filter(pk__in=[m.id for m in msgs]).exclude(contact__is_test=True).exclude(topup=None)
+
+    if sync_event:
+        msgs = msgs.exclude(pk__in=pending_msgs).exclude(pk__in=retry_msgs)
+
+    if msgs:
+        commands += Msg.get_sync_commands(channel=channel, msgs=msgs)
 
     # TODO: add in other commands for the channel
     # We need a queueable model similar to messages for sending arbitrary commands to the client
