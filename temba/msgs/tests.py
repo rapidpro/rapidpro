@@ -39,6 +39,24 @@ class MsgTest(TembaTest):
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
+    def test_get_sync_commands(self):
+        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hello, we heard from you.")
+        msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
+        msg3 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, we heard from you.")
+
+        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg3])
+
+        self.assertEquals(1, len(commands))
+        self.assertEquals(3, len(commands[0]['to']))
+
+        msg4 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, there")
+
+        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg4])
+
+        self.assertEquals(2, len(commands))
+        self.assertEquals(2, len(commands[0]['to']))
+        self.assertEquals(1, len(commands[1]['to']))
+
     def test_archive_and_release(self):
         msg1 = Msg.create_incoming(self.channel, 'tel:123', "Incoming")
         label = Label.get_or_create(self.org, self.admin, "Spam")

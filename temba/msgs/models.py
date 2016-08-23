@@ -965,6 +965,30 @@ class Msg(models.Model):
 
             return parts
 
+    @classmethod
+    def get_sync_commands(self, channel, msgs):
+        """
+        Returns the minimal # of broadcast commands for the given Android channel to uniquely represent all the
+        messages which are being sent to tel URNs. This will return an array of dicts that look like:
+             dict(cmd="mt_bcast", to=[dict(phone=msg.contact.tel, id=msg.pk) for msg in msgs], msg=broadcast.text))
+        """
+        commands = []
+        current_msg = None
+        contact_id_pairs = []
+
+        for msg in msgs:
+            if msg.text != current_msg and contact_id_pairs:
+                commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
+                contact_id_pairs = []
+
+            current_msg = msg.text
+            contact_id_pairs.append(dict(phone=msg.contact_urn.path, id=msg.pk))
+
+        if contact_id_pairs:
+            commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
+
+        return commands
+
     def get_media_path(self):
 
         if self.media:
