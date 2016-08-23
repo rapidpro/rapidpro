@@ -858,7 +858,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(android1.uuid, 'uuid')
         self.assertTrue(android1.secret)
         self.assertTrue(android1.claim_code)
-        self.assertEqual(android1.created_by.pk, -1)
+        self.assertEqual(android1.created_by.username, settings.ANONYMOUS_USER_NAME)
 
         # check channel JSON in response
         response_json = json.loads(response.content)
