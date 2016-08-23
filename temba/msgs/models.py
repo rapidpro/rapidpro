@@ -1169,7 +1169,7 @@ class Msg(models.Model):
             raise Exception(_("Can't create an incoming message without an org"))
 
         if not user:
-            user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
+            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
 
         if not date:
             date = timezone.now()  # no date?  set it to now
