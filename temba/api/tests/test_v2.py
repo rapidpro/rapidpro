@@ -716,6 +716,8 @@ class APITest(TembaTest):
         self.assertEqual(set(jaqen.user_groups.all()), set())
         self.assertEqual(set(jaqen.values.all()), set())
 
+        dyn_group = self.create_group("Dynamic Group", query="nickname has Ja")
+
         # create with all fields
         response = self.postJSON(url, {
             'name': "Jean",
@@ -728,7 +730,7 @@ class APITest(TembaTest):
 
         jean = Contact.objects.filter(name="Jean", language='fre').order_by('-pk').first()
         self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:1234556789'})
-        self.assertEqual(set(jean.user_groups.all()), {group})
+        self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
 
         # create with invalid fields
@@ -753,7 +755,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.name, "Jean")
         self.assertEqual(jean.language, "fre")
         self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:1234556789'})
-        self.assertEqual(set(jean.user_groups.all()), {group})
+        self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
 
         # update by UUID and change all fields
@@ -797,9 +799,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, {'urn': 'twitter:xxxx'})
         self.assertResponseError(response, 'urn', "No such contact with URN: twitter:xxxx")
 
-        dynamic = self.create_group("Dynamic Group", query="name = Jean")
-        response = self.postJSON(url, {'uuid': jean.uuid, 'groups': [dynamic.uuid]})
-        self.assertResponseError(response, 'groups', "Can't add contact to dynamic group with UUID: %s" % dynamic.uuid)
+        response = self.postJSON(url, {'uuid': jean.uuid, 'groups': [dyn_group.uuid]})
+        self.assertResponseError(response, 'groups', "Can't add contact to dynamic group with UUID: %s" % dyn_group.uuid)
 
         # try to move a blocked contact into a group
         jean.block(self.user)
