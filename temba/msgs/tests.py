@@ -57,6 +57,15 @@ class MsgTest(TembaTest):
         self.assertEquals(2, len(commands[0]['to']))
         self.assertEquals(1, len(commands[1]['to']))
 
+        msg5 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
+
+        commands = Msg.get_sync_commands(self.channel, [msg1, msg4, msg5])
+
+        self.assertEquals(3, len(commands))
+        self.assertEquals(1, len(commands[0]['to']))
+        self.assertEquals(1, len(commands[1]['to']))
+        self.assertEquals(1, len(commands[2]['to']))
+
     def test_archive_and_release(self):
         msg1 = Msg.create_incoming(self.channel, 'tel:123', "Incoming")
         label = Label.get_or_create(self.org, self.admin, "Spam")

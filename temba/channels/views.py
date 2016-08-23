@@ -232,13 +232,17 @@ def channel_status_processor(request):
 
 def get_commands(channel, commands, sync_event=None):
 
+    # we want to find all queued messages
+
     pending_msgs = []
     retry_msgs = []
     if sync_event:
         pending_msgs = sync_event.get_pending_messages()
         retry_msgs = sync_event.get_retry_messages()
 
-    # we want to find all queued messages
+    # messages without broadcast
+    msgs = list(Msg.all_messages.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel,
+                                        broadcast=None).select_related('contact_urn').order_by('text', 'pk'))
 
     # all outgoing messages for our channel that are queued up
     broadcasts = Broadcast.objects.filter(status__in=[QUEUED, PENDING], schedule=None,
@@ -252,19 +256,11 @@ def get_commands(channel, commands, sync_event=None):
         #    "to":[{number:"250788382384", "id":26],
         #    "msg":"Is water point A19 still functioning?"
         # }
-        msgs = broadcast.get_messages().filter(status__in=[PENDING, QUEUED]).exclude(topup=None)
-
-        if sync_event:
-            msgs = msgs.exclude(pk__in=pending_msgs).exclude(pk__in=retry_msgs)
+        msgs += list(broadcast.get_messages().filter(status__in=[PENDING, QUEUED]).exclude(topup=None))
 
         outgoing_messages += len(msgs)
 
-        if msgs:
-            commands += broadcast.get_sync_commands(channel=channel)
-
-    # include messages without broadcast as well
-    msgs = Msg.all_messages.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, broadcast=None,
-                                   contact_urn__scheme=TEL_SCHEME).select_related('contact_urn').order_by('text', 'pk')
+    msgs = Msg.all_messages.filter(pk__in=[m.id for m in msgs]).exclude(contact__is_test=True).exclude(topup=None)
 
     if sync_event:
         msgs = msgs.exclude(pk__in=pending_msgs).exclude(pk__in=retry_msgs)

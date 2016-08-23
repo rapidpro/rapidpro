@@ -976,7 +976,9 @@ class Msg(models.Model):
         current_msg = None
         contact_id_pairs = []
 
-        for msg in msgs:
+        ordered_msgs = Msg.all_messages.filter(id__in=[m.id for m in msgs]).order_by('created_on')
+
+        for msg in ordered_msgs:
             if msg.text != current_msg and contact_id_pairs:
                 commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
                 contact_id_pairs = []
