@@ -2510,6 +2510,10 @@ class ChannelClaimTest(TembaTest):
         self.assertContains(response, reverse('handlers.viber_handler', args=['status', channel.uuid]))
         self.assertContains(response, reverse('handlers.viber_handler', args=['receive', channel.uuid]))
 
+        # going to our account home should link to our claim page
+        response = self.client.get(reverse('orgs.org_home'))
+        self.assertContains(response, claim_url)
+
         # ok, enter our service id
         response = self.client.post(claim_url, dict(service_id=1001))
 
@@ -2526,6 +2530,10 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.viber_handler', args=['status', channel.uuid]))
         self.assertContains(response, reverse('handlers.viber_handler', args=['receive', channel.uuid]))
+
+        # once claimed, account page should go to read page
+        response = self.client.get(reverse('orgs.org_home'))
+        self.assertContains(response, reverse('channels.channel_read', args=[channel.uuid]))
 
     def test_claim_chikka(self):
         Channel.objects.all().delete()

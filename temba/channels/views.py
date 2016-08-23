@@ -168,6 +168,14 @@ def get_channel_icon(channel_type):
     return RELAYER_TYPE_ICONS.get(channel_type, "icon-channel-external")
 
 
+def get_channel_read_url(channel):
+    # viber channels without service id's need to go to their claim page instead of read
+    if channel.channel_type == Channel.TYPE_VIBER and channel.address == Channel.VIBER_NO_SERVICE_ID:
+        return reverse('channels.channel_claim_viber', args=[channel.id])
+    else:
+        return reverse('channels.channel_read', args=[channel.uuid])
+
+
 def channel_status_processor(request):
     status = dict()
     user = request.user

@@ -7,6 +7,14 @@
   %h2.font_normalize.header-margin
     -trans "Connect Viber"
 
+-block summary
+  .device
+    {{ object.get_channel_type_display }} - {{ object.name }} -
+    -trans "Pending Activation"
+
+  -trans "Added"
+    {{ object.created_on }}
+
 -block pre-form
   %h4
     -blocktrans
