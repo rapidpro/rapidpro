@@ -1,14 +1,14 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
-from django.forms import ValidationError
 
+from django.forms import ValidationError
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, ANDROID
 
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN
+from temba.contacts.models import Contact, ContactField, ContactGroup, URN
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
@@ -48,7 +48,9 @@ class WriteSerializer(serializers.Serializer):
 
     def run_validation(self, data=serializers.empty):
         if not isinstance(data, dict):
-            raise serializers.ValidationError(detail={'non_field_errors': ["Request body should be a single JSON object"]})
+            raise serializers.ValidationError(detail={
+                'non_field_errors': ["Request body should be a single JSON object"]
+            })
 
         return super(WriteSerializer, self).run_validation(data)
 
