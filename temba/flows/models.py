@@ -1444,8 +1444,7 @@ class Flow(TembaModel):
         runs = []
         channel = self.org.get_call_channel()
 
-        from temba.channels.models import CALL
-        if not channel or CALL not in channel.role:
+        if not channel or Channel.ROLE_CALL not in channel.role:
             return runs
 
         for contact_id in all_contact_ids:
