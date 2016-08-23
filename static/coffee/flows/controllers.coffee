@@ -715,9 +715,6 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
   for rule in ruleset.rules
 
-    if rule.test.type == "between"
-      rule.category = null
-
     if rule.category
       rule._translation = {category:{}, test:{}}
       rule._translation.category['from'] = rule.category[Flow.flow.base_language]
@@ -789,6 +786,19 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   if options.nodeType == 'rules' or options.nodeType == 'ivr'
 
     ruleset = options.ruleset
+
+    # initialize our random categories
+    if ruleset.ruleset_type == 'random'
+      randomBuckets = []
+      for rule in ruleset.rules
+        if rule.test.type == 'between'
+          randomBuckets.push
+            name: rule.category
+            destination: rule.destination
+            _base: rule.category[Flow.flow.base_language]
+
+      formData.randomBuckets = randomBuckets
+      formData.buckets = randomBuckets.length
 
     # our placeholder actions if they flip
     action =
@@ -889,6 +899,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
+  $scope.getTranslatedText = (language_dict) ->
+    return language_dict[Flow.flow.base_language]
+
   $scope.updateActionForm = (config) ->
 
     # emails are not localized, if our msg is localized, grab the base text
@@ -958,6 +971,26 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     formData.flow = ruleset.config.flow
   else
     formData.flow = {}
+
+  $scope.rulesetTypeChanged = () ->
+    if $scope.formData.rulesetConfig.type == "random"
+      if not formData.buckets
+        formData.buckets = 2
+      $scope.updateRandomBuckets()
+
+  $scope.updateRandomBuckets = () ->
+
+    formData = $scope.formData
+    if not formData.randomBuckets
+      formData.randomBuckets = []
+
+    # add any necessary groups
+    for i in [formData.randomBuckets.length...formData.buckets] by 1
+      formData.randomBuckets.push
+        _base: "Bucket " + (i+1)
+
+    # trim off any excess groups
+    formData.randomBuckets.splice(formData.buckets)
 
   $scope.hasRules = () ->
     if $scope.formData.rulesetConfig
@@ -1213,6 +1246,26 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           newRule.category[Flow.flow.base_language] = rule.name
           rules.push(newRule)
 
+    # create or update our random bucket rules
+    if ruleset.ruleset_type == 'random'
+        rules = []
+        size = 1.0 / $scope.formData.randomBuckets.length
+        min = 0
+        for bucket, idx in $scope.formData.randomBuckets
+          if not bucket.name
+            bucket.name = {}
+          bucket.name[Flow.flow.base_language] = bucket._base
+
+          rules.push
+            uuid: uuid()
+            test:
+              type: 'between'
+              min: "" + min
+              max: "" + (min + size)
+            category: bucket.name
+            destination: bucket.destination
+          min += size
+
     # create rules off of an IVR menu configuration
     if ruleset.ruleset_type == 'wait_digit'
       for option in $scope.numbers
@@ -1348,6 +1401,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           flow:
             name: flow.text
             uuid: flow.id
+
+      if rulesetConfig.type == 'random'
+        ruleset.operand = '@(RAND())'
 
       # settings for a message form
       if rulesetConfig.type == 'form_field'
