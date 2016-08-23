@@ -1404,18 +1404,27 @@ class APITest(TembaTest):
         })
 
     def test_flow_starts(self):
+        from temba.flows.models import ReplyAction
+
         url = reverse('api.v2.flow_starts')
         self.assertEndpointAccess(url)
 
         flow = self.get_flow('favorites')
 
+        # update our flow to use @extra.first_name and @extra.last_name
+        first_action = flow.action_sets.all().order_by('y')[0]
+        first_action.actions = json.dumps([ReplyAction(dict(base="Hi @extra.first_name @extra.last_name, what's your favorite color?")).as_json()])
+        first_action.save()
+
         # start the flow
+        extra = dict(first_name="Ryan", last_name="Lewis")
         hans_group = self.create_group("hans", contacts=[self.hans])
         response = self.postJSON(url, dict(urns=['tel:+12067791212'],
                                            contacts=[self.joe.uuid],
                                            groups=[hans_group.uuid],
                                            flow=flow.uuid,
-                                           restart_participants=True))
+                                           restart_participants=True,
+                                           extra=extra))
         self.assertEqual(response.status_code, 201)
 
         # assert our new start
@@ -1425,6 +1434,11 @@ class APITest(TembaTest):
         self.assertTrue(start.contacts.filter(id=self.joe.id))
         self.assertTrue(start.groups.filter(id=hans_group.id))
         self.assertTrue(start.restart_participants)
+        self.assertTrue(start.extra, extra)
+
+        # check our first msg
+        msg = Msg.all_messages.get(direction='O', contact__urns__path='+12067791212')
+        self.assertEqual("Hi Ryan Lewis, what's your favorite color?", msg.text)
 
         # error cases:
 
@@ -1461,6 +1475,7 @@ class APITest(TembaTest):
                          {'name': None,
                           'uuid': anon_contact.uuid}],
             'created_on': format_datetime(start.created_on),
+            'extra': {"first_name": "Ryan", "last_name": "Lewis"},
             'flow': {'name': 'Favorites',
                      'uuid': flow.uuid},
             'groups': [{'name': 'hans',
