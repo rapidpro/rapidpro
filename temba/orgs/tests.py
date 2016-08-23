@@ -19,7 +19,7 @@ from smartmin.tests import SmartminTest
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, ActionSet
 from temba.middleware import BrandingMiddleware
@@ -1454,8 +1454,8 @@ class OrgTest(TembaTest):
             response = self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
             self.assertContains(response,
                                 "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry.")
-            self.assertFalse(PLIVO_AUTH_ID in self.client.session)
-            self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
+            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
+            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
 
         # ok, now with a success
         with patch('requests.get') as plivo_mock:
@@ -1463,8 +1463,8 @@ class OrgTest(TembaTest):
             self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
 
             # plivo should be added to the session
-            self.assertEquals(self.client.session[PLIVO_AUTH_ID], 'auth-id')
-            self.assertEquals(self.client.session[PLIVO_AUTH_TOKEN], 'auth-token')
+            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
+            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
 
     def test_download(self):
         response = self.client.get('/org/download/messages/123/')
@@ -1967,27 +1967,27 @@ class OrgCRUDLTest(TembaTest):
         # remove existing channels
         Channel.objects.all().update(is_active=False, org=None)
 
-        self.assertEqual(set(), self.org.get_schemes(SEND))
-        self.assertEqual(set(), self.org.get_schemes(RECEIVE))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a receive only tel channel
-        Channel.create(self.org, self.user, 'RW', TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
+        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
 
         self.org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual(set(), self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a send/receive tel channel
-        Channel.create(self.org, self.user, 'RW', TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
+        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a twitter channel
-        Channel.create(self.org, self.user, None, TWITTER, "Twitter")
+        Channel.create(self.org, self.user, None, Channel.TYPE_TWITTER, "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
     def test_login_case_not_sensitive(self):
         login_url = reverse('users.user_login')

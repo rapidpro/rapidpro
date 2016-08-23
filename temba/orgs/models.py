@@ -416,10 +416,10 @@ class Org(SmartModel):
         If an org's telephone send channel is an Android device, let them add a bulk sender
         """
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import ANDROID
+        from temba.channels.models import Channel
 
         send_channel = self.get_send_channel(TEL_SCHEME)
-        return send_channel and send_channel.channel_type == ANDROID
+        return send_channel and send_channel.channel_type == Channel.TYPE_ANDROID
 
     def can_add_caller(self):
         return not self.supports_ivr() and self.is_connected_to_twilio()
@@ -431,7 +431,7 @@ class Org(SmartModel):
         """
         Gets a channel for this org which supports the given scheme and role
         """
-        from temba.channels.models import SEND, CALL
+        from temba.channels.models import Channel
 
         channel = self.channels.filter(is_active=True, scheme=scheme, role__contains=role).order_by('-pk')
         if country_code:
@@ -444,14 +444,14 @@ class Org(SmartModel):
             channel = self.channels.filter(is_active=True, scheme=scheme,
                                            role__contains=role).order_by('-pk').first()
 
-        if channel and (role == SEND or role == CALL):
+        if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)
         else:
             return channel
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import SEND
+        from temba.channels.models import Channel
         from temba.contacts.models import ContactURN
 
         if not scheme and not contact_urn:
@@ -462,7 +462,7 @@ class Org(SmartModel):
                 scheme = contact_urn.scheme
 
                 # if URN has a previously used channel that is still active, use that
-                if contact_urn.channel and contact_urn.channel.is_active and role == SEND:
+                if contact_urn.channel and contact_urn.channel.is_active and role == Channel.ROLE_SEND:
                     previous_sender = self.get_channel_delegate(contact_urn.channel, role)
                     if previous_sender:
                         return previous_sender
@@ -512,8 +512,8 @@ class Org(SmartModel):
                     channel = senders[0]
 
                 if channel:
-                    if role == SEND:
-                        return self.get_channel_delegate(channel, SEND)
+                    if role == Channel.ROLE_SEND:
+                        return self.get_channel_delegate(channel, Channel.ROLE_SEND)
                     else:
                         return channel
 
@@ -521,22 +521,22 @@ class Org(SmartModel):
         return self.get_channel(scheme, country_code, role)
 
     def get_send_channel(self, scheme=None, contact_urn=None, country_code=None):
-        from temba.channels.models import SEND
-        return self.get_channel_for_role(SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
     def get_receive_channel(self, scheme, contact_urn=None, country_code=None):
-        from temba.channels.models import RECEIVE
-        return self.get_channel_for_role(RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
     def get_call_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import CALL
-        return self.get_channel_for_role(CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_answer_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import ANSWER
-        return self.get_channel_for_role(ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_channel_delegate(self, channel, role):
         """
@@ -626,14 +626,14 @@ class Org(SmartModel):
         to send.
         """
         from temba.msgs.models import Msg
-        from temba.channels.models import Channel, ANDROID
+        from temba.channels.models import Channel
 
         # if we have msgs, then send just those
         if msgs:
             ids = [m.id for m in msgs]
 
             # trigger syncs for our android channels
-            for channel in self.channels.filter(is_active=True, channel_type=ANDROID, msgs__id__in=ids):
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID, msgs__id__in=ids):
                 channel.trigger_sync()
 
             # and send those messages
@@ -641,7 +641,7 @@ class Org(SmartModel):
 
         # otherwise, sync all pending messages and channels
         else:
-            for channel in self.channels.filter(is_active=True, channel_type=ANDROID):
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID):
                 channel.trigger_sync()
 
             # otherwise, send any pending messages on our channels
@@ -767,8 +767,8 @@ class Org(SmartModel):
             self.save()
 
             # release any nexmo channels
-            from temba.channels.models import NEXMO
-            channels = self.channels.filter(is_active=True, channel_type=NEXMO)
+            from temba.channels.models import Channel
+            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO)
             for channel in channels:
                 channel.release()
 
@@ -786,8 +786,8 @@ class Org(SmartModel):
             self.save()
 
             # release any twilio channels
-            from temba.channels.models import TWILIO
-            channels = self.channels.filter(is_active=True, channel_type=TWILIO)
+            from temba.channels.models import Channel
+            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO)
             for channel in channels:
                 channel.release()
 
@@ -797,8 +797,8 @@ class Org(SmartModel):
     def get_verboice_client(self):
         from temba.ivr.clients import VerboiceClient
         channel = self.get_call_channel()
-        from temba.channels.models import VERBOICE
-        if channel.channel_type == VERBOICE:
+        from temba.channels.models import Channel
+        if channel.channel_type == Channel.TYPE_VERBOICE:
             return VerboiceClient(channel)
         return None
 
@@ -1048,12 +1048,12 @@ class Org(SmartModel):
         return getattr(user, '_org_group', None)
 
     def has_twilio_number(self):
-        from temba.channels.models import TWILIO
-        return self.channels.filter(channel_type=TWILIO)
+        from temba.channels.models import Channel
+        return self.channels.filter(channel_type=Channel.TYPE_TWILIO)
 
     def has_nexmo_number(self):
-        from temba.channels.models import NEXMO
-        return self.channels.filter(channel_type=NEXMO)
+        from temba.channels.models import Channel
+        return self.channels.filter(channel_type=Channel.TYPE_NEXMO)
 
     def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
         if topup_size:

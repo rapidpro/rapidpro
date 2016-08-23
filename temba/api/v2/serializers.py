@@ -6,7 +6,7 @@ from django.forms import ValidationError
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, ChannelEvent, ANDROID
+from temba.channels.models import Channel, ChannelEvent
 
 from temba.contacts.models import Contact, ContactField, ContactGroup, URN
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
@@ -188,7 +188,7 @@ class ChannelReadSerializer(ReadSerializer):
         return unicode(obj.country) if obj.country else None
 
     def get_device(self, obj):
-        if obj.channel_type != ANDROID:
+        if obj.channel_type != Channel.TYPE_ANDROID:
             return None
 
         return {
