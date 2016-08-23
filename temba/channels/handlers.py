@@ -1850,7 +1850,7 @@ class ViberHandler(View):
         return super(ViberHandler, self).dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        return HttpResponse("Must be called as a POST", status=400)
+        return HttpResponse("Must be called as a POST", status=405)
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1904,7 +1904,7 @@ class ViberHandler(View):
                                       body['message']['text'],
                                       date=msg_date)
             Msg.all_messages.filter(pk=msg.id).update(external_id=body['message_token'])
-            return HttpResponse('Msg %d created' % msg.id)
+            return HttpResponse('Msg Accepted: %d' % msg.id)
 
         else:
             return HttpResponse("Not handled, unknown action", status=400)

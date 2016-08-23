@@ -2193,6 +2193,9 @@ class ChannelAlertTest(TembaTest):
 
         self.assertTrue(len(mail.outbox) == 0)
 
+
+class ChannelClaimTest(TembaTest):
+
     def test_external(self):
         Channel.objects.all().delete()
 
@@ -2476,6 +2479,48 @@ class ChannelAlertTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.africas_talking_handler', args=['callback', channel.uuid]))
         self.assertContains(response, reverse('handlers.africas_talking_handler', args=['delivery', channel.uuid]))
+
+    def test_claim_viber(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_create_viber'))
+        self.assertEquals(200, response.status_code)
+        response = self.client.post(reverse('channels.channel_create_viber'), dict(name="Macklemore"))
+
+        # should create a new viber channel, but without an address
+        channel = Channel.objects.get()
+
+        self.assertEqual(channel.address, Channel.VIBER_NO_SERVICE_ID)
+        self.assertIsNone(channel.country.code)
+        self.assertEqual(channel.name, "Macklemore")
+        self.assertEquals(Channel.TYPE_VIBER, channel.channel_type)
+
+        # we should be redirecting to the claim page to enter in our service id
+        claim_url = reverse('channels.channel_claim_viber', args=[channel.id])
+        self.assertRedirect(response, claim_url)
+
+        response = self.client.get(claim_url)
+
+        self.assertContains(response, reverse('handlers.viber_handler', args=['status', channel.uuid]))
+        self.assertContains(response, reverse('handlers.viber_handler', args=['receive', channel.uuid]))
+
+        # ok, enter our service id
+        response = self.client.post(claim_url, dict(service_id=1001))
+
+        # refetch our channel
+        channel.refresh_from_db()
+
+        # should now have an address
+        self.assertEqual(channel.address, '1001')
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+
+        self.assertContains(response, reverse('handlers.viber_handler', args=['status', channel.uuid]))
+        self.assertContains(response, reverse('handlers.viber_handler', args=['receive', channel.uuid]))
 
     def test_claim_chikka(self):
         Channel.objects.all().delete()
@@ -6922,6 +6967,127 @@ class GlobeTest(TembaTest):
             msg.refresh_from_db()
             self.assertEqual(msg.status, WIRED)
             self.assertTrue(msg.sent_on)
+            self.clear_cache()
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(401, 'Error')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()
+
+        with patch('requests.get') as mock:
+            mock.side_effect = Exception("Unable to reach host")
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message now errored
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()
+
+
+class ViberTest(TembaTest):
+
+    def setUp(self):
+        super(ViberTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_VIBER, None, '1001',
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_status(self):
+        data = {
+            "message_token": 99999,
+            "message_status": 0
+        }
+        # ok, what happens with an invalid uuid?
+        response = self.client.post(reverse('handlers.viber_handler', args=['status', 'not-real-uuid']), json.dumps(data),
+                                    content_type="application/json")
+        self.assertEquals(400, response.status_code)
+
+        # ok, try with a valid uuid, but invalid message id (no msg yet)
+        status_url = reverse('handlers.viber_handler', args=['status', self.channel.uuid])
+        response = self.client.post(status_url, json.dumps(data), content_type="application/json")
+        self.assertEquals(400, response.status_code)
+
+        # ok, lets create an outgoing message to update
+        joe = self.create_contact("Joe Biden", "+254788383383")
+        msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
+        msg.external_id = "99999"
+        msg.save(update_fields=('external_id',))
+
+        response = self.client.post(status_url, json.dumps(data), content_type="application/json")
+        self.assertEquals(200, response.status_code)
+
+        msg = Msg.all_messages.get(pk=msg.id)
+        self.assertEquals(DELIVERED, msg.status)
+
+    def test_receive(self):
+        # invalid UUID
+        response = self.client.post(reverse('handlers.viber_handler', args=['receive', '00000000-0000-0000-0000-000000000000']))
+        self.assertEqual(response.status_code, 400)
+
+        data = {
+            "message_token": 44444444444444,
+            "phone_number": "972512222222",
+            "time": 1471906585,
+            "message": {
+                "text": "a message to the service",
+                "tracking_data": "tracking_id:100035"
+            }
+        }
+        callback_url = reverse('handlers.viber_handler', args=['receive', self.channel.uuid])
+
+        # try a GET
+        response = self.client.get(callback_url)
+        self.assertEqual(response.status_code, 405)
+
+        # POST invalid JSON data
+        response = self.client.post(callback_url, "not json", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST missing data
+        response = self.client.post(callback_url, json.dumps({}), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # ok, valid post
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.all_messages.get()
+        self.assertEqual(response.content, "Msg Accepted: %d" % msg.id)
+
+        # load our message
+        self.assertEqual(msg.contact.get_urn(TEL_SCHEME).path, "+972512222222")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "a message to the service")
+        self.assertEqual(msg.created_on.date(), date(day=22, month=8, year=2016))
+        self.assertEqual(msg.external_id, "44444444444444")
+
+    def test_send(self):
+        joe = self.create_contact("Joe", "+639171234567")
+        msg = joe.send("MT", self.admin, trigger_send=False)
+
+        settings.SEND_MESSAGES = True
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{ "status":0, "seq": 123456, "message_token": "999" }')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, "999")
             self.clear_cache()
 
         with patch('requests.get') as mock:

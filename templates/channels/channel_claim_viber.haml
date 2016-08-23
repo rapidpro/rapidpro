@@ -8,17 +8,40 @@
     -trans "Connect Viber"
 
 -block pre-form
-  .info
-    %p
-      -blocktrans with name=brand.name
-        In order to connect your Viber page to {{ name }} you will need to contact Viber and have them
-        create an account for you for your bot.
+  %h4
+    -blocktrans
+      To finish configuring your Viber connection you'll need to provide them the following IP addresses to whitelist as
+      well as the URLs for status and receive endpoints. They will provide you with a service ID which you need to send messages,
+      enter that below when you receive it.
 
-    .important
-      %p
-        -blocktrans
-          Until Viber approves your bot and you enter the service id provided by them you will not be able
-          to send and receive messages.
+  .important
+    %p
+      -blocktrans
+        Until Viber approves your bot and you enter the service id provided by them you will not be able
+        to send and receive messages.
+
+  %hr
+
+  %h4
+    -trans "IP Addresses"
+
+  -for ip_address in ip_addresses
+    %code= ip_address
+
+  %h4
+    -trans "Status URL"
+
+  %code
+    https://{{ domain }}{% url 'handlers.viber_handler' 'status' object.uuid %}
+
+  %h4
+    -trans "Receive URL"
+
+  %code
+    https://{{ domain }}{% url 'handlers.viber_handler' 'receive' object.uuid %}
+
+  %hr
+
 
 -block extra-style
   {{ block.super }}

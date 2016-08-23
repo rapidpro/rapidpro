@@ -192,7 +192,7 @@ class Channel(TembaModel):
                     (TYPE_ZENVIA, "Zenvia"))
 
     GET_STARTED = 'get_started'
-    VIBER_MISSING_SERVICE_ID = 'missing_service_id'
+    VIBER_NO_SERVICE_ID = 'no_service_id'
 
     channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3, choices=TYPE_CHOICES,
                                     default=TYPE_ANDROID, help_text=_("Type of this channel, whether Android, Twilio or SMSC"))
@@ -302,7 +302,7 @@ class Channel(TembaModel):
 
     @classmethod
     def add_viber_channel(cls, org, user, name):
-        return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_MISSING_SERVICE_ID)
+        return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,

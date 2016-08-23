@@ -524,8 +524,8 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
-               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
-               'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber',
+               'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
+               'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe')
     permissions = True
 
@@ -1008,15 +1008,15 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimZenvia, self).form_valid(form)
 
-    class ClaimViber(OrgPermsMixin, SmartFormView):
-        class ViberClaimForm(forms.Form):
+    class CreateViber(OrgPermsMixin, SmartFormView):
+        class ViberCreateForm(forms.Form):
             name = forms.CharField(max_length=32, min_length=1,
                                    help_text=_("The name of your Viber bot"))
 
         title = _("Connect Viber Bot")
         fields = ('name',)
-        form_class = ViberClaimForm
-        success_url = "id@channels.channel_configuration"
+        form_class = ViberCreateForm
+        success_url = "id@channels.channel_claim_viber"
 
         def form_valid(self, form):
             org = self.request.user.get_org()
@@ -1024,6 +1024,33 @@ class ChannelCRUDL(SmartCRUDL):
             self.object = Channel.add_viber_channel(org,
                                                     self.request.user,
                                                     data['name'])
+
+            return super(ChannelCRUDL.CreateViber, self).form_valid(form)
+
+    class ClaimViber(OrgPermsMixin, SmartUpdateView):
+        class ViberClaimForm(forms.ModelForm):
+            service_id = forms.IntegerField(help_text=_("The service id provided by Viber"))
+
+            class Meta:
+                model = Channel
+                fields = ('service_id',)
+
+        title = _("Connect Viber Bot")
+        fields = ('service_id',)
+        form_class = ViberClaimForm
+        success_url = "id@channels.channel_configuration"
+
+        def get_context_data(self, **kwargs):
+            context = super(ChannelCRUDL.ClaimViber, self).get_context_data(**kwargs)
+            context['ip_addresses'] = settings.IP_ADDRESSES
+            return context
+
+        def form_valid(self, form):
+            data = form.cleaned_data
+
+            # save our service id as our address
+            self.object.address = data['service_id']
+            self.object.save()
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
 
