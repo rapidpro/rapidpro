@@ -910,7 +910,7 @@ AUTHENTICATION_BACKENDS = (
     'guardian.backends.ObjectPermissionBackend',
 )
 
-ANONYMOUS_USER_ID = -1
+ANONYMOUS_USER_NAME = 'AnonymousUser'
 
 # -----------------------------------------------------------------------------------
 # Our test runner is standard but with ability to exclude apps
