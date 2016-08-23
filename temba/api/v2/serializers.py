@@ -1,6 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
+import six
 
 from django.forms import ValidationError
 from rest_framework import serializers
@@ -60,8 +61,8 @@ class UUIDListField(serializers.ListField):
 
 
 class URNField(serializers.CharField):
-    def to_representation(self, obj):
-        return unicode(obj)
+    def to_representation(self, obj):  # pragma: no cover
+        return six.text_type(obj)
 
     def to_internal_value(self, data):
         if not URN.validate(data):
@@ -187,7 +188,7 @@ class ChannelReadSerializer(ReadSerializer):
     device = serializers.SerializerMethodField()
 
     def get_country(self, obj):
-        return unicode(obj.country) if obj.country else None
+        return six.text_type(obj.country) if obj.country else None
 
     def get_device(self, obj):
         if obj.channel_type != ANDROID:

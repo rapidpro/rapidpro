@@ -639,6 +639,9 @@ class APITest(TembaTest):
         contact4.refresh_from_db()
         self.joe.refresh_from_db()
 
+        # create contact for other org
+        hans = self.create_contact("Hans", "0788000004", org=self.org2)
+
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url)
@@ -686,6 +689,31 @@ class APITest(TembaTest):
         # filter by after
         response = self.fetchJSON(url, 'after=%s' % format_datetime(self.joe.modified_on))
         self.assertResultsByUUID(response, [contact4, self.joe])
+
+        # view the deleted contact
+        response = self.fetchJSON(url, 'deleted=true')
+        self.assertResultsByUUID(response, [contact3])
+        self.assertEqual(response.json['results'][0], {
+            'uuid': contact3.uuid,
+            'name': None,
+            'language': None,
+            'urns': [],
+            'groups': [],
+            'fields': {},
+            'blocked': None,
+            'stopped': None,
+            'created_on': format_datetime(contact3.created_on),
+            'modified_on': format_datetime(contact3.modified_on)
+        })
+
+        with AnonymousOrg(self.org):
+            # shouldn't include URNs
+            response = self.fetchJSON(url, 'uuid=%s' % contact2.uuid)
+            self.assertEqual(response.json['results'][0]['urns'], [])
+
+        # try to post something other than an object
+        response = self.postJSON(url, [])
+        self.assertEqual(response.status_code, 400)
 
         # create an empty contact
         response = self.postJSON(url, {})
@@ -794,6 +822,10 @@ class APITest(TembaTest):
         # try to update a contact with non-existent UUID
         response = self.postJSON(url, {'uuid': 'ad6acad9-959b-4d70-b144-5de2891e4d00'})
         self.assertResponseError(response, 'uuid', "No such contact with UUID: ad6acad9-959b-4d70-b144-5de2891e4d00")
+
+        # try to update a contact in another org
+        response = self.postJSON(url, {'uuid': hans.uuid})
+        self.assertResponseError(response, 'uuid', "No such contact with UUID: %s" % hans.uuid)
 
         # try to update a contact with non-existent URN
         response = self.postJSON(url, {'urn': 'twitter:xxxx'})
