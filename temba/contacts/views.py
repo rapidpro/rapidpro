@@ -710,8 +710,8 @@ class ContactCRUDL(SmartCRUDL):
             context['upcoming_events'] = sorted(merged_upcoming_events, key=lambda k: k['scheduled'], reverse=True)
 
             # divide contact's URNs into those we can send to, and those we can't
-            from temba.channels.models import SEND
-            sendable_schemes = contact.org.get_schemes(SEND)
+            from temba.channels.models import Channel
+            sendable_schemes = contact.org.get_schemes(Channel.ROLE_SEND)
 
             urns = contact.get_urns()
             has_sendable_urn = False

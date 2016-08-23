@@ -8,7 +8,7 @@ from mock import patch
 from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
-from temba.channels.models import Channel, ChannelEvent, CALL, ANSWER, TWITTER
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, Contact
 from temba.flows.models import Flow, ActionSet, FlowRun
 from temba.orgs.models import Language
@@ -149,7 +149,7 @@ class TriggerTest(TembaTest):
         self.assertNotContains(response, 'Start a flow after receiving a call')
 
         # make our channel support ivr
-        self.channel.role += CALL + ANSWER
+        self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
         self.channel.save()
 
         response = self.client.get(reverse('triggers.trigger_create'))
@@ -924,7 +924,7 @@ class TriggerTest(TembaTest):
 
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger
-        Channel.objects.filter(id=self.channel.id).update(channel_type=TWITTER)
+        Channel.objects.filter(id=self.channel.id).update(channel_type=Channel.TYPE_TWITTER)
         flow = self.create_flow()
 
         group = self.create_group("Trigger Group", [])

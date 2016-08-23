@@ -2043,6 +2043,7 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
      * **contacts** - a list of the UUIDs of the contacts you want to start in this flow (optional)
      * **urns** - a list of URNs you want to start in this flow (optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
+     * **extra** - a dictionary of extra parameters to pass to the flow start (accessible via @extra in your flow)
 
     Example:
 
@@ -2052,6 +2053,7 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "groups": ["f5901b62-ba76-4003-9c62-72fdacc15515"],
             "contacts": ["f5901b62-ba76-4003-9c62-fjjajdsi15553"]
             "urns": ["twitter:sirmixalot", "tel:+12065551212"]
+            "extra": { "first_name": "Ryan", "last_name": "Lewis" }
         }
 
     Response is the created flow start:
@@ -2077,6 +2079,10 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                      "uuid": "f5901b62-ba76-4003-9c62-72fftww881256"
                  }
             ],
+            "extra": {
+                "first_name": "Ryan",
+                "last_name": "Lewis"
+            },
             "restart_participants": true,
             "status": "pending",
             "created_on": "2013-08-19T19:11:21.082Z"
@@ -2147,7 +2153,9 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                           dict(name='urns', required=False,
                                help="The URNS of any contacts you want to start"),
                           dict(name='restart_participants', required=False,
-                               help="Whether to restart any participants already in the flow")
+                               help="Whether to restart any participants already in the flow"),
+                          dict(name='extra', required=False,
+                               help="Any extra parameters to pass to the flow start"),
                           ]
 
         return spec

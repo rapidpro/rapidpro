@@ -67,7 +67,7 @@ def omnibox_mixed_search(org, search, types):
     """
     Performs a mixed group, contact and URN search, returning a page-able query
     """
-    from temba.channels.models import SEND
+    from temba.channels.models import Channel
 
     search_terms = search.split(" ") if search else None
 
@@ -75,7 +75,7 @@ def omnibox_mixed_search(org, search, types):
         types = 'gcu'
 
     # only include URNs that are send-able
-    allowed_schemes = list(org.get_schemes(SEND)) if not org.is_anon else None
+    allowed_schemes = list(org.get_schemes(Channel.ROLE_SEND)) if not org.is_anon else None
 
     def add_search(col, _clauses, _params, by_id=False):
         """
