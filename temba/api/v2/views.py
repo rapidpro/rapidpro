@@ -24,7 +24,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
-from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
+from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
@@ -800,14 +800,12 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ContactsEndpoint(ListAPIMixin, BaseAPIView):
+class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
     """
-    ## Adding or Updating Contacts
+    ## Adding Contacts
 
-    You can add a new contact to your account, or update the fields on a contact by sending a **POST** request to this
-    URL with the following JSON data:
+    You can add a new contact to your account by sending a **POST** request to this URL with the following JSON data:
 
-    * **uuid** - the UUID of the contact (string, optional)
     * **name** - the full name of the contact (string, optional)
     * **language** - the preferred language for the contact (3 letter iso code, optional)
     * **urns** - a list of URNs you want associated with the contact (string array)
@@ -841,12 +839,29 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
               "side_kick": "Ryan Lewis"
             }
             "blocked": false,
-            "stopped": false
+            "stopped": false,
+            "created_on": "2015-11-11T13:05:57.457742Z",
+            "modified_on": "2015-11-11T13:05:57.576056Z"
         }
 
-    You can update contacts in the same manner as adding them but we recommend you pass in the UUID for the contact
-    as a way of specifying which contact to update. Note that when you pass in the contact UUID and ```urns```, all
-    existing URNs will be evaluated against this new set and updated accordingly.
+    ## Updating Contacts
+
+    You can update contacts in the same manner by including one of the following fields:
+
+    * **uuid** - the UUID of the contact (string, optional)
+    * **urn** - a URN belonging to the contact (string, optional)
+
+    Example:
+
+        POST /api/v2/contacts.json
+        {
+            "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+            "name": "Ben Haggerty",
+            "language": "eng",
+            "urns": ["tel:+250788123123", "twitter:ben"],
+            "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
+            "fields": {}
+        }
 
     ## Listing Contacts
 
@@ -859,6 +874,8 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
      * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
      * **fields** - any contact fields on this contact (dictionary).
+     * **blocked** - whether the contact is blocked (boolean).
+     * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
      * **created_on** - when this contact was created (datetime).
      * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
 
@@ -882,6 +899,8 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
                   "nickname": "Macklemore",
                   "side_kick": "Ryan Lewis"
                 }
+                "blocked": false,
+                "stopped": false,
                 "created_on": "2015-11-11T13:05:57.457742Z",
                 "modified_on": "2015-11-11T13:05:57.576056Z"
             }]
@@ -890,6 +909,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     permission = 'contacts.contact_api'
     model = Contact
     serializer_class = ContactReadSerializer
+    write_serializer_class = ContactWriteSerializer
     pagination_class = ModifiedOnCursorPagination
     throttle_scope = 'v2.contacts'
 
@@ -954,6 +974,25 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': "deleted", 'required': False, 'help': "Whether to return only deleted contacts. ex: false"},
                 {'name': 'before', 'required': False, 'help': "Only return contacts modified before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return contacts modified after this date, ex: 2015-01-28T18:00:00.000"}
+            ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Add or Update Contacts",
+            'url': reverse('api.v2.contacts'),
+            'slug': 'contact-update',
+            'request': '{"name": "Ben Haggerty", "groups": [], "urns": ["tel:+250788123123"]}',
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "UUID of the contact to be updated"},
+                {'name': "urn", 'required': False, 'help': "URN of the contact to be updated. ex: tel:+250788123123"},
+                {'name': "name", 'required': False, 'help': "List of UUIDs of this contact's groups."},
+                {'name': "language", 'required': False, 'help': "Preferred language of the contact (3-letter ISO code). ex: fre, eng"},
+                {'name': "urns", 'required': False, 'help': "List of URNs belonging to the contact."},
+                {'name': "groups", 'required': False, 'help': "List of UUIDs of groups that the contact belongs to."},
+                {'name': "fields", 'required': False, 'help': "Custom fields as a JSON dictionary."},
             ]
         }
 
