@@ -721,7 +721,6 @@ class APITest(TembaTest):
 
         empty = Contact.objects.get(name=None)
 
-        self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json, {
             'uuid': empty.uuid,
             'name': None,
@@ -750,14 +749,15 @@ class APITest(TembaTest):
         response = self.postJSON(url, {
             'name': "Jean",
             'language': "fre",
-            'urns': ['tel:1234556789'],
+            'urns': ["tel:1-2345-56789", "twitter:JEAN"],
             'groups': [group.uuid],
             'fields': {'nickname': "Jado"}
         })
         self.assertEqual(response.status_code, 201)
 
+        # URNs will be normalized
         jean = Contact.objects.filter(name="Jean", language='fre').order_by('-pk').first()
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:1234556789'})
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:1234556789", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
 
@@ -782,7 +782,7 @@ class APITest(TembaTest):
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jean")
         self.assertEqual(jean.language, "fre")
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:1234556789'})
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:1234556789", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
 
@@ -805,10 +805,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field('nickname').string_value, "John")
 
         # update by URN whilst changing URNs
-        response = self.postJSON(url, {
-            'urn': "tel:2234556700",
-            'urns': ["tel:3333333333"],
-        })
+        response = self.postJSON(url, {'urn': "tel:2234556700", 'urns': ["tel:3333333333"]})
         self.assertEqual(response.status_code, 201)
 
         # only URN should have changed
@@ -819,6 +816,26 @@ class APITest(TembaTest):
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field('nickname').string_value, "John")
 
+        # create by URN identifier
+        response = self.postJSON(url, {'urn': "twitter:BOBBY", 'name': "Bobby"})
+        self.assertEqual(response.status_code, 201)
+
+        # URN should be normalized
+        bobby = Contact.objects.get(name="Bobby")
+        self.assertEqual(set(bobby.urns.values_list('urn', flat=True)), {'twitter:bobby'})
+
+        # URN identifier is also normalized for updates
+        response = self.postJSON(url, {'urn': "twitter:BOBBY", 'name': "Bobby II"})
+        self.assertEqual(response.status_code, 201)
+
+        bobby.refresh_from_db()
+        self.assertEqual(bobby.name, "Bobby II")
+
+        # try to create a contact with a URN belonging to another contact
+        response = self.postJSON(url, {'name': "Robert", 'urns': ["twitter:bobby"]})
+        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, 'non_field_errors', "Contact URN belongs to another contact: twitter:bobby")
+
         # try to update a contact with non-existent UUID
         response = self.postJSON(url, {'uuid': 'ad6acad9-959b-4d70-b144-5de2891e4d00'})
         self.assertResponseError(response, 'uuid', "No such contact with UUID: ad6acad9-959b-4d70-b144-5de2891e4d00")
@@ -826,10 +843,6 @@ class APITest(TembaTest):
         # try to update a contact in another org
         response = self.postJSON(url, {'uuid': hans.uuid})
         self.assertResponseError(response, 'uuid', "No such contact with UUID: %s" % hans.uuid)
-
-        # try to update a contact with non-existent URN
-        response = self.postJSON(url, {'urn': 'twitter:xxxx'})
-        self.assertResponseError(response, 'urn', "No such contact with URN: twitter:xxxx")
 
         response = self.postJSON(url, {'uuid': jean.uuid, 'groups': [dyn_group.uuid]})
         self.assertResponseError(response, 'groups', "Can't add contact to dynamic group with UUID: %s" % dyn_group.uuid)

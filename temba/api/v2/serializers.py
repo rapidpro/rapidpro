@@ -65,10 +65,14 @@ class URNField(serializers.CharField):
         return six.text_type(obj)
 
     def to_internal_value(self, data):
-        if not URN.validate(data):
-            raise ValidationError("Invalid URN: %s" % data)
+        try:
+            normalized = URN.normalize(data)
+            if not URN.validate(normalized):
+                raise ValueError()
+        except ValueError:
+            raise serializers.ValidationError("Invalid URN: %s" % data)
 
-        return URN.normalize(data)
+        return normalized
 
 
 class URNListField(serializers.ListField):
@@ -259,7 +263,7 @@ class ContactReadSerializer(ReadSerializer):
 
 class ContactWriteSerializer(WriteSerializer):
     uuid = serializers.UUIDField(required=False)
-    urn = serializers.CharField(required=False)
+    urn = URNField(required=False)
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = URNListField(required=False)
@@ -279,22 +283,7 @@ class ContactWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Referencing by URN not allowed for anonymous organizations")
 
         self.instance = Contact.from_urn(self.context['org'], value)
-        if not self.instance:
-            raise serializers.ValidationError("No such contact with URN: %s" % value)
-
-    def validate_urns(self, value):
-        urns = []
-        for urn in value:
-            try:
-                normalized = URN.normalize(urn)
-                if not URN.validate(normalized):
-                    raise ValueError()
-            except ValueError:
-                raise serializers.ValidationError("Invalid URN: %s" % urn)
-
-            urns.append(normalized)
-
-        return urns
+        return value
 
     def validate_groups(self, value):
         groups = []
@@ -318,9 +307,18 @@ class ContactWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
+        org = self.context['org']
+
         # we don't allow updating of contact URNs for anon orgs - tho we do allow creation of contacts with URNs
-        if self.context['org'].is_anon and self.instance and data.get('urns'):
+        if org.is_anon and self.instance and data.get('urns'):
             raise serializers.ValidationError("Updating contact URNs not allowed for anonymous organizations")
+
+        # if creating a contact, urns can't include URNs which are already taken
+        if not self.instance and 'urns' in data:
+            country_code = org.get_country_code()
+            for urn in data['urns']:
+                if Contact.from_urn(org, urn, country_code):
+                    raise serializers.ValidationError("Contact URN belongs to another contact: %s" % urn)
 
         # if contact is blocked, they can't be added to groups
         if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and data['groups']:
@@ -355,6 +353,14 @@ class ContactWriteSerializer(WriteSerializer):
             if changed:
                 self.instance.save(update_fields=changed)
         else:
+            if urns is None:
+                # if user is using URN as identifier, ok to create contact from it if they don't already exist
+                urn_as_id = self.validated_data.get('urn')
+                if urn_as_id:
+                    urns = [urn_as_id]
+                else:
+                    urns = []
+
             self.instance = Contact.get_or_create(self.context['org'], self.context['user'], name, urns=urns, language=language)
 
         # update our fields
