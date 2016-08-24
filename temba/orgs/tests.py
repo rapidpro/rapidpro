@@ -893,7 +893,7 @@ class OrgTest(TembaTest):
 
     def test_topups(self):
 
-        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = True
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
 
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         test_contact = Contact.get_test_contact(self.user)
@@ -985,8 +985,6 @@ class OrgTest(TembaTest):
         self.assertEquals(30, self.org.get_credits_used())
 
         # test special status
-        settings.MULTI_USER_THRESHOLD = 100000
-        settings.MULTI_ORG_THRESHOLD = 1000000
         self.assertFalse(self.org.is_multi_user_tier())
         self.assertFalse(self.org.is_multi_org_tier())
 
@@ -1485,18 +1483,17 @@ class OrgTest(TembaTest):
         self.assertRedirect(response, '/assets/download/results_export/123/')
 
     def test_tiers(self):
-        settings.MULTI_ORG_THRESHOLD = 1000000
-        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = True
 
         # not enough credits with tiers enabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
         self.assertIsNone(self.org.create_sub_org('Sub Org A'))
 
         # not enough credits, but tiers disabled
-        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = False
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
         self.assertIsNotNone(self.org.create_sub_org('Sub Org A'))
 
         # tiers enabled, but enough credits
-        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = True
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
         TopUp.create(self.admin, price=100, credits=1000000)
         self.org.update_caches(OrgEvent.topup_updated, None)
         self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
@@ -1504,8 +1501,7 @@ class OrgTest(TembaTest):
     def test_sub_orgs(self):
 
         from temba.orgs.models import Debit
-        settings.MULTI_ORG_THRESHOLD = 1000000
-        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = True
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
 
         # lets start with two topups
         expires = timezone.now() + timedelta(days=400)
@@ -1586,7 +1582,7 @@ class OrgTest(TembaTest):
 
         self.login(self.admin)
 
-        settings.MULTI_ORG_THRESHOLD = 1000000
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
 
         # set our org on the session
         session = self.client.session
@@ -1617,9 +1613,9 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_manage_accounts_sub_org'))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
-        # support multi orgs and see our button shows up
-        self.org.multi_org = True
-        self.org.save()
+        # zero out our tier
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        self.assertTrue(self.org.is_multi_org_tier())
         response = self.client.get(reverse('orgs.org_home'))
         self.assertContains(response, 'Manage Organizations')
 

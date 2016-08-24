@@ -87,10 +87,6 @@ USE_I18N = True
 # calendars according to the current locale
 USE_L10N = True
 
-# number of credits before they get user management
-MULTI_USER_THRESHOLD = 0
-MULTI_ORG_THRESHOLD = 0
-
 # URL prefix for admin static files -- CSS, JavaScript and images.
 # Make sure to use a trailing slash.
 # Examples: "http://foo.com/static/admin/", "/static/admin/".
@@ -279,8 +275,8 @@ BRANDING = {
         'favico': 'brands/rapidpro/rapidpro.ico',
         'splash': '/brands/rapidpro/splash.jpg',
         'logo': '/brands/rapidpro/logo.png',
-        'tiers': False,
         'allow_signups': True,
+        'tiers': dict(multi_user=0, multi_org=0),
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
         'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")

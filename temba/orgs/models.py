@@ -212,8 +212,6 @@ class Org(SmartModel):
 
     parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=_('The parent org that manages this org'))
 
-    multi_org = models.BooleanField(default=False, help_text=_('Put this org on the multi org level'))
-
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -1023,14 +1021,10 @@ class Org(SmartModel):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
     def is_multi_user_tier(self):
-        if self.get_branding().get('tiers', True):
-            return self.get_purchased_credits() >= settings.MULTI_USER_THRESHOLD
-        return True
+        return self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_user')
 
     def is_multi_org_tier(self):
-        if self.get_branding().get('tiers', True):
-            return not self.parent and (self.multi_org or self.get_purchased_credits() >= settings.MULTI_ORG_THRESHOLD)
-        return True
+        return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_org')
 
     def has_added_credits(self):
         return self.get_credits_total() > WELCOME_TOPUP_SIZE
