@@ -824,12 +824,19 @@ class APITest(TembaTest):
         bobby = Contact.objects.get(name="Bobby")
         self.assertEqual(set(bobby.urns.values_list('urn', flat=True)), {'twitter:bobby'})
 
+        # if URNs list also provided, it takes precedence
+        response = self.postJSON(url, {'urn': "twitter:jimmy", 'name': "Jimmy", 'urns': ["twitter:jimmy2"]})
+        self.assertEqual(response.status_code, 201)
+
+        jimmy = Contact.objects.get(name="Jimmy")
+        self.assertEqual(set(jimmy.urns.values_list('urn', flat=True)), {'twitter:jimmy2'})
+
         # URN identifier is also normalized for updates
         response = self.postJSON(url, {'urn': "twitter:BOBBY", 'name': "Bobby II"})
         self.assertEqual(response.status_code, 201)
 
         bobby.refresh_from_db()
-        self.assertEqual(bobby.name, "Bobby II")
+        self.assertEqual(bobby.name, "Bobby II")  # updated existing contact
 
         # try to create a contact with a URN belonging to another contact
         response = self.postJSON(url, {'name': "Robert", 'urns': ["twitter:bobby"]})
