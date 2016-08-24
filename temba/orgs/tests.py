@@ -1513,9 +1513,8 @@ class OrgTest(TembaTest):
         # we won't create sub orgs if the org isn't the proper level
         self.assertIsNone(sub_org)
 
-        # upgrade our org and go again
-        self.org.multi_org = True
-        self.org.save()
+        # lower the tier and try again
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
         sub_org = self.org.create_sub_org('Sub Org')
 
         # suborgs can't create suborgs
