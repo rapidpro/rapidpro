@@ -4723,12 +4723,15 @@ class ReplyAction(Action):
     @classmethod
     def from_json(cls, org, json_obj):
         # assert we have some kind of message in this reply
-        msg_dict = json_obj.get(ReplyAction.MESSAGE)
-        if not msg_dict:
-            raise FlowException("Invalid reply action, empty message dict")
+        msg = json_obj.get(ReplyAction.MESSAGE)
+        if isinstance(msg, dict):
+            if not msg:
+                raise FlowException("Invalid reply action, empty message dict")
 
-        if not any([v for v in msg_dict.values()]):
-            raise FlowException("Invalid reply action, missing at least one message")
+            if not any([v for v in msg.values()]):
+                raise FlowException("Invalid reply action, missing at least one message")
+        elif not msg:
+            raise FlowException("Invalid reply action, no message")
 
         return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
 
