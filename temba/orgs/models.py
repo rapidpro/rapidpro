@@ -231,7 +231,7 @@ class Org(SmartModel):
 
     def create_sub_org(self, name, timezone=None, created_by=None):
 
-        if self.is_multi_org_level() and not self.parent:
+        if self.is_multi_org_tier() and not self.parent:
 
             if not timezone:
                 timezone = self.timezone
@@ -1022,11 +1022,15 @@ class Org(SmartModel):
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
-    def is_multi_user_level(self):
-        return self.get_purchased_credits() >= settings.MULTI_USER_THRESHOLD
+    def is_multi_user_tier(self):
+        if self.get_branding().get('tiers', True):
+            return self.get_purchased_credits() >= settings.MULTI_USER_THRESHOLD
+        return True
 
-    def is_multi_org_level(self):
-        return not self.parent and (self.multi_org or self.get_purchased_credits() >= settings.MULTI_ORG_THRESHOLD)
+    def is_multi_org_tier(self):
+        if self.get_branding().get('tiers', True):
+            return not self.parent and (self.multi_org or self.get_purchased_credits() >= settings.MULTI_ORG_THRESHOLD)
+        return True
 
     def has_added_credits(self):
         return self.get_credits_total() > WELCOME_TOPUP_SIZE

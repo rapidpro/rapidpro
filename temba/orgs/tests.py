@@ -892,6 +892,9 @@ class OrgTest(TembaTest):
         self.assertEqual(topup.get_price_display(), "$1.00")
 
     def test_topups(self):
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = True
+
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
@@ -984,8 +987,8 @@ class OrgTest(TembaTest):
         # test special status
         settings.MULTI_USER_THRESHOLD = 100000
         settings.MULTI_ORG_THRESHOLD = 1000000
-        self.assertFalse(self.org.is_multi_user_level())
-        self.assertFalse(self.org.is_multi_org_level())
+        self.assertFalse(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
@@ -999,7 +1002,7 @@ class OrgTest(TembaTest):
 
         # we aren't yet multi user since this topup was free
         self.assertEquals(0, self.org.get_purchased_credits())
-        self.assertFalse(self.org.is_multi_user_level())
+        self.assertFalse(self.org.is_multi_user_tier())
 
         self.assertEquals(100025, self.org.get_credits_total())
         self.assertEquals(30, self.org.get_credits_used())
@@ -1114,14 +1117,14 @@ class OrgTest(TembaTest):
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100000)
         self.org.update_caches(OrgEvent.topup_updated, None)
-        self.assertTrue(self.org.is_multi_user_level())
-        self.assertFalse(self.org.is_multi_org_level())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1000000)
         self.org.update_caches(OrgEvent.topup_updated, None)
-        self.assertTrue(self.org.is_multi_user_level())
-        self.assertTrue(self.org.is_multi_org_level())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertTrue(self.org.is_multi_org_tier())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -1481,10 +1484,28 @@ class OrgTest(TembaTest):
         response = self.client.get('/org/download/flows/123/')
         self.assertRedirect(response, '/assets/download/results_export/123/')
 
+    def test_tiers(self):
+        settings.MULTI_ORG_THRESHOLD = 1000000
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = True
+
+        # not enough credits with tiers enabled
+        self.assertIsNone(self.org.create_sub_org('Sub Org A'))
+
+        # not enough credits, but tiers disabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = False
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org A'))
+
+        # tiers enabled, but enough credits
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = True
+        TopUp.create(self.admin, price=100, credits=1000000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
+
     def test_sub_orgs(self):
 
         from temba.orgs.models import Debit
         settings.MULTI_ORG_THRESHOLD = 1000000
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = True
 
         # lets start with two topups
         expires = timezone.now() + timedelta(days=400)
