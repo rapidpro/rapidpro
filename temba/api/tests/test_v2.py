@@ -12,6 +12,7 @@ from django.conf import settings
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
+from rest_framework import serializers
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
@@ -22,6 +23,7 @@ from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from ..models import APIToken, Resthook, WebHookEvent
+from ..v2.fields import ChannelField
 from ..v2.serializers import format_datetime
 
 
@@ -131,6 +133,15 @@ class APITest(TembaTest):
             self.assertIsInstance(response.json, dict)
             self.assertIn('detail', response.json)
             self.assertEqual(response.json['detail'], expected_message)
+
+    def test_serializer_fields(self):
+        channel_field = ChannelField(source='test')
+        channel_field.context = {'org': self.org}
+
+        self.assertEqual(channel_field.to_internal_value(self.channel.uuid), self.channel)
+        self.channel.is_active = False
+        self.channel.save()
+        self.assertRaises(serializers.ValidationError, channel_field.to_internal_value, self.channel.uuid)
 
     def test_authentication(self):
         def api_request(endpoint, token):
@@ -771,7 +782,7 @@ class APITest(TembaTest):
         })
         self.assertResponseError(response, 'language', "Ensure this field has no more than 3 characters.")
         self.assertResponseError(response, 'urns', "Invalid URN: 1234556789")
-        self.assertResponseError(response, 'groups', "No such group with UUID: 59686b4e-14bc-4160-9376-b649b218c806")
+        self.assertResponseError(response, 'groups', "No such object with UUID: 59686b4e-14bc-4160-9376-b649b218c806")
         self.assertResponseError(response, 'fields', "Invalid contact field key: hmmm")
 
         # update an existing contact by UUID but don't provide any fields
