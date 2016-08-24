@@ -1605,10 +1605,10 @@ class ChannelCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             data = form.cleaned_data
 
-            country = data['country']
-            number = data['number']
-            url = data['url']
-            role = data['role']
+            country = data.get('country')
+            number = data.get('number')
+            url = data.get('url')
+            role = data.get('role')
 
             config = {SEND_URL: url,
                       ACCOUNT_SID: data.get('account_sid', None),
