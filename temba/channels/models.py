@@ -578,7 +578,7 @@ class Channel(TembaModel):
         # generate random secret and claim code
         claim_code = cls.generate_claim_code()
         secret = cls.generate_secret()
-        anon = User.objects.get(pk=-1)
+        anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
 
         return Channel.create(None, anon, country, Channel.TYPE_ANDROID, None, None, gcm_id=gcm_id, uuid=uuid,
                               device=device, claim_code=claim_code, secret=secret)
@@ -2952,7 +2952,7 @@ class SyncEvent(SmartModel):
         args['retry_message_count'] = len(cmd.get('retry', cmd.get('retry_messages')))
         args['incoming_command_count'] = max(len(incoming_commands) - 2, 0)
 
-        anon_user = User.objects.get(pk=-1)
+        anon_user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
         args['channel'] = channel
         args['created_by'] = anon_user
         args['modified_by'] = anon_user

@@ -125,7 +125,7 @@ class LeadCRUDL(SmartCRUDL):
             return HttpResponseRedirect(url + "?errors=%s" % email)
 
         def pre_save(self, obj):
-            anon = User.objects.get(id=-1)
+            anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
             obj = super(LeadCRUDL.Create, self).pre_save(obj)
             obj.created_by = anon
             obj.modified_by = anon
