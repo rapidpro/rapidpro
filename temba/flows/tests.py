@@ -1463,8 +1463,8 @@ class FlowTest(TembaTest):
         self.assertEquals(BetweenTest, Test.from_json(org, js).__class__)
         self.assertEquals(js, BetweenTest("5", "10").as_json())
 
-        self.assertEquals(ReplyAction, Action.from_json(org, dict(type='reply', msg="hello world")).__class__)
-        self.assertEquals(SendAction, Action.from_json(org, dict(type='send', msg="hello world", contacts=[], groups=[], variables=[])).__class__)
+        self.assertEquals(ReplyAction, Action.from_json(org, dict(type='reply', msg=dict(base="hello world"))).__class__)
+        self.assertEquals(SendAction, Action.from_json(org, dict(type='send', msg=dict(base="hello world"), contacts=[], groups=[], variables=[])).__class__)
 
     def test_decimal_values(self):
         flow = self.flow
@@ -2264,6 +2264,15 @@ class ActionTest(TembaTest):
     def test_reply_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
+
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE})
+
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE, ReplyAction.MESSAGE: dict()})
+
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE, ReplyAction.MESSAGE: dict(base="")})
 
         action = ReplyAction(dict(base="We love green too!"))
         action.execute(run, None, msg)
