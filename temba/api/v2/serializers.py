@@ -1,8 +1,9 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
-from django.forms import ValidationError
+import six
 
+from django.forms import ValidationError
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -48,7 +49,9 @@ class WriteSerializer(serializers.Serializer):
 
     def run_validation(self, data=serializers.empty):
         if not isinstance(data, dict):
-            raise serializers.ValidationError(detail={'non_field_errors': ["Request body should be a single JSON object"]})
+            raise serializers.ValidationError(detail={
+                'non_field_errors': ["Request body should be a single JSON object"]
+            })
 
         return super(WriteSerializer, self).run_validation(data)
 
@@ -59,13 +62,20 @@ class UUIDListField(serializers.ListField):
 
 class URNField(serializers.CharField):
     def to_representation(self, obj):
-        return unicode(obj)
+        if self.context['org'].is_anon:
+            return None
+        else:
+            return six.text_type(obj)
 
     def to_internal_value(self, data):
-        if not URN.validate(data):
-            raise ValidationError("Invalid URN: %s" % data)
+        try:
+            normalized = URN.normalize(data)
+            if not URN.validate(normalized):
+                raise ValueError()
+        except ValueError:
+            raise serializers.ValidationError("Invalid URN: %s" % data)
 
-        return URN.normalize(data)
+        return normalized
 
 
 class URNListField(serializers.ListField):
@@ -185,7 +195,7 @@ class ChannelReadSerializer(ReadSerializer):
     device = serializers.SerializerMethodField()
 
     def get_country(self, obj):
-        return unicode(obj.country) if obj.country else None
+        return six.text_type(obj.country) if obj.country else None
 
     def get_device(self, obj):
         if obj.channel_type != Channel.TYPE_ANDROID:
@@ -252,6 +262,120 @@ class ContactReadSerializer(ReadSerializer):
         model = Contact
         fields = ('uuid', 'name', 'language', 'urns', 'groups', 'fields', 'blocked', 'stopped',
                   'created_on', 'modified_on')
+
+
+class ContactWriteSerializer(WriteSerializer):
+    uuid = serializers.UUIDField(required=False)
+    urn = URNField(required=False)
+    name = serializers.CharField(required=False, max_length=64, allow_null=True)
+    language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
+    urns = URNListField(required=False)
+    groups = UUIDListField(required=False)
+    fields = serializers.DictField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super(ContactWriteSerializer, self).__init__(*args, **kwargs)
+
+    def validate_uuid(self, value):
+        self.instance = Contact.objects.filter(org=self.context['org'], uuid=value, is_active=True).first()
+        if not self.instance:
+            raise serializers.ValidationError("No such contact with UUID: %s" % value)
+
+    def validate_urn(self, value):
+        if self.context['org'].is_anon:
+            raise serializers.ValidationError("Referencing by URN not allowed for anonymous organizations")
+
+        self.instance = Contact.from_urn(self.context['org'], value)
+        return value
+
+    def validate_groups(self, value):
+        groups = []
+        for uuid in value:
+            group = ContactGroup.user_groups.filter(org=self.context['org'], uuid=uuid).first()
+            if not group:
+                raise serializers.ValidationError("No such group with UUID: %s" % uuid)
+            if group.is_dynamic:
+                raise serializers.ValidationError("Can't add contact to dynamic group with UUID: %s" % uuid)
+            groups.append(group)
+
+        return groups
+
+    def validate_fields(self, value):
+        valid_keys = {f.key for f in self.context['contact_fields']}
+
+        for field_key, field_val in value.items():
+            if field_key not in valid_keys:
+                raise serializers.ValidationError("Invalid contact field key: %s" % field_key)
+
+        return value
+
+    def validate(self, data):
+        org = self.context['org']
+
+        # we don't allow updating of contact URNs for anon orgs - tho we do allow creation of contacts with URNs
+        if org.is_anon and self.instance and data.get('urns'):
+            raise serializers.ValidationError("Updating contact URNs not allowed for anonymous organizations")
+
+        # if creating a contact, urns can't include URNs which are already taken
+        if not self.instance and 'urns' in data:
+            country_code = org.get_country_code()
+            for urn in data['urns']:
+                if Contact.from_urn(org, urn, country_code):
+                    raise serializers.ValidationError("Contact URN belongs to another contact: %s" % urn)
+
+        # if contact is blocked, they can't be added to groups
+        if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and data['groups']:
+            raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
+
+        return data
+
+    def save(self):
+        """
+        Update our contact
+        """
+        name = self.validated_data.get('name')
+        language = self.validated_data.get('language')
+        urns = self.validated_data.get('urns')
+        groups = self.validated_data.get('groups')
+        fields = self.validated_data.get('fields')
+
+        changed = []
+
+        if self.instance:
+            # update our name and language
+            if 'name' in self.validated_data and name != self.instance.name:
+                self.instance.name = name
+                changed.append('name')
+            if 'language' in self.validated_data and language != self.instance.language:
+                self.instance.language = language
+                changed.append('language')
+
+            if 'urns' in self.validated_data and urns is not None:
+                self.instance.update_urns(self.context['user'], urns)
+
+            if changed:
+                self.instance.save(update_fields=changed)
+        else:
+            if urns is None:
+                # if user is using URN as identifier, ok to create contact from it if they don't already exist
+                urn_as_id = self.validated_data.get('urn')
+                if urn_as_id:
+                    urns = [urn_as_id]
+                else:
+                    urns = []
+
+            self.instance = Contact.get_or_create(self.context['org'], self.context['user'], name, urns=urns, language=language)
+
+        # update our fields
+        if fields is not None:
+            for key, value in fields.items():
+                self.instance.set_field(self.context['user'], key, value)
+
+        # update our groups
+        if groups is not None:
+            self.instance.update_static_groups(self.context['user'], groups)
+
+        return self.instance
 
 
 class ContactFieldReadSerializer(ReadSerializer):
@@ -500,7 +624,7 @@ class MsgReadSerializer(ReadSerializer):
 
     broadcast = serializers.SerializerMethodField()
     contact = serializers.SerializerMethodField()
-    urn = serializers.SerializerMethodField()
+    urn = URNField(source='contact_urn')
     channel = serializers.SerializerMethodField()
     direction = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
@@ -514,14 +638,6 @@ class MsgReadSerializer(ReadSerializer):
 
     def get_contact(self, obj):
         return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
-
-    def get_urn(self, obj):
-        if self.context['org'].is_anon:
-            return None
-        elif obj.contact_urn_id:
-            return obj.contact_urn.urn
-        else:
-            return None
 
     def get_channel(self, obj):
         return {'uuid': obj.channel.uuid, 'name': obj.channel.name} if obj.channel_id else None

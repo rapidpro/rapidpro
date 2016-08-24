@@ -639,6 +639,9 @@ class APITest(TembaTest):
         contact4.refresh_from_db()
         self.joe.refresh_from_db()
 
+        # create contact for other org
+        hans = self.create_contact("Hans", "0788000004", org=self.org2)
+
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url)
@@ -686,6 +689,185 @@ class APITest(TembaTest):
         # filter by after
         response = self.fetchJSON(url, 'after=%s' % format_datetime(self.joe.modified_on))
         self.assertResultsByUUID(response, [contact4, self.joe])
+
+        # view the deleted contact
+        response = self.fetchJSON(url, 'deleted=true')
+        self.assertResultsByUUID(response, [contact3])
+        self.assertEqual(response.json['results'][0], {
+            'uuid': contact3.uuid,
+            'name': None,
+            'language': None,
+            'urns': [],
+            'groups': [],
+            'fields': {},
+            'blocked': None,
+            'stopped': None,
+            'created_on': format_datetime(contact3.created_on),
+            'modified_on': format_datetime(contact3.modified_on)
+        })
+
+        with AnonymousOrg(self.org):
+            # shouldn't include URNs
+            response = self.fetchJSON(url, 'uuid=%s' % contact2.uuid)
+            self.assertEqual(response.json['results'][0]['urns'], [])
+
+        # try to post something other than an object
+        response = self.postJSON(url, [])
+        self.assertEqual(response.status_code, 400)
+
+        # create an empty contact
+        response = self.postJSON(url, {})
+        self.assertEqual(response.status_code, 201)
+
+        empty = Contact.objects.get(name=None)
+
+        self.assertEqual(response.json, {
+            'uuid': empty.uuid,
+            'name': None,
+            'language': None,
+            'urns': [],
+            'groups': [],
+            'fields': {'nickname': None},
+            'blocked': False,
+            'stopped': False,
+            'created_on': format_datetime(empty.created_on),
+            'modified_on': format_datetime(empty.modified_on)
+        })
+
+        # create with all fields but empty
+        response = self.postJSON(url, {'name': None, 'language': None, 'urns': [], 'groups': [], 'fields': {}})
+        self.assertEqual(response.status_code, 201)
+
+        jaqen = Contact.objects.filter(name=None, language=None).order_by('-pk').first()
+        self.assertEqual(set(jaqen.urns.all()), set())
+        self.assertEqual(set(jaqen.user_groups.all()), set())
+        self.assertEqual(set(jaqen.values.all()), set())
+
+        dyn_group = self.create_group("Dynamic Group", query="nickname has Ja")
+
+        # create with all fields
+        response = self.postJSON(url, {
+            'name': "Jean",
+            'language': "fre",
+            'urns': ["tel:1-2345-56789", "twitter:JEAN"],
+            'groups': [group.uuid],
+            'fields': {'nickname': "Jado"}
+        })
+        self.assertEqual(response.status_code, 201)
+
+        # URNs will be normalized
+        jean = Contact.objects.filter(name="Jean", language='fre').order_by('-pk').first()
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:1234556789", "twitter:jean"})
+        self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
+        self.assertEqual(jean.get_field('nickname').string_value, "Jado")
+
+        # create with invalid fields
+        response = self.postJSON(url, {
+            'name': "Jim",
+            'language': "english",
+            'urns': ["1234556789"],
+            'groups': ["59686b4e-14bc-4160-9376-b649b218c806"],
+            'fields': {'hmmm': "X"}
+        })
+        self.assertResponseError(response, 'language', "Ensure this field has no more than 3 characters.")
+        self.assertResponseError(response, 'urns', "Invalid URN: 1234556789")
+        self.assertResponseError(response, 'groups', "No such group with UUID: 59686b4e-14bc-4160-9376-b649b218c806")
+        self.assertResponseError(response, 'fields', "Invalid contact field key: hmmm")
+
+        # update an existing contact by UUID but don't provide any fields
+        response = self.postJSON(url, {'uuid': jean.uuid})
+        self.assertEqual(response.status_code, 201)
+
+        # contact should be unchanged
+        jean = Contact.objects.get(pk=jean.pk)
+        self.assertEqual(jean.name, "Jean")
+        self.assertEqual(jean.language, "fre")
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:1234556789", "twitter:jean"})
+        self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
+        self.assertEqual(jean.get_field('nickname').string_value, "Jado")
+
+        # update by UUID and change all fields
+        response = self.postJSON(url, {
+            'uuid': jean.uuid,
+            'name': "Jean II",
+            'language': "eng",
+            'urns': ["tel:2234556700"],
+            'groups': [],
+            'fields': {'nickname': "John"}
+        })
+        self.assertEqual(response.status_code, 201)
+
+        jean = Contact.objects.get(pk=jean.pk)
+        self.assertEqual(jean.name, "Jean II")
+        self.assertEqual(jean.language, "eng")
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:2234556700'})
+        self.assertEqual(set(jean.user_groups.all()), set())
+        self.assertEqual(jean.get_field('nickname').string_value, "John")
+
+        # update by URN whilst changing URNs
+        response = self.postJSON(url, {'urn': "tel:2234556700", 'urns': ["tel:3333333333"]})
+        self.assertEqual(response.status_code, 201)
+
+        # only URN should have changed
+        jean = Contact.objects.get(pk=jean.pk)
+        self.assertEqual(jean.name, "Jean II")
+        self.assertEqual(jean.language, "eng")
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:3333333333'})
+        self.assertEqual(set(jean.user_groups.all()), set())
+        self.assertEqual(jean.get_field('nickname').string_value, "John")
+
+        # create by URN identifier
+        response = self.postJSON(url, {'urn': "twitter:BOBBY", 'name': "Bobby"})
+        self.assertEqual(response.status_code, 201)
+
+        # URN should be normalized
+        bobby = Contact.objects.get(name="Bobby")
+        self.assertEqual(set(bobby.urns.values_list('urn', flat=True)), {'twitter:bobby'})
+
+        # if URNs list also provided, it takes precedence
+        response = self.postJSON(url, {'urn': "twitter:jimmy", 'name': "Jimmy", 'urns': ["twitter:jimmy2"]})
+        self.assertEqual(response.status_code, 201)
+
+        jimmy = Contact.objects.get(name="Jimmy")
+        self.assertEqual(set(jimmy.urns.values_list('urn', flat=True)), {'twitter:jimmy2'})
+
+        # URN identifier is also normalized for updates
+        response = self.postJSON(url, {'urn': "twitter:BOBBY", 'name': "Bobby II"})
+        self.assertEqual(response.status_code, 201)
+
+        bobby.refresh_from_db()
+        self.assertEqual(bobby.name, "Bobby II")  # updated existing contact
+
+        # try to create a contact with a URN belonging to another contact
+        response = self.postJSON(url, {'name': "Robert", 'urns': ["twitter:bobby"]})
+        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, 'non_field_errors', "Contact URN belongs to another contact: twitter:bobby")
+
+        # try to update a contact with non-existent UUID
+        response = self.postJSON(url, {'uuid': 'ad6acad9-959b-4d70-b144-5de2891e4d00'})
+        self.assertResponseError(response, 'uuid', "No such contact with UUID: ad6acad9-959b-4d70-b144-5de2891e4d00")
+
+        # try to update a contact in another org
+        response = self.postJSON(url, {'uuid': hans.uuid})
+        self.assertResponseError(response, 'uuid', "No such contact with UUID: %s" % hans.uuid)
+
+        response = self.postJSON(url, {'uuid': jean.uuid, 'groups': [dyn_group.uuid]})
+        self.assertResponseError(response, 'groups', "Can't add contact to dynamic group with UUID: %s" % dyn_group.uuid)
+
+        # try to move a blocked contact into a group
+        jean.block(self.user)
+        response = self.postJSON(url, {'uuid': jean.uuid, 'groups': [group.uuid]})
+        self.assertResponseError(response, 'non_field_errors', "Blocked or stopped contacts can't be added to groups")
+
+        with AnonymousOrg(self.org):
+            # can't update via URN
+            response = self.postJSON(url, {'urn': 'tel:3333333333'})
+            self.assertResponseError(response, 'urn', "Referencing by URN not allowed for anonymous organizations")
+
+            # can't update contact URNs
+            response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ['tel:2234556700']})
+            self.assertResponseError(response, 'non_field_errors',
+                                     "Updating contact URNs not allowed for anonymous organizations")
 
     def test_definitions(self):
         url = reverse('api.v2.definitions')
@@ -1033,6 +1215,11 @@ class APITest(TembaTest):
             response = self.fetchJSON(url, query)
             self.assertResponseError(response, None,
                                      "You may only specify one of the contact, folder, label, broadcast parameters")
+
+        with AnonymousOrg(self.org):
+            # for anon orgs, don't return URN values
+            response = self.fetchJSON(url, 'id=%d' % joe_msg3.pk)
+            self.assertIsNone(response.json['results'][0]['urn'])
 
     def test_org(self):
         url = reverse('api.v2.org')
