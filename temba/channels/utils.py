@@ -14,7 +14,7 @@ from django.core.exceptions import ValidationError
 __author__ = 'teehamaral'
 
 
-class TwilioHandlerPost(object):
+class TwilioPostHandler(object):
     def __init__(self, request):
         self.request = request
         self.call_sid = request.REQUEST.get('CallSid', None)

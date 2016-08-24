@@ -18,7 +18,7 @@ from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel, PLIVO, SHAQODOON, YO, TWILIO_MESSAGING_SERVICE, AUTH_TOKEN, TELEGRAM, TWIML_API, TWILIO
-from temba.channels.utils import TwilioHandlerPost
+from temba.channels.utils import TwilioPostHandler
 from temba.contacts.models import Contact, URN
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
@@ -40,7 +40,7 @@ class TwilioHandler(View):
 
     def post(self, request, *args, **kwargs):
 
-        twilio_post = TwilioHandlerPost(request)
+        twilio_post = TwilioPostHandler(request)
         channel = twilio_post.set_channel(type=TWILIO)
         client = channel.org.get_twilio_client()
         twilio_post.execute(client=client)
@@ -99,7 +99,7 @@ class TwimlAPIHandler(View):
 
     def post(self, request, *args, **kwargs):
 
-        twilio_post = TwilioHandlerPost(request)
+        twilio_post = TwilioPostHandler(request)
         channel = twilio_post.set_channel(type=TWIML_API, channel_uuid=kwargs['uuid'])
         client = channel.org.get_twiml_client()
         twilio_post.execute(client=client)
