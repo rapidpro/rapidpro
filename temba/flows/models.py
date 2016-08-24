@@ -4558,7 +4558,7 @@ class UssdAction(ReplyAction):
             return cls()
 
     def substitute_missing_languages(self):
-        # if there is a translation mcissing fill it with the base language
+        # if there is a translation missing fill it with the base language
         for language in self.languages:
             if language not in self.msg:
                 self.msg[language] = self.msg.get(self.base_language)
