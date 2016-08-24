@@ -530,6 +530,30 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     $rootScope.errorDelay = quietPeriod
 
+    # makes sure our flow doesn't have any bogus bits
+    sanitizeFlow: ->
+
+      base_language = @flow.base_language
+
+      # iterate over all of our actionsets
+      actionset_idx = @flow.action_sets.length
+      while actionset_idx--
+        actionset = @flow.action_sets[actionset_idx]
+        action_idx = actionset.actions.length
+
+        # and each of their actions
+        while action_idx--
+          action = actionset.actions[action_idx]
+
+          # look for empty reply messages
+          if action.type == 'reply'
+            if not action.msg[base_language]
+              actionset.actions.splice(action_idx, 1)
+
+        # if there are no actions left in our actionset, remove us
+        if actionset.actions.length == 0
+          @flow.action_sets.splice(actionset_idx, 1)
+
     determineFlowStart: ->
       topNode = null
       # see if this node is higher than our last one
@@ -560,6 +584,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
           return
 
         Flow.dirty = false
+
+        # clean our flow
+        Flow.sanitizeFlow()
 
         # make sure we know our start point
         Flow.determineFlowStart()
