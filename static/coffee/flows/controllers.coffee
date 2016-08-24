@@ -1309,12 +1309,22 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       category = {}
       category[flow.base_language] = "Interrupted"
 
+      ruleId = uuid()
+      destination = null
+
+      ruleset.rules
+        .filter (rule) -> rule.test.type == INTERRUPTED_TYPE
+        .map (rule) ->
+          destination = rule.destination
+          category = rule.category
+          ruleId = rule.uuid
+
       rules.push
         test:
           test: "interrupted"
           type: INTERRUPTED_TYPE
         destination: destination
-        uuid: uuid()
+        uuid: ruleId
         category: category
 
     $scope.ruleset.rules = rules
