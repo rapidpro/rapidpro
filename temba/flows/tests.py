@@ -2265,6 +2265,15 @@ class ActionTest(TembaTest):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
 
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE})
+
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE, ReplyAction.MESSAGE: dict()})
+
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE, ReplyAction.MESSAGE: dict(base="")})
+
         action = ReplyAction(dict(base="We love green too!"))
         action.execute(run, None, msg)
         msg = Msg.all_messages.get(contact=self.contact, direction='O')
