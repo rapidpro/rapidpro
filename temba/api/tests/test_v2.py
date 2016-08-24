@@ -1216,6 +1216,11 @@ class APITest(TembaTest):
             self.assertResponseError(response, None,
                                      "You may only specify one of the contact, folder, label, broadcast parameters")
 
+        with AnonymousOrg(self.org):
+            # for anon orgs, don't return URN values
+            response = self.fetchJSON(url, 'id=%d' % joe_msg3.pk)
+            self.assertIsNone(response.json['results'][0]['urn'])
+
     def test_org(self):
         url = reverse('api.v2.org')
 

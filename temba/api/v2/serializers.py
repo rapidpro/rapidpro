@@ -61,8 +61,11 @@ class UUIDListField(serializers.ListField):
 
 
 class URNField(serializers.CharField):
-    def to_representation(self, obj):  # pragma: no cover
-        return six.text_type(obj)
+    def to_representation(self, obj):
+        if self.context['org'].is_anon:
+            return None
+        else:
+            return six.text_type(obj)
 
     def to_internal_value(self, data):
         try:
@@ -606,7 +609,7 @@ class MsgReadSerializer(ReadSerializer):
 
     broadcast = serializers.SerializerMethodField()
     contact = serializers.SerializerMethodField()
-    urn = serializers.SerializerMethodField()
+    urn = URNField(source='contact_urn')
     channel = serializers.SerializerMethodField()
     direction = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
@@ -620,14 +623,6 @@ class MsgReadSerializer(ReadSerializer):
 
     def get_contact(self, obj):
         return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
-
-    def get_urn(self, obj):
-        if self.context['org'].is_anon:
-            return None
-        elif obj.contact_urn_id:
-            return obj.contact_urn.urn
-        else:
-            return None
 
     def get_channel(self, obj):
         return {'uuid': obj.channel.uuid, 'name': obj.channel.name} if obj.channel_id else None
