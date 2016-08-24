@@ -8,7 +8,6 @@ from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
-
 from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary
@@ -86,20 +85,14 @@ class AdminBoundaryReadSerializer(ReadSerializer):
 
 class BroadcastReadSerializer(ReadSerializer):
     urns = serializers.SerializerMethodField()
-    contacts = serializers.SerializerMethodField()
-    groups = serializers.SerializerMethodField()
+    contacts = fields.ContactField(many=True)
+    groups = fields.ContactGroupField(many=True)
 
     def get_urns(self, obj):
         if self.context['org'].is_anon:
             return None
         else:
             return [urn.urn for urn in obj.urns.all()]
-
-    def get_contacts(self, obj):
-        return [{'uuid': c.uuid, 'name': c.name} for c in obj.contacts.all()]
-
-    def get_groups(self, obj):
-        return [{'uuid': g.uuid, 'name': g.name} for g in obj.groups.all()]
 
     class Meta:
         model = Broadcast
@@ -234,7 +227,7 @@ class ContactWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
-    groups = fields.LimitedWriteListField(child=fields.ContactGroupField(), required=False)
+    groups = fields.ContactGroupField(many=True, required=False)
     fields = serializers.DictField(required=False)
 
     def __init__(self, *args, **kwargs):
@@ -448,21 +441,9 @@ class FlowStartReadSerializer(ReadSerializer):
 
     flow = fields.FlowField()
     status = serializers.SerializerMethodField()
-    groups = serializers.SerializerMethodField()
-    contacts = serializers.SerializerMethodField()
+    groups = fields.ContactGroupField(many=True)
+    contacts = fields.ContactField(many=True)
     extra = serializers.SerializerMethodField()
-
-    def get_contacts(self, obj):
-        contacts = []
-        for contact in obj.contacts.all():
-            contacts.append(dict(uuid=contact.uuid, name=contact.name))
-        return contacts
-
-    def get_groups(self, obj):
-        groups = []
-        for group in obj.groups.all():
-            groups.append(dict(uuid=group.uuid, name=group.name))
-        return groups
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
@@ -480,8 +461,8 @@ class FlowStartReadSerializer(ReadSerializer):
 
 class FlowStartWriteSerializer(WriteSerializer):
     flow = fields.FlowField()
-    contacts = fields.LimitedWriteListField(child=fields.ContactField(), required=False)
-    groups = fields.LimitedWriteListField(child=fields.ContactGroupField(), required=False)
+    contacts = fields.ContactField(many=True, required=False)
+    groups = fields.ContactGroupField(many=True, required=False)
     urns = fields.URNListField(required=False)
     extra = serializers.JSONField(required=False)
 

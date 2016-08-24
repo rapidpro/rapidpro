@@ -1645,20 +1645,31 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
 
         # invalid URN
-        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['foo:bar'], contacts=[self.joe.uuid]))
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['foo:bar'],
+                                           contacts=[self.joe.uuid]))
         self.assertEqual(response.status_code, 400)
 
         # invalid contact uuid
-        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], contacts=['abcde']))
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'],
+                                           contacts=['abcde']))
         self.assertEqual(response.status_code, 400)
 
         # invalid group uuid
-        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], groups=['abcde']))
-        self.assertEqual(response.status_code, 400)
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'],
+                                           groups=['abcde']))
+        self.assertResponseError(response, 'groups', "No such object with UUID: abcde")
 
         # invalid flow uuid
         response = self.postJSON(url, dict(flow='abcde', restart_participants=True, urns=['tel:+12067791212']))
-        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, 'flow', "No such object with UUID: abcde")
+
+        # too many groups
+        group_uuids = []
+        for g in range(101):
+            group_uuids.append(self.create_group("Group %d" % g).uuid)
+
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, groups=group_uuids))
+        self.assertResponseError(response, 'groups', "Exceeds maximum list size of 100")
 
         # check our list
         anon_contact = Contact.objects.get(urns__path="+12067791212")

@@ -49,21 +49,41 @@ class URNListField(LimitedWriteListField):
     child = URNField()
 
 
-class TembaModelField(serializers.UUIDField):
+class TembaModelField(serializers.RelatedField):
     model = None
     model_manager = 'objects'
+
+    class LimitedSizeList(serializers.ManyRelatedField):
+        def run_validation(self, data=serializers.empty):
+            if hasattr(data, '__len__') and len(data) > MAX_LIST_SIZE:
+                raise serializers.ValidationError("Exceeds maximum list size of %d" % MAX_LIST_SIZE)
+
+            return super(TembaModelField.LimitedSizeList, self).run_validation(data)
+
+    @classmethod
+    def many_init(cls, *args, **kwargs):
+        """
+        Overrided to provide a custom ManyRelated which limits number of items
+        """
+        list_kwargs = {'child_relation': cls(*args, **kwargs)}
+        for key in kwargs.keys():
+            if key in serializers.MANY_RELATION_KWARGS:
+                list_kwargs[key] = kwargs[key]
+        return TembaModelField.LimitedSizeList(**list_kwargs)
+
+    def get_queryset(self):
+        # we use our own fetching logic in to_internal_value
+        return self.model.none()
 
     def to_representation(self, obj):
         return {'uuid': obj.uuid, 'name': obj.name}
 
     def to_internal_value(self, data):
-        uuid = super(TembaModelField, self).to_internal_value(data)
-
         manager = getattr(self.model, self.model_manager)
-        obj = manager.filter(org=self.context['org'], uuid=uuid, is_active=True).first()
+        obj = manager.filter(org=self.context['org'], uuid=data, is_active=True).first()
 
         if not obj:
-            raise serializers.ValidationError("No such object with UUID: %s" % uuid)
+            raise serializers.ValidationError("No such object with UUID: %s" % data)
 
         return obj
 
