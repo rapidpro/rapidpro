@@ -475,6 +475,36 @@ class APITest(TembaTest):
             response = self.fetchJSON(url, 'id=%d' % bcast1.pk)
             self.assertEqual(response.json['results'][0]['urns'], None)
 
+        # try to create new broadcast with no data at all
+        response = self.postJSON(url, {})
+        self.assertResponseError(response, 'text', "This field is required.")
+
+        # try to create new broadcast with no recipients
+        response = self.postJSON(url, {'text': "Hello"})
+        self.assertResponseError(response, 'non_field_errors', "Must provide either urns, contacts or groups")
+
+        # create new broadcast with all fields
+        response = self.postJSON(url, {
+            'text': "Hello",
+            'urns': ["twitter:franky"],
+            'contacts': [self.joe.uuid, self.frank.uuid],
+            'groups': [reporters.uuid],
+            'channel': self.channel.uuid
+        })
+
+        broadcast = Broadcast.objects.get(pk=response.json['id'])
+        self.assertEqual(broadcast.text, "Hello")
+        self.assertEqual(set(broadcast.urns.values_list('urn', flat=True)), {"twitter:franky"})
+        self.assertEqual(set(broadcast.contacts.all()), {self.joe, self.frank})
+        self.assertEqual(set(broadcast.groups.all()), {reporters})
+        self.assertEqual(broadcast.channel, self.channel)
+
+        # try sending as a suspended org
+        self.org.set_suspended()
+        response = self.postJSON(url, {'text': "Hello", 'urns': ["twitter:franky"]})
+        self.assertResponseError(response, 'non_field_errors', "Sorry, your account is currently suspended. To enable "
+                                                               "sending messages, please contact support.")
+
     def test_campaigns(self):
         url = reverse('api.v2.campaigns')
 
