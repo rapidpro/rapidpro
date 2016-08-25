@@ -15,6 +15,7 @@ __author__ = 'teehamaral'
 
 
 class TwilioPostHandler(object):
+
     def __init__(self, request):
         self.request = request
         self.call_sid = request.REQUEST.get('CallSid', None)
@@ -51,7 +52,8 @@ class TwilioPostHandler(object):
         return False
 
     def check_answer_channel(self, type):
-        return Channel.objects.filter(address=self.to_number, channel_type=type, role__contains='A', is_active=True).exclude(org=None).first()
+        address = self.normalize_urn()
+        return Channel.objects.filter(address=address, channel_type=type, role__contains='A', is_active=True).exclude(org=None).first()
 
     def set_channel(self, type, channel_uuid=None):
         self.channel = self.get_channel(type, channel_uuid)
@@ -66,7 +68,8 @@ class TwilioPostHandler(object):
             channel = channel.filter(uuid=channel_uuid)
 
         if self.to_number:
-            channel = channel.filter(number=self.to_number)
+            address = self.normalize_urn()
+            channel = channel.filter(address=address)
 
         return channel.first()
 
@@ -207,9 +210,11 @@ class TwilioPostHandler(object):
                 # raise an exception that things weren't properly signed
                 raise ValidationError("Invalid request signature")
 
-            urn = self.normalize_urn()
+            urn = self.get_number_normalized()
 
             # process any attached media
             self.create_incoming_msg(client=client, urn=urn)
 
             return HttpResponse("", status=201)
+
+        return HttpResponse("Not Handled, unknown action", status=400)

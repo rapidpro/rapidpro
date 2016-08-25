@@ -39,13 +39,10 @@ class TwilioHandler(View):
         return HttpResponse("ILLEGAL METHOD")
 
     def post(self, request, *args, **kwargs):
-
         twilio_post = TwilioPostHandler(request)
         channel = twilio_post.set_channel(type=TWILIO)
         client = channel.org.get_twilio_client()
-        twilio_post.execute(client=client)
-
-        return HttpResponse("Not Handled, unknown action", status=400)
+        return twilio_post.execute(client=client)
 
 
 class TwilioMessagingServiceHandler(View):
@@ -98,13 +95,10 @@ class TwimlAPIHandler(View):
         return self.post(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-
         twilio_post = TwilioPostHandler(request)
         channel = twilio_post.set_channel(type=TWIML_API, channel_uuid=kwargs['uuid'])
         client = channel.org.get_twiml_client()
-        twilio_post.execute(client=client)
-
-        return HttpResponse("Not Handled, unknown action", status=400)
+        return twilio_post.execute(client=client)
 
 
 class AfricasTalkingHandler(View):
