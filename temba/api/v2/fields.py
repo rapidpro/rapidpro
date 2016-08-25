@@ -13,15 +13,19 @@ from temba.flows.models import Flow
 MAX_LIST_SIZE = 100
 
 
-class LimitedWriteListField(serializers.ListField):
+def validate_list_size(value):
+    if hasattr(value, '__len__') and len(value) >= MAX_LIST_SIZE:
+        raise serializers.ValidationError("Exceeds maximum list size of %d" % MAX_LIST_SIZE)
+
+
+class LimitedListField(serializers.ListField):
     """
     A list field which can be only be written to with a limited number of items
     """
     def to_internal_value(self, data):
-        if hasattr(data, '__len__') and len(data) >= MAX_LIST_SIZE:
-            raise serializers.ValidationError("Exceeds maximum list size of %d" % MAX_LIST_SIZE)
+        validate_list_size(data)
 
-        return super(LimitedWriteListField, self).to_internal_value(data)
+        return super(LimitedListField, self).to_internal_value(data)
 
 
 class URNField(serializers.CharField):
@@ -45,7 +49,7 @@ class URNField(serializers.CharField):
         return normalized
 
 
-class URNListField(LimitedWriteListField):
+class URNListField(LimitedListField):
     child = URNField()
 
 
@@ -55,8 +59,7 @@ class TembaModelField(serializers.RelatedField):
 
     class LimitedSizeList(serializers.ManyRelatedField):
         def run_validation(self, data=serializers.empty):
-            if hasattr(data, '__len__') and len(data) > MAX_LIST_SIZE:
-                raise serializers.ValidationError("Exceeds maximum list size of %d" % MAX_LIST_SIZE)
+            validate_list_size(data)
 
             return super(TembaModelField.LimitedSizeList, self).run_validation(data)
 

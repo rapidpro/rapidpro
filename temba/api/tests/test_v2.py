@@ -23,7 +23,7 @@ from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from ..models import APIToken, Resthook, WebHookEvent
-from ..v2.fields import ChannelField
+from ..v2 import fields
 from ..v2.serializers import format_datetime
 
 
@@ -135,13 +135,42 @@ class APITest(TembaTest):
             self.assertEqual(response.json['detail'], expected_message)
 
     def test_serializer_fields(self):
-        channel_field = ChannelField(source='test')
-        channel_field.context = {'org': self.org}
+        field = fields.LimitedListField(child=serializers.IntegerField(), source='test')
 
-        self.assertEqual(channel_field.to_internal_value(self.channel.uuid), self.channel)
+        self.assertEqual(field.to_internal_value([1, 2, 3]), [1, 2, 3])
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, list(range(101)))  # too long
+
+        field = fields.ChannelField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value(self.channel.uuid), self.channel)
         self.channel.is_active = False
         self.channel.save()
-        self.assertRaises(serializers.ValidationError, channel_field.to_internal_value, self.channel.uuid)
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, self.channel.uuid)
+
+        field = fields.ContactField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value(self.joe.uuid), self.joe)
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, [self.joe.uuid, self.frank.uuid])
+
+        field = fields.ContactField(source='test', many=True)
+        field.child_relation.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value([self.joe.uuid, self.frank.uuid]), [self.joe, self.frank])
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, self.joe.uuid)
+
+        field = fields.ContactGroupField(source='test')
+        field.context = {'org': self.org}
+        group = self.create_group("Customers")
+
+        self.assertEqual(field.to_internal_value(group.uuid), group)
+
+        field = fields.FlowField(source='test')
+        field.context = {'org': self.org}
+        flow = self.create_flow()
+
+        self.assertEqual(field.to_internal_value(flow.uuid), flow)
 
     def test_authentication(self):
         def api_request(endpoint, token):
@@ -862,8 +891,13 @@ class APITest(TembaTest):
         response = self.postJSON(url, {'uuid': hans.uuid})
         self.assertResponseError(response, 'uuid', "No such contact with UUID: %s" % hans.uuid)
 
+        # try to add a contact to a dynamic group
         response = self.postJSON(url, {'uuid': jean.uuid, 'groups': [dyn_group.uuid]})
         self.assertResponseError(response, 'groups', "Can't add contact to dynamic group with UUID: %s" % dyn_group.uuid)
+
+        # try to give a contact more than 100 URNs
+        response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ['twitter:bob%d' % u for u in range(101)]})
+        self.assertResponseError(response, 'urns', "Exceeds maximum list size of 100")
 
         # try to move a blocked contact into a group
         jean.block(self.user)
@@ -876,9 +910,16 @@ class APITest(TembaTest):
             self.assertResponseError(response, 'urn', "Referencing by URN not allowed for anonymous organizations")
 
             # can't update contact URNs
-            response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ['tel:2234556700']})
+            response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ["tel:2234556700"]})
             self.assertResponseError(response, 'non_field_errors',
                                      "Updating contact URNs not allowed for anonymous organizations")
+
+            # can create with URNs
+            response = self.postJSON(url, {'name': "Xavier", 'urns': ["tel:2234556701"]})
+            self.assertEqual(response.status_code, 201)
+
+            xavier = Contact.objects.get(name="Xavier")
+            self.assertEqual(set(xavier.urns.values_list('urn', flat=True)), {"tel:2234556701"})
 
     def test_definitions(self):
         url = reverse('api.v2.definitions')
