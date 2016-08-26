@@ -335,7 +335,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
             uuid: targetId,
             label: "Response " + (Flow.flow.rule_sets.length + 1)
             operand: "@step.value"
-            webhook_action: null,
             ruleset_type: if window.ivr then 'wait_digit' else 'wait_message',
             rules: [
               test:
@@ -406,7 +405,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
   # this is necessary to style the bottom of the action set node container accordingly
   $scope.lastActionMissingTranslation = (actionset) ->
       lastAction = actionset.actions[actionset.actions.length - 1]
-      return lastAction._missingTranslation
+      if lastAction
+        return lastAction._missingTranslation
 
   $scope.broadcastToStep = (event, uuid) ->
     window.broadcastToNode(uuid)
@@ -466,8 +466,6 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     # if our warning is already visible, go ahead and delete
     if removeWarning.is(':visible')
-      ruleset.webhook = null
-      ruleset.webhook_action = null
       Plumb.repaint()
       Flow.markDirty()
 
@@ -766,31 +764,6 @@ TranslationController = ($scope, $modalInstance, languages, translation) ->
   $scope.cancel = ->
     $modalInstance.dismiss "cancel"
 
-# The controller for sub-dialogs when editing rules
-RuleOptionsController = ($rootScope, $scope, $log, $modalInstance, $timeout, utils, ruleset, Flow, Plumb, methods, type) ->
-
-  $scope.ruleset = utils.clone(ruleset)
-  $scope.methods = methods
-  $scope.type = type
-
-  if $scope.ruleset.webhook_action == null
-    $scope.ruleset.webhook_action = 'GET'
-
-  $scope.ok = ->
-    ruleset.webhook_action = $scope.ruleset.webhook_action
-    ruleset.webhook = $scope.ruleset.webhook
-    ruleset.operand = $scope.ruleset.operand
-    Flow.markDirty()
-
-    $timeout ->
-      Plumb.recalculateOffsets(ruleset.uuid)
-    ,0
-
-    $modalInstance.close ""
-
-  $scope.cancel = ->
-    $modalInstance.dismiss "cancel"
-
 NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow, Plumb, utils, options) ->
 
   # let our template know our editor type
@@ -811,6 +784,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   $scope.channels = Flow.channels
 
   formData = {}
+  formData.resthook = ""
 
   if options.nodeType == 'rules' or options.nodeType == 'ivr'
 
@@ -858,7 +832,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       uuid: uuid(),
       label: "Response " + (Flow.flow.rule_sets.length + 1)
       operand: "@step.value"
-      webhook_action: null,
       ruleset_type: if window.ivr then 'wait_digit' else 'wait_message',
       rules: [
         test:
@@ -908,6 +881,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   for option in formData.timeoutOptions
     if option.value == minutes
       formData.timeout = option
+
+  formData.webhook_action = 'GET'
+  if ruleset.config
+    formData.webhook = ruleset.config.webhook
+    formData.webhook_action = ruleset.config.webhook_action
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
@@ -981,23 +959,9 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   else
     formData.flow = {}
 
-  # default webhook action
-  if not $scope.ruleset.webhook_action
-    $scope.ruleset.webhook_action = 'GET'
-
   $scope.hasRules = () ->
     if $scope.formData.rulesetConfig
       return $scope.formData.rulesetConfig.type in Flow.supportsRules
-
-  $scope.updateWebhook = () ->
-    resolveObj =
-      methods: ->
-        ['GET', 'POST']
-      type: ->
-        'api'
-      ruleset: -> $scope.ruleset
-
-    utils.openModal("/partials/rule_webhook", RuleOptionsController, resolveObj)
 
   $scope.getFlowsUrl = (flow) ->
     url = "/flow/?_format=select2"
@@ -1076,14 +1040,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     forcePlaceholderSize: true
     scroll:false
     placeholder: "sort-placeholder"
-
-  $scope.updateSplitVariable = ->
-    resolveObj =
-      methods: -> []
-      type: -> 'reply'
-      ruleset: -> $scope.ruleset
-
-    utils.openModal("/partials/split_variable", RuleOptionsController, resolveObj)
 
   $scope.updateCategory = (rule) ->
 
@@ -1244,7 +1200,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       for rule in rulesetConfig.rules
         found = false
         for new_rule in ruleset.rules
-          if new_rule.test == rule.test
+          if angular.equals(new_rule.test, rule.test)
             found = true
             break
 
@@ -1305,11 +1261,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         if rule.category
           rules.push(rule)
 
-    # set the name for our everything rule
-    otherCategoryName = "All Responses"
-    if rules.length > 0
-      otherCategoryName = "Other"
-
     # grab previous category translations and destinations if we have them
     otherRuleUuid = uuid()
     otherDestination = null
@@ -1334,7 +1285,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     # create an empty category (this really shouldn't happen)
     if not otherCategory
       otherCategory = {}
-    otherCategory[Flow.flow.base_language] = otherCategoryName
+    otherCategory[Flow.flow.base_language] = 'Other'
 
     # add an always true rule if not configured
     if not rulesetConfig.rules
@@ -1359,6 +1310,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     # strip out exclusive rules if we have any
     rules = for rule in rules when Flow.isRuleAllowed($scope.ruleset.ruleset_type, rule.test.type) then rule
+
+    # if there's only one rule, make our other be 'All Responses'
+    if rules.length == 1
+      otherCategory[Flow.flow.base_language] = 'All Responses'
 
     $scope.ruleset.rules = rules
 
@@ -1412,6 +1367,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           airtimeConfig[elt.code] = elt
         ruleset.config = airtimeConfig
 
+      else if rulesetConfig.type == 'resthook'
+        ruleset.config = {'resthook': splitEditor.resthook.selected[0]['id']}
+
+      else if rulesetConfig.type == 'webhook'
+        ruleset.config =
+          webhook: formData.webhook
+          webhook_action: formData.webhook_action
+
       # update our operand if they selected a contact field explicitly
       else if rulesetConfig.type == 'contact_field'
         ruleset.operand = '@contact.' + contactField.id
@@ -1423,12 +1386,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       # or just want to evaluate against a message
       else if rulesetConfig.type == 'wait_message'
         ruleset.operand = '@step.value'
-
-      # clear our webhook if we aren't the right type
-      # TODO: this should live in a json config blob
-      if rulesetConfig.type != 'webhook'
-        ruleset.webhook = null
-        ruleset.webhook_action = null
 
       # update our rules accordingly
       $scope.updateRules(ruleset, rulesetConfig)
@@ -1583,21 +1540,28 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
 
   # Saving the add to or remove from group actions
-  $scope.saveGroups = (actionType, omnibox) ->
+  $scope.saveGroups = (actionType, omnibox, allGroups) ->
 
     $scope.action.type = actionType
 
     groups = []
-    for group in omnibox.groups
-      groups.push
-        uuid: group.id
-        name: group.name
+    if not allGroups
+      for group in omnibox.groups
+        if group.id and group.name
+          groups.push
+            uuid: group.id
+            name: group.name
+        else
+          # other
+          groups.push(group)
 
+    $scope.action.msg = undefined
     $scope.action.groups = groups
 
-    # add our list of variables
-    for variable in omnibox.variables
-      $scope.action.groups.push(variable.id)
+    if not allGroups
+      # add our list of variables
+      for variable in omnibox.variables
+        $scope.action.groups.push(variable.id)
 
     Flow.saveAction(actionset, $scope.action)
     $modalInstance.close()

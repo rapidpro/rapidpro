@@ -4,9 +4,9 @@ from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
 from .views import api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, ChannelsEndpoint, ChannelEventsEndpoint
 from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
-from .views import FieldsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
-from .views import OrgEndpoint, RunsEndpoint, BoundariesEndpoint
 
+from .views import FieldsEndpoint, FlowStartsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
+from .views import OrgEndpoint, ResthookEndpoint, ResthookEventEndpoint, ResthookSubscriberEndpoint, RunsEndpoint, BoundariesEndpoint
 
 urlpatterns = [
     url(r'^$', api, name='api.v2'),
@@ -23,12 +23,16 @@ urlpatterns = [
     url(r'^/contacts$', ContactsEndpoint.as_view(), name='api.v2.contacts'),
     url(r'^/definitions$', DefinitionsEndpoint.as_view(), name='api.v2.definitions'),
     url(r'^/fields$', FieldsEndpoint.as_view(), name='api.v2.fields'),
+    url(r'^/flow_starts$', FlowStartsEndpoint.as_view(), name='api.v2.flow_starts'),
     url(r'^/flows$', FlowsEndpoint.as_view(), name='api.v2.flows'),
     url(r'^/groups$', GroupsEndpoint.as_view(), name='api.v2.groups'),
     url(r'^/labels$', LabelsEndpoint.as_view(), name='api.v2.labels'),
     url(r'^/media$', MediaEndpoint.as_view(), name='api.v2.media'),
     url(r'^/messages$', MessagesEndpoint.as_view(), name='api.v2.messages'),
     url(r'^/org$', OrgEndpoint.as_view(), name='api.v2.org'),
+    url(r'^/resthooks$', ResthookEndpoint.as_view(), name='api.v2.resthooks'),
+    url(r'^/resthook_events$', ResthookEventEndpoint.as_view(), name='api.v2.resthook_events'),
+    url(r'^/resthook_subscribers$', ResthookSubscriberEndpoint.as_view(), name='api.v2.resthook_subscribers'),
     url(r'^/runs$', RunsEndpoint.as_view(), name='api.v2.runs'),
 
 ]

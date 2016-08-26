@@ -11,7 +11,7 @@ from smartmin.views import SmartTemplateView, SmartReadView, SmartListView, Smar
 from temba.channels.models import ChannelEvent
 from temba.orgs.views import OrgPermsMixin
 from urlparse import parse_qs
-from .models import WebHookEvent, WebHookResult, APIToken
+from .models import WebHookEvent, WebHookResult, APIToken, Resthook
 
 
 def webhook_status_processor(request):
@@ -207,3 +207,11 @@ class WebHookSimulatorView(SmartTemplateView):
 
         context['endpoints'] = endpoints
         return context
+
+
+class ResthookList(OrgPermsMixin, SmartListView):
+    model = Resthook
+    permission = 'api.resthook_list'
+
+    def derive_queryset(self):
+        return Resthook.objects.filter(is_active=True, org=self.request.user.get_org()).order_by('slug')

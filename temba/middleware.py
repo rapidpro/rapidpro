@@ -38,7 +38,10 @@ class BrandingMiddleware(object):
             host = host[0:host.rindex(':')]
 
         # our default branding
-        branding = settings.BRANDING.get(settings.HOSTNAME, settings.BRANDING.get(settings.DEFAULT_BRAND))
+        branding = settings.BRANDING.get(settings.DEFAULT_BRAND)
+        branding['host'] = settings.DEFAULT_BRAND
+
+        branding = settings.BRANDING.get(settings.HOSTNAME, branding)
 
         # override with site specific branding if we have that
         site_branding = settings.BRANDING.get(host, None)
@@ -46,8 +49,8 @@ class BrandingMiddleware(object):
             branding = branding.copy()
             branding.update(site_branding)
 
-        # stuff in the incoming host
-        branding['host'] = host
+        if 'host' not in branding:
+            branding['host'] = host
 
         return branding
 

@@ -42,7 +42,7 @@ from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 9
+CURRENT_EXPORT_VERSION = 10
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0
@@ -212,8 +212,6 @@ class Org(SmartModel):
 
     parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=_('The parent org that manages this org'))
 
-    multi_org = models.BooleanField(default=False, help_text=_('Put this org on the multi org level'))
-
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -231,7 +229,7 @@ class Org(SmartModel):
 
     def create_sub_org(self, name, timezone=None, created_by=None):
 
-        if self.is_multi_org_level() and not self.parent:
+        if self.is_multi_org_tier() and not self.parent:
 
             if not timezone:
                 timezone = self.timezone
@@ -374,6 +372,14 @@ class Org(SmartModel):
 
     @classmethod
     def export_definitions(cls, site_link, flows=[], campaigns=[], triggers=[]):
+        # remove any triggers that aren't included in our flows
+        flow_uuids = set([f.uuid for f in flows])
+        filtered_triggers = []
+        for trigger in triggers:
+            if trigger.flow.uuid in flow_uuids:
+                filtered_triggers.append(trigger)
+
+        triggers = filtered_triggers
 
         exported_flows = []
         for flow in flows:
@@ -408,10 +414,10 @@ class Org(SmartModel):
         If an org's telephone send channel is an Android device, let them add a bulk sender
         """
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import ANDROID
+        from temba.channels.models import Channel
 
         send_channel = self.get_send_channel(TEL_SCHEME)
-        return send_channel and send_channel.channel_type == ANDROID
+        return send_channel and send_channel.channel_type == Channel.TYPE_ANDROID
 
     def can_add_caller(self):
         return not self.supports_ivr() and self.is_connected_to_twilio()
@@ -423,7 +429,7 @@ class Org(SmartModel):
         """
         Gets a channel for this org which supports the given scheme and role
         """
-        from temba.channels.models import SEND, CALL
+        from temba.channels.models import Channel
 
         channel = self.channels.filter(is_active=True, scheme=scheme, role__contains=role).order_by('-pk')
         if country_code:
@@ -436,14 +442,14 @@ class Org(SmartModel):
             channel = self.channels.filter(is_active=True, scheme=scheme,
                                            role__contains=role).order_by('-pk').first()
 
-        if channel and (role == SEND or role == CALL):
+        if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)
         else:
             return channel
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import SEND
+        from temba.channels.models import Channel
         from temba.contacts.models import ContactURN
 
         if not scheme and not contact_urn:
@@ -454,7 +460,7 @@ class Org(SmartModel):
                 scheme = contact_urn.scheme
 
                 # if URN has a previously used channel that is still active, use that
-                if contact_urn.channel and contact_urn.channel.is_active and role == SEND:
+                if contact_urn.channel and contact_urn.channel.is_active and role == Channel.ROLE_SEND:
                     previous_sender = self.get_channel_delegate(contact_urn.channel, role)
                     if previous_sender:
                         return previous_sender
@@ -504,8 +510,8 @@ class Org(SmartModel):
                     channel = senders[0]
 
                 if channel:
-                    if role == SEND:
-                        return self.get_channel_delegate(channel, SEND)
+                    if role == Channel.ROLE_SEND:
+                        return self.get_channel_delegate(channel, Channel.ROLE_SEND)
                     else:
                         return channel
 
@@ -513,22 +519,22 @@ class Org(SmartModel):
         return self.get_channel(scheme, country_code, role)
 
     def get_send_channel(self, scheme=None, contact_urn=None, country_code=None):
-        from temba.channels.models import SEND
-        return self.get_channel_for_role(SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
     def get_receive_channel(self, scheme, contact_urn=None, country_code=None):
-        from temba.channels.models import RECEIVE
-        return self.get_channel_for_role(RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
     def get_call_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import CALL
-        return self.get_channel_for_role(CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_answer_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import ANSWER
-        return self.get_channel_for_role(ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_channel_delegate(self, channel, role):
         """
@@ -569,6 +575,12 @@ class Org(SmartModel):
             urns = ContactURN.objects.filter(org=self, scheme=TEL_SCHEME).exclude(path__startswith="+")
             for urn in urns:
                 urn.ensure_number_normalization(country_code)
+
+    def get_resthooks(self):
+        """
+        Returns the resthooks configured on this Org
+        """
+        return self.resthooks.filter(is_active=True).order_by('slug')
 
     def get_webhook_url(self):
         """
@@ -612,14 +624,14 @@ class Org(SmartModel):
         to send.
         """
         from temba.msgs.models import Msg
-        from temba.channels.models import Channel, ANDROID
+        from temba.channels.models import Channel
 
         # if we have msgs, then send just those
         if msgs:
             ids = [m.id for m in msgs]
 
             # trigger syncs for our android channels
-            for channel in self.channels.filter(is_active=True, channel_type=ANDROID, msgs__id__in=ids):
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID, msgs__id__in=ids):
                 channel.trigger_sync()
 
             # and send those messages
@@ -627,7 +639,7 @@ class Org(SmartModel):
 
         # otherwise, sync all pending messages and channels
         else:
-            for channel in self.channels.filter(is_active=True, channel_type=ANDROID):
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID):
                 channel.trigger_sync()
 
             # otherwise, send any pending messages on our channels
@@ -753,8 +765,8 @@ class Org(SmartModel):
             self.save()
 
             # release any nexmo channels
-            from temba.channels.models import NEXMO
-            channels = self.channels.filter(is_active=True, channel_type=NEXMO)
+            from temba.channels.models import Channel
+            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO)
             for channel in channels:
                 channel.release()
 
@@ -772,8 +784,8 @@ class Org(SmartModel):
             self.save()
 
             # release any twilio channels
-            from temba.channels.models import TWILIO
-            channels = self.channels.filter(is_active=True, channel_type=TWILIO)
+            from temba.channels.models import Channel
+            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO)
             for channel in channels:
                 channel.release()
 
@@ -783,8 +795,8 @@ class Org(SmartModel):
     def get_verboice_client(self):
         from temba.ivr.clients import VerboiceClient
         channel = self.get_call_channel()
-        from temba.channels.models import VERBOICE
-        if channel.channel_type == VERBOICE:
+        from temba.channels.models import Channel
+        if channel.channel_type == Channel.TYPE_VERBOICE:
             return VerboiceClient(channel)
         return None
 
@@ -1010,11 +1022,11 @@ class Org(SmartModel):
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
-    def is_multi_user_level(self):
-        return self.get_purchased_credits() >= settings.MULTI_USER_THRESHOLD
+    def is_multi_user_tier(self):
+        return self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_user')
 
-    def is_multi_org_level(self):
-        return not self.parent and (self.multi_org or self.get_purchased_credits() >= settings.MULTI_ORG_THRESHOLD)
+    def is_multi_org_tier(self):
+        return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_org')
 
     def has_added_credits(self):
         return self.get_credits_total() > WELCOME_TOPUP_SIZE
@@ -1036,12 +1048,12 @@ class Org(SmartModel):
         return getattr(user, '_org_group', None)
 
     def has_twilio_number(self):
-        from temba.channels.models import TWILIO
-        return self.channels.filter(channel_type=TWILIO)
+        from temba.channels.models import Channel
+        return self.channels.filter(channel_type=Channel.TYPE_TWILIO)
 
     def has_nexmo_number(self):
-        from temba.channels.models import NEXMO
-        return self.channels.filter(channel_type=NEXMO)
+        from temba.channels.models import Channel
+        return self.channels.filter(channel_type=Channel.TYPE_NEXMO)
 
     def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
         if topup_size:
@@ -1664,11 +1676,15 @@ class Org(SmartModel):
 
 # ===================== monkey patch User class with a few extra functions ========================
 
-def get_user_orgs(user):
+def get_user_orgs(user, brand=None):
+    org = user.get_org()
+    if not brand:
+        brand = org.brand if org else settings.DEFAULT_BRAND
+
     if user.is_superuser:
         return Org.objects.all()
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-    return user_orgs.distinct().order_by('name')
+    return user_orgs.filter(brand=brand).distinct().order_by('name')
 
 
 def get_org(obj):
@@ -1925,12 +1941,22 @@ class TopUp(SmartModel):
                           amount=-debit.amount,
                           balance=balance))
 
+        now = timezone.now()
+        expired = self.expires_on < now
+
         # add a line for used message credits
         if self.get_remaining() < balance:
-            ledger.append(dict(date=timezone.now(),
+            ledger.append(dict(date=self.expires_on if expired else now,
                                comment=_('Messaging credits used'),
                                amount=self.get_remaining() - balance,
                                balance=self.get_remaining()))
+
+        # add a line for expired credits
+        if expired and self.get_remaining() > 0:
+            ledger.append(dict(date=self.expires_on,
+                               comment=_('Expired credits'),
+                               amount=-self.get_remaining(),
+                               balance=0))
         return ledger
 
     def get_price_display(self):

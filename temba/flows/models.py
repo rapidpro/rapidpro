@@ -389,6 +389,9 @@ class Flow(TembaModel):
         flow = call.flow
         run = FlowRun.objects.filter(call=call).first()
 
+        # make sure we have the latest version
+        flow.ensure_current_version()
+
         # what we will send back
         voice_response = call.channel.generate_ivr_response()
         run.voice_response = voice_response
@@ -1432,8 +1435,7 @@ class Flow(TembaModel):
         runs = []
         channel = self.org.get_call_channel()
 
-        from temba.channels.models import CALL
-        if not channel or CALL not in channel.role:
+        if not channel or Channel.ROLE_CALL not in channel.role:
             return runs
 
         for contact_id in all_contact_ids:
@@ -2140,8 +2142,6 @@ class Flow(TembaModel):
                 uuid = ruleset.get(Flow.UUID)
                 rules = ruleset.get(Flow.RULES)
                 label = ruleset.get(Flow.LABEL, None)
-                webhook_url = ruleset.get(Flow.WEBHOOK_URL, None)
-                webhook_action = ruleset.get(Flow.WEBHOOK_ACTION, None)
                 operand = ruleset.get(Flow.OPERAND, None)
                 finished_key = ruleset.get(Flow.FINISHED_KEY)
                 ruleset_type = ruleset.get(Flow.RULESET_TYPE)
@@ -2155,9 +2155,6 @@ class Flow(TembaModel):
 
                 if operand:
                     operand = operand[:128]
-
-                if webhook_url:
-                    webhook_url = webhook_url[:255]
 
                 (x, y) = (ruleset.get(Flow.X), ruleset.get(Flow.Y))
 
@@ -2189,8 +2186,6 @@ class Flow(TembaModel):
                 if existing:
                     existing.label = ruleset.get(Flow.LABEL, None)
                     existing.set_rules_dict(rules)
-                    existing.webhook_url = webhook_url
-                    existing.webhook_action = webhook_action
                     existing.operand = operand
                     existing.label = label
                     existing.finished_key = finished_key
@@ -2204,8 +2199,6 @@ class Flow(TembaModel):
                                                       uuid=uuid,
                                                       label=label,
                                                       rules=json.dumps(rules),
-                                                      webhook_url=webhook_url,
-                                                      webhook_action=webhook_action,
                                                       finished_key=finished_key,
                                                       ruleset_type=ruleset_type,
                                                       operand=operand,
@@ -2940,11 +2933,16 @@ class RuleSet(models.Model):
 
     TYPE_AIRTIME = 'airtime'
     TYPE_WEBHOOK = 'webhook'
+    TYPE_RESTHOOK = 'resthook'
     TYPE_FLOW_FIELD = 'flow_field'
     TYPE_FORM_FIELD = 'form_field'
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
     TYPE_SUBFLOW = 'subflow'
+
+    CONFIG_WEBHOOK = 'webhook'
+    CONFIG_WEBHOOK_ACTION = 'webhook_action'
+    CONFIG_RESTHOOK = 'resthook'
 
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
 
@@ -2957,13 +2955,14 @@ class RuleSet(models.Model):
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
                     (TYPE_SUBFLOW, "Subflow"),
                     (TYPE_WEBHOOK, "Webhook"),
+                    (TYPE_RESTHOOK, "Resthook"),
                     (TYPE_AIRTIME, "Transfer Airtime"),
                     (TYPE_FORM_FIELD, "Split by message form"),
-                    (TYPE_FLOW_FIELD, "Split on flow field"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
                     (TYPE_EXPRESSION, "Split by expression"))
 
     uuid = models.CharField(max_length=36, unique=True)
+
     flow = models.ForeignKey(Flow, related_name='rule_sets')
 
     label = models.CharField(max_length=64, null=True, blank=True,
@@ -3118,21 +3117,69 @@ class RuleSet(models.Model):
                         rule.category = run.flow.get_base_text(rule.category)
                         return rule, value
 
-        elif self.ruleset_type == RuleSet.TYPE_WEBHOOK:
-            from temba.api.models import WebHookEvent
-            (value, errors) = Msg.substitute_variables(self.webhook_url, run.contact, context,
-                                                       org=run.flow.org, url_encode=True)
-            result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                                     run.contact, msg, self.webhook_action)
+        elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
+            # figure out which URLs will be called
+            if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
+                resthook = None
+                urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
+                action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
 
-            # rebuild our context again, the webhook may have populated something
-            context = run.flow.build_message_context(run.contact, msg)
+            elif self.ruleset_type == RuleSet.TYPE_RESTHOOK:
+                from temba.api.models import Resthook
 
-            rule = self.get_rules()[0]
-            rule.category = run.flow.get_base_text(rule.category)
+                # look up the rest hook
+                resthook_slug = self.config_json()[RuleSet.CONFIG_RESTHOOK]
+                resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
+                urls = resthook.get_subscriber_urls()
 
-            # return the webhook result body as the value
-            return rule, result.body
+                # no urls? use None, as our empty case
+                if not urls:
+                    urls = [None]
+
+                action = 'POST'
+
+            # by default we are a failure (there are no resthooks for example)
+            status_code = None
+            body = ""
+
+            for url in urls:
+                from temba.api.models import WebHookEvent
+
+                (value, errors) = Msg.substitute_variables(url, run.contact, context,
+                                                           org=run.flow.org, url_encode=True)
+
+                result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
+                                                         run.contact, msg, action, resthook=resthook)
+
+                # we haven't recorded any status yet, do so
+                if not status_code:
+                    status_code = result.status_code
+                    body = result.body
+
+                # our subscriber is no longer interested, remove this URL as a subscriber
+                if result.status_code == 410:
+                    resthook.remove_subscriber(url, run.flow.created_by)
+
+                # if this is a success and we haven't ever succeeded, set our code and body
+                elif 200 <= result.status_code < 300 and not (200 <= status_code < 300):
+                    status_code = result.status_code
+                    body = result.body
+
+                # this was an empty URL, treat it as success regardless
+                if url is None:
+                    status_code = 200
+                    body = _("No subscribers to this event")
+
+            # default to a status code of 418 if we made no calls
+            if not status_code:
+                status_code = 418
+
+            # find our matching rule, we pass in the status from our calls
+            for rule in self.get_rules():
+                (result, value) = rule.matches(run, msg, context, str(status_code))
+                if result > 0:
+                    rule.category = run.flow.get_base_text(rule.category)
+                    return rule, body
 
         else:
             # if it's a form field, construct an expression accordingly
@@ -3233,10 +3280,16 @@ class RuleSet(models.Model):
         self.set_rules_dict(rules_dict)
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
-                    rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
-                    finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
-                    operand=self.operand, config=self.config_json())
+        ruleset_def = dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
+                           finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
+                           operand=self.operand, config=self.config_json())
+
+        # if we are pre-version 10, include our webhook and webhook_action in our dict
+        if self.flow.version_number < 10:
+            ruleset_def['webhook'] = self.webhook_url
+            ruleset_def['webhook_action'] = self.webhook_action
+
+        return ruleset_def
 
     def __unicode__(self):
         if self.label:
@@ -4044,6 +4097,33 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
+    extra = models.TextField(null=True,
+                             help_text=_("Any extra parameters to pass to the flow start (json)"))
+
+    @classmethod
+    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None):
+        if contacts is None:
+            contacts = []
+
+        if groups is None:
+            groups = []
+
+        start = FlowStart.objects.create(flow=flow, restart_participants=restart_participants,
+                                         extra=json.dumps(extra) if extra else None,
+                                         created_by=user, modified_by=user)
+
+        for contact in contacts:
+            start.contacts.add(contact)
+
+        for group in groups:
+            start.groups.add(group)
+
+        return start
+
+    def async_start(self):
+        from temba.flows.tasks import start_flow_task
+        start_flow_task.delay(self.id)
+
     def start(self):
         self.status = FlowStart.STATUS_STARTING
         self.save(update_fields=['status'])
@@ -4052,7 +4132,10 @@ class FlowStart(SmartModel):
             groups = [g for g in self.groups.all()]
             contacts = [c for c in self.contacts.all().only('is_test')]
 
-            self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
+            # load up our extra if any
+            extra = json.loads(self.extra) if self.extra else None
+
+            self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self, extra=extra)
 
         except Exception as e:  # pragma: no cover
             import traceback
@@ -4328,6 +4411,7 @@ class AddToGroupAction(Action):
             group_data = [group_data]
 
         groups = []
+
         for g in group_data:
             if isinstance(g, dict):
                 group_uuid = g.get(AddToGroupAction.UUID, None)
@@ -4368,7 +4452,6 @@ class AddToGroupAction(Action):
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
 
-                    contact = run.contact
                     message_context = run.flow.build_message_context(contact, msg)
                     (value, errors) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
                     group = None
@@ -4418,9 +4501,34 @@ class DeleteFromGroupAction(AddToGroupAction):
     def get_type(self):
         return DeleteFromGroupAction.TYPE
 
+    def as_json(self):
+        groups = []
+        for g in self.groups:
+            if isinstance(g, ContactGroup):
+                groups.append(dict(uuid=g.uuid, name=g.name))
+            else:
+                groups.append(g)
+
+        return dict(type=self.get_type(), groups=groups)
+
     @classmethod
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
+
+    def execute(self, run, actionset, sms):
+        if len(self.groups) == 0:
+            contact = run.contact
+            user = get_flow_user()
+            if contact:
+                # remove from all active and inactive user-defined, static groups
+                for group in ContactGroup.user_groups.filter(org=contact.org,
+                                                             group_type=ContactGroup.TYPE_USER_DEFINED,
+                                                             query__isnull=True):
+                    group.update_contacts(user, [contact], False)
+                    if run.contact.is_test:
+                        ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
+            return []
+        return AddToGroupAction.execute(self, run, actionset, sms)
 
 
 class AddLabelAction(Action):
@@ -4605,6 +4713,17 @@ class ReplyAction(Action):
 
     @classmethod
     def from_json(cls, org, json_obj):
+        # assert we have some kind of message in this reply
+        msg = json_obj.get(ReplyAction.MESSAGE)
+        if isinstance(msg, dict):
+            if not msg:
+                raise FlowException("Invalid reply action, empty message dict")
+
+            if not any([v for v in msg.values()]):
+                raise FlowException("Invalid reply action, missing at least one message")
+        elif not msg:
+            raise FlowException("Invalid reply action, no message")
+
         return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
 
     def as_json(self):
@@ -5253,7 +5372,8 @@ class Test(object):
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest,
                 TimeoutTest.TYPE: TimeoutTest,
-                AirtimeStatusTest.TYPE: AirtimeStatusTest
+                AirtimeStatusTest.TYPE: AirtimeStatusTest,
+                WebhookStatusTest.TYPE: WebhookStatusTest,
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -5280,6 +5400,38 @@ class Test(object):
         side effects.
         """
         raise FlowException("Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested")
+
+
+class WebhookStatusTest(Test):
+    """
+    {op: 'webhook', status: 'success' }
+    """
+    TYPE = 'webhook_status'
+    STATUS = 'status'
+
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILURE = 'failure'
+
+    def __init__(self, status):
+        self.status = status
+
+    @classmethod
+    def from_json(cls, org, json):
+        return WebhookStatusTest(json.get('status'))
+
+    def as_json(self):
+        return dict(type=WebhookStatusTest.TYPE, status=self.status)
+
+    def evaluate(self, run, sms, context, text):
+        # we treat any 20* return code as successful
+        success = 200 <= int(text) < 300
+
+        if success and self.status == WebhookStatusTest.STATUS_SUCCESS:
+            return 1, text
+        elif not success and self.status == WebhookStatusTest.STATUS_FAILURE:
+            return 1, text
+        else:
+            return 0, None
 
 
 class AirtimeStatusTest(Test):
@@ -5532,6 +5684,10 @@ class ContainsTest(Test):
         words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
         raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
 
+        tests = [elt for elt in tests if elt != '']
+        words = [elt for elt in words if elt != '']
+        raw_words = [elt for elt in raw_words if elt != '']
+
         # run through each of our tests
         matches = set()
         matched_tests = 0
@@ -5571,6 +5727,10 @@ class ContainsAnyTest(ContainsTest):
         # tokenize our sms
         words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
         raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
+
+        tests = [elt for elt in tests if elt != '']
+        words = [elt for elt in words if elt != '']
+        raw_words = [elt for elt in raw_words if elt != '']
 
         # run through each of our tests
         matches = set()

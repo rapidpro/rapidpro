@@ -14,7 +14,7 @@ from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
 from temba.utils.queues import pop_task, push_task
 from temba.utils.mage import MageClient
-from .models import Channel, Alert, ChannelLog, ChannelCount, AUTH_TOKEN
+from .models import Channel, Alert, ChannelLog, ChannelCount
 
 
 logger = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ def fb_channel_subscribe(channel_id):
     channel = Channel.objects.filter(id=channel_id, is_active=True).first()
 
     if channel:
-        page_access_token = channel.config_json()[AUTH_TOKEN]
+        page_access_token = channel.config_json()[Channel.CONFIG_AUTH_TOKEN]
 
         # subscribe to messaging events for this channel
         response = requests.post('https://graph.facebook.com/v2.6/me/subscribed_apps',

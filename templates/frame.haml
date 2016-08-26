@@ -152,19 +152,21 @@
 
   -if user_org
     .org-header
-      .pull-right.toggle
-        .icon-menu-2
+      -with user.get_user_orgs as orgs
+        -if orgs|length > 1
+          .pull-right.toggle
+            .icon-menu-2
 
-      .org
-        {{ user_org.name|truncatechars:30 }}
+        .org
+          {{ user_org.name|truncatechars:30 }}
 
-      .other-orgs.hide
+        .other-orgs.hide
 
-        -for org in user.get_user_orgs
-          -if org != user_org
-            .org
-              %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
-                {{ org.name }}
+          -for org in orgs
+            -if org != user_org
+              .org
+                %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
+                  {{ org.name }}
 
 
   -block post-header
@@ -294,8 +296,15 @@
           }
         });
 
-        $('.org-header').live('click', function() {
-          window.location = '{% url "orgs.org_home" %}';
+        $('.org-header').live('click', function(evt) {
+          url = '{% url "orgs.org_home" %}';
+          evt.stopPropagation();
+          if (evt.ctrlKey || evt.metaKey){
+            window.open(url,'_blank')
+          } else {
+            window.location = url;
+          }
+
         });
 
         $('#top-menu li').hoverIntent({

@@ -4,7 +4,7 @@ from django.conf.urls import include, url
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
 from django.views.generic import RedirectView
-from .views import RefreshAPITokenView
+from .views import RefreshAPITokenView, ResthookList
 from .views import WebHookEventListView, WebHookEventReadView, WebHookView, WebHookSimulatorView, WebHookTunnelView
 
 
@@ -20,5 +20,9 @@ urlpatterns = [
         url(r'^/webhook/$', WebHookView.as_view(), name='api.webhook'),
         url(r'^/webhook/simulator/$', WebHookSimulatorView.as_view(), name='api.webhook_simulator'),
         url(r'^/webhook/tunnel/$', login_required(csrf_protect(WebHookTunnelView.as_view())), name='api.webhook_tunnel')
+    ])),
+
+    url(r'^api/resthooks', include([
+        url(r'^/$', ResthookList.as_view(), name='api.resthook_list'),
     ])),
 ]

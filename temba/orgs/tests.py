@@ -17,9 +17,9 @@ from django.utils import timezone
 from mock import patch, Mock
 from smartmin.tests import SmartminTest
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import APIToken
+from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, ActionSet
 from temba.middleware import BrandingMiddleware
@@ -832,12 +832,10 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_home'))
         self.assertEquals(response.context_data['org'], self.org2)
 
-        # a non org user get a message to contact their administrator
+        # a non org user get's logged out
         self.login(self.non_org_user)
         response = self.client.get(choose_url)
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(0, len(response.context['orgs']))
-        self.assertContains(response, "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization.")
+        self.assertRedirect(response, reverse('users.user_login'))
 
         # superuser gets redirected to user management page
         self.login(self.superuser)
@@ -894,6 +892,9 @@ class OrgTest(TembaTest):
         self.assertEqual(topup.get_price_display(), "$1.00")
 
     def test_topups(self):
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
+
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
@@ -984,10 +985,8 @@ class OrgTest(TembaTest):
         self.assertEquals(30, self.org.get_credits_used())
 
         # test special status
-        settings.MULTI_USER_THRESHOLD = 100000
-        settings.MULTI_ORG_THRESHOLD = 1000000
-        self.assertFalse(self.org.is_multi_user_level())
-        self.assertFalse(self.org.is_multi_org_level())
+        self.assertFalse(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
@@ -1001,7 +1000,7 @@ class OrgTest(TembaTest):
 
         # we aren't yet multi user since this topup was free
         self.assertEquals(0, self.org.get_purchased_credits())
-        self.assertFalse(self.org.is_multi_user_level())
+        self.assertFalse(self.org.is_multi_user_tier())
 
         self.assertEquals(100025, self.org.get_credits_total())
         self.assertEquals(30, self.org.get_credits_used())
@@ -1116,14 +1115,14 @@ class OrgTest(TembaTest):
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100000)
         self.org.update_caches(OrgEvent.topup_updated, None)
-        self.assertTrue(self.org.is_multi_user_level())
-        self.assertFalse(self.org.is_multi_org_level())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1000000)
         self.org.update_caches(OrgEvent.topup_updated, None)
-        self.assertTrue(self.org.is_multi_user_level())
-        self.assertTrue(self.org.is_multi_org_level())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertTrue(self.org.is_multi_org_tier())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -1329,6 +1328,52 @@ class OrgTest(TembaTest):
         self.assertContains(response, reverse('airtime.airtimetransfer_list'))
         self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
 
+    def test_resthooks(self):
+        # no hitting this page without auth
+        resthook_url = reverse('orgs.org_resthooks')
+        response = self.client.get(resthook_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        # get our resthook management page
+        response = self.client.get(resthook_url)
+
+        # shouldn't have any resthooks listed yet
+        self.assertFalse(response.context['current_resthooks'])
+
+        # ok, let's create one
+        self.client.post(resthook_url, dict(resthook='mother-registration'))
+
+        # should now have a resthook
+        resthook = Resthook.objects.get()
+        self.assertEqual(resthook.slug, 'mother-registration')
+        self.assertEqual(resthook.org, self.org)
+        self.assertEqual(resthook.created_by, self.admin)
+
+        # fetch our read page, should have have our resthook
+        response = self.client.get(resthook_url)
+        self.assertTrue(response.context['current_resthooks'])
+
+        # let's try to create a repeat, should fail due to duplicate slug
+        response = self.client.post(resthook_url, dict(resthook='Mother-Registration'))
+        self.assertTrue(response.context['form'].errors)
+
+        # hit our list page used by select2, checking it lists our resthook
+        response = self.client.get(reverse('api.resthook_list') + "?_format=select2")
+        results = json.loads(response.content)['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], dict(text='mother-registration', id='mother-registration'))
+
+        # finally, let's remove that resthook
+        self.client.post(resthook_url, {'resthook_%d' % resthook.id: 'checked'})
+        resthook.refresh_from_db()
+        self.assertFalse(resthook.is_active)
+
+        # no more resthooks!
+        response = self.client.get(resthook_url)
+        self.assertFalse(response.context['current_resthooks'])
+
     def test_connect_nexmo(self):
         self.login(self.admin)
 
@@ -1410,8 +1455,8 @@ class OrgTest(TembaTest):
             response = self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
             self.assertContains(response,
                                 "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry.")
-            self.assertFalse(PLIVO_AUTH_ID in self.client.session)
-            self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
+            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
+            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
 
         # ok, now with a success
         with patch('requests.get') as plivo_mock:
@@ -1419,8 +1464,8 @@ class OrgTest(TembaTest):
             self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
 
             # plivo should be added to the session
-            self.assertEquals(self.client.session[PLIVO_AUTH_ID], 'auth-id')
-            self.assertEquals(self.client.session[PLIVO_AUTH_TOKEN], 'auth-token')
+            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
+            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
 
     def test_download(self):
         response = self.client.get('/org/download/messages/123/')
@@ -1437,10 +1482,26 @@ class OrgTest(TembaTest):
         response = self.client.get('/org/download/flows/123/')
         self.assertRedirect(response, '/assets/download/results_export/123/')
 
+    def test_tiers(self):
+
+        # not enough credits with tiers enabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        self.assertIsNone(self.org.create_sub_org('Sub Org A'))
+
+        # not enough credits, but tiers disabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org A'))
+
+        # tiers enabled, but enough credits
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        TopUp.create(self.admin, price=100, credits=1000000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
+
     def test_sub_orgs(self):
 
         from temba.orgs.models import Debit
-        settings.MULTI_ORG_THRESHOLD = 1000000
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
 
         # lets start with two topups
         expires = timezone.now() + timedelta(days=400)
@@ -1452,9 +1513,8 @@ class OrgTest(TembaTest):
         # we won't create sub orgs if the org isn't the proper level
         self.assertIsNone(sub_org)
 
-        # upgrade our org and go again
-        self.org.multi_org = True
-        self.org.save()
+        # lower the tier and try again
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
         sub_org = self.org.create_sub_org('Sub Org')
 
         # suborgs can't create suborgs
@@ -1521,7 +1581,7 @@ class OrgTest(TembaTest):
 
         self.login(self.admin)
 
-        settings.MULTI_ORG_THRESHOLD = 1000000
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
 
         # set our org on the session
         session = self.client.session
@@ -1552,9 +1612,9 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_manage_accounts_sub_org'))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
-        # support multi orgs and see our button shows up
-        self.org.multi_org = True
-        self.org.save()
+        # zero out our tier
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        self.assertTrue(self.org.is_multi_org_tier())
         response = self.client.get(reverse('orgs.org_home'))
         self.assertContains(response, 'Manage Organizations')
 
@@ -1923,27 +1983,27 @@ class OrgCRUDLTest(TembaTest):
         # remove existing channels
         Channel.objects.all().update(is_active=False, org=None)
 
-        self.assertEqual(set(), self.org.get_schemes(SEND))
-        self.assertEqual(set(), self.org.get_schemes(RECEIVE))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a receive only tel channel
-        Channel.create(self.org, self.user, 'RW', TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
+        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
 
         self.org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual(set(), self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a send/receive tel channel
-        Channel.create(self.org, self.user, 'RW', TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
+        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a twitter channel
-        Channel.create(self.org, self.user, None, TWITTER, "Twitter")
+        Channel.create(self.org, self.user, None, Channel.TYPE_TWITTER, "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
     def test_login_case_not_sensitive(self):
         login_url = reverse('users.user_login')
@@ -2152,6 +2212,24 @@ class BulkExportTest(TembaTest):
         actions = definition[Flow.ACTION_SETS][0]['actions']
         self.assertEquals(1, len(actions))
         self.assertEquals('Triggered Flow', actions[0]['flow']['name'])
+
+    def test_trigger_dependency(self):
+        # tests the case of us doing an export of only a single flow (despite dependencies) and making sure we
+        # don't include the triggers of our dependent flows (which weren't exported)
+        self.import_file('parent_child_trigger')
+
+        parent = Flow.objects.filter(name='Parent Flow').first()
+
+        self.login(self.admin)
+
+        # export only the parent
+        post_data = dict(flows=[parent.pk], campaigns=[])
+        response = self.client.post(reverse('orgs.org_export'), post_data)
+
+        exported = json.loads(response.content)
+
+        # shouldn't have any triggers
+        self.assertFalse(exported['triggers'])
 
     def test_subflow_dependencies(self):
         self.import_file('subflow')
