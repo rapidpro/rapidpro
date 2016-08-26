@@ -9,7 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactURN
 from temba.flows.models import Flow, ActionLog, FlowRun
-from temba.channels.models import Channel, NEXMO, TWILIO, VERBOICE
+from temba.channels.models import Channel
 from temba.orgs.models import Org
 
 PENDING = 'P'
@@ -164,7 +164,7 @@ class IVRCall(SmartModel):
         """
         Updates our status from a twilio status string
         """
-        if channel_type in [TWILIO, VERBOICE]:
+        if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
             if status == 'queued':
                 self.status = QUEUED
             elif status == 'ringing':
@@ -188,7 +188,7 @@ class IVRCall(SmartModel):
             elif status == 'canceled':
                 self.status = CANCELED
 
-        elif channel_type in [NEXMO]:
+        elif channel_type in [Channel.TYPE_NEXMO]:
             if status is None:
                 self.status = IN_PROGRESS
             elif status != 'ok':
