@@ -884,7 +884,7 @@ class FlowCRUDL(SmartCRUDL):
                 context['mutable'] = True
 
             org = self.request.user.get_org()
-            context['has_airtime_service'] = bool(org.is_connected_to_transferto())
+            context['has_airtime_service'] = bool(org.is_connected_to_transferto()) if org else False
 
             return context
 
