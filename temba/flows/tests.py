@@ -315,6 +315,12 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
         self.assertTrue('mutable' in response.context)
+        self.assertTrue('has_airtime_service' in response.context)
+
+        self.login(self.superuser)
+        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
+        self.assertTrue('mutable' in response.context)
+        self.assertTrue('has_airtime_service' in response.context)
 
     def test_states(self):
         # set our flow
