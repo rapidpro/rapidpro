@@ -9,8 +9,7 @@ from django.core.files.temp import NamedTemporaryFile
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from temba.channels.models import TWILIO, NEXMO
-from temba.channels.models import VERBOICE
+from temba.channels.models import Channel
 from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
 from .models import IVRCall, IN_PROGRESS, COMPLETED, RINGING
@@ -35,7 +34,7 @@ class CallHandler(View):
         channel_type = channel.channel_type
         client = channel.get_ivr_client()
 
-        if channel_type in [TWILIO, VERBOICE] and request.REQUEST.get('hangup', 0):
+        if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE] and request.REQUEST.get('hangup', 0):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
@@ -47,10 +46,10 @@ class CallHandler(View):
         if client.validate(request):
             status = None
             duration = None
-            if channel_type in [TWILIO, VERBOICE]:
+            if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
                 status = request.POST.get('CallStatus', None)
                 duration = request.POST.get('CallDuration', None)
-            elif channel_type in [NEXMO]:
+            elif channel_type in [Channel.TYPE_NEXMO]:
                 status = request.POST.get('status', None)
                 duration = request.POST.get('call-duration', None)
 
@@ -75,7 +74,7 @@ class CallHandler(View):
             if is_empty:
                 user_response['Digits'] = ''
 
-            if channel_type in [TWILIO, VERBOICE]:
+            if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
 
                 hangup = 'hangup' == user_response.get('Digits', None)
 
@@ -84,7 +83,7 @@ class CallHandler(View):
                 if media_url:
                     saved_media_url = client.download_media(media_url)
 
-            elif channel_type in [NEXMO]:
+            elif channel_type in [Channel.TYPE_NEXMO]:
                 user_recording = request.FILES.get('UserRecording', None)
                 if user_recording is not None:
                     content_type = user_recording.content_type
