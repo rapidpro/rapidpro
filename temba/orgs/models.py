@@ -246,7 +246,7 @@ class Org(SmartModel):
             org.administrators.add(created_by)
 
             # initialize our org, but without any credits
-            org.initialize(brand=org.get_branding(), topup_size=0)
+            org.initialize(branding=org.get_branding(), topup_size=0)
 
             return org
 
@@ -1455,8 +1455,7 @@ class Org(SmartModel):
                            cc_type=charge.card.type,
                            cc_name=charge.card.name)
 
-            from temba.middleware import BrandingMiddleware
-            branding = BrandingMiddleware.get_branding_for_host(self.brand)
+            branding = self.get_branding()
 
             subject = _("%(name)s Receipt") % branding
             template = "orgs/email/receipt_email"
@@ -1623,17 +1622,17 @@ class Org(SmartModel):
         r = get_redis_connection()
         r.hdel(msg_type, self.id)
 
-    def initialize(self, brand=None, topup_size=WELCOME_TOPUP_SIZE):
+    def initialize(self, branding=None, topup_size=WELCOME_TOPUP_SIZE):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
 
-        if not brand:
-            brand = BrandingMiddleware.get_branding_for_host('')
+        if not branding:
+            branding = BrandingMiddleware.get_branding_for_host('')
 
         self.create_system_labels_and_groups()
-        self.create_sample_flows(brand.get('api_link', ""))
+        self.create_sample_flows(branding.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
     def save_media(self, file, extension):
@@ -1826,13 +1825,11 @@ class Invitation(SmartModel):
     secret = models.CharField(verbose_name=_("Secret"), max_length=64, unique=True,
                               help_text=_("a unique code associated with this invitation"))
 
-    host = models.CharField(max_length=32, help_text=_("The host this invitation was created on"))
-
     user_group = models.CharField(max_length=1, choices=USER_GROUPS, default='V', verbose_name=_("User Role"))
 
     @classmethod
-    def create(cls, org, user, email, user_group, host):
-        return cls.objects.create(org=org, email=email, user_group=user_group, host=host,
+    def create(cls, org, user, email, user_group):
+        return cls.objects.create(org=org, email=email, user_group=user_group,
                                   created_by=user, modified_by=user)
 
     def save(self, *args, **kwargs):
@@ -1863,9 +1860,7 @@ class Invitation(SmartModel):
         if not self.email:
             return
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
-
+        branding = self.org.get_branding()
         subject = _("%(name)s Invitation") % branding
         template = "orgs/email/invitation_email"
         to_email = self.email
@@ -2098,9 +2093,7 @@ class CreditAlert(SmartModel):
         if not email:
             return
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.org.brand)
-
+        branding = self.org.get_branding()
         subject = _("%(name)s Credits Alert") % branding
         template = "orgs/email/alert_email"
         to_email = email

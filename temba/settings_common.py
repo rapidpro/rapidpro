@@ -264,6 +264,7 @@ BRANDING = {
         'slug': 'rapidpro',
         'name': 'RapidPro',
         'org': 'UNICEF',
+        'colors': dict(primary='#0c6596'),
         'styles': ['brands/rapidpro/font/style.css', 'brands/rapidpro/less/style.less'],
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',

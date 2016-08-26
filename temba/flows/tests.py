@@ -569,8 +569,7 @@ class FlowTest(TembaTest):
         self.login(self.admin)
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportFlowResultsTask.objects.create(org=self.org, host='test',
-                                                               created_by=self.admin, modified_by=self.admin)
+        blocking_export = ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
         response = self.client.post(reverse('flows.flow_export_results'), dict(flows=[self.flow.pk]), follow=True)
         self.assertContains(response, "already an export in progress")
 
