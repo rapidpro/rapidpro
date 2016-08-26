@@ -342,8 +342,6 @@ class ContactCRUDL(SmartCRUDL):
                 if groups:
                     group = groups[0]
 
-            host = self.request.branding['host']
-
             # is there already an export taking place?
             existing = ExportContactsTask.objects.filter(org=org, is_finished=False,
                                                          created_on__gt=timezone.now() - timedelta(hours=24))\
@@ -357,8 +355,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # otherwise, off we go
             else:
-                export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org,
-                                                           group=group, host=host)
+                export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
                 export_contacts_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover

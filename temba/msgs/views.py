@@ -452,8 +452,6 @@ class MsgCRUDL(SmartCRUDL):
             if label_id:
                 label = Label.label_objects.get(pk=label_id)
 
-            host = self.request.branding['host']
-
             groups = form.cleaned_data['groups']
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
@@ -471,8 +469,8 @@ class MsgCRUDL(SmartCRUDL):
 
             # otherwise, off we go
             else:
-                export = ExportMessagesTask.objects.create(created_by=user, modified_by=user, org=org, host=host,
-                                                           label=label, start_date=start_date, end_date=end_date)
+                export = ExportMessagesTask.objects.create(created_by=user, modified_by=user, org=org, label=label,
+                                                           start_date=start_date, end_date=end_date)
                 for group in groups:
                     export.groups.add(group)
 
