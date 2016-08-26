@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
 import base64
@@ -60,108 +61,378 @@ RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
 SESSION_TWITTER_SECRET = 'twitter_oauth_token_secret'
 
-TWILIO_SEARCH_COUNTRIES = (('BE', _("Belgium")),
-                           ('CA', _("Canada")),
-                           ('FI', _("Finland")),
-                           ('NO', _("Norway")),
-                           ('PL', _("Poland")),
-                           ('ES', _("Spain")),
-                           ('SE', _("Sweden")),
-                           ('GB', _("United Kingdom")),
-                           ('US', _("United States")))
 
-TWILIO_SUPPORTED_COUNTRIES = (('AU', _("Australia")),
-                              ('AT', _("Austria")),
-                              ('BE', _("Belgium")),
-                              ('CA', _("Canada")),
-                              ('CL', _("Chile")),  # Beta
-                              ('CZ', _("Czech Republic")),  # Beta
-                              ('DK', _("Denmark")),  # Beta
-                              ('EE', _("Estonia")),
-                              ('FI', _("Finland")),
-                              ('FR', _("France")),  # Beta
-                              ('DE', _("Germany")),
-                              ('HK', _("Hong Kong")),
-                              ('HU', _("Hungary")),  # Beta
-                              ('IE', _("Ireland")),
-                              ('IL', _("Israel")),  # Beta
-                              ('LT', _("Lithuania")),
-                              ('MX', _("Mexico")),  # Beta
-                              ('NO', _("Norway")),
-                              ('PL', _("Poland")),
-                              ('ES', _("Spain")),
-                              ('SE', _("Sweden")),
-                              ('CH', _("Switzerland")),
-                              ('GB', _("United Kingdom")),
-                              ('US', _("United States")))
+COUNTRIES_CALLING_CODES = {
+    "AF": (93, ),  # Afghanistan
+    "AX": (35818, ),  # Åland Islands
+    "AL": (355, ),  # Albania
+    "DZ": (213,),  # Algeria
+    "AS": (1684,),  # American Samoa
+    "AD": (376,),  # Andorra
+    "AO": (244,),  # Angola
+    "AI": (1264,),  # Anguilla
+    "AQ": (),  # Antarctica
+    "AG": (1268,),  # Antigua and Barbuda
+    "AR": (54,),  # Argentina
+    "AM": (374,),  # Armenia
+    "AW": (297,),  # Aruba
+    "AU": (61,),  # Australia
+    "AT": (43,),  # Austria
+    "AZ": (994,),  # Azerbaijan
+    "BS": (1242,),  # Bahamas
+    "BH": (973,),  # Bahrain
+    "BD": (880,),  # Bangladesh
+    "BB": (1246,),  # Barbados
+    "BY": (375,),  # Belarus
+    "BE": (32,),  # Belgium
+    "BZ": (501,),  # Belize
+    "BJ": (229,),  # Benin
+    "BM": (1441,),  # Bermuda
+    "BT": (975,),  # Bhutan
+    "BO": (591,),  # Bolivia (Plurinational State of)
+    "BQ": (5997,),  # Bonaire, Sint Eustatius and Saba
+    "BA": (387,),  # Bosnia and Herzegovina
+    "BW": (267,),  # Botswana
+    "BV": (),  # Bouvet Island
+    "BR": (55,),  # Brazil
+    "IO": (246,),  # British Indian Ocean Territory
+    "BN": (673,),  # Brunei Darussalam
+    "BG": (359,),  # Bulgaria
+    "BF": (226,),  # Burkina Faso
+    "BI": (257,),  # Burundi
+    "CV": (238,),  # Cabo Verde
+    "KH": (855,),  # Cambodia
+    "CM": (237,),  # Cameroon
+    "CA": (1,),  # Canada
+    "KY": (1345,),  # Cayman Islands
+    "CF": (236,),  # Central African Republic
+    "TD": (235,),  # Chad
+    "CL": (56,),  # Chile
+    "CN": (86,),  # China
+    "CX": (6189164,),  # Christmas Island
+    "CC": (6189162,),  # Cocos (Keeling) Islands
+    "CO": (57,),  # Colombia
+    "KM": (269,),  # Comoros
+    "CD": (243,),  # Congo (the Democratic Republic of the)
+    "CG": (242,),  # Congo
+    "CK": (682,),  # Cook Islands
+    "CR": (506,),  # Costa Rica
+    "CI": (225,),  # Côte d'Ivoire
+    "HR": (385,),  # Croatia
+    "CU": (53,),  # Cuba
+    "CW": (5999,),  # Curaçao
+    "CY": (357,),  # Cyprus
+    "CZ": (420,),  # Czech Republic
+    "DK": (45,),  # Denmark
+    "DJ": (253,),  # Djibouti
+    "DM": (1767,),  # Dominica
+    "DO": (1809, 1829, 1849),  # Dominican Republic
+    "EC": (539,),  # Ecuador
+    "EG": (20,),  # Egypt
+    "SV": (503,),  # El Salvador
+    "GQ": (240,),  # Equatorial Guinea
+    "ER": (291,),  # Eritrea
+    "EE": (372,),  # Estonia
+    "ET": (251,),  # Ethiopia
+    "FK": (500,),  # Falkland Islands  [Malvinas]
+    "FO": (298,),  # Faroe Islands
+    "FJ": (679,),  # Fiji
+    "FI": (358,),  # Finland
+    "FR": (33,),  # France
+    "GF": (594,),  # French Guiana
+    "PF": (689,),  # French Polynesia
+    "TF": (),  # French Southern Territories
+    "GA": (241,),  # Gabon
+    "GM": (220,),  # Gambia
+    "GE": (995,),  # Georgia
+    "DE": (49,),  # Germany
+    "GH": (233,),  # Ghana
+    "GI": (350,),  # Gibraltar
+    "GR": (30,),  # Greece
+    "GL": (299,),  # Greenland
+    "GD": (1473,),  # Grenada
+    "GP": (590,),  # Guadeloupe
+    "GU": (1671,),  # Guam
+    "GT": (502,),  # Guatemala
+    "GG": (441481, 447781, 447839, 447911),  # Guernsey
+    "GN": (224,),  # Guinea
+    "GW": (245,),  # Guinea-Bissau
+    "GY": (592,),  # Guyana
+    "HT": (509,),  # Haiti
+    "HM": (),  # Heard Island and McDonald Islands
+    "VA": (379, 3906698),  # Holy See
+    "HN": (504,),  # Honduras
+    "HK": (852,),  # Hong Kong
+    "HU": (36,),  # Hungary
+    "IS": (354,),  # Iceland
+    "IN": (91,),  # India
+    "ID": (62,),  # Indonesia
+    "IR": (98,),  # Iran (Islamic Republic of)
+    "IQ": (964,),  # Iraq
+    "IE": (353,),  # Ireland
+    "IM": (441624, 447524, 447624, 447924),  # Isle of Man
+    "IL": (972,),  # Israel
+    "IT": (39,),  # Italy
+    "JM": (1876,),  # Jamaica
+    "JP": (81,),  # Japan
+    "JE": (441534,),  # Jersey
+    "JO": (962,),  # Jordan
+    "KZ": (76, 77),  # Kazakhstan
+    "KE": (254,),  # Kenya
+    "KI": (686,),  # Kiribati
+    "KP": (850,),  # Korea (the Democratic People's Republic of)
+    "KR": (82,),  # Korea (the Republic of)
+    "KW": (965,),  # Kuwait
+    "KG": (996,),  # Kyrgyzstan
+    "LA": (856,),  # Lao People's Democratic Republic
+    "LV": (371,),  # Latvia
+    "LB": (961,),  # Lebanon
+    "LS": (266,),  # Lesotho
+    "LR": (231,),  # Liberia
+    "LY": (218,),  # Libya
+    "LI": (423,),  # Liechtenstein
+    "LT": (370,),  # Lithuania
+    "LU": (352,),  # Luxembourg
+    "MO": (853,),  # Macao
+    "MK": (389,),  # Macedonia (the former Yugoslav Republic of)
+    "MG": (261,),  # Madagascar
+    "MW": (265,),  # Malawi
+    "MY": (60,),  # Malaysia
+    "MV": (960,),  # Maldives
+    "ML": (223,),   # Mali
+    "MT": (356,),   # Malta
+    "MH": (692,),   # Marshall Islands
+    "MQ": (596,),   # Martinique
+    "MR": (222,),   # Mauritania
+    "MU": (230,),   # Mauritius
+    "YT": (262269, 262639),   # Mayotte
+    "MX": (52,),   # Mexico
+    "FM": (691,),   # Micronesia (Federated States of)
+    "MD": (373,),   # Moldova (the Republic of)
+    "MC": (377,),   # Monaco
+    "MN": (976,),   # Mongolia
+    "ME": (382,),   # Montenegro
+    "MS": (1664,),   # Montserrat
+    "MA": (212,),   # Morocco
+    "MZ": (258,),   # Mozambique
+    "MM": (95,),   # Myanmar
+    "NA": (264,),   # Namibia
+    "NR": (674,),   # Nauru
+    "NP": (977,),   # Nepal
+    "NL": (31,),   # Netherlands
+    "NC": (687,),   # New Caledonia
+    "NZ": (64,),   # New Zealand
+    "NI": (505,),   # Nicaragua
+    "NE": (227,),   # Niger
+    "NG": (243,),   # Nigeria
+    "NU": (683,),   # Niue
+    "NF": (6723,),   # Norfolk Island
+    "MP": (1670,),   # Northern Mariana Islands
+    "NO": (47,),   # Norway
+    "OM": (968,),   # Oman
+    "PK": (92,),   # Pakistan
+    "PW": (680,),   # Palau
+    "PS": (970,),   # Palestine, State of
+    "PA": (507,),   # Panama
+    "PG": (675,),   # Papua New Guinea
+    "PY": (595,),   # Paraguay
+    "PE": (51,),   # Peru
+    "PH": (63,),  # _("Philippines
+    "PN": (64,),   # Pitcairn
+    "PL": (48,),   # Poland
+    "PT": (351,),   # Portugal
+    "PR": (1787, 1939),   # Puerto Rico
+    "QA": (974,),   # Qatar
+    "RE": (262,),   # Réunion
+    "RO": (40,),   # Romania
+    "RU": (7,),   # Russian Federation
+    "RW": (250,),   # Rwanda
+    "BL": (590,),  # _("Saint Barthélemy
+    "SH": (290,),   # Saint Helena, Ascension and Tristan da Cunha
+    "KN": (1869,),   # Saint Kitts and Nevis
+    "LC": (1758,),   # Saint Lucia
+    "MF": (590,),   # Saint Martin (French part)
+    "PM": (508,),   # Saint Pierre and Miquelon
+    "VC": (1784,),   # Saint Vincent and the Grenadines
+    "WS": (685,),   # Samoa
+    "SM": (378,),   # San Marino
+    "ST": (239,),   # Sao Tome and Principe
+    "SA": (966,),   # Saudi Arabia
+    "SN": (221,),   # Senegal
+    "RS": (381,),   # Serbia
+    "SC": (248,),   # Seychelles
+    "SL": (232,),   # Sierra Leone
+    "SG": (65,),   # Singapore
+    "SX": (1721,),   # Sint Maarten (Dutch part)
+    "SK": (421,),   # Slovakia
+    "SI": (386,),  # Slovenia
+    "SB": (677,),   # Solomon Islands
+    "SO": (252,),   # Somalia
+    "ZA": (27,),   # South Africa
+    "GS": (500,),   # South Georgia and the South Sandwich Islands
+    "SS": (211,),   # South Sudan
+    "ES": (34,),   # Spain
+    "LK": (94,),   # Sri Lanka
+    "SD": (249,),   # Sudan
+    "SR": (597,),   # Suriname
+    "SJ": (4779,),   # Svalbard and Jan Mayen
+    "SZ": (268,),   # Swaziland
+    "SE": (46,),   # Sweden
+    "CH": (41,),   # Switzerland
+    "SY": (963,),   # Syrian Arab Republic
+    "TW": (886,),   # Taiwan (Province of China)
+    "TJ": (992,),   # Tajikistan
+    "TZ": (255,),   # Tanzania, United Republic of
+    "TH": (66,),   # Thailand
+    "TL": (),   # Timor-Leste
+    "TG": (228,),   # Togo
+    "TK": (690,),   # Tokelau
+    "TO": (676,),   # Tonga
+    "TT": (1868,),   # Trinidad and Tobago
+    "TN": (216,),   # Tunisia
+    "TR": (90,),   # Turkey
+    "TM": (993,),   # Turkmenistan
+    "TC": (1649,),   # Turks and Caicos Islands
+    "TV": (668,),   # Tuvalu
+    "UG": (256,),   # Uganda
+    "UA": (380,),   # Ukraine
+    "AE": (971,),   # United Arab Emirates
+    "GB": (44,),   # United Kingdom of Great Britain and Northern Ireland
+    "UM": (),   # United States Minor Outlying Islands
+    "US": (1,),   # United States of America
+    "UY": (598,),   # Uruguay
+    "UZ": (998,),   # Uzbekistan
+    "VU": (678,),   # Vanuatu
+    "VE": (58,),   # Venezuela (Bolivarian Republic of)
+    "VN": (84,),   # Viet Nam
+    "VG": (),   # Virgin Islands (British)
+    "VI": (),   # Virgin Islands (U.S.)
+    "WF": (681,),   # Wallis and Futuna
+    "EH": (),   # Western Sahara
+    "YE": (967,),   # Yemen
+    "ZM": (260,),   # Zambia
+    "ZW": (263,),   # Zimbabwe
+}
 
-TWILIO_SUPPORTED_COUNTRY_CODES = [61, 43, 32, 1, 56, 420, 45, 372, 358, 33, 49, 852, 36, 353, 972, 370, 52, 47, 48, 34, 46, 41, 44]
+TWILIO_SEARCH_COUNTRIES_CONFIG = ('BE',  # Belgium
+                                  'CA',  # Canada
+                                  'FI',  # Finland
+                                  'NO',  # Norway
+                                  'PL',  # Poland
+                                  'ES',  # Spain
+                                  'SE',  # Sweden
+                                  'GB',  # United Kingdom
+                                  'US'   # United States
+                                  )
 
-NEXMO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
-                             ('AT', _('Austria')),
-                             ('BE', _('Belgium')),
-                             ('CA', _('Canada')),
-                             ('CL', _('Chile')),
-                             ('CR', _('Costa Rica')),
-                             ('CZ', _('Czech Republic')),
-                             ('DK', _('Denmark')),
-                             ('EE', _('Estonia')),
-                             ('FI', _('Finland')),
-                             ('FR', _('France')),
-                             ('DE', _('Germany')),
-                             ('HK', _('Hong Kong')),
-                             ('HU', _('Hungary')),
-                             ('ID', _('Indonesia')),
-                             ('IE', _('Ireland')),
-                             ('IL', _('Israel')),
-                             ('IT', _('Italy')),
-                             ('LV', _('Latvia')),
-                             ('LT', _('Lithuania')),
-                             ('MY', _('Malaysia')),
-                             ('MX', _('Mexico')),
-                             ('MW', _('Malawi')),
-                             ('NL', _('Netherlands')),
-                             ('NO', _('Norway')),
-                             ('PK', _('Pakistan')),
-                             ('PL', _('Poland')),
-                             ('PR', _('Puerto Rico')),
-                             ('RO', _('Romania')),
-                             ('RU', _('Russia')),
-                             ('RW', _('Rwanda')),
-                             ('SK', _('Slovakia')),
-                             ('ZA', _('South Africa')),
-                             ('KR', _('South Korea')),
-                             ('ES', _('Spain')),
-                             ('SE', _('Sweden')),
-                             ('CH', _('Switzerland')),
-                             ('GB', _('United Kingdom')),
-                             ('US', _('United States')))
+TWILIO_SEARCH_COUNTRIES = tuple([(elt, COUNTRIES[elt]) for elt in TWILIO_SEARCH_COUNTRIES_CONFIG])
 
-NEXMO_SUPPORTED_COUNTRY_CODES = [61, 43, 32, 1, 56, 506, 420, 45, 372, 358, 33, 49, 852, 36, 353, 972, 39, 371, 370,
-                                 60, 52, 31, 47, 92, 48, 1787, 40, 7, 250, 421, 27, 82, 34, 46, 41, 44, 265, 62]
+TWILIO_SUPPORTED_COUNTRIES_CONFIG = ('AU',  # Australia
+                                     'AT',  # Austria
+                                     'BE',  # Belgium
+                                     'CA',  # Canada
+                                     'CL',  # Chile  # Beta
+                                     'CZ',  # Czech Republic  # Beta
+                                     'DK',  # Denmark  # Beta
+                                     'EE',  # Estonia
+                                     'FI',  # Finland
+                                     'FR',  # France  # Beta
+                                     'DE',  # Germany
+                                     'HK',  # Hong Kong
+                                     'HU',  # Hungary  # Beta
+                                     'IE',  # Ireland,
+                                     'IL',  # Israel  # Beta
+                                     'LT',  # Lithuania
+                                     'MX',  # Mexico  # Beta
+                                     'NO',  # Norway
+                                     'PL',  # Poland
+                                     'ES',  # Spain
+                                     'SE',  # Sweden
+                                     'CH',  # Switzerland
+                                     'GB',  # United Kingdom
+                                     'US',  # "United States"
+                                     )
 
-PLIVO_SUPPORTED_COUNTRIES = (('AU', _('Australia')),
-                             ('BE', _('Belgium')),
-                             ('CA', _('Canada')),
-                             ('CZ', _('Czech Republic')),
-                             ('EE', _('Estonia')),
-                             ('FI', _('Finland')),
-                             ('DE', _('Germany')),
-                             ('HK', _('Hong Kong')),
-                             ('HU', _('Hungary')),
-                             ('IL', _('Israel')),
-                             ('LT', _('Lithuania')),
-                             ('MX', _('Mexico')),
-                             ('NO', _('Norway')),
-                             ('PK', _('Pakistan')),
-                             ('PL', _('Poland')),
-                             ('ZA', _('South Africa')),
-                             ('SE', _('Sweden')),
-                             ('CH', _('Switzerland')),
-                             ('GB', _('United Kingdom')),
-                             ('US', _('United States')))
+TWILIO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES[elt]) for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG])
 
-PLIVO_SUPPORTED_COUNTRY_CODES = [61, 32, 1, 420, 372, 358, 49, 852, 36, 972, 370, 52, 47, 92, 48, 27, 46, 41, 44]
+TWILIO_SUPPORTED_COUNTRY_CODES = list(set([code
+                                           for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG
+                                           for code in list(COUNTRIES_CALLING_CODES[elt])]))
+
+NEXMO_SUPPORTED_COUNTRIES_CONFIG = ('AU',  # Australia
+                                    'AT',  # Austria
+                                    'BE',  # Belgium
+                                    'CA',  # Canada
+                                    'CL',  # Chile
+                                    'CR',  # Costa Rica
+                                    'CZ',  # Czech Republic
+                                    'DK',  # Denmark
+                                    'EE',  # Estonia
+                                    'FI',  # Finland
+                                    'FR',  # France
+                                    'DE',  # Germany
+                                    'HK',  # Hong Kong
+                                    'HU',  # Hungary
+                                    'ID',  # Indonesia
+                                    'IE',  # Ireland
+                                    'IL',  # Israel
+                                    'IT',  # Italy
+                                    'LV',  # Latvia
+                                    'LT',  # Lithuania
+                                    'MY',  # Malaysia
+                                    'MX',  # Mexico
+                                    'MW',  # Malawi
+                                    'NL',  # Netherlands
+                                    'NO',  # Norway
+                                    'PK',  # Pakistan
+                                    'PL',  # Poland
+                                    'PR',  # Puerto Rico
+                                    'RO',  # Romania
+                                    'RU',  # Russia
+                                    'RW',  # Rwanda
+                                    'SK',  # Slovakia
+                                    'ZA',  # South Africa
+                                    'KR',  # South Korea
+                                    'ES',  # Spain
+                                    'SE',  # Sweden
+                                    'CH',  # Switzerland
+                                    'GB',  # United Kingdom
+                                    'US',  # United States
+                                    )
+
+NEXMO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES[elt]) for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG])
+
+NEXMO_SUPPORTED_COUNTRY_CODES = list(set([code
+                                          for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG
+                                          for code in list(COUNTRIES_CALLING_CODES[elt])]))
+
+PLIVO_SUPPORTED_COUNTRIES_CONFIG = ('AU',  # Australia
+                                    'BE',  # Belgium
+                                    'CA',  # Canada
+                                    'CZ',  # Czech Republic
+                                    'EE',  # Estonia
+                                    'FI',  # Finland
+                                    'DE',  # Germany
+                                    'HK',  # Hong Kong
+                                    'HU',  # Hungary
+                                    'IL',  # Israel
+                                    'LT',  # Lithuania
+                                    'MX',  # Mexico
+                                    'NO',  # Norway
+                                    'PK',  # Pakistan
+                                    'PL',  # Poland
+                                    'ZA',  # South Africa
+                                    'SE',  # Sweden
+                                    'CH',  # Switzerland
+                                    'GB',  # United Kingdom
+                                    'US',  # United States
+                                    )
+
+PLIVO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES[elt]) for elt in PLIVO_SUPPORTED_COUNTRIES_CONFIG])
+
+PLIVO_SUPPORTED_COUNTRY_CODES = list(set([code
+                                          for elt in PLIVO_SUPPORTED_COUNTRIES_CONFIG
+                                          for code in list(COUNTRIES_CALLING_CODES[elt])]))
 
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name
