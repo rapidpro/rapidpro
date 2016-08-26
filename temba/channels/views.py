@@ -58,6 +58,11 @@ SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
 SESSION_TWITTER_SECRET = 'twitter_oauth_token_secret'
 
 
+COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.iteritems()}
+COUNTRIES_NAMES['GB'] = _("United Kingdom")
+COUNTRIES_NAMES['US'] = _("United States")
+
+
 COUNTRIES_CALLING_CODES = {
     "AF": (93, ),  # Afghanistan
     "AX": (35818, ),  # Åland Islands
@@ -321,7 +326,7 @@ TWILIO_SEARCH_COUNTRIES_CONFIG = ('BE',  # Belgium
                                   'US'   # United States
                                   )
 
-TWILIO_SEARCH_COUNTRIES = tuple([(elt, COUNTRIES[elt]) for elt in TWILIO_SEARCH_COUNTRIES_CONFIG])
+TWILIO_SEARCH_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in TWILIO_SEARCH_COUNTRIES_CONFIG])
 
 TWILIO_SUPPORTED_COUNTRIES_CONFIG = ('AU',  # Australia
                                      'AT',  # Austria
@@ -346,10 +351,10 @@ TWILIO_SUPPORTED_COUNTRIES_CONFIG = ('AU',  # Australia
                                      'SE',  # Sweden
                                      'CH',  # Switzerland
                                      'GB',  # United Kingdom
-                                     'US',  # "United States"
+                                     'US',  # United States
                                      )
 
-TWILIO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES[elt]) for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG])
+TWILIO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG])
 
 TWILIO_SUPPORTED_COUNTRY_CODES = list(set([code
                                            for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG
@@ -396,7 +401,7 @@ NEXMO_SUPPORTED_COUNTRIES_CONFIG = ('AU',  # Australia
                                     'US',  # United States
                                     )
 
-NEXMO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES[elt]) for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG])
+NEXMO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG])
 
 NEXMO_SUPPORTED_COUNTRY_CODES = list(set([code
                                           for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG
@@ -424,7 +429,7 @@ PLIVO_SUPPORTED_COUNTRIES_CONFIG = ('AU',  # Australia
                                     'US',  # United States
                                     )
 
-PLIVO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES[elt]) for elt in PLIVO_SUPPORTED_COUNTRIES_CONFIG])
+PLIVO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in PLIVO_SUPPORTED_COUNTRIES_CONFIG])
 
 PLIVO_SUPPORTED_COUNTRY_CODES = list(set([code
                                           for elt in PLIVO_SUPPORTED_COUNTRIES_CONFIG
@@ -432,7 +437,7 @@ PLIVO_SUPPORTED_COUNTRY_CODES = list(set([code
 
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name
-ALL_COUNTRIES = sorted(((code, name) for code, name in COUNTRIES.items()), key=lambda x: x[1])
+ALL_COUNTRIES = sorted(((code, name) for code, name in COUNTRIES_NAMES.items()), key=lambda x: x[1])
 
 
 def get_channel_icon(channel_type):
