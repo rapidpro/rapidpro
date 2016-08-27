@@ -2914,9 +2914,9 @@ class Alert(SmartModel):
     TYPE_POWER = 'P'
     TYPE_SMS = 'S'
 
-    TYPE_CHOICES = ((TYPE_POWER, _("Power")),                # channel has low power
-                    (TYPE_DISCONNECTED, _("Disconnected")),  # channel hasn't synced in a while
-                    (TYPE_SMS, _("SMS")))                    # channel has many unsent messages
+    TYPE_CHOICES = ((TYPE_POWER, _("Power")),                 # channel has low power
+                    (TYPE_DISCONNECTED, _("Disconnected")),   # channel hasn't synced in a while
+                    (TYPE_SMS, _("SMS")))                     # channel has many unsent messages
 
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"),
                                 help_text=_("The channel that this alert is for"))
