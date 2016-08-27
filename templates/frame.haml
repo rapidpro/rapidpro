@@ -152,25 +152,21 @@
 
   -if user_org
     .org-header
-      .org
-        %a{href:'javascript:void(0);'}
-          {{ user_org.name }}
+      -with user.get_user_orgs as orgs
+        -if orgs|length > 1
+          .pull-right.toggle
+            .icon-menu-2
 
-      .other-orgs.hide
+        .org
+          {{ user_org.name|truncatechars:30 }}
 
-        .account-details
-          .org
-            %a{href:'{% url "orgs.org_home" %}'}
-              .icon-home
-              Account Details
+        .other-orgs.hide
 
-        -for org in user.get_user_orgs
-          -if org != user_org
-            .org
-              %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
-                {{ org.name }}
-
-
+          -for org in orgs
+            -if org != user_org
+              .org
+                %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
+                  {{ org.name }}
 
 
   -block post-header
@@ -290,20 +286,26 @@
 
         $(".btn").tooltip();
 
-        {% if request.user.get_user_orgs.count > 1 %}
-          $('.org-header > .org > a').on('click', function() {
-            var header = $('.org-header');
-            if (header.hasClass('expanded')) {
-              header.removeClass('expanded');
-            } else {
-              header.addClass('expanded');
-            }
-          });
-        {% else %}
-          $('.org-header > .org > a').on('click', function() {
-            document.location.href = '{% url "orgs.org_home" %}';
-          });
-        {% endif %}
+        $('.org-header > .toggle').live('click', function(evt) {
+          evt.stopPropagation();
+          var header = $('.org-header');
+          if (header.hasClass('expanded')) {
+            header.removeClass('expanded');
+          } else {
+            header.addClass('expanded');
+          }
+        });
+
+        $('.org-header').live('click', function(evt) {
+          url = '{% url "orgs.org_home" %}';
+          evt.stopPropagation();
+          if (evt.ctrlKey || evt.metaKey){
+            window.open(url,'_blank')
+          } else {
+            window.location = url;
+          }
+
+        });
 
         $('#top-menu li').hoverIntent({
           over:function() {

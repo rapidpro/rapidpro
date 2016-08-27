@@ -11,6 +11,7 @@ boto==2.29.1
 celery==3.1.23
 certifi==14.5.14
 colorama==0.3.1
+contextlib2==0.5.4
 coverage==4.0.3
 defusedxml==0.4.1
 dj-database-url==0.2.1
@@ -19,7 +20,7 @@ django-appconf==0.6
 django-celery==3.1.17
 -e git+http://github.com/nyaruka/django-celery-transactions.git@f7adf7f2d5ce0bcd7992e0d4f3624fb96a7d80b8#egg=django_celery_transactions
 django-compressor==1.5
-django-countries==3.0.1
+django-countries==3.4.1
 django-debug-toolbar==1.2.2
 django-digest==1.13
 django-extensions==1.5.7
@@ -35,7 +36,7 @@ Django-Select2==4.2.2
 django-storages==1.1.8
 django-timezones==0.2
 -e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django_ttag
-djangorestframework==3.3.1
+djangorestframework==3.4.1
 djangorestframework-xml==1.2.0
 djorm-ext-core==0.7
 djorm-ext-expressions==0.6
@@ -67,7 +68,7 @@ nose-perfdump==1.5
 numpy==1.8.1
 oauthlib==0.6.1
 pep8==1.7.0
-phonenumbers==7.1.0
+phonenumbers
 Pillow==1.7.8
 pisa==3.0.33
 plivo==0.10.1
@@ -75,7 +76,7 @@ ply==3.4
 prettytable==0.7.2
 psycopg2==2.5.2
 pyasn1==0.1.7
-pycountry==1.18
+pycountry==1.20
 pycrypto==2.6.1
 pyflakes==1.0.0
 Pygments==1.6
@@ -87,7 +88,7 @@ pytz==2016.4
 PyYAML==3.11
 pyzmq==14.3.1
 rapidpro-expressions==1.1.5
-raven==4.0.4
+raven==5.23.0
 redis==2.10.1
 regex==2014.6.28
 requests==2.9.1
@@ -96,7 +97,7 @@ rsa==3.1.1
 selenium==2.31.0
 simplejson==3.4.1
 six==1.6.1
--e git+https://github.com/nyaruka/smartmin.git@d3a3ce4382ff6f015d8d5a55591d1cc344af83b5#egg=smartmin
+-e git+https://github.com/nyaruka/smartmin.git@26b7a8980a4894faab9d4cf24ea3d2aefbfdfc1d#egg=smartmin
 sqlparse==0.1.11
 stop-words==2015.2.23.1
 stripe==1.11.0

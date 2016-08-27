@@ -6,8 +6,10 @@ from temba.msgs.models import Broadcast, Msg
 from temba.flows.models import FlowStatsCache
 from temba.utils.email import send_simple_email
 from temba.utils.queues import pop_task
+from temba.msgs.models import TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from redis_cache import get_redis_connection
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount
+from temba.utils.queues import push_task
 
 
 @task(track_started=True, name='send_email_action_task')
@@ -38,9 +40,32 @@ def check_flows_task():
     key = 'check_flows'
     if not r.get(key):
         with r.lock(key, timeout=900):
-            # expire all flows that should no longer be active
             runs = FlowRun.objects.filter(is_active=True, expires_on__lte=timezone.now())
             FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_EXPIRED)
+
+
+@task(track_started=True, name='check_flow_timeouts_task')  # pragma: no cover
+def check_flow_timeouts_task():
+    """
+    See if any flow runs have timed out
+    """
+    r = get_redis_connection()
+
+    # only do this if we aren't already expiring things
+    key = 'check_flow_timeouts'
+    if not r.get(key):
+        with r.lock(key, timeout=900):
+            # find any runs that should have timed out
+            runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now()).only('id', 'org')
+            for run in runs:
+                # move this flow forward via the handler queue
+                push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on))
+
+
+@task(track_started=True, name='continue_parent_flows')  # pragma: no cover
+def continue_parent_flows(run_ids):
+    runs = FlowRun.objects.filter(pk__in=run_ids)
+    FlowRun.continue_parent_flow_runs(runs)
 
 
 @task(track_started=True, name='export_flow_results_task')
