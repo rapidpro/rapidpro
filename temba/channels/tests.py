@@ -1089,7 +1089,7 @@ class ChannelTest(TembaTest):
         us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, 'tel:+593997290044'))
         self.assertEqual(us_channel, channel)
 
-        self.org = Org.objects.get(pk=self.org.pk)
+        self.org = Org.objects.get(id=self.org.id)
         self.assertIsNone(self.org.get_country_code())
 
         # yet another registration in rwanda
