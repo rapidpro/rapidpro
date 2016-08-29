@@ -466,14 +466,6 @@ class FlowStartWriteSerializer(WriteSerializer):
     urns = fields.URNListField(required=False)
     extra = serializers.JSONField(required=False)
 
-    def validate_urns(self, value):
-        urn_contacts = []
-        for urn in value:
-            contact = Contact.get_or_create(self.context['org'], self.context['user'], urns=[urn])
-            urn_contacts.append(contact)
-
-        return urn_contacts
-
     def validate_extra(self, value):
         if not value:
             return None
@@ -489,11 +481,19 @@ class FlowStartWriteSerializer(WriteSerializer):
         return data
 
     def save(self):
+        urns = self.validated_data.get('urns', [])
+        contacts = self.validated_data.get('contacts', [])
+        groups = self.validated_data.get('groups', [])
+
+        # convert URNs to contacts
+        for urn in urns:
+            contact = Contact.get_or_create(self.context['org'], self.context['user'], urns=[urn])
+            contacts.append(contact)
+
         # ok, let's go create our flow start, the actual starting will happen in our view
         start = FlowStart.create(self.validated_data['flow'], self.context['user'],
                                  restart_participants=self.validated_data.get('restart_participants', True),
-                                 contacts=self.validated_data.get('contacts', []) + self.validated_data.get('urns', []),
-                                 groups=self.validated_data.get('groups', []),
+                                 contacts=contacts, groups=groups,
                                  extra=self.validated_data.get('extra', None))
 
         return start
