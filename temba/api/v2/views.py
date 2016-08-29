@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.db.models import Prefetch, Q
-from django.db.transaction import non_atomic_requests
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -167,7 +167,6 @@ class AuthenticateView(SmartFormView):
 
 
 class CreatedOnCursorPagination(CursorPagination):
-
     ordering = ('-created_on', '-id')
     offset_cutoff = 1000000
 
@@ -183,7 +182,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     permission_classes = (SSLPermission, APIPermission)
 
-    @non_atomic_requests
+    @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
 
@@ -286,9 +285,10 @@ class CreateAPIMixin(object):
         serializer = self.write_serializer_class(data=request.data, context=context)
 
         if serializer.is_valid():
-            output = serializer.save()
-            self.post_save(output)
-            return self.render_write_response(output, context)
+            with transaction.atomic():
+                output = serializer.save()
+                self.post_save(output)
+                return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
