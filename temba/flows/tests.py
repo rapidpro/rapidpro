@@ -40,6 +40,7 @@ from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, No
 from .models import HasStateTest, HasDistrictTest, HasWardTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
 from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog, VariableContactAction
+from .flow_migrations import map_actions
 from temba.msgs.models import WIRED
 
 
@@ -315,6 +316,12 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
         self.assertTrue('mutable' in response.context)
+        self.assertTrue('has_airtime_service' in response.context)
+
+        self.login(self.superuser)
+        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
+        self.assertTrue('mutable' in response.context)
+        self.assertTrue('has_airtime_service' in response.context)
 
     def test_states(self):
         # set our flow
@@ -5878,3 +5885,38 @@ class TimeoutTest(FlowFileTest):
         # and we should have sent our message
         self.assertEquals("Don't worry about it , we'll catch up next week.",
                           Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+
+
+class MigrationUtilsTest(TembaTest):
+
+    def test_map_actions(self):
+        # minimalist flow def with just actions and entry
+        flow_def = dict(entry='1234', action_sets=[dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None)])], rule_sets=[dict(y=10, uuid='5678')])
+        removed = map_actions(flow_def, lambda x: None)
+
+        # no more action sets and entry is remapped
+        self.assertFalse(removed['action_sets'])
+        self.assertEqual('5678', removed['entry'])
+
+        # add two action sets, we should remap entry to be the first
+        flow_def['action_sets'] = [dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None)]), dict(uuid='2345', y=5, actions=[dict(type='reply', msg="foo")])]
+        removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
+
+        self.assertEqual(len(removed['action_sets']), 1)
+        self.assertEqual(removed['action_sets'][0]['uuid'], '2345')
+        self.assertEqual(removed['entry'], '2345')
+
+        # remove a single action
+        flow_def['action_sets'] = [dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None), dict(type='reply', msg="foo")])]
+        removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
+
+        self.assertEqual(len(removed['action_sets']), 1)
+        self.assertEqual(len(removed['action_sets'][0]['actions']), 1)
+        self.assertEqual(removed['entry'], '1234')
+
+        # no entry
+        flow_def = dict(entry='1234', action_sets=[dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None)])], rule_sets=[])
+        removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
+
+        self.assertEqual(len(removed['action_sets']), 0)
+        self.assertEqual(removed['entry'], None)

@@ -212,8 +212,6 @@ class Org(SmartModel):
 
     parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=_('The parent org that manages this org'))
 
-    multi_org = models.BooleanField(default=False, help_text=_('Put this org on the multi org level'))
-
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -231,7 +229,7 @@ class Org(SmartModel):
 
     def create_sub_org(self, name, timezone=None, created_by=None):
 
-        if self.is_multi_org_level() and not self.parent:
+        if self.is_multi_org_tier() and not self.parent:
 
             if not timezone:
                 timezone = self.timezone
@@ -844,7 +842,7 @@ class Org(SmartModel):
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
                     return country.alpha2
-            except KeyError:
+            except KeyError:  # pragma: no cover
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
 
@@ -1025,11 +1023,11 @@ class Org(SmartModel):
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
-    def is_multi_user_level(self):
-        return self.get_purchased_credits() >= settings.MULTI_USER_THRESHOLD
+    def is_multi_user_tier(self):
+        return self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_user')
 
-    def is_multi_org_level(self):
-        return not self.parent and (self.multi_org or self.get_purchased_credits() >= settings.MULTI_ORG_THRESHOLD)
+    def is_multi_org_tier(self):
+        return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_org')
 
     def has_added_credits(self):
         return self.get_credits_total() > WELCOME_TOPUP_SIZE

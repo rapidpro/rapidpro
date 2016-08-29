@@ -893,6 +893,9 @@ class OrgTest(TembaTest):
         self.assertEqual(topup.get_price_display(), "$1.00")
 
     def test_topups(self):
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
+
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
@@ -983,10 +986,8 @@ class OrgTest(TembaTest):
         self.assertEquals(30, self.org.get_credits_used())
 
         # test special status
-        settings.MULTI_USER_THRESHOLD = 100000
-        settings.MULTI_ORG_THRESHOLD = 1000000
-        self.assertFalse(self.org.is_multi_user_level())
-        self.assertFalse(self.org.is_multi_org_level())
+        self.assertFalse(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
@@ -1000,7 +1001,7 @@ class OrgTest(TembaTest):
 
         # we aren't yet multi user since this topup was free
         self.assertEquals(0, self.org.get_purchased_credits())
-        self.assertFalse(self.org.is_multi_user_level())
+        self.assertFalse(self.org.is_multi_user_tier())
 
         self.assertEquals(100025, self.org.get_credits_total())
         self.assertEquals(30, self.org.get_credits_used())
@@ -1115,14 +1116,14 @@ class OrgTest(TembaTest):
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100000)
         self.org.update_caches(OrgEvent.topup_updated, None)
-        self.assertTrue(self.org.is_multi_user_level())
-        self.assertFalse(self.org.is_multi_org_level())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1000000)
         self.org.update_caches(OrgEvent.topup_updated, None)
-        self.assertTrue(self.org.is_multi_user_level())
-        self.assertTrue(self.org.is_multi_org_level())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertTrue(self.org.is_multi_org_tier())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -1482,10 +1483,26 @@ class OrgTest(TembaTest):
         response = self.client.get('/org/download/flows/123/')
         self.assertRedirect(response, '/assets/download/results_export/123/')
 
+    def test_tiers(self):
+
+        # not enough credits with tiers enabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        self.assertIsNone(self.org.create_sub_org('Sub Org A'))
+
+        # not enough credits, but tiers disabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org A'))
+
+        # tiers enabled, but enough credits
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        TopUp.create(self.admin, price=100, credits=1000000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
+
     def test_sub_orgs(self):
 
         from temba.orgs.models import Debit
-        settings.MULTI_ORG_THRESHOLD = 1000000
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
 
         # lets start with two topups
         expires = timezone.now() + timedelta(days=400)
@@ -1497,9 +1514,8 @@ class OrgTest(TembaTest):
         # we won't create sub orgs if the org isn't the proper level
         self.assertIsNone(sub_org)
 
-        # upgrade our org and go again
-        self.org.multi_org = True
-        self.org.save()
+        # lower the tier and try again
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
         sub_org = self.org.create_sub_org('Sub Org')
 
         # suborgs can't create suborgs
@@ -1566,7 +1582,7 @@ class OrgTest(TembaTest):
 
         self.login(self.admin)
 
-        settings.MULTI_ORG_THRESHOLD = 1000000
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
 
         # set our org on the session
         session = self.client.session
@@ -1597,9 +1613,9 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_manage_accounts_sub_org'))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
-        # support multi orgs and see our button shows up
-        self.org.multi_org = True
-        self.org.save()
+        # zero out our tier
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        self.assertTrue(self.org.is_multi_org_tier())
         response = self.client.get(reverse('orgs.org_home'))
         self.assertContains(response, 'Manage Organizations')
 

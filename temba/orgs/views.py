@@ -1062,7 +1062,7 @@ class OrgCRUDL(SmartCRUDL):
         # if we don't support multi orgs, go home
         def pre_process(self, request, *args, **kwargs):
             response = super(OrgPermsMixin, self).pre_process(request, *args, **kwargs)
-            if not response and not request.user.get_org().is_multi_org_level():
+            if not response and not request.user.get_org().is_multi_org_tier():
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             return response
 
@@ -1844,7 +1844,7 @@ class OrgCRUDL(SmartCRUDL):
                 formax.add_section('resthooks', reverse('orgs.org_resthooks'), icon='icon-cloud-lightning', dependents="resthooks")
 
             # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_level():
+            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_tier():
                 formax.add_section('accounts', reverse('orgs.org_accounts'), icon='icon-users', action='redirect')
 
     class TransferToAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
