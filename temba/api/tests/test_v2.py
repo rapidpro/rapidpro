@@ -12,6 +12,7 @@ from django.conf import settings
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
+from rest_framework import serializers
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
@@ -22,6 +23,7 @@ from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
 from ..models import APIToken, Resthook, WebHookEvent
+from ..v2 import fields
 from ..v2.serializers import format_datetime
 
 
@@ -131,6 +133,44 @@ class APITest(TembaTest):
             self.assertIsInstance(response.json, dict)
             self.assertIn('detail', response.json)
             self.assertEqual(response.json['detail'], expected_message)
+
+    def test_serializer_fields(self):
+        field = fields.LimitedListField(child=serializers.IntegerField(), source='test')
+
+        self.assertEqual(field.to_internal_value([1, 2, 3]), [1, 2, 3])
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, list(range(101)))  # too long
+
+        field = fields.ChannelField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value(self.channel.uuid), self.channel)
+        self.channel.is_active = False
+        self.channel.save()
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, self.channel.uuid)
+
+        field = fields.ContactField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value(self.joe.uuid), self.joe)
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, [self.joe.uuid, self.frank.uuid])
+
+        field = fields.ContactField(source='test', many=True)
+        field.child_relation.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value([self.joe.uuid, self.frank.uuid]), [self.joe, self.frank])
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, self.joe.uuid)
+
+        field = fields.ContactGroupField(source='test')
+        field.context = {'org': self.org}
+        group = self.create_group("Customers")
+
+        self.assertEqual(field.to_internal_value(group.uuid), group)
+
+        field = fields.FlowField(source='test')
+        field.context = {'org': self.org}
+        flow = self.create_flow()
+
+        self.assertEqual(field.to_internal_value(flow.uuid), flow)
 
     def test_authentication(self):
         def api_request(endpoint, token):
@@ -771,7 +811,7 @@ class APITest(TembaTest):
         })
         self.assertResponseError(response, 'language', "Ensure this field has no more than 3 characters.")
         self.assertResponseError(response, 'urns', "Invalid URN: 1234556789")
-        self.assertResponseError(response, 'groups', "No such group with UUID: 59686b4e-14bc-4160-9376-b649b218c806")
+        self.assertResponseError(response, 'groups', "No such object with UUID: 59686b4e-14bc-4160-9376-b649b218c806")
         self.assertResponseError(response, 'fields', "Invalid contact field key: hmmm")
 
         # update an existing contact by UUID but don't provide any fields
@@ -851,8 +891,13 @@ class APITest(TembaTest):
         response = self.postJSON(url, {'uuid': hans.uuid})
         self.assertResponseError(response, 'uuid', "No such contact with UUID: %s" % hans.uuid)
 
+        # try to add a contact to a dynamic group
         response = self.postJSON(url, {'uuid': jean.uuid, 'groups': [dyn_group.uuid]})
         self.assertResponseError(response, 'groups', "Can't add contact to dynamic group with UUID: %s" % dyn_group.uuid)
+
+        # try to give a contact more than 100 URNs
+        response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ['twitter:bob%d' % u for u in range(101)]})
+        self.assertResponseError(response, 'urns', "Exceeds maximum list size of 100")
 
         # try to move a blocked contact into a group
         jean.block(self.user)
@@ -865,9 +910,16 @@ class APITest(TembaTest):
             self.assertResponseError(response, 'urn', "Referencing by URN not allowed for anonymous organizations")
 
             # can't update contact URNs
-            response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ['tel:2234556700']})
+            response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ["tel:2234556700"]})
             self.assertResponseError(response, 'non_field_errors',
                                      "Updating contact URNs not allowed for anonymous organizations")
+
+            # can create with URNs
+            response = self.postJSON(url, {'name': "Xavier", 'urns': ["tel:2234556701"]})
+            self.assertEqual(response.status_code, 201)
+
+            xavier = Contact.objects.get(name="Xavier")
+            self.assertEqual(set(xavier.urns.values_list('urn', flat=True)), {"tel:2234556701"})
 
     def test_definitions(self):
         url = reverse('api.v2.definitions')
@@ -1634,20 +1686,31 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
 
         # invalid URN
-        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['foo:bar'], contacts=[self.joe.uuid]))
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['foo:bar'],
+                                           contacts=[self.joe.uuid]))
         self.assertEqual(response.status_code, 400)
 
         # invalid contact uuid
-        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], contacts=['abcde']))
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'],
+                                           contacts=['abcde']))
         self.assertEqual(response.status_code, 400)
 
         # invalid group uuid
-        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], groups=['abcde']))
-        self.assertEqual(response.status_code, 400)
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'],
+                                           groups=['abcde']))
+        self.assertResponseError(response, 'groups', "No such object with UUID: abcde")
 
         # invalid flow uuid
         response = self.postJSON(url, dict(flow='abcde', restart_participants=True, urns=['tel:+12067791212']))
-        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, 'flow', "No such object with UUID: abcde")
+
+        # too many groups
+        group_uuids = []
+        for g in range(101):
+            group_uuids.append(self.create_group("Group %d" % g).uuid)
+
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, groups=group_uuids))
+        self.assertResponseError(response, 'groups', "Exceeds maximum list size of 100")
 
         # check our list
         anon_contact = Contact.objects.get(urns__path="+12067791212")

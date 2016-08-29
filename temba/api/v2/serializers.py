@@ -8,14 +8,15 @@ from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
-
-from temba.contacts.models import Contact, ContactField, ContactGroup, URN
+from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
+
+from . import fields
 
 
 def format_datetime(value):
@@ -56,32 +57,6 @@ class WriteSerializer(serializers.Serializer):
         return super(WriteSerializer, self).run_validation(data)
 
 
-class UUIDListField(serializers.ListField):
-    child = serializers.UUIDField()
-
-
-class URNField(serializers.CharField):
-    def to_representation(self, obj):
-        if self.context['org'].is_anon:
-            return None
-        else:
-            return six.text_type(obj)
-
-    def to_internal_value(self, data):
-        try:
-            normalized = URN.normalize(data)
-            if not URN.validate(normalized):
-                raise ValueError()
-        except ValueError:
-            raise serializers.ValidationError("Invalid URN: %s" % data)
-
-        return normalized
-
-
-class URNListField(serializers.ListField):
-    child = URNField()
-
-
 # ============================================================
 # Serializers (A-Z)
 # ============================================================
@@ -110,20 +85,14 @@ class AdminBoundaryReadSerializer(ReadSerializer):
 
 class BroadcastReadSerializer(ReadSerializer):
     urns = serializers.SerializerMethodField()
-    contacts = serializers.SerializerMethodField()
-    groups = serializers.SerializerMethodField()
+    contacts = fields.ContactField(many=True)
+    groups = fields.ContactGroupField(many=True)
 
     def get_urns(self, obj):
         if self.context['org'].is_anon:
             return None
         else:
             return [urn.urn for urn in obj.urns.all()]
-
-    def get_contacts(self, obj):
-        return [{'uuid': c.uuid, 'name': c.name} for c in obj.contacts.all()]
-
-    def get_groups(self, obj):
-        return [{'uuid': g.uuid, 'name': g.name} for g in obj.groups.all()]
 
     class Meta:
         model = Broadcast
@@ -134,17 +103,11 @@ class ChannelEventReadSerializer(ReadSerializer):
     TYPES = ReadSerializer.extract_constants(ChannelEvent.TYPE_CONFIG)
 
     type = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField()
-    channel = serializers.SerializerMethodField()
+    contact = fields.ContactField()
+    channel = fields.ChannelField()
 
     def get_type(self, obj):
         return self.TYPES.get(obj.event_type)
-
-    def get_contact(self, obj):
-        return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
-
-    def get_channel(self, obj):
-        return {'uuid': obj.channel.uuid, 'name': obj.channel.name}
 
     class Meta:
         model = ChannelEvent
@@ -152,10 +115,7 @@ class ChannelEventReadSerializer(ReadSerializer):
 
 
 class CampaignReadSerializer(ReadSerializer):
-    group = serializers.SerializerMethodField()
-
-    def get_group(self, obj):
-        return {'uuid': obj.group.uuid, 'name': obj.group.name}
+    group = fields.ContactGroupField()
 
     class Meta:
         model = Campaign
@@ -165,13 +125,10 @@ class CampaignReadSerializer(ReadSerializer):
 class CampaignEventReadSerializer(ReadSerializer):
     UNITS = ReadSerializer.extract_constants(CampaignEvent.UNIT_CONFIG)
 
-    campaign = serializers.SerializerMethodField()
+    campaign = fields.CampaignField()
     flow = serializers.SerializerMethodField()
     relative_to = serializers.SerializerMethodField()
     unit = serializers.SerializerMethodField()
-
-    def get_campaign(self, obj):
-        return {'uuid': obj.campaign.uuid, 'name': obj.campaign.name}
 
     def get_flow(self, obj):
         if obj.event_type == CampaignEvent.TYPE_FLOW:
@@ -266,11 +223,11 @@ class ContactReadSerializer(ReadSerializer):
 
 class ContactWriteSerializer(WriteSerializer):
     uuid = serializers.UUIDField(required=False)
-    urn = URNField(required=False)
+    urn = fields.URNField(required=False)
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
-    urns = URNListField(required=False)
-    groups = UUIDListField(required=False)
+    urns = fields.URNListField(required=False)
+    groups = fields.ContactGroupField(many=True, required=False)
     fields = serializers.DictField(required=False)
 
     def __init__(self, *args, **kwargs):
@@ -289,16 +246,11 @@ class ContactWriteSerializer(WriteSerializer):
         return value
 
     def validate_groups(self, value):
-        groups = []
-        for uuid in value:
-            group = ContactGroup.user_groups.filter(org=self.context['org'], uuid=uuid).first()
-            if not group:
-                raise serializers.ValidationError("No such group with UUID: %s" % uuid)
+        for group in value:
             if group.is_dynamic:
-                raise serializers.ValidationError("Can't add contact to dynamic group with UUID: %s" % uuid)
-            groups.append(group)
+                raise serializers.ValidationError("Can't add contact to dynamic group with UUID: %s" % group.uuid)
 
-        return groups
+        return value
 
     def validate_fields(self, value):
         valid_keys = {f.key for f in self.context['contact_fields']}
@@ -434,16 +386,10 @@ class FlowRunReadSerializer(ReadSerializer):
         FlowRun.EXIT_TYPE_EXPIRED: 'expired'
     }
 
-    flow = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField()
+    flow = fields.FlowField()
+    contact = fields.ContactField()
     steps = serializers.SerializerMethodField()
     exit_type = serializers.SerializerMethodField()
-
-    def get_flow(self, obj):
-        return {'uuid': obj.flow.uuid, 'name': obj.flow.name}
-
-    def get_contact(self, obj):
-        return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
 
     def get_steps(self, obj):
         # avoiding fetching org again
@@ -493,26 +439,11 @@ class FlowStartReadSerializer(ReadSerializer):
         FlowStart.STATUS_FAILED: 'failed'
     }
 
-    flow = serializers.SerializerMethodField()
+    flow = fields.FlowField()
     status = serializers.SerializerMethodField()
-    groups = serializers.SerializerMethodField()
-    contacts = serializers.SerializerMethodField()
+    groups = fields.ContactGroupField(many=True)
+    contacts = fields.ContactField(many=True)
     extra = serializers.SerializerMethodField()
-
-    def get_contacts(self, obj):
-        contacts = []
-        for contact in obj.contacts.all():
-            contacts.append(dict(uuid=contact.uuid, name=contact.name))
-        return contacts
-
-    def get_groups(self, obj):
-        groups = []
-        for group in obj.groups.all():
-            groups.append(dict(uuid=group.uuid, name=group.name))
-        return groups
-
-    def get_flow(self, obj):
-        return dict(uuid=obj.flow.uuid, name=obj.flow.name)
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
@@ -529,37 +460,11 @@ class FlowStartReadSerializer(ReadSerializer):
 
 
 class FlowStartWriteSerializer(WriteSerializer):
-    flow = serializers.UUIDField()
-    contacts = UUIDListField(required=False)
-    groups = UUIDListField(required=False)
-    urns = URNListField(required=False)
+    flow = fields.FlowField()
+    contacts = fields.ContactField(many=True, required=False)
+    groups = fields.ContactGroupField(many=True, required=False)
+    urns = fields.URNListField(required=False)
     extra = serializers.JSONField(required=False)
-
-    def validate_flow(self, value):
-        flow = Flow.objects.filter(org=self.context['org'], is_active=True, uuid=value).first()
-        if not flow:
-            raise ValidationError("No flow found with UUID: %s" % value)
-        return flow
-
-    def validate_contacts(self, value):
-        contacts = []
-        for contact_uuid in value:
-            contact = Contact.objects.filter(org=self.context['org'], is_active=True, uuid=contact_uuid).first()
-            if not contact:
-                raise ValidationError("No contact found with UUID: %s" % value)
-            contacts.append(contact)
-
-        return contacts
-
-    def validate_groups(self, value):
-        groups = []
-        for group_uuid in value:
-            group = ContactGroup.user_groups.filter(org=self.context['org'], is_active=True, uuid=group_uuid).first()
-            if not group:
-                raise ValidationError("No group found with UUID: %s" % value)
-            groups.append(group)
-
-        return groups
 
     def validate_urns(self, value):
         urn_contacts = []
@@ -623,9 +528,9 @@ class MsgReadSerializer(ReadSerializer):
     }
 
     broadcast = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField()
-    urn = URNField(source='contact_urn')
-    channel = serializers.SerializerMethodField()
+    contact = fields.ContactField()
+    urn = fields.URNField(source='contact_urn')
+    channel = fields.ChannelField()
     direction = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
@@ -635,12 +540,6 @@ class MsgReadSerializer(ReadSerializer):
 
     def get_broadcast(self, obj):
         return obj.broadcast_id
-
-    def get_contact(self, obj):
-        return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
-
-    def get_channel(self, obj):
-        return {'uuid': obj.channel.uuid, 'name': obj.channel.name} if obj.channel_id else None
 
     def get_direction(self, obj):
         return self.DIRECTIONS.get(obj.direction)
