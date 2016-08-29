@@ -43,7 +43,7 @@ def api(request, format=None):
     The following endpoints are provided:
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
-     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
+     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list campaigns
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
