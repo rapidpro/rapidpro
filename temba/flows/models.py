@@ -4732,7 +4732,6 @@ class ReplyAction(Action):
             if not any([v for v in msg.values()]):
                 raise FlowException("Invalid reply action, missing at least one message")
         elif not msg:
-            print json_obj
             raise FlowException("Invalid reply action, no message")
 
         return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
