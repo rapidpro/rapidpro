@@ -399,7 +399,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class BroadcastEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
+class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list message broadcasts on your account using the ```GET``` method.
 
