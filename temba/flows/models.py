@@ -2160,7 +2160,8 @@ class Flow(TembaModel):
                     config = dict()
 
                 # cap our lengths
-                label = label[:64]
+                if label:
+                    label = label[:64]
 
                 if operand:
                     operand = operand[:128]
@@ -4731,6 +4732,7 @@ class ReplyAction(Action):
             if not any([v for v in msg.values()]):
                 raise FlowException("Invalid reply action, missing at least one message")
         elif not msg:
+            print json_obj
             raise FlowException("Invalid reply action, no message")
 
         return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
