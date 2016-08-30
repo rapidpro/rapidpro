@@ -18,7 +18,7 @@ from smartmin.views import SmartTemplateView, SmartFormView
 from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
+from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField, URN
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
@@ -105,6 +105,7 @@ class ApiExplorerView(SmartTemplateView):
             ChannelEventsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_write_explorer(),
+            ContactsEndpoint.get_delete_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FlowsEndpoint.get_read_explorer(),
@@ -182,10 +183,17 @@ class BaseAPIView(generics.GenericAPIView):
     Base class of all our API endpoints
     """
     permission_classes = (SSLPermission, APIPermission)
+    throttle_scope = 'v2'
+    model = None
+    model_manager = 'objects'
 
     @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
+
+    def get_queryset(self):
+        org = self.request.user.get_org()
+        return getattr(self.model, self.model_manager).filter(org=org)
 
     def get_serializer_context(self):
         context = super(BaseAPIView, self).get_serializer_context()
@@ -198,9 +206,6 @@ class ListAPIMixin(mixins.ListModelMixin):
     """
     Mixin for any endpoint which returns a list of objects from a GET request
     """
-    throttle_scope = 'v2'
-    model = None
-    model_manager = 'objects'
     exclusive_params = ()
     required_params = ()
 
@@ -225,10 +230,6 @@ class ListAPIMixin(mixins.ListModelMixin):
         if self.required_params:
             if sum([(1 if params.get(p) else 0) for p in self.required_params]) != 1:
                 raise InvalidQueryError("You must specify one of the %s parameters" % ", ".join(self.required_params))
-
-    def get_queryset(self):
-        org = self.request.user.get_org()
-        return getattr(self.model, self.model_manager).filter(org=org)
 
     def filter_before_after(self, queryset, field):
         """
@@ -298,12 +299,16 @@ class CreateAPIMixin(object):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
-class DeleteAPIMixin(object):
+class DeleteAPIMixin(mixins.DestroyModelMixin):
     """
-    Mixin for any endpoint that can delete objects with a DELETE request
+    Mixin for any endpoint that can delete objects with a DELETE request. We allow endpoints to provide different
+    filtering criteria for deletes then for listing using `filter_delete_queryset`.
     """
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+    def get_object(self):
+        queryset = self.get_queryset()
+        queryset = self.filter_delete_queryset(queryset)
+
+        return generics.get_object_or_404(queryset)
 
 
 # ============================================================
@@ -851,7 +856,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
+class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Adding Contacts
 
@@ -956,6 +961,19 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
                 "modified_on": "2015-11-11T13:05:57.576056Z"
             }]
         }
+
+    ## Deleting Contacts
+
+    A **DELETE** removes a matching contact from your account. You must provide one of the following:
+
+    * **uuid** - the UUID of the contact to delete (string)
+    * **urn** - the URN of the contact to delete (string)
+
+    Example:
+
+        DELETE /api/v2/contacts.json?uuid=27fb583b-3087-4778-a2b3-8af489bf4a93
+
+    You will receive either a 204 response if a contact was deleted, or a 404 response if no matching contact was found.
     """
     permission = 'contacts.contact_api'
     model = Contact
@@ -1010,6 +1028,26 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
         context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
         return context
 
+    def filter_delete_queryset(self, queryset):
+        org = self.request.user.get_org()
+        uuid = self.request.query_params.get('uuid')
+        urn = self.request.query_params.get('urn')
+
+        if uuid and urn or (not uuid and not urn):
+            raise InvalidQueryError("You must specify either a UUID or URN")
+
+        if uuid:
+            queryset = queryset.filter(uuid=uuid)
+        if urn:
+            urn = URN.normalize(urn, country_code=org.get_country_code())
+
+            queryset = queryset.filter(urns__urn=urn)
+
+        return queryset
+
+    def perform_destroy(self, instance):
+        instance.release(self.request.user)
+
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -1045,6 +1083,20 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
                 {'name': "groups", 'required': False, 'help': "List of UUIDs of groups that the contact belongs to."},
                 {'name': "fields", 'required': False, 'help': "Custom fields as a JSON dictionary."},
             ]
+        }
+
+    @classmethod
+    def get_delete_explorer(cls):
+        return {
+            'method': "DELETE",
+            'title': "Delete Contacts",
+            'url': reverse('api.v2.contacts'),
+            'slug': 'contact-delete',
+            'request': '',
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "UUID of the contact to be deleted"},
+                {'name': "urn", 'required': False, 'help': "URN of the contact to be deleted. ex: tel:+250788123123"}
+            ],
         }
 
 
