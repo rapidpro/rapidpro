@@ -25,8 +25,9 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.channels.models import Channel, ChannelEvent, ANDROID, SEND, CALL
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils.email import send_template_email
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils.cache import get_cacheable_attr
+from temba.utils.email import send_template_email
 from temba.utils.expressions import evaluate_template
 from temba.utils.models import TembaModel
 from temba.utils.queues import DEFAULT_PRIORITY, push_task, LOW_PRIORITY, HIGH_PRIORITY
@@ -43,6 +44,7 @@ HANDLER_QUEUE = 'handler'
 HANDLE_EVENT_TASK = 'handle_event_task'
 MSG_EVENT = 'msg'
 FIRE_EVENT = 'fire'
+TIMEOUT_EVENT = 'timeout'
 
 BATCH_SIZE = 500
 
@@ -64,12 +66,6 @@ OUTGOING = 'O'
 INBOX = 'I'
 FLOW = 'F'
 IVR = 'V'
-
-SMS_HIGH_PRIORITY = 1000
-SMS_NORMAL_PRIORITY = 500
-SMS_BULK_PRIORITY = 100
-
-BULK_THRESHOLD = 50
 
 MSG_SENT_KEY = 'msgs_sent_%y_%m_%d'
 
@@ -154,6 +150,8 @@ class Broadcast(models.Model):
     messages sent from the same bundle together
     """
     STATUS_CHOICES = [(s[0], s[1]) for s in STATUS_CONFIG]
+
+    BULK_THRESHOLD = 50  # use bulk priority for messages if number of recipients greater than this
 
     org = models.ForeignKey(Org, verbose_name=_("Org"),
                             help_text=_("The org this broadcast is connected to"))
@@ -343,8 +341,40 @@ class Broadcast(models.Model):
 
         return commands
 
+    def get_preferred_languages(self, contact, base_language=None, org=None):
+        """
+        Gets the ordered list of language preferences for the given contact
+        """
+        org = org or self.org  # org object can be provided to allow caching of org languages
+        preferred_languages = []
+
+        if org.primary_language:
+            preferred_languages.append(org.primary_language.iso_code)
+
+        if base_language:
+            preferred_languages.append(base_language)
+
+        # if contact has a language and it's a valid org language, it has priority
+        if contact.language and contact.language in org.get_language_codes():
+            preferred_languages = [contact.language] + preferred_languages
+
+        return preferred_languages
+
+    def get_translations(self):
+        if not self.language_dict:
+            return []
+        return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
+
+    def get_translated_text(self, contact, base_language=None, org=None):
+        """
+        Gets the appropriate translation for the given contact. base_language may be provided
+        """
+        translations = self.get_translations()
+        preferred_languages = self.get_preferred_languages(contact, base_language, org)
+        return Language.get_localized_text(translations, preferred_languages, self.text)
+
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, base_language=None, partial_recipients=None):
+             created_on=None, base_language=None, partial_recipients=None, run_map=None):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
         """
@@ -376,21 +406,11 @@ class Broadcast(models.Model):
         recipient_batch = []
 
         # our priority is based on the number of recipients
-        priority = SMS_NORMAL_PRIORITY
+        priority = Msg.PRIORITY_NORMAL
         if len(recipients) == 1:
-            priority = SMS_HIGH_PRIORITY
-        elif len(recipients) >= BULK_THRESHOLD:
-            priority = SMS_BULK_PRIORITY
-
-        # determine our preferred languages
-        org_languages = {l.iso_code for l in self.org.languages.all()}
-        other_preferred_languages = []
-
-        if self.org.primary_language:
-            other_preferred_languages.append(self.org.primary_language.iso_code)
-
-        if base_language:
-            other_preferred_languages.append(base_language)
+            priority = Msg.PRIORITY_HIGH
+        elif len(recipients) >= self.BULK_THRESHOLD:
+            priority = Msg.PRIORITY_BULK
 
         # if they didn't pass in a created on, create one ourselves
         if not created_on:
@@ -399,22 +419,24 @@ class Broadcast(models.Model):
         # pre-fetch channels to reduce database hits
         org = Org.objects.filter(pk=self.org.id).prefetch_related('channels').first()
 
-        # build our text translations
-        text_translations = None
-        if self.language_dict:
-            text_translations = json.loads(self.language_dict)
-
         for recipient in recipients:
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
 
-            # if contact has a language and it's a valid org language, it has priority
-            if contact.language and contact.language in org_languages:
-                preferred_languages = [contact.language] + other_preferred_languages
-            else:
-                preferred_languages = other_preferred_languages
+            # get the appropriate translation for this contact
+            text = self.get_translated_text(contact, base_language)
 
-            # find the right text to send
-            text = Language.get_localized_text(text_translations, preferred_languages, self.text)
+            # add in our parent context if the message references @parent
+            if run_map:
+                run = run_map.get(recipient.pk, None)
+                if run and run.flow:
+                    # a bit kludgy here, but should avoid most unnecessary context creations.
+                    # since this path is an optimization for flow starts, we don't need to
+                    # worry about the @child context.
+                    if 'parent' in text:
+                        if run.parent:
+                            from temba.flows.models import Flow
+                            message_context = message_context.copy()
+                            message_context.update(dict(parent=Flow.build_flow_context(run.parent.flow, run.parent.contact)))
 
             try:
                 msg = Msg.create_outgoing(org,
@@ -559,6 +581,10 @@ class Msg(models.Model):
 
     MEDIA_TYPES = [MEDIA_AUDIO, MEDIA_GPS, MEDIA_IMAGE, MEDIA_VIDEO]
 
+    PRIORITY_HIGH = 1000
+    PRIORITY_NORMAL = 500
+    PRIORITY_BULK = 100
+
     org = models.ForeignKey(Org, related_name='msgs', verbose_name=_("Org"),
                             help_text=_("The org this message is connected to"))
 
@@ -581,7 +607,7 @@ class Msg(models.Model):
     text = models.TextField(max_length=640, verbose_name=_("Text"),
                             help_text=_("The actual message content that was sent"))
 
-    priority = models.IntegerField(default=SMS_NORMAL_PRIORITY,
+    priority = models.IntegerField(default=PRIORITY_NORMAL,
                                    help_text=_("The priority for this message to be sent, higher is higher priority"))
 
     created_on = models.DateTimeField(verbose_name=_("Created On"), db_index=True,
@@ -696,9 +722,9 @@ class Msg(models.Model):
                         task = msg.as_task_json()
 
                         # only be low priority if no priority has been set for this task group
-                        if msg.priority == SMS_BULK_PRIORITY and task_priority is None:
+                        if msg.priority == Msg.PRIORITY_BULK and task_priority is None:
                             task_priority = LOW_PRIORITY
-                        elif msg.priority == SMS_HIGH_PRIORITY:
+                        elif msg.priority == Msg.PRIORITY_HIGH:
                             task_priority = HIGH_PRIORITY
 
                         task_msgs.append(task)
@@ -1047,7 +1073,7 @@ class Msg(models.Model):
         Resends this message by creating a clone and triggering a send of that clone
         """
         now = timezone.now()
-        topup_id = self.org.decrement_credit()  # costs 1 credit to resend message
+        (topup_id, amount) = self.org.decrement_credit()  # costs 1 credit to resend message
 
         # see if we should use a new channel
         channel = self.org.get_send_channel(contact_urn=self.contact_urn)
@@ -1149,7 +1175,7 @@ class Msg(models.Model):
         if topup:
             topup_id = topup.pk
         elif not contact.is_test:
-            topup_id = org.decrement_credit()
+            (topup_id, amount) = org.decrement_credit()
 
         # we limit text messages to 640 characters
         if text:
@@ -1184,7 +1210,8 @@ class Msg(models.Model):
         if channel:
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
-        if status in (PENDING, INTERRUPTED):
+        # ivr messages are handled in handle_call
+        if status in (PENDING, INTERRUPTED) and msg_type != IVR:
             msg.handle()
 
             # fire an event off for this message
@@ -1238,7 +1265,7 @@ class Msg(models.Model):
         return evaluate_template(text, context, url_encode, partial_vars)
 
     @classmethod
-    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=SMS_NORMAL_PRIORITY,
+    def create_outgoing(cls, org, user, recipient, text, broadcast=None, channel=None, priority=PRIORITY_NORMAL,
                         created_on=None, response_to=None, message_context=None, status=PENDING, insert_object=True,
                         media=None, topup_id=None, msg_type=INBOX):
 
@@ -1316,7 +1343,7 @@ class Msg(models.Model):
 
         # costs 1 credit to send a message
         if not topup_id and not contact.is_test:
-            topup_id = org.decrement_credit()
+            (topup_id, amount) = org.decrement_credit()
 
         if response_to:
             msg_type = response_to.msg_type
@@ -1475,8 +1502,6 @@ class Msg(models.Model):
             msg.archive()
             changed.append(msg.pk)
 
-        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
-
         return changed
 
     @classmethod
@@ -1487,8 +1512,6 @@ class Msg(models.Model):
             msg.restore()
             changed.append(msg.pk)
 
-        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
-
         return changed
 
     @classmethod
@@ -1498,8 +1521,6 @@ class Msg(models.Model):
         for msg in msgs:
             msg.release()
             changed.append(msg.pk)
-
-        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
 
         return changed
 
@@ -1907,7 +1928,7 @@ class ExportMessagesTask(SmartModel):
         date_style = XFStyle()
         date_style.num_format_str = 'DD-MM-YYYY HH:MM:SS'
 
-        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels']
+        fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels', "Status"]
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
@@ -1978,6 +1999,7 @@ class ExportMessagesTask(SmartModel):
             current_messages_sheet.write(row, 5, msg.get_direction_display())
             current_messages_sheet.write(row, 6, msg.text)
             current_messages_sheet.write(row, 7, msg_labels)
+            current_messages_sheet.write(row, 8, msg.get_status_display())
             row += 1
             processed += 1
 

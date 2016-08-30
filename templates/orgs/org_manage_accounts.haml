@@ -90,6 +90,10 @@
 
 - block fields
 
+  -if parent
+    %h4
+      <a href="{% url 'orgs.org_sub_orgs'%}">{%blocktrans%}Organizations{%endblocktrans%}</a> &raquo; {{org.name}}
+
   %table.table.table-condensed{style:"margin-bottom:0px;"}
     %thead
       %tr

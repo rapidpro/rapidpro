@@ -28,16 +28,16 @@ from django.utils.html import escape
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
+from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
-from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING, \
-    INTERRUPTED
+from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
+from temba.msgs.models import INTERRUPTED, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
-from temba.utils.cache import get_cacheable
 from temba.utils.email import send_template_email, is_valid_address
-from temba.utils.models import TembaModel, ChunkIterator
+from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
@@ -260,14 +260,14 @@ class Flow(TembaModel):
         flow = Flow.create(org, user, name, base_language=base_language)
 
         uuid = unicode(uuid4())
-        actions = [dict(type='add_group', group=dict(id=group.pk, name=group.name)),
+        actions = [dict(type='add_group', group=dict(uuid=group.uuid, name=group.name)),
                    dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
         if response:
             actions += [dict(type='reply', msg={base_language: response})]
 
         if start_flow:
-            actions += [dict(type='flow', id=start_flow.pk, name=start_flow.name)]
+            actions += [dict(type='flow', flow=dict(uuid=start_flow.uuid, name=start_flow.name))]
 
         action_sets = [dict(x=100, y=0, uuid=uuid, actions=actions)]
         flow.update(dict(entry=uuid, base_language=base_language,
@@ -276,50 +276,15 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def export_definitions(cls, flows):
-        """
-        Builds a json definition fit for export
-        """
-        exported_triggers = []
-        exported_flows = []
-
-        for flow in flows:
-            # only export current versions
-            flow.ensure_current_version()
-
-            # get our json with group names
-            exported_flows.append(flow.as_json(expand_contacts=True))
-
-        # get all non-schedule based triggers that are active for these flows
-        triggers = set()
-        for flow in flows:
-            triggers.update(flow.get_dependencies()['triggers'])
-
-        for trigger in triggers:
-            exported_triggers.append(trigger.as_json())
-
-        from temba.orgs.models import CURRENT_EXPORT_VERSION
-        return dict(version=CURRENT_EXPORT_VERSION, flows=exported_flows, triggers=exported_triggers)
-
-    @classmethod
     def import_flows(cls, exported_json, org, user, same_site=False):
         """
         Import flows from our flow export file
         """
-        export_version = exported_json.get('version', 0)
-        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
-        if export_version < EARLIEST_IMPORT_VERSION:
-            raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
-
         created_flows = []
-        flow_id_map = dict()
+        flow_uuid_map = dict()
 
         # create all the flow containers first
         for flow_spec in exported_json['flows']:
-
-            # migrate our flow definition forward if necessary
-            if export_version < CURRENT_EXPORT_VERSION:
-                flow_spec = FlowRevision.migrate_definition(flow_spec, export_version)
 
             FlowRevision.validate_flow_definition(flow_spec)
 
@@ -333,7 +298,7 @@ class Flow(TembaModel):
             if flow_type != Flow.MESSAGE:
                 # check if we can find that flow by id first
                 if same_site:
-                    flow = Flow.objects.filter(org=org, is_active=True, id=flow_spec['metadata']['id']).first()
+                    flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec['metadata']['uuid']).first()
                     if flow:
                         flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(org, name, ignore=flow)
@@ -349,24 +314,32 @@ class Flow(TembaModel):
                                        expires_after_minutes=flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER))
 
                 created_flows.append(dict(flow=flow, flow_spec=flow_spec))
-                flow_id_map[flow_spec['metadata']['id']] = flow.pk
+
+                if 'uuid' in flow_spec['metadata']:
+                    flow_uuid_map[flow_spec['metadata']['uuid']] = flow.uuid
 
         # now let's update our flow definitions with any referenced flows
+        def remap_flow(element):
+            # first map our id accordingly
+            if element['uuid'] in flow_uuid_map:
+                element['uuid'] = flow_uuid_map[element['uuid']]
+
+            existing_flow = Flow.objects.filter(uuid=element['uuid'], org=org, is_active=True).first()
+            if not existing_flow:
+                existing_flow = Flow.objects.filter(org=org, name=element['name'], is_active=True).first()
+                if existing_flow:
+                    element['uuid'] = existing_flow.uuid
+
         for created in created_flows:
+            for ruleset in created['flow_spec'][Flow.RULE_SETS]:
+                if ruleset['ruleset_type'] == RuleSet.TYPE_SUBFLOW:
+                    remap_flow(ruleset['config']['flow'])
+
             for actionset in created['flow_spec'][Flow.ACTION_SETS]:
                 for action in actionset['actions']:
                     if action['type'] in ['flow', 'trigger-flow']:
-
-                        # first map our id accordingly
-                        if action['id'] in flow_id_map:
-                            action['id'] = flow_id_map[action['id']]
-
-                        existing_flow = Flow.objects.filter(id=action['id'], org=org, is_active=True).first()
-                        if not existing_flow:
-                            existing_flow = Flow.objects.filter(org=org, name=action['name'], is_active=True).first()
-                            if existing_flow:
-                                action['id'] = existing_flow.pk
-
+                        remap_flow(action['flow'])
+            remap_flow(created['flow_spec']['metadata'])
             created['flow'].import_definition(created['flow_spec'])
 
         # remap our flow ids according to how they were resolved
@@ -374,16 +347,18 @@ class Flow(TembaModel):
             for campaign in exported_json['campaigns']:
                 for event in campaign['events']:
                     if 'flow' in event:
-                        flow_id = event['flow']['id']
-                        if flow_id in flow_id_map:
-                            event['flow']['id'] = flow_id_map[flow_id]
+                        flow_uuid = event['flow']['uuid']
+                        if flow_uuid in flow_uuid_map:
+                            event['flow']['uuid'] = flow_uuid_map[flow_uuid]
 
         if 'triggers' in exported_json:
             for trigger in exported_json['triggers']:
                 if 'flow' in trigger:
-                    flow_id = trigger['flow']['id']
-                    if flow_id in flow_id_map:
-                        trigger['flow']['id'] = flow_id_map[flow_id]
+                    flow_uuid = trigger['flow']['uuid']
+                    if flow_uuid in flow_uuid_map:
+                        trigger['flow']['uuid'] = flow_uuid_map[flow_uuid]
+
+        return exported_json
 
     @classmethod
     def copy(cls, flow, user):
@@ -419,6 +394,9 @@ class Flow(TembaModel):
         flow = call.flow
         run = FlowRun.objects.filter(call=call).first()
 
+        # make sure we have the latest version
+        flow.ensure_current_version()
+
         # what we will send back
         voice_response = twiml.Response()
         run.voice_response = voice_response
@@ -436,7 +414,7 @@ class Flow(TembaModel):
             media_url = call.channel.get_ivr_client().download_media(media_url)
 
         # create a message to hold our inbound message
-        from temba.msgs.models import HANDLED, IVR
+        from temba.msgs.models import IVR
         if text is not None or media_url:
 
             # we don't have text for media, so lets use the media value there too
@@ -444,7 +422,7 @@ class Flow(TembaModel):
                 text = media_url.partition(':')[2]
 
             msg = Msg.create_incoming(call.channel, call.contact_urn.urn,
-                                      text, status=HANDLED, msg_type=IVR, media=media_url)
+                                      text, status=PENDING, msg_type=IVR, media=media_url)
         else:
             msg = Msg(org=call.org, contact=call.contact, text='', id=0)
 
@@ -472,6 +450,8 @@ class Flow(TembaModel):
         # if we handled it, increment our unread count
         if handled and not call.contact.is_test:
             run.flow.increment_unread_responses()
+            if msg.id:
+                Msg.mark_handled(msg)
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
@@ -527,7 +507,9 @@ class Flow(TembaModel):
         return name
 
     @classmethod
-    def find_and_handle(cls, msg, started_flows=None, voice_response=None, triggered_start=False):
+    def find_and_handle(cls, msg, started_flows=None, voice_response=None,
+                        triggered_start=False, resume_parent_run=False, resume_after_timeout=False):
+
         if started_flows is None:
             started_flows = []
 
@@ -538,12 +520,14 @@ class Flow(TembaModel):
             destination = Flow.get_node(flow, step.step_uuid, step.step_type)
 
             # this node doesn't exist anymore, mark it as left so they leave the flow
-            if not destination:
+            if not destination:  # pragma: no cover
                 step.run.set_completed(final_step=step)
                 continue
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
-                                                      user_input=True, triggered_start=triggered_start)
+                                                      user_input=True, triggered_start=triggered_start,
+                                                      resume_parent_run=resume_parent_run,
+                                                      resume_after_timeout=resume_after_timeout)
 
             if handled:
                 # increment our unread count if this isn't the simulator
@@ -556,7 +540,8 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_destination(cls, destination, step, run, msg,
-                           started_flows=None, is_test_contact=False, user_input=False, triggered_start=False, trigger_send=True):
+                           started_flows=None, is_test_contact=False, user_input=False,
+                           triggered_start=False, trigger_send=True, resume_parent_run=False, resume_after_timeout=False):
 
         if started_flows is None:
             started_flows = []
@@ -578,14 +563,15 @@ class Flow(TembaModel):
 
             if destination.get_step_type() == FlowStep.TYPE_RULE_SET:
                 should_pause = False
-                # if we are a ruleset against @step or we have a webhook we wait
-                if destination.is_pause():
+
+                # check if we need to stop
+                if destination.is_pause() or msg.status == HANDLED:
                     should_pause = True
 
                 if triggered_start and destination.is_ussd():
                     result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
                     msgs += result['msgs']
-                elif user_input or not should_pause:
+                if (user_input or resume_after_timeout) or not should_pause:
                     result = Flow.handle_ruleset(destination, step, run, msg)
                     add_to_path(path, destination.uuid)
                 # USSD ruleset has extra functionality to send out messages.
@@ -622,6 +608,9 @@ class Flow(TembaModel):
             if result.get('handled', False):
                 handled = True
 
+            resume_parent_run = False
+            resume_after_timeout = False
+
         if handled:
             analytics.gauge('temba.flow_execution', time.time() - start_time)
 
@@ -633,12 +622,10 @@ class Flow(TembaModel):
         return handled, msgs
 
     @classmethod
-    def handle_actionset(cls, actionset, step, run, msg, started_flows=None, is_test_contact=False):
-        if started_flows is None:
-            started_flows = []
+    def handle_actionset(cls, actionset, step, run, msg, started_flows, is_test_contact=False):
 
         # not found, escape out, but we still handled this message, user is now out of the flow
-        if not actionset:
+        if not actionset:  # pragma: no cover
             run.set_completed(final_step=step)
             return dict(handled=True, destination=None, destination_type=None)
 
@@ -664,14 +651,33 @@ class Flow(TembaModel):
         return dict(handled=True, destination=destination, step=step, msgs=msgs)
 
     @classmethod
-    def handle_ruleset(cls, ruleset, step, run, msg):
+    def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
 
         if msg.status == INTERRUPTED:  # check interrupt
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
             if not rule:
                 run.set_interrupted(final_step=step)
                 return dict(handled=True, destination=None, destination_type=None)
-        else:  # find a matching rule
+        else:
+            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                if not resume_parent_run:
+                    flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                    flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
+                    message_context = run.flow.build_message_context(run.contact, msg)
+
+                    # our extra will be the current flow variables
+                    extra = message_context.get('extra', {})
+                    extra['flow'] = message_context.get('flow', {})
+
+                    if msg.id > 0:
+                        step.add_message(msg)
+                        run.update_expiration(timezone.now())
+
+                    if flow:
+                        flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
+                                   extra=extra, parent_run=run, interrupt=False)
+                        return dict(handled=True, destination=None, destination_type=None)
+            # find a matching rule
             rule, value = ruleset.find_matching_rule(step, run, msg)
 
         flow = ruleset.flow
@@ -679,6 +685,7 @@ class Flow(TembaModel):
         # add the message to our step
         if msg.id > 0:
             step.add_message(msg)
+            run.update_expiration(timezone.now())
 
         if ruleset.ruleset_type in RuleSet.TYPE_MEDIA:
             # store the media path as the value
@@ -747,9 +754,48 @@ class Flow(TembaModel):
             try:
                 flow.restore()
                 changed.append(flow.pk)
-            except FlowException:
+            except FlowException:  # pragma: no cover
                 pass
         return changed
+
+    @classmethod
+    def build_flow_context(cls, flow, contact, contact_context=None):
+        """
+        Get a flow context built on the last run for the contact in the given flow
+        """
+
+        date_format = get_datetime_format(flow.org.get_dayfirst())[1]
+        tz = pytz.timezone(flow.org.timezone)
+
+        # wrapper around our value dict, lets us do a nice representation of both @flow.foo and @flow.foo.text
+        def value_wrapper(value):
+            values = dict(text=value['text'],
+                          time=datetime_to_str(value['time'], format=date_format, tz=tz),
+                          category=flow.get_localized_text(value['category'], contact),
+                          value=unicode(value['rule_value']))
+            values['__default__'] = unicode(value['rule_value'])
+            return values
+
+        flow_context = {}
+        values = []
+        if contact:
+            results = flow.get_results(contact, only_last_run=True)
+            if results and results[0]:
+                for value in results[0]['values']:
+                    field = Flow.label_to_slug(value['label'])
+                    flow_context[field] = value_wrapper(value)
+                    values.append("%s: %s" % (value['label'], value['rule_value']))
+
+            flow_context['__default__'] = "\n".join(values)
+
+            # if we don't have a contact context, build one
+            if not contact_context:
+                flow_context['contact'] = contact.build_message_context()
+
+        return flow_context
+
+    def as_select2(self):
+        return dict(id=self.uuid, text=self.name)
 
     def release(self):
         """
@@ -960,13 +1006,13 @@ class Flow(TembaModel):
         return FlowRunCount.run_count(self)
 
     def get_base_text(self, language_dict, default=''):
-        if not isinstance(language_dict, dict):
+        if not isinstance(language_dict, dict):  # pragma: no cover
             return language_dict
 
         if self.base_language:
             return language_dict.get(self.base_language, default)
 
-        return default
+        return default  # pragma: no cover
 
     def get_localized_text(self, text_translations, contact=None, default_text=''):
         """
@@ -1105,6 +1151,9 @@ class Flow(TembaModel):
     def get_completed_runs(self):
         return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_COMPLETED)
 
+    def get_interrupted_runs(self):
+        return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_INTERRUPTED)
+
     def get_expired_runs(self):
         return FlowRunCount.run_count_for_type(self, FlowRun.EXIT_TYPE_EXPIRED)
 
@@ -1140,15 +1189,6 @@ class Flow(TembaModel):
         # increment our global count as well
         self.org.increment_unread_msg_count(UNREAD_FLOW_MSGS)
 
-    def get_terminal_nodes(self):
-        cache_key = self.get_props_cache_key(FlowPropsCache.terminal_nodes)
-        return get_cacheable(cache_key, FLOW_PROP_CACHE_TTL,
-                             lambda: [s.uuid for s in self.action_sets.filter(destination=None)])
-
-    def get_category_nodes(self):
-        cache_key = self.get_props_cache_key(FlowPropsCache.category_nodes)
-        return get_cacheable(cache_key, FLOW_PROP_CACHE_TTL, lambda: [rs.uuid for rs in self.rule_sets.all()])
-
     def get_columns(self):
         node_order = []
         for ruleset in RuleSet.objects.filter(flow=self).exclude(label=None).order_by('y', 'pk'):
@@ -1172,40 +1212,9 @@ class Flow(TembaModel):
         return (rulesets, rule_categories)
 
     def build_message_context(self, contact, msg):
-        # if we have a contact, build up our results for them
-        if contact:
-            results = self.get_results(contact, only_last_run=True)
-        else:
-            results = []
-
         contact_context = contact.build_message_context() if contact else dict()
 
-        # create a flow dict
-        flow_context = dict()
-
-        date_format = get_datetime_format(self.org.get_dayfirst())[1]
-        tz = pytz.timezone(self.org.timezone)
-
-        # wrapper around our value dict, lets us do a nice representation of both @flow.foo and @flow.foo.text
-        def value_wrapper(value):
-            values = dict(text=value['text'],
-                          time=datetime_to_str(value['time'], format=date_format, tz=tz),
-                          category=self.get_localized_text(value['category'], contact),
-                          value=unicode(value['rule_value']))
-            values['__default__'] = unicode(value['rule_value'])
-            return values
-
-        values = []
-
-        if results and results[0]:
-            for value in results[0]['values']:
-                field = Flow.label_to_slug(value['label'])
-                flow_context[field] = value_wrapper(value)
-                values.append("%s: %s" % (value['label'], value['rule_value']))
-
         # our default value
-        flow_context['__default__'] = "\n".join(values)
-
         channel_context = None
 
         # add our message context
@@ -1234,7 +1243,21 @@ class Flow(TembaModel):
         run = self.runs.filter(contact=contact).order_by('-created_on').first()
         run_context = run.field_dict() if run else {}
 
+        # our current flow context
+        flow_context = Flow.build_flow_context(self, contact, contact_context)
+
         context = dict(flow=flow_context, channel=channel_context, step=message_context, extra=run_context)
+
+        # if we have parent or child contexts, add them in too
+        if run:
+            if run.parent:
+                context['parent'] = Flow.build_flow_context(run.parent.flow, run.parent.contact)
+
+            # see if we spawned any children and add them too
+            child_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
+            if child_run:
+                context['child'] = Flow.build_flow_context(child_run.flow, child_run.contact)
+
         if contact:
             context['contact'] = contact_context
 
@@ -1280,7 +1303,8 @@ class Flow(TembaModel):
             if filter_ruleset:
                 flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
 
-            flow_steps = flow_steps.order_by('arrived_on', 'pk').select_related('run').prefetch_related('messages')
+            flow_steps = flow_steps.order_by('arrived_on', 'pk')
+            flow_steps = flow_steps.select_related('run').prefetch_related('messages', 'broadcasts')
 
         steps_cache = {}
         for step in flow_steps:
@@ -1364,18 +1388,18 @@ class Flow(TembaModel):
         start_flow_task.delay(flow_start.pk)
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
-              start_msg=None, extra=None, flow_start=None, parent_run=None):
+              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True):
         """
         Starts a flow for the passed in groups and contacts.
         """
         # build up querysets of our groups for memory efficiency
-        if isinstance(groups, QuerySet):
+        if isinstance(groups, QuerySet):  # pragma: no cover
             group_qs = groups
         else:
             group_qs = ContactGroup.all_groups.filter(id__in=[g.id for g in groups])
 
         # build up querysets of our contacts for memory efficiency
-        if isinstance(contacts, QuerySet):
+        if isinstance(contacts, QuerySet):  # pragma: no cover
             contact_qs = contacts
         else:
             contact_qs = Contact.objects.filter(id__in=[c.id for c in contacts])
@@ -1407,10 +1431,21 @@ class Flow(TembaModel):
             already_started = set(self.runs.all().values_list('contact_id', flat=True))
             all_contact_ids = [contact_id for contact_id in all_contact_ids if contact_id not in already_started]
 
-        else:
-            # stop any runs still active for these contacts
-            previous_runs = self.runs.filter(is_active=True, contact__pk__in=all_contact_ids)
-            FlowRun.bulk_exit(previous_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
+        # if we have a parent run, find any parents/grandparents that are active, we'll keep these active
+        ancestor_ids = []
+        ancestor = parent_run
+        while ancestor:
+            ancestor_ids.append(ancestor.id)
+            ancestor = ancestor.parent
+
+        # for the contacts that will be started, exit any existing flow runs
+        active_runs = FlowRun.objects.filter(is_active=True, contact__pk__in=all_contact_ids).exclude(id__in=ancestor_ids)
+        FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
+
+        # if we are interrupting parent flow runs, mark them as completed
+        if ancestor_ids and interrupt:
+            ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
+            FlowRun.bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
 
         contact_count = len(all_contact_ids)
 
@@ -1448,23 +1483,16 @@ class Flow(TembaModel):
         if not channel or CALL not in channel.role:
             return runs
 
-        # (entry_actions, entry_rules) = (None, None)
-        # if self.entry_type == Flow.ACTIONS_ENTRY:
-        #    entry_actions = ActionSet.objects.filter(uuid=self.entry_uuid).first()
-        #
-        # elif self.entry_type == Flow.RULES_ENTRY:
-        #    entry_rules = RuleSet.objects.filter(uuid=self.entry_uuid).first()
-
         for contact_id in all_contact_ids:
             contact = Contact.objects.filter(pk=contact_id, org=channel.org).first()
             contact_urn = contact.get_urn(TEL_SCHEME)
             channel = self.org.get_call_channel(contact_urn=contact_urn)
 
             # can't reach this contact, move on
-            if not contact or not contact_urn or not channel:
+            if not contact or not contact_urn or not channel:  # pragma: no cover
                 continue
 
-            run = FlowRun.create(self, contact_id, start=flow_start)
+            run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
             if extra:
                 run.update_fields(extra)
 
@@ -1527,7 +1555,8 @@ class Flow(TembaModel):
         # if there are fewer contacts than our batch size, do it immediately
         if len(all_contact_ids) < START_FLOW_BATCH_SIZE:
             return self.start_msg_flow_batch(all_contact_ids, broadcasts=broadcasts, started_flows=started_flows,
-                                             start_msg=start_msg, extra=extra, flow_start=flow_start)
+                                             start_msg=start_msg, extra=extra, flow_start=flow_start,
+                                             parent_run=parent_run)
 
         # otherwise, create batches instead
         else:
@@ -1551,14 +1580,8 @@ class Flow(TembaModel):
 
             return []
 
-    def start_msg_flow_batch(self, batch_contact_ids, broadcasts=None, started_flows=None, start_msg=None,
-                             extra=None, flow_start=None):
-
-        if started_flows is None:
-            started_flows = []
-
-        if broadcasts is None:
-            broadcasts = []
+    def start_msg_flow_batch(self, batch_contact_ids, broadcasts, started_flows, start_msg=None,
+                             extra=None, flow_start=None, parent_run=None):
 
         simulation = False
         if len(batch_contact_ids) == 1:
@@ -1577,7 +1600,8 @@ class Flow(TembaModel):
         now = timezone.now()
 
         for contact_id in batch_contact_ids:
-            run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now, db_insert=False)
+            run = FlowRun.create(self, contact_id, fields=run_fields, start=flow_start, created_on=now,
+                                 parent=parent_run, db_insert=False)
             batch.append(run)
         FlowRun.objects.bulk_create(batch)
 
@@ -1615,7 +1639,7 @@ class Flow(TembaModel):
                 broadcast.send(message_context=message_context, trigger_send=False,
                                response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
                                created_on=created_on, base_language=self.base_language,
-                               partial_recipients=partial_recipients)
+                               partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.current_messages.filter(broadcast=broadcast, created_on=created_on):
@@ -1712,10 +1736,11 @@ class Flow(TembaModel):
         if not arrived_on:
             arrived_on = timezone.now()
 
-        if not is_start:
-            # we have activity, update our expires on date accordingly
-            run.update_expiration(timezone.now())
+        # update our timeouts
+        timeout = node.get_timeout() if isinstance(node, RuleSet) else None
+        run.update_timeout(arrived_on, timeout)
 
+        if not is_start:
             # mark any other states for this contact as evaluated, contacts can only be in one place at time
             self.steps().filter(run=run, left_on=None).update(left_on=arrived_on, next_uuid=node.uuid,
                                                               rule_uuid=rule, rule_category=category)
@@ -1743,7 +1768,9 @@ class Flow(TembaModel):
         r = get_redis_connection()
         if run_ids:
             for key in self.calculate_active_step_keys():
-                r.srem(key, *run_ids)
+                # remove keys 1,000 at a time
+                for batch in chunk_list(run_ids, 1000):
+                    r.srem(key, *batch)
 
     def remove_active_for_step(self, step):
         """
@@ -1818,11 +1845,11 @@ class Flow(TembaModel):
 
     def get_dependencies(self, dependencies=None):
 
+        # need to make sure we have the latest version to inspect dependencies
+        self.ensure_current_version()
+
         if not dependencies:
             dependencies = dict(flows=set(), groups=set(), campaigns=set(), triggers=set())
-
-        if self in dependencies['flows']:
-            return dependencies
 
         flows = set()
         groups = set()
@@ -1837,9 +1864,15 @@ class Flow(TembaModel):
                         if not isinstance(group, unicode):
                             groups.add(group)
 
+        for ruleset in self.rule_sets.all():
+            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                flow = Flow.objects.filter(uuid=ruleset.config_json()['flow']['uuid']).first()
+                if flow:
+                    flows.add(flow)
+
         # add any campaigns that use our groups
         from temba.campaigns.models import Campaign
-        campaigns = Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True)
+        campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
         for campaign in campaigns:
             flows.update(list(campaign.get_flows()))
 
@@ -1849,8 +1882,11 @@ class Flow(TembaModel):
 
         dependencies['flows'].update(flows)
         dependencies['groups'].update(groups)
-        dependencies['campaigns'].update(set(campaigns))
+        dependencies['campaigns'].update(campaigns)
         dependencies['triggers'].update(triggers)
+
+        if self in dependencies['flows']:
+            return dependencies
 
         for flow in flows:
             dependencies = flow.get_dependencies(dependencies)
@@ -1878,34 +1914,37 @@ class Flow(TembaModel):
             actionsets.append(actionset.as_json())
 
         def lookup_action_contacts(action, contacts, groups):
+
             if 'contact' in action:
-                contacts.append(action['contact']['id'])
+                contacts.append(action['contact']['uuid'])
 
             if 'contacts' in action:
                 for contact in action['contacts']:
-                    contacts.append(contact['id'])
+                    contacts.append(contact['uuid'])
 
             if 'group' in action:
                 g = action['group']
                 if isinstance(g, dict):
-                    groups.append(g['id'])
+                    if 'uuid' in g:
+                        groups.append(g['uuid'])
 
             if 'groups' in action:
                 for group in action['groups']:
                     if isinstance(group, dict):
-                        groups.append(group['id'])
+                        if 'uuid' in group:
+                            groups.append(group['uuid'])
 
         def replace_action_contacts(action, contacts, groups):
 
             if 'contact' in action:
-                contact = contacts.get(action['contact']['id'], None)
+                contact = contacts.get(action['contact']['uuid'], None)
                 if contact:
                     action['contact'] = contact.as_json()
 
             if 'contacts' in action:
                 expanded_contacts = []
                 for contact in action['contacts']:
-                    contact = contacts.get(contact['id'], None)
+                    contact = contacts.get(contact['uuid'], None)
                     if contact:
                         expanded_contacts.append(contact.as_json())
 
@@ -1915,9 +1954,10 @@ class Flow(TembaModel):
                 # variable substitution
                 group = action['group']
                 if isinstance(group, dict):
-                    group = groups.get(action['group']['id'], None)
-                    if group:
-                        action['group'] = dict(id=group.id, name=group.name)
+                    if 'uuid' in group:
+                        group = groups.get(group['uuid'], None)
+                        if group:
+                            action['group'] = dict(uuid=group.uuid, name=group.name)
 
             if 'groups' in action:
                 expanded_groups = []
@@ -1927,9 +1967,11 @@ class Flow(TembaModel):
                     if not isinstance(group, dict):
                         expanded_groups.append(group)
                     else:
-                        group = groups.get(group['id'], None)
-                        if group:
-                            expanded_groups.append(dict(id=group.id, name=group.name))
+                        group_instance = groups.get(group['uuid'], None)
+                        if group_instance:
+                            expanded_groups.append(dict(uuid=group_instance.uuid, name=group_instance.name))
+                        else:
+                            expanded_groups.append(group)
 
                 action['groups'] = expanded_groups
 
@@ -1942,8 +1984,8 @@ class Flow(TembaModel):
                     lookup_action_contacts(action, contacts, groups)
 
             # load them all
-            contacts = dict((_.pk, _) for _ in Contact.all().filter(org=self.org, pk__in=contacts))
-            groups = dict((_.pk, _) for _ in ContactGroup.user_groups.filter(org=self.org, pk__in=groups))
+            contacts = dict((_.uuid, _) for _ in Contact.all().filter(org=self.org, uuid__in=contacts))
+            groups = dict((_.uuid, _) for _ in ContactGroup.user_groups.filter(org=self.org, uuid__in=groups))
 
             # and replace them
             for actionset in actionsets:
@@ -1962,21 +2004,24 @@ class Flow(TembaModel):
         flow[Flow.BASE_LANGUAGE] = self.base_language
         flow[Flow.FLOW_TYPE] = self.flow_type
         flow[Flow.VERSION] = CURRENT_EXPORT_VERSION
+        flow[Flow.METADATA] = self.get_metadata()
+        return flow
 
-        # lastly our metadata
-        if not self.metadata:
-            flow[Flow.METADATA] = dict()
-        else:
-            flow[Flow.METADATA] = json.loads(self.metadata)
+    def get_metadata(self):
+
+        metadata = dict()
+        if self.metadata:
+            metadata = json.loads(self.metadata)
 
         revision = self.revisions.all().order_by('-revision').first()
-        flow[Flow.METADATA][Flow.NAME] = self.name
-        flow[Flow.METADATA][Flow.SAVED_ON] = datetime_to_str(self.saved_on)
-        flow[Flow.METADATA][Flow.REVISION] = revision.revision if revision else 1
-        flow[Flow.METADATA][Flow.ID] = self.pk
-        flow[Flow.METADATA][Flow.EXPIRES] = self.expires_after_minutes
 
-        return flow
+        metadata[Flow.NAME] = self.name
+        metadata[Flow.SAVED_ON] = datetime_to_str(self.saved_on)
+        metadata[Flow.REVISION] = revision.revision if revision else 1
+        metadata[Flow.UUID] = self.uuid
+        metadata[Flow.EXPIRES] = self.expires_after_minutes
+
+        return metadata
 
     @classmethod
     def detect_invalid_cycles(cls, json_dict):
@@ -2062,7 +2107,7 @@ class Flow(TembaModel):
                     json_flow = self.as_json()
 
                 self.update(json_flow)
-                # TODO: After Django 1.8 consider doing a self.refresh_from_db() here
+                self.refresh_from_db()
 
     def update(self, json_dict, user=None, force=False):
         """
@@ -2142,8 +2187,6 @@ class Flow(TembaModel):
                 uuid = ruleset.get(Flow.UUID)
                 rules = ruleset.get(Flow.RULES)
                 label = ruleset.get(Flow.LABEL, None)
-                webhook_url = ruleset.get(Flow.WEBHOOK_URL, None)
-                webhook_action = ruleset.get(Flow.WEBHOOK_ACTION, None)
                 operand = ruleset.get(Flow.OPERAND, None)
                 finished_key = ruleset.get(Flow.FINISHED_KEY)
                 ruleset_type = ruleset.get(Flow.RULESET_TYPE)
@@ -2157,9 +2200,6 @@ class Flow(TembaModel):
 
                 if operand:
                     operand = operand[:128]
-
-                if webhook_url:
-                    webhook_url = webhook_url[:255]
 
                 (x, y) = (ruleset.get(Flow.X), ruleset.get(Flow.Y))
 
@@ -2191,8 +2231,6 @@ class Flow(TembaModel):
                 if existing:
                     existing.label = ruleset.get(Flow.LABEL, None)
                     existing.set_rules_dict(rules)
-                    existing.webhook_url = webhook_url
-                    existing.webhook_action = webhook_action
                     existing.operand = operand
                     existing.label = label
                     existing.finished_key = finished_key
@@ -2206,8 +2244,6 @@ class Flow(TembaModel):
                                                       uuid=uuid,
                                                       label=label,
                                                       rules=json.dumps(rules),
-                                                      webhook_url=webhook_url,
-                                                      webhook_action=webhook_action,
                                                       finished_key=finished_key,
                                                       ruleset_type=ruleset_type,
                                                       operand=operand,
@@ -2348,6 +2384,8 @@ class Flow(TembaModel):
             import logging
             logger = logging.getLogger(__name__)
             logger.exception(unicode(e))
+            import traceback
+            traceback.print_exc(e)
             raise e
 
     def __unicode__(self):
@@ -2397,6 +2435,9 @@ class FlowRun(models.Model):
     expires_on = models.DateTimeField(null=True,
                                       help_text=_("When this flow run will expire"))
 
+    timeout_on = models.DateTimeField(null=True,
+                                      help_text=_("When this flow will next time out (if any)"))
+
     responded = models.BooleanField(default=False, help_text='Whether contact has responded in this run')
 
     start = models.ForeignKey('flows.FlowStart', null=True, blank=True, related_name='runs',
@@ -2405,12 +2446,14 @@ class FlowRun(models.Model):
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
                                      help_text="The user which submitted this flow run")
 
+    parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
+
     @classmethod
     def create(cls, flow, contact_id, start=None, call=None, fields=None,
-               created_on=None, db_insert=True, submitted_by=None):
+               created_on=None, db_insert=True, submitted_by=None, parent=None):
 
         args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start,
-                    call=call, fields=fields, submitted_by=submitted_by)
+                    call=call, fields=fields, submitted_by=submitted_by, parent=parent)
 
         if created_on:
             args['created_on'] = created_on
@@ -2486,10 +2529,79 @@ class FlowRun(models.Model):
         if not exited_on:
             exited_on = modified_on
 
+        from .tasks import continue_parent_flows
+
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for batch in chunk_list(runs, 1000):
-            run_objs = FlowRun.objects.filter(pk__in=[r['id'] for r in batch])
+            ids = [r['id'] for r in batch]
+            run_objs = FlowRun.objects.filter(pk__in=ids)
             run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type, modified_on=modified_on)
+
+            # continue the parent flows to continue async
+            continue_parent_flows.delay(ids)
+
+    def get_last_msg(self, direction):
+        """
+        Returns the last incoming msg on this run, or an empty dummy message if there is none
+        """
+        msg = Msg.all_messages.filter(steps__run=self, direction=direction).order_by('-created_on').first()
+        return msg
+
+    @classmethod
+    def continue_parent_flow_runs(cls, runs):
+        """
+        Hands flow control back to our parent run if we have one
+        """
+        runs = runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False)
+        for run in runs:
+            steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
+            step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
+
+            if step:
+                ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW, flow__org=step.run.org).first()
+                if ruleset:
+                    # use the last incoming message on this step
+                    msg = step.messages.filter(direction=INCOMING).order_by('-created_on').first()
+
+                    # if we are routing back to the parent before a msg was sent, we need a placeholder
+                    if not msg:
+                        msg = Msg()
+                        msg.text = ''
+                        msg.org = run.org
+                        msg.contact = run.contact
+
+                    # finally, trigger our parent flow
+                    Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
+
+    def resume_after_timeout(self):
+        """
+        Resumes a flow that is at a ruleset that has timed out
+        """
+        last_step = self.steps.order_by('-arrived_on').first()
+        node = last_step.get_step()
+
+        # only continue if we are at a ruleset with a timeout
+        if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
+            timeout = node.get_timeout()
+
+            # if our current node doesn't have a timeout, then we've moved on
+            if timeout:
+                # get the last outgoing msg for this contact
+                msg = self.get_last_msg(OUTGOING)
+
+                # check that our last outgoing msg was sent and our timeout is in the past, otherwise reschedule
+                if msg and (not msg.sent_on or timezone.now() < msg.sent_on + timedelta(minutes=timeout) - timedelta(seconds=5)):
+                    self.update_timeout(msg.sent_on if msg.sent_on else timezone.now(), timeout)
+
+                # look good, lets resume this run
+                else:
+                    msg = self.get_last_msg(INCOMING)
+                    if not msg:
+                        msg = Msg()
+                        msg.text = ''
+                        msg.org = self.org
+                        msg.contact = self.contact
+                    Flow.find_and_handle(msg, resume_after_timeout=True)
 
     def release(self):
         """
@@ -2511,6 +2623,7 @@ class FlowRun(models.Model):
         """
         Mark a run as complete
         """
+
         if self.contact.is_test:
             ActionLog.create(self, _('%s has exited this flow') % self.contact.get_display(self.flow.org, short=True))
 
@@ -2531,6 +2644,10 @@ class FlowRun(models.Model):
         self.modified_on = now
         self.is_active = False
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
+
+        # let our parent know we finished
+        from .tasks import continue_parent_flows
+        continue_parent_flows.delay([self.pk])
 
     def set_interrupted(self, final_step=None):
         """
@@ -2553,6 +2670,19 @@ class FlowRun(models.Model):
         self.is_active = False
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
+    def update_timeout(self, now, minutes):
+        """
+        Updates our timeout for our run, either clearing it or setting it appropriately
+        """
+        if not minutes and self.timeout_on:
+            self.timeout_on = None
+            self.modified_on = now
+            self.save(update_fields=['timeout_on', 'modified_on'])
+        elif minutes:
+            self.timeout_on = now + timedelta(minutes=minutes)
+            self.modified_on = now
+            self.save(update_fields=['timeout_on', 'modified_on'])
+
     def update_expiration(self, point_in_time):
         """
         Set our expiration according to the flow settings
@@ -2570,6 +2700,10 @@ class FlowRun(models.Model):
             # if it's in the past, just expire us now
             if self.expires_on < now:
                 self.expire()
+
+        # parent should always have a later expiration than the children
+        if self.parent:
+            self.parent.update_expiration(self.expires_on)
 
     def expire(self):
         self.bulk_exit([self], FlowRun.EXIT_TYPE_EXPIRED)
@@ -2794,9 +2928,23 @@ class FlowStep(models.Model):
 
         self.save(update_fields=['rule_category', 'rule_uuid', 'rule_value', 'rule_decimal_value'])
 
-    def get_text(self):
+    def get_text(self, run=None):
+        """
+        Returns a single text value for this step. Since steps can have multiple outgoing messages, this isn't very
+        useful but needed for backwards compatibility in API v1.
+        """
         msg = self.messages.all().first()
-        return msg.text if msg else None
+        if msg:
+            return msg.text
+
+        # It's possible that messages have been purged but we still have broadcasts. Broadcast isn't implicitly ordered
+        # like Msg is so .all().first() would cause an extra db hit even if all() has been prefetched.
+        broadcasts = list(self.broadcasts.all())
+        if broadcasts:
+            run = run or self.run
+            return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
+
+        return None
 
     def add_message(self, msg):
         # no-op for no msg or mock msgs
@@ -2816,7 +2964,7 @@ class FlowStep(models.Model):
 
         # if message is from contact, mark run as responded
         if not self.run.responded and msg.direction == INCOMING:
-            # update our local run's responded state
+            # update our local run's responded state and it's expiration
             self.run.responded = True
 
             # and make sure the db is up to date
@@ -2839,7 +2987,6 @@ class FlowStep(models.Model):
 
 
 class RuleSet(models.Model):
-
     TYPE_WAIT_MESSAGE = 'wait_message'
 
     # Ussd
@@ -2857,11 +3004,18 @@ class RuleSet(models.Model):
     TYPE_WAIT_AUDIO = 'wait_audio'
     TYPE_WAIT_GPS = 'wait_gps'
 
+    TYPE_AIRTIME = 'airtime'
     TYPE_WEBHOOK = 'webhook'
+    TYPE_RESTHOOK = 'resthook'
     TYPE_FLOW_FIELD = 'flow_field'
     TYPE_FORM_FIELD = 'form_field'
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
+    TYPE_SUBFLOW = 'subflow'
+
+    CONFIG_WEBHOOK = 'webhook'
+    CONFIG_WEBHOOK_ACTION = 'webhook_action'
+    CONFIG_RESTHOOK = 'resthook'
 
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
 
@@ -2876,12 +3030,16 @@ class RuleSet(models.Model):
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
                     (TYPE_WAIT_DIGIT, "Wait for digit"),
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
+                    (TYPE_SUBFLOW, "Subflow"),
                     (TYPE_WEBHOOK, "Webhook"),
-                    (TYPE_FLOW_FIELD, "Split on flow field"),
+                    (TYPE_RESTHOOK, "Resthook"),
+                    (TYPE_AIRTIME, "Transfer Airtime"),
+                    (TYPE_FORM_FIELD, "Split by message form"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
                     (TYPE_EXPRESSION, "Split by expression"))
 
     uuid = models.CharField(max_length=36, unique=True)
+
     flow = models.ForeignKey(Flow, related_name='rule_sets')
 
     label = models.CharField(max_length=64, null=True, blank=True,
@@ -3017,29 +3175,91 @@ class RuleSet(models.Model):
     def is_ussd(self):
         return self.ruleset_type in RuleSet.TYPE_USSD
 
-    def find_matching_rule(self, step, run, msg):
+    def get_timeout(self):
+        for rule in self.get_rules():
+            if isinstance(rule.test, TimeoutTest):
+                return rule.test.minutes
 
+        return None
+
+    def find_matching_rule(self, step, run, msg, resume_after_timeout=False):
         orig_text = None
         if msg:
             orig_text = msg.text
 
         context = run.flow.build_message_context(run.contact, msg)
 
-        if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
-            from temba.api.models import WebHookEvent
-            (value, errors) = Msg.substitute_variables(self.webhook_url, run.contact, context,
-                                                       org=run.flow.org, url_encode=True)
-            result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
-                                                     run.contact, msg, self.webhook_action)
+        if resume_after_timeout:
+            for rule in self.get_rules():
+                if isinstance(rule.test, TimeoutTest):
+                    (result, value) = rule.matches(run, msg, context, orig_text)
+                    if result > 0:
+                        rule.category = run.flow.get_base_text(rule.category)
+                        return rule, value
 
-            # rebuild our context again, the webhook may have populated something
-            context = run.flow.build_message_context(run.contact, msg)
+        elif self.ruleset_type in [RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK]:
+            # figure out which URLs will be called
+            if self.ruleset_type == RuleSet.TYPE_WEBHOOK:
+                resthook = None
+                urls = [self.config_json()[RuleSet.CONFIG_WEBHOOK]]
+                action = self.config_json()[RuleSet.CONFIG_WEBHOOK_ACTION]
 
-            rule = self.get_rules()[0]
-            rule.category = run.flow.get_base_text(rule.category)
+            elif self.ruleset_type == RuleSet.TYPE_RESTHOOK:
+                from temba.api.models import Resthook
 
-            # return the webhook result body as the value
-            return rule, result.body
+                # look up the rest hook
+                resthook_slug = self.config_json()[RuleSet.CONFIG_RESTHOOK]
+                resthook = Resthook.get_or_create(run.org, resthook_slug, run.flow.created_by)
+                urls = resthook.get_subscriber_urls()
+
+                # no urls? use None, as our empty case
+                if not urls:
+                    urls = [None]
+
+                action = 'POST'
+
+            # by default we are a failure (there are no resthooks for example)
+            status_code = None
+            body = ""
+
+            for url in urls:
+                from temba.api.models import WebHookEvent
+
+                (value, errors) = Msg.substitute_variables(url, run.contact, context,
+                                                           org=run.flow.org, url_encode=True)
+
+                result = WebHookEvent.trigger_flow_event(value, self.flow, run, self,
+                                                         run.contact, msg, action, resthook=resthook)
+
+                # we haven't recorded any status yet, do so
+                if not status_code:
+                    status_code = result.status_code
+                    body = result.body
+
+                # our subscriber is no longer interested, remove this URL as a subscriber
+                if result.status_code == 410:
+                    resthook.remove_subscriber(url, run.flow.created_by)
+
+                # if this is a success and we haven't ever succeeded, set our code and body
+                elif 200 <= result.status_code < 300 and not (200 <= status_code < 300):
+                    status_code = result.status_code
+                    body = result.body
+
+                # this was an empty URL, treat it as success regardless
+                if url is None:
+                    status_code = 200
+                    body = _("No subscribers to this event")
+
+            # default to a status code of 418 if we made no calls
+            if not status_code:
+                status_code = 418
+
+            # find our matching rule, we pass in the status from our calls
+            for rule in self.get_rules():
+                (result, value) = rule.matches(run, msg, context, str(status_code))
+                if result > 0:
+                    rule.category = run.flow.get_base_text(rule.category)
+                    return rule, body
 
         else:
             # if it's a form field, construct an expression accordingly
@@ -3055,6 +3275,25 @@ class RuleSet(models.Model):
             elif msg:
                 text = msg.text
 
+            if self.ruleset_type == RuleSet.TYPE_AIRTIME:
+
+                # flow simulation will always simulate a suceessful airtime transfer
+                # without saving the object in the DB
+                if run.contact.is_test:
+                    from temba.flows.models import ActionLog
+                    log_txt = "Simulate Complete airtime transfer"
+                    ActionLog.create(run, log_txt, safe=True)
+
+                    airtime = AirtimeTransfer(status=AirtimeTransfer.SUCCESS)
+                else:
+                    airtime = AirtimeTransfer.trigger_airtime_event(self.flow.org, self, run.contact, msg)
+
+                # rebuild our context again, the webhook may have populated something
+                context = run.flow.build_message_context(run.contact, msg)
+
+                # airtime test evaluate against the status of the airtime
+                text = airtime.status
+
             try:
                 rules = self.get_rules()
                 for rule in rules:
@@ -3067,7 +3306,7 @@ class RuleSet(models.Model):
                 if msg:
                     msg.text = orig_text
 
-            return None, None
+        return None, None
 
     def find_interrupt_rule(self, step, run, msg):
         rules = self.get_rules()
@@ -3130,10 +3369,16 @@ class RuleSet(models.Model):
         self.set_rules_dict(rules_dict)
 
     def as_json(self):
-        return dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label,
-                    rules=self.get_rules_dict(), webhook=self.webhook_url, webhook_action=self.webhook_action,
-                    finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
-                    operand=self.operand, config=self.config_json())
+        ruleset_def = dict(uuid=self.uuid, x=self.x, y=self.y, label=self.label, rules=self.get_rules_dict(),
+                           finished_key=self.finished_key, ruleset_type=self.ruleset_type, response_type=self.response_type,
+                           operand=self.operand, config=self.config_json())
+
+        # if we are pre-version 10, include our webhook and webhook_action in our dict
+        if self.flow.version_number < 10:
+            ruleset_def['webhook'] = self.webhook_url
+            ruleset_def['webhook_action'] = self.webhook_action
+
+        return ruleset_def
 
     def __unicode__(self):
         if self.label:
@@ -3256,16 +3501,37 @@ class FlowRevision(SmartModel):
                 validate_localization(rule['category'])
 
     @classmethod
-    def migrate_definition(cls, json_flow, version, to_version=None):
+    def migrate_export(cls, org, exported_json, same_site, version, to_version=None):
         if not to_version:
             to_version = CURRENT_EXPORT_VERSION
 
         from temba.flows import flow_migrations
+        while version < to_version and version < CURRENT_EXPORT_VERSION:
 
+            migrate_fn = getattr(flow_migrations, 'migrate_export_to_version_%d' % (version + 1), None)
+            if migrate_fn:
+                exported_json = migrate_fn(exported_json, org, same_site)
+            else:
+                flows = []
+                for json_flow in exported_json.get('flows', []):
+                    migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
+                    if migrate_fn:
+                        json_flow = migrate_fn(json_flow, None)
+                    flows.append(json_flow)
+                exported_json['flows'] = flows
+            version += 1
+
+        return exported_json
+
+    @classmethod
+    def migrate_definition(cls, json_flow, flow, version, to_version=None):
+        if not to_version:
+            to_version = CURRENT_EXPORT_VERSION
+        from temba.flows import flow_migrations
         while version < to_version and version < CURRENT_EXPORT_VERSION:
             migrate_fn = getattr(flow_migrations, 'migrate_to_version_%d' % (version + 1), None)
             if migrate_fn:
-                json_flow = migrate_fn(json_flow)
+                json_flow = migrate_fn(json_flow, flow)
             version += 1
 
         return json_flow
@@ -3283,7 +3549,7 @@ class FlowRevision(SmartModel):
 
         # migrate our definition if necessary
         if self.spec_version < CURRENT_EXPORT_VERSION:
-            definition = FlowRevision.migrate_definition(definition, self.spec_version, self.flow)
+            definition = FlowRevision.migrate_definition(definition, self.flow, self.spec_version)
         return definition
 
     def as_json(self, include_definition=False):
@@ -3621,6 +3887,7 @@ class ExportFlowResultsTask(SmartModel):
                                       select_related=['run', 'contact'],
                                       prefetch_related=['messages__contact_urn',
                                                         'messages__channel',
+                                                        'broadcasts',
                                                         'contact__all_groups'],
                                       contact_fields=contact_fields):
 
@@ -3919,6 +4186,29 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
+    @classmethod
+    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True):
+        if contacts is None:
+            contacts = []
+
+        if groups is None:
+            groups = []
+
+        start = FlowStart.objects.create(flow=flow, restart_participants=restart_participants,
+                                         created_by=user, modified_by=user)
+
+        for contact in contacts:
+            start.contacts.add(contact)
+
+        for group in groups:
+            start.groups.add(group)
+
+        return start
+
+    def async_start(self):
+        from temba.flows.tasks import start_flow_task
+        start_flow_task.delay(self.id)
+
     def start(self):
         self.status = FlowStart.STATUS_STARTING
         self.save(update_fields=['status'])
@@ -3948,10 +4238,13 @@ class FlowStart(SmartModel):
 
 
 class FlowLabel(models.Model):
+    org = models.ForeignKey(Org)
+
+    uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid,
+                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this label"))
     name = models.CharField(max_length=64, verbose_name=_("Name"),
                             help_text=_("The name of this flow label"))
     parent = models.ForeignKey('FlowLabel', verbose_name=_("Parent"), null=True, related_name="children")
-    org = models.ForeignKey(Org)
 
     def get_flows_count(self):
         """
@@ -4179,7 +4472,7 @@ class AddToGroupAction(Action):
     TYPE = 'add_group'
     GROUP = 'group'
     GROUPS = 'groups'
-    ID = 'id'
+    UUID = 'uuid'
     NAME = 'name'
 
     def __init__(self, groups):
@@ -4200,17 +4493,13 @@ class AddToGroupAction(Action):
             group_data = [group_data]
 
         groups = []
+
         for g in group_data:
             if isinstance(g, dict):
-                group_id = g.get(AddToGroupAction.ID, None)
+                group_uuid = g.get(AddToGroupAction.UUID, None)
                 group_name = g.get(AddToGroupAction.NAME)
 
-                try:
-                    group_id = int(group_id)
-                except Exception:
-                    group_id = None
-
-                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_id)
+                group = ContactGroup.get_or_create(org, org.created_by, group_name, group_uuid)
                 groups.append(group)
             else:
                 if g and g[0] == '@':
@@ -4227,7 +4516,7 @@ class AddToGroupAction(Action):
         groups = []
         for g in self.groups:
             if isinstance(g, ContactGroup):
-                groups.append(dict(id=g.pk, name=g.name))
+                groups.append(dict(uuid=g.uuid, name=g.name))
             else:
                 groups.append(g)
 
@@ -4245,7 +4534,6 @@ class AddToGroupAction(Action):
             for group in self.groups:
                 if not isinstance(group, ContactGroup):
 
-                    contact = run.contact
                     message_context = run.flow.build_message_context(contact, msg)
                     (value, errors) = Msg.substitute_variables(group, contact, message_context, org=run.flow.org)
                     group = None
@@ -4295,9 +4583,34 @@ class DeleteFromGroupAction(AddToGroupAction):
     def get_type(self):
         return DeleteFromGroupAction.TYPE
 
+    def as_json(self):
+        groups = []
+        for g in self.groups:
+            if isinstance(g, ContactGroup):
+                groups.append(dict(uuid=g.uuid, name=g.name))
+            else:
+                groups.append(g)
+
+        return dict(type=self.get_type(), groups=groups)
+
     @classmethod
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
+
+    def execute(self, run, actionset, sms):
+        if len(self.groups) == 0:
+            contact = run.contact
+            user = get_flow_user()
+            if contact:
+                # remove from all active and inactive user-defined, static groups
+                for group in ContactGroup.user_groups.filter(org=contact.org,
+                                                             group_type=ContactGroup.TYPE_USER_DEFINED,
+                                                             query__isnull=True):
+                    group.update_contacts(user, [contact], False)
+                    if run.contact.is_test:
+                        ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
+            return []
+        return AddToGroupAction.execute(self, run, actionset, sms)
 
 
 class AddLabelAction(Action):
@@ -4306,7 +4619,7 @@ class AddLabelAction(Action):
     """
     TYPE = 'add_label'
     LABELS = 'labels'
-    ID = 'id'
+    UUID = 'uuid'
     NAME = 'name'
 
     def __init__(self, labels):
@@ -4317,29 +4630,24 @@ class AddLabelAction(Action):
         labels_data = json_obj.get(AddLabelAction.LABELS)
 
         labels = []
-        for l_data in labels_data:
-            if isinstance(l_data, dict):
-                label_id = l_data.get(AddLabelAction.ID, None)
-                label_name = l_data.get(AddLabelAction.NAME)
+        for label_data in labels_data:
+            if isinstance(label_data, dict):
+                label_uuid = label_data.get(AddLabelAction.UUID, None)
+                label_name = label_data.get(AddLabelAction.NAME)
 
-                try:
-                    label_id = int(label_id)
-                except (TypeError, ValueError):
-                    label_id = 0
-
-                if label_id and Label.label_objects.filter(org=org, id=label_id).first():
-                    label = Label.label_objects.filter(org=org, id=label_id).first()
+                if label_uuid and Label.label_objects.filter(org=org, uuid=label_uuid).first():
+                    label = Label.label_objects.filter(org=org, uuid=label_uuid).first()
                     if label:
                         labels.append(label)
                 else:
                     labels.append(Label.get_or_create(org, org.get_user(), label_name))
 
-            elif isinstance(l_data, basestring):
-                if l_data and l_data[0] == '@':
+            elif isinstance(label_data, basestring):
+                if label_data and label_data[0] == '@':
                     # label name is a variable substitution
-                    labels.append(l_data)
+                    labels.append(label_data)
                 else:
-                    labels.append(Label.get_or_create(org, org.get_user(), l_data))
+                    labels.append(Label.get_or_create(org, org.get_user(), label_data))
             else:
                 raise ValueError("Label data must be a dict or string")
 
@@ -4349,7 +4657,7 @@ class AddLabelAction(Action):
         labels = []
         for action_label in self.labels:
             if isinstance(action_label, Label):
-                labels.append(dict(id=action_label.pk, name=action_label.name))
+                labels.append(dict(uuid=action_label.uuid, name=action_label.name))
             else:
                 labels.append(action_label)
 
@@ -4493,22 +4801,26 @@ class ReplyAction(Action):
         return dict(type=ReplyAction.TYPE, msg=self.msg)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
+        reply = None
+
         if self.msg:
             user = get_flow_user()
             text = run.flow.get_localized_text(self.msg, run.contact)
 
             if offline_on:
-                return [Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
-                                            created_on=offline_on, response_to=msg)]
-
-            context = run.flow.build_message_context(run.contact, msg)
-            if msg:
-                broadcast = msg.reply(text, user, trigger_send=False, message_context=context)
+                reply = Msg.create_outgoing(run.org, user, (run.contact, None), text, status=SENT,
+                                            created_on=offline_on, response_to=msg)
             else:
-                broadcast = run.contact.send(text, user, trigger_send=False, message_context=context)
+                context = run.flow.build_message_context(run.contact, msg)
+                try:
+                    if msg:
+                        reply = msg.reply(text, user, trigger_send=False, message_context=context)
+                    else:
+                        reply = run.contact.send(text, user, trigger_send=False, message_context=context)
+                except UnreachableException:
+                    pass
 
-            return list(broadcast.get_messages())
-        return []
+        return [reply] if reply else []
 
 
 class UssdAction(ReplyAction):
@@ -4589,6 +4901,7 @@ class VariableContactAction(Action):
     VARIABLES = 'variables'
     PHONE = 'phone'
     NAME = 'name'
+    UUID = 'uuid'
     ID = 'id'
 
     def __init__(self, groups, contacts, variables):
@@ -4601,10 +4914,14 @@ class VariableContactAction(Action):
         # we actually instantiate our contacts here
         groups = []
         for group_data in json_obj.get(VariableContactAction.GROUPS):
-            group_id = group_data.get(VariableContactAction.ID, None)
+            group_uuid = group_data.get(VariableContactAction.UUID, None)
             group_name = group_data.get(VariableContactAction.NAME)
 
-            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_id)
+            # flows from when true deletion was allowed need this
+            if not group_name:
+                group_name = 'Missing'
+
+            group = ContactGroup.get_or_create(org, org.get_user(), group_name, group_uuid)
             groups.append(group)
 
         return groups
@@ -4615,9 +4932,9 @@ class VariableContactAction(Action):
         for contact in json_obj.get(VariableContactAction.CONTACTS):
             name = contact.get(VariableContactAction.NAME, None)
             phone = contact.get(VariableContactAction.PHONE, None)
-            contact_id = contact.get(VariableContactAction.ID, None)
+            contact_uuid = contact.get(VariableContactAction.UUID, None)
 
-            contact = Contact.objects.filter(pk=contact_id, org=org).first()
+            contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
             if not contact and phone:
                 contact = Contact.get_or_create(org, org.created_by, name=None, urns=[(TEL_SCHEME, phone)])
 
@@ -4686,8 +5003,10 @@ class TriggerFlowAction(VariableContactAction):
 
     @classmethod
     def from_json(cls, org, json_obj):
-        flow_pk = json_obj.get(cls.ID)
-        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, pk=flow_pk).first()
+        flow_json = json_obj.get('flow')
+        uuid = flow_json.get('uuid')
+        flow = Flow.objects.filter(org=org, is_active=True,
+                                   is_archived=False, uuid=uuid).first()
 
         # it is possible our flow got deleted
         if not flow:
@@ -4700,27 +5019,23 @@ class TriggerFlowAction(VariableContactAction):
         return TriggerFlowAction(flow, groups, contacts, variables)
 
     def as_json(self):
-        contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
+        contact_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.contacts]
+        group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
-        return dict(type=TriggerFlowAction.TYPE, id=self.flow.pk, name=self.flow.name,
+        return dict(type=TriggerFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name),
                     contacts=contact_ids, groups=group_ids, variables=variables)
 
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         if self.flow:
             message_context = run.flow.build_message_context(run.contact, msg)
             (groups, contacts) = self.build_groups_and_contacts(run, msg)
-
             # start our contacts down the flow
             if not run.contact.is_test:
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
-                extra['flow'] = message_context.get('flow', dict())
-                extra['contact'] = run.contact.build_message_context()
-
-                self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk], extra=extra)
+                self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
+                                extra=extra, parent_run=run)
                 return []
-
             else:
                 unique_contacts = set()
                 for contact in contacts:
@@ -4787,16 +5102,19 @@ class StartFlowAction(Action):
     Action that starts the contact into another flow
     """
     TYPE = 'flow'
-    ID = 'id'
+    FLOW = 'flow'
     NAME = 'name'
+    UUID = 'uuid'
 
     def __init__(self, flow):
         self.flow = flow
 
     @classmethod
     def from_json(cls, org, json_obj):
-        flow_pk = json_obj.get(cls.ID)
-        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, pk=flow_pk).first()
+        flow_obj = json_obj.get(cls.FLOW)
+        flow_uuid = flow_obj.get(cls.UUID)
+
+        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, uuid=flow_uuid).first()
 
         # it is possible our flow got deleted
         if not flow:
@@ -4805,14 +5123,13 @@ class StartFlowAction(Action):
             return StartFlowAction(flow)
 
     def as_json(self):
-        return dict(type=StartFlowAction.TYPE, id=self.flow.pk, name=self.flow.name)
+        return dict(type=StartFlowAction.TYPE, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
 
     def execute(self, run, actionset_uuid, msg, started_flows, offline_on=None):
-        message_context = run.flow.build_message_context(run.contact, msg)
 
-        # our extra will be the current flow variables
-        extra = message_context.get('extra', {})
-        extra['flow'] = message_context.get('flow', {})
+        # our extra will be our flow variables in our message context
+        message_context = run.flow.build_message_context(run.contact, msg)
+        extra = message_context.get('extra', dict())
 
         # if they are both flow runs, just redirect the call
         if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
@@ -4938,7 +5255,6 @@ class SaveToContactAction(Action):
             new_urn = URN.normalize(URN.from_parts(scheme, new_value))
             if not URN.validate(new_urn, contact.org.get_country_code()):
                 new_urn = None
-            else:
                 if contact.is_test:
                     ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
 
@@ -4946,11 +5262,11 @@ class SaveToContactAction(Action):
                 urns = [urn.urn for urn in contact.urns.all()]
                 urns += [new_urn]
 
-                if not contact.is_test:
-                    # don't really update URNs on test contacts
-                    contact.update_urns(user, urns)
+                # don't really update URNs on test contacts
+                if contact.is_test:
+                    ActionLog.info(run, _("Added %s as @contact.%s - skipped in simulator" % (new_value, scheme)))
                 else:
-                    ActionLog.info(run, _('Added new connection for contact (%s:%s)' % (scheme, new_value)))
+                    contact.update_urns(user, urns)
 
         else:
             new_value = value[:640]
@@ -5035,8 +5351,8 @@ class SendAction(VariableContactAction):
         return SendAction(json_obj.get(SendAction.MESSAGE), groups, contacts, variables)
 
     def as_json(self):
-        contact_ids = [dict(id=_.pk) for _ in self.contacts]
-        group_ids = [dict(id=_.pk, name=_.name) for _ in self.groups]
+        contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
+        group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
         variables = [dict(id=_) for _ in self.variables]
         return dict(type=SendAction.TYPE, msg=self.msg, contacts=contact_ids, groups=group_ids, variables=variables)
 
@@ -5169,6 +5485,7 @@ class Test(object):
     def from_json(cls, org, json_dict):
         if not cls.__test_mapping:
             cls.__test_mapping = {
+                SubflowTest.TYPE: SubflowTest,
                 TrueTest.TYPE: TrueTest,
                 FalseTest.TYPE: FalseTest,
                 AndTest.TYPE: AndTest,
@@ -5193,7 +5510,10 @@ class Test(object):
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest,
-                InterruptTest.TYPE: InterruptTest
+                InterruptTest.TYPE: InterruptTest,
+                TimeoutTest.TYPE: TimeoutTest,
+                AirtimeStatusTest.TYPE: AirtimeStatusTest,
+                WebhookStatusTest.TYPE: WebhookStatusTest,
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -5220,6 +5540,124 @@ class Test(object):
         side effects.
         """
         raise FlowException("Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested")
+
+
+class WebhookStatusTest(Test):
+    """
+    {op: 'webhook', status: 'success' }
+    """
+    TYPE = 'webhook_status'
+    STATUS = 'status'
+
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILURE = 'failure'
+
+    def __init__(self, status):
+        self.status = status
+
+    @classmethod
+    def from_json(cls, org, json):
+        return WebhookStatusTest(json.get('status'))
+
+    def as_json(self):
+        return dict(type=WebhookStatusTest.TYPE, status=self.status)
+
+    def evaluate(self, run, sms, context, text):
+        # we treat any 20* return code as successful
+        success = 200 <= int(text) < 300
+
+        if success and self.status == WebhookStatusTest.STATUS_SUCCESS:
+            return 1, text
+        elif not success and self.status == WebhookStatusTest.STATUS_FAILURE:
+            return 1, text
+        else:
+            return 0, None
+
+
+class AirtimeStatusTest(Test):
+    """
+    {op: 'airtime_status'}
+    """
+    TYPE = 'airtime_status'
+    EXIT = 'exit_status'
+
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+
+    STATUS_MAP = {STATUS_SUCCESS: AirtimeTransfer.SUCCESS,
+                  STATUS_FAILED: AirtimeTransfer.FAILED}
+
+    def __init__(self, exit_status):
+        self.exit_status = exit_status
+
+    @classmethod
+    def from_json(cls, org, json):
+        return AirtimeStatusTest(json.get('exit_status'))
+
+    def as_json(self):
+        return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
+
+    def evaluate(self, run, sms, context, text):
+        status = text
+        if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
+            return 1, status
+        return 0, None
+
+
+class SubflowTest(Test):
+    """
+    { op: "subflow" }
+    """
+    TYPE = 'subflow'
+    EXIT = 'exit_type'
+
+    TYPE_COMPLETED = 'completed'
+    TYPE_EXPIRED = 'expired'
+
+    EXIT_MAP = {TYPE_COMPLETED: FlowRun.EXIT_TYPE_COMPLETED,
+                TYPE_EXPIRED: FlowRun.EXIT_TYPE_EXPIRED}
+
+    def __init__(self, exit_type):
+        self.exit_type = exit_type
+
+    @classmethod
+    def from_json(cls, org, json):
+        return SubflowTest(json.get(SubflowTest.EXIT))
+
+    def as_json(self):
+        return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
+
+    def evaluate(self, run, sms, context, text):
+        # lookup the subflow run
+        subflow_run = FlowRun.objects.filter(parent=run).order_by('-created_on').first()
+
+        if subflow_run and SubflowTest.EXIT_MAP[self.exit_type] == subflow_run.exit_type:
+            return 1, text
+        return 0, None
+
+
+class TimeoutTest(Test):
+    """
+    { op: "timeout", minutes: 60 }
+    """
+    TYPE = 'timeout'
+    MINUTES = 'minutes'
+
+    def __init__(self, minutes):
+        self.minutes = minutes
+
+    @classmethod
+    def from_json(cls, org, json):
+        return TimeoutTest(int(json.get(TimeoutTest.MINUTES)))
+
+    def as_json(self):
+        return {'type': TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
+
+    def evaluate(self, run, sms, context, text):
+        if run.timeout_on < timezone.now():
+            return 1, None
+        else:
+            return 0, None
 
 
 class TrueTest(Test):
@@ -5386,6 +5824,10 @@ class ContainsTest(Test):
         words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
         raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
 
+        tests = [elt for elt in tests if elt != '']
+        words = [elt for elt in words if elt != '']
+        raw_words = [elt for elt in raw_words if elt != '']
+
         # run through each of our tests
         matches = set()
         matched_tests = 0
@@ -5425,6 +5867,10 @@ class ContainsAnyTest(ContainsTest):
         # tokenize our sms
         words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
         raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
+
+        tests = [elt for elt in tests if elt != '']
+        words = [elt for elt in words if elt != '']
+        raw_words = [elt for elt in raw_words if elt != '']
 
         # run through each of our tests
         matches = set()

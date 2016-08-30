@@ -453,13 +453,31 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', split:'digits', filter:VOICE },
 
         # online flows
-        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE,USSD] },
+        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE,USSD], rules:[
+          { name: 'Success', test: { type: 'webhook_status', status: 'success'}},
+          { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
+        ]},
+
+        { type: 'resthook', name:'Call Zapier', verbose_name: 'Call Zapier', split:'zapier response', filter:[TEXT,VOICE], rules:[
+          { name: 'Success', test: { type: 'webhook_status', status: 'success'}},
+          { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
+        ]},
+
+        { type: 'airtime', name:'Transfer Airtime', verbose_name: 'Transfer Airtime', split: 'transfer airtime', filter:[TEXT, VOICE], rules: [
+          { name: 'Success', test: { type: 'airtime_status', exit_status: 'success'}},
+          { name: 'Failure', test: { type: 'airtime_status', exit_status: 'failed'}},
+        ]},
 
         # all flows
-        { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', filter:[TEXT,VOICE,SURVEY] },
-        { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', filter:[TEXT,VOICE,SURVEY] },
-        { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', filter:[TEXT,VOICE,SURVEY] },
-        { type: 'form_field', name:'Split by Message Form', verbose_name: 'Split by message form', filter:[TEXT,VOICE,SURVEY] },
+        { type: 'subflow', name: 'Run Flow', verbose_name: 'Run a flow', filter: ALL, rules: [
+          { name: 'Completed', test: { type: 'subflow', exit_type: 'completed' }},
+          { name: 'Expired', test: { type: 'subflow', exit_type: 'expired' }}
+        ]},
+
+        { type: 'flow_field', name:'Split by Flow Field', verbose_name: 'Split by flow field', filter:ALL },
+        { type: 'contact_field', name: 'Split by Contact Field', verbose_name: 'Split by contact field', filter:ALL },
+        { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', filter:ALL },
+        { type: 'form_field', name:'Split by Message Form', verbose_name: 'Split by message form', filter:ALL },
 
         # Not supported yet
         # { type: 'group', verbose_name: 'Split by group membership', ivr:true, text:true},
@@ -467,28 +485,41 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         # { type: 'pause', verbose_name: 'Pause the flow', ivr:true, text:true},
       ]
 
+      # rule type to ruleset type they are exclusive to
+      @exclusiveRules = {
+        'subflow': ['subflow'],
+        'timeout': ['wait_message'],
+        'webhook_status': ['webhook', 'resthook'],
+        'airtime_status': ['airtime']
+      }
+
       @supportsRules = ['wait_message', 'wait_ussd', 'expression', 'flow_field', 'contact_field', 'wait_digits', 'form_field']
 
       @operators = [
-        { type:'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true }
-        { type:'contains', name: 'Contains all', verbose_name:'has all of the words', operands: 1, localized:true }
-        { type:'not_empty', name: 'Not empty', verbose_name:'is not empty', operands: 0, localized:true }
-        { type:'starts', name: 'Starts with', verbose_name:'starts with', operands: 1, voice:true, localized:true }
-        { type:'number', name: 'Has a number', verbose_name:'has a number', operands: 0, voice:true }
-        { type:'lt', name: 'Less than', verbose_name:'has a number less than', operands: 1, voice:true }
-        { type:'eq', name: 'Equal to', verbose_name:'has a number equal to', operands: 1, voice:true }
-        { type:'gt', name: 'More than', verbose_name:'has a number more than', operands: 1, voice:true }
-        { type:'between', name: 'Number between', verbose_name:'has a number between', operands: 2, voice:true }
-        { type:'date', name: 'Has date', verbose_name:'has a date', operands: 0, validate:'date' }
-        { type:'date_before', name: 'Date before', verbose_name:'has a date before', operands: 1, validate:'date' }
-        { type:'date_equal', name: 'Date equal to', verbose_name:'has a date equal to', operands: 1, validate:'date' }
-        { type:'date_after', name: 'Date after', verbose_name:'has a date after', operands: 1, validate:'date' }
-        { type:'phone', name: 'Has a phone', verbose_name:'has a phone number', operands: 0, voice:true }
-        { type:'state', name: 'Has a state', verbose_name:'has a state', operands: 0 }
-        { type:'district', name: 'Has a district', verbose_name:'has a district', operands: 1, auto_complete: true, placeholder:'@flow.state' }
-        { type:'ward', name: 'Has a ward', verbose_name:'has a ward', operands: 2, operand_required: false,  auto_complete: true, }
-        { type:'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true }
-        { type:'true', name: 'Other', verbose_name:'contains anything', operands: 0 }
+        { type: 'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true, show:true }
+        { type: 'contains', name: 'Contains all', verbose_name:'has all of the words', operands: 1, localized:true, show:true }
+        { type: 'not_empty', name: 'Not empty', verbose_name:'is not empty', operands: 0, localized:true, show:true }
+        { type: 'starts', name: 'Starts with', verbose_name:'starts with', operands: 1, voice:true, localized:true, show:true }
+        { type: 'number', name: 'Has a number', verbose_name:'has a number', operands: 0, voice:true, show:true }
+        { type: 'lt', name: 'Less than', verbose_name:'has a number less than', operands: 1, voice:true, show:true }
+        { type: 'eq', name: 'Equal to', verbose_name:'has a number equal to', operands: 1, voice:true, show:true }
+        { type: 'gt', name: 'More than', verbose_name:'has a number more than', operands: 1, voice:true, show:true }
+        { type: 'between', name: 'Number between', verbose_name:'has a number between', operands: 2, voice:true, show:true }
+        { type: 'date', name: 'Has date', verbose_name:'has a date', operands: 0, validate:'date', show:true }
+        { type: 'date_before', name: 'Date before', verbose_name:'has a date before', operands: 1, validate:'date', show:true }
+        { type: 'date_equal', name: 'Date equal to', verbose_name:'has a date equal to', operands: 1, validate:'date', show:true }
+        { type: 'date_after', name: 'Date after', verbose_name:'has a date after', operands: 1, validate:'date', show:true }
+        { type: 'phone', name: 'Has a phone', verbose_name:'has a phone number', operands: 0, voice:true, show:true }
+        { type: 'state', name: 'Has a state', verbose_name:'has a state', operands: 0, show:true }
+        { type: 'district', name: 'Has a district', verbose_name:'has a district', operands: 1, auto_complete: true, placeholder:'@flow.state', show:true }
+        { type: 'ward', name: 'Has a ward', verbose_name:'has a ward', operands: 2, operand_required: false, auto_complete: true, show:true}
+        { type: 'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true, show:true }
+        { type: 'subflow', name: 'Subflow', verbose_name:'subflow', operands: 0, show:false }
+        { type: 'airtime_status', name: 'Airtime Status', verbose_name:'airtime', operands: 0, show:false }
+        { type: 'webhook', name: 'Webhook', verbose_name:'webhook', operands: 0, show:false }
+        { type: 'webhook_status', name: 'Webhook Status', verbose_name:'webhook status', operands: 0, show:false }
+        { type: 'true', name: 'Other', verbose_name:'contains anything', operands: 0, show:false }
+        { type: 'timeout', name:'Timeout', verbose_name:'timeout', operands:0, show:false }
       ]
 
       @opNames =
@@ -627,6 +658,22 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         , quietPeriod
 
+    # is the rule allowed for this ruleset_type?
+    isRuleAllowed: (ruleset_type, rule_type) ->
+      if rule_type
+        exclusives = @exclusiveRules[rule_type]
+        if exclusives
+          allowed = ruleset_type in exclusives
+          return allowed
+
+        # check if our ruleset has a prescribed set of rules
+        rulesetConfig = @getRulesetConfig({type: ruleset_type})
+        if rulesetConfig.rules
+          for rule in rulesetConfig.rules
+            if rule.test.type == rule_type
+              return true
+          return false
+        return true
 
     getNode: (uuid) ->
       for actionset in @flow.action_sets
@@ -639,13 +686,16 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
     isPausingRuleset: (node) ->
       if not node?.actions
-        return node.ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
+        return @isPausingRulesetType(node.ruleset_type)
       return false
 
     isUssdRuleset: (node) ->
       if not node?.actions
         return node.ruleset_type in ['wait_menu', 'wait_ussd']
       return false
+
+    isPausingRulesetType: (ruleset_type) ->
+      return ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
 
     # check if a potential connection would result in an invalid loop
     detectLoop: (nodeId, targetId, path=[]) ->
@@ -920,6 +970,9 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         for actionset in flow.action_sets
           for action in actionset.actions
             action.uuid = uuid()
+
+        # save the channel countries
+        Flow.channel_countries = data.channel_countries
 
         # save away the available channels
         Flow.channels = data.channels

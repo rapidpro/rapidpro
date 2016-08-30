@@ -14,6 +14,23 @@ function getCheckedIds(){
     return checkedIds.sort(numericComparator);
 }
 
+function getCheckedUuids(){
+    var checkedUuids = Array();
+
+    var checks = $(".object-row.checked");
+    for (var i=0; i<checks.length; i++){
+        checkedUuids.push($(checks[i]).data("uuid"));
+    }
+
+    // if we have checked items, block pjax refreshing
+    // this is an intentially global scope
+    rowsChecked = checkedUuids.length > 0;
+    checkBlockRefresh();
+
+    return checkedUuids.sort();
+}
+
+
 function getLabeledIds(labelId){
     var objectRowsIds = Array();
     var labeled = $(".lbl[data-id='" + labelId + "']");

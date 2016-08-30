@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timezone import is_aware
 from django.http import HttpResponse
+from django_countries import countries
 from itertools import islice
 
 DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
@@ -39,6 +40,13 @@ INITIAL_TIMEZONE_COUNTRY = {
     'Canada/Newfoundland': 'CA',
     'GMT': '',
     'UTC': ''
+}
+
+
+TRANSFERTO_COUNTRY_NAMES = {
+    'Democratic Republic of the Congo': 'CD',
+    'Ivory Coast': 'CI',
+    'United States': 'US',
 }
 
 
@@ -480,3 +488,12 @@ def print_max_mem_usage(msg=None):
     print "=" * 80
     print msg + locale.format("%d", resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, grouping=True)
     print "=" * 80
+
+
+def get_country_code_by_name(name):
+    code = countries.by_name(name)
+
+    if not code:
+        code = TRANSFERTO_COUNTRY_NAMES.get(name, None)
+
+    return code if code else None
