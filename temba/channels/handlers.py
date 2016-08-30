@@ -115,7 +115,7 @@ class TwilioHandler(View):
             status = request.POST.get('SmsStatus', None)
 
             # get the SMS
-            sms = Msg.all_messages.select_related('channel').get(id=smsId)
+            sms = Msg.objects.select_related('channel').get(id=smsId)
 
             # validate this request is coming from twilio
             org = sms.org
@@ -1015,7 +1015,7 @@ class VumiHandler(View):
             sms = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), body['content'], date=gmt_date)
 
             # use an update so there is no race with our handling
-            Msg.all_messages.filter(pk=sms.id).update(external_id=body['message_id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=body['message_id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -1094,7 +1094,7 @@ class KannelHandler(View):
             urn = URN.from_tel(request.REQUEST['sender'])
             sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
 
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -1212,7 +1212,7 @@ class ClickatellHandler(View):
 
             sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['from']), text, date=gmt_date)
 
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -1318,7 +1318,7 @@ class PlivoHandler(View):
 
             sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['From']), request.REQUEST['Text'])
 
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
 
             return HttpResponse("SMS accepted: %d" % sms.id)
         else:
@@ -1351,7 +1351,7 @@ class MageHandler(View):
             except ValueError:
                 return JsonResponse(dict(error="Invalid message_id"), status=400)
 
-            msg = Msg.all_messages.select_related('org').get(pk=msg_id)
+            msg = Msg.objects.select_related('org').get(pk=msg_id)
 
             push_task(msg.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
                       dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact))
@@ -1484,7 +1484,7 @@ class ChikkaHandler(View):
             sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
 
             # save our request id in case of replies
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['request_id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['request_id'])
             return HttpResponse("Accepted: %d" % sms.id)
 
         else:
@@ -1548,7 +1548,7 @@ class JasminHandler(View):
                 content = gsm7.decode(request.POST['content'], 'replace')[0]
 
             sms = Msg.create_incoming(channel, URN.from_tel(request.POST['from']), content)
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.POST['id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.POST['id'])
             return HttpResponse('ACK/Jasmin')
 
         else:
@@ -1618,7 +1618,7 @@ class MbloxHandler(View):
 
             msg_date = parse_datetime(body['received_at'])
             msg = Msg.create_incoming(channel, URN.from_tel(body['from']), body['body'], date=msg_date)
-            Msg.all_messages.filter(pk=msg.id).update(external_id=body['id'])
+            Msg.objects.filter(pk=msg.id).update(external_id=body['id'])
             return HttpResponse("SMS Accepted: %d" % msg.id)
 
         else:
@@ -1742,7 +1742,7 @@ class FacebookHandler(View):
                         if content:
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
                             msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
-                            Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
+                            Msg.objects.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             status.append("Msg %d accepted." % msg.id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
@@ -1755,7 +1755,7 @@ class FacebookHandler(View):
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
-                            msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
+                            msg = Msg.objects.filter(channel=channel, external_id=external_id).first()
                             if msg:
                                 msg.status_delivered()
                                 status.append("Msg %d updated." % msg.id)
@@ -1835,7 +1835,7 @@ class GlobeHandler(View):
                 msg = Msg.create_incoming(channel, URN.from_tel(inbound_msg['senderAddress']), inbound_msg['message'], date=gmt_date)
 
                 # use an update so there is no race with our handling
-                Msg.all_messages.filter(pk=msg.id).update(external_id=inbound_msg['messageId'])
+                Msg.objects.filter(pk=msg.id).update(external_id=inbound_msg['messageId'])
                 msgs.append(msg)
 
             return HttpResponse("Msgs Accepted: %s" % ", ".join([str(m.id) for m in msgs]))
@@ -1903,7 +1903,7 @@ class ViberHandler(View):
                                       URN.from_tel(body['phone_number']),
                                       body['message']['text'],
                                       date=msg_date)
-            Msg.all_messages.filter(pk=msg.id).update(external_id=body['message_token'])
+            Msg.objects.filter(pk=msg.id).update(external_id=body['message_token'])
             return HttpResponse('Msg Accepted: %d' % msg.id)
 
         else:

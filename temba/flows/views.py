@@ -1137,7 +1137,7 @@ class FlowCRUDL(SmartCRUDL):
                         runs = list(contact.runs.filter(flow=self.object).order_by('-created_on'))
                         for run in runs:
                             # step_uuid__in=step_uuids
-                            run.__dict__['messages'] = list(Msg.all_messages.filter(steps__run=run).order_by('created_on'))
+                            run.__dict__['messages'] = list(Msg.objects.filter(steps__run=run).order_by('created_on'))
                         context['runs'] = runs
                         context['contact'] = contact
 

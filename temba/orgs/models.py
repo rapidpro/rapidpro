@@ -1356,7 +1356,7 @@ class Org(SmartModel):
 
             # update items in the database with their new topups
             for topup, items in new_topup_items.iteritems():
-                Msg.all_messages.filter(id__in=[item.pk for item in items if isinstance(item, Msg)]).update(topup=topup)
+                Msg.objects.filter(id__in=[item.pk for item in items if isinstance(item, Msg)]).update(topup=topup)
 
         # deactive all our credit alerts
         CreditAlert.reset_for_org(self)

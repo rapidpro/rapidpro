@@ -342,7 +342,7 @@ class MsgActionForm(BaseActionForm):
                        ('delete', _("Delete Messages")))
 
     model = Msg
-    model_manager = 'all_messages'
+    model_manager = 'objects'
     label_model = Label
     label_model_manager = 'label_objects'
     has_is_active = False
@@ -771,7 +771,7 @@ class LabelCRUDL(SmartCRUDL):
 
             if self.form.cleaned_data['messages']:
                 msg_ids = [int(m) for m in self.form.cleaned_data['messages'].split(',') if m.isdigit()]
-                messages = Msg.all_messages.filter(org=obj.org, pk__in=msg_ids)
+                messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
                 if messages:
                     obj.toggle_label(messages, add=True)
 

@@ -1560,11 +1560,11 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             if sys_label:
                 return SystemLabel.get_queryset(org, sys_label, exclude_test_contacts=False)
             elif folder == 'incoming':
-                return self.model.all_messages.filter(org=org, direction='I')
+                return self.model.objects.filter(org=org, direction='I')
             else:
-                return self.model.all_messages.filter(pk=-1)
+                return self.model.objects.filter(pk=-1)
         else:
-            return self.model.all_messages.filter(org=org).exclude(visibility=Msg.VISIBILITY_DELETED).exclude(msg_type=None)
+            return self.model.objects.filter(org=org).exclude(visibility=Msg.VISIBILITY_DELETED).exclude(msg_type=None)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -2090,7 +2090,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
             Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
-            Prefetch('steps__messages', queryset=Msg.all_messages.only('broadcast', 'text')),
+            Prefetch('steps__messages', queryset=Msg.objects.only('broadcast', 'text')),
             Prefetch('steps__broadcasts', queryset=Broadcast.objects.all()),
         )
 

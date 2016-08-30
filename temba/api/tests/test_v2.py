@@ -1428,8 +1428,8 @@ class APITest(TembaTest):
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
         frank_run2_steps = list(frank_run2.steps.order_by('pk'))
 
-        joe_msgs = list(Msg.all_messages.filter(contact=self.joe).order_by('pk'))
-        frank_msgs = list(Msg.all_messages.filter(contact=self.frank).order_by('pk'))
+        joe_msgs = list(Msg.objects.filter(contact=self.joe).order_by('pk'))
+        frank_msgs = list(Msg.objects.filter(contact=self.frank).order_by('pk'))
 
         self.assertEqual(response.json['results'][2], {
             'id': frank_run2.pk,
@@ -1532,7 +1532,7 @@ class APITest(TembaTest):
 
         # check when all broadcasts have been purged
         Broadcast.objects.all().update(purged=True)
-        Msg.all_messages.filter(direction='O').delete()
+        Msg.objects.filter(direction='O').delete()
 
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
             response = self.fetchJSON(url)
@@ -1726,7 +1726,7 @@ class APITest(TembaTest):
         self.assertTrue(start.extra, extra)
 
         # check our first msg
-        msg = Msg.all_messages.get(direction='O', contact__urns__path='+12067791212')
+        msg = Msg.objects.get(direction='O', contact__urns__path='+12067791212')
         self.assertEqual("Hi Ryan Lewis, what's your favorite color?", msg.text)
 
         # error cases:

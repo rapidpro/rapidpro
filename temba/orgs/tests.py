@@ -276,7 +276,7 @@ class OrgTest(TembaTest):
 
         self.assertEqual(True, self.org.is_suspended())
 
-        self.assertEqual(0, Msg.all_messages.all().count())
+        self.assertEqual(0, Msg.objects.all().count())
         self.assertEqual(0, FlowRun.objects.all().count())
 
         # while we are suspended, we can't send broadcasts
@@ -312,7 +312,7 @@ class OrgTest(TembaTest):
         self.assertContains(response, "Sorry, your account is currently suspended. To enable sending messages, please contact support.", status_code=400)
 
         # still no messages or runs
-        self.assertEqual(0, Msg.all_messages.all().count())
+        self.assertEqual(0, Msg.objects.all().count())
         self.assertEqual(0, FlowRun.objects.all().count())
 
         # unsuspend our org and start a flow
@@ -995,8 +995,8 @@ class OrgTest(TembaTest):
 
         # after applying this, no non-test messages should be without a topup
         self.org.apply_topups()
-        self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=False, topup=None))
-        self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=True).exclude(topup=None))
+        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=False, topup=None))
+        self.assertFalse(Msg.objects.filter(org=self.org, contact__is_test=True).exclude(topup=None))
         self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
         # we aren't yet multi user since this topup was free
@@ -1705,7 +1705,7 @@ class AnonOrgTest(TembaTest):
         flow.start([], [contact])
 
         # should have one SMS
-        self.assertEquals(1, Msg.all_messages.all().count())
+        self.assertEquals(1, Msg.objects.all().count())
 
         # shouldn't show the number on the outgoing page
         response = self.client.get(reverse('msgs.msg_outbox'))

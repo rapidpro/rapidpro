@@ -1681,7 +1681,7 @@ class Flow(TembaModel):
         if msgs:
             # then send them off
             msgs.sort(key=lambda message: (message.contact_id, message.created_on))
-            Msg.all_messages.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
 
             # trigger a sync
             self.org.trigger_send(msgs)
@@ -2507,10 +2507,9 @@ class FlowRun(models.Model):
 
     def get_last_msg(self, direction):
         """
-        Returns the last incoming msg on this run, or an empty dummy message if there is none
+        Returns the last incoming msg on this run
         """
-        msg = Msg.all_messages.filter(steps__run=self, direction=direction).order_by('-created_on').first()
-        return msg
+        return Msg.objects.filter(steps__run=self, direction=direction).order_by('-created_on').first()
 
     @classmethod
     def continue_parent_flow_runs(cls, runs):
@@ -2787,7 +2786,7 @@ class FlowStep(models.Model):
         else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
-            last_incoming = Msg.all_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+            last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
                 msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)

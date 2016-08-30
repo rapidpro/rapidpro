@@ -468,7 +468,7 @@ class Contact(TembaModel):
         from temba.ivr.models import BUSY, FAILED, NO_ANSWER, CANCELED
         from temba.msgs.models import Msg
 
-        msgs = Msg.all_messages.filter(contact=self, created_on__gte=after, created_on__lt=before)
+        msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used

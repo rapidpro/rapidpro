@@ -3944,23 +3944,23 @@ class VumiTest(TembaTest):
         # self.assertEquals(200, response.status_code)
 
         # check that we've become errored
-        # sms = Msg.all_messages.get(pk=sms.pk)
+        # sms = Msg.objects.get(pk=sms.pk)
         # self.assertEquals(ERRORED, sms.status)
 
         # couple more failures should move to failure
-        # Msg.all_messages.filter(pk=sms.pk).update(status=WIRED)
+        # Msg.objects.filter(pk=sms.pk).update(status=WIRED)
         # self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
-        # Msg.all_messages.filter(pk=sms.pk).update(status=WIRED)
+        # Msg.objects.filter(pk=sms.pk).update(status=WIRED)
         # self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
-        # sms = Msg.all_messages.get(pk=sms.pk)
+        # sms = Msg.objects.get(pk=sms.pk)
         # self.assertEquals(FAILED, sms.status)
 
         # successful deliveries shouldn't stomp on failures
         # del data['delivery_status']
         # self.client.post(callback_url, json.dumps(data), content_type="application/json")
-        # sms = Msg.all_messages.get(pk=sms.pk)
+        # sms = Msg.objects.get(pk=sms.pk)
         # self.assertEquals(FAILED, sms.status)
 
         # if we are wired we can now be successful again

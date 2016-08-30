@@ -872,8 +872,8 @@ class Channel(TembaModel):
     def get_unsent_messages(self):
         # use our optimized index for our org outbox
         from temba.msgs.models import Msg
-        return Msg.all_messages.filter(org=self.org.id, status__in=['P', 'Q'], direction='O',
-                                       visibility='V').filter(channel=self, contact__is_test=False)
+        return Msg.objects.filter(org=self.org.id, status__in=['P', 'Q'], direction='O',
+                                  visibility='V').filter(channel=self, contact__is_test=False)
 
     def is_new(self):
         # is this channel newer than an hour
@@ -1412,7 +1412,7 @@ class Channel(TembaModel):
 
         # if this is a response to a user SMS, then we need to set this as a reply
         if msg.response_to_id:
-            response_to = Msg.all_messages.filter(id=msg.response_to_id).first()
+            response_to = Msg.objects.filter(id=msg.response_to_id).first()
             if response_to:
                 payload['message_type'] = 'REPLY'
                 payload['request_id'] = response_to.external_id
@@ -2600,7 +2600,7 @@ class Channel(TembaModel):
 
         # update the number of sms it took to send this if it was more than 1
         if len(parts) > 1:
-            Msg.all_messages.filter(pk=msg.id).update(msg_count=len(parts))
+            Msg.objects.filter(pk=msg.id).update(msg_count=len(parts))
 
     @classmethod
     def track_status(cls, channel, status):
