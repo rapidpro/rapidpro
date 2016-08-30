@@ -271,7 +271,8 @@ def purge_broadcasts_task():
             broadcasts = Broadcast.objects.filter(created_on__lt=purge_date, purged=False)
 
             for broadcast in broadcasts:
-                broadcast.msgs.filter(purged=False).update(purged=True)
+                # TODO actually delete messages!
+
                 broadcast.purged = True
                 broadcast.save(update_fields=['purged'])
 
