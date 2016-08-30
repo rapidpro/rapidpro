@@ -4136,10 +4136,10 @@ class VumiUssdTest(TembaTest):
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
-        message = bcast.get_messages()[0]
+        msg.refresh_from_db()
         r = get_redis_connection()
 
         try:
@@ -4149,10 +4149,10 @@ class VumiUssdTest(TembaTest):
                 mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', message.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals("1515", msg.external_id)
@@ -4162,7 +4162,7 @@ class VumiUssdTest(TembaTest):
                 self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
 
                 # try sending again, our failsafe should kick in
-                Channel.send_message(dict_to_struct('MsgStruct', message.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # we shouldn't have been called again
                 self.assertEquals(1, mock.call_count)
@@ -4174,10 +4174,10 @@ class VumiUssdTest(TembaTest):
     def test_ack(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
-        message = bcast.get_messages()[0]
+        msg.refresh_from_db()
 
         try:
             settings.SEND_MESSAGES = True
@@ -4186,10 +4186,10 @@ class VumiUssdTest(TembaTest):
                 mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', message.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals("1515", msg.external_id)
@@ -4213,7 +4213,7 @@ class VumiUssdTest(TembaTest):
                 self.client.post(callback_url, json.dumps(data), content_type="application/json")
 
                 # it should be SENT now
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(SENT, msg.status)
 
                 self.clear_cache()
@@ -4223,10 +4223,10 @@ class VumiUssdTest(TembaTest):
     def test_nack(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
-        bcast = joe.send("Test message", self.admin, trigger_send=False)
+        msg = joe.send("Test message", self.admin, trigger_send=False)
 
         # our outgoing message
-        message = bcast.get_messages()[0]
+        msg.refresh_from_db()
         r = get_redis_connection()
 
         try:
@@ -4236,10 +4236,10 @@ class VumiUssdTest(TembaTest):
                 mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
 
                 # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', message.as_task_json()))
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # check the status of the message is now sent
-                msg = bcast.get_messages()[0]
+                msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
                 self.assertEquals("1515", msg.external_id)
