@@ -92,7 +92,7 @@ class TembaTest(SmartminTest):
         self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
         self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
 
-        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand='rapidpro.io',
+        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand=settings.DEFAULT_BRAND,
                                       created_by=self.user, modified_by=self.user)
         self.org.initialize()
 
@@ -299,8 +299,6 @@ class TembaTest(SmartminTest):
                                     label='color',
                                     finished_key=None,
                                     operand=None,
-                                    webhook=None,
-                                    webhook_action=None,
                                     response_type='',
                                     ruleset_type='wait_message',
                                     config={},
@@ -567,7 +565,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         self.click('#form-two-submit')
 
         # set up our channel for claiming
-        anon = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
+        anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
         channel = Channel.create(None, anon, 'RW', 'A', name="Test Channel", address="0785551212",
                                  claim_code='AAABBBCCC', secret="12345", gcm_id="123")
 
