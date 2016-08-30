@@ -7,7 +7,9 @@
 
 -block title
   -if contact.is_blocked
-    .medium-help.icon-user-block{style:"float:left"}
+    <div class="medium-help icon-user-block" style="float:left" title="{% trans "blocked" %}"></div>
+  -elif contact.is_stopped
+    <div class="medium-help icon-user-delete" style="float:left" title="{% trans "stopped" %}"></div>
   -else
     .medium-help.icon-user{style:"float:left"}
   %h2.header-margin
