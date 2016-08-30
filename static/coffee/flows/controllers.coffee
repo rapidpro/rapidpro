@@ -1068,13 +1068,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
       # set the operands
       else if rule.test.type != "between" and rule.test.type != "ward"
-
-      if rule.test.test
-        if rule._config.localized
-          rule.test._base = rule.test.test[Flow.flow.base_language]
-        else
-          rule.test =
-            _base: rule.test.test
+        if rule.test.test
+          if rule._config.localized
+            rule.test._base = rule.test.test[Flow.flow.base_language]
+          else
+            rule.test =
+              _base: rule.test.test
 
     # and finally the category name
     rule.category._base = rule.category[Flow.flow.base_language]
