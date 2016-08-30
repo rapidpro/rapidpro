@@ -1894,10 +1894,8 @@ class LINEHandler(View):
                 content = data.get('content')
                 text = content.content.get('text')
                 date = ms_to_datetime(data.get('created_time'))
-
-                if 'to_mid' in data and len(data.get('to_mid')) > 0:
-                    to_mid = data.get('to_mid')[0].encode('utf-8')
-                    Msg.create_incoming(channel=channel, urn=URN.from_line(to_mid), text=text, date=date)
+                from_mid = data.get('from_mid').encode('utf-8')
+                Msg.create_incoming(channel=channel, urn=URN.from_line(from_mid), text=text, date=date)
 
             return HttpResponse("SMS Accepted")
 

@@ -1142,7 +1142,32 @@ class Channel(TembaModel):
 
     @classmethod
     def send_line_message(cls, channel, msg, text):
-        pass
+        from temba.msgs.models import Msg, WIRED
+        from linebot.client import LineBotClient
+
+        credentials = {
+            CHANNEL_MID: channel.config.get(CHANNEL_MID),
+            CHANNEL_SECRET: channel.config.get(CHANNEL_SECRET),
+            CHANNEL_ID: channel.config.get(CHANNEL_ID)
+        }
+
+        line_bot_client = LineBotClient(**credentials)
+
+        start = time.time()
+
+        response = line_bot_client.send_text(to_mid=msg.urn_path, text=text)
+        content = json.loads(response.content)
+        external_id = int(content.get('messageId'))
+
+        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
+
+        ChannelLog.log_success(msg=msg,
+                               description="Successfully delivered",
+                               method='POST',
+                               url=response.request.url,
+                               request=response.request.body,
+                               response=response.content,
+                               response_status=response.status_code)
 
     @classmethod
     def send_mblox_message(cls, channel, msg, text):
