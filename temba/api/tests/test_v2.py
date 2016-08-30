@@ -6,22 +6,22 @@ import pytz
 
 from datetime import datetime
 from django.contrib.auth.models import Group
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
-from mock import patch
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
-from temba.flows.models import Flow, FlowRun
-from temba.msgs.models import Broadcast, Label
-from temba.orgs.models import Language
+from temba.flows.models import Flow, FlowRun, FlowLabel
+from temba.locations.models import BoundaryAlias
+from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
-from ..models import APIToken
+from ..models import APIToken, Resthook, WebHookEvent
 from ..v2.serializers import format_datetime
 
 
@@ -71,7 +71,25 @@ class APITest(TembaTest):
         response.json = json.loads(response.content)
         return response
 
+    def postJSON(self, url, data):
+        response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        if response.content:
+            response.json = json.loads(response.content)
+        return response
+
+    def deleteJSON(self, url, query=None):
+        url += ".json"
+        if query:
+            url = url + "?" + query
+
+        response = self.client.delete(url, content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+        if response.content:
+            response.json = json.loads(response.content)
+        return response
+
     def assertEndpointAccess(self, url, query=None):
+        self.client.logout()
+
         # 403 if not authenticated but can read docs
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, 403)
@@ -206,6 +224,40 @@ class APITest(TembaTest):
         self.assertEquals(200, response.status_code)
         self.assertNotContains(response, "Log in to use the Explorer")
 
+    def test_pagination(self):
+        url = reverse('api.v2.runs') + '.json'
+        self.login(self.admin)
+
+        # create 1255 test runs (5 full pages of 250 items + 1 partial with 5 items)
+        flow = self.create_flow(uuid_start=0)
+        FlowRun.objects.bulk_create([FlowRun(org=self.org, flow=flow, contact=self.joe) for r in range(1255)])
+        actual_ids = list(FlowRun.objects.order_by('-pk').values_list('pk', flat=True))
+
+        # give them all the same modified_on
+        FlowRun.objects.all().update(modified_on=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC))
+
+        returned_ids = []
+
+        # fetch all full pages
+        response = None
+        for p in range(5):
+            response = self.fetchJSON(url if p == 0 else response.json['next'], raw_url=True)
+
+            self.assertEqual(len(response.json['results']), 250)
+            self.assertIsNotNone(response.json['next'])
+
+            returned_ids += [r['id'] for r in response.json['results']]
+
+        # fetch final partial page
+        response = self.fetchJSON(response.json['next'], raw_url=True)
+
+        self.assertEqual(len(response.json['results']), 5)
+        self.assertIsNone(response.json['next'])
+
+        returned_ids += [r['id'] for r in response.json['results']]
+
+        self.assertEqual(returned_ids, actual_ids)  # ensure all results were returned and in correct order
+
     def test_authenticate(self):
         url = reverse('api.v2.authenticate')
 
@@ -276,10 +328,65 @@ class APITest(TembaTest):
 
         # and can fetch flows, contacts, and fields, but not campaigns
         client.credentials(HTTP_AUTHORIZATION="Token " + token_obj3.key)
-        # self.assertEqual(client.get(reverse('api.v1.flows') + '.json').status_code, 200)  # TODO re-enable when added
+        self.assertEqual(client.get(reverse('api.v2.flows') + '.json').status_code, 200)
         self.assertEqual(client.get(reverse('api.v2.contacts') + '.json').status_code, 200)
         self.assertEqual(client.get(reverse('api.v2.fields') + '.json').status_code, 200)
         self.assertEqual(client.get(reverse('api.v2.campaigns') + '.json').status_code, 403)
+
+    def test_boundaries(self):
+        url = reverse('api.v2.boundaries')
+
+        self.assertEndpointAccess(url)
+
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigali")
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
+        BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
+        BoundaryAlias.create(self.org2, self.admin2, self.state1, "Other Org")  # shouldn't be returned
+
+        self.state1.simplified_geometry = GEOSGeometry('MULTIPOLYGON(((1 1, 1 -1, -1 -1, -1 1, 1 1)))')
+        self.state1.save()
+
+        # test without geometry
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 10)
+        self.assertEqual(response.json['results'][0], {
+            'osm_id': "1708283",
+            'name': "Kigali City",
+            'parent': {'osm_id': "171496", 'name': "Rwanda"},
+            'level': 1,
+            'aliases': ["Kigali", "Kigari"],
+            'geometry': None
+        })
+
+        # test without geometry
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+            response = self.fetchJSON(url, 'geometry=true')
+
+        self.assertEqual(response.json['results'][0], {
+            'osm_id': "1708283",
+            'name': "Kigali City",
+            'parent': {'osm_id': "171496", 'name': "Rwanda"},
+            'level': 1,
+            'aliases': ["Kigali", "Kigari"],
+            'geometry': {
+                'type': "MultiPolygon",
+                'coordinates': [
+                    [
+                        [
+                            [1.0, 1.0],
+                            [1.0, -1.0],
+                            [-1.0, -1.0],
+                            [-1.0, 1.0],
+                            [1.0, 1.0]
+                        ]
+                    ]
+                ],
+            }
+        })
 
     def test_broadcasts(self):
         url = reverse('api.v2.broadcasts')
@@ -296,7 +403,7 @@ class APITest(TembaTest):
         Broadcast.create(self.org2, self.admin2, "Different org...", [self.hans])
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -533,12 +640,11 @@ class APITest(TembaTest):
         self.joe.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        print response
         self.assertResultsByUUID(response, [contact4, self.joe, contact2, contact1, self.frank])
         self.assertEqual(response.json['results'][0], {
             'uuid': contact4.uuid,
@@ -581,6 +687,78 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'after=%s' % format_datetime(self.joe.modified_on))
         self.assertResultsByUUID(response, [contact4, self.joe])
 
+    def test_definitions(self):
+        url = reverse('api.v2.definitions')
+
+        self.assertEndpointAccess(url)
+
+        self.import_file('subflow')
+        flow = Flow.objects.filter(name='Parent Flow').first()
+
+        # all flow dependencies and we should get the child flow
+        response = self.fetchJSON(url, 'flow=%s' % flow.uuid)
+        self.assertEqual(len(response.json['flows']), 2)
+        self.assertEqual(response.json['flows'][0]['metadata']['name'], "Parent Flow")
+        self.assertEqual(response.json['flows'][1]['metadata']['name'], "Child Flow")
+
+        # export just the parent flow
+        response = self.fetchJSON(url, 'flow=%s&dependencies=false' % flow.uuid)
+        self.assertEqual(len(response.json['flows']), 1)
+        self.assertEqual(response.json['flows'][0]['metadata']['name'], "Parent Flow")
+
+        # import the clinic app which has campaigns
+        self.import_file('the_clinic')
+
+        # our catchall flow, all alone
+        flow = Flow.objects.filter(name='Catch All').first()
+        response = self.fetchJSON(url, 'flow=%s&dependencies=false' % flow.uuid)
+        self.assertEqual(len(response.json['flows']), 1)
+        self.assertEqual(len(response.json['campaigns']), 0)
+        self.assertEqual(len(response.json['triggers']), 0)
+
+        # with it's trigger dependency
+        response = self.fetchJSON(url, 'flow_uuid=%s' % flow.uuid)
+        self.assertEqual(len(response.json['flows']), 1)
+        self.assertEqual(len(response.json['campaigns']), 0)
+        self.assertEqual(len(response.json['triggers']), 1)
+
+        # our registration flow, all alone
+        flow = Flow.objects.filter(name='Register Patient').first()
+        response = self.fetchJSON(url, 'flow=%s&dependencies=false' % flow.uuid)
+        self.assertEqual(len(response.json['flows']), 1)
+        self.assertEqual(len(response.json['campaigns']), 0)
+        self.assertEqual(len(response.json['triggers']), 0)
+
+        # touches a lot of stuff
+        response = self.fetchJSON(url, 'flow=%s' % flow.uuid)
+        self.assertEqual(len(response.json['flows']), 6)
+        self.assertEqual(len(response.json['campaigns']), 1)
+        self.assertEqual(len(response.json['triggers']), 2)
+
+        # add our missed call flow
+        missed_call = Flow.objects.filter(name='Missed Call').first()
+        response = self.fetchJSON(url, 'flow=%s&flow=%s&dependencies=true' % (flow.uuid, missed_call.uuid))
+        self.assertEqual(len(response.json['flows']), 7)
+        self.assertEqual(len(response.json['campaigns']), 1)
+        self.assertEqual(len(response.json['triggers']), 3)
+
+        campaign = Campaign.objects.filter(name='Appointment Schedule').first()
+        response = self.fetchJSON(url, 'campaign=%s&dependencies=false' % campaign.uuid)
+        self.assertEqual(len(response.json['flows']), 0)
+        self.assertEqual(len(response.json['campaigns']), 1)
+        self.assertEqual(len(response.json['triggers']), 0)
+
+        response = self.fetchJSON(url, 'campaign=%s' % campaign.uuid)
+        self.assertEqual(len(response.json['flows']), 4)
+        self.assertEqual(len(response.json['campaigns']), 1)
+        self.assertEqual(len(response.json['triggers']), 1)
+
+        # test deprecated param names
+        response = self.fetchJSON(url, 'flow_uuid=%s&campaign_uuid=%s&dependencies=false' % (flow.uuid, campaign.uuid))
+        self.assertEqual(len(response.json['flows']), 1)
+        self.assertEqual(len(response.json['campaigns']), 1)
+        self.assertEqual(len(response.json['triggers']), 0)
+
     def test_fields(self):
         url = reverse('api.v2.fields')
 
@@ -604,6 +782,56 @@ class APITest(TembaTest):
         # filter by key
         response = self.fetchJSON(url, 'key=nick_name')
         self.assertEqual(response.json['results'], [{'key': 'nick_name', 'label': "Nick Name", 'value_type': "text"}])
+
+    def test_flows(self):
+        url = reverse('api.v2.flows')
+
+        self.assertEndpointAccess(url)
+
+        registration = self.create_flow(name="Registration", uuid_start=0)
+        survey = self.create_flow(name="Survey", uuid_start=1000)
+
+        # add a flow label
+        reporting = FlowLabel.objects.create(org=self.org, name="Reporting")
+        survey.labels.add(reporting)
+
+        # run joe through through a flow
+        survey.start([], [self.joe])
+        self.create_msg(direction='I', contact=self.joe, text="it is blue").handle()
+
+        # flow belong to other org
+        self.create_flow(org=self.org2, name="Other", uuid_start=2000)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 8):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(response.json['results'], [
+            {
+                'uuid': survey.uuid,
+                'name': "Survey",
+                'archived': False,
+                'labels': [{'uuid': reporting.uuid, 'name': "Reporting"}],
+                'expires': 720,
+                'runs': {'completed': 1, 'interrupted': 0, 'expired': 0},
+                'created_on': format_datetime(survey.created_on)
+            },
+            {
+                'uuid': registration.uuid,
+                'name': "Registration",
+                'archived': False,
+                'labels': [],
+                'expires': 720,
+                'runs': {'completed': 0, 'interrupted': 0, 'expired': 0},
+                'created_on': format_datetime(registration.created_on)
+            }
+        ])
+
+        # filter by UUID
+        response = self.fetchJSON(url, 'uuid=%s' % survey.uuid)
+        self.assertResultsByUUID(response, [survey])
 
     def test_groups(self):
         url = reverse('api.v2.groups')
@@ -721,7 +949,7 @@ class APITest(TembaTest):
         joe_msg3.refresh_from_db(fields=('modified_on',))
 
         # filter by inbox
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, 'folder=INBOX')
 
         self.assertEqual(response.status_code, 200)
@@ -730,7 +958,7 @@ class APITest(TembaTest):
         self.assertMsgEqual(response.json['results'][0], frank_msg1, msg_type='inbox', msg_status='queued', msg_visibility='visible')
 
         # filter by incoming, should get deleted messages too
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
             response = self.fetchJSON(url, 'folder=incoming')
 
         self.assertEqual(response.status_code, 200)
@@ -824,10 +1052,7 @@ class APITest(TembaTest):
             'anon': False
         })
 
-        eng = Language.create(self.org, self.admin, "English", 'eng')
-        Language.create(self.org, self.admin, "French", 'fre')
-        self.org.primary_language = eng
-        self.org.save()
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
 
         response = self.fetchJSON(url)
         self.assertEqual(response.json, {
@@ -867,85 +1092,15 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 400)
         self.clear_storage()
 
-    def test_runs_offset(self):
-        url = reverse('api.v2.runs')
-
-        self.assertEndpointAccess(url)
-
-        flow1 = self.create_flow(uuid_start=0)
-
-        for i in range(600):
-            FlowRun.create(flow1, self.joe.pk)
-
-        with patch.object(timezone, 'now', return_value=datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
-            now = timezone.now()
-            for r in FlowRun.objects.all():
-                r.modified_on = now
-                r.save()
-
-        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=10):
-            response = self.fetchJSON(url)
-            self.assertEqual(len(response.json['results']), 250)
-            self.assertTrue(response.json['next'])
-
-            query = response.json['next'].split('?')[1]
-            response = self.fetchJSON(url, query=query)
-
-            self.assertEqual(len(response.json['results']), 250)
-            self.assertTrue(response.json['next'])
-
-            query = response.json['next'].split('?')[1]
-            response = self.fetchJSON(url, query=query)
-
-            self.assertEqual(len(response.json['results']), 250)
-            self.assertTrue(response.json['next'])
-
-            query = response.json['next'].split('?')[1]
-            response = self.fetchJSON(url, query=query)
-
-            self.assertEqual(len(response.json['results']), 250)
-            self.assertTrue(response.json['next'])
-
-        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=400):
-            url = reverse('api.v2.runs')
-            response = self.fetchJSON(url)
-            self.assertEqual(len(response.json['results']), 250)
-            self.assertTrue(response.json['next'])
-
-            query = response.json['next'].split('?')[1]
-            response = self.fetchJSON(url, query=query)
-
-            self.assertEqual(len(response.json['results']), 250)
-            self.assertTrue(response.json['next'])
-
-            query = response.json['next'].split('?')[1]
-            response = self.fetchJSON(url, query=query)
-
-            self.assertEqual(len(response.json['results']), 200)
-            self.assertIsNone(response.json['next'])
-
-        with self.settings(CURSOR_PAGINATION_OFFSET_CUTOFF=5000):
-            url = reverse('api.v2.runs')
-            response = self.fetchJSON(url)
-            self.assertEqual(len(response.json['results']), 250)
-            self.assertTrue(response.json['next'])
-
-            query = response.json['next'].split('?')[1]
-            response = self.fetchJSON(url, query=query)
-
-            self.assertEqual(len(response.json['results']), 250)
-            self.assertTrue(response.json['next'])
-
-            query = response.json['next'].split('?')[1]
-            response = self.fetchJSON(url, query=query)
-
-            self.assertEqual(len(response.json['results']), 100)
-            self.assertIsNone(response.json['next'])
-
     def test_runs(self):
         url = reverse('api.v2.runs')
 
         self.assertEndpointAccess(url)
+
+        # allow Frank to run the flow in French
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.frank.language = 'fre'
+        self.frank.save()
 
         flow1 = self.create_flow(uuid_start=0)
         flow2 = Flow.copy(flow1, self.user)
@@ -972,19 +1127,23 @@ class APITest(TembaTest):
         joe_run1.refresh_from_db()
         joe_run2.refresh_from_db()
         frank_run1.refresh_from_db()
+        frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 6):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertResultsById(response, [joe_run3, frank_run2, frank_run1, joe_run2, joe_run1])
+        self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
 
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
         frank_run2_steps = list(frank_run2.steps.order_by('pk'))
 
-        self.assertEqual(response.json['results'][1], {
+        joe_msgs = list(Msg.all_messages.filter(contact=self.joe).order_by('pk'))
+        frank_msgs = list(Msg.all_messages.filter(contact=self.frank).order_by('pk'))
+
+        self.assertEqual(response.json['results'][2], {
             'id': frank_run2.pk,
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
@@ -994,7 +1153,14 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000001",
                     'arrived_on': format_datetime(frank_run2_steps[0].arrived_on),
                     'left_on': format_datetime(frank_run2_steps[0].left_on),
-                    'text': "What is your favorite color?",
+                    'messages': [
+                        {
+                            'id': frank_msgs[3].id,
+                            'broadcast': frank_msgs[3].broadcast_id,
+                            'text': "Quelle est votre couleur préférée?"
+                        }
+                    ],
+                    'text': "Quelle est votre couleur préférée?",
                     'value': None,
                     'category': None,
                     'type': 'actionset'
@@ -1003,6 +1169,7 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000005",
                     'arrived_on': format_datetime(frank_run2_steps[1].arrived_on),
                     'left_on': None,
+                    'messages': [],
                     'text': None,
                     'value': None,
                     'category': None,
@@ -1024,6 +1191,13 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000001",
                     'arrived_on': format_datetime(joe_run1_steps[0].arrived_on),
                     'left_on': format_datetime(joe_run1_steps[0].left_on),
+                    'messages': [
+                        {
+                            'id': joe_msgs[0].id,
+                            'broadcast': joe_msgs[0].broadcast_id,
+                            'text': "What is your favorite color?"
+                        }
+                    ],
                     'text': "What is your favorite color?",
                     'value': None,
                     'category': None,
@@ -1033,7 +1207,14 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000005",
                     'arrived_on': format_datetime(joe_run1_steps[1].arrived_on),
                     'left_on': format_datetime(joe_run1_steps[1].left_on),
-                    'text': 'it is blue',
+                    'messages': [
+                        {
+                            'id': joe_msgs[1].id,
+                            'broadcast': joe_msgs[1].broadcast_id,
+                            'text': "it is blue"
+                        }
+                    ],
+                    'text': "it is blue",
                     'value': 'blue',
                     'category': "Blue",
                     'type': 'ruleset'
@@ -1042,7 +1223,14 @@ class APITest(TembaTest):
                     'node': "00000000-00000000-00000000-00000003",
                     'arrived_on': format_datetime(joe_run1_steps[2].arrived_on),
                     'left_on': format_datetime(joe_run1_steps[2].left_on),
-                    'text': 'Blue is sad. :(',
+                    'messages': [
+                        {
+                            'id': joe_msgs[2].id,
+                            'broadcast': joe_msgs[2].broadcast_id,
+                            'text': "Blue is sad. :("
+                        }
+                    ],
+                    'text': "Blue is sad. :(",
                     'value': None,
                     'category': None,
                     'type': 'actionset'
@@ -1054,13 +1242,29 @@ class APITest(TembaTest):
             'exit_type': 'completed'
         })
 
+        # check when all broadcasts have been purged
+        Broadcast.objects.all().update(purged=True)
+        Msg.all_messages.filter(direction='O').delete()
+
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.json['results'][2]['steps'][0]['messages'], [
+            {
+                'id': None,
+                'broadcast': frank_msgs[3].broadcast_id,
+                'text': "Quelle est votre couleur préférée?"
+            }
+        ])
+        self.assertEqual(response.json['results'][2]['steps'][0]['text'], "Quelle est votre couleur préférée?")
+
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)
         self.assertResultsById(response, [frank_run2])
 
         # filter by flow
         response = self.fetchJSON(url, 'flow=%s' % flow1.uuid)
-        self.assertResultsById(response, [frank_run2, frank_run1, joe_run2, joe_run1])
+        self.assertResultsById(response, [joe_run2, frank_run2, frank_run1, joe_run1])
 
         # doesn't work if flow is inactive
         flow1.is_active = False
@@ -1095,11 +1299,11 @@ class APITest(TembaTest):
 
         # filter by after
         response = self.fetchJSON(url, 'after=%s' % format_datetime(frank_run1.modified_on))
-        self.assertResultsById(response, [joe_run3, frank_run2, frank_run1])
+        self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1])
 
         # filter by before
         response = self.fetchJSON(url, 'before=%s' % format_datetime(frank_run1.modified_on))
-        self.assertResultsById(response, [frank_run1, joe_run2, joe_run1])
+        self.assertResultsById(response, [frank_run1, joe_run1])
 
         # filter by invalid before
         response = self.fetchJSON(url, 'before=longago')
@@ -1113,3 +1317,156 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'contact=%s&flow=%s' % (self.joe.uuid, flow1.uuid))
         self.assertResponseError(response, None,
                                  "You may only specify one of the contact, flow parameters")
+
+    def test_resthooks(self):
+        url = reverse('api.v2.resthooks')
+        self.assertEndpointAccess(url)
+
+        # create a resthook
+        resthook = Resthook.get_or_create(self.org, 'new-mother', self.admin)
+
+        # create a resthook for another org
+        other_org_resthook = Resthook.get_or_create(self.org2, 'new-father', self.admin2)
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], {
+            'resthook': 'new-mother',
+            'created_on': format_datetime(resthook.created_on),
+            'modified_on': format_datetime(resthook.modified_on),
+        })
+
+        # ok, let's look at subscriptions
+        url = reverse('api.v2.resthook_subscribers')
+        self.assertEndpointAccess(url)
+
+        # let's try to create a new one but with an invalid resthook
+        response = self.postJSON(url, dict(resthook='new-father', target_url='https://foo.bar/'))
+        self.assertEqual(response.status_code, 400)
+
+        # let's try to create a new one
+        response = self.postJSON(url, dict(resthook='new-mother', target_url='https://foo.bar/'))
+        self.assertEqual(response.status_code, 201)
+        subscriber = resthook.subscribers.all().first()
+        subscriber_json = dict(id=subscriber.id, resthook='new-mother', target_url='https://foo.bar/',
+                               created_on=format_datetime(subscriber.created_on))
+        self.assertEqual(response.json, subscriber_json)
+
+        # create a subscriber on our other resthook
+        other_org_subscriber = other_org_resthook.add_subscriber('https://bar.foo', self.admin2)
+
+        # list org subscribers, should have only ours
+        response = self.fetchJSON(url)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], subscriber_json)
+
+        # remove our subscriber
+        response = self.deleteJSON(url, "id=%d" % subscriber.id)
+        self.assertEqual(response.status_code, 204)
+
+        # subscriber should no longer be active
+        subscriber.refresh_from_db()
+        self.assertFalse(subscriber.is_active)
+
+        # missing id
+        response = self.deleteJSON(url, "")
+        self.assertEqual(response.status_code, 400)
+
+        # invalid id (other org)
+        response = self.deleteJSON(url, "id=%d" % other_org_subscriber.id)
+        self.assertEqual(response.status_code, 404)
+
+        # ok, let's look at the events on this resthook
+        url = reverse('api.v2.resthook_events')
+        self.assertEndpointAccess(url)
+
+        event = WebHookEvent.objects.create(org=self.org, resthook=resthook, event='F',
+                                            data=json.dumps(dict(event='new mother',
+                                                                 values=json.dumps(dict(name="Greg")),
+                                                                 steps=json.dumps(dict(uuid='abcde')))),
+                                            created_by=self.admin, modified_by=self.admin)
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], {
+            'resthook': 'new-mother',
+            'created_on': format_datetime(event.created_on),
+            'data': dict(event='new mother',
+                         values=dict(name="Greg"),
+                         steps=dict(uuid='abcde'))
+        })
+
+    def test_flow_starts(self):
+        url = reverse('api.v2.flow_starts')
+        self.assertEndpointAccess(url)
+
+        flow = self.get_flow('favorites')
+
+        # start the flow
+        hans_group = self.create_group("hans", contacts=[self.hans])
+        response = self.postJSON(url, dict(urns=['tel:+12067791212'],
+                                           contacts=[self.joe.uuid],
+                                           groups=[hans_group.uuid],
+                                           flow=flow.uuid,
+                                           restart_participants=True))
+        self.assertEqual(response.status_code, 201)
+
+        # assert our new start
+        start = flow.starts.all().first()
+        self.assertEqual(start.flow, flow)
+        self.assertTrue(start.contacts.filter(urns__path='+12067791212'))
+        self.assertTrue(start.contacts.filter(id=self.joe.id))
+        self.assertTrue(start.groups.filter(id=hans_group.id))
+        self.assertTrue(start.restart_participants)
+
+        # error cases:
+
+        # nobody to send to
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid URN
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['foo:bar'], contacts=[self.joe.uuid]))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid contact uuid
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], contacts=['abcde']))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid group uuid
+        response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'], groups=['abcde']))
+        self.assertEqual(response.status_code, 400)
+
+        # invalid flow uuid
+        response = self.postJSON(url, dict(flow='abcde', restart_participants=True, urns=['tel:+12067791212']))
+        self.assertEqual(response.status_code, 400)
+
+        # check our list
+        anon_contact = Contact.objects.get(urns__path="+12067791212")
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['next'], None)
+        self.assertEqual(len(response.json['results']), 1)
+        self.assertEqual(response.json['results'][0], {
+            'contacts': [{'name': 'Joe Blow',
+                          'uuid': self.joe.uuid},
+                         {'name': None,
+                          'uuid': anon_contact.uuid}],
+            'created_on': format_datetime(start.created_on),
+            'flow': {'name': 'Favorites',
+                     'uuid': flow.uuid},
+            'groups': [{'name': 'hans',
+                        'uuid': hans_group.uuid}],
+            'id': start.id,
+            'modified_on': format_datetime(start.modified_on),
+            'restart_participants': True,
+            'status': 'complete'
+        })

@@ -380,8 +380,8 @@ class TriggerCRUDL(SmartCRUDL):
             trigger_type = obj.trigger_type
             if trigger_type == Trigger.TYPE_SCHEDULE:
                 repeat_period = obj.schedule.repeat_period
-                selected = ['g-%d' % _.pk for _ in self.object.groups.all()]
-                selected += ['c-%d' % _.pk for _ in self.object.contacts.all()]
+                selected = ['g-%s' % _.uuid for _ in self.object.groups.all()]
+                selected += ['c-%s' % _.uuid for _ in self.object.contacts.all()]
                 selected = ','.join(selected)
                 return dict(repeat_period=repeat_period, omnibox=selected)
 

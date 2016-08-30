@@ -172,7 +172,11 @@
                 "mRender": function ( data, type, row ) {
 
                     if (data.contact) {
-                      return $('<a/>', { href:'?c=' + data.contact, text:data.category})[0].outerHTML;
+                      var text = data.category;
+                      if (text == null) {
+                        text = '-'
+                      }
+                      return $('<a/>', { href:'?c=' + data.contact, text:text})[0].outerHTML;
                     }
 
                     if (!data.category) {

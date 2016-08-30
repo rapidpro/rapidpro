@@ -10,10 +10,38 @@ from djcelery_transactions import task
 from redis_cache import get_redis_connection
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import pop_task
+from temba.utils import json_date_to_datetime
 from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
-from .models import FIRE_EVENT, SystemLabel
+from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel
 
 logger = logging.getLogger(__name__)
+
+
+def process_run_timeout(run_id, timeout_on):
+    """
+    Processes a single run timeout
+    """
+    from temba.flows.models import FlowRun
+
+    r = get_redis_connection()
+    run = FlowRun.objects.filter(id=run_id, is_active=True, flow__is_active=True).first()
+
+    if run:
+        key = 'pcm_%d' % run.contact_id
+        if not r.get(key):
+            with r.lock(key, timeout=120):
+                print "T[%09d] Processing timeout" % run.id
+                start = time.time()
+
+                run.refresh_from_db()
+
+                # this is still the timeout to process (json doesn't have microseconds so close enough)
+                if run.timeout_on and abs(run.timeout_on - timeout_on) < timedelta(milliseconds=1):
+                    run.resume_after_timeout()
+                else:
+                    print "T[%09d] .. skipping timeout, already handled" % run.id
+
+                print "T[%09d] %08.3f s" % (run.id, time.time() - start)
 
 
 @task(track_started=True, name='process_message_task')  # pragma: no cover
@@ -189,6 +217,7 @@ def handle_event_task():
     Currently two types of events may be "popped" from our queue:
            msg - Which contains the id of the Msg to be processed
           fire - Which contains the id of the EventFire that needs to be fired
+       timeout - Which contains a run that timed out and needs to be resumed
     """
     from temba.campaigns.models import EventFire
     r = get_redis_connection()
@@ -215,6 +244,10 @@ def handle_event_task():
                     start = time.time()
                     event.fire()
                     print "E[%09d] %08.3f s" % (event.id, time.time() - start)
+
+    elif event_task['type'] == TIMEOUT_EVENT:
+        timeout_on = json_date_to_datetime(event_task['timeout_on'])
+        process_run_timeout(event_task['run'], timeout_on)
 
     else:
         raise Exception("Unexpected event type: %s" % event_task)
