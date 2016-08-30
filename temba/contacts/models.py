@@ -17,6 +17,7 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from guardian.utils import get_anonymous_user
+from itertools import chain
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
@@ -458,6 +459,50 @@ class Contact(TembaModel):
             Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups))
 
         return scheduled_broadcasts.order_by('schedule__next_fire')
+
+    def get_activity(self, after, before):
+        """
+        Gets this contact's activity of messages, calls, runs etc in the given time window
+        """
+        from temba.flows.models import Flow
+        from temba.ivr.models import BUSY, FAILED, NO_ANSWER, CANCELED
+        from temba.msgs.models import Msg
+
+        msgs = Msg.all_messages.filter(contact=self, created_on__gte=after, created_on__lt=before)
+        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
+
+        # we also include in the timeline purged broadcasts with a best guess at the translation used
+        broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gte=after, created_on__lt=before)
+        broadcasts = broadcasts.prefetch_related('steps__run__flow')
+        for broadcast in broadcasts:
+            steps = list(broadcast.steps.all())
+            flow = steps[0].run.flow if steps else None
+            flow_language = flow.base_language if flow else None
+            broadcast.translated_text = broadcast.get_translated_text(contact=self,
+                                                                      base_language=flow_language,
+                                                                      org=self.org)
+
+        # and all of this contact's runs, channel events such as missed calls, scheduled events
+        runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        runs = runs.select_related('flow')
+
+        channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
+        channel_events = channel_events.select_related('channel')
+
+        event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
+        event_fires = event_fires.select_related('event__campaign')
+
+        # for easier comparison and display - give event fires same time attribute as other activity items
+        for event_fire in event_fires:
+            event_fire.created_on = event_fire.fired
+
+        # and the contact's failed IVR calls
+        error_calls = self.calls.filter(created_on__gte=after, created_on__lt=before, status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+        error_calls = error_calls.select_related('channel')
+
+        # chain them all together in the same list and sort by time
+        activity = chain(msgs, broadcasts, runs, event_fires, channel_events, error_calls)
+        return sorted(activity, key=lambda i: i.created_on, reverse=True)
 
     def get_field(self, key):
         """

@@ -598,7 +598,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Outbox, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Outbox, self).get_context_data(*args, **kwargs)
@@ -612,7 +612,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Sent, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Sent, self).get_context_data(*args, **kwargs)
@@ -627,7 +627,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Failed, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Failed, self).get_context_data(*args, **kwargs)

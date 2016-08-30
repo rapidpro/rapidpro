@@ -162,8 +162,8 @@ class Broadcast(models.Model):
     urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"), related_name='addressed_broadcasts',
                                   help_text=_("Individual URNs included in this message"))
 
-    recipients = models.ManyToManyField(ContactURN, verbose_name=_("Recipients"), related_name='broadcasts',
-                                        help_text=_("The URNs which received this message"))
+    recipients = models.ManyToManyField(Contact, verbose_name=_("Recipients"), related_name='broadcasts',
+                                        help_text=_("The contacts which received this message"))
 
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
                                           help_text=_("Number of urns which received this broadcast"))
@@ -458,7 +458,7 @@ class Broadcast(models.Model):
             if msg:
                 batch.append(msg)
                 # keep track of this URN as a recipient
-                recipient_batch.append(RelatedRecipient(contacturn_id=msg.contact_urn_id, broadcast_id=self.id))
+                recipient_batch.append(RelatedRecipient(contact_id=msg.contact_id, broadcast_id=self.id))
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
@@ -990,6 +990,13 @@ class Msg(models.Model):
             commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
 
         return commands
+
+    def get_last_log(self):
+        """
+        Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
+        """
+        sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
+        return sorted_logs[0] if sorted_logs else None
 
     def get_media_path(self):
 

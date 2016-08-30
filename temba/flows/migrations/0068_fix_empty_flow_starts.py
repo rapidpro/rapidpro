@@ -1,55 +1,79 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from django.db import migrations, models
-from django.db.models import Q
 import json
+import copy
+from django.db import migrations, models
+from temba.flows.models import FlowException
+from temba.flows.flow_migrations import map_actions
 
 
-def fix_empty_starts(apps, schema):
-    empty_actions = ('[{"msg": {"eng": ""}, "type": "reply"}]', '[{"msg": {"base": ""}, "type": "reply"}]')
+def noop(apps, schema):
+    pass
 
+
+def remove_empty_reply_actions(action):
+    # this is a reply action, let's see if it is empty
+    if action['type'] == 'reply':
+        msg = action.get('msg')
+
+        # empty message or dict, delete it
+        if not msg:
+            return None
+
+        # this is a language dict
+        if isinstance(msg, dict):
+            # nothing set in any of our languages
+            if not any([v for v in msg.values()]):
+                return None
+
+    # don't modify this action
+    return action
+
+
+def fix_empty_replies(apps, schema):
     from temba.flows.models import ActionSet
-    # find any action sets that have no msg body
-    empty_actionsets = ActionSet.objects.filter(actions__in=empty_actions).distinct('flow')
-    for i, actionset in enumerate(empty_actionsets):
-        flow = actionset.flow
-        old_def = flow.as_json()
 
-        for actionset in flow.action_sets.all():
-            if actionset.actions in empty_actions:
-                print "removing: %s" % actionset.as_json()
-                actionset.delete()
+    # iterate across all action sets
+    actionsets = ActionSet.objects.all()
+    for actionset in actionsets:
+        try:
+            actionset.get_actions()
+        except FlowException as e:
+            # this is a broken reply action
+            if str(e) in ["Invalid reply action, empty message dict",
+                          "Invalid reply action, missing at least one message",
+                          "Invalid reply action, no message"]:
 
-        # set our entry uuid to the highest node
-        highest_action = flow.action_sets.all().order_by('-y').first()
-        highest_ruleset = flow.rule_sets.all().order_by('-y').first()
+                flow = actionset.flow
+                print "Flow [%d]: %s" % (flow.id, str(e))
 
-        entry_uuid = None
-        if highest_action and highest_ruleset:
-            if highest_action.y <= highest_ruleset.y:
-                entry_uuid = highest_action.uuid
-            else:
-                entry_uuid = highest_ruleset.uuid
+                # get our last definition
+                last_revision = flow.revisions.all().order_by('-revision').all().first()
+                old_def = json.loads(last_revision.definition)
+                new_def = map_actions(copy.deepcopy(old_def), remove_empty_reply_actions)
 
-        elif highest_action and not highest_ruleset:
-            entry_uuid = highest_action.uuid
-        elif highest_ruleset and not highest_action:
-            entry_uuid = highest_ruleset.uuid
+                # save this as a new revision, with the same version number
+                revision = last_revision.revision + 1
 
-        # save our new entry uuid
-        flow.entry_uuid = entry_uuid
-        flow.save(update_fields=['entry_uuid'])
+                # create a new version
+                flow.revisions.create(definition=json.dumps(new_def),
+                                      created_by=last_revision.created_by,
+                                      modified_by=last_revision.created_by,
+                                      spec_version=last_revision.spec_version,
+                                      revision=revision)
 
-        print "=" * 50
-        print json.dumps(old_def, indent=2)
-        print "-" * 50
-        print json.dumps(flow.as_json(), indent=2)
+                print "=" * 50
+                print json.dumps(old_def, indent=2)
+                print "-" * 50
+                print json.dumps(new_def, indent=2)
 
-        # and create our revision
-        flow.update(flow.as_json())
+                # finally, migrate this forward to remove any actionset objects we removed
+                flow.ensure_current_version()
 
-        print "updated %d of %d actionsets" % (i+1, len(empty_actionsets))
+        # other exceptions during decoding likely are version issues, ignore them
+        except:
+            pass
 
 
 class Migration(migrations.Migration):
@@ -59,5 +83,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(fix_empty_starts)
+        migrations.RunPython(fix_empty_replies, noop)
     ]

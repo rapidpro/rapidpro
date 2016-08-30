@@ -1087,6 +1087,8 @@ class ChannelTest(TembaTest):
         # a different country altogether should just give us the default
         us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, 'tel:+593997290044'))
         self.assertEqual(us_channel, channel)
+
+        self.org = Org.objects.get(id=self.org.id)
         self.assertIsNone(self.org.get_country_code())
 
         # yet another registration in rwanda
@@ -6972,6 +6974,12 @@ class GlobeTest(TembaTest):
 
             # manually send it off
             Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            mock.assert_called_once_with('https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/21586380/requests',
+                                         headers={'User-agent': 'RapidPro'},
+                                         data={'message': 'MT', 'app_secret': 'AppSecret', 'app_id': 'AppId',
+                                               'passphrase': 'Passphrase', 'address': '639171234567'},
+                                         timeout=5)
 
             # check the status of the message is now sent
             msg.refresh_from_db()
