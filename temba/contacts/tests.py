@@ -340,6 +340,7 @@ class ContactGroupTest(TembaTest):
 
     def test_delete(self):
         group = self.create_group("one")
+        flow = self.get_flow('favorites')
 
         self.login(self.admin)
 
@@ -350,10 +351,10 @@ class ContactGroupTest(TembaTest):
         group = self.create_group("one")
         delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
 
-        trigger = Trigger.objects.create(org=self.org, keyword="join", created_by=self.admin, modified_by=self.admin)
+        trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="join", created_by=self.admin, modified_by=self.admin)
         trigger.groups.add(group)
 
-        second_trigger = Trigger.objects.create(org=self.org, keyword="register", created_by=self.admin, modified_by=self.admin)
+        second_trigger = Trigger.objects.create(org=self.org, flow=flow, keyword="register", created_by=self.admin, modified_by=self.admin)
         second_trigger.groups.add(group)
 
         response = self.client.post(delete_url, dict())
@@ -493,7 +494,7 @@ class ContactTest(TembaTest):
         self.manager1 = self.create_user("mike")
 
         self.joe = self.create_contact(name="Joe Blow", number="123", twitter="blow80")
-        self.frank = self.create_contact(name="Frank Smith", number="1234")
+        self.frank = self.create_contact(name="Frank Smith", number="123222")
         self.billy = self.create_contact(name="Billy Nophone")
         self.voldemort = self.create_contact(number="+250788383383")
 
@@ -1082,7 +1083,7 @@ class ContactTest(TembaTest):
 
             # 3 sendable URNs with names as extra
             dict(id='u-%d' % joe_tel.pk, text="123", extra="Joe Blow", scheme='tel'),
-            dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % frank_tel.pk, text="123222", extra="Frank Smith", scheme='tel'),
             dict(id='u-%d' % voldemort_tel.pk, text="250788383383", extra=None, scheme='tel')
         ])
 
@@ -1108,13 +1109,13 @@ class ContactTest(TembaTest):
             dict(id='c-%s' % self.joe.uuid, text="Joe Blow"),
             dict(id='c-%s' % self.voldemort.uuid, text="250788383383"),
             dict(id='u-%d' % joe_tel.pk, text="123", extra="Joe Blow", scheme='tel'),
-            dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % frank_tel.pk, text="123222", extra="Frank Smith", scheme='tel'),
             dict(id='u-%d' % voldemort_tel.pk, text="250788383383", extra=None, scheme='tel')
         ])
 
         # search for Frank by phone
-        self.assertEqual(omnibox_request("search=1234"), [
-            dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel')
+        self.assertEqual(omnibox_request("search=123222"), [
+            dict(id='u-%d' % frank_tel.pk, text="123222", extra="Frank Smith", scheme='tel')
         ])
 
         # search for Joe by twitter - won't return anything because there is no twitter channel
@@ -1156,7 +1157,7 @@ class ContactTest(TembaTest):
         # lookup by URN ids
         urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
         self.assertEqual(omnibox_request(urn_query), [
-            dict(id='u-%d' % frank_tel.pk, text="1234", extra="Frank Smith", scheme='tel'),
+            dict(id='u-%d' % frank_tel.pk, text="123222", extra="Frank Smith", scheme='tel'),
             dict(id='u-%d' % joe_twitter.pk, text="blow80", extra="Joe Blow", scheme='twitter')
         ])
 
@@ -1195,7 +1196,7 @@ class ContactTest(TembaTest):
             ])
 
             # but not by frank number
-            self.assertEqual(omnibox_request("search=1234"), [])
+            self.assertEqual(omnibox_request("search=123222"), [])
 
     def test_history(self):
         url = reverse('contacts.contact_history', args=[self.joe.uuid])

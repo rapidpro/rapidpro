@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='contactfield',
             name='created_by',
-            field=models.ForeignKey(related_name='contacts_contactfield_creations', default=settings.ANONYMOUS_USER_ID, to=settings.AUTH_USER_MODEL, help_text='The user which originally created this item'),
+            field=models.ForeignKey(related_name='contacts_contactfield_creations', default=1, to=settings.AUTH_USER_MODEL, help_text='The user which originally created this item'),
             preserve_default=False,
         ),
         migrations.AddField(
@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='contactfield',
             name='modified_by',
-            field=models.ForeignKey(related_name='contacts_contactfield_modifications', default=settings.ANONYMOUS_USER_ID, to=settings.AUTH_USER_MODEL, help_text='The user which last modified this item'),
+            field=models.ForeignKey(related_name='contacts_contactfield_modifications', default=1, to=settings.AUTH_USER_MODEL, help_text='The user which last modified this item'),
             preserve_default=False,
         ),
         migrations.AddField(

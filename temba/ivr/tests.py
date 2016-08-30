@@ -10,7 +10,7 @@ from django.contrib.auth.models import Group
 from django.core.files import File
 from django.core.urlresolvers import reverse
 from mock import patch
-from temba.channels.models import TWILIO, CALL, ANSWER, SEND
+from temba.channels.models import Channel
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.msgs.models import Msg, IVR
@@ -25,8 +25,8 @@ class IVRTests(FlowFileTest):
         super(IVRTests, self).setUp()
 
         # configure our account to be IVR enabled
-        self.channel.channel_type = TWILIO
-        self.channel.role = CALL + ANSWER + SEND
+        self.channel.channel_type = Channel.TYPE_TWILIO
+        self.channel.role = Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND
         self.channel.save()
         self.admin.groups.add(Group.objects.get(name="Beta"))
         self.login(self.admin)
@@ -553,7 +553,16 @@ class IVRTests(FlowFileTest):
         self.org.save()
 
         # import an ivr flow
-        self.get_flow('call_me_maybe')
+        flow = self.get_flow('call_me_maybe')
+        flow.version_number = 3
+        flow.save()
+
+        # go back to our original version
+        flow_json = self.get_flow_json('call_me_maybe')['definition']
+
+        from temba.flows.models import FlowRevision
+        FlowRevision.objects.create(flow=flow, definition=json.dumps(flow_json, indent=2),
+                                    spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
         # create an inbound call
         post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
@@ -563,6 +572,10 @@ class IVRTests(FlowFileTest):
 
         call = IVRCall.objects.all().first()
         self.assertEquals('+250788382382', call.contact_urn.path)
+
+        from temba.orgs.models import CURRENT_EXPORT_VERSION
+        flow.refresh_from_db()
+        self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

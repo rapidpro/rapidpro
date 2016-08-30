@@ -10,6 +10,63 @@ from uuid import uuid4
 import regex
 
 
+def migrate_to_version_10(json_flow, flow):
+    """
+    Looks for webhook ruleset_types, adding success and failure cases and moving
+    webhook_action and webhook to config
+    """
+    def replace_webhook_ruleset(ruleset, base_lang):
+        # not a webhook? delete any turds of webhook or webhook_action
+        if ruleset.get('ruleset_type', None) != 'webhook':
+            ruleset.pop('webhook_action', None)
+            ruleset.pop('webhook', None)
+            return ruleset
+
+        if 'config' not in ruleset:
+            ruleset['config'] = dict()
+
+        # webhook_action and webhook now live in config
+        ruleset['config']['webhook_action'] = ruleset['webhook_action']
+        del ruleset['webhook_action']
+        ruleset['config']['webhook'] = ruleset['webhook']
+        del ruleset['webhook']
+
+        # we now can route differently on success and failure, route old flows to the same destination
+        # for both
+        destination = ruleset['rules'][0].get('destination', None)
+        destination_type = ruleset['rules'][0].get('destination_type', None)
+        old_rule_uuid = ruleset['rules'][0]['uuid']
+
+        rules = []
+        for status in ['success', 'failure']:
+            # maintain our rule uuid for the success case
+            rule_uuid = old_rule_uuid if status == 'success' else unicode(uuid4())
+            new_rule = dict(test=dict(status=status, type='webhook_status'),
+                            category={base_lang: status.capitalize()},
+                            uuid=rule_uuid)
+
+            if destination:
+                new_rule['destination'] = destination
+                new_rule['destination_type'] = destination_type
+
+            rules.append(new_rule)
+
+        ruleset['rules'] = rules
+        return ruleset
+
+    # if we have rulesets, we need to fix those up with our new webhook types
+    base_lang = json_flow.get('base_language', 'base')
+    if 'rule_sets' in json_flow:
+        rulesets = []
+        for ruleset in json_flow['rule_sets']:
+            ruleset = replace_webhook_ruleset(ruleset, base_lang)
+            rulesets.append(ruleset)
+
+        json_flow['rule_sets'] = rulesets
+
+    return json_flow
+
+
 def migrate_export_to_version_9(exported_json, org, same_site=True):
     """
     Migrates remaining ids to uuids. Changes to uuids for Flows, Groups,
@@ -248,6 +305,7 @@ def migrate_to_version_6(json_flow, flow=None):
     text will be a dict from the outset. If no language is set, we will use 'base' as the
     default language.
     """
+
     definition = json_flow.get('definition')
 
     # the name of the base language if its not set yet
@@ -397,6 +455,51 @@ def migrate_to_version_5(json_flow, flow=None):
 
 
 # ================================ Helper methods for flow migrations ===================================
+
+def get_entry(json_flow):
+    """
+    Returns the entry node for the passed in flow, this is the ruleset or actionset with the lowest y
+    """
+    lowest_y = None
+    lowest_uuid = None
+
+    for ruleset in json_flow.get('rule_sets', []):
+        if lowest_y is None or ruleset['y'] < lowest_y:
+            lowest_uuid = ruleset['uuid']
+            lowest_y = ruleset['y']
+
+    for actionset in json_flow.get('action_sets', []):
+        if lowest_y is None or actionset['y'] <= lowest_y:
+            lowest_uuid = actionset['uuid']
+            lowest_y = actionset['y']
+
+    return lowest_uuid
+
+
+def map_actions(json_flow, fixer_method):
+    """
+    Given a JSON flow, runs fixer_method on every action. If fixer_method returns None, the action is
+    removed, otherwise the returned action is used.
+    """
+    action_sets = []
+    for actionset in json_flow.get('action_sets', []):
+        actions = []
+        for action in actionset.get('actions', []):
+            fixed_action = fixer_method(action)
+            if fixed_action is not None:
+                actions.append(fixed_action)
+
+        actionset['actions'] = actions
+
+        # only add in this actionset if there are actions in it
+        if actions:
+            action_sets.append(actionset)
+
+    json_flow['action_sets'] = action_sets
+    json_flow['entry'] = get_entry(json_flow)
+
+    return json_flow
+
 
 def remove_extra_rules(json_flow, ruleset):
     """ Remove all rules but the all responses rule """

@@ -16,7 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
-from temba.channels.models import Channel, SEND
+from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, URN
 from temba.formax import FormaxMixin
@@ -253,7 +253,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 return response
 
             # can this org send to any URN schemes?
-            if not org.get_schemes(SEND):
+            if not org.get_schemes(Channel.ROLE_SEND):
                 return HttpResponseBadRequest(_("You must add a phone number before sending messages"))
 
             return response
