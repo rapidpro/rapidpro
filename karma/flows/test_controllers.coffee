@@ -22,11 +22,11 @@ describe 'Controllers:', ->
 
     # wire up our mock flows
     flows = {
-      'favorites': { id: 1, languages:[] },
-      'rules_first': { id: 2, languages:[] },
-      'loop_detection': { id: 3, languages:[] },
-      'webhook_rule_first': { id: 4, languages:[] },
-      'ussd_example': { id: 5, languages:[] },
+      'favorites': { id: 1, languages:[], channel_countries: [] },
+      'rules_first': { id: 2, languages:[], channel_countries: [] },
+      'loop_detection': { id: 3, languages:[], channel_countries: [] },
+      'webhook_rule_first': { id: 4, languages:[], channel_countries: [] },
+      'ussd_example': { id: 5, languages:[], channel_countries: [] },
     }
 
     $http.whenGET('/contactfield/json/').respond([])
@@ -142,7 +142,6 @@ describe 'Controllers:', ->
       $http.flush()
 
     it 'should view localized flows without org language', ->
-
       # mock our contact fields
       flowService.contactFieldSearch = []
 
@@ -219,9 +218,9 @@ describe 'Controllers:', ->
 
         # USSD flow
         flowService.flow.flow_type = 'U'
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_menu'))).toBe(true)
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_ussd'))).toBe(true)
-        expect(modalScope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(false)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_menu'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_ussd'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(false)
 
       $timeout.flush()
 

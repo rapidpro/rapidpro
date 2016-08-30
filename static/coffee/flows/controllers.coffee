@@ -1527,7 +1527,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           Flow.updateDestination($scope.options.dragSource, ruleset.uuid)
 
       # USSD save message
-      if Flow.flow.flow_type == 'U'
+      if Flow.flow.flow_type == 'U' and ruleset.config.ussd_message
         ruleset.config.ussd_message[$scope.base_language] = ruleset.config.ussd_text
 
       # finally, make sure we get saved
