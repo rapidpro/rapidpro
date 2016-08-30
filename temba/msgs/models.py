@@ -660,9 +660,6 @@ class Msg(models.Model):
     media = models.URLField(null=True, blank=True, max_length=255,
                             help_text=_("The media associated with this message if any"))
 
-    purged = models.NullBooleanField(default=False,
-                                     help_text="If this message has been purged")
-
     all_messages = models.Manager()
     current_messages = models.Manager()
 
