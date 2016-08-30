@@ -15,7 +15,7 @@ def populate_flowlabel_uuid(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0061_flowrun_timeout_on'),
+        ('flows', '0061_exit_flowruns'),
     ]
 
     operations = [
