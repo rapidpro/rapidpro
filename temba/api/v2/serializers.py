@@ -99,6 +99,46 @@ class BroadcastReadSerializer(ReadSerializer):
         fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on')
 
 
+class BroadcastWriteSerializer(WriteSerializer):
+    text = serializers.CharField(required=True, max_length=480)
+    urns = fields.URNListField(required=False)
+    contacts = fields.ContactField(many=True, required=False)
+    groups = fields.ContactGroupField(many=True, required=False)
+    channel = fields.ChannelField(required=False)
+
+    def validate(self, data):
+        if self.context['org'].is_suspended():
+            raise serializers.ValidationError("Sorry, your account is currently suspended. "
+                                              "To enable sending messages, please contact support.")
+
+        if not (data.get('urns') or data.get('contacts') or data.get('groups')):
+            raise serializers.ValidationError("Must provide either urns, contacts or groups")
+
+        return data
+
+    def save(self):
+        """
+        Create a new broadcast to send out
+        """
+        from temba.msgs.tasks import send_broadcast_task
+
+        recipients = self.validated_data.get('contacts', []) + self.validated_data.get('groups', [])
+
+        for urn in self.validated_data.get('urns', []):
+            # create contacts for URNs if necessary
+            contact = Contact.get_or_create(self.context['org'], self.context['user'], urns=[urn])
+            contact_urn = contact.urn_objects[urn]
+            recipients.append(contact_urn)
+
+        # create the broadcast
+        broadcast = Broadcast.create(self.context['org'], self.context['user'], self.validated_data['text'],
+                                     recipients=recipients, channel=self.validated_data.get('channel'))
+
+        # send in task
+        send_broadcast_task.delay(broadcast.id)
+        return broadcast
+
+
 class ChannelEventReadSerializer(ReadSerializer):
     TYPES = ReadSerializer.extract_constants(ChannelEvent.TYPE_CONFIG)
 

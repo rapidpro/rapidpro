@@ -23,7 +23,7 @@ from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
-from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
+from .serializers import BroadcastReadSerializer, BroadcastWriteSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
@@ -43,7 +43,7 @@ def api(request, format=None):
     The following endpoints are provided:
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
-     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
+     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list campaigns
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
@@ -97,7 +97,8 @@ class ApiExplorerView(SmartTemplateView):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
             BoundariesEndpoint.get_read_explorer(),
-            BroadcastEndpoint.get_read_explorer(),
+            BroadcastsEndpoint.get_read_explorer(),
+            BroadcastsEndpoint.get_write_explorer(),
             CampaignsEndpoint.get_read_explorer(),
             CampaignEventsEndpoint.get_read_explorer(),
             ChannelsEndpoint.get_read_explorer(),
@@ -399,9 +400,41 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
+class BroadcastsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to list message broadcasts on your account using the ```GET``` method.
+    This endpoint allows you to send new message broadcasts using the `POST` method and list existing broadcasts on your
+    account using the `GET` method.
+
+    ## Sending Broadcasts
+
+    You can create and send new broadcasts with the following JSON data:
+
+      * **text** - the text of the message to send (string, limited to 480 characters)
+      * **urns** - the URNs of contacts to send to (array of strings, optional)
+      * **contacts** - the UUIDs of contacts to send to (array of strings, optional)
+      * **groups** - the UUIDs of contact groups to send to (array of strings, optional)
+      * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
+
+    Example:
+
+        POST /api/v1/broadcasts.json
+        {
+            "urns": ["tel:+250788123123", "tel:+250788123124"],
+            "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
+            "text": "hello world"
+        }
+
+    You will receive a response containing the message broadcast created:
+
+        {
+            "id": 1234,
+            "urns": ["tel:+250788123123", "tel:+250788123124"],
+            "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
+            "groups": [],
+            "text": "hello world",
+            "created_on": "2013-03-02T17:28:12",
+            "status": "Q"
+        }
 
     ## Listing Broadcasts
 
@@ -437,6 +470,7 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
     permission = 'msgs.broadcast_api'
     model = Broadcast
     serializer_class = BroadcastReadSerializer
+    write_serializer_class = BroadcastWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
@@ -472,6 +506,23 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'id', 'required': False, 'help': "A broadcast ID to filter by, ex: 123456"},
                 {'name': 'before', 'required': False, 'help': "Only return broadcasts created before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return broadcasts created after this date, ex: 2015-01-28T18:00:00.000"}
+            ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Send Broadcasts",
+            'url': reverse('api.v2.broadcasts'),
+            'slug': 'broadcast-send',
+            'request': "",
+            'fields': [
+                {'name': 'text', 'required': True, 'help': "The text of the message you want to send"},
+                {'name': 'urns', 'required': False, 'help': "The URNs of contacts you want to send to"},
+                {'name': 'contacts', 'required': False, 'help': "The UUIDs of contacts you want to send to"},
+                {'name': 'groups', 'required': False, 'help': "The UUIDs of contact groups you want to send to"},
+                {'name': 'channel', 'required': False, 'help': "The UUID of the channel you want to use for sending"}
             ]
         }
 
