@@ -6,7 +6,7 @@ from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHa
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, TelegramHandler, ChikkaHandler
 from .handlers import TwilioMessagingServiceHandler, JasminHandler, MbloxHandler, FacebookHandler, GlobeHandler
-from temba.channels.handlers import LINEHandler
+from .handlers import LINEHandler
 from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
 
 

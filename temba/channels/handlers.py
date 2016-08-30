@@ -1866,6 +1866,7 @@ class GlobeHandler(View):
 
 
 class LINEHandler(View):
+
     @disable_middleware
     def dispatch(self, *args, **kwargs):
         return super(LINEHandler, self).dispatch(*args, **kwargs)
@@ -1877,7 +1878,6 @@ class LINEHandler(View):
         from temba.msgs.models import Msg
         from temba.channels.models import LINE
         from linebot.receives import Receive
-        from linebot.messages import TextMessage
 
         channel_uuid = kwargs['uuid']
 
@@ -1886,14 +1886,18 @@ class LINEHandler(View):
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
         try:
-            data = request.get_data()
+            data = request.body.decode('utf-8', errors='ignore')
             receive = Receive(data)
 
             for r in receive:
+                data = r._Message__data
+                content = data.get('content')
+                text = content.content.get('text')
+                date = ms_to_datetime(data.get('created_time'))
 
-                if isinstance(r['content'], TextMessage):
-                    date = ms_to_datetime(r['content']['createdTime'])
-                    Msg.create_incoming(channel=channel, urn=URN.from_line(r['content']['from'].encode('utf-8')), text=r['content']['text'].encode('utf-8'), date=date)
+                if 'to_mid' in data and len(data.get('to_mid')) > 0:
+                    to_mid = data.get('to_mid')[0].encode('utf-8')
+                    Msg.create_incoming(channel=channel, urn=URN.from_line(to_mid), text=text, date=date)
 
             return HttpResponse("SMS Accepted")
 
