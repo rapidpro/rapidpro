@@ -818,7 +818,7 @@ class Channel(TembaModel):
 
     def get_latest_sent_message(self):
         # all message states that are successfully sent
-        messages = self.msgs.filter(status__in=['S', 'D'], purged=False).exclude(sent_on=None).order_by('-sent_on')
+        messages = self.msgs.filter(status__in=['S', 'D']).exclude(sent_on=None).order_by('-sent_on')
 
         # only outgoing messages
         messages = messages.filter(direction='O')
