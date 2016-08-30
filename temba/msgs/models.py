@@ -530,11 +530,6 @@ class Broadcast(models.Model):
         return "%s (%s)" % (self.org.name, self.pk)
 
 
-class CurrentMessagesManager(models.Manager):
-    def get_queryset(self):
-        return super(CurrentMessagesManager, self).get_queryset().filter(purged=False)
-
-
 class Msg(models.Model):
     """
     Messages are the main building blocks of a RapidPro application. Channels send and receive
