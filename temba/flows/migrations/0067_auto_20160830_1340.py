@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0053_auto_20160414_0642'),
+        ('flows', '0066_auto_20160816_1909'),
     ]
 
     operations = [
@@ -19,6 +19,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='ruleset',
             name='ruleset_type',
-            field=models.CharField(help_text='The type of ruleset', max_length=16, null=True, choices=[('wait_message', 'Wait for message'), ('wait_menu', 'Wait for USSD menu'), ('wait_ussd', 'Wait for USSD message'), ('wait_recording', 'Wait for recording'), ('wait_digit', 'Wait for digit'), ('wait_digits', 'Wait for digits'), ('webhook', 'Webhook'), ('flow_field', 'Split on flow field'), ('contact_field', 'Split on contact field'), ('expression', 'Split by expression')]),
+            field=models.CharField(help_text='The type of ruleset', max_length=16, null=True, choices=[('wait_message', 'Wait for message'), ('wait_menu', 'Wait for USSD menu'), ('wait_ussd', 'Wait for USSD message'), ('wait_recording', 'Wait for recording'), ('wait_digit', 'Wait for digit'), ('wait_digits', 'Wait for digits'), ('subflow', 'Subflow'), ('webhook', 'Webhook'), ('resthook', 'Resthook'), ('airtime', 'Transfer Airtime'), ('form_field', 'Split by message form'), ('contact_field', 'Split on contact field'), ('expression', 'Split by expression')]),
         ),
     ]
