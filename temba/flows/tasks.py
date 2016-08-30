@@ -57,7 +57,7 @@ def check_flow_timeouts_task():
         with r.lock(key, timeout=900):
             # find any runs that should have timed out
             runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now())
-            runs = runs.exclude(timeout_on=None).only('id', 'org')
+            runs = runs.only('id', 'org', 'timeout_on')
             for run in runs:
                 # move this flow forward via the handler queue
                 push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on))
