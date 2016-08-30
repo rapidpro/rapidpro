@@ -12,6 +12,7 @@ from django.conf import settings
 from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
+from mock import patch
 from rest_framework import serializers
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -372,6 +373,24 @@ class APITest(TembaTest):
         self.assertEqual(client.get(reverse('api.v2.contacts') + '.json').status_code, 200)
         self.assertEqual(client.get(reverse('api.v2.fields') + '.json').status_code, 200)
         self.assertEqual(client.get(reverse('api.v2.campaigns') + '.json').status_code, 403)
+
+    @patch('temba.flows.models.FlowStart.create')
+    def test_transactions(self, mock_flowstart_create):
+        """
+        Serializer writes are wrapped in a transaction. This test simulates FlowStart.create blowing up and checks that
+        contacts aren't created.
+        """
+        mock_flowstart_create.side_effect = ValueError("DOH!")
+
+        flow = self.create_flow()
+        self.login(self.admin)
+        try:
+            self.postJSON(reverse('api.v2.flow_starts'), dict(flow=flow.uuid, urns=['tel:+12067791212']))
+            self.fail()  # ensure exception is thrown
+        except ValueError:
+            pass
+
+        self.assertFalse(Contact.objects.filter(urns__path='+12067791212'))
 
     def test_boundaries(self):
         url = reverse('api.v2.boundaries')
@@ -1664,6 +1683,7 @@ class APITest(TembaTest):
                                            flow=flow.uuid,
                                            restart_participants=True,
                                            extra=extra))
+
         self.assertEqual(response.status_code, 201)
 
         # assert our new start
