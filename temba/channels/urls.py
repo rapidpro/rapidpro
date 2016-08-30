@@ -6,6 +6,7 @@ from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHa
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, TelegramHandler, ChikkaHandler
 from .handlers import TwilioMessagingServiceHandler, JasminHandler, MbloxHandler, FacebookHandler, GlobeHandler
+from temba.channels.handlers import LINEHandler
 from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
 
 
@@ -42,6 +43,7 @@ urlpatterns = [
         url(r'^/mblox/(?P<uuid>[a-z0-9\-]+)/?$', MbloxHandler.as_view(), name='handlers.mblox_handler'),
         url(r'^/facebook/(?P<uuid>[a-z0-9\-]+)/?$', FacebookHandler.as_view(), name='handlers.facebook_handler'),
         url(r'^/globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$', GlobeHandler.as_view(), name='handlers.globe_handler'),
+        url(r'^/line/(?P<uuid>[a-z0-9\-]+)/?$', LINEHandler.as_view(), name='handlers.line_handler'),
     ])),
 
     # for backwards compatibility these channel handlers are exposed at /api/v1 as well

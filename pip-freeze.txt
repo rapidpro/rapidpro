@@ -58,6 +58,7 @@ Jinja2==2.7.3
 kombu==3.0.35
 -e git+http://github.com/nyaruka/python-librato-bg.git@d670939749e051a7baeedd1d353c9cbd0e8772c4#egg=librato_bg
 librato-metrics==1.0.1
+linebot-0.3.2
 Markdown==2.4
 MarkupSafe==0.23
 mccabe==0.4.0

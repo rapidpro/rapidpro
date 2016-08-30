@@ -49,6 +49,7 @@ FACEBOOK_SCHEME = 'facebook'
 TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
+LINE_SCHEME = 'line'
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
@@ -56,7 +57,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
-                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
+                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME))
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
@@ -163,7 +165,7 @@ class URN(object):
             if norm_path[0:1] == '@':  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
-        elif scheme == EMAIL_SCHEME:
+        elif scheme == EMAIL_SCHEME or scheme == LINE_SCHEME:
             norm_path = norm_path.lower()
 
         return cls.from_parts(scheme, norm_path)
@@ -221,6 +223,10 @@ class URN(object):
     @classmethod
     def from_facebook(cls, path):
         return cls.from_parts(FACEBOOK_SCHEME, path)
+
+    @classmethod
+    def from_line(cls, path):
+        return cls.from_parts(LINE_SCHEME, path)
 
     @classmethod
     def from_telegram(cls, path):

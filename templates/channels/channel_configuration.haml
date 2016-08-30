@@ -572,6 +572,18 @@
     %code
       {{ channel.secret }}
 
+  -elif object.channel_type == 'LN'
+    %h4
+      -blocktrans
+        To finish configuring your Line channel you'll need to set the following callback URL on your LINE Channel
+        page.
+
+    %h4
+      -trans "Callback URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.line_handler' object.uuid %}
+
   -elif object.channel_type == 'GL'
     %h4
       -blocktrans

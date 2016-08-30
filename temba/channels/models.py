@@ -69,6 +69,7 @@ CHIKKA = 'CK'
 JASMIN = 'JS'
 MBLOX = 'MB'
 GLOBE = 'GL'
+LINE = 'LN'
 
 SEND_URL = 'send_url'
 SEND_METHOD = 'method'
@@ -82,6 +83,9 @@ VERIFY_SSL = 'verify_ssl'
 USE_NATIONAL = 'use_national'
 ENCODING = 'encoding'
 PAGE_NAME = 'page_name'
+CHANNEL_ID = 'channel_id'
+CHANNEL_SECRET = 'channel_secret'
+CHANNEL_MID = 'channel_mid'
 
 DEFAULT_ENCODING = 'D'  # we just pass the text down to the endpoint
 SMART_ENCODING = 'S'    # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -117,6 +121,7 @@ CHANNEL_SETTINGS = {
     INFOBIP: dict(scheme='tel', max_length=1600),
     JASMIN: dict(scheme='tel', max_length=1600),
     KANNEL: dict(scheme='tel', max_length=1600),
+    LINE: dict(scheme='line', max_length=1600),
     M3TECH: dict(scheme='tel', max_length=160),
     NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
     MBLOX: dict(scheme='tel', max_length=459),
@@ -171,6 +176,7 @@ class Channel(TembaModel):
                     (INFOBIP, "Infobip"),
                     (JASMIN, "Jasmin"),
                     (KANNEL, "Kannel"),
+                    (LINE, "LINE"),
                     (M3TECH, "M3 Tech"),
                     (MBLOX, "Mblox"),
                     (NEXMO, "Nexmo"),
@@ -510,6 +516,15 @@ class Channel(TembaModel):
                                  config={AUTH_TOKEN: page_access_token, PAGE_NAME: page_name},
                                  secret=Channel.generate_secret())
 
+        return channel
+
+    @classmethod
+    def add_line_channel(cls, org, user, credentials, name):
+        channel_id = credentials.get('channel_id')
+        channel_secret = credentials.get('channel_secret')
+        channel_mid = credentials.get('channel_mid')
+
+        channel = Channel.create(org, user, None, LINE, name=name, address=channel_mid, config={CHANNEL_ID: channel_id, CHANNEL_SECRET: channel_secret, CHANNEL_MID: channel_mid})
         return channel
 
     @classmethod
@@ -1124,6 +1139,10 @@ class Channel(TembaModel):
                                request=payload,
                                response=response.text,
                                response_status=response.status_code)
+
+    @classmethod
+    def send_line_message(cls, channel, msg, text):
+        pass
 
     @classmethod
     def send_mblox_message(cls, channel, msg, text):
@@ -2486,6 +2505,7 @@ class Channel(TembaModel):
                       INFOBIP: Channel.send_infobip_message,
                       JASMIN: Channel.send_jasmin_message,
                       KANNEL: Channel.send_kannel_message,
+                      LINE: Channel.send_line_message,
                       M3TECH: Channel.send_m3tech_message,
                       MBLOX: Channel.send_mblox_message,
                       NEXMO: Channel.send_nexmo_message,

@@ -607,6 +607,24 @@
                     for free. Your users will need an Android, Windows or iOS device and a Telegram account to send
                     and receive messages.
 
+      -if org_perms.channels.channel_claim_line
+        .claim-row.twitter-channel
+          .row
+            .span3
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_line' %}"}
+                .btn-container
+                  .claim-glyph.icon-line
+                  %p.claim-text
+                    -trans "LINE"
+
+            .span9
+              .claim-description
+                %div
+                  -blocktrans
+                    Add a <a href="https://line.me">LINE</a> bot to send and receive messages to LINE users
+                    for free. Your users will need an Android, Windows or iOS device and a LINE account to send
+                    and receive messages.
+
 -block form-buttons
 
 -block extra-script

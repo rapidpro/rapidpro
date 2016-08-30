@@ -39,7 +39,7 @@ from uuid import uuid4
 from .models import Channel, ChannelEvent, SyncEvent, Alert, ChannelLog, ChannelCount, M3TECH, TWILIO_MESSAGING_SERVICE
 from .models import PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN, PLIVO, BLACKMYNA, SMSCENTRAL, VERIFY_SSL, JASMIN, FACEBOOK, SEND_BODY
 from .models import PASSWORD, RECEIVE, SEND, CALL, ANSWER, SEND_METHOD, SEND_URL, USERNAME, CLICKATELL, HIGH_CONNECTION
-from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX, GLOBE
+from .models import ANDROID, EXTERNAL, HUB9, INFOBIP, KANNEL, NEXMO, TWILIO, TWITTER, VUMI, VERBOICE, SHAQODOON, MBLOX, GLOBE, LINE
 from .models import ENCODING, ENCODING_CHOICES, DEFAULT_ENCODING, YO, USE_NATIONAL, START, TELEGRAM, CHIKKA, AUTH_TOKEN
 from .models import DEFAULT_SEND_BODY
 
@@ -55,7 +55,8 @@ RELAYER_TYPE_ICONS = {ANDROID: "icon-channel-android",
                       CLICKATELL: "icon-channel-clickatell",
                       TWITTER: "icon-twitter",
                       TELEGRAM: "icon-telegram",
-                      FACEBOOK: "icon-facebook-official"}
+                      FACEBOOK: "icon-facebook-official",
+                      LINE: "icon-line"}
 
 SESSION_TWITTER_TOKEN = 'twitter_oauth_token'
 SESSION_TWITTER_SECRET = 'twitter_oauth_token_secret'
@@ -530,7 +531,8 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection',
                'claim_blackmyna', 'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo',
-               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe')
+               'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
+               'claim_line')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1786,6 +1788,55 @@ class ChannelCRUDL(SmartCRUDL):
                                                    page['name'], page['id'], form.cleaned_data['page_access_token'])
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
+
+    class ClaimLine(OrgPermsMixin, SmartFormView):
+        class LineForm(forms.Form):
+            channel_id = forms.CharField(label=_("Channel ID"), required=True, help_text=_("The ID of the your Channel on Business LINE"))
+            channel_secret = forms.CharField(label=_("Channel Secret"), required=True, help_text=_("The Secret of the your Channel on Business LINE"))
+            channel_mid = forms.CharField(label=_("Channel MID"), required=True, help_text=_("The MID of the your Channel on Business LINE"))
+
+            def clean(self):
+                from linebot.client import LineBotClient
+
+                channel_id = self.cleaned_data.get('channel_id')
+                channel_secret = self.cleaned_data.get('channel_secret')
+                channel_mid = self.cleaned_data.get('channel_mid')
+
+                credentials = {
+                    'channel_id': channel_id,
+                    'channel_secret': channel_secret,
+                    'channel_mid': channel_mid,
+                }
+
+                line_bot_client = LineBotClient(**credentials)
+                try:
+                    users = line_bot_client.get_user_profile(channel_mid)
+                    profile = [
+                        {'mid': user._UserProfile__profile.get('mid'),
+                         'picture_url': user._UserProfile__profile.get('picture_url'),
+                         'display_name': user._UserProfile__profile.get('display_name'),
+                         'status_message': user._UserProfile__profile.get('status_message')} for user in users]
+
+                    credentials['profile'] = profile[0]
+                except:
+                    raise ValidationError(_("Profile not found, please check it and try again."))
+
+                return credentials
+
+        form_class = LineForm
+        title = _("Line Channel")
+        fields = ('channel_id', 'channel_secret', 'channel_mid')
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+
+            profile = form.cleaned_data.get('profile')
+            credentials = form.cleaned_data
+            credentials.pop('profile')
+
+            self.object = Channel.add_line_channel(org=self.request.user.get_org(), user=self.request.user, credentials=credentials, name=profile.get('display_name'))
+
+            return super(ChannelCRUDL.ClaimLine, self).form_valid(form)
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")

@@ -768,4 +768,7 @@
 .icon-facebook-official:before {
   content: "\e902";
 }
+.icon-line:before {
+  content: "\e904";
+}
 
