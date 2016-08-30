@@ -7111,7 +7111,18 @@ class ViberTest(TembaTest):
             self.assertEqual(msg.external_id, "999")
             self.clear_cache()
 
-        with patch('requests.get') as mock:
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"status":3}')
+
+            # send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # message should have failed permanently
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, FAILED)
+            self.clear_cache()
+
+        with patch('requests.post') as mock:
             mock.return_value = MockResponse(401, 'Error')
 
             # manually send it off
@@ -7122,7 +7133,7 @@ class ViberTest(TembaTest):
             self.assertEquals(ERRORED, msg.status)
             self.clear_cache()
 
-        with patch('requests.get') as mock:
+        with patch('requests.post') as mock:
             mock.side_effect = Exception("Unable to reach host")
 
             # manually send it off

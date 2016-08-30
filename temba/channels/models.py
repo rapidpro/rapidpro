@@ -2446,6 +2446,7 @@ class Channel(TembaModel):
 
         try:
             response = requests.post(url, params=payload, headers=headers, timeout=5)
+            response_json = response.json()
         except Exception as e:
             raise SendException(unicode(e),
                                 method='POST',
@@ -2462,7 +2463,18 @@ class Channel(TembaModel):
                                 response=response.content,
                                 response_status=response.status_code)
 
-        external_id = response.json()['message_token']
+        # success is 0, everything else is a failure
+        if response_json['status'] != 0:
+            print "failing: %s" % response.content
+            raise SendException("Got non-0 status [%d] from API" % response_json['status'],
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response=response.content,
+                                response_status=response.status_code,
+                                fatal=True)
+
+        external_id = response.json().get('message_token', None)
         Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
 
         ChannelLog.log_success(msg=msg,
