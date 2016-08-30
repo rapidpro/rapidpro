@@ -1749,7 +1749,7 @@ class Channel(TembaModel):
         }
         headers = dict(TEMBA_HEADERS)
 
-        url = 'https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/6380/requests'
+        url = 'https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/%s/requests' % channel.address
         start = time.time()
 
         try:
