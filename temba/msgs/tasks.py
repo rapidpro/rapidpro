@@ -272,6 +272,9 @@ def purge_broadcasts_task():
 
             for broadcast in broadcasts:
                 # TODO actually delete messages!
+                #
+                # Need to also create Debit objects for topups associated with messages being deleted, and then
+                # regularly squash those.
 
                 broadcast.purged = True
                 broadcast.save(update_fields=['purged'])

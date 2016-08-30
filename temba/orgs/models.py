@@ -1204,7 +1204,7 @@ class Org(SmartModel):
         used_credits_sum = used_credits_sum.aggregate(Sum('used')).get('used__sum')
         used_credits_sum = used_credits_sum if used_credits_sum else 0
 
-        unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None, purged=False).count()
+        unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None).count()
 
         return used_credits_sum + unassigned_sum
 
@@ -1324,7 +1324,7 @@ class Org(SmartModel):
 
         with self.lock_on(OrgLock.credits):
             # get all items that haven't been credited
-            msg_uncredited = self.msgs.filter(topup=None, contact__is_test=False, purged=False).order_by('created_on')
+            msg_uncredited = self.msgs.filter(topup=None, contact__is_test=False).order_by('created_on')
             all_uncredited = list(msg_uncredited)
 
             # get all topups that haven't expired
