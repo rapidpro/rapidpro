@@ -55,7 +55,7 @@ def migration_exit_active_flowruns(apps, schema):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0059_auto_20160721_1654'),
+        ('flows', '0060_flowrun_timeout_on'),
         ('contacts', '0041_indexes_update'),
     ]
 

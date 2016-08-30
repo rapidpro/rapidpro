@@ -341,8 +341,7 @@ class MsgTest(TembaTest):
         broadcast.send()
 
         # assert that recipient is set
-        self.assertEqual(broadcast.recipients.all().count(), 1)
-        self.assertEqual(broadcast.recipients.all()[0], self.joe.urns.all().first())
+        self.assertEqual(set(broadcast.recipients.all()), {self.joe})
 
     def test_outbox(self):
         self.login(self.admin)
@@ -946,7 +945,7 @@ class BroadcastTest(TembaTest):
             broadcast.send()
 
             self.assertEquals(broadcast.get_message_count(), 3)
-            self.assertEqual(broadcast.recipients.all().count(), 3)
+            self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin})
         finally:
             msgs_models.BATCH_SIZE = orig_batch_size
 
@@ -963,12 +962,12 @@ class BroadcastTest(TembaTest):
         self.assertEquals(4, broadcast.recipient_count)
 
         # no recipients created yet, done when we send
-        self.assertEquals(0, broadcast.recipients.all().count())
+        self.assertEqual(set(broadcast.recipients.all()), set())
 
         broadcast.send(trigger_send=False)
-        self.assertEquals('Q', broadcast.status)
-        self.assertEquals(broadcast.get_message_count(), 4)
-        self.assertEqual(broadcast.recipients.all().count(), 4)
+        self.assertEqual('Q', broadcast.status)
+        self.assertEqual(broadcast.get_message_count(), 4)
+        self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin, self.lucy})
 
         bcast_commands = broadcast.get_sync_commands(self.channel)
         self.assertEquals(1, len(bcast_commands))
