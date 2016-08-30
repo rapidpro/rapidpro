@@ -835,13 +835,16 @@ class Org(SmartModel):
         """
         Gets the 2-digit country code, e.g. RW, US
         """
+        return get_cacheable_attr(self, '_country_code', lambda: self.calculate_country_code())
+
+    def calculate_country_code(self):
         # first try the actual country field
         if self.country:
             try:
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
                     return country.alpha2
-            except KeyError:
+            except KeyError:  # pragma: no cover
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
 

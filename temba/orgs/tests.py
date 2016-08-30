@@ -22,6 +22,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, ActionSet
+from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.nexmo import NexmoValidationError
@@ -167,7 +168,6 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.get_recommended_channel(), 'android')
 
     def test_country(self):
-        from temba.locations.models import AdminBoundary
         country_url = reverse('orgs.org_country')
 
         # can't see this page if not logged in
@@ -203,6 +203,7 @@ class OrgTest(TembaTest):
 
         # remove all our channels so we no longer have a backdown
         org.channels.all().delete()
+        org = Org.objects.get(pk=self.org.pk)
 
         # now really don't have a clue of our country code
         self.assertIsNone(org.get_country_code())

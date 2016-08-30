@@ -1761,7 +1761,7 @@ class Channel(TembaModel):
         }
         headers = dict(TEMBA_HEADERS)
 
-        url = 'https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/6380/requests'
+        url = 'https://devapi.globelabs.com.ph/smsmessaging/v1/outbound/%s/requests' % channel.address
         start = time.time()
 
         try:
@@ -2862,7 +2862,7 @@ class SendException(Exception):
 class ChannelLog(models.Model):
     channel = models.ForeignKey(Channel, related_name='logs',
                                 help_text=_("The channel the message was sent on"))
-    msg = models.ForeignKey('msgs.Msg',
+    msg = models.ForeignKey('msgs.Msg', related_name='channel_logs',
                             help_text=_("The message that was sent"))
     description = models.CharField(max_length=255,
                                    help_text=_("A description of the status of this message send"))

@@ -2151,7 +2151,8 @@ class Flow(TembaModel):
                     config = dict()
 
                 # cap our lengths
-                label = label[:64]
+                if label:
+                    label = label[:64]
 
                 if operand:
                     operand = operand[:128]
