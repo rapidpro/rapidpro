@@ -2122,7 +2122,7 @@ class CreditAlert(SmartModel):
         from temba.msgs.models import Msg
 
         # all active orgs in the last hour
-        active_orgs = Msg.current_messages.filter(created_on__gte=timezone.now() - timedelta(hours=1))
+        active_orgs = Msg.objects.filter(created_on__gte=timezone.now() - timedelta(hours=1))
         active_orgs = active_orgs.order_by('org').distinct('org')
 
         for msg in active_orgs:

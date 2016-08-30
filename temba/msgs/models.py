@@ -467,7 +467,7 @@ class Broadcast(models.Model):
 
                 # send any messages
                 if trigger_send:
-                    self.org.trigger_send(Msg.current_messages.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
+                    self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
 
                     # increment our created on so we can load our next batch
                     created_on = created_on + timedelta(seconds=1)
@@ -481,7 +481,7 @@ class Broadcast(models.Model):
             RelatedRecipient.objects.bulk_create(recipient_batch)
 
             if trigger_send:
-                self.org.trigger_send(Msg.current_messages.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
+                self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
 
         # for large batches, status is handled externally
         # we do this as with the high concurrency of sending we can run into postgresl deadlocks
@@ -683,11 +683,11 @@ class Msg(models.Model):
                 queued_on = timezone.now()
 
                 # update them to queued
-                send_messages = Msg.current_messages.filter(id__in=msg_ids)\
-                                                    .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
-                                                    .exclude(msg_type=IVR)\
-                                                    .exclude(topup=None)\
-                                                    .exclude(contact__is_test=True)
+                send_messages = Msg.objects.filter(id__in=msg_ids)\
+                                           .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
+                                           .exclude(msg_type=IVR)\
+                                           .exclude(topup=None)\
+                                           .exclude(contact__is_test=True)
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
@@ -792,8 +792,8 @@ class Msg(models.Model):
         probably be confusing to go out.
         """
         one_week_ago = timezone.now() - timedelta(days=7)
-        failed_messages = Msg.current_messages.filter(created_on__lte=one_week_ago, direction=OUTGOING,
-                                                      status__in=[QUEUED, PENDING, ERRORED])
+        failed_messages = Msg.objects.filter(created_on__lte=one_week_ago, direction=OUTGOING,
+                                             status__in=[QUEUED, PENDING, ERRORED])
 
         failed_broadcasts = list(failed_messages.order_by('broadcast').values('broadcast').distinct())
 
@@ -812,9 +812,9 @@ class Msg(models.Model):
         unread_count = cache.get(key, None)
 
         if unread_count is None:
-            unread_count = Msg.current_messages.filter(org=org, visibility=Msg.VISIBILITY_VISIBLE, direction=INCOMING,
-                                                       msg_type=INBOX, contact__is_test=False,
-                                                       created_on__gt=org.msg_last_viewed, labels=None).count()
+            unread_count = Msg.objects.filter(org=org, visibility=Msg.VISIBILITY_VISIBLE, direction=INCOMING,
+                                              msg_type=INBOX, contact__is_test=False,
+                                              created_on__gt=org.msg_last_viewed, labels=None).count()
             cache.set(key, unread_count, 900)
 
         return unread_count
@@ -848,7 +848,7 @@ class Msg(models.Model):
             if isinstance(msg, Msg):
                 msg.fail()
             else:
-                Msg.current_messages.select_related('org').get(pk=msg.id).fail()
+                Msg.objects.select_related('org').get(pk=msg.id).fail()
 
             if channel:
                 analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
@@ -861,7 +861,7 @@ class Msg(models.Model):
                 msg.save(update_fields=('status', 'modified_on', 'next_attempt', 'error_count'))
             else:
                 Msg.objects.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt,
-                                                          error_count=msg.error_count, modified_on=msg.modified_on)
+                                                     error_count=msg.error_count, modified_on=msg.modified_on)
 
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
             pipe = r.pipeline()
@@ -891,9 +891,9 @@ class Msg(models.Model):
         pipe.execute()
 
         if external_id:
-            Msg.current_messages.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
+            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
         else:
-            Msg.current_messages.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
+            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
         # record our latency between the message being created and it being sent
         # (this will have some db latency but will still be a good measure in the second-range)
@@ -1328,13 +1328,13 @@ class Msg(models.Model):
         if insert_object:
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
-            same_msgs = Msg.current_messages.filter(contact_urn=contact_urn,
-                                                    contact__is_test=False,
-                                                    channel=channel,
-                                                    media=media,
-                                                    text=text,
-                                                    direction=OUTGOING,
-                                                    created_on__gte=created_on - timedelta(minutes=10))
+            same_msgs = Msg.objects.filter(contact_urn=contact_urn,
+                                           contact__is_test=False,
+                                           channel=channel,
+                                           media=media,
+                                           text=text,
+                                           direction=OUTGOING,
+                                           created_on__gte=created_on - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1347,12 +1347,12 @@ class Msg(models.Model):
             # we don't want machines talking to each other
             tel = contact.raw_tel()
             if tel and len(tel) < 6:
-                same_msg_count = Msg.current_messages.filter(contact_urn=contact_urn,
-                                                             contact__is_test=False,
-                                                             channel=channel,
-                                                             text=text,
-                                                             direction=OUTGOING,
-                                                             created_on__gte=created_on - timedelta(hours=24)).count()
+                same_msg_count = Msg.objects.filter(contact_urn=contact_urn,
+                                                    contact__is_test=False,
+                                                    channel=channel,
+                                                    text=text,
+                                                    direction=OUTGOING,
+                                                    created_on__gte=created_on - timedelta(hours=24)).count()
                 if same_msg_count >= 10:
                     analytics.gauge('temba.msg_shortcode_loop_caught')
                     return None

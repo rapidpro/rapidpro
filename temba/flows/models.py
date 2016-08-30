@@ -1606,7 +1606,7 @@ class Flow(TembaModel):
                                partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.current_messages.filter(broadcast=broadcast, created_on=created_on):
+                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:
@@ -2779,7 +2779,7 @@ class FlowStep(models.Model):
                                                    media=media, msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:
-                incoming = Msg.current_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+                incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             if incoming:
                 msgs.append(incoming)

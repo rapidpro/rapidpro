@@ -1181,7 +1181,7 @@ class FlowCRUDL(SmartCRUDL):
                             duration=call.get_duration(),
                             number=call.contact.raw_tel())
 
-                messages = Msg.current_messages.filter(contact=Contact.get_test_contact(self.request.user)).order_by('created_on')
+                messages = Msg.objects.filter(contact=Contact.get_test_contact(self.request.user)).order_by('created_on')
                 action_logs = list(ActionLog.objects.filter(run__flow=flow, run__contact__is_test=True).order_by('created_on'))
 
                 messages_and_logs = chain(messages, action_logs)
@@ -1238,7 +1238,7 @@ class FlowCRUDL(SmartCRUDL):
                 steps = FlowStep.objects.filter(run__in=runs)
 
                 ActionLog.objects.filter(run__in=runs).delete()
-                Msg.current_messages.filter(contact=test_contact).delete()
+                Msg.objects.filter(contact=test_contact).delete()
                 IVRCall.objects.filter(contact=test_contact).delete()
 
                 runs.delete()
@@ -1284,7 +1284,7 @@ class FlowCRUDL(SmartCRUDL):
                     traceback.print_exc(e)
                     return build_json_response(dict(status="error", description="Error creating message: %s" % str(e)), status=400)
 
-            messages = Msg.current_messages.filter(contact=test_contact).order_by('pk', 'created_on')
+            messages = Msg.objects.filter(contact=test_contact).order_by('pk', 'created_on')
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by('pk', 'created_on')
 
             messages_and_logs = chain(messages, action_logs)

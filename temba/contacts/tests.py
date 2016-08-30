@@ -3156,8 +3156,8 @@ class ContactTest(TembaTest):
 
         # simulate an incoming message from Mage on Twitter
         msg = Msg.objects.create(org=self.org, channel=twitter, contact=self.joe,
-                                      contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
-                                      text="Incoming twitter DM", created_on=timezone.now())
+                                 contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
+                                 text="Incoming twitter DM", created_on=timezone.now())
 
         process_message_task(msg.id, from_mage=True, new_contact=False)
 

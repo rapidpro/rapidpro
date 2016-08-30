@@ -405,7 +405,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
 
         # our inbound message should be handled
-        msg = Msg.current_messages.filter(text='4', msg_type=IVR).order_by('-created_on').first()
+        msg = Msg.objects.filter(text='4', msg_type=IVR).order_by('-created_on').first()
         self.assertEqual('H', msg.status)
 
         self.assertContains(response, '<Say>Press one, two, or three. Thanks.</Say>')
