@@ -991,6 +991,13 @@ class Msg(models.Model):
 
         return commands
 
+    def get_last_log(self):
+        """
+        Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
+        """
+        sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
+        return sorted_logs[0] if sorted_logs else None
+
     def get_media_path(self):
 
         if self.media:

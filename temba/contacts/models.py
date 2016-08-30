@@ -13,7 +13,7 @@ from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.validators import validate_email
 from django.db import models, connection
-from django.db.models import Count, Max, Q, Sum
+from django.db.models import Count, Max, Q, Sum, Prefetch
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from guardian.utils import get_anonymous_user
