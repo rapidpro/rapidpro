@@ -572,7 +572,8 @@ class Flow(TembaModel):
                     result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
                     msgs += result['msgs']
                 if (user_input or resume_after_timeout) or not should_pause:
-                    result = Flow.handle_ruleset(destination, step, run, msg)
+                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run,
+                                                 resume_after_timeout)
                     add_to_path(path, destination.uuid)
                 # USSD ruleset has extra functionality to send out messages.
                 # This is handled as a shadow step for the ruleset.
