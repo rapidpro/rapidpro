@@ -470,7 +470,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'expression', name:'Split by Expression', verbose_name: 'Split by expression', filter:ALL },
         { type: 'form_field', name:'Split by Message Form', verbose_name: 'Split by message form', filter:ALL },
 
-        { type: 'random', name:'Random Split', verbose_name: 'Split randomly', filter:ALL},
+        { type: 'random', name:'Random Split', verbose_name: 'Split randomly', hide_other: true, filter:ALL},
 
         # Not supported yet
         # { type: 'group', verbose_name: 'Split by group membership', ivr:true, text:true},
