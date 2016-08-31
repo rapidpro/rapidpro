@@ -3020,8 +3020,6 @@ class Alert(SmartModel):
                                   help_text=_("The type of alert the channel is sending"))
     ended_on = models.DateTimeField(verbose_name=_("Ended On"), blank=True, null=True)
 
-    host = models.CharField(max_length=32, help_text=_("The host this alert was created on"))
-
     @classmethod
     def check_power_alert(cls, sync):
         alert_user = get_alert_user()
@@ -3031,9 +3029,7 @@ class Alert(SmartModel):
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
 
             if not alerts:
-                host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
                 new_alert = Alert.objects.create(channel=sync.channel,
-                                                 host=host,
                                                  sync_event=sync,
                                                  alert_type=cls.TYPE_POWER,
                                                  created_by=alert_user,
@@ -3070,8 +3066,7 @@ class Alert(SmartModel):
         for channel in Channel.objects.filter(channel_type=Channel.TYPE_ANDROID, is_active=True).exclude(org=None).exclude(last_seen__gte=thirty_minutes_ago):
             # have we already sent an alert for this channel
             if not Alert.objects.filter(channel=channel, alert_type=cls.TYPE_DISCONNECTED, ended_on=None):
-                host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_DISCONNECTED, host=host,
+                alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_DISCONNECTED,
                                              modified_by=alert_user, created_by=alert_user)
                 alert.send_alert()
 
@@ -3110,8 +3105,7 @@ class Alert(SmartModel):
 
                 # if we haven't sent an alert in the past six ours
                 if not Alert.objects.filter(channel=channel).filter(Q(created_on__gt=six_hours_ago)):
-                    host = getattr(settings, 'HOSTNAME', 'rapidpro.io')
-                    alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_SMS, host=host,
+                    alert = Alert.objects.create(channel=channel, alert_type=cls.TYPE_SMS,
                                                  modified_by=alert_user, created_by=alert_user)
                     alert.send_alert()
 
@@ -3156,15 +3150,12 @@ class Alert(SmartModel):
         else:  # pragma: no cover
             raise Exception(_("Unknown alert type: %(alert)s") % {'alert': self.alert_type})
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
-
         context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
                        last_seen=self.channel.last_seen, sync=self.sync_event)
         context['unsent_count'] = Msg.current_messages.filter(channel=self.channel, status__in=['Q', 'P'], contact__is_test=False).count()
         context['subject'] = subject
 
-        send_template_email(self.channel.alert_email, subject, template, context, branding)
+        send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())
 
 
 def get_alert_user():

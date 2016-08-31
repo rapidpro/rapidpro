@@ -622,7 +622,6 @@ class OrgTest(TembaTest):
             return Invitation.objects.create(org=self.org,
                                              user_group=group,
                                              email="norkans7@gmail.com",
-                                             host='app.rapidpro.io',
                                              created_by=self.admin,
                                              modified_by=self.admin)
 

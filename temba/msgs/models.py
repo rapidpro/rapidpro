@@ -1924,8 +1924,6 @@ class ExportMessagesTask(SmartModel):
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
 
-    host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-
     task_id = models.CharField(null=True, max_length=64)
 
     is_finished = models.BooleanField(default=False, help_text=_("Whether this export is finished running"))
@@ -2047,8 +2045,7 @@ class ExportMessagesTask(SmartModel):
         store = AssetType.message_export.store
         store.save(self.pk, File(temp), 'xls')
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
+        branding = self.org.get_branding()
 
         subject = "Your messages export is ready"
         template = 'msgs/email/msg_export_download'

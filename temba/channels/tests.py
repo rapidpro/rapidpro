@@ -30,7 +30,6 @@ from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
-from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID
@@ -2584,9 +2583,8 @@ class ChannelClaimTest(TembaTest):
 
         self.assertTrue(len(mail.outbox) == 1)
         template = 'channels/email/disconnected_alert.txt'
-        branding = BrandingMiddleware.get_branding_for_host(settings.HOSTNAME)
         context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=branding,
+                       branding=self.channel.org.get_branding(),
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
@@ -2612,9 +2610,8 @@ class ChannelClaimTest(TembaTest):
         self.assertTrue(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
         template = 'channels/email/connected_alert.txt'
-        branding = BrandingMiddleware.get_branding_for_host(settings.HOSTNAME)
         context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=branding,
+                       branding=self.channel.org.get_branding(),
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
