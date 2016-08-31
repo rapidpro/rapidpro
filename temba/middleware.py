@@ -43,7 +43,7 @@ class BrandingMiddleware(object):
         # override with site specific branding if we have that
         site_branding = settings.BRANDING.get(host, None)
         if site_branding:
-            branding = branding.deep_copy()
+            branding = branding.deepcopy()
             branding.update(site_branding)
 
         if 'host' not in branding:
