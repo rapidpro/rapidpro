@@ -278,6 +278,7 @@ BRANDING = {
         'logo': '/brands/rapidpro/logo.png',
         'allow_signups': True,
         'tiers': dict(multi_user=0, multi_org=0),
+        'bundles': [],
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
         'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")

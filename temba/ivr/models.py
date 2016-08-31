@@ -99,9 +99,6 @@ class IVRCall(SmartModel):
             test_call = test_call[0]
             if not test_call.is_done():
                 test_call.hangup()
-                # by deleting this, we'll be dropping twilio's status update
-                # when the hanging up is completed, for test calls, we are okay with that
-                test_call.delete()
 
     def is_flow(self):
         return self.call_type == FLOW
@@ -113,7 +110,6 @@ class IVRCall(SmartModel):
         if not self.is_done():
             client = self.channel.get_ivr_client()
             if client and self.external_id:
-                print "Hanging up %s for %s" % (self.external_id, self.get_status_display())
                 client.calls.hangup(self.external_id)
 
     def do_start_call(self, qs=None):
