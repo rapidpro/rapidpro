@@ -899,9 +899,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
   formData.rulesetConfig = Flow.getRulesetConfig({type:ruleset.ruleset_type})
 
-  $scope.getTranslatedText = (language_dict) ->
-    return language_dict[Flow.flow.base_language]
-
   $scope.updateActionForm = (config) ->
 
     # emails are not localized, if our msg is localized, grab the base text
