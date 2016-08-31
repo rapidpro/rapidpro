@@ -7,12 +7,12 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0059_indexes_update'),
+        ('channels', '0035_auto_20160822_2103'),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='exportmessagestask',
+            model_name='alert',
             name='host',
         ),
     ]
