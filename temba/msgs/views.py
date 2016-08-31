@@ -16,7 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
-from temba.channels.models import Channel, SEND
+from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, URN
 from temba.formax import FormaxMixin
@@ -253,7 +253,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 return response
 
             # can this org send to any URN schemes?
-            if not org.get_schemes(SEND):
+            if not org.get_schemes(Channel.ROLE_SEND):
                 return HttpResponseBadRequest(_("You must add a phone number before sending messages"))
 
             return response
@@ -600,7 +600,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Outbox, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Outbox, self).get_context_data(*args, **kwargs)
@@ -614,7 +614,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Sent, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Sent, self).get_context_data(*args, **kwargs)
@@ -629,7 +629,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Failed, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Failed, self).get_context_data(*args, **kwargs)

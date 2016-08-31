@@ -30,7 +30,7 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartRead
 from datetime import timedelta
 from temba.api.models import APIToken
 from temba.assets.models import AssetType
-from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.channels.models import Channel
 from temba.formax import FormaxMixin
 from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient, NexmoValidationError
@@ -758,8 +758,8 @@ class OrgCRUDL(SmartCRUDL):
             auth_token = form.cleaned_data['auth_token']
 
             # add the credentials to the session
-            self.request.session[PLIVO_AUTH_ID] = auth_id
-            self.request.session[PLIVO_AUTH_TOKEN] = auth_token
+            self.request.session[Channel.CONFIG_PLIVO_AUTH_ID] = auth_id
+            self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = auth_token
 
             response = self.render_to_response(self.get_context_data(form=form,
                                                success_url=self.get_success_url(),
@@ -1062,7 +1062,7 @@ class OrgCRUDL(SmartCRUDL):
         # if we don't support multi orgs, go home
         def pre_process(self, request, *args, **kwargs):
             response = super(OrgPermsMixin, self).pre_process(request, *args, **kwargs)
-            if not response and not request.user.get_org().is_multi_org_level():
+            if not response and not request.user.get_org().is_multi_org_tier():
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             return response
 
@@ -1795,9 +1795,8 @@ class OrgCRUDL(SmartCRUDL):
         def add_channel_section(self, formax, channel):
 
             if self.has_org_perm('channels.channel_read'):
-                from temba.channels.views import get_channel_icon
-                icon = get_channel_icon(channel.channel_type)
-                formax.add_section('channel', reverse('channels.channel_read', args=[channel.uuid]), icon=icon, action='link')
+                from temba.channels.views import get_channel_icon, get_channel_read_url
+                formax.add_section('channel', get_channel_read_url(channel), icon=get_channel_icon(channel.channel_type), action='link')
 
         def derive_formax_sections(self, formax, context):
 
@@ -1845,7 +1844,7 @@ class OrgCRUDL(SmartCRUDL):
                 formax.add_section('resthooks', reverse('orgs.org_resthooks'), icon='icon-cloud-lightning', dependents="resthooks")
 
             # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_level():
+            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_tier():
                 formax.add_section('accounts', reverse('orgs.org_accounts'), icon='icon-users', action='redirect')
 
     class TransferToAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):

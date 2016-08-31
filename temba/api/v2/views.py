@@ -3,7 +3,7 @@ from __future__ import absolute_import, unicode_literals
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.db.models import Prefetch, Q
-from django.db.transaction import non_atomic_requests
+from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -23,8 +23,8 @@ from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
-from .serializers import BroadcastReadSerializer, CampaignReadSerializer, CampaignEventReadSerializer
-from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer
+from .serializers import BroadcastReadSerializer, BroadcastWriteSerializer, CampaignReadSerializer, CampaignEventReadSerializer
+from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
@@ -43,12 +43,12 @@ def api(request, format=None):
     The following endpoints are provided:
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
-     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list message broadcasts
+     * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
      * [/api/v2/campaigns](/api/v2/campaigns) - to list campaigns
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
-     * [/api/v2/contacts](/api/v2/contacts) - to list contacts
+     * [/api/v2/contacts](/api/v2/contacts) - to list, create or update contacts
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
@@ -59,8 +59,8 @@ def api(request, format=None):
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
-     * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list subscribers on your resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
+     * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list subscribers on your resthooks
 
     You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
     """
@@ -97,12 +97,14 @@ class ApiExplorerView(SmartTemplateView):
         context = super(ApiExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
             BoundariesEndpoint.get_read_explorer(),
-            BroadcastEndpoint.get_read_explorer(),
+            BroadcastsEndpoint.get_read_explorer(),
+            BroadcastsEndpoint.get_write_explorer(),
             CampaignsEndpoint.get_read_explorer(),
             CampaignEventsEndpoint.get_read_explorer(),
             ChannelsEndpoint.get_read_explorer(),
             ChannelEventsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
+            ContactsEndpoint.get_write_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FlowsEndpoint.get_read_explorer(),
@@ -166,7 +168,6 @@ class AuthenticateView(SmartFormView):
 
 
 class CreatedOnCursorPagination(CursorPagination):
-
     ordering = ('-created_on', '-id')
     offset_cutoff = 1000000
 
@@ -182,7 +183,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     permission_classes = (SSLPermission, APIPermission)
 
-    @non_atomic_requests
+    @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
 
@@ -285,9 +286,10 @@ class CreateAPIMixin(object):
         serializer = self.write_serializer_class(data=request.data, context=context)
 
         if serializer.is_valid():
-            output = serializer.save()
-            self.post_save(output)
-            return self.render_write_response(output, context)
+            with transaction.atomic():
+                output = serializer.save()
+                self.post_save(output)
+                return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -398,9 +400,41 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
+class BroadcastsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to list message broadcasts on your account using the ```GET``` method.
+    This endpoint allows you to send new message broadcasts using the `POST` method and list existing broadcasts on your
+    account using the `GET` method.
+
+    ## Sending Broadcasts
+
+    You can create and send new broadcasts with the following JSON data:
+
+      * **text** - the text of the message to send (string, limited to 480 characters)
+      * **urns** - the URNs of contacts to send to (array of strings, optional)
+      * **contacts** - the UUIDs of contacts to send to (array of strings, optional)
+      * **groups** - the UUIDs of contact groups to send to (array of strings, optional)
+      * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
+
+    Example:
+
+        POST /api/v1/broadcasts.json
+        {
+            "urns": ["tel:+250788123123", "tel:+250788123124"],
+            "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
+            "text": "hello world"
+        }
+
+    You will receive a response containing the message broadcast created:
+
+        {
+            "id": 1234,
+            "urns": ["tel:+250788123123", "tel:+250788123124"],
+            "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
+            "groups": [],
+            "text": "hello world",
+            "created_on": "2013-03-02T17:28:12",
+            "status": "Q"
+        }
 
     ## Listing Broadcasts
 
@@ -436,6 +470,7 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
     permission = 'msgs.broadcast_api'
     model = Broadcast
     serializer_class = BroadcastReadSerializer
+    write_serializer_class = BroadcastWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
@@ -471,6 +506,23 @@ class BroadcastEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'id', 'required': False, 'help': "A broadcast ID to filter by, ex: 123456"},
                 {'name': 'before', 'required': False, 'help': "Only return broadcasts created before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return broadcasts created after this date, ex: 2015-01-28T18:00:00.000"}
+            ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Send Broadcasts",
+            'url': reverse('api.v2.broadcasts'),
+            'slug': 'broadcast-send',
+            'request': "",
+            'fields': [
+                {'name': 'text', 'required': True, 'help': "The text of the message you want to send"},
+                {'name': 'urns', 'required': False, 'help': "The URNs of contacts you want to send to"},
+                {'name': 'contacts', 'required': False, 'help': "The UUIDs of contacts you want to send to"},
+                {'name': 'groups', 'required': False, 'help': "The UUIDs of contact groups you want to send to"},
+                {'name': 'channel', 'required': False, 'help': "The UUID of the channel you want to use for sending"}
             ]
         }
 
@@ -799,8 +851,69 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ContactsEndpoint(ListAPIMixin, BaseAPIView):
+class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
     """
+    ## Adding Contacts
+
+    You can add a new contact to your account by sending a **POST** request to this URL with the following JSON data:
+
+    * **name** - the full name of the contact (string, optional)
+    * **language** - the preferred language for the contact (3 letter iso code, optional)
+    * **urns** - a list of URNs you want associated with the contact (string array)
+    * **groups** - a list of the UUIDs of any groups this contact is part of (string array, optional)
+    * **fields** - the contact fields you want to set or update on this contact (dictionary, optional)
+
+    Example:
+
+        POST /api/v2/contacts.json
+        {
+            "name": "Ben Haggerty",
+            "language": "eng",
+            "urns": ["tel:+250788123123", "twitter:ben"],
+            "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
+            "fields": {
+              "nickname": "Macklemore",
+              "side_kick": "Ryan Lewis"
+            }
+        }
+
+    You will receive a contact object as a response if successful:
+
+        {
+            "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+            "name": "Ben Haggerty",
+            "language": "eng",
+            "urns": ["tel:+250788123123", "twitter:ben"],
+            "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
+            "fields": {
+              "nickname": "Macklemore",
+              "side_kick": "Ryan Lewis"
+            }
+            "blocked": false,
+            "stopped": false,
+            "created_on": "2015-11-11T13:05:57.457742Z",
+            "modified_on": "2015-11-11T13:05:57.576056Z"
+        }
+
+    ## Updating Contacts
+
+    You can update contacts in the same manner by including one of the following fields:
+
+    * **uuid** - the UUID of the contact (string, optional)
+    * **urn** - a URN belonging to the contact (string, optional)
+
+    Example:
+
+        POST /api/v2/contacts.json
+        {
+            "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+            "name": "Ben Haggerty",
+            "language": "eng",
+            "urns": ["tel:+250788123123", "twitter:ben"],
+            "groups": [{"name": "Devs", "uuid": "6685e933-26e1-4363-a468-8f7268ab63a9"}],
+            "fields": {}
+        }
+
     ## Listing Contacts
 
     A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
@@ -812,6 +925,8 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
      * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
      * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
      * **fields** - any contact fields on this contact (dictionary).
+     * **blocked** - whether the contact is blocked (boolean).
+     * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
      * **created_on** - when this contact was created (datetime).
      * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
 
@@ -835,6 +950,8 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
                   "nickname": "Macklemore",
                   "side_kick": "Ryan Lewis"
                 }
+                "blocked": false,
+                "stopped": false,
                 "created_on": "2015-11-11T13:05:57.457742Z",
                 "modified_on": "2015-11-11T13:05:57.576056Z"
             }]
@@ -843,6 +960,7 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
     permission = 'contacts.contact_api'
     model = Contact
     serializer_class = ContactReadSerializer
+    write_serializer_class = ContactWriteSerializer
     pagination_class = ModifiedOnCursorPagination
     throttle_scope = 'v2.contacts'
 
@@ -907,6 +1025,25 @@ class ContactsEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': "deleted", 'required': False, 'help': "Whether to return only deleted contacts. ex: false"},
                 {'name': 'before', 'required': False, 'help': "Only return contacts modified before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return contacts modified after this date, ex: 2015-01-28T18:00:00.000"}
+            ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Add or Update Contacts",
+            'url': reverse('api.v2.contacts'),
+            'slug': 'contact-update',
+            'request': '{"name": "Ben Haggerty", "groups": [], "urns": ["tel:+250788123123"]}',
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "UUID of the contact to be updated"},
+                {'name': "urn", 'required': False, 'help': "URN of the contact to be updated. ex: tel:+250788123123"},
+                {'name': "name", 'required': False, 'help': "List of UUIDs of this contact's groups."},
+                {'name': "language", 'required': False, 'help': "Preferred language of the contact (3-letter ISO code). ex: fre, eng"},
+                {'name': "urns", 'required': False, 'help': "List of URNs belonging to the contact."},
+                {'name': "groups", 'required': False, 'help': "List of UUIDs of groups that the contact belongs to."},
+                {'name': "fields", 'required': False, 'help': "Custom fields as a JSON dictionary."},
             ]
         }
 
@@ -2043,6 +2180,7 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
      * **contacts** - a list of the UUIDs of the contacts you want to start in this flow (optional)
      * **urns** - a list of URNs you want to start in this flow (optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
+     * **extra** - a dictionary of extra parameters to pass to the flow start (accessible via @extra in your flow)
 
     Example:
 
@@ -2052,6 +2190,7 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "groups": ["f5901b62-ba76-4003-9c62-72fdacc15515"],
             "contacts": ["f5901b62-ba76-4003-9c62-fjjajdsi15553"]
             "urns": ["twitter:sirmixalot", "tel:+12065551212"]
+            "extra": { "first_name": "Ryan", "last_name": "Lewis" }
         }
 
     Response is the created flow start:
@@ -2077,6 +2216,10 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                      "uuid": "f5901b62-ba76-4003-9c62-72fftww881256"
                  }
             ],
+            "extra": {
+                "first_name": "Ryan",
+                "last_name": "Lewis"
+            },
             "restart_participants": true,
             "status": "pending",
             "created_on": "2013-08-19T19:11:21.082Z"
@@ -2147,7 +2290,9 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                           dict(name='urns', required=False,
                                help="The URNS of any contacts you want to start"),
                           dict(name='restart_participants', required=False,
-                               help="Whether to restart any participants already in the flow")
+                               help="Whether to restart any participants already in the flow"),
+                          dict(name='extra', required=False,
+                               help="Any extra parameters to pass to the flow start"),
                           ]
 
         return spec

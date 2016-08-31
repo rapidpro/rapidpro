@@ -1444,8 +1444,7 @@ class Flow(TembaModel):
         runs = []
         channel = self.org.get_call_channel()
 
-        from temba.channels.models import CALL
-        if not channel or CALL not in channel.role:
+        if not channel or Channel.ROLE_CALL not in channel.role:
             return runs
 
         for contact_id in all_contact_ids:
@@ -2161,7 +2160,8 @@ class Flow(TembaModel):
                     config = dict()
 
                 # cap our lengths
-                label = label[:64]
+                if label:
+                    label = label[:64]
 
                 if operand:
                     operand = operand[:128]
@@ -4107,8 +4107,11 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
+    extra = models.TextField(null=True,
+                             help_text=_("Any extra parameters to pass to the flow start (json)"))
+
     @classmethod
-    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True):
+    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None):
         if contacts is None:
             contacts = []
 
@@ -4116,6 +4119,7 @@ class FlowStart(SmartModel):
             groups = []
 
         start = FlowStart.objects.create(flow=flow, restart_participants=restart_participants,
+                                         extra=json.dumps(extra) if extra else None,
                                          created_by=user, modified_by=user)
 
         for contact in contacts:
@@ -4138,7 +4142,10 @@ class FlowStart(SmartModel):
             groups = [g for g in self.groups.all()]
             contacts = [c for c in self.contacts.all().only('is_test')]
 
-            self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
+            # load up our extra if any
+            extra = json.loads(self.extra) if self.extra else None
+
+            self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self, extra=extra)
 
         except Exception as e:  # pragma: no cover
             import traceback
@@ -4716,6 +4723,17 @@ class ReplyAction(Action):
 
     @classmethod
     def from_json(cls, org, json_obj):
+        # assert we have some kind of message in this reply
+        msg = json_obj.get(ReplyAction.MESSAGE)
+        if isinstance(msg, dict):
+            if not msg:
+                raise FlowException("Invalid reply action, empty message dict")
+
+            if not any([v for v in msg.values()]):
+                raise FlowException("Invalid reply action, missing at least one message")
+        elif not msg:
+            raise FlowException("Invalid reply action, no message")
+
         return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
 
     def as_json(self):

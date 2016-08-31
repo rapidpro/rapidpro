@@ -87,10 +87,6 @@ USE_I18N = True
 # calendars according to the current locale
 USE_L10N = True
 
-# number of credits before they get user management
-MULTI_USER_THRESHOLD = 0
-MULTI_ORG_THRESHOLD = 0
-
 # URL prefix for admin static files -- CSS, JavaScript and images.
 # Make sure to use a trailing slash.
 # Examples: "http://foo.com/static/admin/", "/static/admin/".
@@ -280,6 +276,7 @@ BRANDING = {
         'splash': '/brands/rapidpro/splash.jpg',
         'logo': '/brands/rapidpro/logo.png',
         'allow_signups': True,
+        'tiers': dict(multi_user=0, multi_org=0),
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
         'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")
@@ -426,6 +423,8 @@ PERMISSIONS = {
                          'claim_twilio_messaging_service',
                          'claim_twitter',
                          'claim_verboice',
+                         'claim_viber',
+                         'create_viber',
                          'claim_vumi',
                          'claim_yo',
                          'claim_zenvia',
@@ -649,6 +648,8 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
+        'channels.channel_claim_viber',
+        'channels.channel_create_viber',
         'channels.channel_claim_vumi',
         'channels.channel_claim_yo',
         'channels.channel_claim_zenvia',
@@ -780,6 +781,8 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
+        'channels.channel_claim_viber',
+        'channels.channel_create_viber',
         'channels.channel_claim_vumi',
         'channels.channel_claim_yo',
         'channels.channel_claim_zenvia',
@@ -904,7 +907,7 @@ AUTHENTICATION_BACKENDS = (
     'guardian.backends.ObjectPermissionBackend',
 )
 
-ANONYMOUS_USER_ID = -1
+ANONYMOUS_USER_NAME = 'AnonymousUser'
 
 # -----------------------------------------------------------------------------------
 # Our test runner is standard but with ability to exclude apps
@@ -1142,3 +1145,12 @@ SEGMENT_IO_KEY = os.environ.get('SEGMENT_IO_KEY', '')
 
 LIBRATO_USER = os.environ.get('LIBRATO_USER', '')
 LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
+
+# -----------------------------------------------------------------------------------
+# IP Addresses
+# These are the externally accessible IP addresses of the servers running RapidPro.
+# Needed for channel types that authenticate by whitelisting public IPs.
+#
+# You need to change these to real addresses to work with these.
+# -----------------------------------------------------------------------------------
+IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')

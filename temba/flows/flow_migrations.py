@@ -456,6 +456,51 @@ def migrate_to_version_5(json_flow, flow=None):
 
 # ================================ Helper methods for flow migrations ===================================
 
+def get_entry(json_flow):
+    """
+    Returns the entry node for the passed in flow, this is the ruleset or actionset with the lowest y
+    """
+    lowest_y = None
+    lowest_uuid = None
+
+    for ruleset in json_flow.get('rule_sets', []):
+        if lowest_y is None or ruleset['y'] < lowest_y:
+            lowest_uuid = ruleset['uuid']
+            lowest_y = ruleset['y']
+
+    for actionset in json_flow.get('action_sets', []):
+        if lowest_y is None or actionset['y'] <= lowest_y:
+            lowest_uuid = actionset['uuid']
+            lowest_y = actionset['y']
+
+    return lowest_uuid
+
+
+def map_actions(json_flow, fixer_method):
+    """
+    Given a JSON flow, runs fixer_method on every action. If fixer_method returns None, the action is
+    removed, otherwise the returned action is used.
+    """
+    action_sets = []
+    for actionset in json_flow.get('action_sets', []):
+        actions = []
+        for action in actionset.get('actions', []):
+            fixed_action = fixer_method(action)
+            if fixed_action is not None:
+                actions.append(fixed_action)
+
+        actionset['actions'] = actions
+
+        # only add in this actionset if there are actions in it
+        if actions:
+            action_sets.append(actionset)
+
+    json_flow['action_sets'] = action_sets
+    json_flow['entry'] = get_entry(json_flow)
+
+    return json_flow
+
+
 def remove_extra_rules(json_flow, ruleset):
     """ Remove all rules but the all responses rule """
     rules = []

@@ -493,6 +493,7 @@ class APITest(TembaTest):
         # load flow definition from test data
         flow = self.get_flow('pick_a_number')
         definition = self.get_flow_json('pick_a_number')['definition']
+
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
         self.assertEquals(1, response.json['metadata']['revision'])
         self.assertEquals("Pick a Number", response.json['metadata']['name'])
