@@ -424,7 +424,9 @@ class Channel(TembaModel):
             # nexmo ships numbers around as E164 without the leading +
             nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
 
-        return Channel.create(org, user, country, Channel.TYPE_NEXMO, name=phone, address=phone_number, bod=nexmo_phone_number)
+        return Channel.create(org, user, country, Channel.TYPE_NEXMO, name=phone, address=phone_number,
+                              role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER,
+                              bod=nexmo_phone_number)
 
     @classmethod
     def add_twilio_channel(cls, org, user, phone_number, country, role):

@@ -1435,7 +1435,8 @@ class ChannelTest(TembaTest):
 
                 # make sure it is actually connected
                 channel = Channel.objects.get(channel_type='NX', org=self.org)
-                self.assertEqual(channel.role, Channel.ROLE_SEND + Channel.ROLE_RECEIVE)
+                self.assertEqual(channel.role,
+                                 Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER)
 
                 # test the update page for nexmo
                 update_url = reverse('channels.channel_update', args=[channel.pk])
