@@ -1865,7 +1865,7 @@ class ResthookSubscriberEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, B
 
     Example:
 
-        POST /api/v2/resthook_subscribers.json?id=10404016
+        DELETE /api/v2/resthook_subscribers.json?id=10404016
 
     Response is status code 204 and an empty response
 
@@ -1878,10 +1878,14 @@ class ResthookSubscriberEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, B
     write_serializer_class = ResthookSubscriberWriteSerializer
     pagination_class = CreatedOnCursorPagination
     throttle_scope = 'v2.api'
+    lookup_params = {'id': 'id'}
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        return ResthookSubscriber.objects.filter(resthook__org=org, is_active=True).order_by('-created_on')
+        return self.model.objects.filter(resthook__org=org, is_active=True)
+
+    def perform_destroy(self, instance):
+        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):
@@ -1920,18 +1924,6 @@ class ResthookSubscriberEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, B
                                help="The id of the subscriber you want to remove")]
 
         return spec
-
-    def destroy(self, request, *args, **kwargs):
-        subscriber_id = request.query_params.get('id')
-        if not subscriber_id:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-
-        subscriber = ResthookSubscriber.objects.filter(resthook__org=request.user.get_org(), id=subscriber_id).first()
-        if not subscriber:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-
-        subscriber.release(request.user)
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ResthookEventEndpoint(ListAPIMixin, BaseAPIView):

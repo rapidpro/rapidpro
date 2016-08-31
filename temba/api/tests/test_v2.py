@@ -988,8 +988,8 @@ class APITest(TembaTest):
         bobby.refresh_from_db()
         self.assertFalse(bobby.is_active)
 
-        # try to delete a contact with an invalid UUID
-        response = self.deleteJSON(url, 'uuid=xxxx')
+        # try to delete a contact in another org
+        response = self.deleteJSON(url, 'uuid=%s' % hans.uuid)
         self.assertEqual(response.status_code, 404)
 
     def test_definitions(self):
@@ -1685,7 +1685,7 @@ class APITest(TembaTest):
 
         # missing id
         response = self.deleteJSON(url, "")
-        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, None, "Must provide one of the following fields: id")
 
         # invalid id (other org)
         response = self.deleteJSON(url, "id=%d" % other_org_subscriber.id)
