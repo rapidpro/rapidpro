@@ -342,7 +342,6 @@ class MsgActionForm(BaseActionForm):
                        ('delete', _("Delete Messages")))
 
     model = Msg
-    model_manager = 'objects'
     label_model = Label
     label_model_manager = 'label_objects'
     has_is_active = False
