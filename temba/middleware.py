@@ -39,14 +39,11 @@ class BrandingMiddleware(object):
 
         # our default branding
         branding = settings.BRANDING.get(settings.DEFAULT_BRAND)
-        branding['host'] = settings.DEFAULT_BRAND
-
-        branding = settings.BRANDING.get(settings.HOSTNAME, branding)
 
         # override with site specific branding if we have that
         site_branding = settings.BRANDING.get(host, None)
         if site_branding:
-            branding = branding.copy()
+            branding = branding.deep_copy()
             branding.update(site_branding)
 
         if 'host' not in branding:
