@@ -1338,7 +1338,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     otherCategory[Flow.flow.base_language] = 'Other'
 
     # add an always true rule if not configured
-    if not rulesetConfig.rules
+    if not rulesetConfig.rules and not rulesetConfig.hide_other
       rules.push
         _config: Flow.getOperatorConfig("true")
         test:
