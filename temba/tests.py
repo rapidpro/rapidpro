@@ -94,7 +94,8 @@ class TembaTest(SmartminTest):
 
         self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand=settings.DEFAULT_BRAND,
                                       created_by=self.user, modified_by=self.user)
-        self.org.initialize()
+
+        self.org.initialize(topup_size=1000)
 
         # add users to the org
         self.user.set_org(self.org)

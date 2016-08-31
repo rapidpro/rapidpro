@@ -27,6 +27,7 @@ from django.contrib.auth.models import User, Group
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
+from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
@@ -37,7 +38,7 @@ from temba.utils.currencies import currency_for_country
 from twilio.rest import TwilioRestClient
 from urlparse import urlparse
 from uuid import uuid4
-from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
+
 
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
@@ -1029,9 +1030,6 @@ class Org(SmartModel):
     def is_multi_org_tier(self):
         return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_org')
 
-    def has_added_credits(self):
-        return self.get_credits_total() > WELCOME_TOPUP_SIZE
-
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
             user._org_group = Group.objects.get(name="Administrators")
@@ -1056,7 +1054,7 @@ class Org(SmartModel):
         from temba.channels.models import Channel
         return self.channels.filter(channel_type=Channel.TYPE_NEXMO)
 
-    def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
+    def create_welcome_topup(self, topup_size=None):
         if topup_size:
             return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
         return None
@@ -1390,12 +1388,15 @@ class Org(SmartModel):
             traceback.print_exc()
             return None
 
+    def get_bundles(self):
+        return get_brand_bundles(self.get_branding())
+
     def add_credits(self, bundle, token, user):
         # look up our bundle
-        if bundle not in BUNDLE_MAP:
+        bundle_map = get_bundle_map(self.get_bundles())
+        if bundle not in bundle_map:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
-
-        bundle = BUNDLE_MAP[bundle]
+        bundle = bundle_map[bundle]
 
         # adds credits to this org
         stripe.api_key = get_stripe_credentials()[1]
@@ -1626,7 +1627,7 @@ class Org(SmartModel):
         r = get_redis_connection()
         r.hdel(msg_type, self.id)
 
-    def initialize(self, brand=None, topup_size=WELCOME_TOPUP_SIZE):
+    def initialize(self, brand=None, topup_size=None):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
