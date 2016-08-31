@@ -988,6 +988,10 @@ class APITest(TembaTest):
         bobby.refresh_from_db()
         self.assertFalse(bobby.is_active)
 
+        # try to delete a contact with an invalid UUID
+        response = self.deleteJSON(url, 'uuid=xxxx')
+        self.assertEqual(response.status_code, 404)
+
     def test_definitions(self):
         url = reverse('api.v2.definitions')
 
