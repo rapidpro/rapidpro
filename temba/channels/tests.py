@@ -6917,11 +6917,11 @@ class GlobeTest(TembaTest):
             "inboundSMSMessageList": {
                 "inboundSMSMessage": [{
                     "dateTime": "Fri Nov 22 2013 12:12:13 GMT+0000 (UTC)",
-                    "destinationAddress": "21586380",
+                    "destinationAddress": "tel:21586380",
                     "messageId": None,
                     "message": "Hello",
                     "resourceURL": None,
-                    "senderAddress": "9171234567"
+                    "senderAddress": "tel:9171234567"
                 }]
             }
         }
@@ -6945,9 +6945,21 @@ class GlobeTest(TembaTest):
         response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
-        # POST, invalid sender Address
+        # POST, invalid destination Address
         bad_data = copy.deepcopy(data)
         bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = '9999'
+        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST, mismatched destination address
+        bad_data = copy.deepcopy(data)
+        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = 'tel:9999'
+        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST, invalid sender address
+        bad_data = copy.deepcopy(data)
+        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['senderAddress'] = '9999'
         response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
