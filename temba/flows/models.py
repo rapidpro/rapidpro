@@ -6378,7 +6378,7 @@ class InterruptTest(Test):
     """
     Test if it's an interrupt status message
     """
-    TYPE = INTERRUPTED
+    TYPE = "interrupted_status"
 
     def __init__(self):
         pass
@@ -6391,4 +6391,4 @@ class InterruptTest(Test):
         return dict(type=self.TYPE)
 
     def evaluate(self, run, msg, context, text):
-        return (True, self.TYPE) if msg.status == self.TYPE else (False, None)
+        return (True, self.TYPE) if msg.status == INTERRUPTED else (False, None)

@@ -969,7 +969,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   # Rule editor
   #-----------------------------------------------------------------
 
-  INTERRUPTED_TYPE = 'X'
+  INTERRUPTED_TYPE = 'interrupted_status'
   $scope.ruleset = utils.clone(ruleset)
   $scope.removed = []
   flow = Flow.flow

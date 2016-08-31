@@ -237,6 +237,7 @@
   .rounded-corners(0px);
 
   &.to {
+    .rounded-corners(5px);
     margin-left: 20px;
     background-color: #757479;
   }
@@ -246,7 +247,7 @@
     background-color: #E5E4E9;
   }
 
-  &:before {
+  &.to:before {
     content: "";
     position: absolute;
     bottom: 0;
@@ -263,7 +264,7 @@
 
   &.from:before {
     right: auto;
-    left: -10px;
+    left: auto;
     border-bottom-color: #E5E4E9 !important;
   }
 }

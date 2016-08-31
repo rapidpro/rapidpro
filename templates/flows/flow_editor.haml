@@ -556,7 +556,7 @@
           %table{style:'width:100%;', ruleset:"ruleset"}
             %tr.rules
               %td.rule{valign:'bottom', ng-repeat:'category in ruleset._categories', ng-attr-id:'[[category.source]]',
-                       ng-class:'{ missing: category._missingTranslation, interrupted: category.type == "X" }'}
+                       ng-class:'{ missing: category._missingTranslation, interrupted: category.type == "interrupted_status" }'}
                 .category
                   [[category._translation]]
                 .source{ng-attr-id:'[[ruleset.uuid]]_[[category.source]]_source', drop-scope:'actions', ng-class:'{connected:category.target}', ng-click:'clickRuleSource(category); $event.stopPropagation();'}
