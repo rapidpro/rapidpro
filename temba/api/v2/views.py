@@ -1,5 +1,7 @@
 from __future__ import absolute_import, unicode_literals
 
+import six
+
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.db.models import Prefetch, Q
@@ -301,12 +303,26 @@ class CreateAPIMixin(object):
 
 class DeleteAPIMixin(mixins.DestroyModelMixin):
     """
-    Mixin for any endpoint that can delete objects with a DELETE request. We allow endpoints to provide different
-    filtering criteria for deletes then for listing using `filter_delete_queryset`.
+    Mixin for any endpoint that can delete objects with a DELETE request
     """
+    lookup_params = {'uuid': 'uuid'}
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
     def get_object(self):
         queryset = self.get_queryset()
-        queryset = self.filter_delete_queryset(queryset)
+
+        filter_kwargs = {}
+        for param, field in six.iteritems(self.lookup_params):
+            if param in self.request.query_params:
+                param_value = self.request.query_params[param]
+                filter_kwargs[field] = param_value
+
+        if not filter_kwargs:
+            raise InvalidQueryError("Must provide one of the following fields: " + ", ".join(self.lookup_params.keys()))
+
+        queryset = queryset.filter(**filter_kwargs)
 
         return generics.get_object_or_404(queryset)
 
@@ -981,6 +997,7 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
     write_serializer_class = ContactWriteSerializer
     pagination_class = ModifiedOnCursorPagination
     throttle_scope = 'v2.contacts'
+    lookup_params = {'uuid': 'uuid', 'urn': 'urns__urn'}
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1027,23 +1044,6 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
         context = super(ContactsEndpoint, self).get_serializer_context()
         context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
         return context
-
-    def filter_delete_queryset(self, queryset):
-        org = self.request.user.get_org()
-        uuid = self.request.query_params.get('uuid')
-        urn = self.request.query_params.get('urn')
-
-        if uuid and urn or (not uuid and not urn):
-            raise InvalidQueryError("You must specify either a UUID or URN")
-
-        if uuid:
-            queryset = queryset.filter(uuid=uuid)
-        if urn:
-            urn = URN.normalize(urn, country_code=org.get_country_code())
-
-            queryset = queryset.filter(urns__urn=urn)
-
-        return queryset
 
     def perform_destroy(self, instance):
         instance.release(self.request.user)
