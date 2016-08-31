@@ -1861,6 +1861,9 @@ class Label(TembaModel):
     def is_folder(self):
         return self.label_type == Label.TYPE_FOLDER
 
+    def release(self):
+        self.delete()
+
     def __unicode__(self):
         if self.folder:
             return "%s > %s" % (unicode(self.folder), self.name)

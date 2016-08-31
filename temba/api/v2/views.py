@@ -27,7 +27,7 @@ from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, BroadcastWriteSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer, ContactWriteSerializer
-from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer
+from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, LabelWriteSerializer
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
@@ -50,19 +50,19 @@ def api(request, format=None):
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
-     * [/api/v2/contacts](/api/v2/contacts) - to list, create or update contacts
+     * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
      * [/api/v2/flows](/api/v2/flows) - to list flows
      * [/api/v2/groups](/api/v2/groups) - to list contact groups
-     * [/api/v2/labels](/api/v2/labels) - to list message labels
+     * [/api/v2/labels](/api/v2/labels) - to list, create or update message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
-     * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list subscribers on your resthooks
+     * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
 
     You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
     """
@@ -115,6 +115,8 @@ class ApiExplorerView(SmartTemplateView):
             FlowStartsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_read_explorer(),
             LabelsEndpoint.get_read_explorer(),
+            LabelsEndpoint.get_write_explorer(),
+            LabelsEndpoint.get_delete_explorer(),
             MessagesEndpoint.get_read_explorer(),
             OrgEndpoint.get_read_explorer(),
             ResthookEndpoint.get_read_explorer(),
@@ -1437,7 +1439,7 @@ class GroupsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class LabelsEndpoint(ListAPIMixin, BaseAPIView):
+class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Listing Labels
 
@@ -1465,11 +1467,66 @@ class LabelsEndpoint(ListAPIMixin, BaseAPIView):
                 ...
             ]
         }
+
+    ## Adding a Label
+
+    A **POST** can be used to create a new message label. Don't specify a UUID as this will be generated for you.
+
+    * **name** - the label name (string)
+
+    Example:
+
+        POST /api/v2/labels.json
+        {
+            "name": "Screened"
+        }
+
+    You will receive a label object as a response if successful:
+
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "name": "Screened",
+            "count": 0
+        }
+
+    ## Updating a Label
+
+    A **POST** can also be used to update a message label if you do specify its UUID.
+
+    * **uuid** - the label UUID
+    * **name** - the label name (string)
+
+    Example:
+
+        POST /api/v2/labels.json
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "name": "Checked"
+        }
+
+    You will receive the updated label object as a response if successful:
+
+        {
+            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
+            "name": "Checked",
+            "count": 0
+        }
+
+    ## Deleting a Label
+
+    A **DELETE** can  be used to delete a message label if you specify its UUID
+
+    Example:
+
+        DELETE /api/v2/labels.json?uuid=fdd156ca-233a-48c1-896d-a9d594d59b95
+
+    You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
     permission = 'contacts.label_api'
     model = Label
     model_manager = 'label_objects'
     serializer_class = LabelReadSerializer
+    write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
@@ -1482,17 +1539,47 @@ class LabelsEndpoint(ListAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
+    def perform_destroy(self, instance):
+        instance.release()
+
     @classmethod
     def get_read_explorer(cls):
         return {
             'method': "GET",
-            'title': "List Labels",
+            'title': "List Message Labels",
             'url': reverse('api.v2.labels'),
             'slug': 'label-list',
             'request': "",
             'fields': [
                 {'name': "uuid", 'required': False, 'help': "A label UUID to filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Add or Update Message Labels",
+            'url': reverse('api.v2.labels'),
+            'slug': 'label-write',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the message label to update"},
+                {'name': "name", 'required': True, 'help': "The name of the message label"}
+            ]
+        }
+
+    @classmethod
+    def get_delete_explorer(cls):
+        return {
+            'method': "DELETE",
+            'title': "Delete Message Labels",
+            'url': reverse('api.v2.contacts'),
+            'slug': 'label-delete',
+            'request': '',
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the message label to delete"}
+            ],
         }
 
 

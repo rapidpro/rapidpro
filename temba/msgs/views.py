@@ -816,3 +816,9 @@ class LabelCRUDL(SmartCRUDL):
         redirect_url = "@msgs.msg_inbox"
         cancel_url = "@msgs.msg_inbox"
         success_message = ''
+
+        def post(self, request, *args, **kwargs):
+            group = self.get_object()
+            group.release()
+
+            return HttpResponseRedirect(self.get_redirect_url())

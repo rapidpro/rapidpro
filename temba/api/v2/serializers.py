@@ -554,6 +554,31 @@ class LabelReadSerializer(ReadSerializer):
         fields = ('uuid', 'name', 'count')
 
 
+class LabelWriteSerializer(WriteSerializer):
+    uuid = fields.LabelField(required=False)
+    name = serializers.CharField(required=True, max_length=64)
+
+    def validate(self, data):
+        instance = data.get('uuid')
+        name = data.get('name')
+
+        if not instance and Label.label_objects.filter(org=self.context['org'], name=name).exists():
+            raise serializers.ValidationError("Name must be unique")
+
+        return data
+
+    def save(self):
+        instance = self.validated_data.get('uuid')
+        name = self.validated_data.get('name')
+
+        if instance:
+            instance.name = name
+            instance.save(update_fields=('name',))
+            return instance
+        else:
+            return Label.get_or_create(self.context['org'], self.context['user'], name)
+
+
 class MsgReadSerializer(ReadSerializer):
     STATUSES = ReadSerializer.extract_constants(STATUS_CONFIG)
     VISIBILITIES = ReadSerializer.extract_constants(Msg.VISIBILITY_CONFIG)
@@ -576,7 +601,7 @@ class MsgReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
     visibility = serializers.SerializerMethodField()
-    labels = serializers.SerializerMethodField()
+    labels = fields.LabelField(many=True)
 
     def get_broadcast(self, obj):
         return obj.broadcast_id
@@ -596,9 +621,6 @@ class MsgReadSerializer(ReadSerializer):
 
     def get_visibility(self, obj):
         return self.VISIBILITIES.get(obj.visibility)
-
-    def get_labels(self, obj):
-        return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
 
     class Meta:
         model = Msg
