@@ -679,7 +679,7 @@ class Flow(TembaModel):
                                    extra=extra, parent_run=run, interrupt=False)
                         return dict(handled=True, destination=None, destination_type=None)
             # find a matching rule
-            rule, value = ruleset.find_matching_rule(step, run, msg)
+            rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
 
         flow = ruleset.flow
 

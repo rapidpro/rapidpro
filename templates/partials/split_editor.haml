@@ -140,11 +140,7 @@
     %form{name:'ruleForm'}
       %span{ng-if:'hasRules() && formData.rulesetConfig.type != "wait_menu"'}
         %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
-<<<<<<< HEAD
-          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule._config.type != "true" || rule.test.type != "X"'}
-=======
-          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid", ng-show:'rule._config.show'}
->>>>>>> 1a5da1474cfbc09138b2ab7628abbbe166d3fca5
+          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule._config.show || rule.test.type != "interrupted_status"'}
             <ng-form name="inner">
               .icon.icon-menu
               %select{ng-model:"rule._config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:isVisibleOperator', class:"operator-select",ng-change:"updateCategory(rule)"}
@@ -187,16 +183,11 @@
                 -trans "Please enter a category name."
 
 .modal-footer
-<<<<<<< HEAD
   .ussd-counter{ng-class:"{limit: characters < 0}", ng-if:'formData.rulesetConfig.type == "wait_menu" || formData.rulesetConfig.type == "wait_ussd"'}
     Characters left:
     .pill
       %b
         [[characters]]
-  %button{ng-click:"cancel()",class:"btn btn-secondary"}
-    -trans "Cancel"
-  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid || (characters && characters < 0)',ng-click:"okRules()",class:"btn btn-primary"}
-=======
   .timeout{ng-show:'flow.type == "F" && isPausingRuleset()', style:'float:left'}
 
     %label
@@ -212,6 +203,5 @@
   <!--[[splitEditor]]-->
   %button{ng-click:"cancel()",class:"btn btn-secondary"}
     -trans "Cancel"
-  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid',ng-click:"okRules(splitEditor)",class:"btn btn-primary"}
->>>>>>> 1a5da1474cfbc09138b2ab7628abbbe166d3fca5
+  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid || (characters && characters < 0)',ng-click:"okRules(splitEditor)",class:"btn btn-primary"}
     -trans "Ok"
