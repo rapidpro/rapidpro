@@ -1936,10 +1936,17 @@ class TopUp(SmartModel):
 
         if active:
             transfer = self.allocations.all().first()
+
             if transfer:
                 comment = _('Transfer from %s' % transfer.topup.org.name)
             else:
-                comment = _('Purchased Credits') if self.price else _('Complimentary credits')
+                if self.price > 0:
+                    comment = _('Purchased Credits')
+                elif self.price == 0:
+                    comment = _('Complimentary Credits')
+                else:
+                    comment = _('Credits')
+
             ledger.append(dict(date=self.created_on,
                                comment=comment,
                                amount=self.credits,
