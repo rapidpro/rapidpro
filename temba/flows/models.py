@@ -2948,6 +2948,7 @@ class RuleSet(models.Model):
     TYPE_FORM_FIELD = 'form_field'
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
+    TYPE_RANDOM = 'random'
     TYPE_SUBFLOW = 'subflow'
 
     CONFIG_WEBHOOK = 'webhook'
@@ -2969,7 +2970,8 @@ class RuleSet(models.Model):
                     (TYPE_AIRTIME, "Transfer Airtime"),
                     (TYPE_FORM_FIELD, "Split by message form"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
-                    (TYPE_EXPRESSION, "Split by expression"))
+                    (TYPE_EXPRESSION, "Split by expression"),
+                    (TYPE_SUBFLOW, "Split Randomly"))
 
     uuid = models.CharField(max_length=36, unique=True)
 
