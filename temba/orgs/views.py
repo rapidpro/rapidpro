@@ -38,7 +38,6 @@ from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
 from twilio.rest import TwilioRestClient
-from .bundles import WELCOME_TOPUP_SIZE
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
@@ -445,7 +444,7 @@ class OrgCRUDL(SmartCRUDL):
                 from temba.orgs.models import EARLIEST_IMPORT_VERSION
 
                 # make sure they have purchased credits
-                if not self.org.has_added_credits():
+                if not self.org.get_purchased_credits():
                     raise ValidationError("Sorry, import is a premium feature")
 
                 # check that it isn't too old
@@ -1630,7 +1629,7 @@ class OrgCRUDL(SmartCRUDL):
             return initial
 
         def get_welcome_size(self):
-            welcome_topup_size = self.request.branding.get('welcome_topup', WELCOME_TOPUP_SIZE)
+            welcome_topup_size = self.request.branding.get('welcome_topup', 0)
             return welcome_topup_size
 
         def post_save(self, obj):
