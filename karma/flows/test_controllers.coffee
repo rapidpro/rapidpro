@@ -246,7 +246,7 @@ describe 'Controllers:', ->
 
       ruleset = flowService.flow.rule_sets[0]
       expect(ruleset.ruleset_type).toBe('random')
-      expect(ruleset.rules.length).toBe(3)
+      expect(ruleset.rules.length).toBe(2)
       expect(ruleset.operand).toBe('@(RAND())')
       expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"between","min":"0","max":"0.5"}')
       expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"between","min":"0.5","max":"1"}')
@@ -258,7 +258,7 @@ describe 'Controllers:', ->
         scope.updateRandomBuckets()
 
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(5)
+      expect(ruleset.rules.length).toBe(4)
       expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"between","min":"0","max":"0.25"}')
       expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"between","min":"0.25","max":"0.5"}')
       expect(JSON.stringify(ruleset.rules[2].test)).toBe('{"type":"between","min":"0.5","max":"0.75"}')
