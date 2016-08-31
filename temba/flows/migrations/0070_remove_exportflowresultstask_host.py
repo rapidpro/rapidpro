@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0068_fix_empty_flow_starts'),
+        ('flows', '0069_auto_20160831_1731'),
     ]
 
     operations = [
