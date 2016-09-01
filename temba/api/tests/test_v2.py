@@ -530,12 +530,13 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
+        other_group = self.create_group("Others", [])
         campaign1 = Campaign.create(self.org, self.admin, "Reminders #1", reporters)
         campaign2 = Campaign.create(self.org, self.admin, "Reminders #2", reporters)
 
         # create campaign for other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
-        Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
+        spam = Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
@@ -554,6 +555,43 @@ class APITest(TembaTest):
         # filter by UUID
         response = self.fetchJSON(url, 'uuid=%s' % campaign1.uuid)
         self.assertResultsByUUID(response, [campaign1])
+
+        # try to create empty campaign
+        response = self.postJSON(url, {})
+        self.assertResponseError(response, 'name', "This field is required.")
+        self.assertResponseError(response, 'group', "This field is required.")
+
+        # create new campaign
+        response = self.postJSON(url, {'name': "Reminders #3", 'group': reporters.uuid})
+        self.assertEqual(response.status_code, 201)
+
+        campaign3 = Campaign.objects.get(name="Reminders #3")
+        self.assertEqual(response.json, {
+            'uuid': campaign3.uuid,
+            'name': "Reminders #3",
+            'group': {'uuid': reporters.uuid, 'name': "Reporters"},
+            'created_on': format_datetime(campaign3.created_on)
+        })
+
+        # try to create another campaign with same name
+        response = self.postJSON(url, {'name': "Reminders #3", 'group': reporters.uuid})
+        self.assertResponseError(response, 'non_field_errors', "Name must be unique")
+
+        # try to create a campaign with name that's too long
+        response = self.postJSON(url, {'name': "x" * 256, 'group': reporters.uuid})
+        self.assertResponseError(response, 'name', "Ensure this field has no more than 255 characters.")
+
+        # update campaign by UUID
+        response = self.postJSON(url, {'uuid': campaign3.uuid, 'name': "Reminders III", 'group': other_group.uuid})
+        self.assertEqual(response.status_code, 201)
+
+        campaign3.refresh_from_db()
+        self.assertEqual(campaign3.name, "Reminders III")
+        self.assertEqual(campaign3.group, other_group)
+
+        # can't update campaign in other org
+        response = self.postJSON(url, {'uuid': spam.uuid, 'name': "Won't work", 'group': spammers.uuid})
+        self.assertResponseError(response, 'uuid', "No such object with UUID: %s" % spam.uuid)
 
     def test_campaign_events(self):
         url = reverse('api.v2.campaign_events')

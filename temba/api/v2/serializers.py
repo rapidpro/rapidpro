@@ -162,6 +162,44 @@ class CampaignReadSerializer(ReadSerializer):
         fields = ('uuid', 'name', 'group', 'created_on')
 
 
+class CampaignWriteSerializer(WriteSerializer):
+    uuid = fields.CampaignField(required=False)
+    name = serializers.CharField(required=True, max_length=Campaign.MAX_NAME_LEN)
+    group = fields.ContactGroupField(required=True)
+
+    def validate_name(self, value):
+        if not Campaign.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
+                                              % Campaign.MAX_NAME_LEN)
+        return value
+
+    def validate(self, data):
+        instance = data.get('uuid')
+        name = data.get('name')
+
+        if not instance and Campaign.objects.filter(org=self.context['org'], name=name).exists():
+            raise serializers.ValidationError("Name must be unique")
+
+        return data
+
+    def save(self):
+        """
+        Create or update our campaign
+        """
+        instance = self.validated_data.get('uuid')
+        name = self.validated_data.get('name')
+        group = self.validated_data.get('group')
+
+        if instance:
+            instance.name = name
+            instance.group = group
+            instance.save(update_fields=('name', 'group'))
+        else:
+            instance = Campaign.create(self.context['org'], self.context['user'], name, group)
+
+        return instance
+
+
 class CampaignEventReadSerializer(ReadSerializer):
     UNITS = ReadSerializer.extract_constants(CampaignEvent.UNIT_CONFIG)
 

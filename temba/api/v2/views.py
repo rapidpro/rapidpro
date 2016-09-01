@@ -27,7 +27,7 @@ from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, BroadcastWriteSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer, ContactWriteSerializer
-from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, LabelWriteSerializer
+from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, LabelWriteSerializer, CampaignWriteSerializer
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, ContactGroupWriteSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
@@ -46,7 +46,7 @@ def api(request, format=None):
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
-     * [/api/v2/campaigns](/api/v2/campaigns) - to list campaigns
+     * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, update or delete campaigns
      * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
@@ -102,6 +102,7 @@ class ApiExplorerView(SmartTemplateView):
             BroadcastsEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_write_explorer(),
             CampaignsEndpoint.get_read_explorer(),
+            CampaignsEndpoint.get_write_explorer(),
             CampaignEventsEndpoint.get_read_explorer(),
             ChannelsEndpoint.get_read_explorer(),
             ChannelEventsEndpoint.get_read_explorer(),
@@ -552,7 +553,7 @@ class BroadcastsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
         }
 
 
-class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
+class CampaignsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
     """
     ## Listing Campaigns
 
@@ -583,10 +584,37 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
 
+    ## Adding or Updating a Campaign
+
+    You can add a new campaign to your account, or update the fields on a campaign by sending a **POST** request to this
+    URL with the following data:
+
+    * **uuid** - the UUID of the campaign (string, optional, only include if updating an existing campaign)
+    * **name** - the name of the campaign (string, required)
+    * **group** - the UUID of the contact group this campaign will be run against (string, required)
+
+    Example:
+
+        POST /api/v2/campaigns.json
+        {
+            "name": "Reminders",
+            "group": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9"
+        }
+
+    You will receive a campaign object as a response if successful:
+
+        {
+            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+            "name": "Reminders",
+            "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
+            "created_on": "2013-08-19T19:11:21.088Z"
+        }
+
     """
     permission = 'campaigns.campaign_api'
     model = Campaign
     serializer_class = CampaignReadSerializer
+    write_serializer_class = CampaignWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
@@ -613,7 +641,22 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
             'slug': 'campaign-list',
             'request': "",
             'fields': [
-                {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+                {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by"},
+            ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "GET",
+            'title': "Add or Update Campaigns",
+            'url': reverse('api.v2.campaigns'),
+            'slug': 'campaign-write',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the campaign to update"},
+                {'name': "name", 'required': True, 'help': "The name of the campaign"},
+                {'name': "group", 'required': True, 'help': "The UUID of the contact group operated on by the campaign"}
             ]
         }
 
