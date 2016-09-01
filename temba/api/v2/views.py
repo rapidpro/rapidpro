@@ -31,6 +31,7 @@ from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, Labe
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, ContactGroupWriteSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
+from .serializers import CampaignEventWriteSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -661,7 +662,7 @@ class CampaignsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
         }
 
 
-class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
+class CampaignEventsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Listing Campaign Events
 
@@ -706,6 +707,7 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
     permission = 'campaigns.campaignevent_api'
     model = CampaignEvent
     serializer_class = CampaignEventReadSerializer
+    write_serializer_class = CampaignEventWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
     def get_queryset(self):

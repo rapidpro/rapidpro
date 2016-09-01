@@ -236,11 +236,13 @@ class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
     """
+    MAX_KEY_LEN = 36
+
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
 
     label = models.CharField(verbose_name=_("Label"), max_length=36)
 
-    key = models.CharField(verbose_name=_("Key"), max_length=36)
+    key = models.CharField(verbose_name=_("Key"), max_length=MAX_KEY_LEN)
 
     value_type = models.CharField(choices=Value.TYPE_CHOICES, max_length=1, default=Value.TYPE_TEXT,
                                   verbose_name="Field Type")
@@ -256,7 +258,7 @@ class ContactField(SmartModel):
 
     @classmethod
     def is_valid_key(cls, key):
-        return regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0) and key not in Contact.RESERVED_FIELDS
+        return regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0) and key not in Contact.RESERVED_FIELDS and len(key) <= cls.MAX_KEY_LEN
 
     @classmethod
     def is_valid_label(cls, label):

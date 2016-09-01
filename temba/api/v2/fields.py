@@ -4,9 +4,9 @@ import six
 
 from rest_framework import serializers
 
-from temba.campaigns.models import Campaign
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, URN
+from temba.contacts.models import Contact, ContactGroup, ContactField as ContactFieldModel, URN
 from temba.flows.models import Flow
 from temba.msgs.models import Label
 
@@ -75,7 +75,7 @@ class TembaModelField(serializers.RelatedField):
                 list_kwargs[key] = kwargs[key]
         return TembaModelField.LimitedSizeList(**list_kwargs)
 
-    def get_queryset(self):
+    def get_queryset(self):  # pragma: no cover
         # we use our own fetching logic in to_internal_value
         return self.model.none()
 
@@ -96,12 +96,32 @@ class CampaignField(TembaModelField):
     model = Campaign
 
 
+class CampaignEventField(TembaModelField):
+    model = CampaignEvent
+
+
 class ChannelField(TembaModelField):
     model = Channel
 
 
 class ContactField(TembaModelField):
     model = Contact
+
+
+class ContactFieldField(serializers.RelatedField):
+    def get_queryset(self):  # pragma: no cover
+        # we use our own fetching logic in to_internal_value
+        return self.model.none()
+
+    def to_representation(self, obj):
+        return {'key': obj.key, 'label': obj.label}
+
+    def to_internal_value(self, data):
+        obj = ContactFieldModel.objects.filter(org=self.context['org'], key=data, is_active=True).first()
+        if not obj:
+            raise serializers.ValidationError("No such contact field with key: %s" % data)
+
+        return obj
 
 
 class ContactGroupField(TembaModelField):
