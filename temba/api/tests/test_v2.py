@@ -1175,15 +1175,15 @@ class APITest(TembaTest):
         reporters = ContactGroup.user_groups.get(name="Reporters")
         self.assertEqual(response.json, {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
 
-        # try and create another group with same name
+        # try to create another group with same name
         response = self.postJSON(url, {'name': "Reporters"})
         self.assertResponseError(response, 'non_field_errors', "Name must be unique")
 
-        # try and a group with invalid name
+        # try to create a group with invalid name
         response = self.postJSON(url, {'name': "!!!#$%^"})
         self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
 
-        # try and a group with name that's too long
+        # try to create a group with name that's too long
         response = self.postJSON(url, {'name': "x" * 65})
         self.assertResponseError(response, 'name', "Ensure this field has no more than 64 characters.")
 
@@ -1251,15 +1251,15 @@ class APITest(TembaTest):
         interesting = Label.label_objects.get(name="Interesting")
         self.assertEqual(response.json, {'uuid': interesting.uuid, 'name': "Interesting", 'count': 0})
 
-        # try and create another label with same name
+        # try to create another label with same name
         response = self.postJSON(url, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors', "Name must be unique")
 
-        # try and a label with invalid name
+        # try to create a label with invalid name
         response = self.postJSON(url, {'name': "!!!#$%^"})
         self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
 
-        # try and a label with name that's too long
+        # try to create a label with name that's too long
         response = self.postJSON(url, {'name': "x" * 65})
         self.assertResponseError(response, 'name', "Ensure this field has no more than 64 characters.")
 
