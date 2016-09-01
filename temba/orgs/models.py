@@ -1931,6 +1931,27 @@ class TopUp(SmartModel):
         debits = self.debits.filter(debit_type=Debit.TYPE_ALLOCATION).order_by('-created_by')
         balance = self.credits
         ledger = []
+
+        active = self.get_remaining() < balance
+
+        if active:
+            transfer = self.allocations.all().first()
+
+            if transfer:
+                comment = _('Transfer from %s' % transfer.topup.org.name)
+            else:
+                if self.price > 0:
+                    comment = _('Purchased Credits')
+                elif self.price == 0:
+                    comment = _('Complimentary Credits')
+                else:
+                    comment = _('Credits')
+
+            ledger.append(dict(date=self.created_on,
+                               comment=comment,
+                               amount=self.credits,
+                               balance=self.credits))
+
         for debit in debits:
             balance -= debit.amount
             ledger.append(dict(date=debit.created_on,
@@ -1942,7 +1963,7 @@ class TopUp(SmartModel):
         expired = self.expires_on < now
 
         # add a line for used message credits
-        if self.get_remaining() < balance:
+        if active:
             ledger.append(dict(date=self.expires_on if expired else now,
                                comment=_('Messaging credits used'),
                                amount=self.get_remaining() - balance,
