@@ -558,6 +558,12 @@ class LabelWriteSerializer(WriteSerializer):
     uuid = fields.LabelField(required=False)
     name = serializers.CharField(required=True, max_length=64)
 
+    def validate_name(self, value):
+        if not Label.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
+                                              % Label.MAX_NAME_LEN)
+        return value
+
     def validate(self, data):
         instance = data.get('uuid')
         name = data.get('name')

@@ -1206,6 +1206,14 @@ class APITest(TembaTest):
         response = self.postJSON(url, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors', "Name must be unique")
 
+        # try and a label with invalid name
+        response = self.postJSON(url, {'name': "!!!#$%^"})
+        self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
+
+        # try and a label with name that's too long
+        response = self.postJSON(url, {'name': "x" * 65})
+        self.assertResponseError(response, 'name', "Ensure this field has no more than 64 characters.")
+
         # update label by UUID
         response = self.postJSON(url, {'uuid': interesting.uuid, 'name': "More Interesting"})
         self.assertEqual(response.status_code, 201)
