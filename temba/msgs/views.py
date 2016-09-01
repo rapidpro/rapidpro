@@ -816,7 +816,7 @@ class LabelCRUDL(SmartCRUDL):
         success_message = ''
 
         def post(self, request, *args, **kwargs):
-            group = self.get_object()
-            group.release()
+            label = self.get_object()
+            label.release()
 
             return HttpResponseRedirect(self.get_redirect_url())

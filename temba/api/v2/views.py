@@ -55,8 +55,8 @@ def api(request, format=None):
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
      * [/api/v2/flows](/api/v2/flows) - to list flows
-     * [/api/v2/groups](/api/v2/groups) - to list contact groups
-     * [/api/v2/labels](/api/v2/labels) - to list, create or update message labels
+     * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
+     * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
@@ -1466,7 +1466,7 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         DELETE /api/v2/groups.json?uuid=5f05311e-8f81-4a67-a5b5-1501b6d6496a
 
-    You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
+    You will receive either a 204 response if a group was deleted, or a 404 response if no matching label was found.
     """
     permission = 'contacts.contactgroup_api'
     model = ContactGroup
