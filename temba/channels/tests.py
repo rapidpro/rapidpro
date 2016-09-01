@@ -27,7 +27,7 @@ from mock import patch
 from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
 from temba.middleware import BrandingMiddleware
@@ -6965,3 +6965,85 @@ class GlobeTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
             self.clear_cache()
+
+
+class LINETest(TembaTest):
+
+    def setUp(self):
+        from temba.channels.models import LINE
+        super(LINETest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, LINE, '123456789', '123456789',
+                                      config=dict(channel_id='1234', channel_secret='1234', channel_mid='1234'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_receive(self):
+
+        data = """{
+            "result": [{
+                "from": "123456789",
+                "fromChannel": 123456789,
+                "to": ["123456789"],
+                "toChannel": 123456789,
+                "eventType": "123456789",
+                "id": "123456789",
+                "content": {
+                    "location": None,
+                    "id": "123456789",
+                    "contentType": 1,
+                    "from": "123456789",
+                    "createdTime": 1332394961610,
+                    "to": ["123456789"],
+                    "toType": 1,
+                    "contentMetadata": None,
+                    "text": "Hello, BOT API Server!"
+                }
+            }]
+        }"""
+
+        callback_url = reverse('handlers.line_handler', args=[self.channel.uuid])
+        response = self.client.post(callback_url, data)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        msg = Msg.all_messages.get()
+        self.assertEquals("123456789", msg.contact.get_urn(LINE_SCHEME).path)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello, BOT API Server!", msg.text)
+
+    def test_send(self):
+        joe = self.create_contact("Joe", urn="line:1234")
+        msg = joe.send("Test message", self.admin, trigger_send=False)
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps({"content": {"messageId": 1234}}))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.clear_cache()
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as an error
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+        finally:
+            settings.SEND_MESSAGES = False
