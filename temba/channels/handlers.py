@@ -1786,11 +1786,11 @@ class GlobeHandler(View):
         #         "inboundSMSMessage": [
         #             {
         #                 "dateTime": "Fri Nov 22 2013 12:12:13 GMT+0000 (UTC)",
-        #                 "destinationAddress": "21581234",
+        #                 "destinationAddress": "tel:21581234",
         #                 "messageId": null,
         #                 "message": "Hello",
         #                 "resourceURL": null,
-        #                 "senderAddress": "9171234567"
+        #                 "senderAddress": "tel:+9171234567"
         #             }
         #         ],
         #         "numberOfMessagesInThisBatch": 1,
@@ -1824,7 +1824,11 @@ class GlobeHandler(View):
                 if not all(field in inbound_msg for field in ('dateTime', 'senderAddress', 'message', 'messageId', 'destinationAddress')):
                     return HttpResponse("Missing one of dateTime, senderAddress, message, messageId or destinationAddress in message", status=400)
 
-                destination = inbound_msg['destinationAddress']
+                try:
+                    scheme, destination = URN.to_parts(inbound_msg['destinationAddress'])
+                except ValueError as v:
+                    return HttpResponse("Error parsing destination address: " + str(v), status=400)
+
                 if destination != channel.address:
                     return HttpResponse("Invalid request, channel address: %s mismatch with destinationAddress: %s" % (channel.address, destination), status=400)
 
@@ -1832,7 +1836,13 @@ class GlobeHandler(View):
                 sms_date = datetime.strptime(inbound_msg['dateTime'], "%a %b %d %Y %H:%M:%S GMT+0000 (UTC)")
                 gmt_date = pytz.timezone('GMT').localize(sms_date)
 
-                msg = Msg.create_incoming(channel, URN.from_tel(inbound_msg['senderAddress']), inbound_msg['message'], date=gmt_date)
+                # parse our sender address out, it is a URN looking thing
+                try:
+                    scheme, sender_tel = URN.to_parts(inbound_msg['senderAddress'])
+                except ValueError as v:
+                    return HttpResponse("Error parsing sender address: " + str(v), status=400)
+
+                msg = Msg.create_incoming(channel, URN.from_tel(sender_tel), inbound_msg['message'], date=gmt_date)
 
                 # use an update so there is no race with our handling
                 Msg.all_messages.filter(pk=msg.id).update(external_id=inbound_msg['messageId'])

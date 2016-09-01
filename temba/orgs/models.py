@@ -27,6 +27,7 @@ from django.contrib.auth.models import User, Group
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
+from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
@@ -37,7 +38,7 @@ from temba.utils.currencies import currency_for_country
 from twilio.rest import TwilioRestClient
 from urlparse import urlparse
 from uuid import uuid4
-from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
+
 
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
@@ -246,7 +247,7 @@ class Org(SmartModel):
             org.administrators.add(created_by)
 
             # initialize our org, but without any credits
-            org.initialize(brand=org.get_branding(), topup_size=0)
+            org.initialize(branding=org.get_branding(), topup_size=0)
 
             return org
 
@@ -1029,9 +1030,6 @@ class Org(SmartModel):
     def is_multi_org_tier(self):
         return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_org')
 
-    def has_added_credits(self):
-        return self.get_credits_total() > WELCOME_TOPUP_SIZE
-
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
             user._org_group = Group.objects.get(name="Administrators")
@@ -1056,7 +1054,7 @@ class Org(SmartModel):
         from temba.channels.models import Channel
         return self.channels.filter(channel_type=Channel.TYPE_NEXMO)
 
-    def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
+    def create_welcome_topup(self, topup_size=None):
         if topup_size:
             return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
         return None
@@ -1390,12 +1388,15 @@ class Org(SmartModel):
             traceback.print_exc()
             return None
 
+    def get_bundles(self):
+        return get_brand_bundles(self.get_branding())
+
     def add_credits(self, bundle, token, user):
         # look up our bundle
-        if bundle not in BUNDLE_MAP:
+        bundle_map = get_bundle_map(self.get_bundles())
+        if bundle not in bundle_map:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
-
-        bundle = BUNDLE_MAP[bundle]
+        bundle = bundle_map[bundle]
 
         # adds credits to this org
         stripe.api_key = get_stripe_credentials()[1]
@@ -1458,8 +1459,7 @@ class Org(SmartModel):
                            cc_type=charge.card.type,
                            cc_name=charge.card.name)
 
-            from temba.middleware import BrandingMiddleware
-            branding = BrandingMiddleware.get_branding_for_host(self.brand)
+            branding = self.get_branding()
 
             subject = _("%(name)s Receipt") % branding
             template = "orgs/email/receipt_email"
@@ -1626,17 +1626,17 @@ class Org(SmartModel):
         r = get_redis_connection()
         r.hdel(msg_type, self.id)
 
-    def initialize(self, brand=None, topup_size=WELCOME_TOPUP_SIZE):
+    def initialize(self, branding=None, topup_size=None):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
 
-        if not brand:
-            brand = BrandingMiddleware.get_branding_for_host('')
+        if not branding:
+            branding = BrandingMiddleware.get_branding_for_host('')
 
         self.create_system_labels_and_groups()
-        self.create_sample_flows(brand.get('api_link', ""))
+        self.create_sample_flows(branding.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
     def save_media(self, file, extension):
@@ -1829,13 +1829,11 @@ class Invitation(SmartModel):
     secret = models.CharField(verbose_name=_("Secret"), max_length=64, unique=True,
                               help_text=_("a unique code associated with this invitation"))
 
-    host = models.CharField(max_length=32, help_text=_("The host this invitation was created on"))
-
     user_group = models.CharField(max_length=1, choices=USER_GROUPS, default='V', verbose_name=_("User Role"))
 
     @classmethod
-    def create(cls, org, user, email, user_group, host):
-        return cls.objects.create(org=org, email=email, user_group=user_group, host=host,
+    def create(cls, org, user, email, user_group):
+        return cls.objects.create(org=org, email=email, user_group=user_group,
                                   created_by=user, modified_by=user)
 
     def save(self, *args, **kwargs):
@@ -1866,9 +1864,7 @@ class Invitation(SmartModel):
         if not self.email:
             return
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
-
+        branding = self.org.get_branding()
         subject = _("%(name)s Invitation") % branding
         template = "orgs/email/invitation_email"
         to_email = self.email
@@ -1935,6 +1931,27 @@ class TopUp(SmartModel):
         debits = self.debits.filter(debit_type=Debit.TYPE_ALLOCATION).order_by('-created_by')
         balance = self.credits
         ledger = []
+
+        active = self.get_remaining() < balance
+
+        if active:
+            transfer = self.allocations.all().first()
+
+            if transfer:
+                comment = _('Transfer from %s' % transfer.topup.org.name)
+            else:
+                if self.price > 0:
+                    comment = _('Purchased Credits')
+                elif self.price == 0:
+                    comment = _('Complimentary Credits')
+                else:
+                    comment = _('Credits')
+
+            ledger.append(dict(date=self.created_on,
+                               comment=comment,
+                               amount=self.credits,
+                               balance=self.credits))
+
         for debit in debits:
             balance -= debit.amount
             ledger.append(dict(date=debit.created_on,
@@ -1946,7 +1963,7 @@ class TopUp(SmartModel):
         expired = self.expires_on < now
 
         # add a line for used message credits
-        if self.get_remaining() < balance:
+        if active:
             ledger.append(dict(date=self.expires_on if expired else now,
                                comment=_('Messaging credits used'),
                                amount=self.get_remaining() - balance,
@@ -2101,9 +2118,7 @@ class CreditAlert(SmartModel):
         if not email:
             return
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.org.brand)
-
+        branding = self.org.get_branding()
         subject = _("%(name)s Credits Alert") % branding
         template = "orgs/email/alert_email"
         to_email = email

@@ -570,8 +570,7 @@ class FlowTest(TembaTest):
         self.login(self.admin)
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportFlowResultsTask.objects.create(org=self.org, host='test',
-                                                               created_by=self.admin, modified_by=self.admin)
+        blocking_export = ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
         response = self.client.post(reverse('flows.flow_export_results'), dict(flows=[self.flow.pk]), follow=True)
         self.assertContains(response, "already an export in progress")
 
@@ -579,7 +578,7 @@ class FlowTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             workbook = self.export_flow_results(self.flow)
 
         tz = pytz.timezone(self.org.timezone)
@@ -672,7 +671,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = pytz.timezone(self.org.timezone)
