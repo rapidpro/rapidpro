@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0035_auto_20160822_2103'),
+        ('channels', '0036_remove_alert_host'),
     ]
 
     def update_nexmo_channles_roles(apps, schema_editor):
