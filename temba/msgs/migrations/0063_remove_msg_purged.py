@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0061_broadcast_recipients'),
+        ('msgs', '0062_remove_exportmessagestask_host'),
     ]
 
     operations = [
