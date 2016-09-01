@@ -115,7 +115,7 @@ class TwilioHandler(View):
             status = request.POST.get('SmsStatus', None)
 
             # get the SMS
-            sms = Msg.all_messages.select_related('channel').get(id=smsId)
+            sms = Msg.objects.select_related('channel').get(id=smsId)
 
             # validate this request is coming from twilio
             org = sms.org
@@ -235,7 +235,7 @@ class AfricasTalkingHandler(View):
             external_id = request.POST['id']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
+            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % external_id, status=404)
 
@@ -291,7 +291,7 @@ class ZenviaHandler(View):
             sms_id = request.REQUEST['id']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, pk=sms_id).select_related('channel').first()
+            sms = Msg.objects.filter(channel=channel, pk=sms_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % sms_id, status=404)
 
@@ -361,7 +361,7 @@ class ExternalHandler(View):
             sms_pk = request.REQUEST['id']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, pk=sms_pk).select_related('channel').first()
+            sms = Msg.objects.filter(channel=channel, pk=sms_pk).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % sms_pk, status=400)
 
@@ -577,7 +577,7 @@ class InfobipHandler(View):
         status = message.get('status')
 
         # look up the message
-        sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
+        sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
         if not sms:
             return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
@@ -647,7 +647,7 @@ class Hub9Handler(View):
         # delivery reports
         if action == 'delivered':
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, pk=external_id).select_related('channel').first()
+            sms = Msg.objects.filter(channel=channel, pk=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=404)
 
@@ -697,7 +697,7 @@ class HighConnectionHandler(View):
             status = int(request.REQUEST.get('status', 0))
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, pk=msg_id).select_related('channel').first()
+            sms = Msg.objects.filter(channel=channel, pk=msg_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
 
@@ -758,7 +758,7 @@ class BlackmynaHandler(View):
             status = int(request.REQUEST.get('status', 0))
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, external_id=msg_id).select_related('channel').first()
+            sms = Msg.objects.filter(channel=channel, external_id=msg_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with id: %s" % msg_id, status=400)
 
@@ -871,7 +871,7 @@ class NexmoHandler(View):
             external_id = request.REQUEST['messageId']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
+            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=200)
 
@@ -970,7 +970,7 @@ class VumiHandler(View):
             status = body['event_type']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel')
+            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel')
 
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % external_id, status=404)
@@ -1015,7 +1015,7 @@ class VumiHandler(View):
             sms = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), body['content'], date=gmt_date)
 
             # use an update so there is no race with our handling
-            Msg.all_messages.filter(pk=sms.id).update(external_id=body['message_id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=body['message_id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -1050,7 +1050,7 @@ class KannelHandler(View):
             sms_id = self.request.REQUEST['id']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, id=sms_id).select_related('channel')
+            sms = Msg.objects.filter(channel=channel, id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1094,7 +1094,7 @@ class KannelHandler(View):
             urn = URN.from_tel(request.REQUEST['sender'])
             sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
 
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -1134,7 +1134,7 @@ class ClickatellHandler(View):
             sms_id = self.request.REQUEST['apiMsgId']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, external_id=sms_id).select_related('channel')
+            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1212,7 +1212,7 @@ class ClickatellHandler(View):
 
             sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['from']), text, date=gmt_date)
 
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
@@ -1262,7 +1262,7 @@ class PlivoHandler(View):
                 sms_id = request.REQUEST['ParentMessageUUID']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, external_id=sms_id).select_related('channel')
+            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1318,7 +1318,7 @@ class PlivoHandler(View):
 
             sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['From']), request.REQUEST['Text'])
 
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
 
             return HttpResponse("SMS accepted: %d" % sms.id)
         else:
@@ -1351,7 +1351,7 @@ class MageHandler(View):
             except ValueError:
                 return JsonResponse(dict(error="Invalid message_id"), status=400)
 
-            msg = Msg.all_messages.select_related('org').get(pk=msg_id)
+            msg = Msg.objects.select_related('org').get(pk=msg_id)
 
             push_task(msg.org, HANDLER_QUEUE, HANDLE_EVENT_TASK,
                       dict(type=MSG_EVENT, id=msg.id, from_mage=True, new_contact=new_contact))
@@ -1445,7 +1445,7 @@ class ChikkaHandler(View):
             sms_id = self.request.REQUEST['message_id']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, id=sms_id).select_related('channel')
+            sms = Msg.objects.filter(channel=channel, id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Error, message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1484,7 +1484,7 @@ class ChikkaHandler(View):
             sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
 
             # save our request id in case of replies
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.REQUEST['request_id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['request_id'])
             return HttpResponse("Accepted: %d" % sms.id)
 
         else:
@@ -1522,7 +1522,7 @@ class JasminHandler(View):
             err = request.POST['err']
 
             # look up the message
-            sms = Msg.current_messages.filter(channel=channel, external_id=sms_id).select_related('channel')
+            sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
             if not sms:
                 return HttpResponse("Message with external id of '%s' not found" % sms_id, status=400)
 
@@ -1548,7 +1548,7 @@ class JasminHandler(View):
                 content = gsm7.decode(request.POST['content'], 'replace')[0]
 
             sms = Msg.create_incoming(channel, URN.from_tel(request.POST['from']), content)
-            Msg.all_messages.filter(pk=sms.id).update(external_id=request.POST['id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=request.POST['id'])
             return HttpResponse('ACK/Jasmin')
 
         else:
@@ -1593,7 +1593,7 @@ class MbloxHandler(View):
             status = body['status']
 
             # look up the message
-            msgs = Msg.current_messages.filter(channel=channel, external_id=msg_id).select_related('channel')
+            msgs = Msg.objects.filter(channel=channel, external_id=msg_id).select_related('channel')
             if not msgs:
                 return HttpResponse("Message with external id of '%s' not found" % msg_id, status=400)
 
@@ -1618,7 +1618,7 @@ class MbloxHandler(View):
 
             msg_date = parse_datetime(body['received_at'])
             msg = Msg.create_incoming(channel, URN.from_tel(body['from']), body['body'], date=msg_date)
-            Msg.all_messages.filter(pk=msg.id).update(external_id=body['id'])
+            Msg.objects.filter(pk=msg.id).update(external_id=body['id'])
             return HttpResponse("SMS Accepted: %d" % msg.id)
 
         else:
@@ -1742,7 +1742,7 @@ class FacebookHandler(View):
                         if content:
                             msg_date = datetime.fromtimestamp(envelope['timestamp'] / 1000.0).replace(tzinfo=pytz.utc)
                             msg = Msg.create_incoming(channel, urn, content, date=msg_date, contact=contact)
-                            Msg.all_messages.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
+                            Msg.objects.filter(pk=msg.id).update(external_id=envelope['message']['mid'])
                             status.append("Msg %d accepted." % msg.id)
 
                         # a contact pressed "Get Started", trigger any new conversation triggers
@@ -1755,7 +1755,7 @@ class FacebookHandler(View):
 
                     elif 'delivery' in envelope and 'mids' in envelope['delivery']:
                         for external_id in envelope['delivery']['mids']:
-                            msg = Msg.all_messages.filter(channel=channel, external_id=external_id).first()
+                            msg = Msg.objects.filter(channel=channel, external_id=external_id).first()
                             if msg:
                                 msg.status_delivered()
                                 status.append("Msg %d updated." % msg.id)
@@ -1845,7 +1845,7 @@ class GlobeHandler(View):
                 msg = Msg.create_incoming(channel, URN.from_tel(sender_tel), inbound_msg['message'], date=gmt_date)
 
                 # use an update so there is no race with our handling
-                Msg.all_messages.filter(pk=msg.id).update(external_id=inbound_msg['messageId'])
+                Msg.objects.filter(pk=msg.id).update(external_id=inbound_msg['messageId'])
                 msgs.append(msg)
 
             return HttpResponse("Msgs Accepted: %s" % ", ".join([str(m.id) for m in msgs]))
@@ -1886,7 +1886,7 @@ class ViberHandler(View):
             #    "message_status": 0
             # }
             external_id = body['message_token']
-            msg = Msg.current_messages.filter(channel=channel, external_id=external_id).select_related('channel').first()
+            msg = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not msg:
                 return HttpResponse("Message with external id of '%s' not found" % external_id, status=400)
 
@@ -1913,7 +1913,7 @@ class ViberHandler(View):
                                       URN.from_tel(body['phone_number']),
                                       body['message']['text'],
                                       date=msg_date)
-            Msg.all_messages.filter(pk=msg.id).update(external_id=body['message_token'])
+            Msg.objects.filter(pk=msg.id).update(external_id=body['message_token'])
             return HttpResponse('Msg Accepted: %d' % msg.id)
 
         else:
