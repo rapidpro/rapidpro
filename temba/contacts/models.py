@@ -2124,7 +2124,6 @@ class ExportContactsTask(SmartModel):
 
     org = models.ForeignKey(Org, related_name='contacts_exports', help_text=_("The Organization of the user."))
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
-    host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
     task_id = models.CharField(null=True, max_length=64)
     is_finished = models.BooleanField(default=False,
                                       help_text=_("Whether this export has completed"))
@@ -2271,8 +2270,7 @@ class ExportContactsTask(SmartModel):
         store = AssetType.contact_export.store
         store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xls')
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
+        branding = self.org.get_branding()
         download_url = branding['link'] + get_asset_url(AssetType.contact_export, self.pk)
 
         subject = "Your contacts export is ready"

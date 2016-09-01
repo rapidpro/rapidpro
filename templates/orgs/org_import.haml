@@ -9,7 +9,7 @@
 
 - block pjax
 
-  -if not user_org.has_added_credits
+  -if not user_org.get_purchased_credits
     -include "includes/import_disabled.html"
 
 

@@ -468,7 +468,7 @@ class IVRTests(FlowFileTest):
         call.update_status('in-progress', 0, Channel.TYPE_TWILIO)
         call.save()
         IVRCall.hangup_test_call(flow)
-        self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())
+        self.assertTrue(IVRCall.objects.filter(pk=call.pk).first())
 
         ActionLog.objects.all().delete()
         IVRCall.objects.all().delete()

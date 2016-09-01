@@ -2,7 +2,7 @@
 
 
 .modal-header.title
-  %span{ng-model:"formData.rulesetConfig",data-icon:"show",class:"modal-title ruleset-name"}><
+  %span{ng-model:"formData.rulesetConfig", data-icon:"show", class:"modal-title ruleset-name"}><
 .modal-body.split-editor
 
   <ng-form name="splitEditor">
@@ -12,7 +12,7 @@
         %p
           -blocktrans
             When somebody arrives at this point in your flow
-        %select{ng-model:"formData.rulesetConfig", ng-options:"config as config.verbose_name for config in rulesetConfigs|filter:isVisibleRulesetType",style:"width:320px;height:34px",class:"split-type",select2:""}
+        %select{ng-model:"formData.rulesetConfig", ng-change:"rulesetTypeChanged()", ng-options:"config as config.verbose_name for config in rulesetConfigs|filter:isVisibleRulesetType",style:"width:320px;height:34px",class:"split-type",select2:""}
 
       %form{name:"variable"}
         #variable-name
@@ -60,6 +60,16 @@
     .wait-digits{ng-if:'formData.rulesetConfig.type == "wait_digits"'}><
       #split-on
         -trans "If the keypad entry before the # symbol.."
+
+    .random{ng-if:'formData.rulesetConfig.type == "random"'}><
+      #split-on
+        -trans "Split them randomly into"
+        %input.split-buckets{type:"text", min:"2", max:"20", ng-change:'updateRandomBuckets()', ng-model:"formData.buckets", ng-required:"true", type:"number"}
+        -trans "even buckets"
+
+        .buckets
+          .bucket{ng-repeat:'bucket in formData.randomBuckets'}
+            %input{type:'text', ng-required:'true', ng-model:'bucket._base'}
 
     .airtime{ng-if:'formData.rulesetConfig.type == "airtime"'}><
       .split-margin

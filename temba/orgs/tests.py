@@ -622,7 +622,6 @@ class OrgTest(TembaTest):
             return Invitation.objects.create(org=self.org,
                                              user_group=group,
                                              email="norkans7@gmail.com",
-                                             host='app.rapidpro.io',
                                              created_by=self.admin,
                                              modified_by=self.admin)
 
@@ -2310,13 +2309,14 @@ class BulkExportTest(TembaTest):
         self.assertEquals(response.context['form'].errors['import_file'][0], 'Sorry, import is a premium feature')
 
         # now purchase some credits and try again
-        TopUp.objects.create(org=self.org, price=0, credits=10000,
+        TopUp.objects.create(org=self.org, price=1, credits=10000,
                              expires_on=timezone.now() + timedelta(days=30),
                              created_by=self.admin, modified_by=self.admin)
 
         # force our cache to reload
         self.org.get_credits_total(force_dirty=True)
-        self.assertTrue(self.org.has_added_credits())
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertTrue(self.org.get_purchased_credits() > 0)
 
         # now try again with purchased credits, but our file is too old
         post_data = dict(import_file=open('%s/test_flows/too_old.json' % settings.MEDIA_ROOT, 'rb'))
@@ -2742,6 +2742,8 @@ class TestStripeCredits(TembaTest):
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
 
+        settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
+
         self.org.add_credits('2000', 'stripe-token', self.admin)
         self.assertTrue(2000, self.org.get_credits_total())
 
@@ -2820,6 +2822,8 @@ class TestStripeCredits(TembaTest):
         charge_create.return_value = \
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
 
         self.org.add_credits('2000', 'stripe-token', self.admin)
         self.assertTrue(2000, self.org.get_credits_total())

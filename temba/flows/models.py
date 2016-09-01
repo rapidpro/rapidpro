@@ -2939,6 +2939,7 @@ class RuleSet(models.Model):
     TYPE_FORM_FIELD = 'form_field'
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
+    TYPE_RANDOM = 'random'
     TYPE_SUBFLOW = 'subflow'
 
     CONFIG_WEBHOOK = 'webhook'
@@ -2960,7 +2961,8 @@ class RuleSet(models.Model):
                     (TYPE_AIRTIME, "Transfer Airtime"),
                     (TYPE_FORM_FIELD, "Split by message form"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
-                    (TYPE_EXPRESSION, "Split by expression"))
+                    (TYPE_EXPRESSION, "Split by expression"),
+                    (TYPE_SUBFLOW, "Split Randomly"))
 
     uuid = models.CharField(max_length=36, unique=True)
 
@@ -3560,8 +3562,6 @@ class ExportFlowResultsTask(SmartModel):
 
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
 
-    host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-
     task_id = models.CharField(null=True, max_length=64)
 
     is_finished = models.BooleanField(default=False, help_text=_("Whether this export is complete"))
@@ -3573,13 +3573,13 @@ class ExportFlowResultsTask(SmartModel):
                               help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, host, org, user, flows, contact_fields, responded_only, include_runs, include_msgs):
+    def create(cls, org, user, flows, contact_fields, responded_only, include_runs, include_msgs):
         config = {ExportFlowResultsTask.INCLUDE_RUNS: include_runs,
                   ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
                   ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
                   ExportFlowResultsTask.RESPONDED_ONLY: responded_only}
 
-        export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user, host=host,
+        export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user,
                                                       config=json.dumps(config))
         for flow in flows:
             export.flows.add(flow)
@@ -4004,8 +4004,7 @@ class ExportFlowResultsTask(SmartModel):
         subject = "Your export is ready"
         template = 'flows/email/flow_export_download'
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
+        branding = self.org.get_branding()
         download_url = branding['link'] + get_asset_url(AssetType.results_export, self.pk)
 
         # force a gc

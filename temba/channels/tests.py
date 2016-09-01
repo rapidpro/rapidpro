@@ -30,7 +30,6 @@ from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
-from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID
@@ -2585,9 +2584,8 @@ class ChannelClaimTest(TembaTest):
 
         self.assertTrue(len(mail.outbox) == 1)
         template = 'channels/email/disconnected_alert.txt'
-        branding = BrandingMiddleware.get_branding_for_host(settings.HOSTNAME)
         context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=branding,
+                       branding=self.channel.org.get_branding(),
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
@@ -2613,9 +2611,8 @@ class ChannelClaimTest(TembaTest):
         self.assertTrue(alert.ended_on)
         self.assertTrue(len(mail.outbox) == 2)
         template = 'channels/email/connected_alert.txt'
-        branding = BrandingMiddleware.get_branding_for_host(settings.HOSTNAME)
         context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
-                       branding=branding,
+                       branding=self.channel.org.get_branding(),
                        last_seen=self.channel.last_seen, sync=alert.sync_event)
 
         text_template = loader.get_template(template)
@@ -6918,11 +6915,11 @@ class GlobeTest(TembaTest):
             "inboundSMSMessageList": {
                 "inboundSMSMessage": [{
                     "dateTime": "Fri Nov 22 2013 12:12:13 GMT+0000 (UTC)",
-                    "destinationAddress": "21586380",
+                    "destinationAddress": "tel:21586380",
                     "messageId": None,
                     "message": "Hello",
                     "resourceURL": None,
-                    "senderAddress": "9171234567"
+                    "senderAddress": "tel:9171234567"
                 }]
             }
         }
@@ -6946,9 +6943,21 @@ class GlobeTest(TembaTest):
         response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
-        # POST, invalid sender Address
+        # POST, invalid destination Address
         bad_data = copy.deepcopy(data)
         bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = '9999'
+        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST, mismatched destination address
+        bad_data = copy.deepcopy(data)
+        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = 'tel:9999'
+        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST, invalid sender address
+        bad_data = copy.deepcopy(data)
+        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['senderAddress'] = '9999'
         response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
@@ -7112,7 +7121,18 @@ class ViberTest(TembaTest):
             self.assertEqual(msg.external_id, "999")
             self.clear_cache()
 
-        with patch('requests.get') as mock:
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"status":3}')
+
+            # send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            # message should have failed permanently
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, FAILED)
+            self.clear_cache()
+
+        with patch('requests.post') as mock:
             mock.return_value = MockResponse(401, 'Error')
 
             # manually send it off
@@ -7123,7 +7143,7 @@ class ViberTest(TembaTest):
             self.assertEquals(ERRORED, msg.status)
             self.clear_cache()
 
-        with patch('requests.get') as mock:
+        with patch('requests.post') as mock:
             mock.side_effect = Exception("Unable to reach host")
 
             # manually send it off

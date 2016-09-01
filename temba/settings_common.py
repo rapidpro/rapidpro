@@ -264,6 +264,7 @@ BRANDING = {
         'slug': 'rapidpro',
         'name': 'RapidPro',
         'org': 'UNICEF',
+        'colors': dict(primary='#0c6596'),
         'styles': ['brands/rapidpro/font/style.css', 'brands/rapidpro/less/style.less'],
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',
@@ -277,6 +278,7 @@ BRANDING = {
         'logo': '/brands/rapidpro/logo.png',
         'allow_signups': True,
         'tiers': dict(multi_user=0, multi_org=0),
+        'bundles': [],
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
         'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")

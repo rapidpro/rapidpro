@@ -970,6 +970,28 @@ class APITest(TembaTest):
             xavier = Contact.objects.get(name="Xavier")
             self.assertEqual(set(xavier.urns.values_list('urn', flat=True)), {"tel:2234556701"})
 
+        # try an empty delete request
+        response = self.deleteJSON(url, {})
+        self.assertResponseError(response, None, "Must provide one of the following fields: urn, uuid")
+
+        # delete a contact by UUID
+        response = self.deleteJSON(url, 'uuid=%s' % jean.uuid)
+        self.assertEqual(response.status_code, 204)
+
+        jean.refresh_from_db()
+        self.assertFalse(jean.is_active)
+
+        # delete a contact by URN
+        response = self.deleteJSON(url, 'urn=twitter:bobby')
+        self.assertEqual(response.status_code, 204)
+
+        bobby.refresh_from_db()
+        self.assertFalse(bobby.is_active)
+
+        # try to delete a contact in another org
+        response = self.deleteJSON(url, 'uuid=%s' % hans.uuid)
+        self.assertEqual(response.status_code, 404)
+
     def test_definitions(self):
         url = reverse('api.v2.definitions')
 
@@ -1663,7 +1685,7 @@ class APITest(TembaTest):
 
         # missing id
         response = self.deleteJSON(url, "")
-        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, None, "Must provide one of the following fields: id")
 
         # invalid id (other org)
         response = self.deleteJSON(url, "id=%d" % other_org_subscriber.id)
