@@ -4904,7 +4904,7 @@ class TriggerFlowAction(VariableContactAction):
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
                 self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
-                                extra=extra, parent_run=run)
+                                extra=extra, parent_run=run, interrupt=False)
                 return []
             else:
                 unique_contacts = set()
