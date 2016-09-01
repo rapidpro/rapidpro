@@ -5919,3 +5919,29 @@ class MigrationUtilsTest(TembaTest):
 
         self.assertEqual(len(removed['action_sets']), 0)
         self.assertEqual(removed['entry'], None)
+
+
+class TriggerFlowTest(FlowFileTest):
+
+    def test_trigger_then_loop(self):
+        # start our parent flow
+        flow = self.get_flow('parent_child_loop')
+        flow.start([], [self.contact])
+
+        # trigger our second flow to start
+        msg = self.create_msg(contact=self.contact, direction='I', text="add 12067797878")
+        Flow.find_and_handle(msg)
+
+        FlowRun.objects.get(contact__urns__path="+12067797878")
+
+        # main contact should still be in the flow
+        run = FlowRun.objects.get(flow=flow, contact=self.contact)
+        self.assertTrue(run.is_active)
+
+        # and can do it again
+        msg = self.create_msg(contact=self.contact, direction='I', text="add 12067798080")
+        Flow.find_and_handle(msg)
+
+        FlowRun.objects.get(contact__urns__path="+12067798080")
+        run.refresh_from_db()
+        self.assertTrue(run.is_active)
