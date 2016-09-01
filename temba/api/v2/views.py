@@ -29,7 +29,7 @@ from .serializers import BroadcastReadSerializer, BroadcastWriteSerializer, Camp
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, LabelWriteSerializer
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
-from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, FlowReadSerializer
+from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, ContactGroupWriteSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
@@ -114,6 +114,8 @@ class ApiExplorerView(SmartTemplateView):
             FlowStartsEndpoint.get_read_explorer(),
             FlowStartsEndpoint.get_write_explorer(),
             GroupsEndpoint.get_read_explorer(),
+            GroupsEndpoint.get_write_explorer(),
+            GroupsEndpoint.get_delete_explorer(),
             LabelsEndpoint.get_read_explorer(),
             LabelsEndpoint.get_write_explorer(),
             LabelsEndpoint.get_delete_explorer(),
@@ -1380,7 +1382,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class GroupsEndpoint(ListAPIMixin, BaseAPIView):
+class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Listing Groups
 
@@ -1403,16 +1405,74 @@ class GroupsEndpoint(ListAPIMixin, BaseAPIView):
                 {
                     "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
                     "name": "Reporters",
-                    "count": 315
+                    "count": 315,
+                    "query": null
                 },
                 ...
             ]
         }
+
+    ## Adding a Group
+
+    A **POST** can be used to create a new contact group. Don't specify a UUID as this will be generated for you.
+
+    * **name** - the group name (string)
+
+    Example:
+
+        POST /api/v2/groups.json
+        {
+            "name": "Reporters"
+        }
+
+    You will receive a group object as a response if successful:
+
+        {
+            "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
+            "name": "Reporters",
+            "count": 0,
+            "query": null
+        }
+
+    ## Updating a Group
+
+    A **POST** can also be used to update a contact group if you do specify its UUID.
+
+    * **uuid** - the group UUID
+    * **name** - the group name (string)
+
+    Example:
+
+        POST /api/v2/groups.json
+        {
+            "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
+            "name": "Checked"
+        }
+
+    You will receive the updated group object as a response if successful:
+
+        {
+            "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
+            "name": "Checked",
+            "count": 0,
+            "query": null
+        }
+
+    ## Deleting a Group
+
+    A **DELETE** can  be used to delete a contact group if you specify its UUID
+
+    Example:
+
+        DELETE /api/v2/groups.json?uuid=5f05311e-8f81-4a67-a5b5-1501b6d6496a
+
+    You will receive either a 204 response if a label was deleted, or a 404 response if no matching label was found.
     """
     permission = 'contacts.contactgroup_api'
     model = ContactGroup
     model_manager = 'user_groups'
     serializer_class = ContactGroupReadSerializer
+    write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
@@ -1425,17 +1485,47 @@ class GroupsEndpoint(ListAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
+    def perform_destroy(self, instance):
+        instance.release()
+
     @classmethod
     def get_read_explorer(cls):
         return {
             'method': "GET",
-            'title': "List Groups",
+            'title': "List Contact Groups",
             'url': reverse('api.v2.groups'),
             'slug': 'group-list',
             'request': "",
             'fields': [
-                {'name': "uuid", 'required': False, 'help': "A group UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
+                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"}
             ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Add or Update Contact Groups",
+            'url': reverse('api.v2.groups'),
+            'slug': 'group-write',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the contact group to update"},
+                {'name': "name", 'required': True, 'help': "The name of the contact group"}
+            ]
+        }
+
+    @classmethod
+    def get_delete_explorer(cls):
+        return {
+            'method': "DELETE",
+            'title': "Delete Contact Groups",
+            'url': reverse('api.v2.groups'),
+            'slug': 'group-delete',
+            'request': '',
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the contact group to delete"}
+            ],
         }
 
 
@@ -1551,7 +1641,7 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             'slug': 'label-list',
             'request': "",
             'fields': [
-                {'name': "uuid", 'required': False, 'help': "A label UUID to filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
+                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"}
             ]
         }
 

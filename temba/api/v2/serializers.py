@@ -394,6 +394,37 @@ class ContactGroupReadSerializer(ReadSerializer):
         fields = ('uuid', 'name', 'query', 'count')
 
 
+class ContactGroupWriteSerializer(WriteSerializer):
+    uuid = fields.ContactGroupField(required=False)
+    name = serializers.CharField(required=True, max_length=64)
+
+    def validate_name(self, value):
+        if not ContactGroup.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
+                                              % ContactGroup.MAX_NAME_LEN)
+        return value
+
+    def validate(self, data):
+        instance = data.get('uuid')
+        name = data.get('name')
+
+        if not instance and ContactGroup.user_groups.filter(org=self.context['org'], name=name).exists():
+            raise serializers.ValidationError("Name must be unique")
+
+        return data
+
+    def save(self):
+        instance = self.validated_data.get('uuid')
+        name = self.validated_data.get('name')
+
+        if instance:
+            instance.name = name
+            instance.save(update_fields=('name',))
+            return instance
+        else:
+            return ContactGroup.get_or_create(self.context['org'], self.context['user'], name)
+
+
 class FlowReadSerializer(ReadSerializer):
     archived = serializers.ReadOnlyField(source='is_archived')
     labels = serializers.SerializerMethodField()
