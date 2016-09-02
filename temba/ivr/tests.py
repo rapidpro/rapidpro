@@ -183,7 +183,7 @@ class IVRTests(FlowFileTest):
         self.assertEquals(COMPLETED, call.status)
         self.assertEquals(15, call.duration)
 
-        messages = Msg.all_messages.filter(msg_type=IVR).order_by('pk')
+        messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
         self.assertEquals(4, messages.count())
         self.assertEquals(4, self.org.get_credits_used())
 
