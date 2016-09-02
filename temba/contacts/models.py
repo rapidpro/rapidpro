@@ -2081,8 +2081,6 @@ class ContactGroupCount(models.Model):
         start = time.time()
         squash_count = 0
         for count in ContactGroupCount.objects.filter(id__gt=last_squash).order_by('group_id').distinct('group_id'):
-            print "Squashing: %d" % count.group_id
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_contactgroupcounts(%s);", (count.group_id,))

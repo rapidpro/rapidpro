@@ -1598,8 +1598,6 @@ class SystemLabel(models.Model):
         start = time.time()
         squash_count = 0
         for count in SystemLabel.objects.filter(id__gt=last_squash).order_by('org_id', 'label_type').distinct('org_id', 'label_type'):
-            print "Squashing: %d %s" % (count.org_id, count.label_type)
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_systemlabel(%s, %s);", (count.org_id, count.label_type))

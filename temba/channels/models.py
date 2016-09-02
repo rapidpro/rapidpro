@@ -2748,7 +2748,6 @@ class ChannelCount(models.Model):
         squash_count = 0
         for count in ChannelCount.objects.filter(id__gt=last_squash).order_by('channel_id', 'count_type', 'day')\
                                                                     .distinct('channel_id', 'count_type', 'day'):
-            print "Squashing: %d %s %s" % (count.channel_id, count.count_type, count.day)
 
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
