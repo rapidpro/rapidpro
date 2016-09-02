@@ -296,8 +296,6 @@ def purge_broadcasts_task():
                     for topup_id, msg_count in six.iteritems(batch_topup_counts):
                         Debit.objects.create(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE)
 
-                    # TODO squash debits by topup
-
                     # delete messages in batches to avoid long locks
                     for msg_ids_batch in chunk_list(batch_message_ids, 1000):
                         Msg.objects.filter(pk__in=msg_ids_batch).delete()
@@ -306,6 +304,8 @@ def purge_broadcasts_task():
                     batch_broadcasts.update(purged=True)
 
                 msgs_deleted += len(batch_message_ids)
+
+            Debit.squash_purge_debits()
 
             print("Purged %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
 

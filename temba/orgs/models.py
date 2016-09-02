@@ -14,6 +14,7 @@ import traceback
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
+from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.db import models, transaction, connection
@@ -2035,6 +2036,8 @@ class Debit(models.Model):
     DEBIT_TYPES = ((TYPE_ALLOCATION, 'Allocation'),
                    (TYPE_PURGE, 'Purge'))
 
+    LAST_SQUASH_KEY = 'last_debit_squash'
+
     topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
 
     amount = models.IntegerField(help_text=_('How many credits were debited'))
@@ -2050,6 +2053,27 @@ class Debit(models.Model):
                                    help_text="The user which originally created this item")
     created_on = models.DateTimeField(default=timezone.now,
                                       help_text="When this item was originally created")
+
+    @classmethod
+    def squash_purge_debits(cls):
+        last_squash_id = cache.get(cls.LAST_SQUASH_KEY, 0)
+        unsquashed_topups = cls.objects.filter(pk__gt=last_squash_id, debit_type=cls.TYPE_PURGE)
+        unsquashed_topups = unsquashed_topups.values_list('topup', flat=True).distinct('topup')
+
+        for topup_id in unsquashed_topups:
+            with connection.cursor() as cursor:
+                sql = """
+                WITH removed as (
+                    DELETE FROM orgs_debit WHERE "topup_id" = %s AND debit_type = 'P' RETURNING "amount"
+                )
+                INSERT INTO orgs_debit("topup_id", "amount", "debit_type", "created_on")
+                VALUES (%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %s);"""
+
+                cursor.execute(sql, [topup_id, topup_id, timezone.now()])
+
+        max_id = cls.objects.filter(debit_type=Debit.TYPE_PURGE).order_by('-id').values_list('id', flat=True).first()
+        if max_id:
+            cache.set(cls.LAST_SQUASH_KEY, max_id)
 
 
 class TopUpCredits(models.Model):
