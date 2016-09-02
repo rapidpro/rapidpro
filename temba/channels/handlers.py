@@ -831,6 +831,66 @@ class M3TechHandler(ExternalHandler):
         return Channel.TYPE_M3TECH
 
 
+class NexmoCallHandler(View):
+
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(NexmoCallHandler, self).dispatch(*args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.get(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        from temba.ivr.models import IVRCall
+
+        action = kwargs['action'].lower()
+
+        # nexmo fires a test request at our URL with no arguments, return 200 so they take our URL as valid
+        if action == 'answer' and not request.REQUEST.get('nexmo_caller_id', None):
+            return HttpResponse("No to parameter, ignoring")
+
+        request_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid__iexact=request_uuid, is_active=True, channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
+
+        if action == 'answer':
+
+            from_number = request.REQUEST['nexmo_caller_id']
+            external_id = request.REQUEST['nexmo_call_id']
+
+            urn = URN.from_tel(from_number)
+            contact = Contact.get_or_create(channel.org, channel.created_by, urns=[urn], channel=channel)
+            urn_obj = contact.urn_objects[urn]
+
+            flow = Trigger.find_flow_for_inbound_call(contact)
+
+            call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
+            call.external_id = external_id
+            call.save()
+
+            if flow:
+                FlowRun.create(flow, contact.pk, call=call)
+                response = Flow.handle_call(call)
+                return HttpResponse(unicode(response))
+            else:
+                # we don't have an inbound trigger to deal with this call.
+                response = channel.generate_ivr_response()
+
+                # say nothing and hangup, this is a little rude, but if we reject the call, then
+                # they'll get a non-working number error. We send 'busy' when our server is down
+                # so we don't want to use that here either.
+                response.say('')
+                response.hangup()
+
+                # if they have a missed call trigger, fire that off
+                Trigger.catch_triggers(contact, Trigger.TYPE_MISSED_CALL, channel)
+
+                # either way, we need to hangup now
+                return HttpResponse(unicode(response))
+
+
 class NexmoHandler(View):
 
     @disable_middleware

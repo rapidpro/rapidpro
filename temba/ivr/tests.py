@@ -16,6 +16,7 @@ from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.msgs.models import Msg, IVR
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
 from .models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER, FAILED
+from .models import INCOMING
 
 
 class IVRTests(FlowFileTest):
@@ -712,6 +713,69 @@ class IVRTests(FlowFileTest):
         # get just the path and hit it
         response = self.client.post(urlparse(redirect_url).path, post_data)
         self.assertContains(response, "You are not part of group.")
+
+    def test_incoming_start_nexmo(self):
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.save()
+
+        self.get_flow('call_me_start')
+
+        # create an inbound call
+        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382', )
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
+                                    post_data)
+
+        # grab the redirect URL
+        redirect_url = re.match(r'.*<goto nextitem="(.*)" />.*', response.content).group(1)
+
+        # get just the path and hit it
+        response = self.client.post(urlparse(redirect_url).path, post_data)
+        self.assertContains(response, "You are not part of group.")
+
+        # we have an incoming call
+        call = IVRCall.objects.all().first()
+        self.assertIsNotNone(call)
+        self.assertEqual(call.direction, INCOMING)
+        self.assertEquals('+250788382382', call.contact_urn.path)
+        self.assertEquals('ext-id', call.external_id)
+
+    def test_incoming_call_nexmo(self):
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.save()
+
+        # import an ivr flow
+        flow = self.get_flow('call_me_maybe')
+        flow.version_number = 3
+        flow.save()
+
+        # go back to our original version
+        flow_json = self.get_flow_json('call_me_maybe')['definition']
+
+        from temba.flows.models import FlowRevision
+        FlowRevision.objects.create(flow=flow, definition=json.dumps(flow_json, indent=2),
+                                    spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
+
+        # create an inbound call
+        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382', )
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
+                                    post_data)
+        self.assertContains(response, '<prompt>Would you like me to call you? Press one for yes, two for no, or three for maybe.</prompt>')
+
+        call = IVRCall.objects.all().first()
+        self.assertIsNotNone(call)
+        self.assertEquals('+250788382382', call.contact_urn.path)
+        self.assertEqual(call.direction, INCOMING)
+        self.assertEquals('ext-id', call.external_id)
+
+        from temba.orgs.models import CURRENT_EXPORT_VERSION
+        flow.refresh_from_db()
+        self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

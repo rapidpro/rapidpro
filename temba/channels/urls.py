@@ -6,6 +6,7 @@ from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHa
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, TelegramHandler, ChikkaHandler
 from .handlers import TwilioMessagingServiceHandler, JasminHandler, MbloxHandler, FacebookHandler, GlobeHandler, ViberHandler
+from .handlers import NexmoCallHandler
 from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
 
 
@@ -23,6 +24,7 @@ urlpatterns = [
         url(r'^/external/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$', ExternalHandler.as_view(), name='handlers.external_handler'),
         url(r'^/shaqodoon/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$', ShaqodoonHandler.as_view(), name='handlers.shaqodoon_handler'),
         url(r'^/nexmo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$', NexmoHandler.as_view(), name='handlers.nexmo_handler'),
+        url(r'^/nexmo/(?P<action>answer)/(?P<uuid>[a-z0-9\-]+)/$', NexmoCallHandler.as_view(), name='handlers.nexmo_call_handler'),
         url(r'^/infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$', InfobipHandler.as_view(), name='handlers.infobip_handler'),
         url(r'^/hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$', Hub9Handler.as_view(), name='handlers.hub9_handler'),
         url(r'^/vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$', VumiHandler.as_view(), name='handlers.vumi_handler'),
