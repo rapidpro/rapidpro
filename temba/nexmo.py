@@ -131,10 +131,10 @@ class NexmoClient(object):
         path = '/number/buy/%s/%s/%s/%s' % (self.api_key, self.api_secret, country, number)
         self._fire_post(path, dict())
 
-    def update_number(self, country, number, moURL):
+    def update_number(self, country, number, moURL, answerURL):
         number = number.lstrip('+')
         path = '/number/update/%s/%s/%s/%s' % (self.api_key, self.api_secret, country, number)
-        self._fire_post(path, dict(moHttpUrl=moURL))
+        self._fire_post(path, dict(moHttpUrl=moURL, voiceCallbackType='vxml', voiceCallbackValue=answerURL))
 
     def test_credentials(self):
         try:

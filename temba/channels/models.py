@@ -403,10 +403,15 @@ class Channel(TembaModel):
 
         mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
 
+        channel_uuid = generate_uuid()
+
+        answer_url = reverse('handlers.nexmo_call_handler', args=['answer', channel_uuid])
+
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
         try:
-            client.update_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path))
+            client.update_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path),
+                                 'http://%s%s' % (TEMBA_HOST, answer_url))
 
         except Exception as e:
             # shortcodes don't seem to claim right on nexmo, move forward anyways
@@ -426,7 +431,7 @@ class Channel(TembaModel):
 
         return Channel.create(org, user, country, Channel.TYPE_NEXMO, name=phone, address=phone_number,
                               role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER,
-                              bod=nexmo_phone_number)
+                              bod=nexmo_phone_number, uuid=channel_uuid)
 
     @classmethod
     def add_twilio_channel(cls, org, user, phone_number, country, role):
