@@ -2610,8 +2610,12 @@ class FlowRun(models.Model):
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         # let our parent know we finished
-        from .tasks import continue_parent_flows
-        continue_parent_flows.delay([self.pk])
+        if self.contact.is_test:
+            # test contacts should operate in same thread
+            FlowRun.continue_parent_flow_runs(FlowRun.objects.filter(id=self.id))
+        else:
+            from .tasks import continue_parent_flows
+            continue_parent_flows.delay([self.id])
 
     def update_timeout(self, now, minutes):
         """
