@@ -63,7 +63,7 @@ COUNTRIES_NAMES['GB'] = _("United Kingdom")
 COUNTRIES_NAMES['US'] = _("United States")
 
 
-COUNTRIES_CALLING_CODES = {
+COUNTRY_CALLING_CODES = {
     "AF": (93, ),  # Afghanistan
     "AX": (35818, ),  # Åland Islands
     "AL": (355, ),  # Albania
@@ -358,7 +358,7 @@ TWILIO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in TWILI
 
 TWILIO_SUPPORTED_COUNTRY_CODES = list(set([code
                                            for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG
-                                           for code in list(COUNTRIES_CALLING_CODES[elt])]))
+                                           for code in list(COUNTRY_CALLING_CODES[elt])]))
 
 NEXMO_SUPPORTED_COUNTRIES_CONFIG = ('DZ',  # Algeria
                                     'AR',  # Argentina
@@ -452,7 +452,7 @@ NEXMO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in NEXMO_
 
 NEXMO_SUPPORTED_COUNTRY_CODES = list(set([code
                                           for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG
-                                          for code in list(COUNTRIES_CALLING_CODES[elt])]))
+                                          for code in list(COUNTRY_CALLING_CODES[elt])]))
 
 PLIVO_SUPPORTED_COUNTRIES_CONFIG = ('AU',  # Australia
                                     'BE',  # Belgium
@@ -480,7 +480,7 @@ PLIVO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in PLIVO_
 
 PLIVO_SUPPORTED_COUNTRY_CODES = list(set([code
                                           for elt in PLIVO_SUPPORTED_COUNTRIES_CONFIG
-                                          for code in list(COUNTRIES_CALLING_CODES[elt])]))
+                                          for code in list(COUNTRY_CALLING_CODES[elt])]))
 
 # django_countries now uses a dict of countries, let's turn it in our tuple
 # list of codes and countries sorted by country name

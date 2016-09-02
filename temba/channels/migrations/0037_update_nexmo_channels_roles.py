@@ -10,11 +10,11 @@ class Migration(migrations.Migration):
         ('channels', '0036_remove_alert_host'),
     ]
 
-    def update_nexmo_channles_roles(apps, schema_editor):
+    def update_nexmo_channels_roles(apps, schema_editor):
         Channel = apps.get_model('channels', 'Channel')
         Channel.objects.filter(channel_type='NX').update(role='SRCA')
 
 
     operations = [
-        migrations.RunPython(update_nexmo_channles_roles)
+        migrations.RunPython(update_nexmo_channels_roles)
     ]

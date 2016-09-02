@@ -704,9 +704,9 @@ class Channel(TembaModel):
     def get_ivr_client(self):
         if self.channel_type == Channel.TYPE_TWILIO:
             return self.org.get_twilio_client()
-        if self.channel_type == Channel.TYPE_VERBOICE:
+        elif self.channel_type == Channel.TYPE_VERBOICE:
             return self.org.get_verboice_client()
-        if self.channel_type == Channel.TYPE_NEXMO:
+        elif self.channel_type == Channel.TYPE_NEXMO:
             return self.org.get_nexmo_client()
 
         return None
