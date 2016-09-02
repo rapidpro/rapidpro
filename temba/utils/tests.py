@@ -912,7 +912,8 @@ class VoiceXMLTest(TembaTest):
 
         self.assertEqual(unicode(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-                         '<field name="Digits"><grammar termchar="#" src="builtin:dtmf/digits" /></field>'
+                         '<field name="Digits"><grammar termchar="#" src="builtin:dtmf/digits" />'
+                         '<nomatch><submit next="http://example.com?empty=1" method="post" /></nomatch></field>'
                          '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>')
 
         response = voicexml.Response()
@@ -920,8 +921,9 @@ class VoiceXMLTest(TembaTest):
 
         self.assertEqual(unicode(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-                         '<field name="Digits"><grammar termtimeout="45s" termchar="*" '
-                         'src="builtin:dtmf/digits?minlength=1;maxlength=1" /></field>'
+                         '<field name="Digits"><grammar termtimeout="45s" timeout="45s" termchar="*" '
+                         'src="builtin:dtmf/digits?minlength=1;maxlength=1" />'
+                         '<nomatch><submit next="http://example.com?empty=1" method="post" /></nomatch></field>'
                          '<filled><submit next="http://example.com" method="post" /></filled></form></vxml>')
 
     def test_record(self):

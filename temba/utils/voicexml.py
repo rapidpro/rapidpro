@@ -73,6 +73,7 @@ class Response(object):
 
         if kwargs.get('timeout', False):
             result += 'termtimeout="' + str(kwargs.get('timeout')) + 's" '
+            result += 'timeout="' + str(kwargs.get('timeout')) + 's" '
 
         result += 'termchar="%s" ' % kwargs.get('finishOnKey', '#')
 
@@ -81,7 +82,13 @@ class Response(object):
         if kwargs.get('numDigits', False):
             result += '?minlength=%s;maxlength=%s' % (kwargs.get('numDigits'), kwargs.get('numDigits'))
 
-        result += '" /></field>'
+        result += '" />'
+
+        if kwargs.get('action', False):
+            method = kwargs.get('method', 'post')
+            result += '<nomatch><submit next="' + kwargs.get('action') + '?empty=1" method="' + method + '" /></nomatch>'
+
+        result += '</field>'
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
             result += '<filled><submit next="' + kwargs.get('action') + '" method="' + method + '" /></filled>'

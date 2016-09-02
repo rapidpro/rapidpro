@@ -97,8 +97,9 @@ class IVRCall(SmartModel):
         test_call = IVRCall.objects.filter(contact__is_test=True, flow=flow)
         if test_call:
             test_call = test_call[0]
-            if not test_call.is_done():
-                test_call.hangup()
+            if test_call.channel.channel_type in [Channel.TYPE_TWILIO]:
+                if not test_call.is_done():
+                    test_call.hangup()
 
     def is_flow(self):
         return self.call_type == FLOW
