@@ -1,0 +1,166 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "cd51f968-bb1d-4745-9c64-56baf5306186", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Hey you, you are the child."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "cd51f968-bb1d-4745-9c64-56baf5306186", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "uuid": "98b28375-0de5-41a1-a609-ba6b2ec42454", 
+        "name": "Child Flow", 
+        "saved_on": "2016-09-01T16:46:41.947365Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 621, 
+          "destination": "c851accb-718e-4df7-bb03-62c54b8ccae2", 
+          "uuid": "5bf5bd68-0489-45d0-9376-5f7c1597b4d2", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "You are in the top flow. Do something."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 507, 
+          "x": 214, 
+          "destination": "5bf5bd68-0489-45d0-9376-5f7c1597b4d2", 
+          "uuid": "7c565498-e08c-44c2-8957-0097062b0e64", 
+          "actions": [
+            {
+              "type": "trigger-flow", 
+              "variables": [
+                {
+                  "id": "@flow.phone"
+                }
+              ], 
+              "flow": {
+                "name": "Child Flow", 
+                "uuid": "98b28375-0de5-41a1-a609-ba6b2ec42454"
+              }, 
+              "groups": [], 
+              "contacts": []
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "5bf5bd68-0489-45d0-9376-5f7c1597b4d2", 
+      "rule_sets": [
+        {
+          "uuid": "c851accb-718e-4df7-bb03-62c54b8ccae2", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "add"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Add"
+              }, 
+              "destination": "3c72a17f-6465-4d5a-a787-790f2eaf4ffb", 
+              "uuid": "6448281f-7cb2-4179-80a8-7dd98adb348a", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "5bf5bd68-0489-45d0-9376-5f7c1597b4d2", 
+              "uuid": "0a57a48a-482a-4a00-a4ce-3183a1c8d861", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Cmd", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 158, 
+          "x": 405, 
+          "config": {}
+        }, 
+        {
+          "uuid": "3c72a17f-6465-4d5a-a787-790f2eaf4ffb", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "7c565498-e08c-44c2-8957-0097062b0e64", 
+              "uuid": "7002ae90-d73d-4189-8502-4fa67f9c9f32", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Phone", 
+          "operand": "@(REMOVE_FIRST_WORD(step.value))", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 329, 
+          "x": 279, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 14, 
+        "uuid": "a85fcfc1-417b-4e1f-97f4-742b933e75cb", 
+        "name": "Parent Flow", 
+        "saved_on": "2016-09-01T16:48:51.416060Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Parent Flow", 
+        "uuid": "a85fcfc1-417b-4e1f-97f4-742b933e75cb"
+      }, 
+      "groups": [], 
+      "keyword": "weird", 
+      "channel": null
+    }
+  ]
+}
