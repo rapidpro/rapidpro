@@ -8,6 +8,7 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, URN
 from temba.flows.models import Flow
+from temba.msgs.models import Label
 
 # maximum number of items in a posted list
 MAX_LIST_SIZE = 100
@@ -110,3 +111,8 @@ class ContactGroupField(TembaModelField):
 
 class FlowField(TembaModelField):
     model = Flow
+
+
+class LabelField(TembaModelField):
+    model = Label
+    model_manager = 'label_objects'

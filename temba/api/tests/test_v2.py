@@ -1147,7 +1147,7 @@ class APITest(TembaTest):
         developers = self.create_group("Developers", query="isdeveloper = YES")
 
         # group belong to other org
-        ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
+        spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
@@ -1164,6 +1164,55 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
         self.assertResultsByUUID(response, [customers])
 
+        # try to create empty group
+        response = self.postJSON(url, {})
+        self.assertResponseError(response, 'name', "This field is required.")
+
+        # create new group
+        response = self.postJSON(url, {'name': "Reporters"})
+        self.assertEqual(response.status_code, 201)
+
+        reporters = ContactGroup.user_groups.get(name="Reporters")
+        self.assertEqual(response.json, {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
+
+        # try to create another group with same name
+        response = self.postJSON(url, {'name': "Reporters"})
+        self.assertResponseError(response, 'non_field_errors', "Name must be unique")
+
+        # try to create a group with invalid name
+        response = self.postJSON(url, {'name': "!!!#$%^"})
+        self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
+
+        # try to create a group with name that's too long
+        response = self.postJSON(url, {'name': "x" * 65})
+        self.assertResponseError(response, 'name', "Ensure this field has no more than 64 characters.")
+
+        # update group by UUID
+        response = self.postJSON(url, {'uuid': reporters.uuid, 'name': "U-Reporters"})
+        self.assertEqual(response.status_code, 201)
+
+        reporters.refresh_from_db()
+        self.assertEqual(reporters.name, "U-Reporters")
+
+        # can't update group from other org
+        response = self.postJSON(url, {'uuid': spammers.uuid, 'name': "Won't work"})
+        self.assertResponseError(response, 'uuid', "No such object with UUID: %s" % spammers.uuid)
+
+        # try an empty delete request
+        response = self.deleteJSON(url, {})
+        self.assertResponseError(response, None, "Must provide one of the following fields: uuid")
+
+        # delete a group by UUID
+        response = self.deleteJSON(url, 'uuid=%s' % reporters.uuid)
+        self.assertEqual(response.status_code, 204)
+
+        reporters.refresh_from_db()
+        self.assertFalse(reporters.is_active)
+
+        # try to delete a group in another org
+        response = self.deleteJSON(url, 'uuid=%s' % spammers.uuid)
+        self.assertEqual(response.status_code, 404)
+
     def test_labels(self):
         url = reverse('api.v2.labels')
 
@@ -1171,7 +1220,7 @@ class APITest(TembaTest):
 
         important = Label.get_or_create(self.org, self.admin, "Important")
         feedback = Label.get_or_create(self.org, self.admin, "Feedback")
-        Label.get_or_create(self.org2, self.admin2, "Spam")
+        spam = Label.get_or_create(self.org2, self.admin2, "Spam")
 
         msg = self.create_msg(direction="I", text="Hello", contact=self.frank)
         important.toggle_label([msg], add=True)
@@ -1190,6 +1239,54 @@ class APITest(TembaTest):
         # filter by UUID
         response = self.fetchJSON(url, 'uuid=%s' % feedback.uuid)
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
+
+        # try to create empty label
+        response = self.postJSON(url, {})
+        self.assertResponseError(response, 'name', "This field is required.")
+
+        # create new label
+        response = self.postJSON(url, {'name': "Interesting"})
+        self.assertEqual(response.status_code, 201)
+
+        interesting = Label.label_objects.get(name="Interesting")
+        self.assertEqual(response.json, {'uuid': interesting.uuid, 'name': "Interesting", 'count': 0})
+
+        # try to create another label with same name
+        response = self.postJSON(url, {'name': "Interesting"})
+        self.assertResponseError(response, 'non_field_errors', "Name must be unique")
+
+        # try to create a label with invalid name
+        response = self.postJSON(url, {'name': "!!!#$%^"})
+        self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
+
+        # try to create a label with name that's too long
+        response = self.postJSON(url, {'name': "x" * 65})
+        self.assertResponseError(response, 'name', "Ensure this field has no more than 64 characters.")
+
+        # update label by UUID
+        response = self.postJSON(url, {'uuid': interesting.uuid, 'name': "More Interesting"})
+        self.assertEqual(response.status_code, 201)
+
+        interesting.refresh_from_db()
+        self.assertEqual(interesting.name, "More Interesting")
+
+        # can't update label from other org
+        response = self.postJSON(url, {'uuid': spam.uuid, 'name': "Won't work"})
+        self.assertResponseError(response, 'uuid', "No such object with UUID: %s" % spam.uuid)
+
+        # try an empty delete request
+        response = self.deleteJSON(url, {})
+        self.assertResponseError(response, None, "Must provide one of the following fields: uuid")
+
+        # delete a label by UUID
+        response = self.deleteJSON(url, 'uuid=%s' % interesting.uuid)
+        self.assertEqual(response.status_code, 204)
+
+        self.assertFalse(Label.label_objects.filter(uuid=interesting.uuid).exists())  # label deletes are for real
+
+        # try to delete a label in another org
+        response = self.deleteJSON(url, 'uuid=%s' % spam.uuid)
+        self.assertEqual(response.status_code, 404)
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
