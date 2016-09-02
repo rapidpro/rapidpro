@@ -1307,6 +1307,7 @@ class BroadcastTest(TembaTest):
         self.assertFalse(sms_to_kevin.has_template_error)
 
     def test_purge(self):
+        # create an old and a recent broadcast
         broadcast1 = Broadcast.create(self.org, self.user, "Very old broadcast",
                                       [self.joe_and_frank, self.kevin, self.lucy])
         broadcast1.send(trigger_send=False)
@@ -1317,6 +1318,7 @@ class BroadcastTest(TembaTest):
                                       [self.joe_and_frank, self.kevin, self.lucy])
         broadcast2.send(trigger_send=False)
 
+        # create a broadcast for another org
         self.create_secondary_org(topup_size=1)
         Channel.create(self.org2, self.admin2, 'RW', 'A', name="Test Channel 2", address="+250785551313")
         hans = self.create_contact("Hans", "1234567")
@@ -1335,12 +1337,29 @@ class BroadcastTest(TembaTest):
         self.assertTrue(broadcast3.purged)
 
         self.assertFalse(broadcast1.msgs.all())
+        self.assertFalse(broadcast3.msgs.all())
 
+        # check debits were created for the deleted messages
         debit1 = Debit.objects.get(topup__org=self.org)
         self.assertEqual(debit1.amount, 4)
 
         debit2 = Debit.objects.get(topup__org=self.org2)
         self.assertEqual(debit2.amount, 1)
+
+        # create another old broadcast
+        broadcast4 = Broadcast.create(self.org, self.admin, "Another old broadcast",
+                                      [self.joe_and_frank, self.kevin, self.lucy])
+        broadcast4.send(trigger_send=False)
+        broadcast4.created_on = timezone.now() - timedelta(days=100)
+        broadcast4.save()
+
+        purge_broadcasts_task()
+
+        broadcast4.refresh_from_db()
+        self.assertTrue(broadcast4.purged)
+
+        # check debits were created and squashed
+        self.assertEqual(Debit.objects.get(topup__org=self.org).amount, 8)
 
 
 class BroadcastCRUDLTest(TembaTest):
