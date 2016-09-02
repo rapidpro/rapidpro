@@ -3506,8 +3506,6 @@ class FlowRunCount(models.Model):
         start = time.time()
         squash_count = 0
         for count in FlowRunCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
-            print "Squashing: %d %s" % (count.flow_id, count.exit_type)
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
