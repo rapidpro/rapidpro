@@ -5,7 +5,7 @@
     -trans "Add text:"
 
 .split-margin
-  %textarea{ng-model:"ruleset.config.ussd_text",name:"ussd",auto-complete:"",flow:"[[flowId]]",ng-change:"countCharacters()",class:"ussd-add-text"}
+  %textarea{ng-model:"ruleset.config.ussd_message[base_language]",name:"ussd",auto-complete:"",flow:"[[flowId]]",ng-change:"countCharacters()",class:"ussd-add-text"}
 
 .split-header-inner{ng-if:'USSD_MENU'}
   %p
@@ -13,12 +13,12 @@
 
 %form{name:'menuForm', ng-if:'USSD_MENU'}
   %span
-    %div{ui-sortable:"sortableOptions",ng-model:"ruleset.config.ussd_menu"}
-      .rule{ng-repeat:"item in ruleset.config.ussd_menu"}
-        .ng-form{name:"menuItem"}
+    %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
+      .rule{ng-repeat:"item in ruleset.rules"}
+        .ng-form{name:"menuItem", ng-if:'item._config.show'}
           .icon.icon-menu
           .ordinals
-            %input{ng-model:"item.option",type:"text",class:"number",placeholder:"#",number:"true",ng-change:"countCharacters()"}
+            %input{ng-model:"item.test._base",type:"text",class:"number",placeholder:"#",number:"true",ng-change:"countCharacters()"}
           .operation.wide
             %input{ng-model:"item.label[base_language]",name:"operand",flow:"[[flowId]]",ng-required:"",ng-change:"updateMenu(item, $index)",type:"text",class:"operand",uuid:"[[ruleset.uuid]]"}
 

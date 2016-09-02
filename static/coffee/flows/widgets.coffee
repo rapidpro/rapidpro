@@ -10,21 +10,16 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
     scope.USSD_MENU = parseInt(attrs.ussd) == 0
     scope.USSD_RESPONSE = parseInt(attrs.ussd) == 1
 
+    scope.ruleset.ruleset_type = if scope.USSD_MENU then "wait_menu" else "wait_ussd"
+
     scope.ruleset.config ?= {}
-    scope.ruleset.config.ussd_menu ?= []
-    scope.ruleset.config.ussd_text ?= ""
     scope.ruleset.config.ussd_message ?= {}
     scope.ruleset.config.ussd_message[Flow.flow.base_language] ?= ""
 
-    scope.ruleset.config.ussd_text = scope.ruleset.config.ussd_message[Flow.flow.base_language]
+    menu = null
 
-    # sync menu with rules
-    if scope.USSD_MENU
-      for [item, rule] in utils.zip(scope.ruleset.config.ussd_menu, scope.ruleset.rules)
-        # sync every rule but the "Other"
-        unless rule._config.type is "true"
-          item.destination = rule.destination
-          item.category = rule.category
+    do refreshMenu = ->
+      menu = scope.ruleset.rules.filter (rule) -> rule._config.show
 
     updateCategory = (item) ->
       if not item.category._autoName
@@ -38,39 +33,53 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
           item.category._base = categoryName.charAt(0) + categoryName.substr(1).toLowerCase()
 
     do insertEmpty = ->
+      refreshMenu()
       if scope.USSD_MENU
-        menu = scope.ruleset.config.ussd_menu
-        length = menu.length
-        if length == 0 or menu[length - 1].category?._base != ""
-          scope.ruleset.config.ussd_menu.splice length, 0,
+        # when we switch back from "wait_ussd", filter out arbitrary rules
+        if (scope.ruleset.rules.filter (rule) -> not rule.label and rule._config.show)
+          scope.ruleset.rules = scope.ruleset.rules.filter (rule) -> rule.label or (not rule.label and not rule._config.show)
+          refreshMenu()
+
+        if menu.length == 0 or menu[menu.length - 1].category?._base != ""
+          scope.ruleset.rules.splice menu.length, 0,
+            _config: Flow.getOperatorConfig("eq")
             uuid: uuid()
-            option: if length >= 9 then 0 else length + 1
             label: {}
+            test:
+              type: 'eq'
+              _base: if menu.length >= 9 then 0 else menu.length + 1
             category:
               _autoName: true
               _base: ""
+      else
+        if menu[menu.length - 1].category?._base == ""
+          scope.ruleset.rules.splice(menu.length - 1, 1)
 
     scope.remove = (item, index) ->
-      scope.ruleset.config.ussd_menu.splice(index, 1)
-      if index == 0 or index == scope.ruleset.config.ussd_menu.length
+      refreshMenu()
+      scope.ruleset.rules.splice(index, 1)
+      if index == 0 or index == menu.length - 1
         insertEmpty()
 
     scope.updateMenu = (item, index) ->
+      refreshMenu()
       scope.countCharacters()
       updateCategory(item)
-      if item.label[Flow.flow.base_language].length == 1 and index == scope.ruleset.config.ussd_menu.length - 1
+      if item.label[Flow.flow.base_language].length == 1 and index == menu.length - 1
         insertEmpty()
 
     do scope.countCharacters = ->
-      sum = (items) ->
-        items.reduce (prev, current) ->
-          current.option ?= ""
-          current.label[Flow.flow.base_language] ?= ""
-          prev + current.option.toString().length + current.label[Flow.flow.base_language].length + 2 # 1 for space 1 for newline char
-        ,0
+      sumMenuItems = (items) ->
+        items
+          .filter (rule) ->
+            rule._config.show
+          .reduce (prev, current) ->
+            current.label[Flow.flow.base_language] ?= ""
+            prev + current.test._base.toString().length + current.label[Flow.flow.base_language].length + 2 # 1 for space 1 for newline char
+          ,0
 
-      textLength = scope.ruleset.config.ussd_text.length
-      textMenuLength = textLength + 1 + sum(scope.ruleset.config.ussd_menu)
+      textLength = scope.ruleset.config.ussd_message[Flow.flow.base_language].length
+      textMenuLength = (textLength + 1 + sumMenuItems(scope.ruleset.rules)) if scope.USSD_MENU
       $rootScope.characters = if scope.USSD_MENU then MESSAGE_LENGTH - textMenuLength else MESSAGE_LENGTH - textLength
 
   return {

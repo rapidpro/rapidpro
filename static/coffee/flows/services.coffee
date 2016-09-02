@@ -493,7 +493,10 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         'airtime_status': ['airtime']
       }
 
-      @supportsRules = ['wait_message', 'wait_ussd', 'expression', 'flow_field', 'contact_field', 'wait_digits', 'form_field']
+      @supportsRules = [
+        'wait_message', 'wait_menu', 'wait_ussd', 'wait_digits',
+        'expression', 'flow_field', 'contact_field', 'form_field'
+      ]
 
       @operators = [
         { type: 'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true, show:true }
@@ -520,6 +523,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'webhook_status', name: 'Webhook Status', verbose_name:'webhook status', operands: 0, show:false }
         { type: 'true', name: 'Other', verbose_name:'contains anything', operands: 0, show:false }
         { type: 'timeout', name:'Timeout', verbose_name:'timeout', operands:0, show:false }
+        { type: 'interrupted_status', name:'Interrupted', verbose_name:'interrupted status', operands:0, show:false }
       ]
 
       @opNames =
@@ -1109,7 +1113,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
             if ruleset.config._missingTranslation
               missing++
             if ruleset.ruleset_type == "wait_menu"
-              for item in ruleset.config.ussd_menu
+              for item in ruleset.rules
                 items++
                 if item._missingTranslation
                   missing++

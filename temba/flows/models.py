@@ -4832,7 +4832,6 @@ class UssdAction(ReplyAction):
     """
     TYPE = 'ussd'
     MESSAGE = 'ussd_message'
-    MENU = 'ussd_menu'
     TYPE_WAIT_USSD_MENU = 'wait_menu'
     TYPE_WAIT_USSD = 'wait_ussd'
 
@@ -4845,10 +4844,11 @@ class UssdAction(ReplyAction):
             self.base_language = None
 
     @classmethod
-    def from_ruleset(cls, rule, run):
-        if rule and hasattr(rule, 'config') and isinstance(rule.config, basestring):
+    def from_ruleset(cls, ruleset, run):
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, basestring):
             # initial message, menu obj
-            obj = json.loads(rule.config)
+            obj = json.loads(ruleset.config)
+            rules = json.loads(ruleset.rules)
             msg = obj.get(cls.MESSAGE, '')
             org = run.flow.org
 
@@ -4863,8 +4863,8 @@ class UssdAction(ReplyAction):
 
             ussd_action.substitute_missing_languages()
 
-            if rule.ruleset_type == cls.TYPE_WAIT_USSD_MENU:
-                ussd_action.add_menu_to_msg(obj)
+            if ruleset.ruleset_type == cls.TYPE_WAIT_USSD_MENU:
+                ussd_action.add_menu_to_msg(rules)
 
             return ussd_action
         else:
@@ -4882,14 +4882,15 @@ class UssdAction(ReplyAction):
         else:
             return str(label[language])
 
-    def add_menu_to_msg(self, obj):
+    def add_menu_to_msg(self, rules):
         # start with a new line
         self.msg = {language: localised_msg + '\n' for language, localised_msg in self.msg.iteritems()}
 
         # add menu to the msg
-        for menu in obj[self.MENU]:
-            self.msg = {language: localised_msg + ": ".join(
-                (str(menu['option']), self.get_menu_label(menu['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
+        for rule in rules:
+            if 'label' in rule:  # filter "other" and "interrupted"
+                self.msg = {language: localised_msg + ": ".join(
+                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
 
 
 class VariableContactAction(Action):

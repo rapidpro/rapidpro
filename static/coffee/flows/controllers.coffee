@@ -1056,24 +1056,23 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       toRemove.push(rule)
       continue
 
-    if rule.test.type != INTERRUPTED_TYPE
-      # the config is the meta data about our type of operator
-      rule._config = Flow.getOperatorConfig(rule.test.type)
+    # the config is the meta data about our type of operator
+    rule._config = Flow.getOperatorConfig(rule.test.type)
 
-      # we need to parse our dates
-      if rule.test.type in ['date_before', 'date_after', 'date_equal']
-        # relative dates formatted as: @(date.today + n)
-        # lets rip out the delta parameter and use it as our test instead
-        rule.test._base = rule.test.test.slice(15, -1)
+    # we need to parse our dates
+    if rule.test.type in ['date_before', 'date_after', 'date_equal']
+      # relative dates formatted as: @(date.today + n)
+      # lets rip out the delta parameter and use it as our test instead
+      rule.test._base = rule.test.test.slice(15, -1)
 
-      # set the operands
-      else if rule.test.type != "between" and rule.test.type != "ward"
-        if rule.test.test
-          if rule._config.localized
-            rule.test._base = rule.test.test[Flow.flow.base_language]
-          else
-            rule.test =
-              _base: rule.test.test
+    # set the operands
+    else if rule.test.type != "between" and rule.test.type != "ward"
+      if rule.test.test
+        if rule._config.localized
+          rule.test._base = rule.test.test[Flow.flow.base_language]
+        else
+          rule.test =
+            _base: rule.test.test
 
     # and finally the category name
     rule.category._base = rule.category[Flow.flow.base_language]
@@ -1214,9 +1213,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     if not rule.category or not rule.category._base
       complete = false
 
-    else if rule.test.type == INTERRUPTED_TYPE
-      complete = true
-
     else if rule._config.operands == 1 and not rule.test._base
       complete = false
 
@@ -1231,13 +1227,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   stopWatching = $scope.$watch (->$scope.ruleset), ->
     complete = true
     for rule in $scope.ruleset.rules
-      if rule._config.type in ['airtime_status','subflow','timeout']
+      if rule._config.type in ['airtime_status','subflow','timeout', INTERRUPTED_TYPE]
         continue
       complete = complete and $scope.isRuleComplete(rule)
       if not complete
         break
 
-    if complete
+    if complete and $scope.ruleset.ruleset_type != 'wait_menu'
       # we insert this to keep our true rule at the end
       $scope.ruleset.rules.splice $scope.ruleset.rules.length - 1, 0,
         uuid: uuid()
@@ -1294,29 +1290,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
           rule.category[Flow.flow.base_language] = option.category._base
           rules.push(rule)
 
-    # create rules off of an USSD menu configuration
-    if ruleset.ruleset_type == 'wait_menu'
-      for item, index in ruleset.config.ussd_menu
-        if item?.category?._base
-          rule =
-            uuid: item.uuid
-            destination: item.destination
-            category: item.category
-            test:
-              type: 'eq'
-              test: item.option
-          rule.category[flow.base_language] = item.category._base
-
-          rules.push(rule)
-        else
-          ruleset.config.ussd_menu.splice index, 1
-
     # rules configured from our select widgets
     if $scope.hasRules()
 
       for rule in ruleset.rules
         # we'll tack our everything and timeout rules on the end
-        if rule._config.type in ['true', 'timeout']
+        if rule._config.type in ['true', 'timeout', INTERRUPTED_TYPE]
           continue
 
         # between categories are not required, populate their category name
@@ -1355,6 +1334,13 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
     timeoutCategory = {}
     timeoutCategory[Flow.flow.base_language] = 'No Response'
 
+    interruptedRuleUuid = uuid()
+    interruptedDestination = null
+
+    interruptedCategory = {}
+    interruptedCategory[Flow.flow.base_language] = "Interrupted"
+
+
     for rule in ruleset.rules
       if rule._config.type == 'true'
         otherDestination = rule.destination
@@ -1364,6 +1350,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         timeoutDestination = rule.destination
         timeoutCategory = rule.category
         timeoutRuleUuid = rule.uuid
+      else if rule._config.type == INTERRUPTED_TYPE
+        interruptedDestination = rule.destination
+        interruptedCategory = rule.category
+        interruptedRuleUuid = rule.uuid
 
     # if for some reason we don't have an other rule
     # create an empty category (this really shouldn't happen)
@@ -1401,26 +1391,14 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
 
     # add interrupted rule for USSD ruleset
     if ruleset.ruleset_type in ['wait_menu', 'wait_ussd']
-      category = {}
-      category[flow.base_language] = "Interrupted"
-
-      ruleId = uuid()
-      destination = null
-
-      ruleset.rules
-        .filter (rule) -> rule.test.type == INTERRUPTED_TYPE
-        .map (rule) ->
-          destination = rule.destination
-          category = rule.category
-          ruleId = rule.uuid
-
       rules.push
+        _config: Flow.getOperatorConfig(INTERRUPTED_TYPE)
         test:
           test: "interrupted"
           type: INTERRUPTED_TYPE
-        destination: destination
-        uuid: ruleId
-        category: category
+        destination: interruptedDestination
+        uuid: interruptedRuleUuid
+        category: interruptedCategory
 
     $scope.ruleset.rules = rules
 
@@ -1525,10 +1503,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       if $scope.options.dragSource
         if Flow.isConnectionAllowed($scope.options.dragSource, ruleset.uuid)
           Flow.updateDestination($scope.options.dragSource, ruleset.uuid)
-
-      # USSD save message
-      if Flow.flow.flow_type == 'U' and ruleset.config.ussd_message
-        ruleset.config.ussd_message[$scope.base_language] = ruleset.config.ussd_text
 
       # finally, make sure we get saved
       Flow.markDirty()

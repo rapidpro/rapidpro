@@ -277,7 +277,7 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
 
         # USSD menu translation
         if ruleset.ruleset_type == "wait_menu"
-          for item in ruleset.config.ussd_menu
+          for item in ruleset.rules
             item._missingTranslation = false
             if item.label
               item._translation = item.label[iso_code]
