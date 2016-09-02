@@ -2556,6 +2556,11 @@ class ContactTest(TembaTest):
             self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
             self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
+        csv_file = open('%s/test_imports/sample_contacts_UPPER.XLS' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertNoFormErrors(response)
+
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
