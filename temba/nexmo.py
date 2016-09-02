@@ -115,10 +115,16 @@ class NexmoClient(object):
     def search_numbers(self, country, pattern):
         path = '/number/search/%s/%s/%s?features=SMS' % (self.api_key, self.api_secret, country)
         response = self._fire_get(path, dict(pattern=pattern))
+        numbers = []
         if int(response.get('count', 0)):
-            return response['numbers']
-        else:
-            return []
+            numbers += response['numbers']
+
+        path = '/number/search/%s/%s/%s?features=VOICE' % (self.api_key, self.api_secret, country)
+        response = self._fire_get(path, dict(pattern=pattern))
+        if int(response.get('count', 0)):
+            numbers += response['numbers']
+
+        return numbers
 
     def buy_number(self, country, number):
         number = number.lstrip('+')

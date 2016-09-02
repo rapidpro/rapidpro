@@ -360,45 +360,92 @@ TWILIO_SUPPORTED_COUNTRY_CODES = list(set([code
                                            for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG
                                            for code in list(COUNTRIES_CALLING_CODES[elt])]))
 
-NEXMO_SUPPORTED_COUNTRIES_CONFIG = ('AU',  # Australia
+NEXMO_SUPPORTED_COUNTRIES_CONFIG = ('DZ',  # Algeria
+                                    'AR',  # Argentina
+                                    'AU',  # Australia
                                     'AT',  # Austria
+                                    'BH',  # Bahrain
                                     'BE',  # Belgium
+                                    'BJ',  # Benin
+                                    'BO',  # Bolivia
+                                    'BR',  # Brazil
+                                    'BG',  # Bulgaria
+                                    'KH',  # Cambodia
                                     'CA',  # Canada
+                                    'KY',  # Cayman Islands
                                     'CL',  # Chile
+                                    'CN',  # China
+                                    'CO',  # Colombia
                                     'CR',  # Costa Rica
+                                    'HR',  # Croatia
+                                    'CY',  # Cyprus
                                     'CZ',  # Czech Republic
                                     'DK',  # Denmark
+                                    'DO',  # Dominican Republic
+                                    'SV',  # El Salvador
                                     'EE',  # Estonia
                                     'FI',  # Finland
                                     'FR',  # France
+                                    'GE',  # Georgia
                                     'DE',  # Germany
+                                    'GH',  # Ghana
+                                    'GR',  # Greece
+                                    'GD',  # Grenanda
+                                    'GT',  # Guatemala
+                                    'HN',  # Honduras
                                     'HK',  # Hong Kong
                                     'HU',  # Hungary
+                                    'IS',  # Iceland
+                                    'IN',  # India
                                     'ID',  # Indonesia
                                     'IE',  # Ireland
                                     'IL',  # Israel
                                     'IT',  # Italy
+                                    'JM',  # Jamaica
+                                    'JP',  # Japan
+                                    'KE',  # Kenya
                                     'LV',  # Latvia
+                                    'LI',  # Liechtenstein
                                     'LT',  # Lithuania
+                                    'LU',  # Luxembourg
+                                    'MO',  # Macau
                                     'MY',  # Malaysia
+                                    'MT',  # Malta
                                     'MX',  # Mexico
-                                    'MW',  # Malawi
+                                    'MD',  # Moldova
                                     'NL',  # Netherlands
+                                    'NZ',  # New Zealand
+                                    'NG',  # Nigeria
                                     'NO',  # Norway
                                     'PK',  # Pakistan
+                                    'PA',  # Panama
+                                    'PE',  # Peru
+                                    'PH',  # Philippines
                                     'PL',  # Poland
+                                    'PT',  # Portugal
                                     'PR',  # Puerto Rico
                                     'RO',  # Romania
                                     'RU',  # Russia
                                     'RW',  # Rwanda
+                                    'SA',  # Saudi Arabia
+                                    'SG',  # Singapore
                                     'SK',  # Slovakia
+                                    'SI',  # Slovenia
                                     'ZA',  # South Africa
                                     'KR',  # South Korea
                                     'ES',  # Spain
                                     'SE',  # Sweden
                                     'CH',  # Switzerland
+                                    'TW',  # Taiwan
+                                    'TJ',  # Tajikistan
+                                    'TH',  # Thailand
+                                    'TT',  # Trinidad and Tobago
+                                    'TR',  # Turkey
                                     'GB',  # United Kingdom
                                     'US',  # United States
+                                    'UY',  # Uruguay
+                                    'VE',  # Venezuala
+                                    'ZM',  # Zambia
                                     )
 
 NEXMO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG])
