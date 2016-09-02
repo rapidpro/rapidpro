@@ -1,16 +1,20 @@
 from __future__ import unicode_literals
 
 import logging
+import six
 import time
 
+from collections import defaultdict
 from datetime import timedelta
-from django.utils import timezone
 from django.core.cache import cache
+from django.db import transaction
+from django.db.models import Count
+from django.utils import timezone
 from djcelery_transactions import task
 from redis_cache import get_redis_connection
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import pop_task
-from temba.utils import json_date_to_datetime
+from temba.utils import json_date_to_datetime, chunk_list
 from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
 from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel
 
@@ -258,26 +262,52 @@ def purge_broadcasts_task():
     """
     Looks for broadcasts older than 90 days and marks their messages as purged
     """
+    from temba.orgs.models import Debit
 
     r = get_redis_connection()
 
     # 90 days ago
-    purge_date = timezone.now() - timedelta(days=90)
+    purge_before = timezone.now() - timedelta(days=90)
     key = 'purge_broadcasts_task'
     if not r.get(key):
         with r.lock(key, timeout=900):
 
             # determine which broadcasts are old
-            broadcasts = Broadcast.objects.filter(created_on__lt=purge_date, purged=False)
+            purge_ids = list(Broadcast.objects.filter(created_on__lt=purge_before, purged=False).values_list('pk', flat=True))
+            msgs_deleted = 0
 
-            for broadcast in broadcasts:
-                # TODO actually delete messages!
-                #
-                # Need to also create Debit objects for topups associated with messages being deleted, and then
-                # regularly squash those.
+            for batch_ids in chunk_list(purge_ids, 1000):
+                batch_broadcasts = Broadcast.objects.filter(pk__in=batch_ids)
+                batch_message_ids = []  # all the message ids in these broadcasts
+                batch_topup_counts = defaultdict(int)  # message counts per topup in these broadcasts
 
-                broadcast.purged = True
-                broadcast.save(update_fields=['purged'])
+                with transaction.atomic():
+
+                    # get the topup message counts and message ids for these broadcasts
+                    for broadcast in batch_broadcasts:
+                        topup_counts = broadcast.msgs.values('topup_id').annotate(count=Count('topup_id'))
+                        for tc in topup_counts:
+                            if tc['topup_id']:
+                                batch_topup_counts[tc['topup_id']] += tc['count']
+
+                        batch_message_ids += list(broadcast.msgs.values_list('id', flat=True))
+
+                    # create debit objects for each topup
+                    for topup_id, msg_count in six.iteritems(batch_topup_counts):
+                        Debit.objects.create(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE)
+
+                    # TODO squash debits by topup
+
+                    # delete messages in batches to avoid long locks
+                    for msg_ids_batch in chunk_list(batch_message_ids, 1000):
+                        Msg.objects.filter(pk__in=msg_ids_batch).delete()
+
+                    # mark these broadcasts as purged
+                    batch_broadcasts.update(purged=True)
+
+                msgs_deleted += len(batch_message_ids)
+
+            print("Purged %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
 
 
 @task(track_started=True, name="squash_systemlabels")

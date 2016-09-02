@@ -15,7 +15,7 @@ from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING,
 from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
-from temba.orgs.models import Language
+from temba.orgs.models import Language, Debit
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct, datetime_to_str
@@ -1307,20 +1307,40 @@ class BroadcastTest(TembaTest):
         self.assertFalse(sms_to_kevin.has_template_error)
 
     def test_purge(self):
-        broadcast = Broadcast.create(self.org, self.user, "I think I'm going to purge",
-                                     [self.joe_and_frank, self.kevin, self.lucy])
+        broadcast1 = Broadcast.create(self.org, self.user, "Very old broadcast",
+                                      [self.joe_and_frank, self.kevin, self.lucy])
+        broadcast1.send(trigger_send=False)
+        broadcast1.created_on = timezone.now() - timedelta(days=100)
+        broadcast1.save()
 
-        broadcast.send(trigger_send=False)
-        broadcast.created_on = timezone.now() - timedelta(days=100)
-        broadcast.save()
+        broadcast2 = Broadcast.create(self.org, self.user, "New broadcast",
+                                      [self.joe_and_frank, self.kevin, self.lucy])
+        broadcast2.send(trigger_send=False)
+
+        self.create_secondary_org(topup_size=1)
+        Channel.create(self.org2, self.admin2, 'RW', 'A', name="Test Channel 2", address="+250785551313")
+        hans = self.create_contact("Hans", "1234567")
+        broadcast3 = Broadcast.create(self.org2, self.admin2, "Old for other org", [hans])
+        broadcast3.send(trigger_send=False)
+        broadcast3.created_on = timezone.now() - timedelta(days=100)
+        broadcast3.save()
 
         purge_broadcasts_task()
 
-        broadcast.refresh_from_db()
-        self.assertTrue(broadcast.purged)
+        broadcast1.refresh_from_db()
+        broadcast2.refresh_from_db()
+        broadcast3.refresh_from_db()
+        self.assertTrue(broadcast1.purged)
+        self.assertFalse(broadcast2.purged)
+        self.assertTrue(broadcast3.purged)
 
-        # TODO will eventually delete messages
-        # self.assertFalse(broadcast.msgs.all())
+        self.assertFalse(broadcast1.msgs.all())
+
+        debit1 = Debit.objects.get(topup__org=self.org)
+        self.assertEqual(debit1.amount, 4)
+
+        debit2 = Debit.objects.get(topup__org=self.org2)
+        self.assertEqual(debit2.amount, 1)
 
 
 class BroadcastCRUDLTest(TembaTest):

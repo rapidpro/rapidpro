@@ -206,14 +206,14 @@ class TembaTest(SmartminTest):
         data = self.get_import_json(filename, substitutions=substitutions)
         return json.loads(data)['flows'][0]
 
-    def create_secondary_org(self):
+    def create_secondary_org(self, topup_size=None):
         self.admin2 = self.create_user("Administrator2")
         self.org2 = Org.objects.create(name="Trileet Inc.", timezone="Africa/Kigali", brand='rapidpro.io',
                                        created_by=self.admin2, modified_by=self.admin2)
         self.org2.administrators.add(self.admin2)
         self.admin2.set_org(self.org)
 
-        self.org2.initialize()
+        self.org2.initialize(topup_size=topup_size)
 
     def create_contact(self, name=None, number=None, twitter=None, urn=None, is_test=False, **kwargs):
         """

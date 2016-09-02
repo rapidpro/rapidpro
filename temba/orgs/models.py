@@ -1246,7 +1246,7 @@ class Org(SmartModel):
 
                             # create a debit for transaction history
                             Debit.objects.create(topup_id=topup_id, amount=debited, beneficiary=new_topup,
-                                                 debit_type=Debit.TYPE_ALLOCATION, created_by=user, modified_by=user)
+                                                 debit_type=Debit.TYPE_ALLOCATION, created_by=user)
 
                             # decrease the amount of credits we need
                             amount -= debited
@@ -2024,7 +2024,7 @@ class TopUp(SmartModel):
         return "%s Credits" % self.credits
 
 
-class Debit(SmartModel):
+class Debit(models.Model):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
@@ -2044,6 +2044,12 @@ class Debit(SmartModel):
                                     help_text=_('Optional topup that was allocated with these credits'))
 
     debit_type = models.CharField(max_length=1, choices=DEBIT_TYPES, null=False, help_text=_('What caused this debit'))
+
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
+                                   related_name="debits_created",
+                                   help_text="The user which originally created this item")
+    created_on = models.DateTimeField(default=timezone.now,
+                                      help_text="When this item was originally created")
 
 
 class TopUpCredits(models.Model):
