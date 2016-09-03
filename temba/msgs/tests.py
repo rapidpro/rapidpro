@@ -1307,59 +1307,72 @@ class BroadcastTest(TembaTest):
         self.assertFalse(sms_to_kevin.has_template_error)
 
     def test_purge(self):
-        # create an old and a recent broadcast
-        broadcast1 = Broadcast.create(self.org, self.user, "Very old broadcast",
-                                      [self.joe_and_frank, self.kevin, self.lucy])
-        broadcast1.send(trigger_send=False)
+        # create an old broadcast which is a response to an incoming message
+        incoming = self.create_msg(contact=self.joe, direction='I', text="Hello")
+        broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
+        broadcast1.send(trigger_send=False, response_to=incoming)
         broadcast1.created_on = timezone.now() - timedelta(days=100)
         broadcast1.save()
 
-        broadcast2 = Broadcast.create(self.org, self.user, "New broadcast",
+        # create an old broadcast which is to several contacts
+        broadcast2 = Broadcast.create(self.org, self.user, "Very old broadcast",
                                       [self.joe_and_frank, self.kevin, self.lucy])
         broadcast2.send(trigger_send=False)
+        broadcast2.created_on = timezone.now() - timedelta(days=100)
+        broadcast2.save()
 
-        # create a broadcast for another org
+        # create a recent broadcast to same contacts
+        broadcast3 = Broadcast.create(self.org, self.user, "New broadcast",
+                                      [self.joe_and_frank, self.kevin, self.lucy])
+        broadcast3.send(trigger_send=False)
+
+        # create an old broadcast for another org
         self.create_secondary_org(topup_size=1)
         Channel.create(self.org2, self.admin2, 'RW', 'A', name="Test Channel 2", address="+250785551313")
         hans = self.create_contact("Hans", "1234567")
-        broadcast3 = Broadcast.create(self.org2, self.admin2, "Old for other org", [hans])
-        broadcast3.send(trigger_send=False)
-        broadcast3.created_on = timezone.now() - timedelta(days=100)
-        broadcast3.save()
-
-        purge_broadcasts_task()
-
-        broadcast1.refresh_from_db()
-        broadcast2.refresh_from_db()
-        broadcast3.refresh_from_db()
-        self.assertTrue(broadcast1.purged)
-        self.assertFalse(broadcast2.purged)
-        self.assertTrue(broadcast3.purged)
-
-        self.assertFalse(broadcast1.msgs.all())
-        self.assertFalse(broadcast3.msgs.all())
-
-        # check debits were created for the deleted messages
-        debit1 = Debit.objects.get(topup__org=self.org)
-        self.assertEqual(debit1.amount, 4)
-
-        debit2 = Debit.objects.get(topup__org=self.org2)
-        self.assertEqual(debit2.amount, 1)
-
-        # create another old broadcast
-        broadcast4 = Broadcast.create(self.org, self.admin, "Another old broadcast",
-                                      [self.joe_and_frank, self.kevin, self.lucy])
+        broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for other org", [hans])
         broadcast4.send(trigger_send=False)
         broadcast4.created_on = timezone.now() - timedelta(days=100)
         broadcast4.save()
 
         purge_broadcasts_task()
 
-        broadcast4.refresh_from_db()
-        self.assertTrue(broadcast4.purged)
+        # check that all old broadcasts were purged
+        for bcast in [broadcast1, broadcast2, broadcast4]:
+            bcast.refresh_from_db()
+            self.assertTrue(bcast.purged)
+            self.assertFalse(bcast.msgs.all())
+
+        # but not the recent one
+        broadcast3.refresh_from_db()
+        self.assertFalse(broadcast3.purged)
+        self.assertTrue(broadcast3.msgs.all())
+
+        # check incoming message is still there
+        incoming.refresh_from_db()
+        self.assertFalse(incoming.responses.all())
+
+        # check debits were created for the deleted messages
+        debit1 = Debit.objects.get(topup__org=self.org)
+        self.assertEqual(debit1.amount, 5)
+
+        debit2 = Debit.objects.get(topup__org=self.org2)
+        self.assertEqual(debit2.amount, 1)
+
+        # create another old broadcast
+        broadcast5 = Broadcast.create(self.org, self.admin, "Another old broadcast",
+                                      [self.joe_and_frank, self.kevin, self.lucy])
+        broadcast5.send(trigger_send=False)
+        broadcast5.created_on = timezone.now() - timedelta(days=100)
+        broadcast5.save()
+
+        purge_broadcasts_task()
+
+        broadcast5.refresh_from_db()
+        self.assertTrue(broadcast5.purged)
 
         # check debits were created and squashed
-        self.assertEqual(Debit.objects.get(topup__org=self.org).amount, 8)
+        self.assertEqual(Debit.objects.get(topup__org=self.org).amount, 9)
 
 
 class BroadcastCRUDLTest(TembaTest):
