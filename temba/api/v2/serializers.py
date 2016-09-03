@@ -524,7 +524,7 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 class ContactGroupWriteSerializer(WriteSerializer):
     uuid = fields.ContactGroupField(required=False)
-    name = serializers.CharField(required=True, max_length=64)
+    name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN)
 
     def validate_name(self, value):
         if not ContactGroup.is_valid_name(value):
@@ -715,7 +715,7 @@ class LabelReadSerializer(ReadSerializer):
 
 class LabelWriteSerializer(WriteSerializer):
     uuid = fields.LabelField(required=False)
-    name = serializers.CharField(required=True, max_length=64)
+    name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN)
 
     def validate_name(self, value):
         if not Label.is_valid_name(value):

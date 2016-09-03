@@ -1213,15 +1213,15 @@ class APITest(TembaTest):
         reporters = ContactGroup.user_groups.get(name="Reporters")
         self.assertEqual(response.json, {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
 
-        # try and create another group with same name
+        # try to create another group with same name
         response = self.postJSON(url, {'name': "Reporters"})
         self.assertResponseError(response, 'non_field_errors', "Name must be unique")
 
-        # try and a group with invalid name
+        # try to create a group with invalid name
         response = self.postJSON(url, {'name': "!!!#$%^"})
         self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
 
-        # try and a group with name that's too long
+        # try to create a group with name that's too long
         response = self.postJSON(url, {'name': "x" * 65})
         self.assertResponseError(response, 'name', "Ensure this field has no more than 64 characters.")
 
@@ -1289,15 +1289,15 @@ class APITest(TembaTest):
         interesting = Label.label_objects.get(name="Interesting")
         self.assertEqual(response.json, {'uuid': interesting.uuid, 'name': "Interesting", 'count': 0})
 
-        # try and create another label with same name
+        # try to create another label with same name
         response = self.postJSON(url, {'name': "Interesting"})
         self.assertResponseError(response, 'non_field_errors', "Name must be unique")
 
-        # try and a label with invalid name
+        # try to create a label with invalid name
         response = self.postJSON(url, {'name': "!!!#$%^"})
         self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
 
-        # try and a label with name that's too long
+        # try to create a label with name that's too long
         response = self.postJSON(url, {'name': "x" * 65})
         self.assertResponseError(response, 'name', "Ensure this field has no more than 64 characters.")
 
@@ -1585,8 +1585,8 @@ class APITest(TembaTest):
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
         frank_run2_steps = list(frank_run2.steps.order_by('pk'))
 
-        joe_msgs = list(Msg.all_messages.filter(contact=self.joe).order_by('pk'))
-        frank_msgs = list(Msg.all_messages.filter(contact=self.frank).order_by('pk'))
+        joe_msgs = list(Msg.objects.filter(contact=self.joe).order_by('pk'))
+        frank_msgs = list(Msg.objects.filter(contact=self.frank).order_by('pk'))
 
         self.assertEqual(response.json['results'][2], {
             'id': frank_run2.pk,
@@ -1689,7 +1689,7 @@ class APITest(TembaTest):
 
         # check when all broadcasts have been purged
         Broadcast.objects.all().update(purged=True)
-        Msg.all_messages.filter(direction='O').delete()
+        Msg.objects.filter(direction='O').delete()
 
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
             response = self.fetchJSON(url)
@@ -1883,7 +1883,7 @@ class APITest(TembaTest):
         self.assertTrue(start.extra, extra)
 
         # check our first msg
-        msg = Msg.all_messages.get(direction='O', contact__urns__path='+12067791212')
+        msg = Msg.objects.get(direction='O', contact__urns__path='+12067791212')
         self.assertEqual("Hi Ryan Lewis, what's your favorite color?", msg.text)
 
         # error cases:

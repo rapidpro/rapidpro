@@ -245,8 +245,8 @@ def get_commands(channel, commands, sync_event=None):
         retry_msgs = sync_event.get_retry_messages()
 
     # messages without broadcast
-    msgs = list(Msg.all_messages.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel,
-                                        broadcast=None).select_related('contact_urn').order_by('text', 'pk'))
+    msgs = list(Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel,
+                                   broadcast=None).select_related('contact_urn').order_by('text', 'pk'))
 
     # all outgoing messages for our channel that are queued up
     broadcasts = Broadcast.objects.filter(status__in=[QUEUED, PENDING], schedule=None,
@@ -264,7 +264,7 @@ def get_commands(channel, commands, sync_event=None):
 
         outgoing_messages += len(msgs)
 
-    msgs = Msg.all_messages.filter(pk__in=[m.id for m in msgs]).exclude(contact__is_test=True).exclude(topup=None)
+    msgs = Msg.objects.filter(pk__in=[m.id for m in msgs]).exclude(contact__is_test=True).exclude(topup=None)
 
     if sync_event:
         msgs = msgs.exclude(pk__in=pending_msgs).exclude(pk__in=retry_msgs)
@@ -343,7 +343,7 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.all_messages.filter(pk=cmd['msg_id'], org=channel.org)
+                        msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org)
                         if msg:
                             msg = msg[0]
                             handled = msg.update(cmd)

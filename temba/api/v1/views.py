@@ -583,7 +583,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        queryset = Msg.all_messages.filter(org=org, contact__is_test=False)
+        queryset = Msg.objects.filter(org=org, contact__is_test=False)
 
         ids = splitting_getlist(self.request, 'id')
         if ids:
@@ -2075,7 +2075,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             'contact',
             rulesets_prefetch,
             Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
-            Prefetch('steps__messages', queryset=Msg.all_messages.only('broadcast', 'text').order_by('created_on')),
+            Prefetch('steps__messages', queryset=Msg.objects.only('broadcast', 'text').order_by('created_on')),
             Prefetch('steps__broadcasts', queryset=Broadcast.objects.only('text').order_by('created_on')),
         )
 

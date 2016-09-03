@@ -557,6 +557,15 @@ class ContactCRUDL(SmartCRUDL):
                 super(ContactCRUDL.Import.ImportForm, self).__init__(*args, **kwargs)
 
             def clean_csv_file(self):
+                uploaded_file = self.cleaned_data['csv_file']
+
+                uploaded_file_name = uploaded_file.name.lower()
+
+                if not (uploaded_file_name.endswith('.xls') or uploaded_file_name.endswith('.csv')):
+                    raise forms.ValidationError(_("The file you provided has an unsupported format. "
+                                                  "Please make sure you upload a CSV file or an Excel file "
+                                                  "saved as Excel 2003 format(.xls)"))
+
                 try:
                     Contact.get_org_import_file_headers(ContentFile(self.cleaned_data['csv_file'].read()), self.org)
                 except Exception as e:

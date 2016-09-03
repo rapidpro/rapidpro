@@ -1606,7 +1606,7 @@ class Flow(TembaModel):
                                partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.current_messages.filter(broadcast=broadcast, created_on=created_on):
+                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:
@@ -1681,7 +1681,7 @@ class Flow(TembaModel):
         if msgs:
             # then send them off
             msgs.sort(key=lambda message: (message.contact_id, message.created_on))
-            Msg.all_messages.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
 
             # trigger a sync
             self.org.trigger_send(msgs)
@@ -2507,10 +2507,9 @@ class FlowRun(models.Model):
 
     def get_last_msg(self, direction):
         """
-        Returns the last incoming msg on this run, or an empty dummy message if there is none
+        Returns the last incoming msg on this run
         """
-        msg = Msg.all_messages.filter(steps__run=self, direction=direction).order_by('-created_on').first()
-        return msg
+        return Msg.objects.filter(steps__run=self, direction=direction).order_by('-created_on').first()
 
     @classmethod
     def continue_parent_flow_runs(cls, runs):
@@ -2611,8 +2610,12 @@ class FlowRun(models.Model):
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         # let our parent know we finished
-        from .tasks import continue_parent_flows
-        continue_parent_flows.delay([self.pk])
+        if self.contact.is_test:
+            # test contacts should operate in same thread
+            FlowRun.continue_parent_flow_runs(FlowRun.objects.filter(id=self.id))
+        else:
+            from .tasks import continue_parent_flows
+            continue_parent_flows.delay([self.id])
 
     def update_timeout(self, now, minutes):
         """
@@ -2780,14 +2783,14 @@ class FlowStep(models.Model):
                                                    media=media, msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:
-                incoming = Msg.current_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+                incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             if incoming:
                 msgs.append(incoming)
         else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
-            last_incoming = Msg.all_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+            last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
                 msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)
@@ -3507,8 +3510,6 @@ class FlowRunCount(models.Model):
         start = time.time()
         squash_count = 0
         for count in FlowRunCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
-            print "Squashing: %d %s" % (count.flow_id, count.exit_type)
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
@@ -4904,7 +4905,7 @@ class TriggerFlowAction(VariableContactAction):
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
                 self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
-                                extra=extra, parent_run=run)
+                                extra=extra, parent_run=run, interrupt=False)
                 return []
             else:
                 unique_contacts = set()

@@ -680,7 +680,7 @@ class ContactTest(TembaTest):
         self.assertEqual(set(dynamic_group.contacts.all()), set())
 
         # but his messages are unchanged
-        self.assertEqual(2, Msg.all_messages.filter(contact=self.joe, visibility='V').count())
+        self.assertEqual(2, Msg.objects.filter(contact=self.joe, visibility='V').count())
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])
@@ -736,8 +736,8 @@ class ContactTest(TembaTest):
                                           ContactGroup.TYPE_STOPPED: 0})
 
         # joe's messages should be inactive, blank and have no labels
-        self.assertEqual(0, Msg.all_messages.filter(contact=self.joe, visibility='V').count())
-        self.assertEqual(0, Msg.all_messages.filter(contact=self.joe).exclude(text="").count())
+        self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility='V').count())
+        self.assertEqual(0, Msg.objects.filter(contact=self.joe).exclude(text="").count())
         self.assertEqual(0, Label.label_objects.get(pk=label.pk).msgs.count())
 
         msg_counts = SystemLabel.get_counts(self.org)
@@ -2556,6 +2556,11 @@ class ContactTest(TembaTest):
             self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
             self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
+        csv_file = open('%s/test_imports/sample_contacts_UPPER.XLS' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertNoFormErrors(response)
+
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
@@ -2588,6 +2593,14 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
                              '"Telegram", "Email", "Facebook", "External" should be included.')
+
+        csv_file = open('%s/test_imports/sample_contacts.xlsx' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertFormError(response, 'form', 'csv_file',
+                             "The file you provided has an unsupported format. "
+                             "Please make sure you upload a CSV file or an Excel file "
+                             "saved as Excel 2003 format(.xls)")
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -3155,9 +3168,9 @@ class ContactTest(TembaTest):
         self.joe.update_urns(self.admin, ['telegram:12515', 'twitter:macklemore'])
 
         # simulate an incoming message from Mage on Twitter
-        msg = Msg.all_messages.create(org=self.org, channel=twitter, contact=self.joe,
-                                      contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
-                                      text="Incoming twitter DM", created_on=timezone.now())
+        msg = Msg.objects.create(org=self.org, channel=twitter, contact=self.joe,
+                                 contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
+                                 text="Incoming twitter DM", created_on=timezone.now())
 
         process_message_task(msg.id, from_mage=True, new_contact=False)
 
