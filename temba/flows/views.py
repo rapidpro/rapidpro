@@ -883,8 +883,7 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm('flows.flow_update') and not self.request.user.is_superuser:
                 context['mutable'] = True
 
-            org = self.request.user.get_org()
-            context['has_airtime_service'] = bool(org.is_connected_to_transferto())
+            context['has_airtime_service'] = bool(self.object.org.is_connected_to_transferto())
 
             return context
 
@@ -955,9 +954,7 @@ class FlowCRUDL(SmartCRUDL):
                               _("There is already an export in progress, started by %s. You must wait "
                                 "for that export to complete before starting another." % existing.created_by.username))
             else:
-                host = self.request.branding['host']
-
-                export = ExportFlowResultsTask.create(host, org, user, form.cleaned_data['flows'],
+                export = ExportFlowResultsTask.create(org, user, form.cleaned_data['flows'],
                                                       contact_fields=form.cleaned_data['contact_fields'],
                                                       include_runs=form.cleaned_data['include_runs'],
                                                       include_msgs=form.cleaned_data['include_messages'],

@@ -10,7 +10,7 @@ from django.contrib.auth.models import Group
 from django.core.files import File
 from django.core.urlresolvers import reverse
 from mock import patch
-from temba.channels.models import TWILIO, CALL, ANSWER, SEND
+from temba.channels.models import Channel
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.msgs.models import Msg, IVR
@@ -25,8 +25,8 @@ class IVRTests(FlowFileTest):
         super(IVRTests, self).setUp()
 
         # configure our account to be IVR enabled
-        self.channel.channel_type = TWILIO
-        self.channel.role = CALL + ANSWER + SEND
+        self.channel.channel_type = Channel.TYPE_TWILIO
+        self.channel.role = Channel.ROLE_CALL + Channel.ROLE_ANSWER + Channel.ROLE_SEND
         self.channel.save()
         self.admin.groups.add(Group.objects.get(name="Beta"))
         self.login(self.admin)
@@ -361,7 +361,7 @@ class IVRTests(FlowFileTest):
         call.update_status('in-progress', 0)
         call.save()
         IVRCall.hangup_test_call(flow)
-        self.assertIsNone(IVRCall.objects.filter(pk=call.pk).first())
+        self.assertTrue(IVRCall.objects.filter(pk=call.pk).first())
 
         ActionLog.objects.all().delete()
         IVRCall.objects.all().delete()

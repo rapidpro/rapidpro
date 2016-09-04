@@ -30,15 +30,13 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartFormView, SmartRead
 from datetime import timedelta
 from temba.api.models import APIToken
 from temba.assets.models import AssetType
-from temba.channels.models import Channel, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.channels.models import Channel
 from temba.formax import FormaxMixin
-from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient, NexmoValidationError
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
 from twilio.rest import TwilioRestClient
-from .bundles import WELCOME_TOPUP_SIZE
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
@@ -445,7 +443,7 @@ class OrgCRUDL(SmartCRUDL):
                 from temba.orgs.models import EARLIEST_IMPORT_VERSION
 
                 # make sure they have purchased credits
-                if not self.org.has_added_credits():
+                if not self.org.get_purchased_credits():
                     raise ValidationError("Sorry, import is a premium feature")
 
                 # check that it isn't too old
@@ -758,8 +756,8 @@ class OrgCRUDL(SmartCRUDL):
             auth_token = form.cleaned_data['auth_token']
 
             # add the credentials to the session
-            self.request.session[PLIVO_AUTH_ID] = auth_id
-            self.request.session[PLIVO_AUTH_TOKEN] = auth_token
+            self.request.session[Channel.CONFIG_PLIVO_AUTH_ID] = auth_id
+            self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN] = auth_token
 
             response = self.render_to_response(self.get_context_data(form=form,
                                                success_url=self.get_success_url(),
@@ -993,7 +991,6 @@ class OrgCRUDL(SmartCRUDL):
 
             invite_emails = cleaned_data['invite_emails'].lower().strip()
             invite_group = cleaned_data['invite_group']
-            invite_host = self.request.branding['host']
 
             if invite_emails:
                 for email in invite_emails.split(','):
@@ -1008,7 +1005,7 @@ class OrgCRUDL(SmartCRUDL):
                         invitation.is_active = True
                         invitation.save()
                     else:
-                        invitation = Invitation.create(org, self.request.user, email, invite_group, invite_host)
+                        invitation = Invitation.create(org, self.request.user, email, invite_group)
 
                     invitation.send_invitation()
 
@@ -1062,7 +1059,7 @@ class OrgCRUDL(SmartCRUDL):
         # if we don't support multi orgs, go home
         def pre_process(self, request, *args, **kwargs):
             response = super(OrgPermsMixin, self).pre_process(request, *args, **kwargs)
-            if not response and not request.user.get_org().is_multi_org_level():
+            if not response and not request.user.get_org().is_multi_org_tier():
                 return HttpResponseRedirect(reverse('orgs.org_home'))
             return response
 
@@ -1601,8 +1598,7 @@ class OrgCRUDL(SmartCRUDL):
             if not self.request.user.is_anonymous() and self.request.user.has_perm('orgs.org_grant'):
                 obj.administrators.add(self.request.user.pk)
 
-            brand = BrandingMiddleware.get_branding_for_host(obj.brand)
-            obj.initialize(brand=brand, topup_size=self.get_welcome_size())
+            obj.initialize(branding=obj.get_branding(), topup_size=self.get_welcome_size())
 
             return obj
 
@@ -1630,7 +1626,7 @@ class OrgCRUDL(SmartCRUDL):
             return initial
 
         def get_welcome_size(self):
-            welcome_topup_size = self.request.branding.get('welcome_topup', WELCOME_TOPUP_SIZE)
+            welcome_topup_size = self.request.branding.get('welcome_topup', 0)
             return welcome_topup_size
 
         def post_save(self, obj):
@@ -1795,9 +1791,8 @@ class OrgCRUDL(SmartCRUDL):
         def add_channel_section(self, formax, channel):
 
             if self.has_org_perm('channels.channel_read'):
-                from temba.channels.views import get_channel_icon
-                icon = get_channel_icon(channel.channel_type)
-                formax.add_section('channel', reverse('channels.channel_read', args=[channel.uuid]), icon=icon, action='link')
+                from temba.channels.views import get_channel_icon, get_channel_read_url
+                formax.add_section('channel', get_channel_read_url(channel), icon=get_channel_icon(channel.channel_type), action='link')
 
         def derive_formax_sections(self, formax, context):
 
@@ -1845,7 +1840,7 @@ class OrgCRUDL(SmartCRUDL):
                 formax.add_section('resthooks', reverse('orgs.org_resthooks'), icon='icon-cloud-lightning', dependents="resthooks")
 
             # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_level():
+            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user_tier():
                 formax.add_section('accounts', reverse('orgs.org_accounts'), icon='icon-users', action='redirect')
 
     class TransferToAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):

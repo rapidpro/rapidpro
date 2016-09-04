@@ -19,9 +19,10 @@ from smartmin.tests import SmartminTest
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, ActionSet
+from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.nexmo import NexmoValidationError
@@ -167,7 +168,6 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.get_recommended_channel(), 'android')
 
     def test_country(self):
-        from temba.locations.models import AdminBoundary
         country_url = reverse('orgs.org_country')
 
         # can't see this page if not logged in
@@ -203,6 +203,7 @@ class OrgTest(TembaTest):
 
         # remove all our channels so we no longer have a backdown
         org.channels.all().delete()
+        org = Org.objects.get(pk=self.org.pk)
 
         # now really don't have a clue of our country code
         self.assertIsNone(org.get_country_code())
@@ -621,7 +622,6 @@ class OrgTest(TembaTest):
             return Invitation.objects.create(org=self.org,
                                              user_group=group,
                                              email="norkans7@gmail.com",
-                                             host='app.rapidpro.io',
                                              created_by=self.admin,
                                              modified_by=self.admin)
 
@@ -892,6 +892,9 @@ class OrgTest(TembaTest):
         self.assertEqual(topup.get_price_display(), "$1.00")
 
     def test_topups(self):
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
+
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
@@ -982,10 +985,8 @@ class OrgTest(TembaTest):
         self.assertEquals(30, self.org.get_credits_used())
 
         # test special status
-        settings.MULTI_USER_THRESHOLD = 100000
-        settings.MULTI_ORG_THRESHOLD = 1000000
-        self.assertFalse(self.org.is_multi_user_level())
-        self.assertFalse(self.org.is_multi_org_level())
+        self.assertFalse(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
@@ -999,7 +1000,7 @@ class OrgTest(TembaTest):
 
         # we aren't yet multi user since this topup was free
         self.assertEquals(0, self.org.get_purchased_credits())
-        self.assertFalse(self.org.is_multi_user_level())
+        self.assertFalse(self.org.is_multi_user_tier())
 
         self.assertEquals(100025, self.org.get_credits_total())
         self.assertEquals(30, self.org.get_credits_used())
@@ -1114,14 +1115,14 @@ class OrgTest(TembaTest):
         # now buy some credits to make us multi user
         TopUp.create(self.admin, price=100, credits=100000)
         self.org.update_caches(OrgEvent.topup_updated, None)
-        self.assertTrue(self.org.is_multi_user_level())
-        self.assertFalse(self.org.is_multi_org_level())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # good deal!
         TopUp.create(self.admin, price=100, credits=1000000)
         self.org.update_caches(OrgEvent.topup_updated, None)
-        self.assertTrue(self.org.is_multi_user_level())
-        self.assertTrue(self.org.is_multi_org_level())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertTrue(self.org.is_multi_org_tier())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -1454,8 +1455,8 @@ class OrgTest(TembaTest):
             response = self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
             self.assertContains(response,
                                 "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry.")
-            self.assertFalse(PLIVO_AUTH_ID in self.client.session)
-            self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
+            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
+            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
 
         # ok, now with a success
         with patch('requests.get') as plivo_mock:
@@ -1463,8 +1464,8 @@ class OrgTest(TembaTest):
             self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
 
             # plivo should be added to the session
-            self.assertEquals(self.client.session[PLIVO_AUTH_ID], 'auth-id')
-            self.assertEquals(self.client.session[PLIVO_AUTH_TOKEN], 'auth-token')
+            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
+            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
 
     def test_download(self):
         response = self.client.get('/org/download/messages/123/')
@@ -1481,10 +1482,26 @@ class OrgTest(TembaTest):
         response = self.client.get('/org/download/flows/123/')
         self.assertRedirect(response, '/assets/download/results_export/123/')
 
+    def test_tiers(self):
+
+        # not enough credits with tiers enabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        self.assertIsNone(self.org.create_sub_org('Sub Org A'))
+
+        # not enough credits, but tiers disabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org A'))
+
+        # tiers enabled, but enough credits
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        TopUp.create(self.admin, price=100, credits=1000000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
+
     def test_sub_orgs(self):
 
         from temba.orgs.models import Debit
-        settings.MULTI_ORG_THRESHOLD = 1000000
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
 
         # lets start with two topups
         expires = timezone.now() + timedelta(days=400)
@@ -1496,9 +1513,8 @@ class OrgTest(TembaTest):
         # we won't create sub orgs if the org isn't the proper level
         self.assertIsNone(sub_org)
 
-        # upgrade our org and go again
-        self.org.multi_org = True
-        self.org.save()
+        # lower the tier and try again
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
         sub_org = self.org.create_sub_org('Sub Org')
 
         # suborgs can't create suborgs
@@ -1565,7 +1581,7 @@ class OrgTest(TembaTest):
 
         self.login(self.admin)
 
-        settings.MULTI_ORG_THRESHOLD = 1000000
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
 
         # set our org on the session
         session = self.client.session
@@ -1596,9 +1612,9 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_manage_accounts_sub_org'))
         self.assertRedirect(response, reverse('orgs.org_home'))
 
-        # support multi orgs and see our button shows up
-        self.org.multi_org = True
-        self.org.save()
+        # zero out our tier
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        self.assertTrue(self.org.is_multi_org_tier())
         response = self.client.get(reverse('orgs.org_home'))
         self.assertContains(response, 'Manage Organizations')
 
@@ -1967,27 +1983,27 @@ class OrgCRUDLTest(TembaTest):
         # remove existing channels
         Channel.objects.all().update(is_active=False, org=None)
 
-        self.assertEqual(set(), self.org.get_schemes(SEND))
-        self.assertEqual(set(), self.org.get_schemes(RECEIVE))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a receive only tel channel
-        Channel.create(self.org, self.user, 'RW', TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
+        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
 
         self.org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual(set(), self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a send/receive tel channel
-        Channel.create(self.org, self.user, 'RW', TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
+        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a twitter channel
-        Channel.create(self.org, self.user, None, TWITTER, "Twitter")
+        Channel.create(self.org, self.user, None, Channel.TYPE_TWITTER, "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
     def test_login_case_not_sensitive(self):
         login_url = reverse('users.user_login')
@@ -2293,13 +2309,14 @@ class BulkExportTest(TembaTest):
         self.assertEquals(response.context['form'].errors['import_file'][0], 'Sorry, import is a premium feature')
 
         # now purchase some credits and try again
-        TopUp.objects.create(org=self.org, price=0, credits=10000,
+        TopUp.objects.create(org=self.org, price=1, credits=10000,
                              expires_on=timezone.now() + timedelta(days=30),
                              created_by=self.admin, modified_by=self.admin)
 
         # force our cache to reload
         self.org.get_credits_total(force_dirty=True)
-        self.assertTrue(self.org.has_added_credits())
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertTrue(self.org.get_purchased_credits() > 0)
 
         # now try again with purchased credits, but our file is too old
         post_data = dict(import_file=open('%s/test_flows/too_old.json' % settings.MEDIA_ROOT, 'rb'))
@@ -2725,6 +2742,8 @@ class TestStripeCredits(TembaTest):
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
 
+        settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
+
         self.org.add_credits('2000', 'stripe-token', self.admin)
         self.assertTrue(2000, self.org.get_credits_total())
 
@@ -2803,6 +2822,8 @@ class TestStripeCredits(TembaTest):
         charge_create.return_value = \
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
 
         self.org.add_credits('2000', 'stripe-token', self.admin)
         self.assertTrue(2000, self.org.get_credits_total())

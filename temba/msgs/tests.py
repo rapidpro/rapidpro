@@ -39,6 +39,33 @@ class MsgTest(TembaTest):
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
+    def test_get_sync_commands(self):
+        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hello, we heard from you.")
+        msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
+        msg3 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, we heard from you.")
+
+        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg3])
+
+        self.assertEquals(1, len(commands))
+        self.assertEquals(3, len(commands[0]['to']))
+
+        msg4 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, there")
+
+        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg4])
+
+        self.assertEquals(2, len(commands))
+        self.assertEquals(2, len(commands[0]['to']))
+        self.assertEquals(1, len(commands[1]['to']))
+
+        msg5 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
+
+        commands = Msg.get_sync_commands(self.channel, [msg1, msg4, msg5])
+
+        self.assertEquals(3, len(commands))
+        self.assertEquals(1, len(commands[0]['to']))
+        self.assertEquals(1, len(commands[1]['to']))
+        self.assertEquals(1, len(commands[2]['to']))
+
     def test_archive_and_release(self):
         msg1 = Msg.create_incoming(self.channel, 'tel:123', "Incoming")
         label = Label.get_or_create(self.org, self.admin, "Spam")
@@ -314,8 +341,7 @@ class MsgTest(TembaTest):
         broadcast.send()
 
         # assert that recipient is set
-        self.assertEqual(broadcast.recipients.all().count(), 1)
-        self.assertEqual(broadcast.recipients.all()[0], self.joe.urns.all().first())
+        self.assertEqual(set(broadcast.recipients.all()), {self.joe})
 
     def test_outbox(self):
         self.login(self.admin)
@@ -662,8 +688,7 @@ class MsgTest(TembaTest):
         msg3.save()
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportMessagesTask.objects.create(org=self.org, host='test',
-                                                            created_by=self.admin, modified_by=self.admin)
+        blocking_export = ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
         response = self.client.post(reverse('msgs.msg_export'), follow=True)
         self.assertContains(response, "already an export in progress")
 
@@ -919,7 +944,7 @@ class BroadcastTest(TembaTest):
             broadcast.send()
 
             self.assertEquals(broadcast.get_message_count(), 3)
-            self.assertEqual(broadcast.recipients.all().count(), 3)
+            self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin})
         finally:
             msgs_models.BATCH_SIZE = orig_batch_size
 
@@ -936,12 +961,12 @@ class BroadcastTest(TembaTest):
         self.assertEquals(4, broadcast.recipient_count)
 
         # no recipients created yet, done when we send
-        self.assertEquals(0, broadcast.recipients.all().count())
+        self.assertEqual(set(broadcast.recipients.all()), set())
 
         broadcast.send(trigger_send=False)
-        self.assertEquals('Q', broadcast.status)
-        self.assertEquals(broadcast.get_message_count(), 4)
-        self.assertEqual(broadcast.recipients.all().count(), 4)
+        self.assertEqual('Q', broadcast.status)
+        self.assertEqual(broadcast.get_message_count(), 4)
+        self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin, self.lucy})
 
         bcast_commands = broadcast.get_sync_commands(self.channel)
         self.assertEquals(1, len(bcast_commands))
