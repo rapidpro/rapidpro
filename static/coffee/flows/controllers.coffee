@@ -750,6 +750,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 # translating rules
 TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, ruleset, translation) ->
 
+  $scope.translation = translation
+  
   # clone our ruleset
   ruleset = utils.clone(ruleset)
 
