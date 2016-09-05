@@ -571,12 +571,12 @@ describe 'Controllers:', ->
       $scope.dialog.opened.then ->
         modalScope = $modalStack.getTop().value.modalScope
 
-        # the USSD menu generates rules, these should be synced every time
-        for [item, rule] in utils.zip(modalScope.ruleset.config.ussd_menu, modalScope.ruleset.rules)
-          expect(item.uuid).toBe(rule.uuid)
-          expect(item.category.base).toBe(rule.category.base)
-          expect(item.option).toBe(rule.test._base)
-          expect(rule._config.type).toBe('eq')
+        for rule in modalScope.ruleset.rules
+          if rule.label
+            expect(rule.uuid).toBeDefined()
+            expect(rule.category.base).toBeDefined()
+            expect(rule.label).toBeDefined()
+            expect(rule._config.type).toBe('eq')
 
       $timeout.flush()
 

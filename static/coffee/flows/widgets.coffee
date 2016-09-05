@@ -52,7 +52,7 @@ app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log
               _autoName: true
               _base: ""
       else
-        if menu[menu.length - 1].category?._base == ""
+        if menu[menu.length - 1]?.category?._base == ""
           scope.ruleset.rules.splice(menu.length - 1, 1)
 
     scope.remove = (item, index) ->

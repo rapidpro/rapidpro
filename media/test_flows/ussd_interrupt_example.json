@@ -100,29 +100,6 @@
           "y": 0,
           "x": 710,
           "config": {
-            "ussd_menu": [
-              {
-                "category": {
-                  "base": "Good"
-                },
-                "uuid": "3be8623f-af36-4b58-84bc-db2ee34b819c",
-                "option": 1,
-                "label": {
-                  "base": "all good"
-                }
-              },
-              {
-                "category": {
-                  "base": "Nada"
-                },
-                "uuid": "b139c9c5-d5ce-4dc6-a766-24af089bd622",
-                "option": 2,
-                "label": {
-                  "base": "nada"
-                }
-              }
-            ],
-            "ussd_text": "What's up?",
             "ussd_message": {
               "base": "What's up?"
             }
