@@ -184,10 +184,8 @@
 
 .modal-footer
   .ussd-counter{ng-class:"{limit: characters < 0}", ng-if:'formData.rulesetConfig.type == "wait_menu" || formData.rulesetConfig.type == "wait_ussd"'}
-    Characters left:
-    .pill
-      %b
-        [[characters]]
+    [[characters]] characters remaining
+
   .timeout{ng-show:'flow.type == "F" && isPausingRuleset()', style:'float:left'}
 
     %label
