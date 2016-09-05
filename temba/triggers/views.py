@@ -19,7 +19,7 @@ from temba.formax import FormaxMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.channels.models import Channel, RECEIVE, ANSWER
+from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.msgs.views import ModalMixin
 from temba.utils import analytics
@@ -328,13 +328,13 @@ class TriggerCRUDL(SmartCRUDL):
             def add_section(name, url, icon):
                 formax.add_section(name, reverse(url), icon=icon, action='redirect', button=_('Create Trigger'))
 
-            org_schemes = self.org.get_schemes(RECEIVE)
+            org_schemes = self.org.get_schemes(Channel.ROLE_RECEIVE)
             add_section('trigger-keyword', 'triggers.trigger_keyword', 'icon-tree')
             add_section('trigger-register', 'triggers.trigger_register', 'icon-users-2')
             add_section('trigger-schedule', 'triggers.trigger_schedule', 'icon-clock')
 
             # if we can answer calls, show the inbound trigger option
-            if self.org.get_schemes(ANSWER):
+            if self.org.get_schemes(Channel.ROLE_ANSWER):
                 add_section('trigger-inboundcall', 'triggers.trigger_inbound_call', 'icon-phone2')
 
             add_section('trigger-missedcall', 'triggers.trigger_missed_call', 'icon-phone')

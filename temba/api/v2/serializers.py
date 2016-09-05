@@ -1,20 +1,22 @@
 from __future__ import absolute_import, unicode_literals
 
 import json
-from django.forms import ValidationError
+import six
 
+from django.forms import ValidationError
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, ChannelEvent, ANDROID
-
-from temba.contacts.models import Contact, ContactField, ContactGroup, URN
+from temba.channels.models import Channel, ChannelEvent
+from temba.contacts.models import Contact, ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
 from temba.utils import datetime_to_json_date
 from temba.values.models import Value
+
+from . import fields
 
 
 def format_datetime(value):
@@ -48,28 +50,11 @@ class WriteSerializer(serializers.Serializer):
 
     def run_validation(self, data=serializers.empty):
         if not isinstance(data, dict):
-            raise serializers.ValidationError(detail={'non_field_errors': ["Request body should be a single JSON object"]})
+            raise serializers.ValidationError(detail={
+                'non_field_errors': ["Request body should be a single JSON object"]
+            })
 
         return super(WriteSerializer, self).run_validation(data)
-
-
-class UUIDListField(serializers.ListField):
-    child = serializers.UUIDField()
-
-
-class URNField(serializers.CharField):
-    def to_representation(self, obj):
-        return unicode(obj)
-
-    def to_internal_value(self, data):
-        if not URN.validate(data):
-            raise ValidationError("Invalid URN: %s" % data)
-
-        return URN.normalize(data)
-
-
-class URNListField(serializers.ListField):
-    child = URNField()
 
 
 # ============================================================
@@ -100,8 +85,8 @@ class AdminBoundaryReadSerializer(ReadSerializer):
 
 class BroadcastReadSerializer(ReadSerializer):
     urns = serializers.SerializerMethodField()
-    contacts = serializers.SerializerMethodField()
-    groups = serializers.SerializerMethodField()
+    contacts = fields.ContactField(many=True)
+    groups = fields.ContactGroupField(many=True)
 
     def get_urns(self, obj):
         if self.context['org'].is_anon:
@@ -109,32 +94,60 @@ class BroadcastReadSerializer(ReadSerializer):
         else:
             return [urn.urn for urn in obj.urns.all()]
 
-    def get_contacts(self, obj):
-        return [{'uuid': c.uuid, 'name': c.name} for c in obj.contacts.all()]
-
-    def get_groups(self, obj):
-        return [{'uuid': g.uuid, 'name': g.name} for g in obj.groups.all()]
-
     class Meta:
         model = Broadcast
         fields = ('id', 'urns', 'contacts', 'groups', 'text', 'created_on')
+
+
+class BroadcastWriteSerializer(WriteSerializer):
+    text = serializers.CharField(required=True, max_length=480)
+    urns = fields.URNListField(required=False)
+    contacts = fields.ContactField(many=True, required=False)
+    groups = fields.ContactGroupField(many=True, required=False)
+    channel = fields.ChannelField(required=False)
+
+    def validate(self, data):
+        if self.context['org'].is_suspended():
+            raise serializers.ValidationError("Sorry, your account is currently suspended. "
+                                              "To enable sending messages, please contact support.")
+
+        if not (data.get('urns') or data.get('contacts') or data.get('groups')):
+            raise serializers.ValidationError("Must provide either urns, contacts or groups")
+
+        return data
+
+    def save(self):
+        """
+        Create a new broadcast to send out
+        """
+        from temba.msgs.tasks import send_broadcast_task
+
+        recipients = self.validated_data.get('contacts', []) + self.validated_data.get('groups', [])
+
+        for urn in self.validated_data.get('urns', []):
+            # create contacts for URNs if necessary
+            contact = Contact.get_or_create(self.context['org'], self.context['user'], urns=[urn])
+            contact_urn = contact.urn_objects[urn]
+            recipients.append(contact_urn)
+
+        # create the broadcast
+        broadcast = Broadcast.create(self.context['org'], self.context['user'], self.validated_data['text'],
+                                     recipients=recipients, channel=self.validated_data.get('channel'))
+
+        # send in task
+        send_broadcast_task.delay(broadcast.id)
+        return broadcast
 
 
 class ChannelEventReadSerializer(ReadSerializer):
     TYPES = ReadSerializer.extract_constants(ChannelEvent.TYPE_CONFIG)
 
     type = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField()
-    channel = serializers.SerializerMethodField()
+    contact = fields.ContactField()
+    channel = fields.ChannelField()
 
     def get_type(self, obj):
         return self.TYPES.get(obj.event_type)
-
-    def get_contact(self, obj):
-        return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
-
-    def get_channel(self, obj):
-        return {'uuid': obj.channel.uuid, 'name': obj.channel.name}
 
     class Meta:
         model = ChannelEvent
@@ -142,10 +155,7 @@ class ChannelEventReadSerializer(ReadSerializer):
 
 
 class CampaignReadSerializer(ReadSerializer):
-    group = serializers.SerializerMethodField()
-
-    def get_group(self, obj):
-        return {'uuid': obj.group.uuid, 'name': obj.group.name}
+    group = fields.ContactGroupField()
 
     class Meta:
         model = Campaign
@@ -155,13 +165,10 @@ class CampaignReadSerializer(ReadSerializer):
 class CampaignEventReadSerializer(ReadSerializer):
     UNITS = ReadSerializer.extract_constants(CampaignEvent.UNIT_CONFIG)
 
-    campaign = serializers.SerializerMethodField()
+    campaign = fields.CampaignField()
     flow = serializers.SerializerMethodField()
     relative_to = serializers.SerializerMethodField()
     unit = serializers.SerializerMethodField()
-
-    def get_campaign(self, obj):
-        return {'uuid': obj.campaign.uuid, 'name': obj.campaign.name}
 
     def get_flow(self, obj):
         if obj.event_type == CampaignEvent.TYPE_FLOW:
@@ -185,10 +192,10 @@ class ChannelReadSerializer(ReadSerializer):
     device = serializers.SerializerMethodField()
 
     def get_country(self, obj):
-        return unicode(obj.country) if obj.country else None
+        return six.text_type(obj.country) if obj.country else None
 
     def get_device(self, obj):
-        if obj.channel_type != ANDROID:
+        if obj.channel_type != Channel.TYPE_ANDROID:
             return None
 
         return {
@@ -254,6 +261,115 @@ class ContactReadSerializer(ReadSerializer):
                   'created_on', 'modified_on')
 
 
+class ContactWriteSerializer(WriteSerializer):
+    uuid = serializers.UUIDField(required=False)
+    urn = fields.URNField(required=False)
+    name = serializers.CharField(required=False, max_length=64, allow_null=True)
+    language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
+    urns = fields.URNListField(required=False)
+    groups = fields.ContactGroupField(many=True, required=False)
+    fields = serializers.DictField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super(ContactWriteSerializer, self).__init__(*args, **kwargs)
+
+    def validate_uuid(self, value):
+        self.instance = Contact.objects.filter(org=self.context['org'], uuid=value, is_active=True).first()
+        if not self.instance:
+            raise serializers.ValidationError("No such contact with UUID: %s" % value)
+
+    def validate_urn(self, value):
+        if self.context['org'].is_anon:
+            raise serializers.ValidationError("Referencing by URN not allowed for anonymous organizations")
+
+        self.instance = Contact.from_urn(self.context['org'], value)
+        return value
+
+    def validate_groups(self, value):
+        for group in value:
+            if group.is_dynamic:
+                raise serializers.ValidationError("Can't add contact to dynamic group with UUID: %s" % group.uuid)
+
+        return value
+
+    def validate_fields(self, value):
+        valid_keys = {f.key for f in self.context['contact_fields']}
+
+        for field_key, field_val in value.items():
+            if field_key not in valid_keys:
+                raise serializers.ValidationError("Invalid contact field key: %s" % field_key)
+
+        return value
+
+    def validate(self, data):
+        org = self.context['org']
+
+        # we don't allow updating of contact URNs for anon orgs - tho we do allow creation of contacts with URNs
+        if org.is_anon and self.instance and data.get('urns'):
+            raise serializers.ValidationError("Updating contact URNs not allowed for anonymous organizations")
+
+        # if creating a contact, urns can't include URNs which are already taken
+        if not self.instance and 'urns' in data:
+            country_code = org.get_country_code()
+            for urn in data['urns']:
+                if Contact.from_urn(org, urn, country_code):
+                    raise serializers.ValidationError("Contact URN belongs to another contact: %s" % urn)
+
+        # if contact is blocked, they can't be added to groups
+        if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and data['groups']:
+            raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
+
+        return data
+
+    def save(self):
+        """
+        Update our contact
+        """
+        name = self.validated_data.get('name')
+        language = self.validated_data.get('language')
+        urns = self.validated_data.get('urns')
+        groups = self.validated_data.get('groups')
+        fields = self.validated_data.get('fields')
+
+        changed = []
+
+        if self.instance:
+            # update our name and language
+            if 'name' in self.validated_data and name != self.instance.name:
+                self.instance.name = name
+                changed.append('name')
+            if 'language' in self.validated_data and language != self.instance.language:
+                self.instance.language = language
+                changed.append('language')
+
+            if 'urns' in self.validated_data and urns is not None:
+                self.instance.update_urns(self.context['user'], urns)
+
+            if changed:
+                self.instance.save(update_fields=changed)
+        else:
+            if urns is None:
+                # if user is using URN as identifier, ok to create contact from it if they don't already exist
+                urn_as_id = self.validated_data.get('urn')
+                if urn_as_id:
+                    urns = [urn_as_id]
+                else:
+                    urns = []
+
+            self.instance = Contact.get_or_create(self.context['org'], self.context['user'], name, urns=urns, language=language)
+
+        # update our fields
+        if fields is not None:
+            for key, value in fields.items():
+                self.instance.set_field(self.context['user'], key, value)
+
+        # update our groups
+        if groups is not None:
+            self.instance.update_static_groups(self.context['user'], groups)
+
+        return self.instance
+
+
 class ContactFieldReadSerializer(ReadSerializer):
     VALUE_TYPES = ReadSerializer.extract_constants(Value.TYPE_CONFIG)
 
@@ -310,16 +426,10 @@ class FlowRunReadSerializer(ReadSerializer):
         FlowRun.EXIT_TYPE_EXPIRED: 'expired'
     }
 
-    flow = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField()
+    flow = fields.FlowField()
+    contact = fields.ContactField()
     steps = serializers.SerializerMethodField()
     exit_type = serializers.SerializerMethodField()
-
-    def get_flow(self, obj):
-        return {'uuid': obj.flow.uuid, 'name': obj.flow.name}
-
-    def get_contact(self, obj):
-        return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
 
     def get_steps(self, obj):
         # avoiding fetching org again
@@ -369,73 +479,38 @@ class FlowStartReadSerializer(ReadSerializer):
         FlowStart.STATUS_FAILED: 'failed'
     }
 
-    flow = serializers.SerializerMethodField()
+    flow = fields.FlowField()
     status = serializers.SerializerMethodField()
-    groups = serializers.SerializerMethodField()
-    contacts = serializers.SerializerMethodField()
-
-    def get_contacts(self, obj):
-        contacts = []
-        for contact in obj.contacts.all():
-            contacts.append(dict(uuid=contact.uuid, name=contact.name))
-        return contacts
-
-    def get_groups(self, obj):
-        groups = []
-        for group in obj.groups.all():
-            groups.append(dict(uuid=group.uuid, name=group.name))
-        return groups
-
-    def get_flow(self, obj):
-        return dict(uuid=obj.flow.uuid, name=obj.flow.name)
+    groups = fields.ContactGroupField(many=True)
+    contacts = fields.ContactField(many=True)
+    extra = serializers.SerializerMethodField()
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
 
+    def get_extra(self, obj):
+        if not obj.extra:
+            return None
+        else:
+            return json.loads(obj.extra)
+
     class Meta:
         model = FlowStart
-        fields = ('id', 'flow', 'status', 'groups', 'contacts', 'restart_participants', 'created_on', 'modified_on')
+        fields = ('id', 'flow', 'status', 'groups', 'contacts', 'restart_participants', 'extra', 'created_on', 'modified_on')
 
 
 class FlowStartWriteSerializer(WriteSerializer):
-    flow = serializers.UUIDField()
-    contacts = UUIDListField(required=False)
-    groups = UUIDListField(required=False)
-    urns = URNListField(required=False)
+    flow = fields.FlowField()
+    contacts = fields.ContactField(many=True, required=False)
+    groups = fields.ContactGroupField(many=True, required=False)
+    urns = fields.URNListField(required=False)
+    extra = serializers.JSONField(required=False)
 
-    def validate_flow(self, value):
-        flow = Flow.objects.filter(org=self.context['org'], is_active=True, uuid=value).first()
-        if not flow:
-            raise ValidationError("No flow found with UUID: %s" % value)
-        return flow
-
-    def validate_contacts(self, value):
-        contacts = []
-        for contact_uuid in value:
-            contact = Contact.objects.filter(org=self.context['org'], is_active=True, uuid=contact_uuid).first()
-            if not contact:
-                raise ValidationError("No contact found with UUID: %s" % value)
-            contacts.append(contact)
-
-        return contacts
-
-    def validate_groups(self, value):
-        groups = []
-        for group_uuid in value:
-            group = ContactGroup.user_groups.filter(org=self.context['org'], is_active=True, uuid=group_uuid).first()
-            if not group:
-                raise ValidationError("No group found with UUID: %s" % value)
-            groups.append(group)
-
-        return groups
-
-    def validate_urns(self, value):
-        urn_contacts = []
-        for urn in value:
-            contact = Contact.get_or_create(self.context['org'], self.context['user'], urns=[urn])
-            urn_contacts.append(contact)
-
-        return urn_contacts
+    def validate_extra(self, value):
+        if not value:
+            return None
+        else:
+            return FlowRun.normalize_fields(value)[0]
 
     def validate(self, data):
         # need at least one of urns, groups or contacts
@@ -446,17 +521,26 @@ class FlowStartWriteSerializer(WriteSerializer):
         return data
 
     def save(self):
+        urns = self.validated_data.get('urns', [])
+        contacts = self.validated_data.get('contacts', [])
+        groups = self.validated_data.get('groups', [])
+
+        # convert URNs to contacts
+        for urn in urns:
+            contact = Contact.get_or_create(self.context['org'], self.context['user'], urns=[urn])
+            contacts.append(contact)
+
         # ok, let's go create our flow start, the actual starting will happen in our view
         start = FlowStart.create(self.validated_data['flow'], self.context['user'],
                                  restart_participants=self.validated_data.get('restart_participants', True),
-                                 contacts=self.validated_data.get('contacts', []) + self.validated_data.get('urns', []),
-                                 groups=self.validated_data.get('groups', []))
+                                 contacts=contacts, groups=groups,
+                                 extra=self.validated_data.get('extra', None))
 
         return start
 
     class Meta:
         model = FlowStart
-        fields = ('resthook', 'target_url')
+        fields = ('flow', 'contacts', 'groups', 'urns', 'extra')
 
 
 class LabelReadSerializer(ReadSerializer):
@@ -484,9 +568,9 @@ class MsgReadSerializer(ReadSerializer):
     }
 
     broadcast = serializers.SerializerMethodField()
-    contact = serializers.SerializerMethodField()
-    urn = serializers.SerializerMethodField()
-    channel = serializers.SerializerMethodField()
+    contact = fields.ContactField()
+    urn = fields.URNField(source='contact_urn')
+    channel = fields.ChannelField()
     direction = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
@@ -496,20 +580,6 @@ class MsgReadSerializer(ReadSerializer):
 
     def get_broadcast(self, obj):
         return obj.broadcast_id
-
-    def get_contact(self, obj):
-        return {'uuid': obj.contact.uuid, 'name': obj.contact.name}
-
-    def get_urn(self, obj):
-        if self.context['org'].is_anon:
-            return None
-        elif obj.contact_urn_id:
-            return obj.contact_urn.urn
-        else:
-            return None
-
-    def get_channel(self, obj):
-        return {'uuid': obj.channel.uuid, 'name': obj.channel.name} if obj.channel_id else None
 
     def get_direction(self, obj):
         return self.DIRECTIONS.get(obj.direction)

@@ -2,11 +2,9 @@ from __future__ import unicode_literals
 
 import json
 import regex
-import pytz
-import time
 
 from collections import OrderedDict
-from datetime import timedelta, datetime
+from datetime import timedelta
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -18,16 +16,13 @@ from django.http import Http404, HttpResponseRedirect, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from itertools import chain
 from smartmin.csv_imports.models import ImportTask
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartCSVImportView, SmartDeleteView, SmartFormView
 from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartXlsView, smart_url
-from temba.channels.models import ChannelEvent
-from temba.msgs.models import Msg
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
-from temba.utils import analytics, slugify_with, languages
+from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime
 from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
 from .models import ExportContactsTask
@@ -342,8 +337,6 @@ class ContactCRUDL(SmartCRUDL):
                 if groups:
                     group = groups[0]
 
-            host = self.request.branding['host']
-
             # is there already an export taking place?
             existing = ExportContactsTask.objects.filter(org=org, is_finished=False,
                                                          created_on__gt=timezone.now() - timedelta(hours=24))\
@@ -357,8 +350,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # otherwise, off we go
             else:
-                export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org,
-                                                           group=group, host=host)
+                export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
                 export_contacts_task.delay(export.pk)
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
@@ -710,8 +702,8 @@ class ContactCRUDL(SmartCRUDL):
             context['upcoming_events'] = sorted(merged_upcoming_events, key=lambda k: k['scheduled'], reverse=True)
 
             # divide contact's URNs into those we can send to, and those we can't
-            from temba.channels.models import SEND
-            sendable_schemes = contact.org.get_schemes(SEND)
+            from temba.channels.models import Channel
+            sendable_schemes = contact.org.get_schemes(Channel.ROLE_SEND)
 
             urns = contact.get_urns()
             has_sendable_urn = False
@@ -744,7 +736,10 @@ class ContactCRUDL(SmartCRUDL):
                 contact_fields.append(dict(label='Language', value=lang, featured=True))
 
             context['contact_fields'] = sorted(contact_fields, key=lambda f: f['label'])
-            context['recent_seconds'] = int(time.mktime((timezone.now() - timedelta(minutes=5)).timetuple()))
+
+            # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
+            # status changes on new messages
+            context['recent_start'] = datetime_to_ms(timezone.now() - timedelta(minutes=5))
             return context
 
         def post(self, request, *args, **kwargs):
@@ -811,93 +806,48 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.History, self).get_context_data(*args, **kwargs)
-
-            from temba.flows.models import FlowRun, Flow
-            from temba.campaigns.models import EventFire
-            from temba.ivr.models import IVRCall, BUSY, FAILED, NO_ANSWER, CANCELED
-
-            def activity_cmp(a, b):
-
-                if not hasattr(a, 'created_on') and hasattr(a, 'fired'):
-                    a.created_on = a.fired
-
-                if not hasattr(b, 'created_on') and hasattr(b, 'fired'):
-                    b.created_on = b.fired
-
-                if a.created_on == b.created_on:  # pragma: no cover
-                    return 0
-                elif a.created_on < b.created_on:
-                    return -1
-                else:
-                    return 1
-
             contact = self.get_object()
 
-            # determine our start and end time based on the page
-            page = int(self.request.REQUEST.get('page', 1))
-            msgs_per_page = 100
-            start_time = None
+            refresh_recent = self.request.REQUEST.get('r', False)
+            recent_start = ms_to_datetime(int(self.request.GET.get('rs', 0)))
 
-            # if we are just grabbing recent history use that window
-
-            recent_seconds = int(self.request.REQUEST.get('rs', 0))
-            recent = self.request.REQUEST.get('r', False)
-            context['recent_date'] = datetime.utcfromtimestamp(recent_seconds).replace(tzinfo=pytz.utc)
-
-            text_messages = Msg.all_messages.filter(contact=contact.id).exclude(visibility=Msg.VISIBILITY_DELETED)
-            text_messages = text_messages.order_by('-created_on')
-            if recent:
-                start_time = context['recent_date']
-                text_messages = text_messages.filter(created_on__gt=start_time)
-                context['recent'] = True
-
-            # other wise, just grab 100 messages within our page (and an extra marker, for determining more)
+            if 'before' in self.request.GET:
+                older_before = ms_to_datetime(int(self.request.GET['before']))
             else:
-                start_message = (page - 1) * msgs_per_page
-                end_message = page * msgs_per_page
-                text_messages = text_messages[start_message:end_message + 1]
+                older_before = timezone.now()  # this is the initial request for the timeline
 
-            # ignore our lead message past the first page
-            count = len(text_messages)
-            first_message = 0
-
-            # if we got an extra one at the end too, trim it off
-            context['more'] = False
-            if count > msgs_per_page and not recent:
-                context['more'] = True
-                start_time = text_messages[count - 1].created_on
-                count -= 1
-
-            # grab up to 100 messages from our first message
-            if not recent_seconds:
-                text_messages = text_messages[first_message:first_message + 100]
-
-            # if we don't know our start time, go back to the beginning
-            if not start_time:
-                start_time = timezone.datetime(2013, 1, 1, tzinfo=pytz.utc)
-
-            # if we don't know our stop time yet, assume the first message
-            if page == 1:
+            if refresh_recent:
+                # if we are just grabbing recent history use that window
+                start_time = recent_start
                 end_time = timezone.now()
+
+                activity = contact.get_activity(start_time, end_time)
             else:
-                end_time = text_messages[0].created_on
+                start_time = max(older_before - timedelta(days=90), contact.created_on)
+                end_time = older_before
 
-            context['start_time'] = start_time
+                while True:
+                    activity = contact.get_activity(start_time, end_time)
 
-            # all of our runs and events
-            runs = FlowRun.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time).exclude(flow__flow_type=Flow.MESSAGE)
-            fired = EventFire.objects.filter(contact=contact, scheduled__lt=end_time, scheduled__gt=start_time).exclude(fired=None)
+                    # keep looking further back until we get at least 20 items
+                    if len(activity) >= 20 or start_time == contact.created_on:
+                        break
+                    else:
+                        start_time = max(start_time - timedelta(days=90), contact.created_on)
 
-            # channel events, e.g. missed calls etc
-            events = ChannelEvent.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
+            if start_time > contact.created_on:
+                has_older = bool(contact.get_activity(contact.created_on, start_time))
+            else:
+                has_older = False
 
-            error_calls = IVRCall.objects.filter(contact=contact, created_on__lt=end_time, created_on__gt=start_time)
-            error_calls = error_calls.filter(status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+            # make it easier to tell which items fall in the recent time window
+            for item in activity:
+                item.is_recent = refresh_recent or item.created_on > recent_start
 
-            # now chain them all together in the same list and sort by time
-            activity = sorted(chain(text_messages, runs, fired, events, error_calls), cmp=activity_cmp, reverse=True)
-
+            context['recent'] = refresh_recent
             context['activity'] = activity
+            context['start_time'] = datetime_to_ms(start_time)
+            context['has_older'] = has_older
             return context
 
     class List(ContactActionMixin, ContactListView):

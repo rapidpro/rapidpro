@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?n5zh88');
-  src:  url('fonts/temba.eot?n5zh88#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?n5zh88') format('truetype'),
-    url('fonts/temba.woff?n5zh88') format('woff'),
-    url('fonts/temba.svg?n5zh88#temba') format('svg');
+  src:  url('fonts/temba.eot?6cn2vq');
+  src:  url('fonts/temba.eot?6cn2vq#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?6cn2vq') format('truetype'),
+    url('fonts/temba.woff?6cn2vq') format('woff'),
+    url('fonts/temba.svg?6cn2vq#temba') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -24,6 +24,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-viber:before {
+  content: "\e904";
+}
 .icon-cloud-lightning:before {
   content: "\e903";
 }

@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import serializers
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, ChannelEvent, SEND
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
@@ -1371,7 +1371,7 @@ class FlowRunStartSerializer(WriteSerializer):
 
         if value:
             # check that we have some way of sending messages
-            channel = self.org.get_channel_for_role(SEND, TEL_SCHEME)
+            channel = self.org.get_channel_for_role(Channel.ROLE_SEND, TEL_SCHEME)
 
             # get our country
             country = self.org.get_country_code()

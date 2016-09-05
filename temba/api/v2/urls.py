@@ -2,7 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 from django.conf.urls import url
 from rest_framework.urlpatterns import format_suffix_patterns
-from .views import api, ApiExplorerView, AuthenticateView, BroadcastEndpoint, ChannelsEndpoint, ChannelEventsEndpoint
+from .views import api, ApiExplorerView, AuthenticateView, BroadcastsEndpoint, ChannelsEndpoint, ChannelEventsEndpoint
 from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
 
 from .views import FieldsEndpoint, FlowStartsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
@@ -15,7 +15,7 @@ urlpatterns = [
 
     # ========== endpoints A-Z ===========
     url(r'^/boundaries$', BoundariesEndpoint.as_view(), name='api.v2.boundaries'),
-    url(r'^/broadcasts$', BroadcastEndpoint.as_view(), name='api.v2.broadcasts'),
+    url(r'^/broadcasts$', BroadcastsEndpoint.as_view(), name='api.v2.broadcasts'),
     url(r'^/campaigns$', CampaignsEndpoint.as_view(), name='api.v2.campaigns'),
     url(r'^/campaign_events$', CampaignEventsEndpoint.as_view(), name='api.v2.campaign_events'),
     url(r'^/channels$', ChannelsEndpoint.as_view(), name='api.v2.channels'),
