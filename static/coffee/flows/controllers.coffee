@@ -1418,9 +1418,6 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
 
-      # clear previous config
-      ruleset.config = {}
-
       if rulesetConfig.type == 'subflow'
         flow = splitEditor.flow.selected[0]
         ruleset.config =
