@@ -1470,6 +1470,14 @@ class ChannelTest(TembaTest):
                 # as is our old one
                 self.assertTrue(Channel.objects.filter(channel_type='NX', org=self.org, address='MTN').first())
 
+                config_url = reverse('channels.channel_configuration', args=[channel.pk])
+                response = self.client.get(config_url)
+                self.assertEquals(200, response.status_code)
+
+                self.assertContains(response, reverse('handlers.nexmo_handler', args=['receive', channel.org.nexmo_uuid()]))
+                self.assertContains(response, reverse('handlers.nexmo_handler', args=['status', channel.org.nexmo_uuid()]))
+                self.assertContains(response, reverse('handlers.nexmo_call_handler', args=['answer', channel.uuid]))
+
     def test_claim_plivo(self):
         self.login(self.admin)
 
