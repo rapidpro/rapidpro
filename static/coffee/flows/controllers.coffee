@@ -759,7 +759,7 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
       rule.category = null
 
     if rule.category
-      rule._translation = {category:{}, test:{}}
+      rule._translation = {category:{}, test:{}, label:{}}
       rule._translation.category['from'] = rule.category[Flow.flow.base_language]
       rule._translation.category['to'] = rule.category[Flow.language.iso_code]
 
@@ -767,20 +767,14 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
         rule._translation.test['from'] = rule.test.test[Flow.flow.base_language]
         rule._translation.test['to'] = rule.test.test[Flow.language.iso_code]
 
+    if ruleset.ruleset_type == 'wait_menu' and rule.label
+      $scope.translation = translation
+      rule._translation.label['from'] = rule.label[Flow.flow.base_language]
+      rule._translation.label['to'] = rule.label[Flow.language.iso_code]
+
   $scope.ruleset = ruleset
   $scope.languages = languages
   $scope.language = Flow.language
-
-  # USSD stuff
-  if Flow.flow.flow_type == 'U'
-    $scope.translation = translation
-    if ruleset.ruleset_type == 'wait_menu'
-      $scope.ussd_menu = ruleset.config.ussd_menu
-
-      for item in ruleset.config.ussd_menu
-        item._translation = {}
-        item._translation['from'] = item.label[Flow.flow.base_language]
-        item._translation['to'] = item.label[Flow.language.iso_code]
 
   $scope.ok = ->
 
@@ -803,11 +797,11 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
 
     # USSD menu translation save
     if ruleset.ruleset_type == 'wait_menu'
-      for item in ruleset.config.ussd_menu
-        if item._translation.to and item._translation.to.strip().length > 0
-          item.label[Flow.language.iso_code] = item._translation.to
+      for rule in ruleset.rules
+        if rule._translation.label.to and rule._translation.label.to.strip().length > 0
+          rule.label[Flow.language.iso_code] = rule._translation.label.to
         else
-          delete item.label[Flow.language.iso_code]
+          delete rule.label?[Flow.language.iso_code]
 
     Flow.replaceRuleset(ruleset)
     $modalInstance.close ""
