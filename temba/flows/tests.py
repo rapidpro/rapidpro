@@ -2335,12 +2335,14 @@ class ActionTest(TembaTest):
         self.assertIsNone(action.msg)
         self.assertEquals(execution, [])
 
-        # add config menu object
+        # add menu rules
+        ussd_ruleset.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json(),
+                                    Rule(uuid(15), dict(base="Test1"), uuid(200), 'R', EqTest(test="1"), dict(base="Test1")).as_json(),
+                                    Rule(uuid(15), dict(base="Test2"), uuid(200), 'R', EqTest(test="2"), dict(base="Test2")).as_json()])
+        ussd_ruleset.save()
+
+        # add ussd message
         config = {
-            "ussd_menu": [
-                {"option": 1, "label": {"base": "Test1"}},
-                {"option": 2, "label": {"base": "Test2"}},
-            ],
             "ussd_message": {"base": "test"}
         }
         ussd_ruleset.config = json.dumps(config)
@@ -2367,15 +2369,17 @@ class ActionTest(TembaTest):
         Language.create(self.org, self.admin, "Russian", 'rus')
         self.flow.org.primary_language = english
 
-        # add config menu object
+        # add menu rules
+        ussd_ruleset.set_rules_dict([Rule(uuid(15), dict(base="All Responses"), uuid(200), 'R', TrueTest()).as_json(),
+                                    Rule(uuid(15), dict(base="Test1"), uuid(200), 'R', EqTest(test="1"), dict(eng="labelENG", hun="labelHUN")).as_json(),
+                                    Rule(uuid(15), dict(base="Test2"), uuid(200), 'R', EqTest(test="2"), dict(eng="label2ENG")).as_json()])
+        ussd_ruleset.save()
+
+        # add ussd message
         config = {
-            "ussd_menu": [
-                {"option": 1, "label": {"eng": "labelENG", "hun": "labelHUN"}},
-                # here option 2's "hun" label is missing translation
-                {"option": 2, "label": {"eng": "label2ENG"}},
-            ],
             "ussd_message": {"eng": "testENG", "hun": "testHUN"}
         }
+
         ussd_ruleset.config = json.dumps(config)
         action = UssdAction.from_ruleset(ussd_ruleset, run)
         execution = action.execute(run, None, msg)

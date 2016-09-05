@@ -81,7 +81,7 @@
             {
               "test": {
                 "test": "interrupted",
-                "type": "X"
+                "type": "interrupted_status"
               },
               "category": {
                 "base": "Interrupted"
