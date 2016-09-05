@@ -951,11 +951,6 @@ class VumiHandler(View):
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
 
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VUMI).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
-
         # parse our JSON
         try:
             body = json.loads(request.body)
@@ -967,7 +962,8 @@ class VumiHandler(View):
         channel_type = Channel.TYPE_VUMI_USSD if is_ussd else Channel.TYPE_VUMI
 
         # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=channel_type).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=channel_type).exclude(
+            org=None).first()
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
 

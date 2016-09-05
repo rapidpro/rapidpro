@@ -2706,6 +2706,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_TWITTER: Channel.send_twitter_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message,
                   Channel.TYPE_VUMI: Channel.send_vumi_message,
+                  Channel.TYPE_VUMI_USSD: Channel.send_vumi_message,
                   Channel.TYPE_YO: Channel.send_yo_message,
                   Channel.TYPE_ZENVIA: Channel.send_zenvia_message}
 
