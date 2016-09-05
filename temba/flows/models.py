@@ -3314,7 +3314,7 @@ class RuleSet(models.Model):
         for rule in rules:
             result, value = rule.matches(run, msg, {}, "")
 
-            if result and value == INTERRUPTED:
+            if result and value == "interrupted_status":
                 return rule, value
         return None, None
 
@@ -4888,7 +4888,7 @@ class UssdAction(ReplyAction):
 
         # add menu to the msg
         for rule in rules:
-            if 'label' in rule:  # filter "other" and "interrupted"
+            if rule.get('label'):  # filter "other" and "interrupted"
                 self.msg = {language: localised_msg + ": ".join(
                     (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
 
@@ -5418,12 +5418,13 @@ class SendAction(VariableContactAction):
 
 class Rule(object):
 
-    def __init__(self, uuid, category, destination, destination_type, test):
+    def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid
         self.category = category
         self.destination = destination
         self.destination_type = destination_type
         self.test = test
+        self.label = label
 
     def get_category_name(self, flow_lang):
         if not self.category:
@@ -5447,7 +5448,8 @@ class Rule(object):
                     category=self.category,
                     destination=self.destination,
                     destination_type=self.destination_type,
-                    test=self.test.as_json())
+                    test=self.test.as_json(),
+                    label=self.label)
 
     @classmethod
     def from_json_array(cls, org, json):
@@ -5474,7 +5476,8 @@ class Rule(object):
                               category,
                               destination,
                               destination_type,
-                              Test.from_json(org, rule['test'])))
+                              Test.from_json(org, rule['test']),
+                              rule.get('label')))
 
         return rules
 
