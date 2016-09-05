@@ -67,6 +67,7 @@ class Channel(TembaModel):
     TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
     TYPE_KANNEL = 'KN'
+    TYPE_LINE = 'LN'
     TYPE_M3TECH = 'M3'
     TYPE_MBLOX = 'MB'
     TYPE_NEXMO = 'NX'
@@ -101,6 +102,9 @@ class Channel(TembaModel):
     CONFIG_PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
     CONFIG_PLIVO_APP_ID = 'PLIVO_APP_ID'
     CONFIG_AUTH_TOKEN = 'auth_token'
+    CONFIG_CHANNEL_ID = 'channel_id'
+    CONFIG_CHANNEL_SECRET = 'channel_secret'
+    CONFIG_CHANNEL_MID = 'channel_mid'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -144,6 +148,7 @@ class Channel(TembaModel):
         TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
         TYPE_JASMIN: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
+        TYPE_LINE: dict(scheme='line', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
         TYPE_MBLOX: dict(scheme='tel', max_length=459),
@@ -174,6 +179,7 @@ class Channel(TembaModel):
                     (TYPE_INFOBIP, "Infobip"),
                     (TYPE_JASMIN, "Jasmin"),
                     (TYPE_KANNEL, "Kannel"),
+                    (TYPE_LINE, "LINE"),
                     (TYPE_M3TECH, "M3 Tech"),
                     (TYPE_MBLOX, "Mblox"),
                     (TYPE_NEXMO, "Nexmo"),
@@ -527,7 +533,7 @@ class Channel(TembaModel):
         channel_secret = credentials.get('channel_secret')
         channel_mid = credentials.get('channel_mid')
 
-        channel = Channel.create(org, user, None, LINE, name=name, address=channel_mid, config={CHANNEL_ID: channel_id, CHANNEL_SECRET: channel_secret, CHANNEL_MID: channel_mid})
+        channel = Channel.create(org, user, None, Channel.TYPE_LINE, name=name, address=channel_mid, config={Channel.CONFIG_CHANNEL_ID: channel_id, Channel.CONFIG_CHANNEL_SECRET: channel_secret, Channel.CONFIG_CHANNEL_MID: channel_mid})
         return channel
 
     @classmethod
@@ -1149,9 +1155,9 @@ class Channel(TembaModel):
         from linebot.client import LineBotClient
 
         credentials = {
-            CHANNEL_MID: channel.config.get(CHANNEL_MID),
-            CHANNEL_SECRET: channel.config.get(CHANNEL_SECRET),
-            CHANNEL_ID: channel.config.get(CHANNEL_ID)
+            Channel.CONFIG_CHANNEL_MID: channel.config.get(Channel.CONFIG_CHANNEL_MID),
+            Channel.CONFIG_CHANNEL_SECRET: channel.config.get(Channel.CONFIG_CHANNEL_SECRET),
+            Channel.CONFIG_CHANNEL_ID: channel.config.get(Channel.CONFIG_CHANNEL_ID)
         }
 
         line_bot_client = LineBotClient(**credentials)

@@ -1931,12 +1931,11 @@ class LINEHandler(View):
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
-        from temba.channels.models import LINE
         from linebot.receives import Receive
 
         channel_uuid = kwargs['uuid']
 
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=LINE).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_LINE).exclude(org=None).first()
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
