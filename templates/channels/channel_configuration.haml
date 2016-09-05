@@ -572,6 +572,32 @@
     %code
       {{ channel.secret }}
 
+  -elif object.channel_type == 'VI'
+    %h4
+      -blocktrans
+        Your Viber channel is connected, if need the IP addresses, status and receive endpoints are listed below.
+
+    %hr
+
+    %h4
+      -trans "IP Addresses"
+
+    -for ip_address in ip_addresses
+      %code= ip_address
+
+    %h4
+      -trans "Status URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_handler' 'status' object.uuid %}
+
+    %h4
+      -trans "Receive URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_handler' 'receive' object.uuid %}
+
+
   -elif object.channel_type == 'GL'
     %h4
       -blocktrans

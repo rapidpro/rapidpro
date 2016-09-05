@@ -1480,8 +1480,7 @@ class Flow(TembaModel):
         runs = []
         channel = self.org.get_call_channel()
 
-        from temba.channels.models import CALL
-        if not channel or CALL not in channel.role:
+        if not channel or Channel.ROLE_CALL not in channel.role:
             return runs
 
         for contact_id in all_contact_ids:
@@ -2197,7 +2196,8 @@ class Flow(TembaModel):
                     config = dict()
 
                 # cap our lengths
-                label = label[:64]
+                if label:
+                    label = label[:64]
 
                 if operand:
                     operand = operand[:128]
@@ -3012,6 +3012,7 @@ class RuleSet(models.Model):
     TYPE_FORM_FIELD = 'form_field'
     TYPE_CONTACT_FIELD = 'contact_field'
     TYPE_EXPRESSION = 'expression'
+    TYPE_RANDOM = 'random'
     TYPE_SUBFLOW = 'subflow'
 
     CONFIG_WEBHOOK = 'webhook'
@@ -3037,7 +3038,8 @@ class RuleSet(models.Model):
                     (TYPE_AIRTIME, "Transfer Airtime"),
                     (TYPE_FORM_FIELD, "Split by message form"),
                     (TYPE_CONTACT_FIELD, "Split on contact field"),
-                    (TYPE_EXPRESSION, "Split by expression"))
+                    (TYPE_EXPRESSION, "Split by expression"),
+                    (TYPE_SUBFLOW, "Split Randomly"))
 
     uuid = models.CharField(max_length=36, unique=True)
 
@@ -3649,8 +3651,6 @@ class ExportFlowResultsTask(SmartModel):
 
     flows = models.ManyToManyField(Flow, related_name='exports', help_text=_("The flows to export"))
 
-    host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-
     task_id = models.CharField(null=True, max_length=64)
 
     is_finished = models.BooleanField(default=False, help_text=_("Whether this export is complete"))
@@ -3662,13 +3662,13 @@ class ExportFlowResultsTask(SmartModel):
                               help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, host, org, user, flows, contact_fields, responded_only, include_runs, include_msgs):
+    def create(cls, org, user, flows, contact_fields, responded_only, include_runs, include_msgs):
         config = {ExportFlowResultsTask.INCLUDE_RUNS: include_runs,
                   ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
                   ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
                   ExportFlowResultsTask.RESPONDED_ONLY: responded_only}
 
-        export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user, host=host,
+        export = ExportFlowResultsTask.objects.create(org=org, created_by=user, modified_by=user,
                                                       config=json.dumps(config))
         for flow in flows:
             export.flows.add(flow)
@@ -4093,8 +4093,7 @@ class ExportFlowResultsTask(SmartModel):
         subject = "Your export is ready"
         template = 'flows/email/flow_export_download'
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
+        branding = self.org.get_branding()
         download_url = branding['link'] + get_asset_url(AssetType.results_export, self.pk)
 
         # force a gc
@@ -4187,8 +4186,11 @@ class FlowStart(SmartModel):
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES,
                               help_text=_("The status of this flow start"))
 
+    extra = models.TextField(null=True,
+                             help_text=_("Any extra parameters to pass to the flow start (json)"))
+
     @classmethod
-    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True):
+    def create(cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None):
         if contacts is None:
             contacts = []
 
@@ -4196,6 +4198,7 @@ class FlowStart(SmartModel):
             groups = []
 
         start = FlowStart.objects.create(flow=flow, restart_participants=restart_participants,
+                                         extra=json.dumps(extra) if extra else None,
                                          created_by=user, modified_by=user)
 
         for contact in contacts:
@@ -4218,7 +4221,10 @@ class FlowStart(SmartModel):
             groups = [g for g in self.groups.all()]
             contacts = [c for c in self.contacts.all().only('is_test')]
 
-            self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self)
+            # load up our extra if any
+            extra = json.loads(self.extra) if self.extra else None
+
+            self.flow.start(groups, contacts, restart_participants=self.restart_participants, flow_start=self, extra=extra)
 
         except Exception as e:  # pragma: no cover
             import traceback
@@ -4796,6 +4802,17 @@ class ReplyAction(Action):
 
     @classmethod
     def from_json(cls, org, json_obj):
+        # assert we have some kind of message in this reply
+        msg = json_obj.get(ReplyAction.MESSAGE)
+        if isinstance(msg, dict):
+            if not msg:
+                raise FlowException("Invalid reply action, empty message dict")
+
+            if not any([v for v in msg.values()]):
+                raise FlowException("Invalid reply action, missing at least one message")
+        elif not msg:
+            raise FlowException("Invalid reply action, no message")
+
         return ReplyAction(msg=json_obj.get(ReplyAction.MESSAGE))
 
     def as_json(self):
@@ -5036,7 +5053,7 @@ class TriggerFlowAction(VariableContactAction):
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
                 self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
-                                extra=extra, parent_run=run)
+                                extra=extra, parent_run=run, interrupt=False)
                 return []
             else:
                 unique_contacts = set()

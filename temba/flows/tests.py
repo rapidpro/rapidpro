@@ -42,6 +42,7 @@ from .models import HasStateTest, HasDistrictTest, HasWardTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
 from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog, \
     VariableContactAction, UssdAction
+from .flow_migrations import map_actions
 from temba.msgs.models import WIRED
 
 
@@ -317,6 +318,12 @@ class FlowTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
         self.assertTrue('mutable' in response.context)
+        self.assertTrue('has_airtime_service' in response.context)
+
+        self.login(self.superuser)
+        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
+        self.assertTrue('mutable' in response.context)
+        self.assertTrue('has_airtime_service' in response.context)
 
     def test_states(self):
         # set our flow
@@ -565,8 +572,7 @@ class FlowTest(TembaTest):
         self.login(self.admin)
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportFlowResultsTask.objects.create(org=self.org, host='test',
-                                                               created_by=self.admin, modified_by=self.admin)
+        blocking_export = ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
         response = self.client.post(reverse('flows.flow_export_results'), dict(flows=[self.flow.pk]), follow=True)
         self.assertContains(response, "already an export in progress")
 
@@ -574,7 +580,7 @@ class FlowTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             workbook = self.export_flow_results(self.flow)
 
         tz = pytz.timezone(self.org.timezone)
@@ -667,7 +673,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(47):
+        with self.assertNumQueries(48):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = pytz.timezone(self.org.timezone)
@@ -1465,8 +1471,8 @@ class FlowTest(TembaTest):
         self.assertEquals(BetweenTest, Test.from_json(org, js).__class__)
         self.assertEquals(js, BetweenTest("5", "10").as_json())
 
-        self.assertEquals(ReplyAction, Action.from_json(org, dict(type='reply', msg="hello world")).__class__)
-        self.assertEquals(SendAction, Action.from_json(org, dict(type='send', msg="hello world", contacts=[], groups=[], variables=[])).__class__)
+        self.assertEquals(ReplyAction, Action.from_json(org, dict(type='reply', msg=dict(base="hello world"))).__class__)
+        self.assertEquals(SendAction, Action.from_json(org, dict(type='send', msg=dict(base="hello world"), contacts=[], groups=[], variables=[])).__class__)
 
     def test_decimal_values(self):
         flow = self.flow
@@ -2302,6 +2308,15 @@ class ActionTest(TembaTest):
     def test_reply_action(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
         run = FlowRun.create(self.flow, self.contact.pk)
+
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE})
+
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE, ReplyAction.MESSAGE: dict()})
+
+        with self.assertRaises(FlowException):
+            ReplyAction.from_json(self.org, {'type': ReplyAction.TYPE, ReplyAction.MESSAGE: dict(base="")})
 
         action = ReplyAction(dict(base="We love green too!"))
         action.execute(run, None, msg)
@@ -6111,3 +6126,64 @@ class TimeoutTest(FlowFileTest):
         # and we should have sent our message
         self.assertEquals("Don't worry about it , we'll catch up next week.",
                           Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+
+
+class MigrationUtilsTest(TembaTest):
+
+    def test_map_actions(self):
+        # minimalist flow def with just actions and entry
+        flow_def = dict(entry='1234', action_sets=[dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None)])], rule_sets=[dict(y=10, uuid='5678')])
+        removed = map_actions(flow_def, lambda x: None)
+
+        # no more action sets and entry is remapped
+        self.assertFalse(removed['action_sets'])
+        self.assertEqual('5678', removed['entry'])
+
+        # add two action sets, we should remap entry to be the first
+        flow_def['action_sets'] = [dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None)]), dict(uuid='2345', y=5, actions=[dict(type='reply', msg="foo")])]
+        removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
+
+        self.assertEqual(len(removed['action_sets']), 1)
+        self.assertEqual(removed['action_sets'][0]['uuid'], '2345')
+        self.assertEqual(removed['entry'], '2345')
+
+        # remove a single action
+        flow_def['action_sets'] = [dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None), dict(type='reply', msg="foo")])]
+        removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
+
+        self.assertEqual(len(removed['action_sets']), 1)
+        self.assertEqual(len(removed['action_sets'][0]['actions']), 1)
+        self.assertEqual(removed['entry'], '1234')
+
+        # no entry
+        flow_def = dict(entry='1234', action_sets=[dict(uuid='1234', y=0, actions=[dict(type='reply', msg=None)])], rule_sets=[])
+        removed = map_actions(flow_def, lambda x: None if x['msg'] is None else x)
+
+        self.assertEqual(len(removed['action_sets']), 0)
+        self.assertEqual(removed['entry'], None)
+
+
+class TriggerFlowTest(FlowFileTest):
+
+    def test_trigger_then_loop(self):
+        # start our parent flow
+        flow = self.get_flow('parent_child_loop')
+        flow.start([], [self.contact])
+
+        # trigger our second flow to start
+        msg = self.create_msg(contact=self.contact, direction='I', text="add 12067797878")
+        Flow.find_and_handle(msg)
+
+        FlowRun.objects.get(contact__urns__path="+12067797878")
+
+        # main contact should still be in the flow
+        run = FlowRun.objects.get(flow=flow, contact=self.contact)
+        self.assertTrue(run.is_active)
+
+        # and can do it again
+        msg = self.create_msg(contact=self.contact, direction='I', text="add 12067798080")
+        Flow.find_and_handle(msg)
+
+        FlowRun.objects.get(contact__urns__path="+12067798080")
+        run.refresh_from_db()
+        self.assertTrue(run.is_active)

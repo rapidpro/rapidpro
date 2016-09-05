@@ -22,7 +22,7 @@ from temba_expressions.evaluator import EvaluationContext, DateStyle
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
-from temba.channels.models import Channel, ChannelEvent, ANDROID, SEND, CALL
+from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
 from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
@@ -165,8 +165,8 @@ class Broadcast(models.Model):
     urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"), related_name='addressed_broadcasts',
                                   help_text=_("Individual URNs included in this message"))
 
-    recipients = models.ManyToManyField(ContactURN, verbose_name=_("Recipients"), related_name='broadcasts',
-                                        help_text=_("The URNs which received this message"))
+    recipients = models.ManyToManyField(Contact, verbose_name=_("Recipients"), related_name='broadcasts',
+                                        help_text=_("The contacts which received this message"))
 
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
                                           help_text=_("Number of urns which received this broadcast"))
@@ -461,7 +461,7 @@ class Broadcast(models.Model):
             if msg:
                 batch.append(msg)
                 # keep track of this URN as a recipient
-                recipient_batch.append(RelatedRecipient(contacturn_id=msg.contact_urn_id, broadcast_id=self.id))
+                recipient_batch.append(RelatedRecipient(contact_id=msg.contact_id, broadcast_id=self.id))
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
@@ -696,7 +696,7 @@ class Msg(models.Model):
 
                 # update them to queued
                 send_messages = Msg.current_messages.filter(id__in=msg_ids)\
-                                                    .exclude(channel__channel_type=ANDROID)\
+                                                    .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
                                                     .exclude(msg_type=IVR)\
                                                     .exclude(topup=None)\
                                                     .exclude(contact__is_test=True)
@@ -704,7 +704,7 @@ class Msg(models.Model):
 
                 # now push each onto our queue
                 for msg in msgs:
-                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != ANDROID) and \
+                    if (msg.msg_type != IVR and msg.channel and msg.channel.channel_type != Channel.TYPE_ANDROID) and \
                             msg.topup and not msg.contact.is_test:
 
                         # if this is a different contact than our last, and we have msgs for that last contact, queue the task
@@ -969,6 +969,39 @@ class Msg(models.Model):
 
             return parts
 
+    @classmethod
+    def get_sync_commands(self, channel, msgs):
+        """
+        Returns the minimal # of broadcast commands for the given Android channel to uniquely represent all the
+        messages which are being sent to tel URNs. This will return an array of dicts that look like:
+             dict(cmd="mt_bcast", to=[dict(phone=msg.contact.tel, id=msg.pk) for msg in msgs], msg=broadcast.text))
+        """
+        commands = []
+        current_msg = None
+        contact_id_pairs = []
+
+        ordered_msgs = Msg.all_messages.filter(id__in=[m.id for m in msgs]).order_by('created_on')
+
+        for msg in ordered_msgs:
+            if msg.text != current_msg and contact_id_pairs:
+                commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
+                contact_id_pairs = []
+
+            current_msg = msg.text
+            contact_id_pairs.append(dict(phone=msg.contact_urn.path, id=msg.pk))
+
+        if contact_id_pairs:
+            commands.append(dict(cmd='mt_bcast', to=contact_id_pairs, msg=current_msg))
+
+        return commands
+
+    def get_last_log(self):
+        """
+        Gets the last channel log for this message. Performs sorting in Python to ease pre-fetching.
+        """
+        sorted_logs = sorted(self.channel_logs.all(), key=lambda l: l.created_on, reverse=True)
+        return sorted_logs[0] if sorted_logs else None
+
     def get_media_path(self):
 
         if self.media:
@@ -1049,7 +1082,7 @@ class Msg(models.Model):
             raise ValueError(ugettext("Cannot process an outgoing message."))
 
         # process Android and test contact messages inline
-        if not self.channel or self.channel.channel_type == ANDROID or self.contact.is_test:
+        if not self.channel or self.channel.channel_type == Channel.TYPE_ANDROID or self.contact.is_test:
             Msg.process_message(self)
 
         # others do in celery
@@ -1147,7 +1180,7 @@ class Msg(models.Model):
             raise Exception(_("Can't create an incoming message without an org"))
 
         if not user:
-            user = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
+            user = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
 
         if not date:
             date = timezone.now()  # no date?  set it to now
@@ -1273,7 +1306,7 @@ class Msg(models.Model):
             raise ValueError("Trying to create outgoing message with no org or user")
 
         # for IVR messages we need a channel that can call
-        role = CALL if msg_type == IVR else SEND
+        role = Channel.ROLE_CALL if msg_type == IVR else Channel.ROLE_SEND
 
         if status != SENT:
             # if message will be sent, resolve the recipient to a contact and URN
@@ -1376,7 +1409,7 @@ class Msg(models.Model):
         return Msg.all_messages.create(**msg_args) if insert_object else Msg(**msg_args)
 
     @staticmethod
-    def resolve_recipient(org, user, recipient, channel, role=SEND):
+    def resolve_recipient(org, user, recipient, channel, role=Channel.ROLE_SEND):
         """
         Recipient can be a contact, a URN object, or a URN tuple, e.g. ('tel', '123'). Here we resolve the contact and
         contact URN to use for an outgoing message.
@@ -1899,8 +1932,6 @@ class ExportMessagesTask(SmartModel):
 
     end_date = models.DateField(null=True, blank=True, help_text=_("The date for the newest message to export"))
 
-    host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
-
     task_id = models.CharField(null=True, max_length=64)
 
     is_finished = models.BooleanField(default=False, help_text=_("Whether this export is finished running"))
@@ -2022,8 +2053,7 @@ class ExportMessagesTask(SmartModel):
         store = AssetType.message_export.store
         store.save(self.pk, File(temp), 'xls')
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
+        branding = self.org.get_branding()
 
         subject = "Your messages export is ready"
         template = 'msgs/email/msg_export_download'

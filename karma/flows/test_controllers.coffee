@@ -245,6 +245,44 @@ describe 'Controllers:', ->
       expect(lastRule['test']['type']).toBe('timeout')
       expect(lastRule['test']['minutes']).toBe(10)
 
+    it 'should save random rulesets', ->
+      loadFavoritesFlow()
+
+      ruleset = flowService.flow.rule_sets[0]
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'random'
+        scope.formData.buckets = 2
+        scope.updateRandomBuckets()
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.ruleset_type).toBe('random')
+      expect(ruleset.rules.length).toBe(2)
+      expect(ruleset.operand).toBe('@(RAND())')
+      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"between","min":"0","max":"0.5"}')
+      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"between","min":"0.5","max":"1"}')
+
+      # now try setting it to 4 buckets
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'random'
+        scope.formData.buckets = 4
+        scope.updateRandomBuckets()
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(4)
+      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"between","min":"0","max":"0.25"}')
+      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"between","min":"0.25","max":"0.5"}')
+      expect(JSON.stringify(ruleset.rules[2].test)).toBe('{"type":"between","min":"0.5","max":"0.75"}')
+      expect(JSON.stringify(ruleset.rules[3].test)).toBe('{"type":"between","min":"0.75","max":"1"}')
+
+      # flip it over to a normal wait ruleset
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'wait_message'
+        scope.ruleset.rules = []
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(1)
+      expect(ruleset.operand).toBe('@step.value')
+
     it 'should save resthook rulesets', ->
 
       loadFavoritesFlow()

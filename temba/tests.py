@@ -94,7 +94,8 @@ class TembaTest(SmartminTest):
 
         self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand=settings.DEFAULT_BRAND,
                                       created_by=self.user, modified_by=self.user)
-        self.org.initialize()
+
+        self.org.initialize(topup_size=1000)
 
         # add users to the org
         self.user.set_org(self.org)
@@ -565,7 +566,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         self.click('#form-two-submit')
 
         # set up our channel for claiming
-        anon = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
+        anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
         channel = Channel.create(None, anon, 'RW', 'A', name="Test Channel", address="0785551212",
                                  claim_code='AAABBBCCC', secret="12345", gcm_id="123")
 

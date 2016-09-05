@@ -508,6 +508,10 @@
             .title.webhook-header{ng-show:'ruleset.ruleset_type=="wait_digits"'}
               -trans "Wait for Digits"
 
+            .title.passive.random{ng-show:'ruleset.ruleset_type=="random"'}
+              -trans "Random Split"
+              [[ruleset.label]]
+
             .title.passive.contact-field{ng-class:"{missing:getContactFieldName(ruleset).missing}", ng-show:'ruleset.ruleset_type=="contact_field"'}
               -trans "Split on "
               [[getContactFieldName(ruleset).text]]

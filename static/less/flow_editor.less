@@ -835,7 +835,7 @@
     }
   }
 
-  .save, .lang .channel {
+  .save, .lang, .channel {
     .title {
       text-shadow: 0px 1px @color-save-to-contact - #222;
       .bg-gradient(@color-save-to-contact, @color-save-to-contact - #101010);
@@ -1385,9 +1385,27 @@
       display:inline-block;
     }
 
+    .buckets {
+      padding-top:10px;
+      .bucket {
+        display:inline-block;
+
+        input {
+          width: 288px;
+        }
+      }
+
+
+
+    }
+
     input {
       width:206px;
       margin-left:5px;
+
+      &.split-buckets {
+        width: 40px;
+      }
     }
   }
 
