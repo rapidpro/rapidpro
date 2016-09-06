@@ -326,7 +326,11 @@ class CreateAPIMixin(object):
         serializer = self.write_serializer_class(user=user, data=request.data, context=context)
 
         if serializer.is_valid():
-            output = serializer.save()
+            try:
+                output = serializer.save()
+            except ValueError as e:
+                return Response(dict(non_field_errors=[e.message]), status=status.HTTP_400_BAD_REQUEST)
+
             return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
