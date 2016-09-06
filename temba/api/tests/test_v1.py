@@ -1829,7 +1829,7 @@ class APITest(TembaTest):
 
         # return error when trying to to create a new contact with many urns from different existing contacts
         response = self.postJSON(url, dict(name="Hart", urns=['tel:0788111222', 'tel:+250788333444']))
-        self.assertResponseError(response, 'non_field_errors', "Provided URNs belong to different existing contacts")
+        self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.v1.contacts')
