@@ -1948,6 +1948,17 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, 'Rwama Category')
 
+        # bad field
+        ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                    created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
+                                    dict(__field__state='eastern province', __field__home='rwamagana',
+                                         __field__language='Kinyarwanda'))
+
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters "
+                                                     "or is a reserved field name")
+
         # try to push into a dynamic group
         self.login(self.admin)
         group = self.create_group('Dynamo', query='dynamo')
