@@ -2324,6 +2324,7 @@ class BulkExportTest(TembaTest):
         self.login(self.admin)
 
         # try importing without having purchased credits
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
         post_data = dict(import_file=open('%s/test_flows/new_mother.json' % settings.MEDIA_ROOT, 'rb'))
         response = self.client.post(reverse('orgs.org_import'), post_data)
         self.assertEquals(response.context['form'].errors['import_file'][0], 'Sorry, import is a premium feature')
