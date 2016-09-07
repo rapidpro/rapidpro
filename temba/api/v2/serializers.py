@@ -308,7 +308,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
         else:
             if flow:
                 instance = CampaignEvent.create_flow_event(self.context['org'], self.context['user'], campaign,
-                                                           relative_to, offset, unit, self.flow_obj, delivery_hour)
+                                                           relative_to, offset, unit, flow, delivery_hour)
             else:
                 instance = CampaignEvent.create_message_event(self.context['org'], self.context['user'], campaign,
                                                               relative_to, offset, unit, message, delivery_hour)

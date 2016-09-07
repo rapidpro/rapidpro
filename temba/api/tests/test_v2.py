@@ -136,10 +136,31 @@ class APITest(TembaTest):
             self.assertEqual(response.json['detail'], expected_message)
 
     def test_serializer_fields(self):
+        group = self.create_group("Customers")
+        field_obj = ContactField.get_or_create(self.org, self.admin, 'registered', "Registered On")
+        flow = self.create_flow()
+        campaign = Campaign.create(self.org, self.admin, "Reminders #1", group)
+        event = CampaignEvent.create_flow_event(self.org, self.admin, campaign, field_obj,
+                                                6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12)
+
         field = fields.LimitedListField(child=serializers.IntegerField(), source='test')
 
         self.assertEqual(field.to_internal_value([1, 2, 3]), [1, 2, 3])
         self.assertRaises(serializers.ValidationError, field.to_internal_value, list(range(101)))  # too long
+
+        field = fields.CampaignField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value(campaign.uuid), campaign)
+
+        field = fields.CampaignEventField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value(event.uuid), event)
+
+        field.context = {'org': self.org2}
+
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, event.uuid)
 
         field = fields.ChannelField(source='test')
         field.context = {'org': self.org}
@@ -163,15 +184,25 @@ class APITest(TembaTest):
 
         field = fields.ContactGroupField(source='test')
         field.context = {'org': self.org}
-        group = self.create_group("Customers")
 
         self.assertEqual(field.to_internal_value(group.uuid), group)
 
+        field = fields.ContactFieldField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value('registered'), field_obj)
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 'xyx')
+
         field = fields.FlowField(source='test')
         field.context = {'org': self.org}
-        flow = self.create_flow()
 
         self.assertEqual(field.to_internal_value(flow.uuid), flow)
+
+        field = fields.URNField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value('tel:1234'), 'tel:1234')
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 'xyx')
 
     def test_authentication(self):
         def api_request(endpoint, token):
@@ -577,6 +608,10 @@ class APITest(TembaTest):
         response = self.postJSON(url, {'name': "Reminders #3", 'group': reporters.uuid})
         self.assertResponseError(response, 'non_field_errors', "Name must be unique")
 
+        # try to create a campaign with invalid name
+        response = self.postJSON(url, {'name': "  x   ", 'group': reporters.uuid})
+        self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 255 characters")
+
         # try to create a campaign with name that's too long
         response = self.postJSON(url, {'name': "x" * 256, 'group': reporters.uuid})
         self.assertResponseError(response, 'name', "Ensure this field has no more than 255 characters.")
@@ -660,7 +695,18 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'unit', "This field is required.")
         self.assertResponseError(response, 'delivery_hour', "This field is required.")
 
-        # provide values for those fields.. but not a message or flow
+        # try again with some invalid values
+        response = self.postJSON(url, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'epocs',
+            'delivery_hour': 25
+        })
+        self.assertResponseError(response, 'unit', "Must be one of days, hours, minutes, weeks")
+        self.assertResponseError(response, 'delivery_hour', "Must be either -1 (for same hour) or 0-23")
+
+        # provide valid values for those fields.. but not a message or flow
         response = self.postJSON(url, {
             'campaign': campaign1.uuid,
             'relative_to': 'registration',
@@ -670,7 +716,7 @@ class APITest(TembaTest):
         })
         self.assertResponseError(response, 'non_field_errors', "Flow UUID or a message text required.")
 
-        # specify a message text
+        # create a message event
         response = self.postJSON(url, {
             'campaign': campaign1.uuid,
             'relative_to': 'registration',
@@ -681,15 +727,15 @@ class APITest(TembaTest):
         })
         self.assertEqual(response.status_code, 201)
 
-        event = CampaignEvent.objects.get(campaign=campaign1, message="Nice job")
-        self.assertEqual(event.relative_to, registration)
-        self.assertEqual(event.offset, 15)
-        self.assertEqual(event.unit, 'W')
-        self.assertEqual(event.delivery_hour, -1)
+        event1 = CampaignEvent.objects.get(campaign=campaign1, message="Nice job")
+        self.assertEqual(event1.event_type, CampaignEvent.TYPE_MESSAGE)
+        self.assertEqual(event1.relative_to, registration)
+        self.assertEqual(event1.offset, 15)
+        self.assertEqual(event1.unit, 'W')
+        self.assertEqual(event1.delivery_hour, -1)
 
-        # update it to be a flow triggering event
+        # create a flow event
         response = self.postJSON(url, {
-            'uuid': event.uuid,
             'campaign': campaign1.uuid,
             'relative_to': 'registration',
             'offset': 15,
@@ -699,13 +745,49 @@ class APITest(TembaTest):
         })
         self.assertEqual(response.status_code, 201)
 
-        event.refresh_from_db()
-        self.assertIsNone(event.message)
-        self.assertEqual(event.flow, flow)
+        event2 = CampaignEvent.objects.get(campaign=campaign1, flow=flow)
+        self.assertEqual(event2.event_type, CampaignEvent.TYPE_FLOW)
+        self.assertEqual(event2.relative_to, registration)
+        self.assertEqual(event2.offset, 15)
+        self.assertEqual(event2.unit, 'W')
+        self.assertEqual(event2.delivery_hour, -1)
+
+        # update the message event to be a flow event
+        response = self.postJSON(url, {
+            'uuid': event1.uuid,
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'flow': flow.uuid
+        })
+        self.assertEqual(response.status_code, 201)
+
+        event1.refresh_from_db()
+        self.assertEqual(event1.event_type, CampaignEvent.TYPE_FLOW)
+        self.assertIsNone(event1.message)
+        self.assertEqual(event1.flow, flow)
+
+        # and update the flow event to be a message event
+        response = self.postJSON(url, {
+            'uuid': event2.uuid,
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'message': "OK"
+        })
+        self.assertEqual(response.status_code, 201)
+
+        event2.refresh_from_db()
+        self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
+        self.assertEqual(event2.message, "OK")
 
         # try to change an existing event's campaign
         response = self.postJSON(url, {
-            'uuid': event.uuid,
+            'uuid': event1.uuid,
             'campaign': campaign2.uuid,
             'relative_to': 'registration',
             'offset': 15,
@@ -720,11 +802,11 @@ class APITest(TembaTest):
         self.assertResponseError(response, None, "Must provide one of the following fields: uuid")
 
         # delete an event by UUID
-        response = self.deleteJSON(url, 'uuid=%s' % event.uuid)
+        response = self.deleteJSON(url, 'uuid=%s' % event1.uuid)
         self.assertEqual(response.status_code, 204)
 
-        event.refresh_from_db()
-        self.assertFalse(event.is_active)
+        event1.refresh_from_db()
+        self.assertFalse(event1.is_active)
 
     def test_channels(self):
         url = reverse('api.v2.channels')
