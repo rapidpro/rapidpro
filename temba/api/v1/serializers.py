@@ -439,6 +439,8 @@ class ContactWriteSerializer(WriteSerializer):
             org_fields = self.context['contact_fields']
 
             for field_key, field_val in value.items():
+                if field_key in Contact.RESERVED_FIELDS:
+                    raise serializers.ValidationError("Invalid contact field key: '%s' is a reserved word" % field_key)
                 for field in org_fields:
                     # TODO get users to stop writing fields via labels
                     if field.key == field_key or field.label == field_key:

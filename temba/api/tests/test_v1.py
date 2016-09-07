@@ -1596,6 +1596,11 @@ class APITest(TembaTest):
         contact.unblock(self.user)
         artists.contacts.add(contact)
 
+        # try updating with a reserved word field
+        response = self.postJSON(url, dict(phone='+250788123456', fields={"email": "andy@example.com"}))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'fields', "Invalid contact field key: 'email' is a reserved word")
+
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         self.assertEquals(400, response.status_code)
