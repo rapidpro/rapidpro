@@ -608,10 +608,6 @@ class APITest(TembaTest):
         response = self.postJSON(url, {'name': "Reminders #3", 'group': reporters.uuid})
         self.assertResponseError(response, 'non_field_errors', "Name must be unique")
 
-        # try to create a campaign with invalid name
-        response = self.postJSON(url, {'name': "  x   ", 'group': reporters.uuid})
-        self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 255 characters")
-
         # try to create a campaign with name that's too long
         response = self.postJSON(url, {'name': "x" * 256, 'group': reporters.uuid})
         self.assertResponseError(response, 'name', "Ensure this field has no more than 255 characters.")

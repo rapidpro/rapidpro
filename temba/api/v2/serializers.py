@@ -172,12 +172,6 @@ class CampaignWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=True, max_length=Campaign.MAX_NAME_LEN)
     group = fields.ContactGroupField(required=True)
 
-    def validate_name(self, value):
-        if not Campaign.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
-                                              % Campaign.MAX_NAME_LEN)
-        return value
-
     def validate(self, data):
         instance = data.get('uuid')
         name = data.get('name')
