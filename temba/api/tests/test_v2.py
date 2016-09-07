@@ -478,6 +478,14 @@ class APITest(TembaTest):
             }
         })
 
+        # if org doesn't have a country, just return no results
+        self.org.country = None
+        self.org.save()
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.json['results'], [])
+
+
     def test_broadcasts(self):
         url = reverse('api.v2.broadcasts')
 
@@ -2074,6 +2082,7 @@ class APITest(TembaTest):
         # check our list
         anon_contact = Contact.objects.get(urns__path="+12067791212")
 
+        # check no params
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
@@ -2094,3 +2103,7 @@ class APITest(TembaTest):
             'restart_participants': True,
             'status': 'complete'
         })
+
+        # check filtering by id
+        response = self.fetchJSON(url, "id=%d" % start.id)
+        self.assertResultsById(response, [start])
