@@ -47,8 +47,8 @@ def api(request, format=None):
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
-     * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, update or delete campaigns
-     * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
+     * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
+     * [/api/v2/campaign_events](/api/v2/campaign_events) - to list, create, update or delete campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
@@ -105,6 +105,8 @@ class ApiExplorerView(SmartTemplateView):
             CampaignsEndpoint.get_read_explorer(),
             CampaignsEndpoint.get_write_explorer(),
             CampaignEventsEndpoint.get_read_explorer(),
+            CampaignEventsEndpoint.get_write_explorer(),
+            CampaignEventsEndpoint.get_delete_explorer(),
             ChannelsEndpoint.get_read_explorer(),
             ChannelEventsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
@@ -331,6 +333,9 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
         queryset = queryset.filter(**filter_kwargs)
 
         return generics.get_object_or_404(queryset)
+
+    def perform_destroy(self, instance):
+        instance.release()
 
 
 # ============================================================
@@ -664,6 +669,46 @@ class CampaignsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
 
 class CampaignEventsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
+    ## Adding or Updating Campaign Events
+
+    You can add a new event to your campaign, or update the fields on an event by sending a **POST** request to this
+    URL with the following data:
+
+    * **uuid** - the UUID of the event (string, optional, only include if updating an existing campaign)
+    * **campaign** - the UUID of the campaign this event should be part of (string, can't be changed for existing events)
+    * **relative_to** - the field key that this event will be relative to (string)
+    * **offset** - the offset from our contact field (positive or negative integer)
+    * **unit** - the unit for our offset (one of "minutes", "hours", "days" or "weeks")
+    * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the field)
+    * **message** - the message to send to the contact (string, required if flow is not specified)
+    * **flow** - the UUID of the flow to start the contact down (string, required if message is not specified)
+
+    Example:
+
+        POST /api/v2/events.json
+        {
+            "campaign": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+            "relative_to": "last_hit",
+            "offset": 160,
+            "unit": "weeks",
+            "delivery_hour": -1,
+            "message": "Feeling sick and helpless, lost the compass where self is."
+        }
+
+    You will receive an event object as a response if successful:
+
+        {
+            "uuid": "6a6d7531-6b44-4c45-8c33-957ddd8dfabc",
+            "campaign": {"uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00", "name": "Hits"},
+            "relative_to": "last_hit",
+            "offset": 160,
+            "unit": "W",
+            "delivery_hour": -1,
+            "message": "Feeling sick and helpless, lost the compass where self is."
+            "flow": null,
+            "created_on": "2013-08-19T19:11:21.088453Z"
+        }
+
     ## Listing Campaign Events
 
     You can retrieve the campaign events for your organization by sending a ```GET``` to this endpoint, listing the
@@ -702,6 +747,16 @@ class CampaignEventsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseA
             },
             ...
         }
+
+    ## Deleting Events
+
+    A **DELETE** to the endpoint removes an event from your campaign. You specify which event to remove by its UUID.
+
+    Example:
+
+        DELETE /api/v2/events.json?uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc
+
+    You will receive either a 204 response if an event was deleted, or a 404 response if no matching event was found.
 
     """
     permission = 'campaigns.campaignevent_api'
@@ -752,6 +807,39 @@ class CampaignEventsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseA
                 {'name': "uuid", 'required': False, 'help': "An event UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter by. ex: Reminders"},
             ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Add or Update Campaign Events",
+            'url': reverse('api.v2.campaign_events'),
+            'slug': 'campaign-event-write',
+            'request': "",
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the campaign event to update"},
+                {'name': "campaign", 'required': False, 'help': "The UUID of the campaign this event belongs to"},
+                {'name': "relative_to", 'required': True, 'help': "The key of the contact field this event is relative to. (string)"},
+                {'name': "offset", 'required': True, 'help': "The offset from the relative_to field value (integer, positive or negative)"},
+                {'name': "unit", 'required': True, 'help': 'The unit of the offset (one of "minutes, "hours", "days", "weeks")'},
+                {'name': "delivery_hour", 'required': True, 'help': "The hour this event should be triggered, or -1 if the event should be sent at the same hour as our date (integer, -1 or 0-23)"},
+                {'name': "message", 'required': False, 'help': "The message that should be sent to the contact when this event is triggered (string)"},
+                {'name': "flow", 'required': False, 'help': "The UUID of the flow that the contact should start when this event is triggered (string)"}
+            ]
+        }
+
+    @classmethod
+    def get_delete_explorer(cls):
+        return {
+            'method': "DELETE",
+            'title': "Delete Campaign Events",
+            'url': reverse('api.v2.campaign_events'),
+            'slug': 'campaign-event-delete',
+            'request': '',
+            'fields': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the campaign event to delete"}
+            ],
         }
 
 
@@ -1530,9 +1618,6 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
-    def perform_destroy(self, instance):
-        instance.release()
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -1673,9 +1758,6 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             queryset = queryset.filter(uuid=uuid)
 
         return queryset.filter(is_active=True)
-
-    def perform_destroy(self, instance):
-        instance.release()
 
     @classmethod
     def get_read_explorer(cls):

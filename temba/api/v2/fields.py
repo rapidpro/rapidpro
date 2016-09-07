@@ -99,6 +99,14 @@ class CampaignField(TembaModelField):
 class CampaignEventField(TembaModelField):
     model = CampaignEvent
 
+    def to_internal_value(self, data):
+        obj = self.model.objects.filter(uuid=data, is_active=True).first()
+
+        if not obj or obj.campaign.org != self.context['org']:
+            raise serializers.ValidationError("No such object with UUID: %s" % data)
+
+        return obj
+
 
 class ChannelField(TembaModelField):
     model = Channel

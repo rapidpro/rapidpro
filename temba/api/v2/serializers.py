@@ -231,9 +231,9 @@ class CampaignEventWriteSerializer(WriteSerializer):
     UNITS = extract_constants(CampaignEvent.UNIT_CONFIG, reverse=True)
 
     uuid = fields.CampaignEventField(required=False)
-    campaign = fields.CampaignField(required=False)
+    campaign = fields.CampaignField(required=True)
     offset = serializers.IntegerField(required=True)
-    unit = serializers.CharField(required=True, max_length=1)
+    unit = serializers.CharField(required=True)
     delivery_hour = serializers.IntegerField(required=True)
     relative_to = fields.ContactFieldField(required=True)
     message = serializers.CharField(required=False, max_length=320)
@@ -241,7 +241,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
 
     def validate_unit(self, value):
         if value not in self.UNITS:
-            raise serializers.ValidationError("Must be one of %s" % ", ".join(self.UNITS.keys()))
+            raise serializers.ValidationError("Must be one of %s" % ", ".join(sorted(self.UNITS.keys())))
         return self.UNITS[value]
 
     def validate_delivery_hour(self, value):
@@ -250,14 +250,16 @@ class CampaignEventWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
+        instance = data.get('uuid')
+        campaign = data.get('campaign')
         message = data.get('message')
         flow = data.get('flow')
 
         if (message and flow) or (not message and not flow):
-            raise serializers.ValidationError("Must specify either a flow or a message for the event")
+            raise serializers.ValidationError("Flow UUID or a message text required.")
 
-        if data.get('uuid') and data.get('campaign'):
-            raise serializers.ValidationError("Cannot specify campaign if updating an existing event")
+        if instance and campaign and instance.campaign != campaign:
+            raise serializers.ValidationError("Cannot change campaign for existing events")
 
         return data
 

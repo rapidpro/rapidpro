@@ -652,6 +652,80 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'campaign=invalid')
         self.assertResultsByUUID(response, [])
 
+        # try to create empty campaign event
+        response = self.postJSON(url, {})
+        self.assertResponseError(response, 'campaign', "This field is required.")
+        self.assertResponseError(response, 'relative_to', "This field is required.")
+        self.assertResponseError(response, 'offset', "This field is required.")
+        self.assertResponseError(response, 'unit', "This field is required.")
+        self.assertResponseError(response, 'delivery_hour', "This field is required.")
+
+        # provide values for those fields.. but not a message or flow
+        response = self.postJSON(url, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1
+        })
+        self.assertResponseError(response, 'non_field_errors', "Flow UUID or a message text required.")
+
+        # specify a message text
+        response = self.postJSON(url, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'message': "Nice job"
+        })
+        self.assertEqual(response.status_code, 201)
+
+        event = CampaignEvent.objects.get(campaign=campaign1, message="Nice job")
+        self.assertEqual(event.relative_to, registration)
+        self.assertEqual(event.offset, 15)
+        self.assertEqual(event.unit, 'W')
+        self.assertEqual(event.delivery_hour, -1)
+
+        # update it to be a flow triggering event
+        response = self.postJSON(url, {
+            'uuid': event.uuid,
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'flow': flow.uuid
+        })
+        self.assertEqual(response.status_code, 201)
+
+        event.refresh_from_db()
+        self.assertIsNone(event.message)
+        self.assertEqual(event.flow, flow)
+
+        # try to change an existing event's campaign
+        response = self.postJSON(url, {
+            'uuid': event.uuid,
+            'campaign': campaign2.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'flow': flow.uuid
+        })
+        self.assertResponseError(response, 'non_field_errors', "Cannot change campaign for existing events")
+
+        # try an empty delete request
+        response = self.deleteJSON(url, {})
+        self.assertResponseError(response, None, "Must provide one of the following fields: uuid")
+
+        # delete an event by UUID
+        response = self.deleteJSON(url, 'uuid=%s' % event.uuid)
+        self.assertEqual(response.status_code, 204)
+
+        event.refresh_from_db()
+        self.assertFalse(event.is_active)
+
     def test_channels(self):
         url = reverse('api.v2.channels')
 
