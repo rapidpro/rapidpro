@@ -1484,19 +1484,39 @@ class OrgTest(TembaTest):
 
     def test_tiers(self):
 
+        # default is no tiers, everything is allowed, go crazy!
+        self.assertTrue(self.org.is_import_flows_tier())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertTrue(self.org.is_multi_org_tier())
+
+        # same when tiers are missing completely
+        del settings.BRANDING[settings.DEFAULT_BRAND]['tiers']
+        self.assertTrue(self.org.is_import_flows_tier())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertTrue(self.org.is_multi_org_tier())
+
         # not enough credits with tiers enabled
-        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
         self.assertIsNone(self.org.create_sub_org('Sub Org A'))
+        self.assertFalse(self.org.is_import_flows_tier())
+        self.assertFalse(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # not enough credits, but tiers disabled
-        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=0, multi_user=0, multi_org=0)
         self.assertIsNotNone(self.org.create_sub_org('Sub Org A'))
+        self.assertTrue(self.org.is_import_flows_tier())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertTrue(self.org.is_multi_org_tier())
 
         # tiers enabled, but enough credits
-        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(import_flows=1, multi_user=100000, multi_org=1000000)
         TopUp.create(self.admin, price=100, credits=1000000)
         self.org.update_caches(OrgEvent.topup_updated, None)
         self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
+        self.assertTrue(self.org.is_import_flows_tier())
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertTrue(self.org.is_multi_org_tier())
 
     def test_sub_orgs(self):
 
