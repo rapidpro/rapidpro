@@ -1356,7 +1356,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                                                                          success_url=self.get_success_url(),
                                                                          success_script=getattr(self, 'success_script', None)))
 
-            except IntegrityError as e:  # pragma: no cover
+            except (IntegrityError, ValueError) as e:  # pragma: no cover
                 message = str(e).capitalize()
                 errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
                 errors.append(message)

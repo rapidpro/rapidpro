@@ -176,7 +176,7 @@ class ModalMixin(SmartFormView):
                 response['Temba-Success'] = self.get_success_url()
                 return response
 
-        except IntegrityError as e:  # pragma: no cover
+        except (IntegrityError, ValueError) as e:
             message = str(e).capitalize()
             errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
             errors.append(message)
