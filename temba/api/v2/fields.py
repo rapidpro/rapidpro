@@ -75,16 +75,15 @@ class TembaModelField(serializers.RelatedField):
                 list_kwargs[key] = kwargs[key]
         return TembaModelField.LimitedSizeList(**list_kwargs)
 
-    def get_queryset(self):  # pragma: no cover
-        # we use our own fetching logic in to_internal_value
-        return self.model.none()
+    def get_queryset(self):
+        manager = getattr(self.model, self.model_manager)
+        return manager.filter(org=self.context['org'], is_active=True)
 
     def to_representation(self, obj):
         return {'uuid': obj.uuid, 'name': obj.name}
 
     def to_internal_value(self, data):
-        manager = getattr(self.model, self.model_manager)
-        obj = manager.filter(org=self.context['org'], uuid=data, is_active=True).first()
+        obj = self.get_queryset().filter(uuid=data).first()
 
         if not obj:
             raise serializers.ValidationError("No such object with UUID: %s" % data)
@@ -99,13 +98,8 @@ class CampaignField(TembaModelField):
 class CampaignEventField(TembaModelField):
     model = CampaignEvent
 
-    def to_internal_value(self, data):
-        obj = self.model.objects.filter(uuid=data, is_active=True).first()
-
-        if not obj or obj.campaign.org != self.context['org']:
-            raise serializers.ValidationError("No such object with UUID: %s" % data)
-
-        return obj
+    def get_queryset(self):
+        return self.model.objects.filter(campaign__org=self.context['org'], is_active=True)
 
 
 class ChannelField(TembaModelField):
