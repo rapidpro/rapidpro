@@ -808,7 +808,7 @@ class ResthookReadSerializer(ReadSerializer):
 
 
 class ResthookSubscriberReadSerializer(ReadSerializer):
-    resthook = serializers.SlugField()
+    resthook = serializers.SerializerMethodField()
 
     def get_resthook(self, obj):
         return obj.resthook.slug
