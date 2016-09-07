@@ -227,21 +227,14 @@ class CampaignEventWriteSerializer(WriteSerializer):
     uuid = fields.CampaignEventField(required=False)
     campaign = fields.CampaignField(required=True)
     offset = serializers.IntegerField(required=True)
-    unit = serializers.CharField(required=True)
-    delivery_hour = serializers.IntegerField(required=True)
+    unit = serializers.ChoiceField(required=True, choices=UNITS.keys())
+    delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
     relative_to = fields.ContactFieldField(required=True)
     message = serializers.CharField(required=False, max_length=320)
     flow = fields.FlowField(required=False)
 
     def validate_unit(self, value):
-        if value not in self.UNITS:
-            raise serializers.ValidationError("Must be one of %s" % ", ".join(sorted(self.UNITS.keys())))
         return self.UNITS[value]
-
-    def validate_delivery_hour(self, value):
-        if value < -1 or value > 23:
-            raise serializers.ValidationError("Must be either -1 (for same hour) or 0-23")
-        return value
 
     def validate(self, data):
         instance = data.get('uuid')

@@ -699,8 +699,8 @@ class APITest(TembaTest):
             'unit': 'epocs',
             'delivery_hour': 25
         })
-        self.assertResponseError(response, 'unit', "Must be one of days, hours, minutes, weeks")
-        self.assertResponseError(response, 'delivery_hour', "Must be either -1 (for same hour) or 0-23")
+        self.assertResponseError(response, 'unit', "\"epocs\" is not a valid choice.")
+        self.assertResponseError(response, 'delivery_hour', "Ensure this value is less than or equal to 23.")
 
         # provide valid values for those fields.. but not a message or flow
         response = self.postJSON(url, {
