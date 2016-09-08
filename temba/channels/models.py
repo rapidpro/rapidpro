@@ -1094,11 +1094,13 @@ class Channel(TembaModel):
     @classmethod
     def send_facebook_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
+        from temba.flows.models import RuleSet
+        from temba.utils.fb_payload import get_fb_payload
 
         # build our payload
         payload = dict()
         payload['recipient'] = dict(id=msg.urn_path)
-        payload['message'] = dict(text=text)
+        payload['message'] = get_fb_payload(msg, text)
         payload = json.dumps(payload)
 
         url = "https://graph.facebook.com/v2.5/me/messages"
