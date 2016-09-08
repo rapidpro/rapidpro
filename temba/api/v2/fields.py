@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import six
 
+from django.db.models import Q
 from rest_framework import serializers
 
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -57,6 +58,7 @@ class URNListField(LimitedListField):
 class TembaModelField(serializers.RelatedField):
     model = None
     model_manager = 'objects'
+    lookup_fields = ('uuid',)
 
     class LimitedSizeList(serializers.ManyRelatedField):
         def run_validation(self, data=serializers.empty):
@@ -67,7 +69,7 @@ class TembaModelField(serializers.RelatedField):
     @classmethod
     def many_init(cls, *args, **kwargs):
         """
-        Overrided to provide a custom ManyRelated which limits number of items
+        Overridden to provide a custom ManyRelated which limits number of items
         """
         list_kwargs = {'child_relation': cls(*args, **kwargs)}
         for key in kwargs.keys():
@@ -83,10 +85,14 @@ class TembaModelField(serializers.RelatedField):
         return {'uuid': obj.uuid, 'name': obj.name}
 
     def to_internal_value(self, data):
-        obj = self.get_queryset().filter(uuid=data).first()
+        query = Q()
+        for lookup_field in self.lookup_fields:
+            query |= Q(**{lookup_field: data})
+
+        obj = self.get_queryset().filter(query).first()
 
         if not obj:
-            raise serializers.ValidationError("No such object with UUID: %s" % data)
+            raise serializers.ValidationError("No such object: %s" % data)
 
         return obj
 
@@ -109,26 +115,34 @@ class ChannelField(TembaModelField):
 class ContactField(TembaModelField):
     model = Contact
 
+    def get_queryset(self):
+        return self.model.objects.filter(org=self.context['org'], is_active=True, is_test=False)
 
-class ContactFieldField(serializers.RelatedField):
-    def get_queryset(self):  # pragma: no cover
-        # we use our own fetching logic in to_internal_value
-        return self.model.none()
+
+class ContactFieldField(TembaModelField):
+    model = ContactFieldModel
+    lookup_fields = ('key',)
 
     def to_representation(self, obj):
         return {'key': obj.key, 'label': obj.label}
-
-    def to_internal_value(self, data):
-        obj = ContactFieldModel.objects.filter(org=self.context['org'], key=data, is_active=True).first()
-        if not obj:
-            raise serializers.ValidationError("No such contact field with key: %s" % data)
-
-        return obj
 
 
 class ContactGroupField(TembaModelField):
     model = ContactGroup
     model_manager = 'user_groups'
+    lookup_fields = ('uuid', 'name')
+
+    def __init__(self, **kwargs):
+        self.allow_dynamic = kwargs.pop('allow_dynamic', True)
+        super(ContactGroupField, self).__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        obj = super(ContactGroupField, self).to_internal_value(data)
+
+        if not self.allow_dynamic and obj.is_dynamic:
+            raise serializers.ValidationError("Contact group must not be dynamic: %s" % data)
+
+        return obj
 
 
 class FlowField(TembaModelField):
@@ -138,3 +152,4 @@ class FlowField(TembaModelField):
 class LabelField(TembaModelField):
     model = Label
     model_manager = 'label_objects'
+    lookup_fields = ('uuid', 'name')

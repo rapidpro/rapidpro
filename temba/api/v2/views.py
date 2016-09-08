@@ -31,7 +31,7 @@ from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, Labe
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, ContactGroupWriteSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
-from .serializers import CampaignEventWriteSerializer
+from .serializers import CampaignEventWriteSerializer, ContactBulkActionSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -52,6 +52,7 @@ def api(request, format=None):
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
+     * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
@@ -75,6 +76,7 @@ def api(request, format=None):
         'channels': reverse('api.v2.channels', request=request),
         'channel_events': reverse('api.v2.channel_events', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
+        'contact_actions': reverse('api.v2.contact_actions', request=request),
         'definitions': reverse('api.v2.definitions', request=request),
         'fields': reverse('api.v2.fields', request=request),
         'flow_starts': reverse('api.v2.flow_starts', request=request),
@@ -112,6 +114,7 @@ class ApiExplorerView(SmartTemplateView):
             ContactsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_write_explorer(),
             ContactsEndpoint.get_delete_explorer(),
+            ContactActionsEndpoint.get_write_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FlowsEndpoint.get_read_explorer(),
@@ -1234,6 +1237,63 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
                 {'name': "uuid", 'required': False, 'help': "UUID of the contact to be deleted"},
                 {'name': "urn", 'required': False, 'help': "URN of the contact to be deleted. ex: tel:+250788123123"}
             ],
+        }
+
+
+class ContactActionsEndpoint(BaseAPIView):
+    """
+    ## Bulk Contact Updating
+
+    A **POST** can be used to perform an action on a set of contacts in bulk.
+
+    * **contacts** - a JSON array of up to 100 contact UUIDs (array of strings)
+    * **action** - the action to perform, a string one of:
+
+        * _add_ - Add the contacts to the given group
+        * _remove_ - Remove the contacts from the given group
+        * _block_ - Block the contacts
+        * _unblock_ - Un-block the contacts
+        * _expire_ - Force expiration of contacts' active flow runs
+        * _archive_ - Archive all of the contacts' messages
+        * _delete_ - Permanently delete the contacts
+
+    * **group** - the UUID or name of a contact group (string, optional)
+
+    Example:
+
+        POST /api/v2/contact_actions.json
+        {
+            "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3", "a5901b62-ba76-4003-9c62-72fdacc1b7b8"],
+            "action": "add",
+            "group": "Testers"
+        }
+
+    You will receive an empty response with status code 204 if successful.
+    """
+    permission = 'contacts.contact_api'
+    serializer_class = ContactBulkActionSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context=self.get_serializer_context())
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response('', status=status.HTTP_204_NO_CONTENT)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Update Multiple Contacts",
+            'url': reverse('api.v2.contact_actions'),
+            'slug': 'contact-actions',
+            'fields': [
+                {'name': "contacts", 'required': True, 'help': "The UUIDs of the contacts to update"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: add, remove, block, unblock, expire, archive, delete"},
+                {'name': "uuids", 'required': False, 'help': "The UUID or name of a contact group"},
+            ]
         }
 
 

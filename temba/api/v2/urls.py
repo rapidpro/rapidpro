@@ -6,7 +6,8 @@ from .views import api, ApiExplorerView, AuthenticateView, BroadcastsEndpoint, C
 from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
 
 from .views import FieldsEndpoint, FlowStartsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
-from .views import OrgEndpoint, ResthookEndpoint, ResthookEventEndpoint, ResthookSubscriberEndpoint, RunsEndpoint, BoundariesEndpoint
+from .views import OrgEndpoint, ResthookEndpoint, ResthookEventEndpoint, ResthookSubscriberEndpoint, RunsEndpoint
+from .views import BoundariesEndpoint, ContactActionsEndpoint
 
 urlpatterns = [
     url(r'^$', api, name='api.v2'),
@@ -21,6 +22,7 @@ urlpatterns = [
     url(r'^/channels$', ChannelsEndpoint.as_view(), name='api.v2.channels'),
     url(r'^/channel_events$', ChannelEventsEndpoint.as_view(), name='api.v2.channel_events'),
     url(r'^/contacts$', ContactsEndpoint.as_view(), name='api.v2.contacts'),
+    url(r'^/contact_actions$', ContactActionsEndpoint.as_view(), name='api.v2.contact_actions'),
     url(r'^/definitions$', DefinitionsEndpoint.as_view(), name='api.v2.definitions'),
     url(r'^/fields$', FieldsEndpoint.as_view(), name='api.v2.fields'),
     url(r'^/flow_starts$', FlowStartsEndpoint.as_view(), name='api.v2.flow_starts'),
@@ -34,7 +36,6 @@ urlpatterns = [
     url(r'^/resthook_events$', ResthookEventEndpoint.as_view(), name='api.v2.resthook_events'),
     url(r'^/resthook_subscribers$', ResthookSubscriberEndpoint.as_view(), name='api.v2.resthook_subscribers'),
     url(r'^/runs$', RunsEndpoint.as_view(), name='api.v2.runs'),
-
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=['json', 'api'])

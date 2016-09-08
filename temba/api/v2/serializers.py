@@ -384,7 +384,7 @@ class ContactWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
-    groups = fields.ContactGroupField(many=True, required=False)
+    groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
     fields = serializers.DictField(required=False)
 
     def __init__(self, *args, **kwargs):
@@ -400,13 +400,6 @@ class ContactWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Referencing by URN not allowed for anonymous organizations")
 
         self.instance = Contact.from_urn(self.context['org'], value)
-        return value
-
-    def validate_groups(self, value):
-        for group in value:
-            if group.is_dynamic:
-                raise serializers.ValidationError("Can't add contact to dynamic group with UUID: %s" % group.uuid)
-
         return value
 
     def validate_fields(self, value):
@@ -540,6 +533,63 @@ class ContactGroupWriteSerializer(WriteSerializer):
             return instance
         else:
             return ContactGroup.get_or_create(self.context['org'], self.context['user'], name)
+
+
+class ContactBulkActionSerializer(WriteSerializer):
+    ADD = 'add'
+    REMOVE = 'remove'
+    BLOCK = 'block'
+    UNBLOCK = 'unblock'
+    EXPIRE = 'expire'
+    ARCHIVE = 'archive'
+    DELETE = 'delete'
+
+    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, EXPIRE, ARCHIVE, DELETE)
+
+    contacts = fields.ContactField(many=True)
+    action = serializers.ChoiceField(required=True, choices=ACTIONS)
+    group = fields.ContactGroupField(required=False, allow_dynamic=False)
+
+    def validate(self, data):
+        contacts = data['contacts']
+        action = data['action']
+        group = data.get('group')
+
+        if action in (self.ADD, self.REMOVE) and not group:
+            raise serializers.ValidationError("For action \"%s\" you should also specify a group" % action)
+        elif action in (self.BLOCK, self.UNBLOCK, self.EXPIRE, self.ARCHIVE, self.DELETE) and group:
+            raise serializers.ValidationError("For action \"%s\" you should not specify a group" % action)
+
+        if action == self.ADD:
+            # if adding to a group, check for blocked contacts
+            blocked_uuids = {c.uuid for c in contacts if c.is_blocked}
+            if blocked_uuids:
+                raise serializers.ValidationError("Blocked cannot be added to groups: %s" % ', '.join(blocked_uuids))
+
+        return data
+
+    def save(self):
+        user = self.context['user']
+        contacts = self.validated_data['contacts']
+        action = self.validated_data['action']
+        group = self.validated_data.get('group')
+
+        if action == self.ADD:
+            group.update_contacts(user, contacts, add=True)
+        elif action == self.REMOVE:
+            group.update_contacts(user, contacts, add=False)
+        elif action == self.EXPIRE:
+            FlowRun.expire_all_for_contacts(contacts)
+        elif action == self.ARCHIVE:
+            Msg.archive_all_for_contacts(contacts)
+        else:
+            for contact in contacts:
+                if action == self.BLOCK:
+                    contact.block(user)
+                elif action == self.UNBLOCK:
+                    contact.unblock(user)
+                elif action == self.DELETE:
+                    contact.release(user)
 
 
 class FlowReadSerializer(ReadSerializer):

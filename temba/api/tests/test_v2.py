@@ -90,7 +90,7 @@ class APITest(TembaTest):
             response.json = json.loads(response.content)
         return response
 
-    def assertEndpointAccess(self, url, query=None):
+    def assertEndpointAccess(self, url, query=None, fetch_returns=200):
         self.client.logout()
 
         # 403 if not authenticated but can read docs
@@ -114,7 +114,7 @@ class APITest(TembaTest):
         # 200 for administrator
         self.login(self.admin)
         response = self.fetchHTML(url, query)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, fetch_returns)
 
     def assertResultsById(self, response, expected):
         self.assertEqual(response.status_code, 200)
@@ -629,7 +629,7 @@ class APITest(TembaTest):
 
         # can't update campaign in other org
         response = self.postJSON(url, {'uuid': spam.uuid, 'name': "Won't work", 'group': spammers.uuid})
-        self.assertResponseError(response, 'uuid', "No such object with UUID: %s" % spam.uuid)
+        self.assertResponseError(response, 'uuid', "No such object: %s" % spam.uuid)
 
     def test_campaign_events(self):
         url = reverse('api.v2.campaign_events')
@@ -1057,7 +1057,7 @@ class APITest(TembaTest):
         })
         self.assertResponseError(response, 'language', "Ensure this field has no more than 3 characters.")
         self.assertResponseError(response, 'urns', "Invalid URN: 1234556789")
-        self.assertResponseError(response, 'groups', "No such object with UUID: 59686b4e-14bc-4160-9376-b649b218c806")
+        self.assertResponseError(response, 'groups', "No such object: 59686b4e-14bc-4160-9376-b649b218c806")
         self.assertResponseError(response, 'fields', "Invalid contact field key: hmmm")
 
         # update an existing contact by UUID but don't provide any fields
@@ -1139,7 +1139,7 @@ class APITest(TembaTest):
 
         # try to add a contact to a dynamic group
         response = self.postJSON(url, {'uuid': jean.uuid, 'groups': [dyn_group.uuid]})
-        self.assertResponseError(response, 'groups', "Can't add contact to dynamic group with UUID: %s" % dyn_group.uuid)
+        self.assertResponseError(response, 'groups', "Contact group must not be dynamic: %s" % dyn_group.uuid)
 
         # try to give a contact more than 100 URNs
         response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ['twitter:bob%d' % u for u in range(101)]})
@@ -1188,6 +1188,149 @@ class APITest(TembaTest):
         # try to delete a contact in another org
         response = self.deleteJSON(url, 'uuid=%s' % hans.uuid)
         self.assertEqual(response.status_code, 404)
+
+    def test_contact_actions(self):
+        url = reverse('api.v2.contact_actions')
+
+        self.assertEndpointAccess(url, fetch_returns=405)
+
+        # create some contacts to act on
+        Contact.objects.all().delete()
+        contact1 = self.create_contact("Ann", '+250788000001')
+        contact2 = self.create_contact("Bob", '+250788000002')
+        contact3 = self.create_contact("Cat", '+250788000003')
+        contact4 = self.create_contact("Don", '+250788000004')  # a blocked contact
+        contact5 = self.create_contact("Eve", '+250788000005')  # a deleted contact
+        contact4.block(self.user)
+        contact5.release(self.user)
+        test_contact = Contact.get_test_contact(self.user)
+
+        group = self.create_group("Testers")
+        self.create_group("Developers", query="isdeveloper = YES")
+
+        # start contacts in a flow
+        flow = self.create_flow()
+        flow.start([], [contact1, contact2, contact3])
+
+        self.create_msg(direction='I', contact=contact1, text="Hello")
+        self.create_msg(direction='I', contact=contact2, text="Hello")
+        self.create_msg(direction='I', contact=contact3, text="Hello")
+        self.create_msg(direction='I', contact=contact4, text="Hello")
+
+        # try adding more contacts to group than this endpoint is allowed to operate on at one time
+        response = self.postJSON(url, {'contacts': [unicode(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
+        self.assertResponseError(response, 'contacts', "Exceeds maximum list size of 100")
+
+        # try adding all contacts to a group by its name
+        response = self.postJSON(url, {
+            'contacts': [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid, contact5.uuid, test_contact.uuid],
+            'action': 'add',
+            'group': "Testers"
+        })
+
+        # error reporting that at least one of the UUIDs is not a valid contact
+        self.assertResponseError(response, 'contacts', "No such object: %s" % contact5.uuid)
+
+        # try adding a blocked contact to a group
+        response = self.postJSON(url, {
+            'contacts': [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
+            'action': 'add',
+            'group': "Testers"
+        })
+
+        # error reporting that the deleted and test contacts are invalid
+        self.assertResponseError(response, 'non_field_errors', "Blocked cannot be added to groups: %s" % contact4.uuid)
+
+        # add valid contacts to the group by name
+        response = self.postJSON(url, {
+            'contacts': [contact1.uuid, contact2.uuid],
+            'action': 'add',
+            'group': "Testers"
+        })
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(group.contacts.all()), {contact1, contact2})
+
+        # try to add to a non-existent group
+        response = self.postJSON(url, {'contacts': [contact1.uuid], 'action': 'add', 'group': "Spammers"})
+        self.assertResponseError(response, 'group', "No such object: Spammers")
+
+        # try to add to a dynamic group
+        response = self.postJSON(url, {'contacts': [contact1.uuid], 'action': 'add', 'group': "Developers"})
+        self.assertResponseError(response, 'group', "Contact group must not be dynamic: Developers")
+
+        # add contact 3 to a group by its UUID
+        response = self.postJSON(url, {'contacts': [contact3.uuid], 'action': 'add', 'group': group.uuid})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(group.contacts.all()), {contact1, contact2, contact3})
+
+        # try adding with invalid group UUID
+        response = self.postJSON(url, {'contacts': [contact3.uuid], 'action': 'add', 'group': "nope"})
+        self.assertResponseError(response, 'group', "No such object: nope")
+
+        # remove contact 2 from group by its name
+        response = self.postJSON(url, {'contacts': [contact2.uuid], 'action': 'remove', 'group': "Testers"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(group.contacts.all()), {contact1, contact3})
+
+        # and remove contact 3 from group by its UUID
+        response = self.postJSON(url, {'contacts': [contact3.uuid], 'action': 'remove', 'group': group.uuid})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(group.contacts.all()), {contact1})
+
+        # try to add to group without specifying a group
+        response = self.postJSON(url, {'contacts': [contact1.uuid], 'action': 'add'})
+        self.assertResponseError(response, 'non_field_errors', "For action \"add\" you should also specify a group")
+        response = self.postJSON(url, {'contacts': [contact1.uuid], 'action': 'add', 'group': ""})
+        self.assertResponseError(response, 'group', "This field may not be null.")
+
+        # try to block all contacts
+        response = self.postJSON(url, {
+            'contacts': [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid, test_contact.uuid],
+            'action': 'block'
+        })
+        self.assertResponseError(response, 'contacts', "No such object: %s" % test_contact.uuid)
+
+        # block all valid contacts
+        response = self.postJSON(url, {
+            'contacts': [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid],
+            'action': 'block'
+        })
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact1, contact2, contact3, contact4})
+
+        # unblock contact 1
+        response = self.postJSON(url, {'contacts': [contact1.uuid], 'action': 'unblock'})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, contact5, test_contact})
+        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
+
+        # expire contacts 1 and 2 from any active runs
+        response = self.postJSON(url, {'contacts': [contact1.uuid, contact2.uuid], 'action': 'expire'})
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(FlowRun.objects.filter(contact__in=[contact1, contact2], is_active=True).exists())
+        self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True).exists())
+
+        # archive all messages for contacts 1 and 2
+        response = self.postJSON(url, {'contacts': [contact1.uuid, contact2.uuid], 'action': 'archive'})
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2], direction='I', visibility='V').exists())
+        self.assertTrue(Msg.objects.filter(contact=contact3, direction='I', visibility='V').exists())
+
+        # delete contacts 1 and 2
+        response = self.postJSON(url, {'contacts': [contact1.uuid, contact2.uuid], 'action': 'delete'})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact5})
+        self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4, test_contact})
+        self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2]).exclude(visibility='D').exists())
+        self.assertTrue(Msg.objects.filter(contact=contact3).exclude(visibility='D').exists())
+
+        # try to provide a group for a non-group action
+        response = self.postJSON(url, {'contacts': [contact3.uuid], 'action': 'block', 'group': "Testers"})
+        self.assertResponseError(response, 'non_field_errors', "For action \"block\" you should not specify a group")
+
+        # try to invoke an invalid action
+        response = self.postJSON(url, {'contacts': [contact3.uuid], 'action': 'like'})
+        self.assertResponseError(response, 'action', "\"like\" is not a valid choice.")
 
     def test_definitions(self):
         url = reverse('api.v2.definitions')
@@ -1393,7 +1536,7 @@ class APITest(TembaTest):
 
         # can't update group from other org
         response = self.postJSON(url, {'uuid': spammers.uuid, 'name': "Won't work"})
-        self.assertResponseError(response, 'uuid', "No such object with UUID: %s" % spammers.uuid)
+        self.assertResponseError(response, 'uuid', "No such object: %s" % spammers.uuid)
 
         # try an empty delete request
         response = self.deleteJSON(url, {})
@@ -1469,7 +1612,7 @@ class APITest(TembaTest):
 
         # can't update label from other org
         response = self.postJSON(url, {'uuid': spam.uuid, 'name': "Won't work"})
-        self.assertResponseError(response, 'uuid', "No such object with UUID: %s" % spam.uuid)
+        self.assertResponseError(response, 'uuid', "No such object: %s" % spam.uuid)
 
         # try an empty delete request
         response = self.deleteJSON(url, {})
@@ -2064,11 +2207,11 @@ class APITest(TembaTest):
         # invalid group uuid
         response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['tel:+12067791212'],
                                            groups=['abcde']))
-        self.assertResponseError(response, 'groups', "No such object with UUID: abcde")
+        self.assertResponseError(response, 'groups', "No such object: abcde")
 
         # invalid flow uuid
         response = self.postJSON(url, dict(flow='abcde', restart_participants=True, urns=['tel:+12067791212']))
-        self.assertResponseError(response, 'flow', "No such object with UUID: abcde")
+        self.assertResponseError(response, 'flow', "No such object: abcde")
 
         # too many groups
         group_uuids = []
