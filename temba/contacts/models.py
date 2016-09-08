@@ -1576,7 +1576,7 @@ class Contact(TembaModel):
 
         return truncate(res, 20) if short else res
 
-    def get_urn_display(self, org=None, scheme=None, full=False):
+    def get_urn_display(self, org=None, scheme=None, full=False, international=False):
         """
         Gets a displayable URN for the contact. If available, org can be provided to avoid having to fetch it again
         based on the contact.
@@ -1588,7 +1588,7 @@ class Contact(TembaModel):
             return self.anon_identifier
 
         urn = self.get_urn(scheme)
-        return urn.get_display(org=org, full=full) if urn else ''
+        return urn.get_display(org=org, full=full, international=international) if urn else ''
 
     def raw_tel(self):
         tel = self.get_urn(TEL_SCHEME)
@@ -1728,7 +1728,7 @@ class ContactURN(models.Model):
         except Exception:
             return None
 
-    def get_display(self, org=None, full=False):
+    def get_display(self, org=None, full=False, international=False):
         """
         Gets a representation of the URN for display
         """
@@ -1742,8 +1742,12 @@ class ContactURN(models.Model):
             # if we don't want a full tell, see if we can show the national format instead
             try:
                 if self.path and self.path[0] == '+':
-                    return phonenumbers.format_number(phonenumbers.parse(self.path, None),
-                                                      phonenumbers.PhoneNumberFormat.NATIONAL)
+                    phone_format = phonenumbers.PhoneNumberFormat.NATIONAL
+                    if international:
+                        phone_format = phonenumbers.PhoneNumberFormat.INTERNATIONAL
+
+                    return phonenumbers.format_number(phonenumbers.parse(self.path, None), phone_format)
+
             except Exception:  # pragma: no cover
                 pass
 

@@ -842,6 +842,8 @@ class ContactTest(TembaTest):
         self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, full=True))
         self.assertEqual("blow80", self.joe.get_urn_display())
         self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, full=True))
+        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, full=True, international=True))
+        self.assertEqual("+250 788 383 383", self.voldemort.get_urn_display(org=self.org, international=True))
         self.assertEqual("0788 383 383", self.voldemort.get_urn_display())
         self.assertEqual("8877", mr_long_name.get_urn_display())
         self.assertEqual("", self.billy.get_urn_display())
@@ -3206,6 +3208,8 @@ class ContactURNTest(TembaTest):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
         self.assertEqual(urn.get_display(self.org, full=True), '+250788383383')
+        self.assertEqual(urn.get_display(self.org, international=True), '+250 788 383 383')
+        self.assertEqual(urn.get_display(self.org, full=True, international=True), '+250788383383')
 
         urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
         self.assertEqual(urn.get_display(self.org), 'billy_bob')
