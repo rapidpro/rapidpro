@@ -485,7 +485,6 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.json['results'], [])
 
-
     def test_broadcasts(self):
         url = reverse('api.v2.broadcasts')
 
