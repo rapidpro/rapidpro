@@ -11,9 +11,10 @@ describe 'Services:', ->
 
     # wire up our mock flows
     flows = {
-      'favorites': { id: 1, languages:[] },
+      'favorites': { id: 1, languages:[] }
       'rules_first': { id: 2, languages:[] }
       'loop_detection': { id: 3, languages:[] }
+      'ussd_example': { id: 4, languages:[] }
     }
 
     $http.whenGET('/contactfield/json/').respond([])
@@ -328,6 +329,28 @@ describe 'Services:', ->
 
         allowed = flowService.isConnectionAllowed(endOfFlow, messageSplitA)
         expect(allowed).toBe(true, 'Failed to find expression step value')
+
+
+    describe 'isConnectionAllowed() with USSD rulesets', ->
+      flow = null
+      beforeEach ->
+        flowService.fetch(flows.ussd_example.id).then ->
+          flow = flowService.flow
+        $http.flush()
+
+      ussdMenu = '5e0fe53f-1caa-434d-97e7-189f33353372'
+      ussdResponse = '66aa0bb5-d1e5-4026-a056-fd22c353539e'
+
+      it 'should have the appropriate flow type', ->
+        expect(flow.flow_type).toBe('U')
+
+      it 'should allow two rulesets connected', ->
+        ruleConnection = flowService.isConnectionAllowed(ussdMenu, ussdResponse)
+        expect(ruleConnection).toBeTruthy()
+
+      it 'should allow self loops', ->
+        ruleLoop = flowService.isConnectionAllowed(ussdMenu, ussdMenu)
+        expect(ruleLoop).toBeTruthy()
 
     describe 'getFieldSelection()', ->
 
