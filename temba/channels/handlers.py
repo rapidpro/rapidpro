@@ -16,12 +16,13 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
+from guardian.utils import get_anonymous_user
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
-from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT
+from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, INTERRUPTED
 from temba.triggers.models import Trigger
 from temba.utils import json_date_to_datetime
 from temba.utils.middleware import disable_middleware
@@ -950,16 +951,21 @@ class VumiHandler(View):
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
 
-        # look up the channel
-        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VUMI).exclude(org=None).first()
-        if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
-
         # parse our JSON
         try:
             body = json.loads(request.body)
         except Exception as e:
             return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
+
+        # determine if it's a USSD session message or a regular SMS
+        is_ussd = "ussd" in body.get('transport_name', '') or body.get('transport_type') == 'ussd'
+        channel_type = Channel.TYPE_VUMI_USSD if is_ussd else Channel.TYPE_VUMI
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=channel_type).exclude(
+            org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
 
         # this is a callback for a message we sent
         if action == 'event':
@@ -970,53 +976,63 @@ class VumiHandler(View):
             status = body['event_type']
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel')
+            message = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel')
 
-            if not sms:
+            if not message:
                 return HttpResponse("Message with external id of '%s' not found" % external_id, status=404)
 
-            if status not in ('ack', 'delivery_report'):
-                return HttpResponse("Unknown status '%s', ignoring", status=200)
+            if status not in ('ack', 'nack', 'delivery_report'):
+                return HttpResponse("Unknown status '%s', ignoring" % status, status=200)
 
             # only update to SENT status if still in WIRED state
             if status == 'ack':
-                sms.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=SENT)
+                message.filter(status__in=[PENDING, QUEUED, WIRED]).update(status=SENT)
+            if status == 'nack':
+                if body.get('nack_reason') == "Unknown address.":
+                    message[0].contact.stop(get_anonymous_user())
+                # TODO: deal with other nack_reasons after VUMI hands them over
             elif status == 'delivery_report':
-                sms = sms.first()
-                if sms:
+                message = message.first()
+                if message:
                     delivery_status = body.get('delivery_status', 'success')
                     if delivery_status == 'failed':
                         # Vumi and M-Tech disagree on what 'failed' means in a DLR, so for now, ignore these
                         # cases.
                         #
                         # we can get multiple reports from vumi if they multi-part the message for us
-                        # if sms.status in (WIRED, DELIVERED):
-                        #    print "!! [%d] marking %s message as error" % (sms.pk, sms.get_status_display())
-                        #    Msg.mark_error(get_redis_connection(), channel, sms)
+                        # if message.status in (WIRED, DELIVERED):
+                        #    print "!! [%d] marking %s message as error" % (message.pk, message.get_status_display())
+                        #    Msg.mark_error(get_redis_connection(), channel, message)
                         pass
                     else:
 
                         # we should only mark it as delivered if it's in a wired state, we want to hold on to our
                         # delivery failures if any part of the message comes back as failed
-                        if sms.status == WIRED:
-                            sms.status_delivered()
+                        if message.status == WIRED:
+                            message.status_delivered()
 
-            return HttpResponse("SMS Status Updated")
+            return HttpResponse("Message Status Updated")
 
         # this is a new incoming message
         elif action == 'receive':
-            if 'timestamp' not in body or 'from_addr' not in body or 'content' not in body or 'message_id' not in body:
+            if not any(attr in body for attr in ('timestamp', 'from_addr', 'content', 'message_id')):
                 return HttpResponse("Missing one of timestamp, from_addr, content or message_id, ignoring message", status=400)
 
             # dates come in the format "2014-04-18 03:54:20.570618" GMT
-            sms_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
-            gmt_date = pytz.timezone('GMT').localize(sms_date)
+            message_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
+            gmt_date = pytz.timezone('GMT').localize(message_date)
 
-            sms = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), body['content'], date=gmt_date)
+            status = PENDING
+            if body.get('session_event') == "close":
+                status = INTERRUPTED
+            message = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), body['content'], date=gmt_date, status=status)
 
-            # use an update so there is no race with our handling
-            Msg.objects.filter(pk=sms.id).update(external_id=body['message_id'])
-            return HttpResponse("SMS Accepted: %d" % sms.id)
+            if status != INTERRUPTED:
+                # use an update so there is no race with our handling
+                Msg.objects.filter(pk=message.id).update(external_id=body['message_id'])
+
+            # TODO: handle "session_event" == "new" as USSD Trigger
+            return HttpResponse("Message Accepted: %d" % message.id)
 
         else:
             return HttpResponse("Not handled", status=400)
