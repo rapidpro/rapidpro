@@ -89,7 +89,7 @@ STATUS_CONFIG = (
     (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
     (RESENT, _("Resent message"), 'resent'),   # we retried this message
 
-    (INTERRUPTED, _("Interrupt message"), 'interrupted'),   # we retried this message
+    (INTERRUPTED, _("Interrupt message"), 'interrupted'),   # we were interrupted, ie, ussd termination
 )
 
 
