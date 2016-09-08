@@ -36,6 +36,7 @@ from temba.msgs.models import Msg, INCOMING, OUTGOING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
+from temba.utils.profiler import SegmentProfiler
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
@@ -917,6 +918,19 @@ class FlowCRUDL(SmartCRUDL):
 
                 if 'contact_fields' in cleaned_data and len(cleaned_data['contact_fields']) > 10:
                     raise forms.ValidationError(_("You can only include up to 10 contact fields in your export"))
+
+                if 'flows' in cleaned_data:
+                    columns = []
+                    flows = cleaned_data['flows']
+
+                    with SegmentProfiler("get columns"):
+                        for flow in flows:
+                            columns += flow.get_columns()
+
+                    # we limit to 75 since each takes 3 columns and we reserve 20 columns for other fields
+                    if len(columns) > 75:
+                        raise forms.ValidationError(_("You selected many flows, their results columns "
+                                                      "exceeed 255 columns"))
 
                 return cleaned_data
 
