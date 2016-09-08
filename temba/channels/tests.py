@@ -4164,7 +4164,7 @@ class VumiUssdTest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
 
-        msg = Msg.all_messages.get()
+        msg = Msg.objects.get()
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
