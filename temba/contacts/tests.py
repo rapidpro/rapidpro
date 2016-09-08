@@ -572,6 +572,10 @@ class ContactTest(TembaTest):
         snoop = Contact.get_or_create(self.org, self.user, channel=self.channel, urns=['tel:456'])
         self.assertEquals(1, snoop.urns.all().count())
 
+        # create contact with new urns one normalized and the other not
+        jimmy = Contact.get_or_create(self.org, self.user, name="Jimmy", urns=['tel:+250788112233', 'tel:0788112233'])
+        self.assertEquals(1, jimmy.urns.all().count())
+
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
         self.assertTrue(test_contact_admin.is_test)
