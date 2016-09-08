@@ -929,8 +929,8 @@ class FlowCRUDL(SmartCRUDL):
 
                     # we limit to 75 since each takes 3 columns and we reserve 20 columns for other fields
                     if len(columns) > 75:
-                        raise forms.ValidationError(_("You selected many flows, their results columns "
-                                                      "exceeed 255 columns"))
+                        raise forms.ValidationError(_("The selected flows' results exceed the 255-column limit. "
+                                                      "Please deselect one or more flows"))
 
                 return cleaned_data
 

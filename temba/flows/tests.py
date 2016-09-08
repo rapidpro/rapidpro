@@ -744,8 +744,8 @@ class FlowTest(TembaTest):
             mock_get_columns.return_value = ["column %s" % i for i in range(100)]
 
             response = self.client.post(reverse('flows.flow_export_results'), dict(flows=[self.flow.pk]), follow=True)
-            self.assertFormError(response, 'form', None, "You selected many flows, their results columns "
-                                                         "exceeed 255 columns")
+            self.assertFormError(response, 'form', None, "The selected flows' results exceed the 255-column limit. "
+                                                         "Please deselect one or more flows")
 
     def test_export_results_with_surveyor_msgs(self):
         self.flow.update(self.definition)
