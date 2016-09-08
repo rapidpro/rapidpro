@@ -4326,7 +4326,7 @@ class VumiUssdTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # no real messages stored
-        self.assertEquals(Msg.all_messages.count(), 0)
+        self.assertEquals(Msg.objects.count(), 0)
 
         self.assertTrue(create_incoming.called)
         self.assertEqual(create_incoming.call_count, 1)
