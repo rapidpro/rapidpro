@@ -66,7 +66,11 @@ class TwilioHandler(View):
             if not channel:
                 raise Exception("No active answering channel found for number: %s" % to_number)
 
-            client = channel.org.get_twilio_client()
+            org = channel.org
+            if not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
+            client = org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
             signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
 
@@ -120,6 +124,10 @@ class TwilioHandler(View):
 
             # validate this request is coming from twilio
             org = sms.org
+
+            if not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
             client = org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
 
@@ -145,6 +153,10 @@ class TwilioHandler(View):
 
             # validate this request is coming from twilio
             org = channel.org
+
+            if not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
             client = org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
 
@@ -194,6 +206,10 @@ class TwilioMessagingServiceHandler(View):
         if action == 'receive':
 
             org = channel.org
+
+            if not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
             client = org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
 

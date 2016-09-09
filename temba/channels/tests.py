@@ -5035,6 +5035,15 @@ class TwilioTest(TembaTest):
         # this time sign it appropriately, should work
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
+
+        with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_to_twilio:
+            mock_connected_to_twilio.return_value = False
+
+            signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+            self.assertEquals(400, response.status_code)
+
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
@@ -5069,6 +5078,14 @@ class TwilioTest(TembaTest):
         # now update the status via a callback
         twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % msg.id
         post_data['SmsStatus'] = 'sent'
+
+        with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_to_twilio:
+            mock_connected_to_twilio.return_value = False
+
+            signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+            self.assertEquals(400, response.status_code)
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
@@ -5218,6 +5235,17 @@ class TwilioMessagingServiceTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
+
+        with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_to_twilio:
+            mock_connected_to_twilio.return_value = False
+
+            signature = validator.compute_signature(
+                'https://' + settings.HOSTNAME + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
+                post_data
+            )
+            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        self.assertEquals(400, response.status_code)
 
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
