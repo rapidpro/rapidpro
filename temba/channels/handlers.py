@@ -66,7 +66,11 @@ class TwilioHandler(View):
             if not channel:
                 raise Exception("No active answering channel found for number: %s" % to_number)
 
-            client = channel.org.get_twilio_client()
+            org = channel.org
+            if not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
+            client = org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
             signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
 
@@ -83,12 +87,12 @@ class TwilioHandler(View):
 
                 flow = Trigger.find_flow_for_inbound_call(contact)
 
-                call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
-                call.update_status(request.POST.get('CallStatus', None),
-                                   request.POST.get('CallDuration', None))
-                call.save()
-
                 if flow:
+                    call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
+                    call.update_status(request.POST.get('CallStatus', None),
+                                       request.POST.get('CallDuration', None))
+                    call.save()
+
                     FlowRun.create(flow, contact.pk, call=call)
                     response = Flow.handle_call(call, {})
                     return HttpResponse(unicode(response))
@@ -116,10 +120,16 @@ class TwilioHandler(View):
             status = request.POST.get('SmsStatus', None)
 
             # get the SMS
-            sms = Msg.objects.select_related('channel').get(id=smsId)
+            sms = Msg.objects.select_related('channel').filter(id=smsId).first()
+            if sms is None:
+                return HttpResponse("No message found with id: %s" % smsId, status=400)
 
             # validate this request is coming from twilio
             org = sms.org
+
+            if not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
             client = org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
 
@@ -145,6 +155,10 @@ class TwilioHandler(View):
 
             # validate this request is coming from twilio
             org = channel.org
+
+            if not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
             client = org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
 
@@ -194,6 +208,10 @@ class TwilioMessagingServiceHandler(View):
         if action == 'receive':
 
             org = channel.org
+
+            if not org.is_connected_to_twilio():
+                return HttpResponse("No Twilio account is connected", status=400)
+
             client = org.get_twilio_client()
             validator = RequestValidator(client.auth[1])
 
