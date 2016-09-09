@@ -4761,6 +4761,15 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(1, runs.count())
         self.assertEqual('Radio Show Poll', runs[0].flow.name)
 
+        # let's start over, we should pass right through language and gender
+        self.send("radio")
+
+        msgs = Msg.objects.order_by('created_on')
+        self.assertEqual(10, msgs.count())
+        self.assertEqual('radio', msgs[7].text)
+        self.assertEqual('Welcome message.', msgs[8].text)
+        self.assertEqual('Have you heard of show X? Yes or No?', msgs[9].text)
+
     def test_translations_rule_first(self):
 
         # import a rule first flow that already has language dicts
