@@ -4700,7 +4700,7 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(run.modified_on > starting_modified)
 
     def test_subflow_no_interaction(self):
-        self.get_flow('subflow-no-pause')
+        self.get_flow('subflow_no_pause')
         parent = Flow.objects.get(org=self.org, name='Flow A')
         parent.start(groups=[], contacts=[self.contact], restart_participants=True)
 
@@ -4710,6 +4710,56 @@ class FlowsTest(FlowFileTest):
         self.assertEqual("Message 1", msgs[0].text)
         self.assertEqual("Message 2", msgs[1].text)
         self.assertEqual("Message 3 (FLOW B)", msgs[2].text)
+
+    def test_subflow_resumes(self):
+        self.get_flow('subflow_resumes')
+
+        def dump_messages(msgs):
+            for msg in msgs:
+                print msg.text
+
+        self.send("radio")
+
+        # upon starting, we see our starting message, then our language subflow question
+        msgs = Msg.objects.order_by('created_on')
+        self.assertEqual(3, msgs.count())
+        self.assertEqual('radio', msgs[0].text)
+        self.assertEqual('Welcome message.', msgs[1].text)
+        self.assertEqual('What language? English or French?', msgs[2].text)
+
+        runs = FlowRun.objects.filter(is_active=True).order_by('created_on')
+        self.assertEqual(2, runs.count())
+        self.assertEqual('Radio Show Poll', runs[0].flow.name)
+        self.assertEqual('Ask Language', runs[1].flow.name)
+
+        # choose english as our language
+        self.send('english')
+
+        # we bounce back to the parent flow, and then into the gender flow
+        msgs = Msg.objects.order_by('created_on')
+        self.assertEqual(5, msgs.count())
+        self.assertEqual('english', msgs[3].text)
+        self.assertEqual('Are you Male or Female?', msgs[4].text)
+
+        # still two runs, except a different subflow is active now
+        runs = FlowRun.objects.filter(is_active=True).order_by('created_on')
+        self.assertEqual(2, runs.count())
+        self.assertEqual('Radio Show Poll', runs[0].flow.name)
+        self.assertEqual('Ask Gender', runs[1].flow.name)
+
+        # choose our gender
+        self.send('male')
+
+        # back in the parent flow, asking our first parent question
+        msgs = Msg.objects.order_by('created_on')
+        self.assertEqual(7, msgs.count())
+        self.assertEqual('male', msgs[5].text)
+        self.assertEqual('Have you heard of show X? Yes or No?', msgs[6].text)
+
+        # now only one run should be active, our parent
+        runs = FlowRun.objects.filter(is_active=True).order_by('created_on')
+        self.assertEqual(1, runs.count())
+        self.assertEqual('Radio Show Poll', runs[0].flow.name)
 
     def test_translations_rule_first(self):
 
