@@ -615,6 +615,11 @@ class ContactTest(TembaTest):
         # check that the orphaned URN has been associated with the contact
         self.assertEqual('Ben Haggerty', Contact.from_urn(self.org, 'tel:8888').name)
 
+        # check we display error for invalid input
+        response = self.client.post(reverse('contacts.contact_create'),
+                                    data=dict(name='Ben Haggerty', urn__tel__0="="))
+        self.assertFormError(response, 'form', 'urn__tel__0', "Invalid input")
+
     def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
         msg2 = self.create_msg(text="Test 2", direction='I', contact=self.joe, msg_type='F', status='H')
