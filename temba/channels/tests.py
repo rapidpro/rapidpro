@@ -5111,6 +5111,13 @@ class TwilioTest(TembaTest):
         msg = Msg.objects.get()
         self.assertEquals(FAILED, msg.status)
 
+        # no message with id
+        Msg.objects.all().delete()
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        self.assertEquals(400, response.status_code)
+
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
         org_config = self.org.config_json()

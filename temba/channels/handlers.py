@@ -120,7 +120,9 @@ class TwilioHandler(View):
             status = request.POST.get('SmsStatus', None)
 
             # get the SMS
-            sms = Msg.objects.select_related('channel').get(id=smsId)
+            sms = Msg.objects.select_related('channel').filter(id=smsId).first()
+            if sms is None:
+                return HttpResponse("No message found with id: %s" % smsId, status=400)
 
             # validate this request is coming from twilio
             org = sms.org
