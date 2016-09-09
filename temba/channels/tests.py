@@ -5036,13 +5036,21 @@ class TwilioTest(TembaTest):
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
 
-        with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_to_twilio:
-            mock_connected_to_twilio.return_value = False
+        # remove twilio connection
+        self.channel.org.config = json.dumps({})
+        self.channel.org.save()
 
-            signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-            self.assertEquals(400, response.status_code)
+        self.assertEquals(400, response.status_code)
+
+        # connect twilio again
+        self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
+                                              ACCOUNT_TOKEN: self.account_token,
+                                              APPLICATION_SID: self.application_sid})
+
+        self.channel.org.save()
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
@@ -5079,13 +5087,21 @@ class TwilioTest(TembaTest):
         twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % msg.id
         post_data['SmsStatus'] = 'sent'
 
-        with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_to_twilio:
-            mock_connected_to_twilio.return_value = False
+        # remove twilio connection
+        self.channel.org.config = json.dumps({})
+        self.channel.org.save()
 
-            signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
-            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
-            self.assertEquals(400, response.status_code)
+        self.assertEquals(400, response.status_code)
+
+        # connect twilio again
+        self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
+                                              ACCOUNT_TOKEN: self.account_token,
+                                              APPLICATION_SID: self.application_sid})
+
+        self.channel.org.save()
 
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
@@ -5243,14 +5259,15 @@ class TwilioMessagingServiceTest(TembaTest):
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
 
-        with patch('temba.orgs.models.Org.is_connected_to_twilio') as mock_connected_to_twilio:
-            mock_connected_to_twilio.return_value = False
+        # remove twilio connection
+        self.channel.org.config = json.dumps({})
+        self.channel.org.save()
 
-            signature = validator.compute_signature(
-                'https://' + settings.HOSTNAME + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
-                post_data
-            )
-            response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+        signature = validator.compute_signature(
+            'https://' + settings.HOSTNAME + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
+            post_data
+        )
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(400, response.status_code)
 
