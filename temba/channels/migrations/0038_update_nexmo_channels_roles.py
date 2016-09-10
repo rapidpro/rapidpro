@@ -10,7 +10,7 @@ from temba.orgs.models import Org, NEXMO_UUID
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0036_remove_alert_host'),
+        ('channels', '0037_auto_20160905_1537'),
     ]
 
     def update_nexmo_channels_roles(apps, schema_editor):
