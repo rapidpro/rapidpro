@@ -258,17 +258,21 @@ class ContactForm(forms.ModelForm):
         country = self.org.get_country_code()
 
         def validate_urn(key, scheme, path):
-            normalized = URN.normalize(URN.from_parts(scheme, path), country)
-            existing_urn = ContactURN.lookup(self.org, normalized, normalize=False)
+            try:
+                normalized = URN.normalize(URN.from_parts(scheme, path), country)
+                existing_urn = ContactURN.lookup(self.org, normalized, normalize=False)
 
-            if existing_urn and existing_urn.contact and existing_urn.contact != self.instance:
-                self._errors[key] = _("Used by another contact")
+                if existing_urn and existing_urn.contact and existing_urn.contact != self.instance:
+                    self._errors[key] = _("Used by another contact")
+                    return False
+                # validate but not with country as users are allowed to enter numbers before adding a channel
+                elif not URN.validate(normalized):
+                    self._errors[key] = _("Invalid format")
+                    return False
+                return True
+            except ValueError:
+                self._errors[key] = _("Invalid input")
                 return False
-            # validate but not with country as users are allowed to enter numbers before adding a channel
-            elif not URN.validate(normalized):
-                self._errors[key] = _("Invalid format")
-                return False
-            return True
 
         # validate URN fields
         for field_key, value in self.data.iteritems():
@@ -557,6 +561,15 @@ class ContactCRUDL(SmartCRUDL):
                 super(ContactCRUDL.Import.ImportForm, self).__init__(*args, **kwargs)
 
             def clean_csv_file(self):
+                uploaded_file = self.cleaned_data['csv_file']
+
+                uploaded_file_name = uploaded_file.name.lower()
+
+                if not (uploaded_file_name.endswith('.xls') or uploaded_file_name.endswith('.csv')):
+                    raise forms.ValidationError(_("The file you provided has an unsupported format. "
+                                                  "Please make sure you upload a CSV file or an Excel file "
+                                                  "saved as Excel 2003 format(.xls)"))
+
                 try:
                     Contact.get_org_import_file_headers(ContentFile(self.cleaned_data['csv_file'].read()), self.org)
                 except Exception as e:
@@ -1347,7 +1360,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                                                                          success_url=self.get_success_url(),
                                                                          success_script=getattr(self, 'success_script', None)))
 
-            except IntegrityError as e:  # pragma: no cover
+            except (IntegrityError, ValueError) as e:  # pragma: no cover
                 message = str(e).capitalize()
                 errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
                 errors.append(message)

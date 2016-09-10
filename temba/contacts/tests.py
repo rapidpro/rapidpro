@@ -572,6 +572,10 @@ class ContactTest(TembaTest):
         snoop = Contact.get_or_create(self.org, self.user, channel=self.channel, urns=['tel:456'])
         self.assertEquals(1, snoop.urns.all().count())
 
+        # create contact with new urns one normalized and the other not
+        jimmy = Contact.get_or_create(self.org, self.user, name="Jimmy", urns=['tel:+250788112233', 'tel:0788112233'])
+        self.assertEquals(1, jimmy.urns.all().count())
+
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
         self.assertTrue(test_contact_admin.is_test)
@@ -614,6 +618,11 @@ class ContactTest(TembaTest):
 
         # check that the orphaned URN has been associated with the contact
         self.assertEqual('Ben Haggerty', Contact.from_urn(self.org, 'tel:8888').name)
+
+        # check we display error for invalid input
+        response = self.client.post(reverse('contacts.contact_create'),
+                                    data=dict(name='Ben Haggerty', urn__tel__0="="))
+        self.assertFormError(response, 'form', 'urn__tel__0', "Invalid input")
 
     def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
@@ -1948,6 +1957,17 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, 'Rwama Category')
 
+        # bad field
+        ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                    created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
+                                    dict(__field__state='eastern province', __field__home='rwamagana',
+                                         __field__language='Kinyarwanda'))
+
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters "
+                                                     "or is a reserved field name")
+
         # try to push into a dynamic group
         self.login(self.admin)
         group = self.create_group('Dynamo', query='dynamo')
@@ -2556,6 +2576,11 @@ class ContactTest(TembaTest):
             self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
             self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
+        csv_file = open('%s/test_imports/sample_contacts_UPPER.XLS' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertNoFormErrors(response)
+
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
@@ -2588,6 +2613,14 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
                              '"Telegram", "Email", "Facebook", "External" should be included.')
+
+        csv_file = open('%s/test_imports/sample_contacts.xlsx' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertFormError(response, 'form', 'csv_file',
+                             "The file you provided has an unsupported format. "
+                             "Please make sure you upload a CSV file or an Excel file "
+                             "saved as Excel 2003 format(.xls)")
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -3495,6 +3528,26 @@ class ContactFieldTest(TembaTest):
         post_data['label_2'] = 'Name'
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, "Field name 'Name' is a reserved word")
+
+        # bad field
+        ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                    created_by=self.admin, modified_by=self.admin)
+
+        self.assertEquals(4, ContactField.objects.filter(org=self.org, is_active=True).count())
+
+        response = self.client.get(manage_fields_url)
+        post_data = dict()
+        for id, field in response.context['form'].fields.items():
+            if field.initial is None:
+                post_data[id] = ''
+            elif isinstance(field.initial, ContactField):
+                post_data[id] = field.initial.pk
+            else:
+                post_data[id] = field.initial
+
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters "
+                                                     "or is a reserved field name")
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')

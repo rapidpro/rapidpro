@@ -176,7 +176,7 @@ class ModalMixin(SmartFormView):
                 response['Temba-Success'] = self.get_success_url()
                 return response
 
-        except IntegrityError as e:  # pragma: no cover
+        except (IntegrityError, ValueError) as e:
             message = str(e).capitalize()
             errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
             errors.append(message)
@@ -442,8 +442,8 @@ class OrgCRUDL(SmartCRUDL):
             def clean_import_file(self):
                 from temba.orgs.models import EARLIEST_IMPORT_VERSION
 
-                # make sure they have purchased credits
-                if not self.org.get_purchased_credits():
+                # make sure they are in the proper tier
+                if not self.org.is_import_flows_tier():
                     raise ValidationError("Sorry, import is a premium feature")
 
                 # check that it isn't too old

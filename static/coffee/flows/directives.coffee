@@ -110,7 +110,6 @@ app.directive "note", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
 # manage connections when actionset changes
 app.directive "actionset", [ "$timeout", "$log", "Plumb", "Flow", ($timeout, $log, Plumb, Flow) ->
 
-
   link = (scope, element, attrs) ->
 
     Plumb.updateConnection(scope.actionset)
@@ -265,6 +264,27 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
           else
             category._translation = category.name
 
+      # USSD translations
+      if Flow.flow.flow_type == 'U'
+
+        # USSD message translation
+        ruleset.config._ussd_translation = ruleset.config.ussd_message[iso_code]
+        if ruleset.config._ussd_translation is undefined or ruleset.config._ussd_translation == ""
+          ruleset.config._ussd_translation = ruleset.config.ussd_message[baseLanguage]
+          ruleset.config._missingTranslation = true
+        else
+          ruleset.config._missingTranslation = false
+
+        # USSD menu translation
+        if ruleset.ruleset_type == "wait_menu"
+          for item in ruleset.rules
+            item._missingTranslation = false
+            if item.label
+              item._translation = item.label[iso_code]
+              if item._translation is undefined or item._translation == ""
+                item._translation = item.label[baseLanguage]
+                item._missingTranslation = true
+
       Flow.updateTranslationStats()
       Plumb.repaint(element)
 
@@ -274,9 +294,6 @@ app.directive "ruleset", [ "Plumb", "Flow", "$log", (Plumb, Flow, $log) ->
 
     scope.$watch (->Flow.language), ->
       scope.updateTranslationStatus(scope.ruleset, Flow.flow.base_language, Flow.language)
-
-
-
 
   return {
     restrict: "A"
@@ -292,6 +309,7 @@ app.directive "operatorName", [ "Flow", (Flow) ->
     scope.$watch (->scope.ngModel), ->
       opConfig = Flow.getOperatorConfig(scope.ngModel.type)
       scope.verbose_name = opConfig.verbose_name
+
   return {
     template: '<span>[[verbose_name]]</span>'
     restrict: "C"
@@ -305,6 +323,8 @@ app.directive "operatorName", [ "Flow", (Flow) ->
 # turn an element into a jsplumb source
 app.directive "source", [ 'Plumb', '$log', (Plumb, $log) ->
   link = (scope, element, attrs) ->
+    if not attrs.id or not attrs.dropScope then return
+
     if window.mutable
       Plumb.makeSource(attrs.id, attrs.dropScope)
 

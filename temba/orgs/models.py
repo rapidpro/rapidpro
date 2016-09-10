@@ -1026,11 +1026,14 @@ class Org(SmartModel):
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
+    def is_import_flows_tier(self):
+        return self.get_purchased_credits() >= self.get_branding().get('tiers', {}).get('import_flows', 0)
+
     def is_multi_user_tier(self):
-        return self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_user')
+        return self.get_purchased_credits() >= self.get_branding().get('tiers', {}).get('multi_user', 0)
 
     def is_multi_org_tier(self):
-        return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_org')
+        return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers', {}).get('multi_org', 0)
 
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
