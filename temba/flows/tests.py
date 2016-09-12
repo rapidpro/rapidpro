@@ -580,7 +580,7 @@ class FlowTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(50):
             workbook = self.export_flow_results(self.flow)
 
         tz = pytz.timezone(self.org.timezone)
@@ -673,7 +673,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = pytz.timezone(self.org.timezone)
@@ -700,7 +700,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(53):
+        with self.assertNumQueries(54):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age])
 
@@ -740,6 +740,15 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "", "36",
                                             c1_run1_first, c1_run1_last, "Orange", "orange", "orange"], tz)
+
+        # validate we have not more than the maximum columns possible
+        with patch('temba.flows.models.Flow.get_columns') as mock_get_columns:
+            mock_get_columns.return_value = ["column %s" % i for i in range(100)]
+
+            response = self.client.post(reverse('flows.flow_export_results'), dict(flows=[self.flow.pk]), follow=True)
+            self.assertFormError(response, 'form', None, "This export exceeds the maximum number of columns (255). "
+                                                         "Please remove one or more of the flows from the export "
+                                                         "to continue.")
 
     def test_export_results_with_surveyor_msgs(self):
         self.flow.update(self.definition)

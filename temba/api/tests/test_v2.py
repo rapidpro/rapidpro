@@ -1729,11 +1729,15 @@ class APITest(TembaTest):
         url = reverse('api.v2.resthooks')
         self.assertEndpointAccess(url)
 
-        # create a resthook
-        resthook = Resthook.get_or_create(self.org, 'new-mother', self.admin)
+        # create some resthooks
+        resthook1 = Resthook.get_or_create(self.org, 'new-mother', self.admin)
+        resthook2 = Resthook.get_or_create(self.org, 'new-father', self.admin)
+        resthook3 = Resthook.get_or_create(self.org, 'not-active', self.admin)
+        resthook3.is_active = False
+        resthook3.save()
 
         # create a resthook for another org
-        other_org_resthook = Resthook.get_or_create(self.org2, 'new-father', self.admin2)
+        other_org_resthook = Resthook.get_or_create(self.org2, 'spam', self.admin2)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -1741,50 +1745,91 @@ class APITest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertEqual(len(response.json['results']), 1)
-        self.assertEqual(response.json['results'][0], {
-            'resthook': 'new-mother',
-            'created_on': format_datetime(resthook.created_on),
-            'modified_on': format_datetime(resthook.modified_on),
-        })
+        self.assertEqual(response.json['results'], [
+            {
+                'resthook': 'new-father',
+                'created_on': format_datetime(resthook2.created_on),
+                'modified_on': format_datetime(resthook2.modified_on),
+            },
+            {
+                'resthook': 'new-mother',
+                'created_on': format_datetime(resthook1.created_on),
+                'modified_on': format_datetime(resthook1.modified_on),
+            }
+        ])
 
         # ok, let's look at subscriptions
         url = reverse('api.v2.resthook_subscribers')
         self.assertEndpointAccess(url)
 
-        # let's try to create a new one but with an invalid resthook
-        response = self.postJSON(url, dict(resthook='new-father', target_url='https://foo.bar/'))
-        self.assertEqual(response.status_code, 400)
+        # try to create empty subscription
+        response = self.postJSON(url, {})
+        self.assertResponseError(response, 'resthook', "This field is required.")
+        self.assertResponseError(response, 'target_url', "This field is required.")
 
-        # let's try to create a new one
-        response = self.postJSON(url, dict(resthook='new-mother', target_url='https://foo.bar/'))
+        # try to create one for resthook in other org
+        response = self.postJSON(url, dict(resthook='spam', target_url='https://foo.bar/'))
+        self.assertResponseError(response, 'resthook', "No resthook with slug: spam")
+
+        # create subscribers on each resthook
+        response = self.postJSON(url, dict(resthook='new-mother', target_url='https://foo.bar/mothers'))
         self.assertEqual(response.status_code, 201)
-        subscriber = resthook.subscribers.all().first()
-        subscriber_json = dict(id=subscriber.id, resthook='new-mother', target_url='https://foo.bar/',
-                               created_on=format_datetime(subscriber.created_on))
-        self.assertEqual(response.json, subscriber_json)
+        response = self.postJSON(url, dict(resthook='new-father', target_url='https://foo.bar/fathers'))
+        self.assertEqual(response.status_code, 201)
+
+        hook1_subscriber = resthook1.subscribers.get()
+        hook2_subscriber = resthook2.subscribers.get()
+
+        self.assertEqual(response.json, {
+            'id': hook2_subscriber.id,
+            'resthook': "new-father",
+            'target_url': "https://foo.bar/fathers",
+            'created_on': format_datetime(hook2_subscriber.created_on),
+        })
 
         # create a subscriber on our other resthook
         other_org_subscriber = other_org_resthook.add_subscriber('https://bar.foo', self.admin2)
 
-        # list org subscribers, should have only ours
-        response = self.fetchJSON(url)
-        self.assertEqual(len(response.json['results']), 1)
-        self.assertEqual(response.json['results'][0], subscriber_json)
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
 
-        # remove our subscriber
-        response = self.deleteJSON(url, "id=%d" % subscriber.id)
+        self.assertEqual(response.json['results'], [
+            {
+                'id': hook2_subscriber.id,
+                'resthook': "new-father",
+                'target_url': "https://foo.bar/fathers",
+                'created_on': format_datetime(hook2_subscriber.created_on),
+            },
+            {
+                'id': hook1_subscriber.id,
+                'resthook': "new-mother",
+                'target_url': "https://foo.bar/mothers",
+                'created_on': format_datetime(hook1_subscriber.created_on),
+            }
+        ])
+
+        # filter by id
+        response = self.fetchJSON(url, 'id=%d' % hook1_subscriber.id)
+        self.assertResultsById(response, [hook1_subscriber])
+
+        # filter by resthook
+        response = self.fetchJSON(url, 'resthook=new-father')
+        self.assertResultsById(response, [hook2_subscriber])
+
+        # remove a subscriber
+        response = self.deleteJSON(url, "id=%d" % hook2_subscriber.id)
         self.assertEqual(response.status_code, 204)
 
         # subscriber should no longer be active
-        subscriber.refresh_from_db()
-        self.assertFalse(subscriber.is_active)
+        hook2_subscriber.refresh_from_db()
+        self.assertFalse(hook2_subscriber.is_active)
 
-        # missing id
+        # try to delete without providing id
         response = self.deleteJSON(url, "")
         self.assertResponseError(response, None, "Must provide one of the following fields: id")
 
-        # invalid id (other org)
+        # try to delete a subscriber from another org
         response = self.deleteJSON(url, "id=%d" % other_org_subscriber.id)
         self.assertEqual(response.status_code, 404)
 
@@ -1792,23 +1837,35 @@ class APITest(TembaTest):
         url = reverse('api.v2.resthook_events')
         self.assertEndpointAccess(url)
 
-        event = WebHookEvent.objects.create(org=self.org, resthook=resthook, event='F',
-                                            data=json.dumps(dict(event='new mother',
-                                                                 values=json.dumps(dict(name="Greg")),
-                                                                 steps=json.dumps(dict(uuid='abcde')))),
-                                            created_by=self.admin, modified_by=self.admin)
+        # create some events on our resthooks
+        event1 = WebHookEvent.objects.create(org=self.org, resthook=resthook1, event='F',
+                                             data=json.dumps(dict(event='new mother',
+                                                                  values=json.dumps(dict(name="Greg")),
+                                                                  steps=json.dumps(dict(uuid='abcde')))),
+                                             created_by=self.admin, modified_by=self.admin)
+        event2 = WebHookEvent.objects.create(org=self.org, resthook=resthook2, event='F',
+                                             data=json.dumps(dict(event='new father',
+                                                                  values=json.dumps(dict(name="Yo")),
+                                                                  steps=json.dumps(dict(uuid='12345')))),
+                                             created_by=self.admin, modified_by=self.admin)
 
-        response = self.fetchJSON(url)
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+            response = self.fetchJSON(url)
+
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json['next'], None)
-        self.assertEqual(len(response.json['results']), 1)
-        self.assertEqual(response.json['results'][0], {
-            'resthook': 'new-mother',
-            'created_on': format_datetime(event.created_on),
-            'data': dict(event='new mother',
-                         values=dict(name="Greg"),
-                         steps=dict(uuid='abcde'))
-        })
+        self.assertEqual(response.json['results'], [
+            {
+                'resthook': "new-father",
+                'created_on': format_datetime(event2.created_on),
+                'data': dict(event='new father', values=dict(name="Yo"), steps=dict(uuid='12345'))
+            },
+            {
+                'resthook': "new-mother",
+                'created_on': format_datetime(event1.created_on),
+                'data': dict(event='new mother', values=dict(name="Greg"), steps=dict(uuid='abcde'))
+            }
+        ])
 
     def test_flow_starts(self):
         from temba.flows.models import ReplyAction

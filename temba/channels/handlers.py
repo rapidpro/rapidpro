@@ -63,7 +63,7 @@ class TwilioHandler(View):
             # find a channel that knows how to answer twilio calls
             channel = Channel.objects.filter(address=to_number, channel_type='T', role__contains='A', is_active=True).exclude(org=None).first()
             if not channel:
-                raise Exception("No active answering channel found for number: %s" % to_number)
+                return HttpResponse("No channel to answer call for %s" % to_number, status=400)
 
             org = channel.org
             if not org.is_connected_to_twilio():

@@ -780,6 +780,27 @@ class IVRTests(FlowFileTest):
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_no_channel_for_call(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        # remove our channel
+        self.channel.release()
+
+        # create an inbound call
+        post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
+                         From='+250788382382', To=self.channel.address)
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+
+        self.assertEqual(400, response.status_code)
+        self.assertEqual('No channel to answer call for %s' % self.channel.address, response.content)
+
+        # no call object created
+        self.assertFalse(IVRCall.objects.all())
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_no_flow_for_incoming(self):
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
