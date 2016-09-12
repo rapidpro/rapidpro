@@ -375,7 +375,7 @@ class ContactReadSerializer(ReadSerializer):
         return fields
 
     def get_tel(self, obj):
-        return obj.get_urn_display(obj.org, scheme=TEL_SCHEME, full=True) if obj.is_active else None
+        return obj.get_urn_display(obj.org, scheme=TEL_SCHEME, formatted=False) if obj.is_active else None
 
     class Meta:
         model = Contact
@@ -1706,7 +1706,7 @@ class ChannelEventSerializer(ReadSerializer):
         return obj.contact.uuid
 
     def get_phone(self, obj):
-        return obj.contact.get_urn_display(org=obj.org, scheme=TEL_SCHEME, full=True)
+        return obj.contact.get_urn_display(org=obj.org, scheme=TEL_SCHEME, formatted=False)
 
     def get_call(self, obj):
         return obj.pk
