@@ -3800,7 +3800,7 @@ class ExportFlowResultsTask(SmartModel):
             urn_display = urn_display_cache.get(contact.pk)
             if urn_display:
                 return urn_display
-            urn_display = contact.get_urn_display(org=org, full=True)
+            urn_display = contact.get_urn_display(org=org, formatted=False)
             urn_display_cache[contact.pk] = urn_display
             return urn_display
 
@@ -3985,7 +3985,7 @@ class ExportFlowResultsTask(SmartModel):
                         msgs.col(5).width = large_width
                         msgs.col(6).width = small_width
 
-                    msg_urn_display = msg.contact_urn.get_display(org=org, full=True) if msg.contact_urn else ''
+                    msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
                     channel_name = msg.channel.name if msg.channel else ''
 
                     msgs.write(msg_row, 0, run_step.contact.uuid)
