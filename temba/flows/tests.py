@@ -4714,10 +4714,6 @@ class FlowsTest(FlowFileTest):
     def test_subflow_resumes(self):
         self.get_flow('subflow_resumes')
 
-        def dump_messages(msgs):
-            for msg in msgs:
-                print msg.text
-
         self.send("radio")
 
         # upon starting, we see our starting message, then our language subflow question
