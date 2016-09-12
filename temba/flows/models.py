@@ -508,7 +508,8 @@ class Flow(TembaModel):
 
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
-                        triggered_start=False, resume_parent_run=False, resume_after_timeout=False):
+                        triggered_start=False, resume_parent_run=False,
+                        resume_after_timeout=False, user_input=True):
 
         if started_flows is None:
             started_flows = []
@@ -525,7 +526,7 @@ class Flow(TembaModel):
                 continue
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
-                                                      user_input=True, triggered_start=triggered_start,
+                                                      user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
                                                       resume_after_timeout=resume_after_timeout)
 
@@ -565,7 +566,7 @@ class Flow(TembaModel):
                 should_pause = False
 
                 # check if we need to stop
-                if destination.is_pause() or msg.status == HANDLED:
+                if destination.is_pause():
                     should_pause = True
 
                 if triggered_start and destination.is_ussd():
@@ -2571,7 +2572,7 @@ class FlowRun(models.Model):
                         msg.contact = run.contact
 
                     # finally, trigger our parent flow
-                    Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
+                    Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
     def resume_after_timeout(self):
         """
