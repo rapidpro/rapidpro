@@ -777,6 +777,52 @@ class IVRTests(FlowFileTest):
         flow.refresh_from_db()
         self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
 
+    def test_nexmo_config_empty_callbacks(self):
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]), {})
+        self.assertEqual(200, response.status_code)
+
+    def test_no_channel_for_call_nexmo(self):
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        # remove our channel
+        self.channel.release()
+
+        # create an inbound call
+        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382', )
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
+                                    post_data)
+
+        self.assertEqual(404, response.status_code)
+        self.assertEqual('No channel to answer call for UUID: %s' % self.channel.uuid, response.content)
+
+        # no call object created
+        self.assertFalse(IVRCall.objects.all())
+
+    def test_no_flow_for_incoming_nexmo(self):
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.save()
+
+        flow = self.get_flow('missed_call_flow')
+
+        # create an inbound call
+        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382', )
+        response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
+                                    post_data)
+
+        self.assertContains(response, 'exit')
+        # no call object created
+        self.assertFalse(IVRCall.objects.all())
+
+        # have a run in the missed call flow
+        self.assertTrue(FlowRun.objects.filter(flow=flow))
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)

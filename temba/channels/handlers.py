@@ -872,7 +872,7 @@ class NexmoCallHandler(View):
 
         channel = Channel.objects.filter(uuid__iexact=request_uuid, is_active=True, channel_type=Channel.TYPE_NEXMO).exclude(org=None).first()
         if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
+            return HttpResponse("No channel to answer call for UUID: %s" % request_uuid, status=404)
 
         if action == 'answer':
 
@@ -885,11 +885,11 @@ class NexmoCallHandler(View):
 
             flow = Trigger.find_flow_for_inbound_call(contact)
 
-            call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
-            call.external_id = external_id
-            call.save()
-
             if flow:
+                call = IVRCall.create_incoming(channel, contact, urn_obj, flow, channel.created_by)
+                call.external_id = external_id
+                call.save()
+
                 FlowRun.create(flow, contact.pk, call=call)
                 response = Flow.handle_call(call)
                 return HttpResponse(unicode(response))
