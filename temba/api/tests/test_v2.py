@@ -1887,7 +1887,7 @@ class APITest(TembaTest):
                                            contacts=[self.joe.uuid],
                                            groups=[hans_group.uuid],
                                            flow=flow.uuid,
-                                           restart_participants=True,
+                                           restart_participants=False,
                                            extra=extra))
 
         self.assertEqual(response.status_code, 201)
@@ -1898,7 +1898,7 @@ class APITest(TembaTest):
         self.assertTrue(start.contacts.filter(urns__path='+12067791212'))
         self.assertTrue(start.contacts.filter(id=self.joe.id))
         self.assertTrue(start.groups.filter(id=hans_group.id))
-        self.assertTrue(start.restart_participants)
+        self.assertFalse(start.restart_participants)
         self.assertTrue(start.extra, extra)
 
         # check our first msg
@@ -1944,20 +1944,19 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertEqual(len(response.json['results']), 1)
-        self.assertEqual(response.json['results'][0], {
-            'contacts': [{'name': 'Joe Blow',
-                          'uuid': self.joe.uuid},
-                         {'name': None,
-                          'uuid': anon_contact.uuid}],
-            'created_on': format_datetime(start.created_on),
-            'extra': {"first_name": "Ryan", "last_name": "Lewis"},
-            'flow': {'name': 'Favorites',
-                     'uuid': flow.uuid},
-            'groups': [{'name': 'hans',
-                        'uuid': hans_group.uuid}],
+        self.assertEqual(response.json['results'], [{
             'id': start.id,
+            'flow': {'uuid': flow.uuid, 'name': 'Favorites'},
+            'contacts': [
+                {'uuid': self.joe.uuid, 'name': 'Joe Blow'},
+                {'uuid': anon_contact.uuid, 'name': None}
+            ],
+            'groups': [
+                {'uuid': hans_group.uuid, 'name': 'hans'}
+            ],
+            'restart_participants': False,
+            'status': 'complete',
+            'extra': {"first_name": "Ryan", "last_name": "Lewis"},
+            'created_on': format_datetime(start.created_on),
             'modified_on': format_datetime(start.modified_on),
-            'restart_participants': True,
-            'status': 'complete'
-        })
+        }])

@@ -535,6 +535,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     urns = fields.URNListField(required=False)
+    restart_participants = serializers.BooleanField()
     extra = serializers.JSONField(required=False)
 
     def validate_extra(self, value):
@@ -555,6 +556,8 @@ class FlowStartWriteSerializer(WriteSerializer):
         urns = self.validated_data.get('urns', [])
         contacts = self.validated_data.get('contacts', [])
         groups = self.validated_data.get('groups', [])
+        restart_participants = self.validated_data.get('restart_participants', True)
+        extra = self.validated_data.get('extra')
 
         # convert URNs to contacts
         for urn in urns:
@@ -562,16 +565,9 @@ class FlowStartWriteSerializer(WriteSerializer):
             contacts.append(contact)
 
         # ok, let's go create our flow start, the actual starting will happen in our view
-        start = FlowStart.create(self.validated_data['flow'], self.context['user'],
-                                 restart_participants=self.validated_data.get('restart_participants', True),
-                                 contacts=contacts, groups=groups,
-                                 extra=self.validated_data.get('extra', None))
-
-        return start
-
-    class Meta:
-        model = FlowStart
-        fields = ('flow', 'contacts', 'groups', 'urns', 'extra')
+        return FlowStart.create(self.validated_data['flow'], self.context['user'],
+                                restart_participants=restart_participants,
+                                contacts=contacts, groups=groups, extra=extra)
 
 
 class LabelReadSerializer(ReadSerializer):
