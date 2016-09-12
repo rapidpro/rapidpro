@@ -2353,8 +2353,8 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
     ## Listing Flow Starts
 
-    By making a ```GET``` request you can list all the manual flow starts on your organization.  Each
-    flow start has the following attributes:
+    By making a `GET` request you can list all the manual flow starts on your organization, in the order of last
+    modified. Each flow start has the following attributes:
 
      * **id** - the id of this flow start (integer)
      * **flow** - the flow which was started (object)
@@ -2362,7 +2362,9 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
      * **groups** - the list of groups that were started in the flow (objects)
      * **restart_particpants** - whether the contacts were restarted in this flow (boolean)
      * **status** - the status of this flow start
+     * **extra** - the dictionary of extra parameters passed to the flow start (object)
      * **created_on** - the datetime when this flow start was created (datetime)
+     * **modified_on** - the datetime when this flow start was modified (datetime)
 
     Example:
 
@@ -2374,36 +2376,31 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "next": "http://example.com/api/v2/flow_starts.json?cursor=cD0yMDE1LTExLTExKzExJTNBM40NjQlMkIwMCUzRv",
             "previous": null,
             "results": [
-            {
-                "id": 150051,
-                "flow": {
-                    name: "Thrift Shop",
-                    uuid: "f5901b62-ba76-4003-9c62-72fdacc1b7b7"
+                {
+                    "id": 150051,
+                    "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Thrift Shop"},
+                    "groups": [
+                         {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Ryan & Macklemore"}
+                    ],
+                    "contacts": [
+                         {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
+                    ],
+                    "restart_participants": true,
+                    "status": "complete",
+                    "extra": {
+                        "first_name": "Ryan",
+                        "last_name": "Lewis"
+                    },
+                    "created_on": "2013-08-19T19:11:21.082Z",
+                    "modified_on": "2013-08-19T19:11:21.082Z"
                 },
-                "groups": [
-                     {
-                          "name": "Ryan & Macklemore",
-                          "uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7"
-                     }
-                ],
-                "contacts": [
-                     {
-                         "name": "Wanz",
-                         "uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553"
-
-                     }
-                ],
-                "restart_participants": true,
-                "status": "complete",
-                "created_on": "2013-08-19T19:11:21.082Z"
-            },
-            ...
+                ...
             ]
         }
 
     ## Starting contacts down a flow
 
-    By making a ```POST``` request with the contacts, groups and URNs you want to start down a flow you can trigger a flow
+    By making a `POST` request with the contacts, groups and URNs you want to start down a flow you can trigger a flow
     start. Note that that contacts will be added to the flow asynchronously, you can use the runs endpoint to monitor the
     runs created by this start.
 
@@ -2420,41 +2417,30 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         {
             "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
             "groups": ["f5901b62-ba76-4003-9c62-72fdacc15515"],
-            "contacts": ["f5901b62-ba76-4003-9c62-fjjajdsi15553"]
-            "urns": ["twitter:sirmixalot", "tel:+12065551212"]
-            "extra": { "first_name": "Ryan", "last_name": "Lewis" }
+            "contacts": ["f5901b62-ba76-4003-9c62-fjjajdsi15553"],
+            "urns": ["twitter:sirmixalot", "tel:+12065551212"],
+            "extra": {"first_name": "Ryan", "last_name": "Lewis"}
         }
 
     Response is the created flow start:
 
         {
-            "flow": {
-                name: "Thrift Shop",
-                uuid: "f5901b62-ba76-4003-9c62-72fdacc1b7b7"
-            },
+            "id": 150051,
+            "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Thrift Shop"},
             "groups": [
-                 {
-                      "name": "Ryan & Macklemore",
-                      "uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7"
-                 }
+                 {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Ryan & Macklemore"}
             ],
             "contacts": [
-                 {
-                     "name": "Wanz",
-                     "uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553"
-                 },
-                 {
-                     "name": "Sir Mixa Lot",
-                     "uuid": "f5901b62-ba76-4003-9c62-72fftww881256"
-                 }
+                 {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
             ],
+            "restart_participants": true,
+            "status": "complete",
             "extra": {
                 "first_name": "Ryan",
                 "last_name": "Lewis"
             },
-            "restart_participants": true,
-            "status": "pending",
-            "created_on": "2013-08-19T19:11:21.082Z"
+            "created_on": "2013-08-19T19:11:21.082Z",
+            "modified_on": "2013-08-19T19:11:21.082Z"
         }
 
     """
@@ -2462,12 +2448,11 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     model = FlowStart
     serializer_class = FlowStartReadSerializer
     write_serializer_class = FlowStartWriteSerializer
-    pagination_class = CreatedOnCursorPagination
-    throttle_scope = 'v2.api'
+    pagination_class = ModifiedOnCursorPagination
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        return FlowStart.objects.filter(flow__org=org, is_active=True).order_by('-modified_on', '-id')
+        return self.model.objects.filter(flow__org=org, is_active=True)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params

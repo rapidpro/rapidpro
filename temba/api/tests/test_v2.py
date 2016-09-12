@@ -18,7 +18,7 @@ from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField
-from temba.flows.models import Flow, FlowRun, FlowLabel
+from temba.flows.models import Flow, FlowRun, FlowLabel, ReplyAction
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
@@ -1868,8 +1868,6 @@ class APITest(TembaTest):
         ])
 
     def test_flow_starts(self):
-        from temba.flows.models import ReplyAction
-
         url = reverse('api.v2.flow_starts')
         self.assertEndpointAccess(url)
 
@@ -1877,39 +1875,56 @@ class APITest(TembaTest):
 
         # update our flow to use @extra.first_name and @extra.last_name
         first_action = flow.action_sets.all().order_by('y')[0]
-        first_action.actions = json.dumps([ReplyAction(dict(base="Hi @extra.first_name @extra.last_name, what's your favorite color?")).as_json()])
+        first_action.actions = json.dumps([ReplyAction(dict(base="Hi @extra.first_name @extra.last_name, "
+                                                                 "what's your favorite color?")).as_json()])
         first_action.save()
 
-        # start the flow
+        # try to create an empty flow start
+        response = self.postJSON(url, {})
+        self.assertResponseError(response, 'flow', "This field is required.")
+
+        # start a flow with the minimum required parameters
+        response = self.postJSON(url, {'flow': flow.uuid, 'contacts': [self.joe.uuid]})
+        self.assertEqual(response.status_code, 201)
+
+        start1 = flow.starts.get(pk=response.json['id'])
+        self.assertEqual(start1.flow, flow)
+        self.assertEqual(set(start1.contacts.all()), {self.joe})
+        self.assertEqual(set(start1.groups.all()), set())
+        self.assertTrue(start1.restart_participants)
+        self.assertIsNone(start1.extra)
+
+        # check our first msg
+        msg = Msg.objects.get(direction='O', contact=self.joe)
+        self.assertEqual("Hi @extra.first_name @extra.last_name, what's your favorite color?", msg.text)
+
+        # start a flow with all parameters
         extra = dict(first_name="Ryan", last_name="Lewis")
         hans_group = self.create_group("hans", contacts=[self.hans])
         response = self.postJSON(url, dict(urns=['tel:+12067791212'],
                                            contacts=[self.joe.uuid],
                                            groups=[hans_group.uuid],
                                            flow=flow.uuid,
-                                           restart_participants=True,
+                                           restart_participants=False,
                                            extra=extra))
 
         self.assertEqual(response.status_code, 201)
 
         # assert our new start
-        start = flow.starts.all().first()
-        self.assertEqual(start.flow, flow)
-        self.assertTrue(start.contacts.filter(urns__path='+12067791212'))
-        self.assertTrue(start.contacts.filter(id=self.joe.id))
-        self.assertTrue(start.groups.filter(id=hans_group.id))
-        self.assertTrue(start.restart_participants)
-        self.assertTrue(start.extra, extra)
+        start2 = flow.starts.get(pk=response.json['id'])
+        self.assertEqual(start2.flow, flow)
+        self.assertTrue(start2.contacts.filter(urns__path='+12067791212'))
+        self.assertTrue(start2.contacts.filter(id=self.joe.id))
+        self.assertTrue(start2.groups.filter(id=hans_group.id))
+        self.assertFalse(start2.restart_participants)
+        self.assertTrue(start2.extra, extra)
 
-        # check our first msg
         msg = Msg.objects.get(direction='O', contact__urns__path='+12067791212')
         self.assertEqual("Hi Ryan Lewis, what's your favorite color?", msg.text)
 
-        # error cases:
-
-        # nobody to send to
+        # try to start a flow with no contact/group/URN
         response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True))
-        self.assertEqual(response.status_code, 400)
+        self.assertResponseError(response, 'non_field_errors', "Must specify at least one group, contact or URN")
 
         # invalid URN
         response = self.postJSON(url, dict(flow=flow.uuid, restart_participants=True, urns=['foo:bar'],
@@ -1944,20 +1959,20 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertEqual(len(response.json['results']), 1)
+        self.assertResultsById(response, [start2, start1])
         self.assertEqual(response.json['results'][0], {
-            'contacts': [{'name': 'Joe Blow',
-                          'uuid': self.joe.uuid},
-                         {'name': None,
-                          'uuid': anon_contact.uuid}],
-            'created_on': format_datetime(start.created_on),
+            'id': start2.id,
+            'flow': {'uuid': flow.uuid, 'name': 'Favorites'},
+            'contacts': [
+                {'uuid': self.joe.uuid, 'name': 'Joe Blow'},
+                {'uuid': anon_contact.uuid, 'name': None}
+            ],
+            'groups': [
+                {'uuid': hans_group.uuid, 'name': 'hans'}
+            ],
+            'restart_participants': False,
+            'status': 'complete',
             'extra': {"first_name": "Ryan", "last_name": "Lewis"},
-            'flow': {'name': 'Favorites',
-                     'uuid': flow.uuid},
-            'groups': [{'name': 'hans',
-                        'uuid': hans_group.uuid}],
-            'id': start.id,
-            'modified_on': format_datetime(start.modified_on),
-            'restart_participants': True,
-            'status': 'complete'
+            'created_on': format_datetime(start2.created_on),
+            'modified_on': format_datetime(start2.modified_on),
         })
