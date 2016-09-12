@@ -842,7 +842,7 @@ class ContactTest(TembaTest):
         self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, formatted=False))
         self.assertEqual("blow80", self.joe.get_urn_display())
         self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, formatted=False))
-        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, formatteed=False, international=True))
+        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, formatted=False, international=True))
         self.assertEqual("+250 788 383 383", self.voldemort.get_urn_display(org=self.org, international=True))
         self.assertEqual("0788 383 383", self.voldemort.get_urn_display())
         self.assertEqual("8877", mr_long_name.get_urn_display())
