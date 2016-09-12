@@ -535,7 +535,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     urns = fields.URNListField(required=False)
-    restart_participants = serializers.BooleanField()
+    restart_participants = serializers.BooleanField(required=False)
     extra = serializers.JSONField(required=False)
 
     def validate_extra(self, value):
