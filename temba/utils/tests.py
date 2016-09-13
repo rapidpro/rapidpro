@@ -882,7 +882,7 @@ class VoiceXMLTest(TembaTest):
 
         self.assertEqual(unicode(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>'
-                         '<goto nextitem="http://example.com/" /></form></vxml>')
+                         '<subdialog src="http://example.com/" ></subdialog></form></vxml>')
 
     def test_hangup(self):
         response = voicexml.Response()

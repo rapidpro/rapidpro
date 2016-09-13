@@ -729,7 +729,7 @@ class IVRTests(FlowFileTest):
                                     post_data)
 
         # grab the redirect URL
-        redirect_url = re.match(r'.*<goto nextitem="(.*)" />.*', response.content).group(1)
+        redirect_url = re.match(r'.*<subdialog src="(.*)" ></subdialog>.*', response.content).group(1)
 
         # get just the path and hit it
         response = self.client.post(urlparse(redirect_url).path, post_data)

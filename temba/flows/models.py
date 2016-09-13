@@ -461,13 +461,16 @@ class Flow(TembaModel):
             # recordings have to be tacked on last
             if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
                 voice_response.record(action=callback)
-            elif gather:
-                if hasattr(gather, 'document'):
-                    gather.join(voice_response)
-                else:
-                    # nest all of our previous verbs in our gather
-                    for verb in voice_response.verbs:
-                        gather.append(verb)
+
+            elif gather and hasattr(gather, 'document'):  # voicexml case
+                gather.join(voice_response)
+
+                voice_response = response
+
+            elif gather:  # TwiML case
+                # nest all of our previous verbs in our gather
+                for verb in voice_response.verbs:
+                    gather.append(verb)
 
                 voice_response = response
 

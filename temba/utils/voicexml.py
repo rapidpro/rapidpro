@@ -54,7 +54,7 @@ class Response(object):
         return self
 
     def redirect(self, url=None, **kwargs):
-        result = '<goto nextitem="' + url + '" />'
+        result = '<subdialog src="' + url + '" ></subdialog>'
 
         self.document += result
         return self
