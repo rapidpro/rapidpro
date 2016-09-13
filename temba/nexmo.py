@@ -114,13 +114,13 @@ class NexmoClient(object):
 
     def search_numbers(self, country, pattern):
         path = '/number/search/%s/%s/%s?features=SMS' % (self.api_key, self.api_secret, country)
-        response = self._fire_get(path, dict(pattern=pattern))
+        response = self._fire_get(path, dict(pattern=pattern, search_pattern=1))
         numbers = []
         if int(response.get('count', 0)):
             numbers += response['numbers']
 
         path = '/number/search/%s/%s/%s?features=VOICE' % (self.api_key, self.api_secret, country)
-        response = self._fire_get(path, dict(pattern=pattern))
+        response = self._fire_get(path, dict(pattern=pattern, search_pattern=1))
         if int(response.get('count', 0)):
             numbers += response['numbers']
 

@@ -2259,6 +2259,14 @@ class ChannelCRUDL(SmartCRUDL):
                 numbers.append(phonenumbers.format_number(phonenumbers.parse(number.phone_number, None),
                                                           phonenumbers.PhoneNumberFormat.INTERNATIONAL))
 
+            if not numbers:
+                if data['country'] in ['CA', 'US']:
+                    return HttpResponse(json.dumps(dict(error=str(_("Sorry, no numbers found, "
+                                                                    "please enter another area code and try again.")))))
+                else:
+                    return HttpResponse(json.dumps(dict(error=str(_("Sorry, no numbers found, "
+                                                                    "please enter another pattern and try again.")))))
+
             return HttpResponse(json.dumps(numbers))
 
     class BaseClaimNumber(OrgPermsMixin, SmartFormView):
@@ -2552,7 +2560,7 @@ class ChannelCRUDL(SmartCRUDL):
 
     class SearchNexmo(SearchNumbers):
         class SearchNexmoForm(forms.Form):
-            area_code = forms.CharField(max_length=3, min_length=3, required=False,
+            area_code = forms.CharField(max_length=7, required=False,
                                         help_text=_("The area code you want to search for a new number in"))
             country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
 
@@ -2563,7 +2571,6 @@ class ChannelCRUDL(SmartCRUDL):
             client = org.get_nexmo_client()
             data = form.cleaned_data
 
-            # if the country is not US or CANADA list using contains instead of area code
             try:
                 available_numbers = client.search_numbers(data['country'], data['area_code'])
                 numbers = []
@@ -2574,7 +2581,7 @@ class ChannelCRUDL(SmartCRUDL):
 
                 return HttpResponse(json.dumps(numbers))
             except Exception as e:
-                return HttpResponse(json.dumps(error=str(e)))
+                return HttpResponse(json.dumps(dict(error=str(e))))
 
     class ClaimPlivo(BaseClaimNumber):
         class ClaimPlivoForm(forms.Form):

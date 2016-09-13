@@ -13,3 +13,6 @@
     - for country in search_countries
       %option{ value:"={country.key}" }
         {{country.label}}
+
+-block search-pattern
+  %input#area-code{ type:"text", maxlength:"7", name:"area_code" }
