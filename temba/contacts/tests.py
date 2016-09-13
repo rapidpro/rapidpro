@@ -838,19 +838,21 @@ class ContactTest(TembaTest):
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
 
-        self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, full=True))
+        self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
         self.assertEqual("Joe Blow", self.joe.get_display(short=True))
         self.assertEqual("Joe Blow", self.joe.get_display())
-        self.assertEqual("+250788383383", self.voldemort.get_display(org=self.org, full=True))
+        self.assertEqual("+250788383383", self.voldemort.get_display(org=self.org, formatted=False))
         self.assertEqual("0788 383 383", self.voldemort.get_display())
         self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.get_display())
         self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
         self.assertEqual("Billy Nophone", self.billy.get_display())
 
         self.assertEqual("123", self.joe.get_urn_display(scheme=TEL_SCHEME))
-        self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, full=True))
+        self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, formatted=False))
         self.assertEqual("blow80", self.joe.get_urn_display())
-        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, full=True))
+        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, formatted=False))
+        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, formatted=False, international=True))
+        self.assertEqual("+250 788 383 383", self.voldemort.get_urn_display(org=self.org, international=True))
         self.assertEqual("0788 383 383", self.voldemort.get_urn_display())
         self.assertEqual("8877", mr_long_name.get_urn_display())
         self.assertEqual("", self.billy.get_urn_display())
@@ -861,7 +863,7 @@ class ContactTest(TembaTest):
         self.assertEqual("Billy Nophone", self.billy.__unicode__())
 
         with AnonymousOrg(self.org):
-            self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, full=True))
+            self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
             self.assertEqual("Joe Blow", self.joe.get_display(short=True))
             self.assertEqual("Joe Blow", self.joe.get_display())
             self.assertEqual("%010d" % self.voldemort.pk, self.voldemort.get_display())
@@ -869,7 +871,7 @@ class ContactTest(TembaTest):
             self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
             self.assertEqual("Billy Nophone", self.billy.get_display())
 
-            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display(org=self.org, full=True))
+            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display(org=self.org, formatted=False))
             self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display())
             self.assertEqual(self.voldemort.anon_identifier, self.voldemort.get_urn_display())
             self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
@@ -3214,7 +3216,9 @@ class ContactURNTest(TembaTest):
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
-        self.assertEqual(urn.get_display(self.org, full=True), '+250788383383')
+        self.assertEqual(urn.get_display(self.org, formatted=False), '+250788383383')
+        self.assertEqual(urn.get_display(self.org, international=True), '+250 788 383 383')
+        self.assertEqual(urn.get_display(self.org, formatted=False, international=True), '+250788383383')
 
         urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
         self.assertEqual(urn.get_display(self.org), 'billy_bob')

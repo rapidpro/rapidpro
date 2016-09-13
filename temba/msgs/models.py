@@ -2003,7 +2003,7 @@ class ExportMessagesTask(SmartModel):
             if self.org.is_anon:
                 urn_path = msg.contact.anon_identifier
             elif msg.contact_urn:
-                urn_path = msg.contact_urn.get_display(org=self.org, full=True)
+                urn_path = msg.contact_urn.get_display(org=self.org, formatted=False)
             else:
                 urn_path = ''
 
