@@ -1390,7 +1390,7 @@ class Flow(TembaModel):
         start_flow_task.delay(flow_start.pk)
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
-              start_msg=None, extra=None, flow_start=None, parent_run=None):
+              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True):
         """
         Starts a flow for the passed in groups and contacts.
         """
@@ -1437,9 +1437,10 @@ class Flow(TembaModel):
         ancestor_ids = []
         ancestor = parent_run
         while ancestor:
-            # we don't consider it an ancestor if it came from another contact
-            if ancestor.contact.id != parent_run.contact.id:
+            # we don't consider it an ancestor if it's not current in our start list
+            if ancestor.contact.id not in all_contact_ids:
                 break
+            ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
         # for the contacts that will be started, exit any existing flow runs
@@ -1447,7 +1448,7 @@ class Flow(TembaModel):
         FlowRun.bulk_exit(active_runs, FlowRun.EXIT_TYPE_INTERRUPTED)
 
         # if we are interrupting parent flow runs, mark them as completed
-        if ancestor_ids:
+        if ancestor_ids and interrupt:
             ancestor_runs = FlowRun.objects.filter(id__in=ancestor_ids)
             FlowRun.bulk_exit(ancestor_runs, FlowRun.EXIT_TYPE_COMPLETED)
 
