@@ -6238,11 +6238,16 @@ class TriggerFlowTest(FlowFileTest):
         msg = self.create_msg(contact=self.contact, direction='I', text="add 12067797878")
         Flow.find_and_handle(msg)
 
-        FlowRun.objects.get(contact__urns__path="+12067797878")
+        child_run = FlowRun.objects.get(contact__urns__path="+12067797878")
+        msg = self.create_msg(contact=child_run.contact, direction='I', text="Christine")
+        Flow.find_and_handle(msg)
+        child_run.refresh_from_db()
+        self.assertEqual('C', child_run.exit_type)
 
         # main contact should still be in the flow
         run = FlowRun.objects.get(flow=flow, contact=self.contact)
         self.assertTrue(run.is_active)
+        self.assertIsNone(run.exit_type)
 
         # and can do it again
         msg = self.create_msg(contact=self.contact, direction='I', text="add 12067798080")

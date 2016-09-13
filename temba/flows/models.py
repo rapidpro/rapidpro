@@ -1437,6 +1437,9 @@ class Flow(TembaModel):
         ancestor_ids = []
         ancestor = parent_run
         while ancestor:
+            # we don't consider it an ancestor if it's not current in our start list
+            if ancestor.contact.id not in all_contact_ids:
+                break
             ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
@@ -5055,7 +5058,7 @@ class TriggerFlowAction(VariableContactAction):
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
                 self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
-                                extra=extra, parent_run=run, interrupt=False)
+                                extra=extra, parent_run=run)
                 return []
             else:
                 unique_contacts = set()
