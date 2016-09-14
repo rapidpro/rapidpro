@@ -792,7 +792,8 @@ TranslateRulesController = ($scope, $modalInstance, Flow, utils, languages, rule
             delete rule.test.test[Flow.language.iso_code]
 
     # USSD message translation save
-    ruleset.config.ussd_message[Flow.language.iso_code] = $scope.translation.to
+    if Flow.flow.flow_type == 'U'
+      ruleset.config.ussd_message[Flow.language.iso_code] = $scope.translation.to
 
     # USSD menu translation save
     if ruleset.ruleset_type == 'wait_menu'
