@@ -187,6 +187,9 @@ describe 'Controllers:', ->
         expect(modalScope.languages.from).toBe('eng')
         expect(modalScope.languages.to).toBe('ara')
 
+        # test we submit without error
+        modalScope.ok()
+
       $timeout.flush()
 
     it 'should filter split options based on flow type', ->
