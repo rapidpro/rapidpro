@@ -2442,12 +2442,13 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
 
         url = 'https://services.viber.com/vibersrvc/1/send_message'
-        payload = {'service_id': channel.address,
+        payload = {'service_id': int(channel.address),
                    'dest': msg.urn_path.lstrip('+'),
                    'seq': msg.id,
                    'type': 206,
-                   'message': {'#txt': text}}
-
+                   'message': {
+                       '#txt': text,
+                       '#tracking_data': 'tracking_id:%d' % msg.id}}
         start = time.time()
 
         headers = dict(Accept='application/json')
