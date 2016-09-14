@@ -825,7 +825,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in urns_to_create.iteritems():
-                urn = ContactURN.create(org, contact, normalized, channel=channel)
+                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel)
                 urn_objects[raw] = urn
 
             # save which urns were updated
@@ -1350,7 +1350,7 @@ class Contact(TembaModel):
         contact_dict = dict(__default__=self.get_display(org=org))
         contact_dict[Contact.NAME] = self.name if self.name else ''
         contact_dict[Contact.FIRST_NAME] = self.first_name(org)
-        contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, full=True)
+        contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
         contact_dict[Contact.LANGUAGE] = self.language
@@ -1559,7 +1559,7 @@ class Contact(TembaModel):
         for group in self.user_groups.all():
             group.remove_contacts(user, [self])
 
-    def get_display(self, org=None, full=False, short=False):
+    def get_display(self, org=None, formatted=True, short=False):
         """
         Gets a displayable name or URN for the contact. If available, org can be provided to avoid having to fetch it
         again based on the contact.
@@ -1572,11 +1572,11 @@ class Contact(TembaModel):
         elif org.is_anon:
             res = self.anon_identifier
         else:
-            res = self.get_urn_display(org=org, full=full)
+            res = self.get_urn_display(org=org, formatted=formatted)
 
         return truncate(res, 20) if short else res
 
-    def get_urn_display(self, org=None, scheme=None, full=False):
+    def get_urn_display(self, org=None, scheme=None, formatted=True, international=False):
         """
         Gets a displayable URN for the contact. If available, org can be provided to avoid having to fetch it again
         based on the contact.
@@ -1588,7 +1588,7 @@ class Contact(TembaModel):
             return self.anon_identifier
 
         urn = self.get_urn(scheme)
-        return urn.get_display(org=org, full=full) if urn else ''
+        return urn.get_display(org=org, formatted=formatted, international=international) if urn else ''
 
     def raw_tel(self):
         tel = self.get_urn(TEL_SCHEME)
@@ -1728,7 +1728,7 @@ class ContactURN(models.Model):
         except Exception:
             return None
 
-    def get_display(self, org=None, full=False):
+    def get_display(self, org=None, international=False, formatted=True):
         """
         Gets a representation of the URN for display
         """
@@ -1738,12 +1738,16 @@ class ContactURN(models.Model):
         if org.is_anon:
             return self.ANON_MASK
 
-        if self.scheme == TEL_SCHEME and not full:
+        if self.scheme == TEL_SCHEME and formatted:
             # if we don't want a full tell, see if we can show the national format instead
             try:
                 if self.path and self.path[0] == '+':
-                    return phonenumbers.format_number(phonenumbers.parse(self.path, None),
-                                                      phonenumbers.PhoneNumberFormat.NATIONAL)
+                    phone_format = phonenumbers.PhoneNumberFormat.NATIONAL
+                    if international:
+                        phone_format = phonenumbers.PhoneNumberFormat.INTERNATIONAL
+
+                    return phonenumbers.format_number(phonenumbers.parse(self.path, None), phone_format)
+
             except Exception:  # pragma: no cover
                 pass
 
@@ -2081,8 +2085,6 @@ class ContactGroupCount(models.Model):
         start = time.time()
         squash_count = 0
         for count in ContactGroupCount.objects.filter(id__gt=last_squash).order_by('group_id').distinct('group_id'):
-            print "Squashing: %d" % count.group_id
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_contactgroupcounts(%s);", (count.group_id,))
@@ -2228,7 +2230,7 @@ class ExportContactsTask(SmartModel):
                             position = field['position']
                             if len(scheme_urns) > position:
                                 urn_obj = scheme_urns[position]
-                                field_value = urn_obj.get_display(org=self.org, full=True) if urn_obj else ''
+                                field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ''
                             else:
                                 field_value = ''
                         else:

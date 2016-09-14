@@ -1,0 +1,120 @@
+{
+  "campaigns": [],
+  "version": 8,
+  "site": "https://app.rapidpro.io",
+  "flows": [
+    {
+      "base_language": "base",
+      "action_sets": [
+        {
+          "y": 253,
+          "x": 498,
+          "destination": null,
+          "uuid": "e8a40389-70c1-44e4-8ab1-25f3bc584b09",
+          "actions": [
+            {
+              "msg": {
+                "base": "dayum"
+              },
+              "type": "reply"
+            }
+          ]
+        },
+        {
+          "y": 311,
+          "x": 1002,
+          "destination": null,
+          "uuid": "cf55ab5b-4944-4ca4-83db-85e5f57dff0b",
+          "actions": [
+            {
+              "type": "add_group",
+              "groups": [
+                {
+                  "name": "Interrupted",
+                  "id": 9
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "version": 8,
+      "flow_type": "U",
+      "entry": "24595407-9851-4c0f-a608-1d13e9fdfd1e",
+      "rule_sets": [
+        {
+          "uuid": "24595407-9851-4c0f-a608-1d13e9fdfd1e",
+          "webhook_action": null,
+          "rules": [
+            {
+              "category": {
+                "base": "Good"
+              },
+              "test": {
+                "test": 1,
+                "type": "eq"
+              },
+              "uuid": "3be8623f-af36-4b58-84bc-db2ee34b819c"
+            },
+            {
+              "category": {
+                "base": "Nada"
+              },
+              "test": {
+                "test": 2,
+                "type": "eq"
+              },
+              "uuid": "b139c9c5-d5ce-4dc6-a766-24af089bd622"
+            },
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "base": "Other"
+              },
+              "destination": "e8a40389-70c1-44e4-8ab1-25f3bc584b09",
+              "uuid": "101b0fc2-1966-4621-8421-d0fc067708da",
+              "destination_type": "A"
+            },
+            {
+              "test": {
+                "test": "interrupted",
+                "type": "interrupted_status"
+              },
+              "category": {
+                "base": "Interrupted"
+              },
+              "destination": "cf55ab5b-4944-4ca4-83db-85e5f57dff0b",
+              "uuid": "cf710719-c2aa-4f16-9a78-e16f7a1d5cb6",
+              "destination_type": "A"
+            }
+          ],
+          "webhook": null,
+          "ruleset_type": "wait_menu",
+          "label": "Response 1",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 0,
+          "x": 710,
+          "config": {
+            "ussd_message": {
+              "base": "What's up?"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "name": "test ussd interrupt 1 ",
+        "notes": [],
+        "expires": 10080,
+        "revision": 97,
+        "id": 6,
+        "saved_on": "2016-08-17T13:56:26.178861Z"
+      }
+    }
+  ],
+  "triggers": []
+}

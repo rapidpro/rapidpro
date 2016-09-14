@@ -104,3 +104,4 @@ app.directive "validateType", ->
 
   require:"ngModel"
   link: link
+

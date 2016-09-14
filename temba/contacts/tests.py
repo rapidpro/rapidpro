@@ -572,6 +572,10 @@ class ContactTest(TembaTest):
         snoop = Contact.get_or_create(self.org, self.user, channel=self.channel, urns=['tel:456'])
         self.assertEquals(1, snoop.urns.all().count())
 
+        # create contact with new urns one normalized and the other not
+        jimmy = Contact.get_or_create(self.org, self.user, name="Jimmy", urns=['tel:+250788112233', 'tel:0788112233'])
+        self.assertEquals(1, jimmy.urns.all().count())
+
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
         self.assertTrue(test_contact_admin.is_test)
@@ -614,6 +618,11 @@ class ContactTest(TembaTest):
 
         # check that the orphaned URN has been associated with the contact
         self.assertEqual('Ben Haggerty', Contact.from_urn(self.org, 'tel:8888').name)
+
+        # check we display error for invalid input
+        response = self.client.post(reverse('contacts.contact_create'),
+                                    data=dict(name='Ben Haggerty', urn__tel__0="="))
+        self.assertFormError(response, 'form', 'urn__tel__0', "Invalid input")
 
     def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
@@ -829,19 +838,21 @@ class ContactTest(TembaTest):
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
 
-        self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, full=True))
+        self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
         self.assertEqual("Joe Blow", self.joe.get_display(short=True))
         self.assertEqual("Joe Blow", self.joe.get_display())
-        self.assertEqual("+250788383383", self.voldemort.get_display(org=self.org, full=True))
+        self.assertEqual("+250788383383", self.voldemort.get_display(org=self.org, formatted=False))
         self.assertEqual("0788 383 383", self.voldemort.get_display())
         self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.get_display())
         self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
         self.assertEqual("Billy Nophone", self.billy.get_display())
 
         self.assertEqual("123", self.joe.get_urn_display(scheme=TEL_SCHEME))
-        self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, full=True))
+        self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, formatted=False))
         self.assertEqual("blow80", self.joe.get_urn_display())
-        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, full=True))
+        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, formatted=False))
+        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, formatted=False, international=True))
+        self.assertEqual("+250 788 383 383", self.voldemort.get_urn_display(org=self.org, international=True))
         self.assertEqual("0788 383 383", self.voldemort.get_urn_display())
         self.assertEqual("8877", mr_long_name.get_urn_display())
         self.assertEqual("", self.billy.get_urn_display())
@@ -852,7 +863,7 @@ class ContactTest(TembaTest):
         self.assertEqual("Billy Nophone", self.billy.__unicode__())
 
         with AnonymousOrg(self.org):
-            self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, full=True))
+            self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
             self.assertEqual("Joe Blow", self.joe.get_display(short=True))
             self.assertEqual("Joe Blow", self.joe.get_display())
             self.assertEqual("%010d" % self.voldemort.pk, self.voldemort.get_display())
@@ -860,7 +871,7 @@ class ContactTest(TembaTest):
             self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
             self.assertEqual("Billy Nophone", self.billy.get_display())
 
-            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display(org=self.org, full=True))
+            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display(org=self.org, formatted=False))
             self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display())
             self.assertEqual(self.voldemort.anon_identifier, self.voldemort.get_urn_display())
             self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
@@ -1947,6 +1958,17 @@ class ContactTest(TembaTest):
         # should now be using stored category as value
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, 'Rwama Category')
+
+        # bad field
+        ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                    created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
+                                    dict(__field__state='eastern province', __field__home='rwamagana',
+                                         __field__language='Kinyarwanda'))
+
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters "
+                                                     "or is a reserved field name")
 
         # try to push into a dynamic group
         self.login(self.admin)
@@ -3194,7 +3216,9 @@ class ContactURNTest(TembaTest):
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
-        self.assertEqual(urn.get_display(self.org, full=True), '+250788383383')
+        self.assertEqual(urn.get_display(self.org, formatted=False), '+250788383383')
+        self.assertEqual(urn.get_display(self.org, international=True), '+250 788 383 383')
+        self.assertEqual(urn.get_display(self.org, formatted=False, international=True), '+250788383383')
 
         urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
         self.assertEqual(urn.get_display(self.org), 'billy_bob')
@@ -3508,6 +3532,26 @@ class ContactFieldTest(TembaTest):
         post_data['label_2'] = 'Name'
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, "Field name 'Name' is a reserved word")
+
+        # bad field
+        ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                    created_by=self.admin, modified_by=self.admin)
+
+        self.assertEquals(4, ContactField.objects.filter(org=self.org, is_active=True).count())
+
+        response = self.client.get(manage_fields_url)
+        post_data = dict()
+        for id, field in response.context['form'].fields.items():
+            if field.initial is None:
+                post_data[id] = ''
+            elif isinstance(field.initial, ContactField):
+                post_data[id] = field.initial.pk
+            else:
+                post_data[id] = field.initial
+
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters "
+                                                     "or is a reserved field name")
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')

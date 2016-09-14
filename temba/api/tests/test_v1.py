@@ -1596,6 +1596,11 @@ class APITest(TembaTest):
         contact.unblock(self.user)
         artists.contacts.add(contact)
 
+        # try updating with a reserved word field
+        response = self.postJSON(url, dict(phone='+250788123456', fields={"email": "andy@example.com"}))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'fields', "Invalid contact field key: 'email' is a reserved word")
+
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         self.assertEquals(400, response.status_code)
@@ -1822,6 +1827,14 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
         results = json.loads(response.content)['results']
         self.assertEquals('Snoop Dogg', results[0]['name'])
+
+        # add two existing contacts
+        self.create_contact("Zinedine", number="+250788111222")
+        self.create_contact("Rusell", number="+250788333444")
+
+        # return error when trying to to create a new contact with many urns from different existing contacts
+        response = self.postJSON(url, dict(name="Hart", urns=['tel:0788111222', 'tel:+250788333444']))
+        self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.v1.contacts')
