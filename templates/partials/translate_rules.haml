@@ -6,28 +6,37 @@
         %button{data-dimiss:"modal",type:"button",class:"pull-right close",aria-hidden:"true"}
         %h3
           .icon
-          %span{id:"modal-title"}><
+          %span{id:"modal-title"}
             -trans "[[language.name]] Translation"
-      .modal-body
+      .modal-body.force-center
+        %div{ng-if:'ruleset.ruleset_type == "wait_menu" || ruleset.ruleset_type == "wait_ussd"', style:'padding:20px'}
+          .translate-text.translate-from{ng-show:"translation.from"}
+            [[translation.from]]
+          %label
+            %textarea{ng-model:"translation.to",auto-complete:"",class:"translation"}
         %p
           -trans "Translate rules and category names to [[language.name]]"
         .rule{ng-repeat:'rule in ruleset.rules'}
-          .operator-name{ng-model:"rule.test"}
-          .translate{ng-show:"rule._translation.test.from.length"}
+          %span{ng-if:'ruleset.ruleset_type != "wait_menu"'}
+            .operator-name{ng-model:"rule.test"}
+            .translate{ng-show:"rule._translation.test.from.length"}
+              .translate-from
+                [[rule._translation.test.from]]
+              %input{ng-model:"rule._translation.test.to",auto-complete:"",type:"text",class:"translate-to"}
+            .translate-static{ng-hide:'rule._translation.test.from.length'}
+              %span{ng-show:'rule.test.test != "true"'}
+                [[rule.test.test]]
+
+          .translate{ng-if:'ruleset.ruleset_type == "wait_menu" && rule.test.test != "true" && rule.test.test != "interrupted"'}
             .translate-from
-              [[rule._translation.test.from]]
-            %input{ng-model:"rule._translation.test.to",auto-complete:"",type:"text",class:"translate-to"}
-          .translate-static{ng-hide:'rule._translation.test.from.length'}
-            %span{ng-show:'rule.test.test != "true"'}
-              [[rule.test.test]]
-          .categorize-as
+              [[rule._translation.label.from]]
+            %input{ng-model:"rule._translation.label.to",auto-complete:"",type:"text",class:"translate-to"}
+          .categorize-as{ng-if:'rule.test.test != "true" && rule.test.test != "interrupted"'}
             -trans "refer to as"
           .translate
             .translate-from
               [[rule._translation.category.from]]
             %input{ng-model:"rule._translation.category.to",type:"text",class:"translate-to"}
-        %p
-          &nbsp;
       .modal-footer
         %button{ng-click:"cancel()",class:"btn btn-secondary"}
           -trans "Cancel"

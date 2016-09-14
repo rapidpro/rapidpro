@@ -81,6 +81,7 @@ class Channel(TembaModel):
     TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
     TYPE_VUMI = 'VM'
+    TYPE_VUMI_USSD = 'VMU'
     TYPE_YO = 'YO'
     TYPE_ZENVIA = 'ZV'
 
@@ -158,6 +159,7 @@ class Channel(TembaModel):
         TYPE_VERBOICE: dict(scheme='tel', max_length=1600),
         TYPE_VIBER: dict(scheme='tel', max_length=1000),
         TYPE_VUMI: dict(scheme='tel', max_length=1600),
+        TYPE_VUMI_USSD: dict(scheme='tel', max_length=182),
         TYPE_YO: dict(scheme='tel', max_length=1600),
         TYPE_ZENVIA: dict(scheme='tel', max_length=150),
     }
@@ -188,8 +190,12 @@ class Channel(TembaModel):
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"),
                     (TYPE_VUMI, "Vumi"),
+                    (TYPE_VUMI_USSD, "Vumi USSD"),
                     (TYPE_YO, "Yo!"),
                     (TYPE_ZENVIA, "Zenvia"))
+
+    # list of all USSD channels
+    USSD_CHANNELS = [TYPE_VUMI_USSD]
 
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
@@ -878,6 +884,9 @@ class Channel(TembaModel):
     def is_new(self):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
+
+    def is_ussd(self):
+        return self.channel_type in Channel.USSD_CHANNELS
 
     def claim(self, org, user, phone):
         """
@@ -1667,16 +1676,17 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
         from temba.contacts.models import Contact
 
-        channel.config['transport_name'] = 'mtech_ng_smpp_transport'
+        is_ussd = channel.channel_type in Channel.USSD_CHANNELS
+        channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
         payload = dict(message_id=msg.id,
                        in_reply_to=None,
-                       session_event=None,
+                       session_event="resume" if is_ussd else None,
                        to_addr=msg.urn_path,
                        from_addr=channel.address,
                        content=text,
                        transport_name=channel.config['transport_name'],
-                       transport_type='sms',
+                       transport_type='ussd' if is_ussd else 'sms',
                        transport_metadata={},
                        helper_metadata={})
 
@@ -1703,7 +1713,7 @@ class Channel(TembaModel):
                                 response="",
                                 response_status=503)
 
-        if response.status_code != 200 and response.status_code != 201:
+        if response.status_code not in (200, 201):
             # this is a fatal failure, don't retry
             fatal = response.status_code == 400
 
@@ -2432,19 +2442,20 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
 
         url = 'https://services.viber.com/vibersrvc/1/send_message'
-        payload = {'service_id': channel.address,
+        payload = {'service_id': int(channel.address),
                    'dest': msg.urn_path.lstrip('+'),
                    'seq': msg.id,
                    'type': 206,
-                   'message': {'#txt': text}}
-
+                   'message': {
+                       '#txt': text,
+                       '#tracking_data': 'tracking_id:%d' % msg.id}}
         start = time.time()
 
         headers = dict(Accept='application/json')
         headers.update(TEMBA_HEADERS)
 
         try:
-            response = requests.post(url, params=payload, headers=headers, timeout=5)
+            response = requests.post(url, json=payload, headers=headers, timeout=5)
             response_json = response.json()
         except Exception as e:
             raise SendException(unicode(e),
@@ -2537,6 +2548,7 @@ class Channel(TembaModel):
 
         # populate redis in our config
         channel.config['r'] = r
+
         type_settings = Channel.CHANNEL_SETTINGS[channel.channel_type]
 
         # Check whether we need to throttle ourselves
@@ -2694,6 +2706,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_TWITTER: Channel.send_twitter_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message,
                   Channel.TYPE_VUMI: Channel.send_vumi_message,
+                  Channel.TYPE_VUMI_USSD: Channel.send_vumi_message,
                   Channel.TYPE_YO: Channel.send_yo_message,
                   Channel.TYPE_ZENVIA: Channel.send_zenvia_message}
 

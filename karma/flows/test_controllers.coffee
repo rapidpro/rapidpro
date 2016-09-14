@@ -26,6 +26,7 @@ describe 'Controllers:', ->
       'rules_first': { id: 2, languages:[], channel_countries: [] },
       'loop_detection': { id: 3, languages:[], channel_countries: [] },
       'webhook_rule_first': { id: 4, languages:[], channel_countries: [] },
+      'ussd_example': { id: 5, languages:[], channel_countries: [] },
     }
 
     $http.whenGET('/contactfield/json/').respond([])
@@ -73,8 +74,9 @@ describe 'Controllers:', ->
 
     flowController = null
     flowService = null
+    utils = null
 
-    beforeEach inject(($controller, _Flow_) ->
+    beforeEach inject(($controller, _Flow_, _utils_) ->
 
       flowService = _Flow_
       flowController = $controller 'FlowController',
@@ -82,6 +84,7 @@ describe 'Controllers:', ->
         $rootScope: $rootScope
         $log: $log
         Flow: flowService
+      utils = _utils_
     )
 
     getRuleConfig = (type) ->
@@ -139,7 +142,6 @@ describe 'Controllers:', ->
       $http.flush()
 
     it 'should view localized flows without org language', ->
-
       # mock our contact fields
       flowService.contactFieldSearch = []
 
@@ -213,6 +215,14 @@ describe 'Controllers:', ->
         expect(scope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(true)
         expect(scope.isVisibleRulesetType(getRuleConfig('wait_digits'))).toBe(false)
         expect(scope.isVisibleRulesetType(getRuleConfig('webhook'))).toBe(false)
+
+        # USSD flow
+        flowService.flow.flow_type = 'U'
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_menu'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_ussd'))).toBe(true)
+        expect(scope.isVisibleRulesetType(getRuleConfig('wait_message'))).toBe(false)
+
+      $timeout.flush()
 
     it 'should create timeout rules if necessary', ->
 
@@ -472,6 +482,13 @@ describe 'Controllers:', ->
         expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
         expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
 
+        # USSD flow
+        flowService.flow.flow_type = 'U'
+        expect(modalScope.validActionFilter(getAction('reply'))).toBe(true)
+        expect(modalScope.validActionFilter(getAction('say'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('play'))).toBe(false)
+        expect(modalScope.validActionFilter(getAction('api'))).toBe(false)
+
       $timeout.flush()
 
     it 'should allow users to create groups in place', ->
@@ -578,6 +595,29 @@ describe 'Controllers:', ->
 
       $timeout.flush()
 
+    it 'should have the USSD Menu synced with ruleset', ->
+
+      # load a USSD flow
+      flowService.fetch(flows.ussd_example.id)
+      flowService.contactFieldSearch = []
+      flowService.language = {iso_code:'base'}
+      $http.flush()
+
+      ruleset = flowService.flow.rule_sets[0]
+      $scope.clickRuleset(ruleset)
+
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+
+        for rule in modalScope.ruleset.rules
+          if rule.label
+            expect(rule.uuid).toBeDefined()
+            expect(rule.category.base).toBeDefined()
+            expect(rule.label).toBeDefined()
+            expect(rule._config.type).toBe('eq')
+
+      $timeout.flush()
+
     it 'isRuleComplete should have proper validation', ->
 
       loadFavoritesFlow()
@@ -609,4 +649,3 @@ describe 'Controllers:', ->
           expect(modalScope.isRuleComplete(rule_test['rule'])).toBe(rule_test['complete'])
 
       $timeout.flush()
-        

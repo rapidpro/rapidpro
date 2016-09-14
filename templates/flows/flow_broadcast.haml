@@ -16,12 +16,23 @@
 
 
   -if object.flow_type == 'F' and not send_channel
-     %p
-      -blocktrans with name=brand.name
-        To get started you need to add a channel to your account. A channel is a phone number or social network
-        account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
-        Android phone and your own cell phone plan, or we can connect you with a service provider in your country
-        directly.
+    %p
+    -blocktrans with name=brand.name
+      To get started you need to add a channel to your account. A channel is a phone number or social network
+      account which {{ name }} can use to send and receive messages on your behalf. You can choose to use an
+      Android phone and your own cell phone plan, or we can connect you with a service provider in your country
+      directly.
+    %hr
+    %p
+      -trans "You can always test your flow using the simulator, click"
+        %span.glyph.icon-mobile{style:"padding-top:2px;"}
+      -trans "on the right to open it."
+
+  -elif object.flow_type == 'U' and not is_ussd_channel
+    %p
+    -blocktrans with name=brand.name
+      To get started you need to add a USSD channel to your account. You can choose between USSD channels
+      that are available in your country.
     %hr
     %p
       -trans "You can always test your flow using the simulator, click"
