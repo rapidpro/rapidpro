@@ -124,6 +124,16 @@ describe 'Controllers:', ->
         edits(modalScope)
       $timeout.flush()
 
+    editRuleset = (ruleset, edits) ->
+      # open our editor modal so we can save it
+      $scope.clickRuleset(ruleset)
+      $scope.dialog.opened.then ->
+        modalScope = $modalStack.getTop().value.modalScope
+        edits(modalScope)
+        modalScope.ok()
+      $timeout.flush()
+
+
     it 'should show warning when attempting an infinite loop', ->
 
       flowService.fetch(flows.webhook_rule_first.id).then ->
@@ -179,18 +189,10 @@ describe 'Controllers:', ->
 
       # now toggle our language so we are in translation mode
       flowService.language = {iso_code:'ara', name:'Arabic'}
-      $scope.clickRuleset(ruleset)
-      $scope.dialog.opened.then ->
-        modalScope = $modalStack.getTop().value.modalScope
-
+      editRuleset ruleset, (scope) ->
         # we should be in translation mode now
-        expect(modalScope.languages.from).toBe('eng')
-        expect(modalScope.languages.to).toBe('ara')
-
-        # test we submit without error
-        modalScope.ok()
-
-      $timeout.flush()
+        expect(scope.languages.from).toBe('eng')
+        expect(scope.languages.to).toBe('ara')
 
     it 'should filter split options based on flow type', ->
 
@@ -607,29 +609,20 @@ describe 'Controllers:', ->
       $http.flush()
 
       ruleset = flowService.flow.rule_sets[0]
-      $scope.clickRuleset(ruleset)
-
-      $scope.dialog.opened.then ->
-        modalScope = $modalStack.getTop().value.modalScope
-
-        for rule in modalScope.ruleset.rules
+      editRuleset ruleset, (scope) ->
+        for rule in scope.ruleset.rules
           if rule.label
             expect(rule.uuid).toBeDefined()
             expect(rule.category.base).toBeDefined()
             expect(rule.label).toBeDefined()
             expect(rule._config.type).toBe('eq')
 
-      $timeout.flush()
-
     it 'isRuleComplete should have proper validation', ->
 
       loadFavoritesFlow()
 
       ruleset = flowService.flow.rule_sets[0]
-      $scope.clickRuleset(ruleset)
-
-      $scope.dialog.opened.then ->
-        modalScope = $modalStack.getTop().value.modalScope
+      editRuleset ruleset, (scope) ->
 
         rule_tests = [
           {rule: {category: null, _config: {operands: null}, test: {}}, complete: false},
@@ -649,6 +642,4 @@ describe 'Controllers:', ->
         ]
 
         for rule_test in rule_tests
-          expect(modalScope.isRuleComplete(rule_test['rule'])).toBe(rule_test['complete'])
-
-      $timeout.flush()
+          expect(scope.isRuleComplete(rule_test['rule'])).toBe(rule_test['complete'])
