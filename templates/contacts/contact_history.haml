@@ -2,7 +2,7 @@
 
 -for item in activity
 
-  %tr.item{data-created:'{{item.created_on|date:"U.u"}}', class:'msg_{{item.msg_type}} {%if item.media|slice:":6" == "video:" %}video{%endif%} {% if item.created_on > recent_date%}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
+  %tr.item{data-created:'{{item.created_on|date:"U.u"}}', class:'msg_{{item.msg_type}} {%if item.media|slice:":6" == "video:" %}video{%endif%} {% if item.is_recent %}recent{%endif%} {% if item.direction or item.recipient_count%}msg{%else%}non-msg{%endif%}'}
     -with media_type=item.media|media_type media_content_type=item.media|media_content_type media_url=item.media|media_url
 
       %td.icon
@@ -29,9 +29,9 @@
               .glyph.icon-docs.user.boost
 
         -else
-          %span.det{title:'{{item.channel.get_channel_type_name}} {{item.channel.get_name}}'}
+          %span.det{title:'{% if item.channel %}{{item.channel.get_channel_type_name}} {{item.channel.get_name}}{% endif %}'}
             -if not user_org.is_anon or perms.contacts.contact_break_anon
-              -with item.channellog_set.all.first as log
+              -with item.get_last_log as log
                 -if log
                   %a{href:"{% url 'channels.channellog_read' log.pk%}"}
                     {{item|activity_icon}}
@@ -41,16 +41,7 @@
               {{item|activity_icon}}
 
       %td.details
-        -if item.recipient_count
-          -with item as broadcast
-            .activity-broadcast
-              .sent-to
-                .summary
-                  Broadcast to {{broadcast.recipient_count|intcomma}} recipients
-
-              .activity-body
-                {{broadcast.text}}
-        -elif item.event_type
+        -if item.event_type
           -with item as call
             -if call.event_type == 'mt_miss'
               Missed call
@@ -132,6 +123,17 @@
           .activity-message
             .activity-body
               {{media_url|extension|upper}} document (<a href="{{media_url}}" download>download</a>)
+
+        -elif item.recipient_count
+          -with item as broadcast
+            .activity-broadcast
+              .sent-to
+                .summary
+                  Broadcast to {{broadcast.recipient_count|intcomma}} recipients
+
+              .activity-body
+                {{broadcast.translated_text}}
+
         -else
           -with item as message
 
@@ -167,6 +169,8 @@
   %tr.since
     %td{colspan:3}
       %span.loading
-      -if more
+      -if has_older
         %a.btn.btn-tiny.btn-secondary.load-more
           Load More
+      %span#start_time.hidden
+        {{ start_time }}

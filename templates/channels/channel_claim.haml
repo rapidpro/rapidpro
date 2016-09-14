@@ -537,6 +537,26 @@
                 -blocktrans
                   Easily connect your <a href="http://vumi.com/">Vumi</a> account to take advantage of two way texting across different mediums.
 
+    -if user_org.timezone == 'Africa/Johannesburg'
+      .claim-row.vumi-ussd-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using Vumi USSD to connect a USSD code in your country, select this option to configure your channel.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_vumi_ussd' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Vumi USSD"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily connect your <a href="http://go.vumi.org/">Vumi</a> account to take advantage of session based messaging across USSD transports.
+
     .claim-row.external-channel
       .row
         .span3

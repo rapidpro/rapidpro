@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 
 import json
 import pytz
-import time
 
 from datetime import datetime, date, timedelta
 from django.core.files.base import ContentFile
@@ -17,13 +16,15 @@ from smartmin.csv_imports.models import ImportTask
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
+from temba.flows.models import FlowRun
+from temba.ivr.models import NO_ANSWER, IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
-from temba.utils import datetime_to_str, get_datetime_format
+from temba.utils import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.values.models import Value
 from xlrd import open_workbook
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
@@ -571,6 +572,10 @@ class ContactTest(TembaTest):
         snoop = Contact.get_or_create(self.org, self.user, channel=self.channel, urns=['tel:456'])
         self.assertEquals(1, snoop.urns.all().count())
 
+        # create contact with new urns one normalized and the other not
+        jimmy = Contact.get_or_create(self.org, self.user, name="Jimmy", urns=['tel:+250788112233', 'tel:0788112233'])
+        self.assertEquals(1, jimmy.urns.all().count())
+
     def test_get_test_contact(self):
         test_contact_admin = Contact.get_test_contact(self.admin)
         self.assertTrue(test_contact_admin.is_test)
@@ -613,6 +618,11 @@ class ContactTest(TembaTest):
 
         # check that the orphaned URN has been associated with the contact
         self.assertEqual('Ben Haggerty', Contact.from_urn(self.org, 'tel:8888').name)
+
+        # check we display error for invalid input
+        response = self.client.post(reverse('contacts.contact_create'),
+                                    data=dict(name='Ben Haggerty', urn__tel__0="="))
+        self.assertFormError(response, 'form', 'urn__tel__0', "Invalid input")
 
     def test_fail_and_block_and_release(self):
         msg1 = self.create_msg(text="Test 1", direction='I', contact=self.joe, msg_type='I', status='H')
@@ -679,7 +689,7 @@ class ContactTest(TembaTest):
         self.assertEqual(set(dynamic_group.contacts.all()), set())
 
         # but his messages are unchanged
-        self.assertEqual(2, Msg.all_messages.filter(contact=self.joe, visibility='V').count())
+        self.assertEqual(2, Msg.objects.filter(contact=self.joe, visibility='V').count())
         msg_counts = SystemLabel.get_counts(self.org)
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_INBOX])
         self.assertEqual(1, msg_counts[SystemLabel.TYPE_FLOWS])
@@ -735,8 +745,8 @@ class ContactTest(TembaTest):
                                           ContactGroup.TYPE_STOPPED: 0})
 
         # joe's messages should be inactive, blank and have no labels
-        self.assertEqual(0, Msg.all_messages.filter(contact=self.joe, visibility='V').count())
-        self.assertEqual(0, Msg.all_messages.filter(contact=self.joe).exclude(text="").count())
+        self.assertEqual(0, Msg.objects.filter(contact=self.joe, visibility='V').count())
+        self.assertEqual(0, Msg.objects.filter(contact=self.joe).exclude(text="").count())
         self.assertEqual(0, Label.label_objects.get(pk=label.pk).msgs.count())
 
         msg_counts = SystemLabel.get_counts(self.org)
@@ -828,19 +838,21 @@ class ContactTest(TembaTest):
     def test_contact_display(self):
         mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
 
-        self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, full=True))
+        self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
         self.assertEqual("Joe Blow", self.joe.get_display(short=True))
         self.assertEqual("Joe Blow", self.joe.get_display())
-        self.assertEqual("+250788383383", self.voldemort.get_display(org=self.org, full=True))
+        self.assertEqual("+250788383383", self.voldemort.get_display(org=self.org, formatted=False))
         self.assertEqual("0788 383 383", self.voldemort.get_display())
         self.assertEqual("Wolfeschlegelsteinhausenbergerdorff", mr_long_name.get_display())
         self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
         self.assertEqual("Billy Nophone", self.billy.get_display())
 
         self.assertEqual("123", self.joe.get_urn_display(scheme=TEL_SCHEME))
-        self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, full=True))
+        self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, formatted=False))
         self.assertEqual("blow80", self.joe.get_urn_display())
-        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, full=True))
+        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, formatted=False))
+        self.assertEqual("+250788383383", self.voldemort.get_urn_display(org=self.org, formatted=False, international=True))
+        self.assertEqual("+250 788 383 383", self.voldemort.get_urn_display(org=self.org, international=True))
         self.assertEqual("0788 383 383", self.voldemort.get_urn_display())
         self.assertEqual("8877", mr_long_name.get_urn_display())
         self.assertEqual("", self.billy.get_urn_display())
@@ -851,7 +863,7 @@ class ContactTest(TembaTest):
         self.assertEqual("Billy Nophone", self.billy.__unicode__())
 
         with AnonymousOrg(self.org):
-            self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, full=True))
+            self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
             self.assertEqual("Joe Blow", self.joe.get_display(short=True))
             self.assertEqual("Joe Blow", self.joe.get_display())
             self.assertEqual("%010d" % self.voldemort.pk, self.voldemort.get_display())
@@ -859,7 +871,7 @@ class ContactTest(TembaTest):
             self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
             self.assertEqual("Billy Nophone", self.billy.get_display())
 
-            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display(org=self.org, full=True))
+            self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display(org=self.org, formatted=False))
             self.assertEqual(self.joe.anon_identifier, self.joe.get_urn_display())
             self.assertEqual(self.voldemort.anon_identifier, self.voldemort.get_urn_display())
             self.assertEqual(mr_long_name.anon_identifier, mr_long_name.get_urn_display())
@@ -1198,22 +1210,25 @@ class ContactTest(TembaTest):
             self.assertEqual(omnibox_request("search=123222"), [])
 
     def test_history(self):
+        url = reverse('contacts.contact_history', args=[self.joe.uuid])
+
+        self.joe.created_on = timezone.now() - timedelta(days=1000)
+        self.joe.save()
 
         self.create_campaign()
 
         # create some messages
-        msgs = []
-        for i in range(105):
-            msgs.append(self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i))
-            i += 1
+        for i in range(100):
+            self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
+                            created_on=timezone.now() - timedelta(days=(100 - i)))
+
+        self.create_msg(direction='I', contact=self.joe, text="Very old inbound message",
+                        created_on=timezone.now() - timedelta(days=500))
 
         # start a joe flow
-        from temba.flows.models import FlowRun
         self.reminder_flow.start([], [self.joe])
 
         # create an event from the past
-        from temba.campaigns.models import EventFire
-
         scheduled = timezone.now() - timedelta(days=5)
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
@@ -1222,76 +1237,79 @@ class ContactTest(TembaTest):
                             timezone.now(), 5)
 
         # try adding some failed calls
-        from temba.ivr.models import NO_ANSWER, IVRCall
         IVRCall.objects.create(contact=self.joe, status=NO_ANSWER, created_by=self.admin,
                                modified_by=self.admin, channel=self.channel, org=self.org,
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        with self.assertNumQueries(70):
+            response = self.fetch_protected(url, self.admin)
+
+        self.assertTrue(response.context['has_older'])
+
+        # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
         activity = response.context['activity']
+        self.assertEqual(len(activity), 94)
+        self.assertIsInstance(activity[0], IVRCall)
+        self.assertIsInstance(activity[1], ChannelEvent)
+        self.assertIsInstance(activity[2], Msg)
+        self.assertEqual(activity[2].direction, 'O')
+        self.assertIsInstance(activity[3], FlowRun)
+        self.assertIsInstance(activity[4], Msg)
+        self.assertEqual(activity[4].text, "Inbound message 99")
+        self.assertIsInstance(activity[8], EventFire)
+        self.assertEqual(activity[-1].text, "Inbound message 11")
 
-        # even though there are no messages after it, should still see the recent call
-        self.assertTrue(isinstance(activity[0], IVRCall))
-        self.assertTrue(isinstance(activity[1], ChannelEvent))
+        # fetch next page
+        before = response.context['start_time']
+        response = self.fetch_protected(url + '?before=%d' % before, self.admin)
+        self.assertFalse(response.context['has_older'])
 
-        # 100 messages, a channel event, a call, and a flow run
-        self.assertEquals(103, len(activity))
-        self.assertTrue(response.context['more'])
-
-        # fetch page 2
-        response = self.fetch_protected('%s?page=2' % reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        # activity should include 11 remaining messages and the event fire
         activity = response.context['activity']
-        self.assertFalse(response.context['more'])
+        self.assertEqual(len(activity), 12)
+        self.assertEqual(activity[0].text, "Inbound message 10")
+        self.assertEqual(activity[10].text, "Inbound message 0")
+        self.assertEqual(activity[11].text, "Very old inbound message")
 
-        # six remaining messages
-        self.assertEquals(7, len(activity))
-        self.assertTrue(isinstance(activity[6], EventFire))
+        # if a broadcast is purged, it appears in place of the message
+        bcast = Broadcast.objects.get()
+        bcast.purged = True
+        bcast.save()
+        bcast.msgs.all().delete()
 
-        # most recent thing is a message followed by a flow run
-        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
+        response = self.fetch_protected(url, self.admin)
         activity = response.context['activity']
-        self.assertTrue(isinstance(activity[2], Msg))
-        self.assertTrue(isinstance(activity[3], FlowRun))
+        self.assertEqual(len(activity), 94)
+        self.assertIsInstance(activity[3], Broadcast)  # TODO fix order so initial broadcasts come after their run
+        self.assertEqual(activity[3].text, "What is your favorite color?")
+        self.assertEqual(activity[3].translated_text, "What is your favorite color?")
 
         # if a new message comes in
         self.create_msg(direction='I', contact=self.joe, text="Newer message")
-        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.admin)
-        activity = response.context['activity']
+        response = self.fetch_protected(url, self.admin)
 
         # now we'll see the message that just came in first, followed by the call event
-        self.assertEquals('Newer message', activity[0].text)
-        self.assertTrue(isinstance(activity[0], Msg))
-        self.assertTrue(isinstance(activity[1], IVRCall))
-
-        # remove 50 messages
-        for i in range(50):
-            msgs[i].delete()
-
-        # add five more messages from eight days ago
-        for i in range(5):
-            self.create_msg(direction='I', contact=self.joe, text="Old Message", created_on=timezone.now() - timedelta(days=8))
-
-        # number of items on the first page should be 66 now
-        response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.admin)
         activity = response.context['activity']
-        self.assertEquals(66, len(activity))
+        self.assertIsInstance(activity[0], Msg)
+        self.assertEqual(activity[0].text, "Newer message")
+        self.assertIsInstance(activity[1], IVRCall)
 
-        recent_seconds = int(time.mktime((timezone.now() - timedelta(days=7)).timetuple()))
-        response = self.fetch_protected("%s?r=true&rs=%s" % (reverse('contacts.contact_history', args=[self.joe.uuid]), recent_seconds), self.admin)
+        recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
+        response = self.fetch_protected(url + "?r=true&rs=%s" % recent_start, self.admin)
+
+        # with our recent flag on, should not see the older messages
         activity = response.context['activity']
-
-        # with our recent flag on, should not see the 5 older messages
-        self.assertEquals(61, len(activity))
+        self.assertEqual(len(activity), 5)
 
         # can view history as super user as well
-        response = self.fetch_protected((reverse('contacts.contact_history', args=[self.joe.uuid])), self.superuser)
+        response = self.fetch_protected(url, self.superuser)
         activity = response.context['activity']
-        self.assertEquals(66, len(activity))
+        self.assertEqual(len(activity), 95)
 
         self.login(self.admin)
         response = self.client.get(reverse('contacts.contact_history', args=['bad-uuid']))
-        self.assertEquals(response.status_code, 404)
+        self.assertEqual(response.status_code, 404)
 
     def test_event_times(self):
 
@@ -1941,6 +1959,17 @@ class ContactTest(TembaTest):
         response = self.client.get(reverse('contacts.contact_read', args=[self.joe.uuid]))
         self.assertContains(response, 'Rwama Category')
 
+        # bad field
+        ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                    created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.post(reverse('contacts.contact_update_fields', args=[self.joe.id]),
+                                    dict(__field__state='eastern province', __field__home='rwamagana',
+                                         __field__language='Kinyarwanda'))
+
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters "
+                                                     "or is a reserved field name")
+
         # try to push into a dynamic group
         self.login(self.admin)
         group = self.create_group('Dynamo', query='dynamo')
@@ -2549,6 +2578,11 @@ class ContactTest(TembaTest):
             self.assertEquals(1, Contact.objects.filter(name='Kobe').count())
             self.assertFalse(Contact.objects.filter(uuid='uuid-3333'))  # previously non-existent uuid ignored
 
+        csv_file = open('%s/test_imports/sample_contacts_UPPER.XLS' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertNoFormErrors(response)
+
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
@@ -2581,6 +2615,14 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
                              '"Telegram", "Email", "Facebook", "External" should be included.')
+
+        csv_file = open('%s/test_imports/sample_contacts.xlsx' % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertFormError(response, 'form', 'csv_file',
+                             "The file you provided has an unsupported format. "
+                             "Please make sure you upload a CSV file or an Excel file "
+                             "saved as Excel 2003 format(.xls)")
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -3148,9 +3190,9 @@ class ContactTest(TembaTest):
         self.joe.update_urns(self.admin, ['telegram:12515', 'twitter:macklemore'])
 
         # simulate an incoming message from Mage on Twitter
-        msg = Msg.all_messages.create(org=self.org, channel=twitter, contact=self.joe,
-                                      contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
-                                      text="Incoming twitter DM", created_on=timezone.now())
+        msg = Msg.objects.create(org=self.org, channel=twitter, contact=self.joe,
+                                 contact_urn=ContactURN.get_or_create(self.org, self.joe, 'twitter:macklemore', twitter),
+                                 text="Incoming twitter DM", created_on=timezone.now())
 
         process_message_task(msg.id, from_mage=True, new_contact=False)
 
@@ -3174,7 +3216,9 @@ class ContactURNTest(TembaTest):
     def test_get_display(self):
         urn = ContactURN.objects.create(org=self.org, scheme='tel', path='+250788383383', urn='tel:+250788383383', priority=50)
         self.assertEqual(urn.get_display(self.org), '0788 383 383')
-        self.assertEqual(urn.get_display(self.org, full=True), '+250788383383')
+        self.assertEqual(urn.get_display(self.org, formatted=False), '+250788383383')
+        self.assertEqual(urn.get_display(self.org, international=True), '+250 788 383 383')
+        self.assertEqual(urn.get_display(self.org, formatted=False, international=True), '+250788383383')
 
         urn = ContactURN.objects.create(org=self.org, scheme='twitter', path='billy_bob', urn='twitter:billy_bob', priority=50)
         self.assertEqual(urn.get_display(self.org), 'billy_bob')
@@ -3327,7 +3371,7 @@ class ContactFieldTest(TembaTest):
         Contact.get_test_contact(self.user)  # create test contact to ensure they aren't included in the export
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportContactsTask.objects.create(org=self.org, host='test',
+        blocking_export = ExportContactsTask.objects.create(org=self.org,
                                                             created_by=self.admin, modified_by=self.admin)
 
         response = self.client.get(reverse('contacts.contact_export'), dict(), follow=True)
@@ -3488,6 +3532,26 @@ class ContactFieldTest(TembaTest):
         post_data['label_2'] = 'Name'
         response = self.client.post(manage_fields_url, post_data, follow=True)
         self.assertFormError(response, 'form', None, "Field name 'Name' is a reserved word")
+
+        # bad field
+        ContactField.objects.create(org=self.org, key='language', label='User Language',
+                                    created_by=self.admin, modified_by=self.admin)
+
+        self.assertEquals(4, ContactField.objects.filter(org=self.org, is_active=True).count())
+
+        response = self.client.get(manage_fields_url)
+        post_data = dict()
+        for id, field in response.context['form'].fields.items():
+            if field.initial is None:
+                post_data[id] = ''
+            elif isinstance(field.initial, ContactField):
+                post_data[id] = field.initial.pk
+            else:
+                post_data[id] = field.initial
+
+        response = self.client.post(manage_fields_url, post_data, follow=True)
+        self.assertFormError(response, 'form', None, "Field key language has invalid characters "
+                                                     "or is a reserved field name")
 
     def test_json(self):
         contact_field_json_url = reverse('contacts.contactfield_json')

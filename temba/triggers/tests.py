@@ -664,7 +664,7 @@ class TriggerTest(TembaTest):
         self.assertFalse(catch_all_trigger)
 
         Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
-        self.assertEquals(1, Msg.all_messages.all().count())
+        self.assertEquals(1, Msg.objects.all().count())
         self.assertEquals(0, flow.runs.all().count())
 
         trigger_url = reverse("triggers.trigger_catchall")
@@ -687,7 +687,7 @@ class TriggerTest(TembaTest):
         incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(1, flow.runs.all().count())
         self.assertEquals(flow.runs.all()[0].contact.pk, contact.pk)
-        reply = Msg.all_messages.get(response_to=incoming)
+        reply = Msg.objects.get(response_to=incoming)
         self.assertEquals('Echo: Hi', reply.text)
 
         other_flow = Flow.copy(flow, self.admin)
@@ -751,11 +751,11 @@ class TriggerTest(TembaTest):
 
         # try a message again, this shouldn't cause anything since the contact isn't part of our group
         FlowRun.objects.all().delete()
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
 
         incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(0, FlowRun.objects.all().count())
-        self.assertFalse(Msg.all_messages.filter(response_to=incoming))
+        self.assertFalse(Msg.objects.filter(response_to=incoming))
 
         # now add the contact to the group
         group.contacts.add(contact)
@@ -764,7 +764,7 @@ class TriggerTest(TembaTest):
         incoming = Msg.create_incoming(self.channel, contact.get_urn().urn, "Hi")
         self.assertEquals(1, FlowRun.objects.all().count())
         self.assertEquals(other_flow.runs.all()[0].contact.pk, contact.pk)
-        reply = Msg.all_messages.get(response_to=incoming)
+        reply = Msg.objects.get(response_to=incoming)
         self.assertEquals('Echo: Hi', reply.text)
 
         # delete the group

@@ -56,7 +56,8 @@ def check_flow_timeouts_task():
     if not r.get(key):
         with r.lock(key, timeout=900):
             # find any runs that should have timed out
-            runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now()).only('id', 'org')
+            runs = FlowRun.objects.filter(is_active=True, timeout_on__lte=timezone.now())
+            runs = runs.only('id', 'org', 'timeout_on')
             for run in runs:
                 # move this flow forward via the handler queue
                 push_task(run.org_id, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=TIMEOUT_EVENT, run=run.id, timeout_on=run.timeout_on))
@@ -100,7 +101,7 @@ def start_msg_flow_batch_task():
 
     broadcasts = [] if not task['broadcasts'] else Broadcast.objects.filter(pk__in=task['broadcasts'])
     started_flows = [] if not task['started_flows'] else task['started_flows']
-    start_msg = None if not task['start_msg'] else Msg.all_messages.filter(pk=task['start_msg']).first()
+    start_msg = None if not task['start_msg'] else Msg.objects.filter(pk=task['start_msg']).first()
     extra = task['extra']
     flow_start = None if not task['flow_start'] else FlowStart.objects.filter(pk=task['flow_start']).first()
 

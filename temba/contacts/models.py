@@ -17,6 +17,7 @@ from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
 from guardian.utils import get_anonymous_user
+from itertools import chain
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
@@ -459,6 +460,50 @@ class Contact(TembaModel):
 
         return scheduled_broadcasts.order_by('schedule__next_fire')
 
+    def get_activity(self, after, before):
+        """
+        Gets this contact's activity of messages, calls, runs etc in the given time window
+        """
+        from temba.flows.models import Flow
+        from temba.ivr.models import BUSY, FAILED, NO_ANSWER, CANCELED
+        from temba.msgs.models import Msg
+
+        msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
+        msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
+
+        # we also include in the timeline purged broadcasts with a best guess at the translation used
+        broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gte=after, created_on__lt=before)
+        broadcasts = broadcasts.prefetch_related('steps__run__flow')
+        for broadcast in broadcasts:
+            steps = list(broadcast.steps.all())
+            flow = steps[0].run.flow if steps else None
+            flow_language = flow.base_language if flow else None
+            broadcast.translated_text = broadcast.get_translated_text(contact=self,
+                                                                      base_language=flow_language,
+                                                                      org=self.org)
+
+        # and all of this contact's runs, channel events such as missed calls, scheduled events
+        runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
+        runs = runs.select_related('flow')
+
+        channel_events = self.channel_events.filter(created_on__gte=after, created_on__lt=before)
+        channel_events = channel_events.select_related('channel')
+
+        event_fires = self.fire_events.filter(fired__gte=after, fired__lt=before).exclude(fired=None)
+        event_fires = event_fires.select_related('event__campaign')
+
+        # for easier comparison and display - give event fires same time attribute as other activity items
+        for event_fire in event_fires:
+            event_fire.created_on = event_fire.fired
+
+        # and the contact's failed IVR calls
+        error_calls = self.calls.filter(created_on__gte=after, created_on__lt=before, status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+        error_calls = error_calls.select_related('channel')
+
+        # chain them all together in the same list and sort by time
+        activity = chain(msgs, broadcasts, runs, event_fires, channel_events, error_calls)
+        return sorted(activity, key=lambda i: i.created_on, reverse=True)
+
     def get_field(self, key):
         """
         Gets the (possibly cached) value of a contact field
@@ -780,7 +825,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in urns_to_create.iteritems():
-                urn = ContactURN.create(org, contact, normalized, channel=channel)
+                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel)
                 urn_objects[raw] = urn
 
             # save which urns were updated
@@ -1305,7 +1350,7 @@ class Contact(TembaModel):
         contact_dict = dict(__default__=self.get_display(org=org))
         contact_dict[Contact.NAME] = self.name if self.name else ''
         contact_dict[Contact.FIRST_NAME] = self.first_name(org)
-        contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, full=True)
+        contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
         contact_dict[Contact.LANGUAGE] = self.language
@@ -1514,7 +1559,7 @@ class Contact(TembaModel):
         for group in self.user_groups.all():
             group.remove_contacts(user, [self])
 
-    def get_display(self, org=None, full=False, short=False):
+    def get_display(self, org=None, formatted=True, short=False):
         """
         Gets a displayable name or URN for the contact. If available, org can be provided to avoid having to fetch it
         again based on the contact.
@@ -1527,11 +1572,11 @@ class Contact(TembaModel):
         elif org.is_anon:
             res = self.anon_identifier
         else:
-            res = self.get_urn_display(org=org, full=full)
+            res = self.get_urn_display(org=org, formatted=formatted)
 
         return truncate(res, 20) if short else res
 
-    def get_urn_display(self, org=None, scheme=None, full=False):
+    def get_urn_display(self, org=None, scheme=None, formatted=True, international=False):
         """
         Gets a displayable URN for the contact. If available, org can be provided to avoid having to fetch it again
         based on the contact.
@@ -1543,7 +1588,7 @@ class Contact(TembaModel):
             return self.anon_identifier
 
         urn = self.get_urn(scheme)
-        return urn.get_display(org=org, full=full) if urn else ''
+        return urn.get_display(org=org, formatted=formatted, international=international) if urn else ''
 
     def raw_tel(self):
         tel = self.get_urn(TEL_SCHEME)
@@ -1683,7 +1728,7 @@ class ContactURN(models.Model):
         except Exception:
             return None
 
-    def get_display(self, org=None, full=False):
+    def get_display(self, org=None, international=False, formatted=True):
         """
         Gets a representation of the URN for display
         """
@@ -1693,12 +1738,16 @@ class ContactURN(models.Model):
         if org.is_anon:
             return self.ANON_MASK
 
-        if self.scheme == TEL_SCHEME and not full:
+        if self.scheme == TEL_SCHEME and formatted:
             # if we don't want a full tell, see if we can show the national format instead
             try:
                 if self.path and self.path[0] == '+':
-                    return phonenumbers.format_number(phonenumbers.parse(self.path, None),
-                                                      phonenumbers.PhoneNumberFormat.NATIONAL)
+                    phone_format = phonenumbers.PhoneNumberFormat.NATIONAL
+                    if international:
+                        phone_format = phonenumbers.PhoneNumberFormat.INTERNATIONAL
+
+                    return phonenumbers.format_number(phonenumbers.parse(self.path, None), phone_format)
+
             except Exception:  # pragma: no cover
                 pass
 
@@ -2036,8 +2085,6 @@ class ContactGroupCount(models.Model):
         start = time.time()
         squash_count = 0
         for count in ContactGroupCount.objects.filter(id__gt=last_squash).order_by('group_id').distinct('group_id'):
-            print "Squashing: %d" % count.group_id
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_contactgroupcounts(%s);", (count.group_id,))
@@ -2079,7 +2126,6 @@ class ExportContactsTask(SmartModel):
 
     org = models.ForeignKey(Org, related_name='contacts_exports', help_text=_("The Organization of the user."))
     group = models.ForeignKey(ContactGroup, null=True, related_name='exports', help_text=_("The unique group to export"))
-    host = models.CharField(max_length=32, help_text=_("The host this export task was created on"))
     task_id = models.CharField(null=True, max_length=64)
     is_finished = models.BooleanField(default=False,
                                       help_text=_("Whether this export has completed"))
@@ -2184,7 +2230,7 @@ class ExportContactsTask(SmartModel):
                             position = field['position']
                             if len(scheme_urns) > position:
                                 urn_obj = scheme_urns[position]
-                                field_value = urn_obj.get_display(org=self.org, full=True) if urn_obj else ''
+                                field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ''
                             else:
                                 field_value = ''
                         else:
@@ -2226,8 +2272,7 @@ class ExportContactsTask(SmartModel):
         store = AssetType.contact_export.store
         store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xls')
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
+        branding = self.org.get_branding()
         download_url = branding['link'] + get_asset_url(AssetType.contact_export, self.pk)
 
         subject = "Your contacts export is ready"

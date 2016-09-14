@@ -254,7 +254,7 @@ class WebHookEvent(SmartModel):
                     run=run.id,
                     text=text,
                     step=unicode(node_uuid),
-                    phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    phone=contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=contact.uuid,
                     urn=unicode(contact_urn),
                     values=json.dumps(values),
@@ -367,7 +367,7 @@ class WebHookEvent(SmartModel):
 
         json_time = time.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(sms=msg.pk,
-                    phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    phone=msg.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=msg.contact.uuid,
                     urn=unicode(msg.contact_urn),
                     text=msg.text,
@@ -408,7 +408,7 @@ class WebHookEvent(SmartModel):
 
         json_time = call.time.strftime('%Y-%m-%dT%H:%M:%S.%f')
         data = dict(call=call.pk,
-                    phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, full=True),
+                    phone=call.contact.get_urn_display(org=org, scheme=TEL_SCHEME, formatted=False),
                     contact=call.contact.uuid,
                     urn=unicode(call.contact_urn),
                     duration=call.duration,

@@ -32,13 +32,11 @@ from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.channels.models import Channel
 from temba.formax import FormaxMixin
-from temba.middleware import BrandingMiddleware
 from temba.nexmo import NexmoClient, NexmoValidationError
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
 from twilio.rest import TwilioRestClient
-from .bundles import WELCOME_TOPUP_SIZE
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
 from .models import SUSPENDED, WHITELISTED, RESTORED, NEXMO_UUID, NEXMO_SECRET, NEXMO_KEY
@@ -178,7 +176,7 @@ class ModalMixin(SmartFormView):
                 response['Temba-Success'] = self.get_success_url()
                 return response
 
-        except IntegrityError as e:  # pragma: no cover
+        except (IntegrityError, ValueError) as e:
             message = str(e).capitalize()
             errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
             errors.append(message)
@@ -444,8 +442,8 @@ class OrgCRUDL(SmartCRUDL):
             def clean_import_file(self):
                 from temba.orgs.models import EARLIEST_IMPORT_VERSION
 
-                # make sure they have purchased credits
-                if not self.org.has_added_credits():
+                # make sure they are in the proper tier
+                if not self.org.is_import_flows_tier():
                     raise ValidationError("Sorry, import is a premium feature")
 
                 # check that it isn't too old
@@ -993,7 +991,6 @@ class OrgCRUDL(SmartCRUDL):
 
             invite_emails = cleaned_data['invite_emails'].lower().strip()
             invite_group = cleaned_data['invite_group']
-            invite_host = self.request.branding['host']
 
             if invite_emails:
                 for email in invite_emails.split(','):
@@ -1008,7 +1005,7 @@ class OrgCRUDL(SmartCRUDL):
                         invitation.is_active = True
                         invitation.save()
                     else:
-                        invitation = Invitation.create(org, self.request.user, email, invite_group, invite_host)
+                        invitation = Invitation.create(org, self.request.user, email, invite_group)
 
                     invitation.send_invitation()
 
@@ -1601,8 +1598,7 @@ class OrgCRUDL(SmartCRUDL):
             if not self.request.user.is_anonymous() and self.request.user.has_perm('orgs.org_grant'):
                 obj.administrators.add(self.request.user.pk)
 
-            brand = BrandingMiddleware.get_branding_for_host(obj.brand)
-            obj.initialize(brand=brand, topup_size=self.get_welcome_size())
+            obj.initialize(branding=obj.get_branding(), topup_size=self.get_welcome_size())
 
             return obj
 
@@ -1630,7 +1626,7 @@ class OrgCRUDL(SmartCRUDL):
             return initial
 
         def get_welcome_size(self):
-            welcome_topup_size = self.request.branding.get('welcome_topup', WELCOME_TOPUP_SIZE)
+            welcome_topup_size = self.request.branding.get('welcome_topup', 0)
             return welcome_topup_size
 
         def post_save(self, obj):
