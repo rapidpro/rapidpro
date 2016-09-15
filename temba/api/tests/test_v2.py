@@ -838,7 +838,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, {
             'name': "Jean",
             'language': "fre",
-            'urns': ["tel:1-2345-56789", "twitter:JEAN"],
+            'urns': ["tel:+250783333333", "twitter:JEAN"],
             'groups': [group.uuid],
             'fields': {'nickname': "Jado"}
         })
@@ -846,7 +846,7 @@ class APITest(TembaTest):
 
         # URNs will be normalized
         jean = Contact.objects.filter(name="Jean", language='fre').order_by('-pk').first()
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:1234556789", "twitter:jean"})
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
 
@@ -859,7 +859,7 @@ class APITest(TembaTest):
             'fields': {'hmmm': "X"}
         })
         self.assertResponseError(response, 'language', "Ensure this field has no more than 3 characters.")
-        self.assertResponseError(response, 'urns', "Invalid URN: 1234556789")
+        self.assertResponseError(response, 'urns', "Invalid URN: 1234556789. Ensure phone numbers contain country codes.")
         self.assertResponseError(response, 'groups', "No such object with UUID: 59686b4e-14bc-4160-9376-b649b218c806")
         self.assertResponseError(response, 'fields', "Invalid contact field key: hmmm")
 
@@ -871,7 +871,7 @@ class APITest(TembaTest):
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jean")
         self.assertEqual(jean.language, "fre")
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:1234556789", "twitter:jean"})
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {"tel:+250783333333", "twitter:jean"})
         self.assertEqual(set(jean.user_groups.all()), {group, dyn_group})
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
 
@@ -880,7 +880,7 @@ class APITest(TembaTest):
             'uuid': jean.uuid,
             'name': "Jean II",
             'language': "eng",
-            'urns': ["tel:2234556700"],
+            'urns': ["tel:+250784444444"],
             'groups': [],
             'fields': {'nickname': "John"}
         })
@@ -889,19 +889,19 @@ class APITest(TembaTest):
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jean II")
         self.assertEqual(jean.language, "eng")
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:2234556700'})
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:+250784444444'})
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field('nickname').string_value, "John")
 
         # update by URN whilst changing URNs
-        response = self.postJSON(url, {'urn': "tel:2234556700", 'urns': ["tel:3333333333"]})
+        response = self.postJSON(url, {'urn': "tel:+250784444444", 'urns': ["tel:+250785555555"]})
         self.assertEqual(response.status_code, 201)
 
         # only URN should have changed
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jean II")
         self.assertEqual(jean.language, "eng")
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:3333333333'})
+        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:+250785555555'})
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field('nickname').string_value, "John")
 
@@ -955,20 +955,20 @@ class APITest(TembaTest):
 
         with AnonymousOrg(self.org):
             # can't update via URN
-            response = self.postJSON(url, {'urn': 'tel:3333333333'})
+            response = self.postJSON(url, {'urn': 'tel:+250785555555'})
             self.assertResponseError(response, 'urn', "Referencing by URN not allowed for anonymous organizations")
 
             # can't update contact URNs
-            response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ["tel:2234556700"]})
+            response = self.postJSON(url, {'uuid': jean.uuid, 'urns': ["tel:+250786666666"]})
             self.assertResponseError(response, 'non_field_errors',
                                      "Updating contact URNs not allowed for anonymous organizations")
 
             # can create with URNs
-            response = self.postJSON(url, {'name': "Xavier", 'urns': ["tel:2234556701"]})
+            response = self.postJSON(url, {'name': "Xavier", 'urns': ["tel:+250787777777"]})
             self.assertEqual(response.status_code, 201)
 
             xavier = Contact.objects.get(name="Xavier")
-            self.assertEqual(set(xavier.urns.values_list('urn', flat=True)), {"tel:2234556701"})
+            self.assertEqual(set(xavier.urns.values_list('urn', flat=True)), {"tel:+250787777777"})
 
         # try an empty delete request
         response = self.deleteJSON(url, {})

@@ -117,14 +117,11 @@ class URN(object):
             return False
 
         if scheme == TEL_SCHEME:
-            if country_code:
-                try:
-                    normalized = phonenumbers.parse(path, country_code)
-                    return phonenumbers.is_possible_number(normalized)
-                except Exception:
-                    return False
-
-            return True  # if we don't have a channel with country, we can't for now validate tel numbers
+            try:
+                parsed = phonenumbers.parse(path, country_code)
+                return phonenumbers.is_possible_number(parsed)
+            except Exception:
+                return False
 
         # validate twitter URNs look like handles
         elif scheme == TWITTER_SCHEME:
