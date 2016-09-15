@@ -7369,6 +7369,15 @@ class ViberTest(TembaTest):
         msg = Msg.objects.get(pk=msg.id)
         self.assertEquals(DELIVERED, msg.status)
 
+        # ignore status report from viber for incoming message
+        incoming = self.create_msg(direction=INCOMING, contact=joe, text="Read message")
+        incoming.external_id = "88888"
+        incoming.save(update_fields=('external_id',))
+
+        data['message_token'] = 88888
+        response = self.client.post(status_url, json.dumps(data), content_type="application/json")
+        self.assertEquals(200, response.status_code)
+
     def test_receive(self):
         # invalid UUID
         response = self.client.post(reverse('handlers.viber_handler', args=['receive', '00000000-0000-0000-0000-000000000000']))
