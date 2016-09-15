@@ -22,7 +22,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
-from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, INTERRUPTED, OUTGOING
+from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, INTERRUPTED
 from temba.triggers.models import Trigger
 from temba.utils import json_date_to_datetime
 from temba.utils.middleware import disable_middleware
@@ -1920,12 +1920,13 @@ class ViberHandler(View):
             #    "message_status": 0
             # }
             external_id = body['message_token']
-            msg = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
-            if not msg:
-                return HttpResponse("Message with external id of '%s' not found" % external_id, status=400)
 
-            if msg.direction == OUTGOING:
-                msg.status_delivered()
+            msg = Msg.objects.filter(channel=channel, direction='O', external_id=external_id).select_related('channel').first()
+            if not msg:
+                # viber is hammers us incessantly if we give 400s for non-existant message_ids
+                return HttpResponse("Message with external id of '%s' not found" % external_id)
+
+            msg.status_delivered()
 
             # tell Viber we handled this
             return HttpResponse('Msg %d updated' % msg.id)

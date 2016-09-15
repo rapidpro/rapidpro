@@ -7355,7 +7355,8 @@ class ViberTest(TembaTest):
         # ok, try with a valid uuid, but invalid message id (no msg yet)
         status_url = reverse('handlers.viber_handler', args=['status', self.channel.uuid])
         response = self.client.post(status_url, json.dumps(data), content_type="application/json")
-        self.assertEquals(400, response.status_code)
+        self.assertEquals(200, response.status_code)
+        self.assertContains(response, 'not found')
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
@@ -7364,6 +7365,7 @@ class ViberTest(TembaTest):
         msg.save(update_fields=('external_id',))
 
         response = self.client.post(status_url, json.dumps(data), content_type="application/json")
+        self.assertNotContains(response, 'not found')
         self.assertEquals(200, response.status_code)
 
         msg = Msg.objects.get(pk=msg.id)
