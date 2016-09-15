@@ -1301,31 +1301,6 @@ class ChannelTest(TembaTest):
         self.assertEqual(channel.channel_type, "TMS")
         self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID"))
 
-    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
-    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
-    @patch('twilio.util.RequestValidator', MockRequestValidator)
-    def test_claim_twiml_api(self):
-        self.login(self.admin)
-
-        # remove any existing channels
-        self.org.channels.update(is_active=False, org=None)
-
-        claim_url = reverse('channels.channel_claim_twiml_api')
-
-        # can fetch the claim page
-        response = self.client.get(claim_url)
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, 'TwiML')
-
-        response = self.client.post(claim_url, dict(number='5512345678', country='AA'))
-        self.assertTrue(response.context['form'].errors)
-
-        response = self.client.post(claim_url, dict(country='US', number='5512345678', url='https://twilio.com', role='SR', account_sid='abcd1234', account_token='abcd1234'))
-        channel = self.org.channels.all().first()
-        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
-        self.assertEqual(channel.channel_type, "TW")
-        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
-
     def test_claim_facebook(self):
         self.login(self.admin)
 
