@@ -117,14 +117,11 @@ class URN(object):
             return False
 
         if scheme == TEL_SCHEME:
-            if country_code:
-                try:
-                    normalized = phonenumbers.parse(path, country_code)
-                    return phonenumbers.is_possible_number(normalized)
-                except Exception:
-                    return False
-
-            return True  # if we don't have a channel with country, we can't for now validate tel numbers
+            try:
+                parsed = phonenumbers.parse(path, country_code)
+                return phonenumbers.is_possible_number(parsed)
+            except Exception:
+                return False
 
         # validate twitter URNs look like handles
         elif scheme == TWITTER_SCHEME:
@@ -1908,7 +1905,7 @@ class ContactGroup(TembaModel):
         """
         Manually adds or removes contacts from a static group. Returns contact ids of contacts whose membership changed.
         """
-        if self.group_type != self.TYPE_USER_DEFINED or self.is_dynamic:
+        if self.group_type != self.TYPE_USER_DEFINED or self.is_dynamic:  # pragma: no cover
             raise ValueError("Can't add or remove contacts from system or dynamic groups")
 
         return self._update_contacts(user, contacts, add)
@@ -1917,7 +1914,7 @@ class ContactGroup(TembaModel):
         """
         Re-evaluates whether contacts belong in a dynamic group. Returns contacts whose membership changed.
         """
-        if self.group_type != self.TYPE_USER_DEFINED or not self.is_dynamic:
+        if self.group_type != self.TYPE_USER_DEFINED or not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can't re-evaluate contacts against system or static groups")
 
         user = get_anonymous_user()
@@ -1933,7 +1930,7 @@ class ContactGroup(TembaModel):
         """
         Forces removal of contacts from this group regardless of whether it is static or dynamic
         """
-        if self.group_type != self.TYPE_USER_DEFINED:
+        if self.group_type != self.TYPE_USER_DEFINED:  # pragma: no cover
             raise ValueError("Can't remove contacts from system groups")
 
         return self._update_contacts(user, contacts, add=False)
