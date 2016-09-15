@@ -1221,8 +1221,10 @@ class ContactTest(TembaTest):
             self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
                             created_on=timezone.now() - timedelta(days=(100 - i)))
 
+        # because messages are stored with timestamps from external systems, possible to have initial message
+        # which is little bit older than the contact itself
         self.create_msg(direction='I', contact=self.joe, text="Very old inbound message",
-                        created_on=timezone.now() - timedelta(days=500))
+                        created_on=self.joe.created_on - timedelta(seconds=10))
 
         # start a joe flow
         self.reminder_flow.start([], [self.joe])
