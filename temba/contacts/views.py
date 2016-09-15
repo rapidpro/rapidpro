@@ -24,7 +24,7 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime
 from temba.utils.views import BaseActionForm
-from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
+from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG, TEL_SCHEME
 from .models import ExportContactsTask
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task
@@ -267,7 +267,10 @@ class ContactForm(forms.ModelForm):
                     return False
                 # validate but not with country as users are allowed to enter numbers before adding a channel
                 elif not URN.validate(normalized):
-                    self._errors[key] = _("Invalid format")
+                    if scheme == TEL_SCHEME:
+                        self._errors[key] = _("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")
+                    else:
+                        self._errors[key] = _("Invalid format")
                     return False
                 return True
             except ValueError:
