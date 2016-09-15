@@ -173,6 +173,13 @@ class APITest(TembaTest):
 
         self.assertEqual(field.to_internal_value(flow.uuid), flow)
 
+        field = fields.URNField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value('tel:+1-800-123-4567'), 'tel:+18001234567')
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, '12345')  # un-parseable
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 'tel:800-123-4567')  # no country code
+
     def test_authentication(self):
         def api_request(endpoint, token):
             response = self.client.get(endpoint + '.json', content_type="application/json",

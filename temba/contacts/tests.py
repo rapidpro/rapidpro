@@ -605,8 +605,8 @@ class ContactTest(TembaTest):
         self.login(self.admin)
 
         # try creating a contact with a number that belongs to another contact
-        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', urn__tel__0="123"))
-        self.assertEquals(1, len(response.context['form'].errors))
+        response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', urn__tel__0="+250781111111"))
+        self.assertFormError(response, 'form', 'urn__tel__0', "Used by another contact")
 
         # now repost with a unique phone number
         response = self.client.post(reverse('contacts.contact_create'), data=dict(name='Ben Haggerty', urn__tel__0="+250 783-835665"))
