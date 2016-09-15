@@ -2940,14 +2940,22 @@ class AfricasTalkingTest(TembaTest):
         # ok, what happens with an invalid uuid?
         post_data = dict(id="external1", status="Success")
         response = self.client.post(reverse('handlers.africas_talking_handler', args=['delivery', 'not-real-uuid']), post_data)
-
         self.assertEquals(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id
         delivery_url = reverse('handlers.africas_talking_handler', args=['delivery', self.channel.uuid])
         response = self.client.post(delivery_url, post_data)
-
         self.assertEquals(404, response.status_code)
+
+        # requires posts
+        delivery_url = reverse('handlers.africas_talking_handler', args=['delivery', self.channel.uuid])
+        response = self.client.get(delivery_url, post_data)
+        self.assertEquals(400, response.status_code)
+
+        # missing status
+        del post_data['status']
+        response = self.client.post(delivery_url, post_data)
+        self.assertEquals(400, response.status_code)
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
@@ -2972,8 +2980,11 @@ class AfricasTalkingTest(TembaTest):
         post_data = {'from': "0788123123", 'text': "Hello World"}
         callback_url = reverse('handlers.africas_talking_handler', args=['callback', self.channel.uuid])
 
-        response = self.client.post(callback_url, post_data)
+        # missing test data
+        response = self.client.post(callback_url, dict())
+        self.assertEquals(400, response.status_code)
 
+        response = self.client.post(callback_url, post_data)
         self.assertEquals(200, response.status_code)
 
         # load our message
