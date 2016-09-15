@@ -2455,7 +2455,7 @@ class Channel(TembaModel):
         headers.update(TEMBA_HEADERS)
 
         try:
-            response = requests.post(url, params=payload, headers=headers, timeout=5)
+            response = requests.post(url, json=payload, headers=headers, timeout=5)
             response_json = response.json()
         except Exception as e:
             raise SendException(unicode(e),
