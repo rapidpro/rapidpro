@@ -61,7 +61,7 @@ class TwimlAPIHandler(View):
         if to_number and call_sid and direction == 'inbound' and status == 'ringing':
 
             # find a channel that knows how to answer twilio calls
-            channel = self.get_channel(to_number=to_number, type='ringing')
+            channel = self.get_ringing_channel(to_number=to_number)
             if not channel:
                 raise Exception("No active answering channel found for number: %s" % to_number)
 
@@ -139,7 +139,7 @@ class TwimlAPIHandler(View):
             return HttpResponse("", status=200)
 
         elif action == 'received':
-            channel = self.get_channel(channel_uuid=channel_uuid, to_number=to_number, type='received')
+            channel = self.get_received_channel(channel_uuid=channel_uuid, to_number=to_number)
             if not channel:
                 return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -167,15 +167,12 @@ class TwimlAPIHandler(View):
         return HttpResponse("Not Handled, unknown action", status=400)
 
     @classmethod
-    def get_channel(cls, to_number=None, channel_uuid=None, type='ringing'):
-        if type == 'ringing':
-            channel = Channel.objects.filter(address=to_number, channel_type=TWIML_API, role__contains='A', is_active=True).exclude(org=None).first()
-        elif type == 'received':
-            channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TWIML_API).exclude(org=None).first()
-        else:
-            channel = None
+    def get_ringing_channel(cls, to_number):
+        return Channel.objects.filter(address=to_number, channel_type=TWIML_API, role__contains='A', is_active=True).exclude(org=None).first()
 
-        return channel
+    @classmethod
+    def get_received_channel(cls, channel_uuid=None, to_number=None):
+        return Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=TWIML_API).exclude(org=None).first()
 
     @classmethod
     def get_client(cls, org):
@@ -184,15 +181,11 @@ class TwimlAPIHandler(View):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    def get_channel(cls, to_number=None, channel_uuid=None, type='ringing'):
-        if type == 'ringing':
-            channel = Channel.objects.filter(address=to_number, channel_type='T', role__contains='A', is_active=True).exclude(org=None).first()
-        elif type == 'received':
-            channel = Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
-        else:
-            channel = None
+    def get_ringing_channel(cls, to_number):
+        return Channel.objects.filter(address=to_number, channel_type='T', role__contains='A', is_active=True).exclude(org=None).first()
 
-        return channel
+    def get_received_channel(cls, channel_uuid=None, to_number=None):
+        return Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
 
     def get_client(cls, org):
         return org.get_twilio_client()
