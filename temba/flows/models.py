@@ -5343,7 +5343,11 @@ class SetChannelAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         # if we found the channel to set
         if self.channel:
-            run.contact.set_preferred_channel(self.channel)
+
+            # don't set preferred channel for test contacts
+            if not run.contact.is_test:
+                run.contact.set_preferred_channel(self.channel)
+
             self.log(run, _("Updated preferred channel to %s") % self.channel.name)
             return []
         else:

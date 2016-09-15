@@ -3177,6 +3177,12 @@ class ContactTest(TembaTest):
         twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel", address="@rapidpro")
         Channel.create(self.org, self.user, None, 'TG', name="Twitter Channel", address="@rapidpro")
 
+        # can't set preferred channel for test contacts
+        self.test_contact = self.create_contact(name="Test Contact", number="+12065551212", is_test=True)
+        self.test_contact.update_urns(self.admin, ['tel:+12065551212', 'telegram:12515', 'twitter:macklemore'])
+        self.test_contact.set_preferred_channel(twitter)
+        self.assertEqual(self.test_contact.urns.all()[0].scheme, TEL_SCHEME)
+
         # update our contact URNs, give them telegram and twitter with telegram being preferred
         self.joe.update_urns(self.admin, ['telegram:12515', 'twitter:macklemore'])
 
