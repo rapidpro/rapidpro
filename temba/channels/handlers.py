@@ -179,7 +179,6 @@ class TwimlAPIHandler(View):
 
     @classmethod
     def get_client(cls, org):
-        print(org.get_twiml_client())
         return org.get_twiml_client()
 
 
