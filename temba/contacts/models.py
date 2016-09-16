@@ -1398,7 +1398,7 @@ class Contact(TembaModel):
 
         # don't set preferred channels for test contacts
         if self.is_test:
-            return
+            raise ValueError(_('Test contacts cannot have a preferred channel'))
 
         urns = self.get_urns()
 
