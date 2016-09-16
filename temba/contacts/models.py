@@ -1396,6 +1396,10 @@ class Contact(TembaModel):
         if channel is None:
             return
 
+        # don't set preferred channels for test contacts
+        if self.is_test:
+            return
+
         urns = self.get_urns()
 
         # make sure all urns of the same scheme use this channel (only do this for TEL, others are channel specific)
