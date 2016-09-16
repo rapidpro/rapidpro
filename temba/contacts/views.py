@@ -24,7 +24,7 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime
 from temba.utils.views import BaseActionForm
-from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
+from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG, TEL_SCHEME
 from .models import ExportContactsTask
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task
@@ -267,7 +267,10 @@ class ContactForm(forms.ModelForm):
                     return False
                 # validate but not with country as users are allowed to enter numbers before adding a channel
                 elif not URN.validate(normalized):
-                    self._errors[key] = _("Invalid format")
+                    if scheme == TEL_SCHEME:
+                        self._errors[key] = _("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")
+                    else:
+                        self._errors[key] = _("Invalid format")
                     return False
                 return True
             except ValueError:
@@ -821,6 +824,10 @@ class ContactCRUDL(SmartCRUDL):
             context = super(ContactCRUDL.History, self).get_context_data(*args, **kwargs)
             contact = self.get_object()
 
+            # since we create messages with timestamps from external systems, always a chance a contact's initial
+            # message has a timestamp slightly earlier than the contact itself.
+            contact_creation = contact.created_on - timedelta(hours=1)
+
             refresh_recent = self.request.REQUEST.get('r', False)
             recent_start = ms_to_datetime(int(self.request.GET.get('rs', 0)))
 
@@ -836,20 +843,20 @@ class ContactCRUDL(SmartCRUDL):
 
                 activity = contact.get_activity(start_time, end_time)
             else:
-                start_time = max(older_before - timedelta(days=90), contact.created_on)
+                start_time = max(older_before - timedelta(days=90), contact_creation)
                 end_time = older_before
 
                 while True:
                     activity = contact.get_activity(start_time, end_time)
 
                     # keep looking further back until we get at least 20 items
-                    if len(activity) >= 20 or start_time == contact.created_on:
+                    if len(activity) >= 20 or start_time == contact_creation:
                         break
                     else:
-                        start_time = max(start_time - timedelta(days=90), contact.created_on)
+                        start_time = max(start_time - timedelta(days=90), contact_creation)
 
             if start_time > contact.created_on:
-                has_older = bool(contact.get_activity(contact.created_on, start_time))
+                has_older = bool(contact.get_activity(contact_creation, start_time))
             else:
                 has_older = False
 

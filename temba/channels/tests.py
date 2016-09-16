@@ -2949,14 +2949,22 @@ class AfricasTalkingTest(TembaTest):
         # ok, what happens with an invalid uuid?
         post_data = dict(id="external1", status="Success")
         response = self.client.post(reverse('handlers.africas_talking_handler', args=['delivery', 'not-real-uuid']), post_data)
-
         self.assertEquals(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id
         delivery_url = reverse('handlers.africas_talking_handler', args=['delivery', self.channel.uuid])
         response = self.client.post(delivery_url, post_data)
-
         self.assertEquals(404, response.status_code)
+
+        # requires posts
+        delivery_url = reverse('handlers.africas_talking_handler', args=['delivery', self.channel.uuid])
+        response = self.client.get(delivery_url, post_data)
+        self.assertEquals(400, response.status_code)
+
+        # missing status
+        del post_data['status']
+        response = self.client.post(delivery_url, post_data)
+        self.assertEquals(400, response.status_code)
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
@@ -2981,8 +2989,11 @@ class AfricasTalkingTest(TembaTest):
         post_data = {'from': "0788123123", 'text': "Hello World"}
         callback_url = reverse('handlers.africas_talking_handler', args=['callback', self.channel.uuid])
 
-        response = self.client.post(callback_url, post_data)
+        # missing test data
+        response = self.client.post(callback_url, dict())
+        self.assertEquals(400, response.status_code)
 
+        response = self.client.post(callback_url, post_data)
         self.assertEquals(200, response.status_code)
 
         # load our message
@@ -7364,7 +7375,8 @@ class ViberTest(TembaTest):
         # ok, try with a valid uuid, but invalid message id (no msg yet)
         status_url = reverse('handlers.viber_handler', args=['status', self.channel.uuid])
         response = self.client.post(status_url, json.dumps(data), content_type="application/json")
-        self.assertEquals(400, response.status_code)
+        self.assertEquals(200, response.status_code)
+        self.assertContains(response, 'not found')
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
@@ -7373,10 +7385,20 @@ class ViberTest(TembaTest):
         msg.save(update_fields=('external_id',))
 
         response = self.client.post(status_url, json.dumps(data), content_type="application/json")
+        self.assertNotContains(response, 'not found')
         self.assertEquals(200, response.status_code)
 
         msg = Msg.objects.get(pk=msg.id)
         self.assertEquals(DELIVERED, msg.status)
+
+        # ignore status report from viber for incoming message
+        incoming = self.create_msg(direction=INCOMING, contact=joe, text="Read message")
+        incoming.external_id = "88888"
+        incoming.save(update_fields=('external_id',))
+
+        data['message_token'] = 88888
+        response = self.client.post(status_url, json.dumps(data), content_type="application/json")
+        self.assertEquals(200, response.status_code)
 
     def test_receive(self):
         # invalid UUID
