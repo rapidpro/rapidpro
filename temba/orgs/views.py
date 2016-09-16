@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import logging
 import plivo
+import nexmo
 import six
 
 from collections import OrderedDict
@@ -32,7 +33,7 @@ from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.channels.models import Channel
 from temba.formax import FormaxMixin
-from temba.nexmo import NexmoClient, NexmoValidationError
+from temba.temba_nexmo import NexmoClient
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
@@ -638,7 +639,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 return HttpResponseRedirect(reverse("channels.channel_claim_nexmo"))
 
-            except NexmoValidationError:
+            except nexmo.Error:
                 return super(OrgCRUDL.NexmoConfiguration, self).get(request, *args, **kwargs)
 
         def get_context_data(self, **kwargs):
@@ -692,7 +693,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 try:
                     client = NexmoClient(api_key, api_secret)
-                    client.get_numbers()
+                    client.test_credentials()
                 except Exception:
                     raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
 

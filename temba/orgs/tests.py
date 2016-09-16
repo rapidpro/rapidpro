@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import json
+import nexmo
 
 from context_processors import GroupPermWrapper
 from datetime import timedelta
@@ -25,7 +26,6 @@ from temba.flows.models import Flow, ActionSet
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
-from temba.nexmo import NexmoValidationError
 from temba.orgs.models import UserSettings
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
@@ -1433,7 +1433,7 @@ class OrgTest(TembaTest):
             self.assertEqual(response.request['PATH_INFO'], reverse('channels.channel_claim_nexmo'))
 
         with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
-            mock_update_account.side_effect = [NexmoValidationError, NexmoValidationError]
+            mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
 
             response = self.client.get(nexmo_configuration_url)
             self.assertEqual(response.status_code, 200)

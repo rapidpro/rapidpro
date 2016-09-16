@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
                 mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
                 answer_url = reverse('handlers.nexmo_call_handler', args=['answer', channel.uuid])
 
-                nexmo_client.update_number(channel.country, channel.address,
+                nexmo_client.update_nexmo_number(channel.country, channel.address,
                                            'http://%s%s' % (settings.TEMBA_HOST, mo_path),
                                            'http://%s%s' % (settings.TEMBA_HOST, answer_url))
 

@@ -29,7 +29,7 @@ from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
-from temba.nexmo import NexmoClient
+from temba.temba_nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
 from temba.utils.email import send_template_email
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, voicexml
@@ -400,7 +400,7 @@ class Channel(TembaModel):
         # buy the number if we have to
         if not nexmo_phones:
             try:
-                client.buy_number(country, phone_number)
+                client.buy_nexmo_number(country, phone_number)
             except Exception as e:
                 raise Exception(_("There was a problem claiming that number, "
                                   "please check the balance on your account. " +
@@ -416,8 +416,8 @@ class Channel(TembaModel):
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
         try:
-            client.update_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path),
-                                 'http://%s%s' % (TEMBA_HOST, answer_url))
+            client.update_nexmo_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path),
+                                       'http://%s%s' % (TEMBA_HOST, answer_url))
 
         except Exception as e:
             # shortcodes don't seem to claim right on nexmo, move forward anyways
@@ -1827,7 +1827,7 @@ class Channel(TembaModel):
         response = None
         while not response:
             try:
-                (message_id, response) = client.send_message(channel.address, msg.urn_path, text)
+                (message_id, response) = client.send_message_via_nexmo(channel.address, msg.urn_path, text)
             except SendException as e:
                 match = regex.match(r'.*Throughput Rate Exceeded - please wait \[ (\d+) \] and retry.*', e.response)
 
