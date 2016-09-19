@@ -10,7 +10,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.utils import timezone
-from temba.utils import voicexml
+from temba.utils import voicexml, ncco
+from temba.utils.ncco import NCCOException
 from temba.utils.voicexml import VoiceXMLException
 from temba_expressions.evaluator import EvaluationContext, DateStyle
 from mock import patch
@@ -944,3 +945,96 @@ class VoiceXMLTest(TembaTest):
                          'dtmfterm="true" type="audio/x-wav">'
                          '<filled><submit next="http://example.com" method="post" '
                          'enctype="multipart/form-data" /></filled></record></form></vxml>')
+
+
+class NCCOTest(TembaTest):
+
+    def test_response(self):
+        response = ncco.Response()
+        self.assertEqual(response.document, [])
+        self.assertEqual(json.loads(unicode(response)), [])
+
+    def test_join(self):
+        response1 = ncco.Response()
+        response2 = ncco.Response()
+
+        response1.document.append(dict(action='foo'))
+        response2.document.append(dict(action='bar'))
+
+        # the content of response2 should be prepended before the content of response1
+        self.assertEqual(json.loads(unicode(response1.join(response2))), [dict(action='bar'), dict(action='foo')])
+
+    def test_say(self):
+        response = ncco.Response()
+        response.say('Hello')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='Hello')])
+
+    def test_play(self):
+        response = ncco.Response()
+
+        with self.assertRaises(NCCOException):
+            response.play()
+
+        response.play(digits='123')
+        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='123')])
+
+        response = ncco.Response()
+        response.play(url='http://example.com/audio.wav')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(action='stream', streamUrl='http://example.com/audio.wav')])
+
+    def test_pause(self):
+        response = ncco.Response()
+        with self.assertRaises(NCCOException):
+            response.pause()
+
+    def test_redirect(self):
+        response = ncco.Response()
+        with self.assertRaises(NCCOException):
+            response.redirect('http://example.com/')
+
+    def test_hangup(self):
+        response = ncco.Response()
+        with self.assertRaises(NCCOException):
+            response.hangup()
+
+    def test_reject(self):
+        response = ncco.Response()
+        with self.assertRaises(NCCOException):
+            response.reject()
+
+    def test_gather(self):
+        response = ncco.Response()
+        response.gather()
+
+        self.assertEqual(json.loads(unicode(response)), [dict(action='input', submitOnHash=True)])
+
+        response = ncco.Response()
+        response.gather(action='http://example.com')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(eventMethod='post', action='input', submitOnHash=True,
+                                                              eventUrl='http://example.com')])
+
+        response = ncco.Response()
+        response.gather(action='http://example.com', numDigits=1, timeout=45, finishOnKey='*')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(maxDigits='1', eventMethod='post', action='input',
+                                                              submitOnHash=False,
+                                                              eventUrl='http://example.com',
+                                                              timeOut='45')])
+
+    def test_record(self):
+        response = ncco.Response()
+        response.record()
+
+        self.assertEqual(json.loads(unicode(response)), [dict(format='wav', endOnSilence='4', beepStart=True,
+                                                              action='record')])
+
+        response = ncco.Response()
+        response.record(action="http://example.com", method="post", maxLength=60)
+
+        self.assertEqual(json.loads(unicode(response)), [dict(format='wav', eventMethod='post',
+                                                              eventUrl='http://example.com',
+                                                              endOnSilence='4', timeOut='60',
+                                                              action='record', beepStart=True)])
