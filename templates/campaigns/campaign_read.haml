@@ -63,7 +63,7 @@
             -else
               .start-flow
                 Start the
-                %a.href{ href: "{% url 'flows.flow_editor' event.flow.pk %}" }= event.flow.name
+                %a.href{ href: "{% url 'flows.flow_editor' event.flow.uuid %}" }= event.flow.name
                 flow.
 
         -if not forloop.last
