@@ -1544,7 +1544,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -1562,6 +1562,7 @@ class APITest(TembaTest):
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'responded': False,
+            'values': [],
             'steps': [
                 {
                     'node': "00000000-00000000-00000000-00000001",
@@ -1600,6 +1601,13 @@ class APITest(TembaTest):
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'responded': True,
+            'values': [
+                {
+                    'node': {'uuid': "00000000-00000000-00000000-00000005", 'label': "color"},
+                    'value': "blue",
+                    'rule': {'uuid': "00000000-00000000-00000000-00000013", 'category': "Blue"}
+                }
+            ],
             'steps': [
                 {
                     'node': "00000000-00000000-00000000-00000001",
@@ -1660,7 +1668,7 @@ class APITest(TembaTest):
         Broadcast.objects.all().update(purged=True)
         Msg.objects.filter(direction='O').delete()
 
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 11):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.json['results'][2]['steps'][0]['messages'], [
