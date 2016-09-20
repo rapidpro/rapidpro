@@ -6,6 +6,7 @@ import mimetypes
 import re
 import requests
 import time
+import nexmo
 
 from django.conf import settings
 from django.core.files import File
@@ -36,28 +37,23 @@ class NexmoClient(NexmoCli):
         return True
 
     def start_call(self, call, to, from_, status_callback):
-        params = dict(api_key=self.api_key, api_secret=self.api_secret)
-
         url = 'https://%s%s' % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[call.pk]))
 
-        params['answer_url'] = url
-        params['to'] = to.strip('+')
-        params['from'] = from_.strip('+')
-        params['status_url'] = url
-        params['status_method'] = "POST"
-        params['error_url'] = url
-        params['error_method'] = "POST"
+        params = dict()
+        params['answer_url'] = [url]
+        params['answer_method'] = 'POST'
+        params['to'] = [dict(type='phone', number=to.strip('+'))]
+        params['from'] = dict(type='phone', number=from_.strip('+'))
+        params['event_url'] = url
+        params['event_method'] = "POST"
 
-        response = requests.post('https://rest.nexmo.com/call/json', params=params)
-        response_json = response.json()
-
-        if 'call-id' not in response_json:
-            raise IVRException(_("Nexmo call failed, with status %s") % response_json.get('status'))
-
-        call_id = response_json.get('call-id')
-
-        call.external_id = unicode(call_id)
-        call.save()
+        try:
+            response = self.create_call(params=params)
+            conversation_uuid = response.get('conversation_uuid')
+            call.external_id = unicode(conversation_uuid)
+            call.save()
+        except nexmo.Error as e:
+            raise IVRException(_("Nexmo call failed, with error %s") % e.message)
 
 
 class TwilioClient(TwilioRestClient):
@@ -75,9 +71,9 @@ class TwilioClient(TwilioRestClient):
                                             status_callback=status_callback)
             call.external_id = unicode(twilio_call.sid)
             call.save()
-        except TwilioRestException as twilio:
-            message = 'Twilio Error: %s' % twilio.msg
-            if twilio.code == 20003:
+        except TwilioRestException as twilio_error:
+            message = 'Twilio Error: %s' % twilio_error.msg
+            if twilio_error.code == 20003:
                 message = _('Could not authenticate with your Twilio account. Check your token and try again.')
 
             raise IVRException(message)
