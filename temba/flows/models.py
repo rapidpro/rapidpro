@@ -33,7 +33,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
-from temba.msgs.models import OUTGOING, UnreachableException
+from temba.msgs.models import INTERRUPTED, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
 from temba.utils.email import send_template_email, is_valid_address
@@ -160,7 +160,6 @@ class Flow(TembaModel):
     SAVED_ON = 'saved_on'
     NAME = 'name'
     REVISION = 'revision'
-    VERSION = 'version'
     FLOW_TYPE = 'flow_type'
     ID = 'id'
     EXPIRES = 'expires'
@@ -172,6 +171,7 @@ class Flow(TembaModel):
     MESSAGE = 'M'
     VOICE = 'V'
     SURVEY = 'S'
+    USSD = 'U'
 
     RULES_ENTRY = 'R'
     ACTIONS_ENTRY = 'A'
@@ -179,7 +179,8 @@ class Flow(TembaModel):
     FLOW_TYPES = ((FLOW, _("Message flow")),
                   (MESSAGE, _("Single Message Flow")),
                   (VOICE, _("Phone call flow")),
-                  (SURVEY, _("Android Survey")))
+                  (SURVEY, _("Android Survey")),
+                  (USSD, _("USSD flow")))
 
     ENTRY_TYPES = ((RULES_ENTRY, "Rules"),
                    (ACTIONS_ENTRY, "Actions"))
@@ -507,7 +508,8 @@ class Flow(TembaModel):
 
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
-                        triggered_start=False, resume_parent_run=False, resume_after_timeout=False):
+                        triggered_start=False, resume_parent_run=False,
+                        resume_after_timeout=False, user_input=True):
 
         if started_flows is None:
             started_flows = []
@@ -524,7 +526,7 @@ class Flow(TembaModel):
                 continue
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
-                                                      user_input=True, triggered_start=triggered_start,
+                                                      user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
                                                       resume_after_timeout=resume_after_timeout)
 
@@ -558,18 +560,27 @@ class Flow(TembaModel):
         # lookup our next destination
         handled = False
         while destination:
-            result = {handled: False}
+            result = {"handled": False}
 
             if destination.get_step_type() == FlowStep.TYPE_RULE_SET:
                 should_pause = False
 
                 # check if we need to stop
-                if destination.is_pause() or msg.status == HANDLED:
+                if destination.is_pause():
                     should_pause = True
 
+                if triggered_start and destination.is_ussd():
+                    result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                    msgs += result['msgs']
                 if (user_input or resume_after_timeout) or not should_pause:
-                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run, resume_after_timeout)
+                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run,
+                                                 resume_after_timeout)
                     add_to_path(path, destination.uuid)
+                # USSD ruleset has extra functionality to send out messages.
+                # This is handled as a shadow step for the ruleset.
+                elif destination.is_ussd():
+                    result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                    msgs += result['msgs']
 
                 # if we used this input, then mark our user input as used
                 if should_pause:
@@ -643,27 +654,34 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
-        if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-            if not resume_parent_run:
-                flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
-                flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
-                message_context = run.flow.build_message_context(run.contact, msg)
 
-                # our extra will be the current flow variables
-                extra = message_context.get('extra', {})
-                extra['flow'] = message_context.get('flow', {})
+        if msg.status == INTERRUPTED:  # check interrupt
+            rule, value = ruleset.find_interrupt_rule(step, run, msg)
+            if not rule:
+                run.set_interrupted(final_step=step)
+                return dict(handled=True, destination=None, destination_type=None)
+        else:
+            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                if not resume_parent_run:
+                    flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                    flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
+                    message_context = run.flow.build_message_context(run.contact, msg)
 
-                if msg.id > 0:
-                    step.add_message(msg)
-                    run.update_expiration(timezone.now())
+                    # our extra will be the current flow variables
+                    extra = message_context.get('extra', {})
+                    extra['flow'] = message_context.get('flow', {})
 
-                if flow:
-                    flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                               extra=extra, parent_run=run, interrupt=False)
-                    return dict(handled=True, destination=None, destination_type=None)
+                    if msg.id > 0:
+                        step.add_message(msg)
+                        run.update_expiration(timezone.now())
 
-        # find a matching rule
-        rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
+                    if flow:
+                        flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
+                                   extra=extra, parent_run=run, interrupt=False)
+                        return dict(handled=True, destination=None, destination_type=None)
+            # find a matching rule
+            rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
+
         flow = ruleset.flow
 
         # add the message to our step
@@ -675,17 +693,26 @@ class Flow(TembaModel):
             # store the media path as the value
             value = msg.media.split(':', 1)[1]
 
-        step.save_rule_match(rule, value)
-        ruleset.save_run_value(run, rule, value)
+        if not msg.status == INTERRUPTED:
+            step.save_rule_match(rule, value)
+            ruleset.save_run_value(run, rule, value)
 
         # output the new value if in the simulator
         if run.contact.is_test:
-            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
+            if msg.status == INTERRUPTED:
+                ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
+            else:
+                ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
-            # log it for our test contacts
-            run.set_completed(final_step=step)
+            if msg.status == INTERRUPTED:
+                # run was interrupted and interrupt state not handled (not connected)
+                run.set_interrupted(final_step=step)
+            else:
+                # log it for our test contacts
+                run.set_completed(final_step=step)
+
             return dict(handled=True, destination=None, destination_type=None)
 
         # Create the step for our destination
@@ -697,6 +724,16 @@ class Flow(TembaModel):
             step.save(update_fields=['left_on', 'next_uuid'])
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
         return dict(handled=True, destination=destination, step=step)
+
+    @classmethod
+    def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
+        action = UssdAction.from_ruleset(ruleset, run)
+        msgs = action.execute(run, ruleset.uuid, msg)
+
+        for msg in msgs:
+            step.add_message(msg)
+
+        return dict(handled=True, destination=None, step=step, msgs=msgs)
 
     @classmethod
     def apply_action_label(cls, user, flows, label, add):
@@ -1400,6 +1437,9 @@ class Flow(TembaModel):
         ancestor_ids = []
         ancestor = parent_run
         while ancestor:
+            # we don't consider it an ancestor if it's not current in our start list
+            if ancestor.contact.id not in all_contact_ids:
+                break
             ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
@@ -1662,7 +1702,7 @@ class Flow(TembaModel):
                     Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
 
                 # if we didn't get an incoming message, see if we need to evaluate it passively
-                elif not entry_rules.is_pause():
+                elif not entry_rules.is_pause() or entry_rules.is_ussd():
                     # create an empty placeholder message
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                     handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
@@ -2535,7 +2575,7 @@ class FlowRun(models.Model):
                         msg.contact = run.contact
 
                     # finally, trigger our parent flow
-                    Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
+                    Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
     def resume_after_timeout(self):
         """
@@ -2617,6 +2657,27 @@ class FlowRun(models.Model):
             from .tasks import continue_parent_flows
             continue_parent_flows.delay([self.id])
 
+    def set_interrupted(self, final_step=None):
+        """
+        Mark run as interrupted
+        """
+        if self.contact.is_test:
+            ActionLog.create(self, _('%s has interrupted this flow') % self.contact.get_display(self.flow.org, short=True))
+
+        now = timezone.now()
+
+        if final_step:
+            final_step.left_on = now
+            final_step.save(update_fields=['left_on'])
+            self.flow.remove_active_for_step(final_step)
+
+        # mark this flow as inactive
+        self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
+        self.exited_on = now
+        self.modified_on = now
+        self.is_active = False
+        self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
+
     def update_timeout(self, now, minutes):
         """
         Updates our timeout for our run, either clearing it or setting it appropriately
@@ -2678,6 +2739,9 @@ class FlowRun(models.Model):
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
+
+    def is_interrupted(self):
+        return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 
@@ -2933,6 +2997,10 @@ class FlowStep(models.Model):
 class RuleSet(models.Model):
     TYPE_WAIT_MESSAGE = 'wait_message'
 
+    # Ussd
+    TYPE_WAIT_USSD_MENU = 'wait_menu'
+    TYPE_WAIT_USSD = 'wait_ussd'
+
     # Calls
     TYPE_WAIT_RECORDING = 'wait_recording'
     TYPE_WAIT_DIGIT = 'wait_digit'
@@ -2960,10 +3028,14 @@ class RuleSet(models.Model):
 
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
 
-    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS,
-                 TYPE_WAIT_PHOTO, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_GPS)
+    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS, TYPE_WAIT_USSD_MENU,
+                 TYPE_WAIT_USSD, TYPE_WAIT_PHOTO, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_GPS)
+
+    TYPE_USSD = (TYPE_WAIT_USSD_MENU, TYPE_WAIT_USSD)
 
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
+                    (TYPE_WAIT_USSD_MENU, "Wait for USSD menu"),
+                    (TYPE_WAIT_USSD, "Wait for USSD message"),
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
                     (TYPE_WAIT_DIGIT, "Wait for digit"),
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
@@ -3110,6 +3182,9 @@ class RuleSet(models.Model):
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
 
+    def is_ussd(self):
+        return self.ruleset_type in RuleSet.TYPE_USSD
+
     def get_timeout(self):
         for rule in self.get_rules():
             if isinstance(rule.test, TimeoutTest):
@@ -3241,6 +3316,15 @@ class RuleSet(models.Model):
                 if msg:
                     msg.text = orig_text
 
+        return None, None
+
+    def find_interrupt_rule(self, step, run, msg):
+        rules = self.get_rules()
+        for rule in rules:
+            result, value = rule.matches(run, msg, {}, "")
+
+            if result and value == "interrupted_status":
+                return rule, value
         return None, None
 
     def save_run_value(self, run, rule, value):
@@ -3800,7 +3884,7 @@ class ExportFlowResultsTask(SmartModel):
             urn_display = urn_display_cache.get(contact.pk)
             if urn_display:
                 return urn_display
-            urn_display = contact.get_urn_display(org=org, full=True)
+            urn_display = contact.get_urn_display(org=org, formatted=False)
             urn_display_cache[contact.pk] = urn_display
             return urn_display
 
@@ -3985,7 +4069,7 @@ class ExportFlowResultsTask(SmartModel):
                         msgs.col(5).width = large_width
                         msgs.col(6).width = small_width
 
-                    msg_urn_display = msg.contact_urn.get_display(org=org, full=True) if msg.contact_urn else ''
+                    msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
                     channel_name = msg.channel.name if msg.channel else ''
 
                     msgs.write(msg_row, 0, run_step.contact.uuid)
@@ -4762,6 +4846,75 @@ class ReplyAction(Action):
         return [reply] if reply else []
 
 
+class UssdAction(ReplyAction):
+    """
+    USSD action to send outgoing USSD messages
+    Created from a USSD ruleset
+    It builds localised text with localised USSD menu support
+    """
+    TYPE = 'ussd'
+    MESSAGE = 'ussd_message'
+    TYPE_WAIT_USSD_MENU = 'wait_menu'
+    TYPE_WAIT_USSD = 'wait_ussd'
+
+    def __init__(self, msg=None, base_language=None, languages=None, primary_language=None):
+        super(UssdAction, self).__init__(msg)
+        self.languages = languages
+        if msg and base_language and primary_language:
+            self.base_language = base_language if base_language in msg else primary_language
+        else:
+            self.base_language = None
+
+    @classmethod
+    def from_ruleset(cls, ruleset, run):
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, basestring):
+            # initial message, menu obj
+            obj = json.loads(ruleset.config)
+            rules = json.loads(ruleset.rules)
+            msg = obj.get(cls.MESSAGE, '')
+            org = run.flow.org
+
+            # define languages
+            base_language = run.flow.base_language
+            org_languages = {l.iso_code for l in org.languages.all()}
+            primary_language = getattr(getattr(org, 'primary_language', None), 'iso_code', None)
+
+            # initialize UssdAction
+            ussd_action = cls(msg=msg, base_language=base_language, languages=org_languages,
+                              primary_language=primary_language)
+
+            ussd_action.substitute_missing_languages()
+
+            if ruleset.ruleset_type == cls.TYPE_WAIT_USSD_MENU:
+                ussd_action.add_menu_to_msg(rules)
+
+            return ussd_action
+        else:
+            return cls()
+
+    def substitute_missing_languages(self):
+        # if there is a translation missing fill it with the base language
+        for language in self.languages:
+            if language not in self.msg:
+                self.msg[language] = self.msg.get(self.base_language)
+
+    def get_menu_label(self, label, language):
+        if language not in label:
+            return str(label.get(self.base_language))
+        else:
+            return str(label[language])
+
+    def add_menu_to_msg(self, rules):
+        # start with a new line
+        self.msg = {language: localised_msg + '\n' for language, localised_msg in self.msg.iteritems()}
+
+        # add menu to the msg
+        for rule in rules:
+            if rule.get('label'):  # filter "other" and "interrupted"
+                self.msg = {language: localised_msg + ": ".join(
+                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
+
+
 class VariableContactAction(Action):
     """
     Base action that resolves variables into contacts. Used for actions that take
@@ -4905,7 +5058,7 @@ class TriggerFlowAction(VariableContactAction):
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
                 self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
-                                extra=extra, parent_run=run, interrupt=False)
+                                extra=extra, parent_run=run)
                 return []
             else:
                 unique_contacts = set()
@@ -5287,12 +5440,13 @@ class SendAction(VariableContactAction):
 
 class Rule(object):
 
-    def __init__(self, uuid, category, destination, destination_type, test):
+    def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid
         self.category = category
         self.destination = destination
         self.destination_type = destination_type
         self.test = test
+        self.label = label
 
     def get_category_name(self, flow_lang):
         if not self.category:
@@ -5316,7 +5470,8 @@ class Rule(object):
                     category=self.category,
                     destination=self.destination,
                     destination_type=self.destination_type,
-                    test=self.test.as_json())
+                    test=self.test.as_json(),
+                    label=self.label)
 
     @classmethod
     def from_json_array(cls, org, json):
@@ -5343,7 +5498,8 @@ class Rule(object):
                               category,
                               destination,
                               destination_type,
-                              Test.from_json(org, rule['test'])))
+                              Test.from_json(org, rule['test']),
+                              rule.get('label')))
 
         return rules
 
@@ -5381,6 +5537,7 @@ class Test(object):
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest,
+                InterruptTest.TYPE: InterruptTest,
                 TimeoutTest.TYPE: TimeoutTest,
                 AirtimeStatusTest.TYPE: AirtimeStatusTest,
                 WebhookStatusTest.TYPE: WebhookStatusTest,
@@ -6270,3 +6427,23 @@ class RegexTest(Test):
             traceback.print_exc()
 
         return False, None
+
+
+class InterruptTest(Test):
+    """
+    Test if it's an interrupt status message
+    """
+    TYPE = "interrupted_status"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):
+        return dict(type=self.TYPE)
+
+    def evaluate(self, run, msg, context, text):
+        return (True, self.TYPE) if msg.status == INTERRUPTED else (False, None)

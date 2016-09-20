@@ -535,6 +535,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     urns = fields.URNListField(required=False)
+    restart_participants = serializers.BooleanField(required=False)
     extra = serializers.JSONField(required=False)
 
     def validate_extra(self, value):
@@ -555,6 +556,8 @@ class FlowStartWriteSerializer(WriteSerializer):
         urns = self.validated_data.get('urns', [])
         contacts = self.validated_data.get('contacts', [])
         groups = self.validated_data.get('groups', [])
+        restart_participants = self.validated_data.get('restart_participants', True)
+        extra = self.validated_data.get('extra')
 
         # convert URNs to contacts
         for urn in urns:
@@ -562,16 +565,9 @@ class FlowStartWriteSerializer(WriteSerializer):
             contacts.append(contact)
 
         # ok, let's go create our flow start, the actual starting will happen in our view
-        start = FlowStart.create(self.validated_data['flow'], self.context['user'],
-                                 restart_participants=self.validated_data.get('restart_participants', True),
-                                 contacts=contacts, groups=groups,
-                                 extra=self.validated_data.get('extra', None))
-
-        return start
-
-    class Meta:
-        model = FlowStart
-        fields = ('flow', 'contacts', 'groups', 'urns', 'extra')
+        return FlowStart.create(self.validated_data['flow'], self.context['user'],
+                                restart_participants=restart_participants,
+                                contacts=contacts, groups=groups, extra=extra)
 
 
 class LabelReadSerializer(ReadSerializer):
@@ -678,7 +674,7 @@ class ResthookReadSerializer(ReadSerializer):
 
 
 class ResthookSubscriberReadSerializer(ReadSerializer):
-    resthook = serializers.SlugField()
+    resthook = serializers.SerializerMethodField()
 
     def get_resthook(self, obj):
         return obj.resthook.slug
@@ -689,22 +685,18 @@ class ResthookSubscriberReadSerializer(ReadSerializer):
 
 
 class ResthookSubscriberWriteSerializer(WriteSerializer):
-    resthook = serializers.SlugField()
-    target_url = serializers.URLField()
-
-    def get_resthook(self, slug):
-        return Resthook.objects.filter(is_active=True, org=self.context['org'], slug=slug).first()
+    resthook = serializers.CharField(required=True)
+    target_url = serializers.URLField(required=True)
 
     def validate_resthook(self, value):
-        if value:
-            resthook = self.get_resthook(value)
-            if not resthook:
-                raise serializers.ValidationError("No resthook with slug: %s" % value)
-        return value
+        resthook = Resthook.objects.filter(is_active=True, org=self.context['org'], slug=value).first()
+        if not resthook:
+            raise serializers.ValidationError("No resthook with slug: %s" % value)
+        return resthook
 
     def validate(self, data):
-        resthook = self.get_resthook(data.get('resthook'))
-        target_url = data.get('target_url')
+        resthook = data['resthook']
+        target_url = data['target_url']
 
         # make sure this combination doesn't already exist
         if ResthookSubscriber.objects.filter(resthook=resthook, target_url=target_url, is_active=True):
@@ -713,13 +705,9 @@ class ResthookSubscriberWriteSerializer(WriteSerializer):
         return data
 
     def save(self):
-        resthook = self.get_resthook(self.validated_data['resthook'])
+        resthook = self.validated_data['resthook']
         target_url = self.validated_data['target_url']
         return resthook.add_subscriber(target_url, self.context['user'])
-
-    class Meta:
-        model = ResthookSubscriber
-        fields = ('resthook', 'target_url')
 
 
 class WebHookEventReadSerializer(ReadSerializer):
