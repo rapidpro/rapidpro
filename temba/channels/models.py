@@ -482,6 +482,7 @@ class Channel(TembaModel):
 
         if is_short_code:
             role = SEND + RECEIVE
+            address = str(address).replace('+', '')
 
         existing = Channel.objects.filter(address=address, org=org, channel_type=TWIML_API).first()
         if existing:
