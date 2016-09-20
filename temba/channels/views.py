@@ -1615,7 +1615,7 @@ class ChannelCRUDL(SmartCRUDL):
                       ACCOUNT_TOKEN: data.get('account_token', None)}
 
             number = phonenumbers.parse(number=number, region=country)
-            phone_number = "{0}{1}".format(str(number.country_code), str(number.national_number))
+            phone_number = "+{0}{1}".format(str(number.country_code), str(number.national_number))
             self.object = Channel.add_twiml_api_channel(org=org, user=self.request.user, country=country, address=phone_number, config=config, role=role)
 
             # if they didn't set a username or password, generate them, we do this after the addition above
