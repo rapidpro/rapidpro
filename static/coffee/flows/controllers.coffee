@@ -1329,9 +1329,11 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
             destination: bucket.destination
           min += size
 
+    # group split ruleset
     if ruleset.ruleset_type == 'group'
       old_groups = {}
 
+      # create a group_id -> rule map of our old groups
       if formData.previousRules
         for rule in formData.previousRules
           if rule.test.type == 'in_group'
@@ -1339,15 +1341,22 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
               old_groups[rule.test.test.uuid] = rule
 
       for group in splitEditor.omnibox.selected.groups
+
+        # deal with arbitrary group adds
         if typeof group is 'string'
           group =
             name: group
 
-        category = {}
-        category[Flow.flow.base_language] = group.name
+        # if we have an old group, use that one
         if group.id and group.id of old_groups
           rules.push(old_groups[group.id])
+
+        # otherwise create a new group
         else
+          category = {}
+          category[Flow.flow.base_language] = group.name
+
+          # create a rule that works for existing or new groups
           rule =
             uuid: uuid()
             test:
@@ -1356,8 +1365,10 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
                 name: group.name
             category: category
 
+          # if they picked an existing group, save its uuid too
           if group.id
             rule.test.test['uuid'] = group.id
+
           rules.push(rule)
 
     # create rules off of an IVR menu configuration
