@@ -274,7 +274,7 @@
 
     %p
       -blocktrans
-        The below endpoint should receive message this channel.
+        The below endpoint will receive messages this channel.
 
     %code
       {{ object.config_json.send_url }}
@@ -284,7 +284,7 @@
 
     %p
       -blocktrans
-        Outgoing messages for this channel will be sent to this endpoint.
+        Incoming messages for this channel will be sent to this endpoint.
 
     %code
       https://{{ domain }}{% url 'handlers.twiml_api_handler' object.uuid %}
