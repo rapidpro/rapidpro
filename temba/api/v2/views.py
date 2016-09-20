@@ -2251,8 +2251,13 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 "values": [
                     {
                         "node": {"uuid": "9a31495d-1c4c-41d5-9018-06f93baa5b98", "label": "Color"},
-                        "value": "I like blue!",
+                        "value": "blue",
                         "rule": {"uuid": "c33724d7-1064-4dd6-9aa3-efd29252cb88", "category": "Blue"}
+                    },
+                    {
+                        "node": {"uuid": "756a6bfb-be98-4155-9fc0-cd1f911d9846", "label": "Reason"},
+                        "value": "Because it's the color of the sky",
+                        "rule": {"uuid": "a65a3a45-6f6b-4d5a-bced-bb838dc47161", "category": "All Responses"}
                     }
                 ],
                 "created_on": "2015-11-11T13:05:57.457742Z",
@@ -2327,7 +2332,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Flow Runs",
             'url': reverse('api.v2.runs'),
             'slug': 'run-list',
-            'request': "after=2014-01-01T00:00:00.000",
+            'request': "after=2016-01-01T00:00:00.000",
             'fields': [
                 {'name': 'id', 'required': False, 'help': "A run ID to filter by, ex: 123456"},
                 {'name': 'flow', 'required': False, 'help': "A flow UUID to filter by, ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"},
