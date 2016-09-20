@@ -786,6 +786,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
   if options.nodeType == 'rules' or options.nodeType == 'ivr'
 
     ruleset = options.ruleset
+    formData.previousRules = ruleset.rules
+    formData.groups = []
+
+    for rule in ruleset.rules
+      if rule.test.type == 'in_group'
+        formData.groups.push(rule.test.test)
 
     # initialize our random categories
     if ruleset.ruleset_type == 'random'
@@ -1212,7 +1218,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         _config: if window.ivr then Flow.getOperatorConfig('starts') else Flow.getOperatorConfig('contains_any')
   , true
 
-  $scope.updateRules = (ruleset, rulesetConfig) ->
+  $scope.updateRules = (ruleset, rulesetConfig, splitEditor) ->
 
     rules = []
     if rulesetConfig.rules
@@ -1262,6 +1268,37 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
             category: bucket.name
             destination: bucket.destination
           min += size
+
+    if ruleset.ruleset_type == 'group'
+      old_groups = {}
+
+      if formData.previousRules
+        for rule in formData.previousRules
+          if rule.test.type == 'in_group'
+            if rule.test.test.uuid
+              old_groups[rule.test.test.uuid] = rule
+
+      for group in splitEditor.omnibox.selected.groups
+        if typeof group is 'string'
+          group =
+            name: group
+
+        category = {}
+        category[Flow.flow.base_language] = group.name
+        if group.id and group.id of old_groups
+          rules.push(old_groups[group.id])
+        else
+          rule =
+            uuid: uuid()
+            test:
+              type: 'in_group'
+              test:
+                name: group.name
+            category: category
+
+          if group.id
+            rule.test.test['uuid'] = group.id
+          rules.push(rule)
 
     # create rules off of an IVR menu configuration
     if ruleset.ruleset_type == 'wait_digit'
@@ -1380,11 +1417,12 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
       if not ruleset.config
         ruleset.config = {}
 
-      rulesetConfig = $scope.formData.rulesetConfig
-      contactField = $scope.formData.contactField
-      flowField = $scope.formData.flowField
-      airtimeAmountConfig = $scope.formData.airtimeAmountConfig
-      flow = $scope.formData.flow
+      formData = $scope.formData
+      rulesetConfig = formData.rulesetConfig
+      contactField = formData.contactField
+      flowField = formData.flowField
+      airtimeAmountConfig = formData.airtimeAmountConfig
+      flow = formData.flow
 
       # save whatever ruleset type they are setting us to
       ruleset.ruleset_type = rulesetConfig.type
@@ -1441,7 +1479,7 @@ NodeEditorController = ($rootScope, $scope, $modalInstance, $timeout, $log, Flow
         ruleset.operand = '@step.value'
 
       # update our rules accordingly
-      $scope.updateRules(ruleset, rulesetConfig)
+      $scope.updateRules(ruleset, rulesetConfig, splitEditor)
 
       # unplumb any rules that were explicitly removed
       Plumb.disconnectRules($scope.removed)

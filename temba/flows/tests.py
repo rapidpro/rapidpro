@@ -4105,6 +4105,31 @@ class FlowsTest(FlowFileTest):
         msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Testing this out', msg.text)
 
+    def test_group_split(self):
+        flow = self.get_flow('group_split')
+        flow.start_msg_flow([self.contact.id])
+
+        # not in any group
+        self.assertEqual(0, ContactGroup.user_groups.filter(contacts__in=[self.contact]).count())
+
+        # add us to Group A
+        self.send('add group a')
+
+        self.assertEqual('Awaiting command.', Msg.objects.filter(direction='O').order_by('-created_on').first().text)
+        groups = ContactGroup.user_groups.filter(contacts__in=[self.contact])
+        self.assertEqual(1, groups.count())
+        self.assertEqual('Group A', groups.first().name)
+
+        # now split us on group membership
+        self.send('split')
+        self.assertEqual('You are in Group A', Msg.objects.filter(direction='O').order_by('-created_on')[1].text)
+
+        # now add us to group b and remove from group a
+        self.send("remove group a")
+        self.send("add group b")
+        self.send('split')
+        self.assertEqual('You are in Group B', Msg.objects.filter(direction='O').order_by('-created_on')[1].text)
+
     def test_substitution(self):
         flow = self.get_flow('substitution')
 

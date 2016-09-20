@@ -18,8 +18,9 @@
               [[rule._translation.test.from]]
             %input{ng-model:"rule._translation.test.to",auto-complete:"",type:"text",class:"translate-to"}
           .translate-static{ng-hide:'rule._translation.test.from.length'}
-            %span{ng-show:'rule.test.test != "true"'}
+            %span{ng-show:'rule.test.type != "true" && rule.test.type != "in_group"'}
               [[rule.test.test]]
+
           .categorize-as
             -trans "refer to as"
           .translate
