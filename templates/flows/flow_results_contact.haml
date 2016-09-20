@@ -25,7 +25,7 @@
             %span.caret
           %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}
             %li
-              %a{ href: "{% url 'flows.flow_editor' object.pk %}" }
+              %a{ href: "{% url 'flows.flow_editor' object.uuid %}" }
                 - trans "View Flow"
             %li
               %a{ href: "{% url 'contacts.contact_read' contact.uuid %}" }
