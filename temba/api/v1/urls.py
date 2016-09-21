@@ -5,7 +5,7 @@ from rest_framework.urlpatterns import format_suffix_patterns
 from .views import api, ApiExplorerView, AuthenticateEndpoint, OrgEndpoint
 from .views import BroadcastEndpoint, MessageEndpoint, MessageBulkActionEndpoint, LabelEndpoint
 from .views import CallEndpoint, ContactEndpoint, ContactBulkActionEndpoint
-from .views import FlowEndpoint, FlowResultsEndpoint, FlowRunEndpoint, FlowDefinitionEndpoint, FlowStepEndpoint
+from .views import FlowEndpoint, FlowRunEndpoint, FlowDefinitionEndpoint, FlowStepEndpoint
 from .views import GroupEndpoint, FieldEndpoint
 from .views import ChannelEndpoint, CampaignEndpoint, CampaignEventEndpoint, BoundaryEndpoint, AssetEndpoint
 
@@ -21,7 +21,6 @@ urlpatterns = [
     url(r'^/labels$', LabelEndpoint.as_view(), name='api.v1.labels'),
     url(r'^/flows$', FlowEndpoint.as_view(), name='api.v1.flows'),
     url(r'^/flow_definition$', FlowDefinitionEndpoint.as_view(), name='api.v1.flow_definition'),
-    url(r'^/results$', FlowResultsEndpoint.as_view(), name='api.v1.results'),
     url(r'^/runs$', FlowRunEndpoint.as_view(), name='api.v1.runs'),
     url(r'^/steps$', FlowStepEndpoint.as_view(), name='api.v1.steps'),
     url(r'^/calls$', CallEndpoint.as_view(), name='api.v1.calls'),
