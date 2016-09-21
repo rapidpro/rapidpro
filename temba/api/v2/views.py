@@ -2247,18 +2247,10 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Favorite Color"},
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "responded": true,
-                "values": [
-                    {
-                        "node": {"uuid": "9a31495d-1c4c-41d5-9018-06f93baa5b98", "label": "Color"},
-                        "value": "blue",
-                        "rule": {"uuid": "c33724d7-1064-4dd6-9aa3-efd29252cb88", "category": "Blue"}
-                    },
-                    {
-                        "node": {"uuid": "756a6bfb-be98-4155-9fc0-cd1f911d9846", "label": "Reason"},
-                        "value": "Because it's the color of the sky",
-                        "rule": {"uuid": "a65a3a45-6f6b-4d5a-bced-bb838dc47161", "category": "All Responses"}
-                    }
-                ],
+                "values": {
+                    "color": {"value": "blue", "category": "Blue"},
+                    "reason": {"value": "Because it's the color of sky", "category": "All Responses"}
+                },
                 "created_on": "2015-11-11T13:05:57.457742Z",
                 "modified_on": "2015-11-11T13:05:57.576056Z",
                 "exited_on": "2015-11-11T13:05:57.576056Z",

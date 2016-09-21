@@ -464,13 +464,12 @@ class FlowRunReadSerializer(ReadSerializer):
     exit_type = serializers.SerializerMethodField()
 
     def get_values(self, obj):
-        values = []
+        values = {}
         for value in obj.values.all():
-            values.append({
-                'node': {'uuid': value.ruleset.uuid, "label": value.ruleset.label},
+            values[value.ruleset.context_key] = {
                 'value': value.decimal_value if value.decimal_value is not None else value.string_value,
-                'rule': {'uuid': value.rule_uuid, 'category': value.category}
-            })
+                'category': value.category
+            }
 
         return values
 

@@ -1562,7 +1562,7 @@ class APITest(TembaTest):
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'responded': False,
-            'values': [],
+            'values': {},
             'steps': [
                 {
                     'node': "00000000-00000000-00000000-00000001",
@@ -1601,13 +1601,9 @@ class APITest(TembaTest):
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'responded': True,
-            'values': [
-                {
-                    'node': {'uuid': "00000000-00000000-00000000-00000005", 'label': "color"},
-                    'value': "blue",
-                    'rule': {'uuid': "00000000-00000000-00000000-00000013", 'category': "Blue"}
-                }
-            ],
+            'values': {
+                'color': {'value': "blue", 'category': "Blue"}
+            },
             'steps': [
                 {
                     'node': "00000000-00000000-00000000-00000001",
