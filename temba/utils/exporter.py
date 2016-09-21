@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import csv
 
 from django.core.files.temp import NamedTemporaryFile
-from xlwt import Workbook
+from openpyxl import Workbook
 
 
 class TableExporter(object):
@@ -15,8 +15,8 @@ class TableExporter(object):
     When writing a to an Excel sheet, this also takes care of creating different sheets every 65535
     rows, as again, Excel file only support that many per sheet.
     """
-    MAX_XLS_COLS = 255
-    MAX_XLS_ROWS = 65535
+    MAX_XLS_COLS = 16384
+    MAX_XLS_ROWS = 1048576
 
     def __init__(self, sheet_name, columns):
         self.columns = columns
@@ -43,11 +43,11 @@ class TableExporter(object):
         self.sheet_number += 1
 
         # add our sheet
-        self.sheet = self.workbook.add_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
+        self.sheet = self.workbook.create_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
         for col, label in enumerate(self.columns):
-            self.sheet.write(0, col, unicode(label))
+            self.sheet.cell(row=1, column=col + 1, value=unicode(label))
 
-        self.sheet_row = 1
+        self.sheet_row = 2
 
     def write_row(self, values):
         """
@@ -63,7 +63,7 @@ class TableExporter(object):
 
             for col, value in enumerate(values):
                 if value is not None:
-                    self.sheet.write(self.sheet_row, col, unicode(value))
+                    self.sheet.cell(row=self.sheet_row, column=col + 1, value=unicode(value))
 
             self.sheet_row += 1
 
@@ -73,6 +73,9 @@ class TableExporter(object):
         """
         # have to flush the XLS file
         if not self.is_csv:
+            ws = self.workbook['Sheet']
+            self.workbook.remove(ws)
+
             self.workbook.save(self.file)
 
         self.file.flush()

@@ -2271,7 +2271,7 @@ class ExportContactsTask(SmartModel):
         self.save(update_fields=['uuid'])
 
         store = AssetType.contact_export.store
-        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xls')
+        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xlsx')
 
         branding = self.org.get_branding()
         download_url = branding['link'] + get_asset_url(AssetType.contact_export, self.pk)

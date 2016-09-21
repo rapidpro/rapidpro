@@ -30,8 +30,6 @@ from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
-from xlrd import xldate_as_tuple
-from xlrd.sheet import XL_CELL_DATE
 
 
 class ExcludeTestRunner(DiscoverRunner):
@@ -367,13 +365,14 @@ class TembaTest(SmartminTest):
 
             expected_values.append(expected)
 
+        rows = tuple(sheet.rows)
+
         actual_values = []
-        for c in range(0, sheet.ncols):
-            cell = sheet.cell(row_num, c)
+        for cell in rows[row_num]:
             actual = cell.value
 
-            if cell.ctype == XL_CELL_DATE:
-                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
+            if actual is None:
+                actual = ''
 
             actual_values.append(actual)
 
