@@ -8,7 +8,7 @@ from mock import patch
 from datetime import timedelta
 from django.core.urlresolvers import reverse
 from django.utils import timezone
-from temba.channels.models import Channel, ChannelEvent, CALL, ANSWER, TWITTER
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, Contact
 from temba.flows.models import Flow, ActionSet, FlowRun
 from temba.orgs.models import Language
@@ -149,7 +149,7 @@ class TriggerTest(TembaTest):
         self.assertNotContains(response, 'Start a flow after receiving a call')
 
         # make our channel support ivr
-        self.channel.role += CALL + ANSWER
+        self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
         self.channel.save()
 
         response = self.client.get(reverse('triggers.trigger_create'))
@@ -217,7 +217,7 @@ class TriggerTest(TembaTest):
         tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
         post_data = dict()
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'D'
         post_data['start'] = 'later'
         post_data['start_datetime_value'] = "%d" % tommorrow_stamp
@@ -229,7 +229,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['start'] = 'never'
         post_data['repeat_period'] = 'O'
 
@@ -244,7 +244,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['start'] = 'stop'
         post_data['repeat_period'] = 'O'
 
@@ -259,7 +259,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'O'
         post_data['start'] = 'now'
         post_data['start_datetime_value'] = "%d" % now_stamp
@@ -277,7 +277,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'D'
         post_data['start'] = 'later'
         post_data['start_datetime_value'] = "%d" % tommorrow_stamp
@@ -294,7 +294,7 @@ class TriggerTest(TembaTest):
         update_url = reverse('triggers.trigger_update', args=[trigger.pk])
 
         post_data = dict()
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'O'
         post_data['start'] = 'now'
         post_data['start_datetime_value'] = "%d" % now_stamp
@@ -304,7 +304,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d" % linkin_park.pk
+        post_data['omnibox'] = "g-%s" % linkin_park.uuid
         post_data['repeat_period'] = 'O'
         post_data['start'] = 'now'
         post_data['start_datetime_value'] = "%d" % now_stamp
@@ -320,7 +320,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['start'] = 'never'
         post_data['repeat_period'] = 'O'
 
@@ -334,7 +334,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['start'] = 'stop'
         post_data['repeat_period'] = 'O'
 
@@ -348,7 +348,7 @@ class TriggerTest(TembaTest):
 
         post_data = dict()
         post_data['flow'] = flow.pk
-        post_data['omnibox'] = "g-%d,c-%d" % (linkin_park.pk, stromae.pk)
+        post_data['omnibox'] = "g-%s,c-%s" % (linkin_park.uuid, stromae.uuid)
         post_data['repeat_period'] = 'D'
         post_data['start'] = 'later'
         post_data['start_datetime_value'] = "%d" % tommorrow_stamp
@@ -367,12 +367,14 @@ class TriggerTest(TembaTest):
         self.login(self.admin)
         group = self.create_group(name='Chat', contacts=[])
 
+        favorites = self.get_flow('favorites')
+
         # create a trigger that sets up a group join flow
-        post_data = dict(keyword='join', action_join_group=group.pk, response='Thanks for joining')
+        post_data = dict(keyword='join', action_join_group=group.pk, response='Thanks for joining', flow=favorites.pk)
         self.client.post(reverse("triggers.trigger_register"), data=post_data)
 
         # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.FLOW)
+        flow = Flow.objects.get(flow_type=Flow.FLOW, name='Join Chat')
 
         # check that our trigger exists and shows our group
         trigger = Trigger.objects.get(keyword='join', flow=flow)
@@ -397,8 +399,8 @@ class TriggerTest(TembaTest):
         # we should be in the group now
         self.assertEqual({group}, set(contact.user_groups.all()))
 
-        # and have one incoming and one outgoing message
-        self.assertEqual(2, contact.msgs.count())
+        # and have one incoming and one outgoing message plus an outgoing from our favorites flow
+        self.assertEqual(3, contact.msgs.count())
 
         # deleting our contact group should leave our triggers and flows since the group can be recreated
         self.client.post(reverse("contacts.contactgroup_delete", args=[group.pk]))
@@ -922,7 +924,7 @@ class TriggerTest(TembaTest):
 
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger
-        Channel.objects.filter(id=self.channel.id).update(channel_type=TWITTER)
+        Channel.objects.filter(id=self.channel.id).update(channel_type=Channel.TYPE_TWITTER)
         flow = self.create_flow()
 
         group = self.create_group("Trigger Group", [])
@@ -932,8 +934,14 @@ class TriggerTest(TembaTest):
                                          created_by=self.admin, modified_by=self.admin)
         trigger.groups.add(group)
 
+        dependencies = flow.get_dependencies()
+        del dependencies['groups']
+
+        # make sure our root flow is included
+        dependencies['flows'].add(flow)
+
         # export everything
-        export = Flow.export_definitions([flow])
+        export = self.org.export_definitions('http://rapidpro.io', **dependencies)
 
         # remove our trigger
         Trigger.objects.all().delete()

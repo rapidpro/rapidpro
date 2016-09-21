@@ -38,8 +38,10 @@
               },
               {
                 "type": "add_group",
-                "groups": [
-                  "Expecting Mothers"
+                "groups": [ 
+                  {
+                  "name": "Expecting Mothers"
+                  }
                 ]
               }
             ]

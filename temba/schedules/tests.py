@@ -120,12 +120,12 @@ class ScheduleTest(TembaTest):
         self.assertIn("At least one recipient is required", response.content)
 
         # missing message
-        post_data = dict(text="", omnibox="c-%d" % joe.pk, sender=self.channel.pk, _format="json", schedule=True)
+        post_data = dict(text="", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, _format="json", schedule=True)
         response = self.client.post(reverse('msgs.broadcast_send'), post_data, follow=True)
         self.assertIn("This field is required", response.content)
 
         # finally create our message
-        post_data = dict(text="A scheduled message to Joe", omnibox="c-%d" % joe.pk, sender=self.channel.pk, _format="json", schedule=True)
+        post_data = dict(text="A scheduled message to Joe", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, _format="json", schedule=True)
         response = json.loads(self.client.post(reverse('msgs.broadcast_send'), post_data, follow=True).content)
         self.assertIn("/broadcast/schedule_read", response['redirect'])
 
@@ -135,7 +135,7 @@ class ScheduleTest(TembaTest):
         broadcast = response.context['object']
 
         # update our message
-        post_data = dict(message="An updated scheduled message", omnibox="c-%d" % joe.pk)
+        post_data = dict(message="An updated scheduled message", omnibox="c-%s" % joe.uuid)
         self.client.post(reverse('msgs.broadcast_update', args=[broadcast.pk]), post_data)
         self.assertEquals("An updated scheduled message", Broadcast.objects.get(pk=broadcast.pk).text)
 

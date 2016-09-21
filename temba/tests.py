@@ -92,9 +92,10 @@ class TembaTest(SmartminTest):
         self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
         self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
 
-        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand='rapidpro.io',
+        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand=settings.DEFAULT_BRAND,
                                       created_by=self.user, modified_by=self.user)
-        self.org.initialize()
+
+        self.org.initialize(topup_size=1000)
 
         # add users to the org
         self.user.set_org(self.org)
@@ -263,7 +264,7 @@ class TembaTest(SmartminTest):
             kwargs['created_on'] = timezone.now()
 
         if not kwargs['contact'].is_test:
-            kwargs['topup_id'] = kwargs['org'].decrement_credit()
+            (kwargs['topup_id'], amount) = kwargs['org'].decrement_credit()
 
         return Msg.all_messages.create(**kwargs)
 
@@ -288,7 +289,7 @@ class TembaTest(SmartminTest):
 
         return dict(version=8,
                     action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
+                                      actions=[dict(type='reply', msg=dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))]),
                                  dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
                                       actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
                                  dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
@@ -299,8 +300,6 @@ class TembaTest(SmartminTest):
                                     label='color',
                                     finished_key=None,
                                     operand=None,
-                                    webhook=None,
-                                    webhook_action=None,
                                     response_type='',
                                     ruleset_type='wait_message',
                                     config={},
@@ -393,6 +392,15 @@ class FlowFileTest(TembaTest):
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
 
+    def send(self, message, contact=None):
+        if not contact:
+            contact = self.contact
+        if contact.is_test:
+            Contact.set_simulation(True)
+        incoming = self.create_msg(direction=INCOMING, contact=contact, text=message)
+        Flow.find_and_handle(incoming)
+        return Msg.all_messages.filter(response_to=incoming).order_by('pk').first()
+
     def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False,
                      assert_reply=True, assert_handle=True):
         """
@@ -413,6 +421,8 @@ class FlowFileTest(TembaTest):
             else:
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
                 handled = Flow.find_and_handle(incoming)
+
+                Msg.mark_handled(incoming)
 
                 if assert_handle:
                     self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
@@ -556,7 +566,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         self.click('#form-two-submit')
 
         # set up our channel for claiming
-        anon = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
+        anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
         channel = Channel.create(None, anon, 'RW', 'A', name="Test Channel", address="0785551212",
                                  claim_code='AAABBBCCC', secret="12345", gcm_id="123")
 

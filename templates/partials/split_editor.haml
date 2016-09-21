@@ -2,17 +2,17 @@
 
 
 .modal-header.title
-  %span{ng-model:"formData.rulesetConfig",data-icon:"show",class:"modal-title ruleset-name"}><
+  %span{ng-model:"formData.rulesetConfig", data-icon:"show", class:"modal-title ruleset-name"}><
 .modal-body.split-editor
 
-  <ng-form name="splitEditor">
+  .ng-form{name:"splitEditor"}
 
     .split-header
       .split-choice.pull-left
         %p
           -blocktrans
             When somebody arrives at this point in your flow
-        %select{ng-model:"formData.rulesetConfig", ng-options:"config as config.verbose_name for config in rulesetConfigs|filter:isVisibleRulesetType",style:"width:320px;height:34px",class:"split-type",select2:""}
+        %select{ng-model:"formData.rulesetConfig", ng-change:"rulesetTypeChanged()", ng-options:"config as config.verbose_name for config in rulesetConfigs|filter:isVisibleRulesetType",style:"width:320px;height:34px",class:"split-type",select2:""}
 
       %form{name:"variable"}
         #variable-name
@@ -22,10 +22,19 @@
           .error.ng-hide{ng-show:"variable.$error.alphanum"}
             -trans "The response name must consist of only letters and numbers."
 
+    .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_menu"', ussd:0}
+    .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_ussd"', ussd:1}
 
     .response{ng-if:'formData.rulesetConfig.type == "wait_message"'}><
       #split-on
-        -trans "If the message response.."
+        -trans "If the message response..."
+
+    .subflow{ng-if:'formData.rulesetConfig.type == "subflow"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Call out to another flow and return the results to this flow in the @child variable.
+        %input{style:"width:620px",ng-model:"formData.flow",search:"true",init-text:"[[formData.flow.name]]",name:"flow",placeholder:"Select the flow to run",required:"",init-id:"[[formData.flow.uuid]]",select-server:"[[getFlowsUrl()]]",type:"hidden"}
 
     .expression{ng-if:'formData.rulesetConfig.type == "expression"'}><
       #split-on
@@ -46,7 +55,6 @@
         -trans "delimited by a"
         %select.field-delimiter{ name:'fieldDelimiter', ng-model:'formData.fieldDelimiter', required:'true', ng-options: 'delim as delim.text for delim in fieldDelimiterOptions'}
 
-
     .contact-field{ng-if:'formData.rulesetConfig.type == "contact_field"'}><
       #split-on
         -trans "If the contact field "
@@ -56,6 +64,39 @@
       #split-on
         -trans "If the keypad entry before the # symbol.."
 
+    .random{ng-if:'formData.rulesetConfig.type == "random"'}><
+      #split-on
+        -trans "Split them randomly into"
+        %input.split-buckets{type:"text", min:"2", max:"20", ng-change:'updateRandomBuckets()', ng-model:"formData.buckets", ng-required:"true", type:"number"}
+        -trans "even buckets"
+
+        .buckets
+          .bucket{ng-repeat:'bucket in formData.randomBuckets'}
+            %input{type:'text', ng-required:'true', ng-model:'bucket._base'}
+
+    .airtime{ng-if:'formData.rulesetConfig.type == "airtime"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            You can configure the amount of the airtime in local currency to send
+            for each country you have a channel for.
+
+        .country-config{ng-repeat:"option in formData.airtimeAmountConfig"}
+          .country
+            [[option.name]] ([[option.currency_code]])
+          %input.airtime-amount{type:"text", ng-model:"option.amount", ng-required:"true", type:"number"}
+
+    .resthook{ng-if:'formData.rulesetConfig.type == "resthook"'}><
+      .split-margin
+        %p{class:"description"}
+          -blocktrans
+            Select which flow event you want to notify Zapier of below. You can configure your flow events
+            on your account page.
+
+        %input{ng-model:"formData.resthook", search:"true", init-text:"[[ruleset.config.resthook]]", name:"resthook",
+               placeholder:"Select the flow event to notify subscribers of", required:"", init-id:"[[ruleset.config.resthook]]",
+               select-server:"/api/resthooks/?_format=select2", type:"hidden"}
+
     .webhook{ng-if:'formData.rulesetConfig.type == "webhook"'}><
       .split-margin
         %p{class:"description"}
@@ -64,8 +105,8 @@
             and use it in this flow.
             Enter the URL to call out to at this point in the flow.
 
-        %select{ng-model:"ruleset.webhook_action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
-        %input{ng-model:"ruleset.webhook",name:"url",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",flow:"[[flowId]]",ng-required:"true",type:"url",class:"url", maxlength:"255"}
+        %select{ng-model:"formData.webhook_action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
+        %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url", maxlength:"255"}
         .help-text
           -blocktrans
             We'll include the message text along with data specified in
@@ -107,9 +148,9 @@
 
     // RULE EDITOR
     %form{name:'ruleForm'}
-      %span{ng-if:'hasRules()'}><
+      %span{ng-if:'hasRules() && formData.rulesetConfig.type != "wait_menu"'}
         %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
-          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule._config.type != "true"'}
+          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule._config.show'}
             <ng-form name="inner">
               .icon.icon-menu
               %select{ng-model:"rule._config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:isVisibleOperator', class:"operator-select",ng-change:"updateCategory(rule)"}
@@ -150,10 +191,25 @@
                 -trans "Please enter a value for evaluating this rule."
               .error.ng-hide{ng-show:'inner.category.$error.required'}
                 -trans "Please enter a category name."
-            </ng-form>
+
 .modal-footer
+  .ussd-counter{ng-class:"{limit: characters < 0}", ng-if:'formData.rulesetConfig.type == "wait_menu" || formData.rulesetConfig.type == "wait_ussd"'}
+    [[characters]] characters remaining
+
+  .timeout{ng-show:'flow.type == "F" && isPausingRuleset()', style:'float:left'}
+
+    %label
+      %input{type:'checkbox', ng-model:'formData.hasTimeout'}
+
+      %span{ng-show:'!formData.hasTimeout'}
+        Continue when there is no response
+
+      %span{ng-show:'formData.hasTimeout'}
+        Continue when there is no response for
+        %select{ng-model:'formData.timeout', ng-options:'option as option.text for option in formData.timeoutOptions'}
+
   <!--[[splitEditor]]-->
   %button{ng-click:"cancel()",class:"btn btn-secondary"}
     -trans "Cancel"
-  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid',ng-click:"okRules()",class:"btn btn-primary"}
+  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid || (characters && characters < 0)',ng-click:"okRules(splitEditor)",class:"btn btn-primary"}
     -trans "Ok"

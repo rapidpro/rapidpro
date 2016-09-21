@@ -16,7 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
-from temba.channels.models import Channel, SEND
+from temba.channels.models import Channel
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import ContactGroup, URN
 from temba.formax import FormaxMixin
@@ -154,8 +154,6 @@ class BroadcastForm(forms.ModelForm):
             if 'omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0:
                 self.errors['__all__'] = self.error_class([_("At least one recipient is required")])
                 return False
-            else:
-                print "omni: '%s'" % self.data['omnibox']
 
         return valid
 
@@ -202,8 +200,8 @@ class BroadcastCRUDL(SmartCRUDL):
             return args
 
         def derive_initial(self):
-            selected = ['g-%d' % _.pk for _ in self.object.groups.all()]
-            selected += ['c-%d' % _.pk for _ in self.object.contacts.all()]
+            selected = ['g-%s' % _.uuid for _ in self.object.groups.all()]
+            selected += ['c-%s' % _.uuid for _ in self.object.contacts.all()]
             selected = ','.join(selected)
             message = self.object.text
             return dict(message=message, omnibox=selected)
@@ -255,7 +253,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 return response
 
             # can this org send to any URN schemes?
-            if not org.get_schemes(SEND):
+            if not org.get_schemes(Channel.ROLE_SEND):
                 return HttpResponseBadRequest(_("You must add a phone number before sending messages"))
 
             return response
@@ -454,8 +452,6 @@ class MsgCRUDL(SmartCRUDL):
             if label_id:
                 label = Label.label_objects.get(pk=label_id)
 
-            host = self.request.branding['host']
-
             groups = form.cleaned_data['groups']
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
@@ -473,8 +469,8 @@ class MsgCRUDL(SmartCRUDL):
 
             # otherwise, off we go
             else:
-                export = ExportMessagesTask.objects.create(created_by=user, modified_by=user, org=org, host=host,
-                                                           label=label, start_date=start_date, end_date=end_date)
+                export = ExportMessagesTask.objects.create(created_by=user, modified_by=user, org=org, label=label,
+                                                           start_date=start_date, end_date=end_date)
                 for group in groups:
                     export.groups.add(group)
 
@@ -602,7 +598,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Outbox, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Outbox, self).get_context_data(*args, **kwargs)
@@ -616,7 +612,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Sent, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Sent, self).get_context_data(*args, **kwargs)
@@ -631,7 +627,7 @@ class MsgCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super(MsgCRUDL.Failed, self).get_queryset(**kwargs)
-            return qs.order_by('-created_on').prefetch_related('labels', 'steps__run__flow').select_related('contact')
+            return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
         def get_context_data(self, *args, **kwargs):
             context = super(MsgCRUDL.Failed, self).get_context_data(*args, **kwargs)
@@ -743,12 +739,13 @@ class LabelCRUDL(SmartCRUDL):
 
     class List(OrgPermsMixin, SmartListView):
         paginate_by = None
+        default_order = ('name',)
 
         def derive_queryset(self, **kwargs):
             return Label.label_objects.filter(org=self.request.user.get_org())
 
         def render_to_response(self, context, **response_kwargs):
-            results = [dict(id=l.pk, text=l.name) for l in context['object_list']]
+            results = [dict(id=l.uuid, text=l.name) for l in context['object_list']]
             return HttpResponse(json.dumps(results), content_type='application/javascript')
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):

@@ -75,12 +75,12 @@ class Campaign(SmartModel):
 
                 # first check if we have the objects by id
                 if same_site:
-                    group = ContactGroup.user_groups.filter(id=campaign_spec['group']['id'], org=org).first()
+                    group = ContactGroup.user_groups.filter(uuid=campaign_spec['group']['uuid'], org=org).first()
                     if group:
                         group.name = campaign_spec['group']['name']
                         group.save()
 
-                    campaign = Campaign.objects.filter(org=org, id=campaign_spec['id']).first()
+                    campaign = Campaign.objects.filter(org=org, uuid=campaign_spec['uuid']).first()
                     if campaign:
                         campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
                         campaign.save()
@@ -126,7 +126,7 @@ class Campaign(SmartModel):
                                                                    event_spec['delivery_hour'])
                         event.update_flow_name()
                     else:
-                        flow = Flow.objects.filter(org=org, is_active=True, id=event_spec['flow']['id']).first()
+                        flow = Flow.objects.filter(org=org, is_active=True, uuid=event_spec['flow']['uuid']).first()
                         if flow:
                             CampaignEvent.create_flow_event(org, user, campaign, relative_to,
                                                             event_spec['offset'],
@@ -165,17 +165,17 @@ class Campaign(SmartModel):
         A json representation of this event, suitable for export. Note this only returns the ids and names
         of the dependent flows. You will want to export these flows seperately using get_all_flows()
         """
-        definition = dict(name=self.name, id=self.pk, group=dict(id=self.group.id, name=self.group.name))
+        definition = dict(name=self.name, uuid=self.uuid, group=dict(uuid=self.group.uuid, name=self.group.name))
         events = []
 
-        for event in self.events.all().order_by('flow__id'):
-            events.append(dict(id=event.pk, offset=event.offset,
+        for event in self.events.all().order_by('flow__uuid'):
+            events.append(dict(uuid=event.uuid, offset=event.offset,
                                unit=event.unit,
                                event_type=event.event_type,
                                delivery_hour=event.delivery_hour,
                                message=event.message,
-                               flow=dict(id=event.flow.pk, name=event.flow.name),
-                               relative_to=dict(label=event.relative_to.label, key=event.relative_to.key, id=event.relative_to.pk)))
+                               flow=dict(uuid=event.flow.uuid, name=event.flow.name),
+                               relative_to=dict(label=event.relative_to.label, key=event.relative_to.key)))
         definition['events'] = events
         return definition
 

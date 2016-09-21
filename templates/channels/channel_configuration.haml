@@ -432,7 +432,7 @@
     %code
       https://{{ domain }}{% url 'handlers.hub9_handler' 'delivered' object.uuid %}
 
-  -elif object.channel_type == 'VM'
+  -elif object.channel_type == 'VM' or object.channel_type == 'VMU'
     %h4
       -blocktrans
         To finish configuring your Vumi connection you'll need to set the following parameters on your Vumi conversation:
@@ -600,6 +600,46 @@
 
     %code
       {{ channel.secret }}
+
+  -elif object.channel_type == 'VI'
+    %h4
+      -blocktrans
+        Your Viber channel is connected, if need the IP addresses, status and receive endpoints are listed below.
+
+    %hr
+
+    %h4
+      -trans "IP Addresses"
+
+    -for ip_address in ip_addresses
+      %code= ip_address
+
+    %h4
+      -trans "Status URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_handler' 'status' object.uuid %}
+
+    %h4
+      -trans "Receive URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_handler' 'receive' object.uuid %}
+
+
+  -elif object.channel_type == 'GL'
+    %h4
+      -blocktrans
+        To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your
+        application configuration page.
+
+    %hr
+
+    %h4
+      -trans "Notify URI"
+
+    %code
+      https://{{ domain }}{% url 'handlers.globe_handler' 'receive' object.uuid %}
 
   -elif object.channel_type == 'HX'
     %h4

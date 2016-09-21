@@ -74,7 +74,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         for c in range(0, count):
             name = '%s %d' % (base_names[c % len(base_names)], c + 1)
             scheme, path, channel = self.urn_generators[c % len(self.urn_generators)](c)
-            contacts.append(Contact.get_or_create(self.org, self.user, name, urns=[(scheme, path)]))
+            contacts.append(Contact.get_or_create(self.org, self.user, name, urns=[':'.join([scheme, path])]))
         return contacts
 
     def _create_groups(self, count, base_names, contacts):
@@ -267,8 +267,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         incoming = self._create_incoming(100, "Hello", self.tel_mtn, contacts)
         self._create_labels(10, ["My Label"], incoming)
 
-        task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
-                                                 created_by=self.user, modified_by=self.user)
+        task = ExportMessagesTask.objects.create(org=self.org, created_by=self.user, modified_by=self.user)
 
         with SegmentProfiler("Export messages", self, True, force_profile=True):
             task.do_export()

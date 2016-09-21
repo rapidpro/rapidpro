@@ -1,6 +1,96 @@
 app = angular.module('temba.widgets', [])
 
 #============================================================================
+# Displaying USSD Menu with textarea, menu inputs and char counter
+#============================================================================
+app.directive "ussd", [ "$rootScope", "$log", "Flow", "utils", ($rootScope, $log, Flow, utils) ->
+  MESSAGE_LENGTH = 182
+
+  link = (scope, element, attrs) ->
+    scope.USSD_MENU = parseInt(attrs.ussd) == 0
+    scope.USSD_RESPONSE = parseInt(attrs.ussd) == 1
+
+    scope.ruleset.ruleset_type = if scope.USSD_MENU then "wait_menu" else "wait_ussd"
+
+    scope.ruleset.config ?= {}
+    scope.ruleset.config.ussd_message ?= {}
+    scope.ruleset.config.ussd_message[Flow.flow.base_language] ?= ""
+
+    menu = null
+
+    do refreshMenu = ->
+      menu = scope.ruleset.rules.filter (rule) -> rule._config.show
+
+    updateCategory = (item) ->
+      if not item.category._autoName
+        return
+
+      words = item.label[Flow.flow.base_language].trim().split(/\b/)
+      if words
+        categoryName = words[0].toUpperCase()
+        item.category._base = categoryName
+        if categoryName.length > 1
+          item.category._base = categoryName.charAt(0) + categoryName.substr(1).toLowerCase()
+
+    do insertEmpty = ->
+      refreshMenu()
+      if scope.USSD_MENU
+        # when we switch back from "wait_ussd", filter out arbitrary rules
+        if (scope.ruleset.rules.filter (rule) -> not rule.label and rule._config.show)
+          scope.ruleset.rules = scope.ruleset.rules.filter (rule) -> rule.label or (not rule.label and not rule._config.show)
+          refreshMenu()
+
+        if menu.length == 0 or menu[menu.length - 1].category?._base != ""
+          scope.ruleset.rules.splice menu.length, 0,
+            _config: Flow.getOperatorConfig("eq")
+            uuid: uuid()
+            label: {}
+            test:
+              type: 'eq'
+              _base: if menu.length >= 9 then 0 else menu.length + 1
+            category:
+              _autoName: true
+              _base: ""
+      else
+        if menu[menu.length - 1]?.category?._base == ""
+          scope.ruleset.rules.splice(menu.length - 1, 1)
+
+    scope.remove = (item, index) ->
+      refreshMenu()
+      scope.ruleset.rules.splice(index, 1)
+      if index == 0 or index == menu.length - 1
+        insertEmpty()
+
+    scope.updateMenu = (item, index) ->
+      refreshMenu()
+      scope.countCharacters()
+      updateCategory(item)
+      if item.label[Flow.flow.base_language].length == 1 and index == menu.length - 1
+        insertEmpty()
+
+    do scope.countCharacters = ->
+      sumMenuItems = (items) ->
+        items
+          .filter (rule) ->
+            rule._config.show
+          .reduce (prev, current) ->
+            current.label[Flow.flow.base_language] ?= ""
+            prev + current.test._base.toString().length + current.label[Flow.flow.base_language].length + 2 # 1 for space 1 for newline char
+          ,0
+
+      textLength = scope.ruleset.config.ussd_message[Flow.flow.base_language].length
+      textMenuLength = (textLength + 1 + sumMenuItems(scope.ruleset.rules)) if scope.USSD_MENU
+      $rootScope.characters = if scope.USSD_MENU then MESSAGE_LENGTH - textMenuLength else MESSAGE_LENGTH - textLength
+
+  return {
+    templateUrl: "/partials/ussd_directive"
+    restrict: "A"
+    link: link
+    scope: true
+  }
+]
+
+#============================================================================
 # Simple directive for displaying a localized textarea with a char counter
 #============================================================================
 app.directive "sms", [ "$log", "Flow", ($log, Flow) ->
@@ -133,7 +223,6 @@ app.directive "select2", ["$timeout", ($timeout) ->
   }
 ]
 
-
 app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
   link = (scope, element, attrs, form) ->
 
@@ -147,7 +236,9 @@ app.directive "selectLabel", ["$timeout", "Flow", ($timeout, Flow) ->
     if scope.ngModel
       initLabels = []
       for label in scope.ngModel
-        initLabels.push(label)
+        initLabels.push
+          id: label.uuid
+          text: label.name
 
       select2.data(initLabels)
 
@@ -238,6 +329,7 @@ app.directive "selectEmail", ["$timeout", ($timeout) ->
       ngModel: '='
   }
 ]
+
 
 #============================================================================
 # Create a select2 control for predefined data
@@ -436,9 +528,9 @@ app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
 
     for item in data
       if item.id[0] == 'g'
-        groups.push({id:parseInt(item.id.slice(2)), name:item.text})
+        groups.push({id:item.id.slice(2), name:item.text})
       else if item.id[0] == 'c'
-        contacts.push({id:parseInt(item.id.slice(2)), name:item.text})
+        contacts.push({id:item.id.slice(2), name:item.text})
       else if item.id[0] == '@'
         variables.push({id:item.id, name:item.id})
       else
@@ -468,14 +560,14 @@ app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
     if scope.groups
       for group in scope.groups
         if group.name
-          data.push({ id:'g-' + group.id, text:group.name})
+          data.push({ id:'g-' + group.uuid, text:group.name})
         else
           data.push({ id:group, text:group })
 
     if scope.contacts
       for contact in scope.contacts
         if contact.name
-          data.push({ id:'c-' + contact.id, text:contact.name})
+          data.push({ id:'c-' + contact.uuid, text:contact.name})
         else
           data.push({ id:contact, text:contact })
 

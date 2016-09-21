@@ -138,13 +138,29 @@
                   and receive messages on your shortcode.
 
     -if user_org.timezone == 'Asia/Manila'
-      .claim-row.chikka-channel{class:"{% if recommended_channel == 'chikka' %}recommended{% endif %}"}
+      .claim-row.globe-channel{class:"{% if recommended_channel == 'globe' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
             -trans "Recommendation"
-          -blocktrans with "<a href='http://api.chikka.com/'>" as link_start and "</a>" as link_end
-            We recommend using Chikka in the Phillipines. Visit {{link_start}}their website{{link_end}} for details.
+          -blocktrans with "<a href='http://www.globelabs.com.ph/'>" as link_start and "</a>" as link_end
+            We recommend using Globe Labs in the Phillipines. Visit {{link_start}}their website{{link_end}} for details.
 
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_globe' %}"}
+              .btn-container
+                .claim-glyph.icon-channel-external
+                %p.claim-text
+                  -trans "Globe Short Code"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans with brand.name as brand
+                  If you are based in the Phillipines, you can integrate {{ brand }} with Globe Labs to send
+                  and receive messages on your shortcode.
+
+      .claim-row.chikka-channel
         .row
           .span3
             %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_chikka' %}"}
@@ -536,6 +552,26 @@
                 -blocktrans
                   Easily connect your <a href="http://vumi.com/">Vumi</a> account to take advantage of two way texting across different mediums.
 
+    -if user_org.timezone == 'Africa/Johannesburg'
+      .claim-row.vumi-ussd-channel
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans
+            We recommend using Vumi USSD to connect a USSD code in your country, select this option to configure your channel.
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_vumi_ussd' %}"}
+              .claim-glyph.icon-channel-external
+              %p.claim-text
+                -trans "Vumi USSD"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily connect your <a href="http://go.vumi.org/">Vumi</a> account to take advantage of session based messaging across USSD transports.
+
     .claim-row.external-channel
       .row
         .span3
@@ -605,6 +641,25 @@
                     Add a <a href="https://telegram.org">Telegram</a> bot to send and receive messages to Telegram users
                     for free. Your users will need an Android, Windows or iOS device and a Telegram account to send
                     and receive messages.
+
+      -if org_perms.channels.channel_claim_viber
+        .claim-row.viber-channel
+          .row
+            .span3
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_create_viber' %}"}
+                .btn-container
+                  .claim-glyph.icon-viber
+                  %p.claim-text
+                    -trans "Viber"
+
+            .span9
+              .claim-description
+                %div
+                  -blocktrans
+                    Add a <a href="http://viber.com/en/">Viber</a> bot to send and receive messages to Viber users
+                    for free. Your users will need an Android, Windows or iOS device and a Viber account to send
+                    and receive messages.
+
 
 -block form-buttons
 
