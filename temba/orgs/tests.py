@@ -16,11 +16,13 @@ from django.test.utils import override_settings
 from django.utils import timezone
 from mock import patch, Mock
 from smartmin.tests import SmartminTest
-from temba.api.models import APIToken
+from temba.airtime.models import AirtimeTransfer
+from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, RECEIVE, SEND, TWILIO, TWITTER, PLIVO_AUTH_ID, PLIVO_AUTH_TOKEN
+from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, ActionSet
+from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.nexmo import NexmoValidationError
@@ -79,6 +81,46 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug('Which part?'), 'which-part')
         self.assertEqual(Org.get_unique_slug('Allo'), 'allo-2')
 
+    def test_languages(self):
+        self.assertEqual(self.org.get_language_codes(), set())
+
+        self.org.set_languages(self.admin, ['eng', 'fre'], 'eng')
+        self.org.refresh_from_db()
+
+        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
+        self.assertEqual(self.org.primary_language.name, "English")
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'fre'})
+
+        self.org.set_languages(self.admin, ['eng', 'kin'], 'kin')
+        self.org.refresh_from_db()
+
+        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "Kinyarwanda"})
+        self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
+        self.assertEqual(self.org.get_language_codes(), {'eng', 'kin'})
+
+    def test_get_channel_countries(self):
+        self.assertEqual(self.org.get_channel_countries(), [])
+
+        self.org.connect_transferto('mylogin', 'api_token', self.admin)
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF')])
+
+        Channel.create(self.org, self.user, 'US', 'A', None, "+12001112222", gcm_id="asdf", secret="asdf")
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF'),
+                                                            dict(code='US', name='United States',
+                                                                 currency_name='US Dollar', currency_code='USD')])
+
+        Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel",
+                       address="billy_bob", role="SR", scheme='twitter')
+
+        self.assertEqual(self.org.get_channel_countries(), [dict(code='RW', name='Rwanda', currency_name='Rwanda Franc',
+                                                                 currency_code='RWF'),
+                                                            dict(code='US', name='United States',
+                                                                 currency_name='US Dollar', currency_code='USD')])
+
     def test_edit(self):
         # use a manager now
         self.login(self.admin)
@@ -126,7 +168,6 @@ class OrgTest(TembaTest):
         self.assertEquals(self.org.get_recommended_channel(), 'android')
 
     def test_country(self):
-        from temba.locations.models import AdminBoundary
         country_url = reverse('orgs.org_country')
 
         # can't see this page if not logged in
@@ -162,6 +203,7 @@ class OrgTest(TembaTest):
 
         # remove all our channels so we no longer have a backdown
         org.channels.all().delete()
+        org = Org.objects.get(pk=self.org.pk)
 
         # now really don't have a clue of our country code
         self.assertIsNone(org.get_country_code())
@@ -240,7 +282,7 @@ class OrgTest(TembaTest):
         # while we are suspended, we can't send broadcasts
         send_url = reverse('msgs.broadcast_send')
         mark = self.create_contact('Mark', number='+12065551212')
-        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%d" % mark.pk)
+        post_data = dict(text="send me ur bank account login im ur friend.", omnibox="c-%s" % mark.uuid)
         response = self.client.post(send_url, post_data, follow=True)
 
         self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
@@ -248,7 +290,7 @@ class OrgTest(TembaTest):
 
         # we also can't start flows
         flow = self.create_flow()
-        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants='on')
         response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
 
         self.assertEquals('Sorry, your account is currently suspended. To enable sending messages, please contact support.',
@@ -275,7 +317,7 @@ class OrgTest(TembaTest):
 
         # unsuspend our org and start a flow
         self.org.set_restored()
-        post_data = dict(omnibox="c-%d" % mark.pk, restart_participants='on')
+        post_data = dict(omnibox="c-%s" % mark.uuid, restart_participants='on')
         response = self.client.post(reverse('flows.flow_broadcast', args=[flow.pk]), post_data, follow=True)
         self.assertEqual(1, FlowRun.objects.all().count())
 
@@ -351,6 +393,7 @@ class OrgTest(TembaTest):
         post_data['language'] = ''
         post_data['country'] = ''
         post_data['primary_language'] = ''
+        post_data['parent'] = ''
 
         # change to the trial plan
         response = self.client.post(update_url, post_data)
@@ -579,7 +622,6 @@ class OrgTest(TembaTest):
             return Invitation.objects.create(org=self.org,
                                              user_group=group,
                                              email="norkans7@gmail.com",
-                                             host='app.rapidpro.io',
                                              created_by=self.admin,
                                              modified_by=self.admin)
 
@@ -790,12 +832,10 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse('orgs.org_home'))
         self.assertEquals(response.context_data['org'], self.org2)
 
-        # a non org user get a message to contact their administrator
+        # a non org user get's logged out
         self.login(self.non_org_user)
         response = self.client.get(choose_url)
-        self.assertEquals(200, response.status_code)
-        self.assertEquals(0, len(response.context['orgs']))
-        self.assertContains(response, "Your account is not associated with any organization. Please contact your administrator to receive an invitation to an organization.")
+        self.assertRedirect(response, reverse('users.user_login'))
 
         # superuser gets redirected to user management page
         self.login(self.superuser)
@@ -836,7 +876,25 @@ class OrgTest(TembaTest):
 
         self.assertEquals(5500, self.org.get_credits_remaining())
 
+    def test_topup_model(self):
+        topup = TopUp.create(self.admin, price=None, credits=1000)
+
+        self.assertEqual(topup.get_price_display(), "")
+
+        topup.price = 0
+        topup.save()
+
+        self.assertEqual(topup.get_price_display(), "Free")
+
+        topup.price = 100
+        topup.save()
+
+        self.assertEqual(topup.get_price_display(), "$1.00")
+
     def test_topups(self):
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_user=100000, multi_org=1000000)
+
         contact = self.create_contact("Michael Shumaucker", "+250788123123")
         test_contact = Contact.get_test_contact(self.user)
         welcome_topup = TopUp.objects.get()
@@ -926,8 +984,9 @@ class OrgTest(TembaTest):
         self.assertIsNone(test_msg.topup_id)
         self.assertEquals(30, self.org.get_credits_used())
 
-        # test pro user status
-        self.assertFalse(self.org.is_pro())
+        # test special status
+        self.assertFalse(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
 
         # add new topup with lots of credits
         mega_topup = TopUp.create(self.admin, price=0, credits=100000)
@@ -939,10 +998,11 @@ class OrgTest(TembaTest):
         self.assertFalse(Msg.all_messages.filter(org=self.org, contact__is_test=True).exclude(topup=None))
         self.assertEquals(5, TopUp.objects.get(pk=mega_topup.pk).get_used())
 
-        # now we're pro
-        self.assertTrue(self.org.is_pro())
+        # we aren't yet multi user since this topup was free
+        self.assertEquals(0, self.org.get_purchased_credits())
+        self.assertFalse(self.org.is_multi_user_tier())
+
         self.assertEquals(100025, self.org.get_credits_total())
-        self.assertEquals(100025, self.org.get_purchased_credits())
         self.assertEquals(30, self.org.get_credits_used())
         self.assertEquals(99995, self.org.get_credits_remaining())
 
@@ -965,11 +1025,8 @@ class OrgTest(TembaTest):
         # check our totals
         self.org.update_caches(OrgEvent.topup_updated, None)
 
-        # we're still pro though
-        self.assertTrue(self.org.is_pro())
-
-        with self.assertNumQueries(2):
-            self.assertEquals(100025, self.org.get_purchased_credits())
+        with self.assertNumQueries(3):
+            self.assertEquals(0, self.org.get_purchased_credits())
             self.assertEquals(31, self.org.get_credits_total())
             self.assertEquals(32, self.org.get_credits_used())
             self.assertEquals(-1, self.org.get_credits_remaining())
@@ -1054,6 +1111,18 @@ class OrgTest(TembaTest):
 
         with self.assertNumQueries(0):
             self.assertEquals(0, self.org.get_low_credits_threshold())
+
+        # now buy some credits to make us multi user
+        TopUp.create(self.admin, price=100, credits=100000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertFalse(self.org.is_multi_org_tier())
+
+        # good deal!
+        TopUp.create(self.admin, price=100, credits=1000000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertTrue(self.org.is_multi_user_tier())
+        self.assertTrue(self.org.is_multi_org_tier())
 
     @patch('temba.orgs.views.TwilioRestClient', MockTwilioClient)
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -1151,6 +1220,160 @@ class OrgTest(TembaTest):
                     org.refresh_from_db()
                     self.assertFalse(org.is_connected_to_twilio())
 
+    def test_has_airtime_transfers(self):
+        AirtimeTransfer.objects.filter(org=self.org).delete()
+        self.assertFalse(self.org.has_airtime_transfers())
+        contact = self.create_contact('Bob', number='+250788123123')
+
+        AirtimeTransfer.objects.create(org=self.org, recipient='+250788123123', amount='100',
+                                       contact=contact, created_by=self.admin, modified_by=self.admin)
+
+        self.assertTrue(self.org.has_airtime_transfers())
+
+    def test_transferto_model_methods(self):
+        org = self.org
+
+        org.refresh_from_db()
+        self.assertFalse(org.is_connected_to_transferto())
+
+        org.connect_transferto('login', 'token', self.admin)
+
+        org.refresh_from_db()
+        self.assertTrue(org.is_connected_to_transferto())
+        self.assertEqual(org.modified_by, self.admin)
+
+        org.remove_transferto_account(self.admin)
+
+        org.refresh_from_db()
+        self.assertFalse(org.is_connected_to_transferto())
+        self.assertEqual(org.modified_by, self.admin)
+
+    def test_transferto_account(self):
+        self.login(self.admin)
+
+        # connect transferTo
+        transferto_account_url = reverse('orgs.org_transfer_to_account')
+
+        with patch('temba.airtime.models.AirtimeTransfer.post_transferto_api_response') as mock_post_transterto_request:
+            mock_post_transterto_request.return_value = MockResponse(200, 'Unexpected content')
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='false'))
+
+            self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_transferto())
+
+            mock_post_transterto_request.return_value = MockResponse(200, 'authentication_key=123\r\n'
+                                                                          'error_code=400\r\n'
+                                                                          'error_txt=Failed Authentication\r\n')
+
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='false'))
+
+            self.assertContains(response, "Connecting to your TransferTo account failed "
+                                          "with error text: Failed Authentication")
+
+            self.assertFalse(self.org.is_connected_to_transferto())
+
+            mock_post_transterto_request.return_value = MockResponse(200, 'info_txt=pong\r\n'
+                                                                          'authentication_key=123\r\n'
+                                                                          'error_code=0\r\n'
+                                                                          'error_txt=Transaction successful\r\n')
+
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='false'))
+            self.assertNoFormErrors(response)
+            # transferTo should be connected
+            self.org = Org.objects.get(pk=self.org.pk)
+            self.assertTrue(self.org.is_connected_to_transferto())
+            self.assertEqual(self.org.config_json()['TRANSFERTO_ACCOUNT_LOGIN'], 'login')
+            self.assertEqual(self.org.config_json()['TRANSFERTO_AIRTIME_API_TOKEN'], 'token')
+
+            response = self.client.get(transferto_account_url)
+            self.assertEqual(response.context['transferto_account_login'], 'login')
+
+            # and disconnect
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='true'))
+
+            self.assertNoFormErrors(response)
+            self.org = Org.objects.get(pk=self.org.pk)
+            self.assertFalse(self.org.is_connected_to_transferto())
+            self.assertFalse(self.org.config_json()['TRANSFERTO_ACCOUNT_LOGIN'])
+            self.assertFalse(self.org.config_json()['TRANSFERTO_AIRTIME_API_TOKEN'])
+
+            mock_post_transterto_request.side_effect = Exception('foo')
+            response = self.client.post(transferto_account_url, dict(account_login='login', airtime_api_token='token',
+                                                                     disconnect='false'))
+            self.assertContains(response, "Your TransferTo API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_transferto())
+
+        # No account connected, do not show the button to Transfer logs
+        response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
+        self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+        response = self.client.get(transferto_account_url)
+        self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+        self.org.connect_transferto('login', 'token', self.admin)
+
+        # links not show if request is not from formax
+        response = self.client.get(transferto_account_url)
+        self.assertNotContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertNotContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+        # link show for formax requests
+        response = self.client.get(transferto_account_url, HTTP_X_FORMAX=True)
+        self.assertContains(response, reverse('airtime.airtimetransfer_list'))
+        self.assertContains(response, "%s?disconnect=true" % reverse('orgs.org_transfer_to_account'))
+
+    def test_resthooks(self):
+        # no hitting this page without auth
+        resthook_url = reverse('orgs.org_resthooks')
+        response = self.client.get(resthook_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        # get our resthook management page
+        response = self.client.get(resthook_url)
+
+        # shouldn't have any resthooks listed yet
+        self.assertFalse(response.context['current_resthooks'])
+
+        # ok, let's create one
+        self.client.post(resthook_url, dict(resthook='mother-registration'))
+
+        # should now have a resthook
+        resthook = Resthook.objects.get()
+        self.assertEqual(resthook.slug, 'mother-registration')
+        self.assertEqual(resthook.org, self.org)
+        self.assertEqual(resthook.created_by, self.admin)
+
+        # fetch our read page, should have have our resthook
+        response = self.client.get(resthook_url)
+        self.assertTrue(response.context['current_resthooks'])
+
+        # let's try to create a repeat, should fail due to duplicate slug
+        response = self.client.post(resthook_url, dict(resthook='Mother-Registration'))
+        self.assertTrue(response.context['form'].errors)
+
+        # hit our list page used by select2, checking it lists our resthook
+        response = self.client.get(reverse('api.resthook_list') + "?_format=select2")
+        results = json.loads(response.content)['results']
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], dict(text='mother-registration', id='mother-registration'))
+
+        # finally, let's remove that resthook
+        self.client.post(resthook_url, {'resthook_%d' % resthook.id: 'checked'})
+        resthook.refresh_from_db()
+        self.assertFalse(resthook.is_active)
+
+        # no more resthooks!
+        response = self.client.get(resthook_url)
+        self.assertFalse(response.context['current_resthooks'])
+
     def test_connect_nexmo(self):
         self.login(self.admin)
 
@@ -1179,7 +1402,7 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
         # and disconnect
-        self.org.remove_nexmo_account()
+        self.org.remove_nexmo_account(self.admin)
         self.assertFalse(self.org.is_connected_to_nexmo())
         self.assertFalse(self.org.config_json()['NEXMO_KEY'])
         self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
@@ -1197,7 +1420,7 @@ class OrgTest(TembaTest):
 
         self.assertEqual(response.request['PATH_INFO'], reverse('orgs.org_nexmo_connect'))
 
-        self.org.connect_nexmo('key', 'secret')
+        self.org.connect_nexmo('key', 'secret', self.admin)
 
         with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
             # try automatic nexmo settings update
@@ -1232,8 +1455,8 @@ class OrgTest(TembaTest):
             response = self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
             self.assertContains(response,
                                 "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry.")
-            self.assertFalse(PLIVO_AUTH_ID in self.client.session)
-            self.assertFalse(PLIVO_AUTH_TOKEN in self.client.session)
+            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
+            self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
 
         # ok, now with a success
         with patch('requests.get') as plivo_mock:
@@ -1241,8 +1464,8 @@ class OrgTest(TembaTest):
             self.client.post(connect_url, dict(auth_id='auth-id', auth_token='auth-token'))
 
             # plivo should be added to the session
-            self.assertEquals(self.client.session[PLIVO_AUTH_ID], 'auth-id')
-            self.assertEquals(self.client.session[PLIVO_AUTH_TOKEN], 'auth-token')
+            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_ID], 'auth-id')
+            self.assertEquals(self.client.session[Channel.CONFIG_PLIVO_AUTH_TOKEN], 'auth-token')
 
     def test_download(self):
         response = self.client.get('/org/download/messages/123/')
@@ -1258,6 +1481,187 @@ class OrgTest(TembaTest):
 
         response = self.client.get('/org/download/flows/123/')
         self.assertRedirect(response, '/assets/download/results_export/123/')
+
+    def test_tiers(self):
+
+        # not enough credits with tiers enabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        self.assertIsNone(self.org.create_sub_org('Sub Org A'))
+
+        # not enough credits, but tiers disabled
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org A'))
+
+        # tiers enabled, but enough credits
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+        TopUp.create(self.admin, price=100, credits=1000000)
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertIsNotNone(self.org.create_sub_org('Sub Org B'))
+
+    def test_sub_orgs(self):
+
+        from temba.orgs.models import Debit
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+
+        # lets start with two topups
+        expires = timezone.now() + timedelta(days=400)
+        first_topup = TopUp.objects.filter(org=self.org).first()
+        second_topup = TopUp.create(self.admin, price=0, credits=1000, org=self.org, expires_on=expires)
+
+        sub_org = self.org.create_sub_org('Sub Org')
+
+        # we won't create sub orgs if the org isn't the proper level
+        self.assertIsNone(sub_org)
+
+        # lower the tier and try again
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        sub_org = self.org.create_sub_org('Sub Org')
+
+        # suborgs can't create suborgs
+        self.assertIsNone(sub_org.create_sub_org('Grandchild Org'))
+
+        # we should be linked to our parent with the same brand
+        self.assertEqual(self.org, sub_org.parent)
+        self.assertEqual(self.org.brand, sub_org.brand)
+
+        # our sub account should have zero credits
+        self.assertEqual(0, sub_org.get_credits_remaining())
+
+        # default values should be the same as parent
+        self.assertEqual(self.org.timezone, sub_org.timezone)
+        self.assertEqual(self.org.created_by, sub_org.created_by)
+
+        # now allocate some credits to our sub org
+        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 700))
+        self.assertEqual(700, sub_org.get_credits_remaining())
+        self.assertEqual(1300, self.org.get_credits_remaining())
+
+        # we should have a debit to track this transaction
+        debits = Debit.objects.filter(topup__org=self.org)
+        self.assertEqual(1, len(debits))
+
+        debit = debits.first()
+        self.assertEqual(700, debit.amount)
+        self.assertEqual(Debit.TYPE_ALLOCATION, debit.debit_type)
+        self.assertEqual(first_topup.expires_on, debit.beneficiary.expires_on)
+
+        # try allocating more than we have
+        self.assertFalse(self.org.allocate_credits(self.admin, sub_org, 1301))
+        self.assertEqual(700, sub_org.get_credits_remaining())
+        self.assertEqual(1300, self.org.get_credits_remaining())
+        self.assertEqual(700, self.org._calculate_credits_used())
+
+        # now allocate across our remaining topups
+        self.assertTrue(self.org.allocate_credits(self.admin, sub_org, 1200))
+        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(1900, self.org.get_credits_used())
+        self.assertEqual(100, self.org.get_credits_remaining())
+
+        # now clear our cache, we ought to have proper amount still
+        self.org._calculate_credit_caches()
+        sub_org._calculate_credit_caches()
+
+        self.assertEqual(1900, sub_org.get_credits_remaining())
+        self.assertEqual(100, self.org.get_credits_remaining())
+
+        # this creates two more debits, for a total of three
+        debits = Debit.objects.filter(topup__org=self.org).order_by('id')
+        self.assertEqual(3, len(debits))
+
+        # the last two debits should expire at same time as topup they were funded by
+        self.assertEqual(first_topup.expires_on, debits[1].topup.expires_on)
+        self.assertEqual(second_topup.expires_on, debits[2].topup.expires_on)
+
+        # allocate the exact number of credits remaining
+        self.org.allocate_credits(self.admin, sub_org, 100)
+        self.assertEqual(2000, sub_org.get_credits_remaining())
+        self.assertEqual(0, self.org.get_credits_remaining())
+
+    def test_sub_org_ui(self):
+
+        self.login(self.admin)
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=1000000)
+
+        # set our org on the session
+        session = self.client.session
+        session['org_id'] = self.org.id
+        session.save()
+
+        response = self.client.get(reverse('orgs.org_home'))
+        self.assertNotContains(response, 'Manage Organizations')
+
+        # attempting to manage orgs should redirect
+        response = self.client.get(reverse('orgs.org_sub_orgs'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # creating a new sub org should also redirect
+        response = self.client.get(reverse('orgs.org_create_sub_org'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # make sure posting is gated too
+        new_org = dict(name='Sub Org', timezone=self.org.timezone, date_format=self.org.date_format)
+        response = self.client.post(reverse('orgs.org_create_sub_org'), new_org)
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # same thing with trying to transfer credits
+        response = self.client.get(reverse('orgs.org_transfer_credits'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # cant manage users either
+        response = self.client.get(reverse('orgs.org_manage_accounts_sub_org'))
+        self.assertRedirect(response, reverse('orgs.org_home'))
+
+        # zero out our tier
+        settings.BRANDING[settings.DEFAULT_BRAND]['tiers'] = dict(multi_org=0)
+        self.assertTrue(self.org.is_multi_org_tier())
+        response = self.client.get(reverse('orgs.org_home'))
+        self.assertContains(response, 'Manage Organizations')
+
+        # now we can manage our orgs
+        response = self.client.get(reverse('orgs.org_sub_orgs'))
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, 'Organizations')
+
+        # add a sub org
+        response = self.client.post(reverse('orgs.org_create_sub_org'), new_org)
+        self.assertRedirect(response, reverse('orgs.org_sub_orgs'))
+        sub_org = Org.objects.filter(name='Sub Org').first()
+        self.assertIsNotNone(sub_org)
+        self.assertIn(self.admin, sub_org.administrators.all())
+
+        # load the transfer credit page
+        response = self.client.get(reverse('orgs.org_transfer_credits'))
+        self.assertEqual(200, response.status_code)
+
+        # try to transfer more than we have
+        post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=1500)
+        response = self.client.post(reverse('orgs.org_transfer_credits'), post_data)
+        self.assertContains(response, "Pick a different organization to transfer from")
+
+        # now transfer some creditos
+        post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
+        response = self.client.post(reverse('orgs.org_transfer_credits'), post_data)
+
+        self.assertEqual(400, self.org.get_credits_remaining())
+        self.assertEqual(600, sub_org.get_credits_remaining())
+
+        # we can reach the manage accounts page too now
+        response = self.client.get('%s?org=%d' % (reverse('orgs.org_manage_accounts_sub_org'), sub_org.id))
+        self.assertEqual(200, response.status_code)
+
+        # edit our sub org's name
+        new_org['name'] = 'New Sub Org Name'
+        new_org['slug'] = 'new-sub-org-name'
+        response = self.client.post('%s?org=%s' % (reverse('orgs.org_edit_sub_org'), sub_org.pk), new_org)
+        self.assertIsNotNone(Org.objects.filter(name='New Sub Org Name').first())
+
+        # now we should see new topups on our sub org
+        session['org_id'] = sub_org.id
+        session.save()
+
+        response = self.client.get(reverse('orgs.topup_list'))
+        self.assertContains(response, '600 Credits')
 
 
 class AnonOrgTest(TembaTest):
@@ -1579,27 +1983,27 @@ class OrgCRUDLTest(TembaTest):
         # remove existing channels
         Channel.objects.all().update(is_active=False, org=None)
 
-        self.assertEqual(set(), self.org.get_schemes(SEND))
-        self.assertEqual(set(), self.org.get_schemes(RECEIVE))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a receive only tel channel
-        Channel.create(self.org, self.user, 'RW', TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
+        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Nexmo", "0785551212", role="R", secret="45678", gcm_id="123")
 
         self.org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual(set(), self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a send/receive tel channel
-        Channel.create(self.org, self.user, 'RW', TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
+        Channel.create(self.org, self.user, 'RW', Channel.TYPE_TWILIO, "Twilio", "0785553434", role="SR", secret="56789", gcm_id="456")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a twitter channel
-        Channel.create(self.org, self.user, None, TWITTER, "Twitter")
+        Channel.create(self.org, self.user, None, Channel.TYPE_TWITTER, "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(SEND))
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(RECEIVE))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
     def test_login_case_not_sensitive(self):
         login_url = reverse('users.user_login')
@@ -1688,16 +2092,17 @@ class OrgCRUDLTest(TembaTest):
 
 class LanguageTest(TembaTest):
 
-    def test_setting_language(self):
+    def test_languages(self):
+        url = reverse('orgs.org_languages')
+
         self.login(self.admin)
 
         # update our org with some language settings
-        post_data = dict(primary_lang='fre', languages='hat,arc')
-        response = self.client.post(reverse('orgs.org_languages'), post_data)
-        self.assertEquals(302, response.status_code)
+        response = self.client.post(url, dict(primary_lang='fre', languages='hat,arc'))
+        self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
 
-        self.assertEquals('French', self.org.primary_language.name)
+        self.assertEqual(self.org.primary_language.name, 'French')
         self.assertIsNotNone(self.org.languages.filter(name='French'))
 
         # everything after the paren should be stripped for aramaic
@@ -1707,35 +2112,36 @@ class LanguageTest(TembaTest):
         self.assertIsNotNone(self.org.languages.filter(name='Haitian'))
 
         # check that the last load shows our new languages
-        response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEquals('Haitian and Official Aramaic', response.context['languages'])
+        response = self.client.get(url)
+        self.assertEqual(response.context['languages'], 'Haitian and Official Aramaic')
         self.assertContains(response, 'fre')
         self.assertContains(response, 'hat,arc')
 
         # three translation languages
-        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='fre', languages='hat,arc,spa'))
+        self.client.post(url, dict(primary_lang='fre', languages='hat,arc,spa'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEquals('Haitian, Official Aramaic and Spanish', response.context['languages'])
+        self.assertEqual(response.context['languages'], 'Haitian, Official Aramaic and Spanish')
 
         # one translation language
-        self.client.post(reverse('orgs.org_languages'), dict(primary_lang='fre', languages='hat'))
+        self.client.post(url, dict(primary_lang='fre', languages='hat'))
         response = self.client.get(reverse('orgs.org_languages'))
-        self.assertEquals('Haitian', response.context['languages'])
+        self.assertEqual(response.context['languages'], 'Haitian')
 
-        # remove our primary language
-        self.client.post(reverse('orgs.org_languages'), dict())
+        # remove all languages
+        self.client.post(url, dict())
         self.org.refresh_from_db()
         self.assertIsNone(self.org.primary_language)
+        self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get('%s?search=fre' % reverse('orgs.org_languages'))
+        response = self.client.get('%s?search=fre' % url)
         results = json.loads(response.content)['results']
-        self.assertEquals(4, len(results))
+        self.assertEqual(len(results), 4)
 
         # initial should do a match on code only
-        response = self.client.get('%s?initial=fre' % reverse('orgs.org_languages'))
+        response = self.client.get('%s?initial=fre' % url)
         results = json.loads(response.content)['results']
-        self.assertEquals(1, len(results))
+        self.assertEqual(len(results), 1)
 
     def test_language_codes(self):
         self.assertEquals('French', languages.get_language_name('fre'))
@@ -1774,6 +2180,30 @@ class LanguageTest(TembaTest):
 
 class BulkExportTest(TembaTest):
 
+    def test_get_dependencies(self):
+
+        # import a flow that triggers another flow
+        contact1 = self.create_contact("Marshawn", "+14255551212")
+        substitutions = dict(contact_id=contact1.id)
+        flow = self.get_flow('triggered', substitutions)
+
+        # read in the old version 8 raw json
+        old_json = json.loads(self.get_import_json('triggered', substitutions))
+        old_actions = old_json['flows'][1]['action_sets'][0]['actions']
+
+        # splice our actionset with old bits
+        actionset = flow.action_sets.all()[0]
+        actionset.actions = json.dumps(old_actions)
+        actionset.save()
+
+        # fake our version number back to 8
+        flow.version_number = 8
+        flow.save()
+
+        # now make sure a call to get dependencies succeeds and shows our flow
+        triggeree = Flow.objects.filter(name='Triggeree').first()
+        self.assertIn(triggeree, flow.get_dependencies()['flows'])
+
     def test_trigger_flow(self):
         self.import_file('triggered_flow')
 
@@ -1781,7 +2211,42 @@ class BulkExportTest(TembaTest):
         definition = flow.as_json()
         actions = definition[Flow.ACTION_SETS][0]['actions']
         self.assertEquals(1, len(actions))
-        self.assertEquals('Triggered Flow', actions[0]['name'])
+        self.assertEquals('Triggered Flow', actions[0]['flow']['name'])
+
+    def test_trigger_dependency(self):
+        # tests the case of us doing an export of only a single flow (despite dependencies) and making sure we
+        # don't include the triggers of our dependent flows (which weren't exported)
+        self.import_file('parent_child_trigger')
+
+        parent = Flow.objects.filter(name='Parent Flow').first()
+
+        self.login(self.admin)
+
+        # export only the parent
+        post_data = dict(flows=[parent.pk], campaigns=[])
+        response = self.client.post(reverse('orgs.org_export'), post_data)
+
+        exported = json.loads(response.content)
+
+        # shouldn't have any triggers
+        self.assertFalse(exported['triggers'])
+
+    def test_subflow_dependencies(self):
+        self.import_file('subflow')
+
+        parent = Flow.objects.filter(name='Parent Flow').first()
+        child = Flow.objects.filter(name='Child Flow').first()
+        self.assertIn(child, parent.get_dependencies()['flows'])
+
+        self.login(self.admin)
+        response = self.client.get(reverse('orgs.org_export'))
+
+        from BeautifulSoup import BeautifulSoup
+        soup = BeautifulSoup(response.content)
+        group = str(soup.findAll("div", {"class": "exportables bucket"})[0])
+
+        self.assertIn('Parent Flow', group)
+        self.assertIn('Child Flow', group)
 
     def test_flow_export_dynamic_group(self):
         flow = self.get_flow('favorites')
@@ -1791,7 +2256,7 @@ class BulkExportTest(TembaTest):
 
         # replace the actions
         from temba.flows.models import AddToGroupAction
-        actionset.set_actions_dict([AddToGroupAction([dict(id=1, name="Other Group"), '@contact.name']).as_json()])
+        actionset.set_actions_dict([AddToGroupAction([dict(uuid='123', name="Other Group"), '@contact.name']).as_json()])
         actionset.save()
 
         # now let's export!
@@ -1844,13 +2309,14 @@ class BulkExportTest(TembaTest):
         self.assertEquals(response.context['form'].errors['import_file'][0], 'Sorry, import is a premium feature')
 
         # now purchase some credits and try again
-        TopUp.objects.create(org=self.org, price=0, credits=10000,
+        TopUp.objects.create(org=self.org, price=1, credits=10000,
                              expires_on=timezone.now() + timedelta(days=30),
                              created_by=self.admin, modified_by=self.admin)
 
         # force our cache to reload
         self.org.get_credits_total(force_dirty=True)
-        self.assertTrue(self.org.has_added_credits())
+        self.org.update_caches(OrgEvent.topup_updated, None)
+        self.assertTrue(self.org.get_purchased_credits() > 0)
 
         # now try again with purchased credits, but our file is too old
         post_data = dict(import_file=open('%s/test_flows/too_old.json' % settings.MEDIA_ROOT, 'rb'))
@@ -2276,6 +2742,8 @@ class TestStripeCredits(TembaTest):
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
 
+        settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
+
         self.org.add_credits('2000', 'stripe-token', self.admin)
         self.assertTrue(2000, self.org.get_credits_total())
 
@@ -2354,6 +2822,8 @@ class TestStripeCredits(TembaTest):
         charge_create.return_value = \
             dict_to_struct('Charge', dict(id='stripe-charge-1',
                                           card=dict_to_struct('Card', dict(last4='1234', type='Visa', name='Rudolph'))))
+
+        settings.BRANDING[settings.DEFAULT_BRAND]['bundles'] = (dict(cents="2000", credits=1000, feature=""),)
 
         self.org.add_credits('2000', 'stripe-token', self.admin)
         self.assertTrue(2000, self.org.get_credits_total())

@@ -7,7 +7,9 @@
 
 -block title
   -if contact.is_blocked
-    .medium-help.icon-user-block{style:"float:left"}
+    <div class="medium-help icon-user-block" style="float:left" title="{% trans "blocked" %}"></div>
+  -elif contact.is_stopped
+    <div class="medium-help icon-user-delete" style="float:left" title="{% trans "stopped" %}"></div>
   -else
     .medium-help.icon-user{style:"float:left"}
   %h2.header-margin
@@ -483,7 +485,7 @@
 
   :javascript
 
-    var page = 1;
+    var startTime = null;
     var refreshSeconds = 30;
     var scheduledRefresh = null;
 
@@ -502,20 +504,23 @@
         $(this).children('.long').hide();
       });
       // fetch our first chunk of history
-      $.get('/contact/history/{{contact.uuid}}/?rs={{recent_seconds}}', function(data){
+      $.get('/contact/history/{{contact.uuid}}/?rs={{recent_start}}', function(data){
         $('.history tr:last').remove();
         $('.history').append(data);
+
+        startTime = parseInt($('.history #start_time').text());
       });
 
       // when they click to load more, fetch more history
       $('.load-more').live('click', function() {
         $(this).css('visibility', 'hidden');
-        $('.since .loading').text('One moment..');
+        $('.since .loading').text('One moment...');
 
-        page++
-        $.get('/contact/history/{{contact.uuid}}/?rs={{recent_seconds}}&page=' + page, function(data){
+        $.get('/contact/history/{{contact.uuid}}/?rs={{recent_start}}&before=' + startTime, function(data){
           $('.history tr:last').remove();
           $('.history').append(data);
+
+          startTime = parseInt($('.history #start_time').text());
         });
       });
 
@@ -542,12 +547,12 @@
       })
 
       // update messages every 30s
-      scheduledReresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
+      scheduledRefresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
     });
 
     function fetchRecentMessages(){
       clearTimeout(scheduledRefresh);
-      $.get('/contact/history/{{contact.uuid}}/?r=true&rs={{recent_seconds}}', function(data){
+      $.get('/contact/history/{{contact.uuid}}/?r=true&rs={{recent_start}}', function(data){
           $('.history tr.recent').remove();
           if (data.strip().length > 0) {
             $('.history').prepend(data);
@@ -642,7 +647,7 @@
     $(".contact-send-button").on('click', function() {
       {% if has_sendable_urn %}
       $(".gear-menu").removeClass("open");
-      showComposeInitialized("c={{object.id}}", null, fetchRecentMessages);
+      showComposeInitialized("c={{object.uuid}}", null, fetchRecentMessages);
       {% else %}
       modal = new Modal('{% trans "Error" %}', '{% trans "This contact does not have any number which you can send to. Please edit the contact first or add a new phone." %}');
       modal.addClass('alert');

@@ -23,10 +23,11 @@ from .expressions import migrate_template, evaluate_template, evaluate_template_
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
+from .currencies import currency_for_country
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
-from . import datetime_to_str, chunk_list
+from . import datetime_to_str, chunk_list, get_country_code_by_name
 
 
 class InitTest(TembaTest):
@@ -171,6 +172,14 @@ class InitTest(TembaTest):
         self.assertEquals(0, percentage(100, 0))
         self.assertEquals(75, percentage(75, 100))
         self.assertEquals(76, percentage(759, 1000))
+
+    def test_get_country_code_by_name(self):
+        self.assertEqual('RW', get_country_code_by_name('Rwanda'))
+        self.assertEqual('US', get_country_code_by_name('United States of America'))
+        self.assertEqual('US', get_country_code_by_name('United States'))
+        self.assertEqual('GB', get_country_code_by_name('United Kingdom'))
+        self.assertEqual('CI', get_country_code_by_name('Ivory Coast'))
+        self.assertEqual('CD', get_country_code_by_name('Democratic Republic of the Congo'))
 
 
 class TemplateTagTest(TembaTest):
@@ -792,3 +801,14 @@ class TableExporterTest(TembaTest):
 
         self.assertEquals(67000 + 2 - 65536, sheet2.nrows)
         self.assertEquals(32, sheet2.ncols)
+
+
+class CurrencyTest(TembaTest):
+
+    def test_currencies(self):
+        self.assertEqual(currency_for_country('US').letter, 'USD')
+        self.assertEqual(currency_for_country('EC').letter, 'USD')
+        self.assertEqual(currency_for_country('FR').letter, 'EUR')
+        self.assertEqual(currency_for_country('DE').letter, 'EUR')
+        self.assertEqual(currency_for_country('YE').letter, 'YER')
+        self.assertEqual(currency_for_country('AF').letter, 'AFN')

@@ -9,15 +9,15 @@
       When somebody arrives at this point in your flow
   %select{ng-change:"updateActionForm(config)", ng-model:"config", ng-options:"action as action.verbose_name for action in actionConfigs | filter:validActionFilter",style:"height:34px",class:"action-type",select2:""}
   <ng-form name="action_editor">
-    %span{ng-if:'config.type == "reply"'}><
-      %span{auto-complete:"",sms:"action.msg",data-message:"message"}><
+    %span{ng-if:'config.type == "reply"'}
+      %span{auto-complete:"",sms:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "reply")',class:"submit hide"}
-
-    %span{ng-if:'config.type == "say"'}><
-      %span{show-counter:"false",auto-complete:"",sms:"action.msg",data-message:"message"}><
+    %span{ng-if:'config.type == "say"'}
+      %span{show-counter:"false",auto-complete:"",sms:"action.msg",data-message:"message"}
       %button{ng-click:'saveMessage(message, "say")',class:"submit hide"}
 
-    %span{ng-if:'config.type == "play"'}><
+    %span{ng-if:'config.type == "play"'}
+
       %h4
         Previous Recording
       %input{ng-model:"action.url", name:"value", auto-complete:"", flow:"[[flowId]]", ng-required:"true", type:"text", placeholder:'@flow.recording'}
@@ -26,9 +26,9 @@
       %button{ng-click:"savePlay()",class:"submit hide"}
 
 
-    %span{ng-if:'config.type == "send"'}><
+    %span{ng-if:'config.type == "send"'}
       %input{ng-model:"omnibox", name:"omnibox", contacts:"action.contacts", variables:"action.variables", required:"", omnibox:'{"types":"gc", "completions":true}', groups:"action.groups", type:"hidden"}
-      %span{sms:"action.msg",data-message:"message"}><
+      %span{sms:"action.msg",data-message:"message"}
       %button{ng-click:"saveSend(action_editor.omnibox.selected, message)",class:"submit hide"}
         -trans "Ok"
 
@@ -49,11 +49,15 @@
         -trans "Ok"
 
     %div{ng-if:'config.type == "add_group" || config.type == "del_group"'}
-      %p{class:"description"}
+      %p{class:"description", ng-if:'!checked'}
         -blocktrans
           Choose one or more groups below.
-      %input{ng-model:"omnibox",name:"omnibox",required:"",omnibox:'{"types":"s", "arbitraryAdd":true, "completions":true, "allowExtra": true}',groups:"action.groups",type:"hidden"}
-      %button{ng-click:"saveGroups(config.type, action_editor.omnibox.selected)",class:"submit hide"}
+        %input{ng-model:"omnibox",name:"omnibox",required:"",omnibox:'{"types":"s", "arbitraryAdd":true, "completions":true, "allowExtra": true}',groups:"action.groups",type:"hidden"}
+      %p{class:"description", ng-show:'config.type == "del_group"'}
+        -blocktrans
+          %input{id: "all_groups", name:"all_groups", type:"checkbox", ng-model:"checked", ng-checked:"checked", ng-init:'checked=action.groups.length == 0 && config.type == "del_group"'}
+          %label{for:"all_groups"} Remove from All Groups
+      %button{ng-click:"saveGroups(config.type, action_editor.omnibox.selected, checked)", class:"submit hide"}
         -trans "Ok"
 
     %div{ng-if:'config.type == "lang"'}
@@ -100,8 +104,8 @@
         -blocktrans
           This action starts the contacts you specify down a flow.
           The flow variables collected up to this point will be available in @extra.
-      %input{ng-model:"omnibox", name:"omnibox", required:"", variables:"action.variables", omnibox:'{"types":"gc", "completions":true}', groups:"action.groups", type:"hidden"}
-      %input{ng-model:"action.flow",search:"true",init-text:"[[action.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.id]]",select-server:"/flow/?_format=select2",type:"hidden"}
+      %input{ng-model:"omnibox", name:"omnibox", required:"", variables:"action.variables", omnibox:'{"types":"gc", "completions":true}', contacts:"action.contacts", groups:"action.groups", type:"hidden"}
+      %input{ng-model:"action.flow",search:"true",init-text:"[[action.flow.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.flow.uuid]]",select-server:"/flow/?_format=select2",type:"hidden"}
       %button{ng-click:"saveStartFlow(action_editor.flow.selected, action_editor.omnibox.selected)",class:"submit hide"}
         -trans "Ok"
 
@@ -109,7 +113,7 @@
       %p{class:"description"}
         -blocktrans
           This action redirects contacts to a new flow. When they start that flow, they will exit this one.
-      %input{ng-model:"action.flow",search:"true",init-text:"[[action.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.id]]",select-server:"/flow/?_format=select2",type:"hidden"}
+      %input{ng-model:"action.flow",search:"true",init-text:"[[action.flow.name]]",name:"flow",placeholder:"Select the flow to start",required:"",init-id:"[[action.flow.uuid]]",select-server:"/flow/?_format=select2",type:"hidden"}
       %button{ng-click:"saveStartFlow(action_editor.flow.selected)",class:"submit hide"}
         -trans "Ok"
 

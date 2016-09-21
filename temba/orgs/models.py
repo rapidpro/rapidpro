@@ -10,7 +10,6 @@ import random
 import regex
 import stripe
 import traceback
-import time
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
@@ -28,21 +27,23 @@ from django.contrib.auth.models import User, Group
 from enum import Enum
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
+from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
-from temba.utils.email import send_template_email
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
-from temba.utils import timezone_to_country_code
-from temba.utils.cache import get_cacheable_result, incrby_existing
+from temba.utils import timezone_to_country_code, languages
+from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
+from temba.utils.email import send_template_email
+from temba.utils.currencies import currency_for_country
 from twilio.rest import TwilioRestClient
 from urlparse import urlparse
 from uuid import uuid4
-from .bundles import BUNDLE_MAP, WELCOME_TOPUP_SIZE
+
 
 UNREAD_INBOX_MSGS = 'unread_inbox_msgs'
 UNREAD_FLOW_MSGS = 'unread_flow_msgs'
 
-CURRENT_EXPORT_VERSION = 8
+CURRENT_EXPORT_VERSION = 10
 EARLIEST_IMPORT_VERSION = 3
 
 MT_SMS_EVENTS = 1 << 0
@@ -52,10 +53,6 @@ MO_CALL_EVENTS = 1 << 3
 ALARM_EVENTS = 1 << 4
 
 ALL_EVENTS = MT_SMS_EVENTS | MO_SMS_EVENTS | MT_CALL_EVENTS | MO_CALL_EVENTS | ALARM_EVENTS
-
-# number of credits before they get special features
-# such as adding extra users
-PRO_CREDITS_THRESHOLD = 100000
 
 FREE_PLAN = 'FREE'
 TRIAL_PLAN = 'TRIAL'
@@ -89,6 +86,9 @@ ACCOUNT_TOKEN = 'ACCOUNT_TOKEN'
 NEXMO_KEY = 'NEXMO_KEY'
 NEXMO_SECRET = 'NEXMO_SECRET'
 NEXMO_UUID = 'NEXMO_UUID'
+
+TRANSFERTO_ACCOUNT_LOGIN = 'TRANSFERTO_ACCOUNT_LOGIN'
+TRANSFERTO_AIRTIME_API_TOKEN = 'TRANSFERTO_AIRTIME_API_TOKEN'
 
 ORG_STATUS = 'STATUS'
 SUSPENDED = 'suspended'
@@ -211,6 +211,8 @@ class Org(SmartModel):
     surveyor_password = models.CharField(null=True, max_length=128, default=None,
                                          help_text=_('A password that allows users to register as surveyors'))
 
+    parent = models.ForeignKey('orgs.Org', null=True, blank=True, help_text=_('The parent org that manages this org'))
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -225,6 +227,33 @@ class Org(SmartModel):
                 count += 1
 
             return unique_slug
+
+    def create_sub_org(self, name, timezone=None, created_by=None):
+
+        if self.is_multi_org_tier() and not self.parent:
+
+            if not timezone:
+                timezone = self.timezone
+
+            if not created_by:
+                created_by = self.created_by
+
+            # generate a unique slug
+            slug = Org.get_unique_slug(name)
+
+            org = Org.objects.create(name=name, timezone=timezone, brand=self.brand, parent=self, slug=slug,
+                                     created_by=created_by, modified_by=created_by)
+
+            org.administrators.add(created_by)
+
+            # initialize our org, but without any credits
+            org.initialize(branding=org.get_branding(), topup_size=0)
+
+            return org
+
+    def get_branding(self):
+        from temba.middleware import BrandingMiddleware
+        return BrandingMiddleware.get_branding_for_host(self.brand)
 
     def lock_on(self, lock, qualifier=None):
         """
@@ -326,11 +355,54 @@ class Org(SmartModel):
         if data_site and site:
             same_site = urlparse(data_site).netloc == urlparse(site).netloc
 
+        # see if our export needs to be updated
+        export_version = data.get('version', 0)
+        from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
+        if export_version < EARLIEST_IMPORT_VERSION:
+            raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
+
+        if export_version < CURRENT_EXPORT_VERSION:
+            from temba.flows.models import FlowRevision
+            data = FlowRevision.migrate_export(self, data, same_site, export_version)
+
         # we need to import flows first, they will resolve to
         # the appropriate ids and update our definition accordingly
         Flow.import_flows(data, self, user, same_site)
         Campaign.import_campaigns(data, self, user, same_site)
         Trigger.import_triggers(data, self, user, same_site)
+
+    @classmethod
+    def export_definitions(cls, site_link, flows=[], campaigns=[], triggers=[]):
+        # remove any triggers that aren't included in our flows
+        flow_uuids = set([f.uuid for f in flows])
+        filtered_triggers = []
+        for trigger in triggers:
+            if trigger.flow.uuid in flow_uuids:
+                filtered_triggers.append(trigger)
+
+        triggers = filtered_triggers
+
+        exported_flows = []
+        for flow in flows:
+            # only export current versions
+            flow.ensure_current_version()
+            exported_flows.append(flow.as_json(expand_contacts=True))
+
+        exported_campaigns = []
+        for campaign in campaigns:
+            for flow in campaign.get_flows():
+                flows.add(flow)
+            exported_campaigns.append(campaign.as_json())
+
+        exported_triggers = []
+        for trigger in triggers:
+            exported_triggers.append(trigger.as_json())
+
+        return dict(version=CURRENT_EXPORT_VERSION,
+                    site=site_link,
+                    flows=exported_flows,
+                    campaigns=exported_campaigns,
+                    triggers=exported_triggers)
 
     def config_json(self):
         if self.config:
@@ -343,10 +415,10 @@ class Org(SmartModel):
         If an org's telephone send channel is an Android device, let them add a bulk sender
         """
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import ANDROID
+        from temba.channels.models import Channel
 
         send_channel = self.get_send_channel(TEL_SCHEME)
-        return send_channel and send_channel.channel_type == ANDROID
+        return send_channel and send_channel.channel_type == Channel.TYPE_ANDROID
 
     def can_add_caller(self):
         return not self.supports_ivr() and self.is_connected_to_twilio()
@@ -358,7 +430,7 @@ class Org(SmartModel):
         """
         Gets a channel for this org which supports the given scheme and role
         """
-        from temba.channels.models import SEND, CALL
+        from temba.channels.models import Channel
 
         channel = self.channels.filter(is_active=True, scheme=scheme, role__contains=role).order_by('-pk')
         if country_code:
@@ -371,14 +443,14 @@ class Org(SmartModel):
             channel = self.channels.filter(is_active=True, scheme=scheme,
                                            role__contains=role).order_by('-pk').first()
 
-        if channel and (role == SEND or role == CALL):
+        if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)
         else:
             return channel
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import SEND
+        from temba.channels.models import Channel
         from temba.contacts.models import ContactURN
 
         if not scheme and not contact_urn:
@@ -389,7 +461,7 @@ class Org(SmartModel):
                 scheme = contact_urn.scheme
 
                 # if URN has a previously used channel that is still active, use that
-                if contact_urn.channel and contact_urn.channel.is_active and role == SEND:
+                if contact_urn.channel and contact_urn.channel.is_active and role == Channel.ROLE_SEND:
                     previous_sender = self.get_channel_delegate(contact_urn.channel, role)
                     if previous_sender:
                         return previous_sender
@@ -424,39 +496,46 @@ class Org(SmartModel):
                         senders.append(c)
                 senders.sort(key=lambda chan: chan.id)
 
-                for sender in senders:
-                    channel_number = sender.address.strip('+')
+                # if we have more than one match, find the one with the highest overlap
+                if len(senders) > 1:
+                    for sender in senders:
+                        channel_number = sender.address.strip('+')
 
-                    for idx in range(prefix, len(channel_number)):
-                        if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
-                            prefix = idx
-                            channel = sender
-                        else:
-                            break
+                        for idx in range(prefix, len(channel_number)):
+                            if idx >= prefix and channel_number[0:idx] == contact_number[0:idx]:
+                                prefix = idx
+                                channel = sender
+                            else:
+                                break
+                elif senders:
+                    channel = senders[0]
 
                 if channel:
-                    return self.get_channel_delegate(channel, SEND)
+                    if role == Channel.ROLE_SEND:
+                        return self.get_channel_delegate(channel, Channel.ROLE_SEND)
+                    else:
+                        return channel
 
         # get any send channel without any country or URN hints
         return self.get_channel(scheme, country_code, role)
 
     def get_send_channel(self, scheme=None, contact_urn=None, country_code=None):
-        from temba.channels.models import SEND
-        return self.get_channel_for_role(SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_SEND, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
     def get_receive_channel(self, scheme, contact_urn=None, country_code=None):
-        from temba.channels.models import RECEIVE
-        return self.get_channel_for_role(RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_RECEIVE, scheme=scheme, contact_urn=contact_urn, country_code=country_code)
 
     def get_call_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import CALL
-        return self.get_channel_for_role(CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_answer_channel(self, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
-        from temba.channels.models import ANSWER
-        return self.get_channel_for_role(ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
+        from temba.channels.models import Channel
+        return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
     def get_channel_delegate(self, channel, role):
         """
@@ -498,6 +577,12 @@ class Org(SmartModel):
             for urn in urns:
                 urn.ensure_number_normalization(country_code)
 
+    def get_resthooks(self):
+        """
+        Returns the resthooks configured on this Org
+        """
+        return self.resthooks.filter(is_active=True).order_by('slug')
+
     def get_webhook_url(self):
         """
         Returns a string with webhook url.
@@ -512,6 +597,24 @@ class Org(SmartModel):
         """
         return json.loads(self.webhook).get('headers', dict()) if self.webhook else dict()
 
+    def get_channel_countries(self):
+        channel_countries = []
+
+        if not self.is_connected_to_transferto():
+            return channel_countries
+
+        channel_country_codes = self.channels.filter(is_active=True).exclude(country=None)
+        channel_country_codes = channel_country_codes.values_list('country', flat=True).distinct()
+
+        for country_code in channel_country_codes:
+            country_obj = pycountry.countries.get(alpha2=country_code)
+            country_name = country_obj.name
+            currency = currency_for_country(country_code)
+            channel_countries.append(dict(code=country_code, name=country_name, currency_code=currency.letter,
+                                          currency_name=currency.name))
+
+        return sorted(channel_countries, key=lambda k: k['name'])
+
     @classmethod
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by('name')
@@ -522,14 +625,14 @@ class Org(SmartModel):
         to send.
         """
         from temba.msgs.models import Msg
-        from temba.channels.models import Channel, ANDROID
+        from temba.channels.models import Channel
 
         # if we have msgs, then send just those
         if msgs:
             ids = [m.id for m in msgs]
 
             # trigger syncs for our android channels
-            for channel in self.channels.filter(is_active=True, channel_type=ANDROID, msgs__id__in=ids):
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID, msgs__id__in=ids):
                 channel.trigger_sync()
 
             # and send those messages
@@ -537,7 +640,7 @@ class Org(SmartModel):
 
         # otherwise, sync all pending messages and channels
         else:
-            for channel in self.channels.filter(is_active=True, channel_type=ANDROID):
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID):
                 channel.trigger_sync()
 
             # otherwise, send any pending messages on our channels
@@ -551,23 +654,57 @@ class Org(SmartModel):
                     pending = Channel.get_pending_messages(self)
                     Msg.send_messages(pending)
 
-    def connect_nexmo(self, api_key, api_secret):
+    def has_airtime_transfers(self):
+        from temba.airtime.models import AirtimeTransfer
+        return AirtimeTransfer.objects.filter(org=self).exists()
+
+    def connect_transferto(self, account_login, airtime_api_token, user):
+        transferto_config = {TRANSFERTO_ACCOUNT_LOGIN: account_login.strip(),
+                             TRANSFERTO_AIRTIME_API_TOKEN: airtime_api_token.strip()}
+
+        config = self.config_json()
+        config.update(transferto_config)
+        self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
+
+    def is_connected_to_transferto(self):
+        if self.config:
+            config = self.config_json()
+            transferto_account_login = config.get(TRANSFERTO_ACCOUNT_LOGIN, None)
+            transferto_airtime_api_token = config.get(TRANSFERTO_AIRTIME_API_TOKEN, None)
+
+            return transferto_account_login and transferto_airtime_api_token
+        else:
+            return False
+
+    def remove_transferto_account(self, user):
+        if self.config:
+            config = self.config_json()
+            config[TRANSFERTO_ACCOUNT_LOGIN] = ''
+            config[TRANSFERTO_AIRTIME_API_TOKEN] = ''
+            self.config = json.dumps(config)
+            self.modified_by = user
+            self.save()
+
+    def connect_nexmo(self, api_key, api_secret, user):
         nexmo_uuid = str(uuid4())
         nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
 
         config = self.config_json()
         config.update(nexmo_config)
         self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
 
         # clear all our channel configurations
-        self.save(update_fields=['config'])
         self.clear_channel_caches()
 
     def nexmo_uuid(self):
         config = self.config_json()
         return config.get(NEXMO_UUID, None)
 
-    def connect_twilio(self, account_sid, account_token):
+    def connect_twilio(self, account_sid, account_token, user):
         client = TwilioRestClient(account_sid, account_token)
         app_name = "%s/%d" % (settings.TEMBA_HOST.lower(), self.pk)
         apps = client.applications.list(friendly_name=app_name)
@@ -592,9 +729,10 @@ class Org(SmartModel):
         config = self.config_json()
         config.update(twilio_config)
         self.config = json.dumps(config)
+        self.modified_by = user
+        self.save()
 
         # clear all our channel configurations
-        self.save(update_fields=['config'])
         self.clear_channel_caches()
 
     def is_connected_to_nexmo(self):
@@ -618,35 +756,37 @@ class Org(SmartModel):
                 return True
         return False
 
-    def remove_nexmo_account(self):
+    def remove_nexmo_account(self, user):
         if self.config:
             config = self.config_json()
             config[NEXMO_KEY] = ''
             config[NEXMO_SECRET] = ''
             self.config = json.dumps(config)
+            self.modified_by = user
             self.save()
 
             # release any nexmo channels
-            from temba.channels.models import NEXMO
-            channels = self.channels.filter(is_active=True, channel_type=NEXMO)
+            from temba.channels.models import Channel
+            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO)
             for channel in channels:
                 channel.release()
 
             # clear all our channel configurations
             self.clear_channel_caches()
 
-    def remove_twilio_account(self):
+    def remove_twilio_account(self, user):
         if self.config:
             config = self.config_json()
             config[ACCOUNT_SID] = ''
             config[ACCOUNT_TOKEN] = ''
             config[APPLICATION_SID] = ''
             self.config = json.dumps(config)
+            self.modified_by = user
             self.save()
 
             # release any twilio channels
-            from temba.channels.models import TWILIO
-            channels = self.channels.filter(is_active=True, channel_type=TWILIO)
+            from temba.channels.models import Channel
+            channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_TWILIO)
             for channel in channels:
                 channel.release()
 
@@ -656,8 +796,8 @@ class Org(SmartModel):
     def get_verboice_client(self):
         from temba.ivr.clients import VerboiceClient
         channel = self.get_call_channel()
-        from temba.channels.models import VERBOICE
-        if channel.channel_type == VERBOICE:
+        from temba.channels.models import Channel
+        if channel.channel_type == Channel.TYPE_VERBOICE:
             return VerboiceClient(channel)
         return None
 
@@ -694,13 +834,16 @@ class Org(SmartModel):
         """
         Gets the 2-digit country code, e.g. RW, US
         """
+        return get_cacheable_attr(self, '_country_code', lambda: self.calculate_country_code())
+
+    def calculate_country_code(self):
         # first try the actual country field
         if self.country:
             try:
                 country = pycountry.countries.get(name=self.country.name)
                 if country:
                     return country.alpha2
-            except KeyError:
+            except KeyError:  # pragma: no cover
                 # pycountry blows up if we pass it a country name it doesn't know
                 pass
 
@@ -711,6 +854,36 @@ class Org(SmartModel):
             return countries[0]
 
         return None
+
+    def get_language_codes(self):
+        return get_cacheable_attr(self, '_language_codes', lambda: {l.iso_code for l in self.languages.all()})
+
+    def set_languages(self, user, iso_codes, primary):
+        """
+        Sets languages for this org, creating and deleting language objects as necessary
+        """
+        for iso_code in iso_codes:
+            name = languages.get_language_name(iso_code)
+            language = self.languages.filter(iso_code=iso_code).first()
+
+            # if it's valid and doesn't exist yet, create it
+            if name and not language:
+                language = self.languages.create(iso_code=iso_code, name=name, created_by=user, modified_by=user)
+
+            if iso_code == primary:
+                self.primary_language = language
+                self.save(update_fields=('primary_language',))
+
+        # unset the primary language if not in the new list of codes
+        if self.primary_language and self.primary_language.iso_code not in iso_codes:
+            self.primary_language = None
+            self.save(update_fields=('primary_language',))
+
+        # remove any languages that are not in the new list
+        self.languages.exclude(iso_code__in=iso_codes).delete()
+
+        if hasattr(self, '_language_codes'):  # invalidate language cache if set
+            delattr(self, '_language_codes')
 
     def get_dayfirst(self):
         return self.date_format == DAYFIRST
@@ -851,14 +1024,11 @@ class Org(SmartModel):
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
-    def is_pro(self):
-        return self.get_purchased_credits() >= PRO_CREDITS_THRESHOLD
+    def is_multi_user_tier(self):
+        return self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_user')
 
-    def has_added_credits(self):
-        return self.get_credits_total() > WELCOME_TOPUP_SIZE
-
-    def get_credits_until_pro(self):
-        return max(PRO_CREDITS_THRESHOLD - self.get_purchased_credits(), 0)
+    def is_multi_org_tier(self):
+        return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_org')
 
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
@@ -877,15 +1047,17 @@ class Org(SmartModel):
         return getattr(user, '_org_group', None)
 
     def has_twilio_number(self):
-        from temba.channels.models import TWILIO
-        return self.channels.filter(channel_type=TWILIO)
+        from temba.channels.models import Channel
+        return self.channels.filter(channel_type=Channel.TYPE_TWILIO)
 
     def has_nexmo_number(self):
-        from temba.channels.models import NEXMO
-        return self.channels.filter(channel_type=NEXMO)
+        from temba.channels.models import Channel
+        return self.channels.filter(channel_type=Channel.TYPE_NEXMO)
 
-    def create_welcome_topup(self, topup_size=WELCOME_TOPUP_SIZE):
-        return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
+    def create_welcome_topup(self, topup_size=None):
+        if topup_size:
+            return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
+        return None
 
     def create_system_labels_and_groups(self):
         """
@@ -944,13 +1116,7 @@ class Org(SmartModel):
         return self.webhook_events & ALARM_EVENTS > 0
 
     def get_user(self):
-        user = self.administrators.filter(is_active=True).first()
-        if user:
-            org_user = user
-            org_user.set_org(self)
-            return org_user
-        else:
-            return None
+        return self.administrators.filter(is_active=True).first()
 
     def get_credits_expiring_soon(self):
         """
@@ -1008,7 +1174,7 @@ class Org(SmartModel):
                                     self._calculate_purchased_credits)
 
     def _calculate_purchased_credits(self):
-        purchased_credits = self.topups.filter(is_active=True).aggregate(Sum('credits')).get('credits__sum')
+        purchased_credits = self.topups.filter(is_active=True, price__gt=0).aggregate(Sum('credits')).get('credits__sum')
         return purchased_credits if purchased_credits else 0
 
     def _calculate_credits_total(self):
@@ -1055,13 +1221,57 @@ class Org(SmartModel):
         """
         return self.get_credits_total() - self.get_credits_used()
 
-    def decrement_credit(self):
+    def allocate_credits(self, user, org, amount):
         """
-        Decrements this orgs credit by 1. Returns the id of the active topup which can then be assigned to the message
-        or IVR action which is being paid for with this credit
+        Allocates credits to a sub org of the current org, but only if it
+        belongs to us and we have enough credits to do so.
+        """
+        if org.parent == self or self.parent == org.parent or self.parent == org:
+            if self.get_credits_remaining() >= amount:
+
+                with self.lock_on(OrgLock.credits):
+
+                    # now debit our account
+                    debited = None
+                    while amount or debited == 0:
+
+                        # remove the credits from ourselves
+                        (topup_id, debited) = self.decrement_credit(amount)
+
+                        if topup_id:
+                            topup = TopUp.objects.get(id=topup_id)
+
+                            # create the topup for our child, expiring on the same date
+                            new_topup = TopUp.create(user, credits=debited, org=org, expires_on=topup.expires_on, price=None)
+
+                            # create a debit for transaction history
+                            Debit.objects.create(topup_id=topup_id, amount=debited, beneficiary=new_topup,
+                                                 debit_type=Debit.TYPE_ALLOCATION, created_by=user, modified_by=user)
+
+                            # decrease the amount of credits we need
+                            amount -= debited
+
+                        else:
+                            break
+
+                    # recalculate our caches
+                    self._calculate_credit_caches()
+                    org._calculate_credit_caches()
+
+                return True
+
+        # couldn't allocate credits
+        return False
+
+    def decrement_credit(self, amount=1):
+        """
+        Decrements this orgs credit by amount.
+
+        Determines the active topup and returns that along with how many credits we were able
+        to decrement it by. Amount decremented is not guaranteed to be the full amount requested.
         """
         total_used_key = ORG_CREDITS_USED_CACHE_KEY % self.pk
-        incrby_existing(total_used_key, 1)
+        incrby_existing(total_used_key, amount)
 
         r = get_redis_connection()
         active_topup_key = ORG_ACTIVE_TOPUP_KEY % self.pk
@@ -1070,7 +1280,7 @@ class Org(SmartModel):
             remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, int(active_topup_pk))
 
             # decrement our active # of credits
-            remaining = r.decr(remaining_key)
+            remaining = r.decr(remaining_key, amount)
 
             # near the edge? calculate our active topup from scratch
             if not remaining or int(remaining) < 100:
@@ -1083,16 +1293,20 @@ class Org(SmartModel):
                 active_topup_pk = active_topup.pk
                 r.set(active_topup_key, active_topup_pk, ORG_CREDITS_CACHE_TTL)
 
-                remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, active_topup_pk)
-                r.set(remaining_key, active_topup.get_remaining() - 1, ORG_CREDITS_CACHE_TTL)
+                # can only reduce as much as we have available
+                if active_topup.get_remaining() < amount:
+                    amount = active_topup.get_remaining()
 
-        return active_topup_pk
+                remaining_key = ORG_ACTIVE_TOPUP_REMAINING % (self.pk, active_topup_pk)
+                r.set(remaining_key, active_topup.get_remaining() - amount, ORG_CREDITS_CACHE_TTL)
+
+        return (active_topup_pk, amount)
 
     def _calculate_active_topup(self):
         """
         Calculates the oldest non-expired topup that still has credits
         """
-        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by('expires_on')
+        non_expired_topups = self.topups.filter(is_active=True, expires_on__gte=timezone.now()).order_by('expires_on', 'id')
         active_topups = non_expired_topups.annotate(used_credits=Sum('topupcredits__used'))\
                                           .filter(credits__gt=0)\
                                           .filter(Q(used_credits__lt=F('credits')) | Q(used_credits=None))
@@ -1174,12 +1388,15 @@ class Org(SmartModel):
             traceback.print_exc()
             return None
 
+    def get_bundles(self):
+        return get_brand_bundles(self.get_branding())
+
     def add_credits(self, bundle, token, user):
         # look up our bundle
-        if bundle not in BUNDLE_MAP:
+        bundle_map = get_bundle_map(self.get_bundles())
+        if bundle not in bundle_map:
             raise ValidationError(_("Invalid bundle: %s, cannot upgrade.") % bundle)
-
-        bundle = BUNDLE_MAP[bundle]
+        bundle = bundle_map[bundle]
 
         # adds credits to this org
         stripe.api_key = get_stripe_credentials()[1]
@@ -1242,8 +1459,7 @@ class Org(SmartModel):
                            cc_type=charge.card.type,
                            cc_name=charge.card.name)
 
-            from temba.middleware import BrandingMiddleware
-            branding = BrandingMiddleware.get_branding_for_host(self.brand)
+            branding = self.get_branding()
 
             subject = _("%(name)s Receipt") % branding
             template = "orgs/email/receipt_email"
@@ -1381,7 +1597,7 @@ class Org(SmartModel):
             recommended = 'yo'
 
         elif countrycode == 'PH':
-            recommended = 'chikka'
+            recommended = 'globe'
 
         return recommended
 
@@ -1410,17 +1626,17 @@ class Org(SmartModel):
         r = get_redis_connection()
         r.hdel(msg_type, self.id)
 
-    def initialize(self, brand=None, topup_size=WELCOME_TOPUP_SIZE):
+    def initialize(self, branding=None, topup_size=None):
         """
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
 
-        if not brand:
-            brand = BrandingMiddleware.get_branding_for_host('')
+        if not branding:
+            branding = BrandingMiddleware.get_branding_for_host('')
 
         self.create_system_labels_and_groups()
-        self.create_sample_flows(brand.get('api_link', ""))
+        self.create_sample_flows(branding.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
     def save_media(self, file, extension):
@@ -1461,11 +1677,15 @@ class Org(SmartModel):
 
 # ===================== monkey patch User class with a few extra functions ========================
 
-def get_user_orgs(user):
+def get_user_orgs(user, brand=None):
+    org = user.get_org()
+    if not brand:
+        brand = org.brand if org else settings.DEFAULT_BRAND
+
     if user.is_superuser:
         return Org.objects.all()
     user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-    return user_orgs.distinct().order_by('name')
+    return user_orgs.filter(brand=brand).distinct().order_by('name')
 
 
 def get_org(obj):
@@ -1609,13 +1829,11 @@ class Invitation(SmartModel):
     secret = models.CharField(verbose_name=_("Secret"), max_length=64, unique=True,
                               help_text=_("a unique code associated with this invitation"))
 
-    host = models.CharField(max_length=32, help_text=_("The host this invitation was created on"))
-
     user_group = models.CharField(max_length=1, choices=USER_GROUPS, default='V', verbose_name=_("User Role"))
 
     @classmethod
-    def create(cls, org, user, email, user_group, host):
-        return cls.objects.create(org=org, email=email, user_group=user_group, host=host,
+    def create(cls, org, user, email, user_group):
+        return cls.objects.create(org=org, email=email, user_group=user_group,
                                   created_by=user, modified_by=user)
 
     def save(self, *args, **kwargs):
@@ -1646,9 +1864,7 @@ class Invitation(SmartModel):
         if not self.email:
             return
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.host)
-
+        branding = self.org.get_branding()
         subject = _("%(name)s Invitation") % branding
         template = "orgs/email/invitation_email"
         to_email = self.email
@@ -1683,7 +1899,7 @@ class TopUp(SmartModel):
     """
     org = models.ForeignKey(Org, related_name='topups',
                             help_text="The organization that was toppped up")
-    price = models.IntegerField(verbose_name=_("Price Paid"),
+    price = models.IntegerField(null=True, blank=True, verbose_name=_("Price Paid"),
                                 help_text=_("The price paid for the messages in this top up (in cents)"))
     credits = models.IntegerField(verbose_name=_("Number of Credits"),
                                   help_text=_("The number of credits bought in this top up"))
@@ -1695,20 +1911,79 @@ class TopUp(SmartModel):
                                help_text="Any comment associated with this topup, used when we credit accounts")
 
     @classmethod
-    def create(cls, user, price, credits, stripe_charge=None, org=None):
+    def create(cls, user, price, credits, stripe_charge=None, org=None, expires_on=None):
         """
         Creates a new topup
         """
         if not org:
             org = user.get_org()
 
-        expires_on = timezone.now() + timedelta(days=365)  # credits last 1 year
+        if not expires_on:
+            expires_on = timezone.now() + timedelta(days=365)  # credits last 1 year
 
         topup = TopUp.objects.create(org=org, price=price, credits=credits, expires_on=expires_on,
                                      stripe_charge=stripe_charge, created_by=user, modified_by=user)
 
         org.update_caches(OrgEvent.topup_new, topup)
         return topup
+
+    def get_ledger(self):
+        debits = self.debits.filter(debit_type=Debit.TYPE_ALLOCATION).order_by('-created_by')
+        balance = self.credits
+        ledger = []
+
+        active = self.get_remaining() < balance
+
+        if active:
+            transfer = self.allocations.all().first()
+
+            if transfer:
+                comment = _('Transfer from %s' % transfer.topup.org.name)
+            else:
+                if self.price > 0:
+                    comment = _('Purchased Credits')
+                elif self.price == 0:
+                    comment = _('Complimentary Credits')
+                else:
+                    comment = _('Credits')
+
+            ledger.append(dict(date=self.created_on,
+                               comment=comment,
+                               amount=self.credits,
+                               balance=self.credits))
+
+        for debit in debits:
+            balance -= debit.amount
+            ledger.append(dict(date=debit.created_on,
+                          comment=_('Transfer to %(org)s') % dict(org=debit.beneficiary.org.name),
+                          amount=-debit.amount,
+                          balance=balance))
+
+        now = timezone.now()
+        expired = self.expires_on < now
+
+        # add a line for used message credits
+        if active:
+            ledger.append(dict(date=self.expires_on if expired else now,
+                               comment=_('Messaging credits used'),
+                               amount=self.get_remaining() - balance,
+                               balance=self.get_remaining()))
+
+        # add a line for expired credits
+        if expired and self.get_remaining() > 0:
+            ledger.append(dict(date=self.expires_on,
+                               comment=_('Expired credits'),
+                               amount=-self.get_remaining(),
+                               balance=0))
+        return ledger
+
+    def get_price_display(self):
+        if self.price is None:
+            return ""
+        elif self.price == 0:
+            return _("Free")
+
+        return "$%.2f" % self.dollars()
 
     def dollars(self):
         if self.price == 0:
@@ -1749,6 +2024,28 @@ class TopUp(SmartModel):
         return "%s Credits" % self.credits
 
 
+class Debit(SmartModel):
+    """
+    Transactional history of credits allocated to other topups or chunks of archived messages
+    """
+
+    TYPE_ALLOCATION = 'A'
+    TYPE_PURGE = 'P'
+
+    DEBIT_TYPES = ((TYPE_ALLOCATION, 'Allocation'),
+                   (TYPE_PURGE, 'Purge'))
+
+    topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
+
+    amount = models.IntegerField(help_text=_('How many credits were debited'))
+
+    beneficiary = models.ForeignKey(TopUp, null=True,
+                                    related_name="allocations",
+                                    help_text=_('Optional topup that was allocated with these credits'))
+
+    debit_type = models.CharField(max_length=1, choices=DEBIT_TYPES, null=False, help_text=_('What caused this debit'))
+
+
 class TopUpCredits(models.Model):
     """
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
@@ -1768,11 +2065,8 @@ class TopUpCredits(models.Model):
             last_squash = 0
 
         # get the unique flow ids for all new ones
-        start = time.time()
         squash_count = 0
         for credits in TopUpCredits.objects.filter(id__gt=last_squash).order_by('topup_id').distinct('topup_id'):
-            print "Squashing: %d" % credits.topup_id
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_topupcredits(%s);", (credits.topup_id,))
@@ -1783,8 +2077,6 @@ class TopUpCredits(models.Model):
         max_id = TopUpCredits.objects.all().order_by('-id').first()
         if max_id:
             r.set(TopUpCredits.LAST_SQUASH_KEY, max_id.id)
-
-        print "Squashed topupcredits for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
 
 class CreditAlert(SmartModel):
@@ -1826,9 +2118,7 @@ class CreditAlert(SmartModel):
         if not email:
             return
 
-        from temba.middleware import BrandingMiddleware
-        branding = BrandingMiddleware.get_branding_for_host(self.org.brand)
-
+        branding = self.org.get_branding()
         subject = _("%(name)s Credits Alert") % branding
         template = "orgs/email/alert_email"
         to_email = email

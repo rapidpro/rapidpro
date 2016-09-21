@@ -68,30 +68,30 @@
                       %a{href:"{% url 'contacts.contact_filter' group.pk %}"}= group.name
                       group
 
-                    - if results.errors
-                      .import-result
-                        .glyph.icon-warning.warning
-                        -blocktrans count results.errors as error_count
-                          Failed to import {{ error_count }} contact due to missing or invalid phone number
-                          -plural
-                            Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
+                  - if results.errors
+                    .import-result
+                      .glyph.icon-warning.warning
+                      -blocktrans count results.errors as error_count
+                        Failed to import {{ error_count }} contact due to missing or invalid phone number
+                        -plural
+                          Failed to import {{ error_count }} contacts due to missing or invalid phone numbers
 
-                      .import-result
-                        .well.well-small
-                          %strong
-                            -blocktrans count results.error_messages as error_count
-                              Error description
-                              -plural
-                                Errors description
-                          %br
-                            - for error_message in results.error_messages
-                              Row {{ error_message.line }}: {{ error_message.error }}
-                              %br
+                    .import-result
+                      .well.well-small
+                        %strong
+                          -blocktrans count results.error_messages as error_count
+                            Error description
+                            -plural
+                              Errors description
+                        %br
+                          - for error_message in results.error_messages
+                            Row {{ error_message.line }}: {{ error_message.error }}
+                            %br
 
-                  - else
+                  - if not group.contacts.all
                     %p
                       -blocktrans
-                        No contacts imported, please make sure your file contains "Name" and "Phone" columns.
+                        No contacts imported, please make sure your have a channel connected.
 
             - if show_form
               %p

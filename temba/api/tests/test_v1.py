@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 
 from datetime import datetime, timedelta
 from django.contrib.auth.models import Group
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test.utils import override_settings
@@ -20,6 +21,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent, SyncEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
 from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, FlowStep
+from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, FAILED, ERRORED
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, AnonymousOrg
@@ -312,6 +314,72 @@ class APITest(TembaTest):
                                              date_style="day_first",
                                              anon=False))
 
+    def test_api_boundaries(self):
+        url = reverse('api.v1.boundaries')
+
+        # 403 if not logged in
+        self.assert403(url)
+
+        # login as plain user
+        self.login(self.user)
+        self.assert403(url)
+
+        # login as administrator
+        self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
+
+        self.create_secondary_org()
+
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigali")
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
+        BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
+        BoundaryAlias.create(self.org2, self.admin2, self.state1, "Other Org")  # shouldn't be returned
+
+        self.state1.simplified_geometry = GEOSGeometry('MULTIPOLYGON(((1 1, 1 -1, -1 -1, -1 1, 1 1)))')
+        self.state1.save()
+
+        # test with no params
+        response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json['results']), 10)
+        self.assertEqual(response.json['results'][2], {
+            'boundary': "1708283",
+            'name': "Kigali City",
+            'parent': "171496",
+            'level': 1,
+            'geometry': {
+                'type': "MultiPolygon",
+                'coordinates': [
+                    [
+                        [
+                            [1.0, 1.0],
+                            [1.0, -1.0],
+                            [-1.0, -1.0],
+                            [-1.0, 1.0],
+                            [1.0, 1.0]
+                        ]
+                    ]
+                ],
+            },
+        })
+
+        # test with aliases instead of geometry
+        response = self.fetchJSON(url, 'aliases=true')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json['results']), 10)
+        self.assertEqual(response.json['results'][2], {
+            'boundary': "1708283",
+            'name': "Kigali City",
+            'parent': "171496",
+            'level': 1,
+            'aliases': ["Kigali", "Kigari"],
+        })
+
     def test_api_flows(self):
         url = reverse('api.v1.flows')
 
@@ -425,6 +493,7 @@ class APITest(TembaTest):
         # load flow definition from test data
         flow = self.get_flow('pick_a_number')
         definition = self.get_flow_json('pick_a_number')['definition']
+
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
         self.assertEquals(1, response.json['metadata']['revision'])
         self.assertEquals("Pick a Number", response.json['metadata']['name'])

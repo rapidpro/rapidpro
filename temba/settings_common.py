@@ -199,10 +199,6 @@ INSTALLED_APPS = (
     # django-timezones
     'timezones',
 
-    # sentry
-    'raven.contrib.django',
-    'raven.contrib.django.celery',
-
     # temba apps
     'temba.assets',
     'temba.auth_tweaks',
@@ -221,10 +217,11 @@ INSTALLED_APPS = (
     'temba.ivr',
     'temba.locations',
     'temba.values',
+    'temba.airtime',
 )
 
 # the last installed app that uses smartmin permissions
-PERMISSIONS_APP = 'temba.values'
+PERMISSIONS_APP = 'temba.airtime'
 
 LOGGING = {
     'version': 1,
@@ -267,18 +264,21 @@ BRANDING = {
         'slug': 'rapidpro',
         'name': 'RapidPro',
         'org': 'UNICEF',
+        'colors': dict(primary='#0c6596'),
         'styles': ['brands/rapidpro/font/style.css', 'brands/rapidpro/less/style.less'],
         'welcome_topup': 1000,
         'email': 'join@rapidpro.io',
         'support_email': 'support@rapidpro.io',
         'link': 'https://app.rapidpro.io',
         'api_link': 'https://api.rapidpro.io',
-        'docs_link': 'http://knowledge.rapidpro.io',
+        'docs_link': 'http://docs.rapidpro.io',
         'domain': 'app.rapidpro.io',
         'favico': 'brands/rapidpro/rapidpro.ico',
         'splash': '/brands/rapidpro/splash.jpg',
         'logo': '/brands/rapidpro/logo.png',
         'allow_signups': True,
+        'tiers': dict(multi_user=0, multi_org=0),
+        'bundles': [],
         'welcome_packs': [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
         'description': _("Visually build nationally scalable mobile applications from anywhere in the world."),
         'credits': _("Copyright &copy; 2012-2015 UNICEF, Nyaruka. All Rights Reserved.")
@@ -315,6 +315,12 @@ PERMISSIONS = {
           'list'),   # can view a list of the objects
 
     'api.apitoken': ('refresh',),
+
+    'api.resthook': ('api', 'list'),
+
+    'api.webhookevent': ('api',),
+
+    'api.resthooksubscriber': ('api',),
 
     'campaigns.campaign': ('api',
                            'archived',
@@ -357,8 +363,10 @@ PERMISSIONS = {
                  'country',
                  'clear_cache',
                  'create_login',
+                 'create_sub_org',
                  'download',
                  'edit',
+                 'edit_sub_org',
                  'export',
                  'grant',
                  'home',
@@ -367,14 +375,19 @@ PERMISSIONS = {
                  'languages',
                  'manage',
                  'manage_accounts',
+                 'manage_accounts_sub_org',
                  'nexmo_configuration',
                  'nexmo_account',
                  'nexmo_connect',
                  'plivo_connect',
                  'profile',
+                 'resthooks',
                  'service',
                  'signup',
+                 'sub_orgs',
                  'surveyor',
+                 'transfer_credits',
+                 'transfer_to_account',
                  'trial',
                  'twilio_account',
                  'twilio_connect',
@@ -394,6 +407,7 @@ PERMISSIONS = {
                          'claim_clickatell',
                          'claim_external',
                          'claim_facebook',
+                         'claim_globe',
                          'claim_high_connection',
                          'claim_hub9',
                          'claim_infobip',
@@ -411,7 +425,10 @@ PERMISSIONS = {
                          'claim_twilio_messaging_service',
                          'claim_twitter',
                          'claim_verboice',
+                         'claim_viber',
+                         'create_viber',
                          'claim_vumi',
+                         'claim_vumi_ussd',
                          'claim_yo',
                          'claim_zenvia',
                          'configuration',
@@ -424,6 +441,8 @@ PERMISSIONS = {
 
     'channels.channelevent': ('api',
                               'calls'),
+
+    'flows.flowstart': ('api',),
 
     'flows.flow': ('activity',
                    'activity_list',
@@ -530,7 +549,14 @@ GROUP_PERMISSIONS = {
         'orgs.topup_update',
     ),
     "Administrators": (
+        'airtime.airtimetransfer_list',
+        'airtime.airtimetransfer_read',
+
         'api.apitoken_refresh',
+        'api.resthook_api',
+        'api.resthook_list',
+        'api.resthooksubscriber_api',
+        'api.webhookevent_api',
         'api.webhookevent_list',
         'api.webhookevent_read',
 
@@ -570,18 +596,25 @@ GROUP_PERMISSIONS = {
         'orgs.org_accounts',
         'orgs.org_api',
         'orgs.org_country',
+        'orgs.org_create_sub_org',
         'orgs.org_download',
         'orgs.org_edit',
+        'orgs.org_edit_sub_org',
         'orgs.org_export',
         'orgs.org_home',
         'orgs.org_import',
         'orgs.org_languages',
         'orgs.org_manage_accounts',
+        'orgs.org_manage_accounts_sub_org',
         'orgs.org_nexmo_account',
         'orgs.org_nexmo_connect',
         'orgs.org_nexmo_configuration',
         'orgs.org_plivo_connect',
         'orgs.org_profile',
+        'orgs.org_resthooks',
+        'orgs.org_sub_orgs',
+        'orgs.org_transfer_credits',
+        'orgs.org_transfer_to_account',
         'orgs.org_twilio_account',
         'orgs.org_twilio_connect',
         'orgs.org_webhook',
@@ -601,6 +634,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
+        'channels.channel_claim_globe',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
@@ -617,7 +651,10 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
+        'channels.channel_claim_viber',
+        'channels.channel_create_viber',
         'channels.channel_claim_vumi',
+        'channels.channel_claim_vumi_ussd',
         'channels.channel_claim_yo',
         'channels.channel_claim_zenvia',
         'channels.channel_configuration',
@@ -637,6 +674,7 @@ GROUP_PERMISSIONS = {
         'reports.report.*',
 
         'flows.flow.*',
+        'flows.flowstart_api',
         'flows.flowlabel.*',
         'flows.ruleset.*',
 
@@ -664,8 +702,15 @@ GROUP_PERMISSIONS = {
     ),
     "Editors": (
         'api.apitoken_refresh',
+        'api.resthook_api',
+        'api.resthook_list',
+        'api.resthooksubscriber_api',
+        'api.webhookevent_api',
         'api.webhookevent_list',
         'api.webhookevent_read',
+
+        'airtime.airtimetransfer_list',
+        'airtime.airtimetransfer_read',
 
         'campaigns.campaign.*',
         'campaigns.campaignevent.*',
@@ -706,6 +751,7 @@ GROUP_PERMISSIONS = {
         'orgs.org_home',
         'orgs.org_import',
         'orgs.org_profile',
+        'orgs.org_resthooks',
         'orgs.org_webhook',
         'orgs.topup_list',
         'orgs.topup_read',
@@ -722,6 +768,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_clickatell',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
+        'channels.channel_claim_globe',
         'channels.channel_claim_high_connection',
         'channels.channel_claim_hub9',
         'channels.channel_claim_infobip',
@@ -738,7 +785,10 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
+        'channels.channel_claim_viber',
+        'channels.channel_create_viber',
         'channels.channel_claim_vumi',
+        'channels.channel_claim_vumi_ussd',
         'channels.channel_claim_yo',
         'channels.channel_claim_zenvia',
         'channels.channel_configuration',
@@ -755,6 +805,7 @@ GROUP_PERMISSIONS = {
         'reports.report.*',
 
         'flows.flow.*',
+        'flows.flowstart_api',
         'flows.flowlabel.*',
         'flows.ruleset.*',
 
@@ -781,6 +832,8 @@ GROUP_PERMISSIONS = {
 
     ),
     "Viewers": (
+        'api.resthook_list',
+
         'campaigns.campaign_archived',
         'campaigns.campaign_list',
         'campaigns.campaign_read',
@@ -859,7 +912,7 @@ AUTHENTICATION_BACKENDS = (
     'guardian.backends.ObjectPermissionBackend',
 )
 
-ANONYMOUS_USER_ID = -1
+ANONYMOUS_USER_NAME = 'AnonymousUser'
 
 # -----------------------------------------------------------------------------------
 # Our test runner is standard but with ability to exclude apps
@@ -904,6 +957,10 @@ CELERYBEAT_SCHEDULE = {
     "check-flows": {
         'task': 'check_flows_task',
         'schedule': timedelta(seconds=60),
+    },
+    "check-flow-timeouts": {
+        'task': 'check_flow_timeouts_task',
+        'schedule': timedelta(seconds=20),
     },
     "check-credits": {
         'task': 'check_credits_task',
@@ -1009,7 +1066,8 @@ REST_FRAMEWORK = {
         'v2': '2500/hour',
         'v2.contacts': '2500/hour',
         'v2.messages': '2500/hour',
-        'v2.runs': '2500/hour'
+        'v2.runs': '2500/hour',
+        'v2.api': '2500/hour',
     },
     'PAGE_SIZE': 250,
     'DEFAULT_RENDERER_CLASSES': (
@@ -1021,7 +1079,6 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
-CURSOR_PAGINATION_OFFSET_CUTOFF = 1000000
 
 
 # -----------------------------------------------------------------------------------
@@ -1067,6 +1124,12 @@ SEND_WEBHOOKS = False
 #         could cause emails to be sent in test environment
 SEND_EMAILS = False
 
+######
+# DANGER: only turn this on if you know what you are doing!
+#         could cause airtime transfers in test environment
+SEND_AIRTIME = False
+
+
 MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',
                     'temba.flows.handlers.FlowHandler',
                     'temba.triggers.handlers.CatchAllHandler']
@@ -1087,3 +1150,12 @@ SEGMENT_IO_KEY = os.environ.get('SEGMENT_IO_KEY', '')
 
 LIBRATO_USER = os.environ.get('LIBRATO_USER', '')
 LIBRATO_TOKEN = os.environ.get('LIBRATO_TOKEN', '')
+
+# -----------------------------------------------------------------------------------
+# IP Addresses
+# These are the externally accessible IP addresses of the servers running RapidPro.
+# Needed for channel types that authenticate by whitelisting public IPs.
+#
+# You need to change these to real addresses to work with these.
+# -----------------------------------------------------------------------------------
+IP_ADDRESSES = ('172.16.10.10', '162.16.10.20')

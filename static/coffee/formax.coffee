@@ -126,7 +126,7 @@ _submitFormax = (e) ->
       # accepts will be run through our formax initializer
       dependents = section.data("dependents")
       if dependents
-        $(dependents).each ->
+        $("#id-" + dependents).each ->
           fetchData $(this)
 
 _bindToggle = (bindTo) ->

@@ -1,9 +1,6 @@
 -extends 'smartmin/form.html'
--load smartmin
+-load smartmin humanize
 -load i18n
-
--block form-span
-  span8
 
 -block fields
   .field.formax-vertical
@@ -18,7 +15,13 @@
   .field.formax-vertical
     {% render_field 'date_format' %}
 
+-block post-form
+
 -block summary
+  -if object.is_multi_org_tier
+    %p.pull-right
+      %a.sub-orgs.btn.btn-secondary{url:'{% url "orgs.org_sub_orgs" %}'}
+        Manage Organizations
 
   -blocktrans with org=object.name
     Your organization is <span class='attn'>{{org}}</span>
@@ -26,9 +29,22 @@
   -blocktrans with timezone=object.timezone
     which is in the <span class='attn'>{{timezone}}</span> timezone.
 
+  -if object.is_multi_org_tier and sub_orgs
+    %br
+    {% blocktrans count sub_orgs|length as org_count%}
+      You have <span class='attn'>{{org_count}}</span> child organization.
+      {% plural %}
+      You have <span class='attn'>{{org_count}}</span> child organizations.
+    {% endblocktrans%}
+
 -block extra-script
   :javascript
     $(document).ready(function() {
+
+      $('.sub-orgs').click(function(evt) {
+        evt.stopPropagation();
+        window.location = '{% url "orgs.org_sub_orgs" %}';
+      });
 
       $('#id_timezone').select2({
         containerCssClass: 'select2-temba-field',

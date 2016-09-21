@@ -11,8 +11,8 @@ from django.utils import timezone
 from mock import patch
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED
-from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException, SMS_BULK_PRIORITY
+from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
+from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Language
@@ -38,6 +38,33 @@ class MsgTest(TembaTest):
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
+
+    def test_get_sync_commands(self):
+        msg1 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hello, we heard from you.")
+        msg2 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
+        msg3 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, we heard from you.")
+
+        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg3])
+
+        self.assertEquals(1, len(commands))
+        self.assertEquals(3, len(commands[0]['to']))
+
+        msg4 = Msg.create_outgoing(self.org, self.admin, self.kevin, "Hello, there")
+
+        commands = Msg.get_sync_commands(self.channel, [msg1, msg2, msg4])
+
+        self.assertEquals(2, len(commands))
+        self.assertEquals(2, len(commands[0]['to']))
+        self.assertEquals(1, len(commands[1]['to']))
+
+        msg5 = Msg.create_outgoing(self.org, self.admin, self.frank, "Hello, we heard from you.")
+
+        commands = Msg.get_sync_commands(self.channel, [msg1, msg4, msg5])
+
+        self.assertEquals(3, len(commands))
+        self.assertEquals(1, len(commands[0]['to']))
+        self.assertEquals(1, len(commands[1]['to']))
+        self.assertEquals(1, len(commands[2]['to']))
 
     def test_archive_and_release(self):
         msg1 = Msg.create_incoming(self.channel, 'tel:123', "Incoming")
@@ -314,8 +341,7 @@ class MsgTest(TembaTest):
         broadcast.send()
 
         # assert that recipient is set
-        self.assertEqual(broadcast.recipients.all().count(), 1)
-        self.assertEqual(broadcast.recipients.all()[0], self.joe.urns.all().first())
+        self.assertEqual(set(broadcast.recipients.all()), {self.joe})
 
     def test_outbox(self):
         self.login(self.admin)
@@ -628,6 +654,28 @@ class MsgTest(TembaTest):
         # inbound message with media attached, such as an ivr recording
         msg5 = Msg.create_incoming(self.channel, joe_urn, "Media message", media='audio:http://rapidpro.io/audio/sound.mp3')
 
+        # outgoing message
+        msg6 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 6")
+        msg7 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 7")
+        msg8 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 8")
+        msg9 = Msg.create_outgoing(self.org, self.admin, self.joe, "Hey out 9")
+
+        # mark msg as sent
+        msg6.status = SENT
+        msg6.save()
+
+        # mark msg as delivered
+        msg7.status = DELIVERED
+        msg7.save()
+
+        # mark msg as errored
+        msg8.status = ERRORED
+        msg8.save()
+
+        # mark message as failed
+        msg9.status = FAILED
+        msg9.save()
+
         self.assertTrue(msg5.is_media_type_audio())
         self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
 
@@ -640,8 +688,7 @@ class MsgTest(TembaTest):
         msg3.save()
 
         # create a dummy export task so that we won't be able to export
-        blocking_export = ExportMessagesTask.objects.create(org=self.org, host='test',
-                                                            created_by=self.admin, modified_by=self.admin)
+        blocking_export = ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
         response = self.client.post(reverse('msgs.msg_export'), follow=True)
         self.assertContains(response, "already an export in progress")
 
@@ -655,14 +702,38 @@ class MsgTest(TembaTest):
         workbook = open_workbook(filename, 'rb')
         sheet = workbook.sheets()[0]
 
-        self.assertEquals(sheet.nrows, 5)  # msg3 not included as it's archived
+        self.assertEquals(sheet.nrows, 9)  # msg3 not included as it's archived
 
-        self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction", "Text", "Labels"])
-        self.assertExcelRow(sheet, 1, [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", ""], pytz.UTC)
+        self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction",
+                                       "Text", "Labels", "Status"])
 
-        self.assertExcelRow(sheet, 2, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 3, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
-        self.assertExcelRow(sheet, 4, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
+        self.assertExcelRow(sheet, 1,
+                            [msg9.created_on, "123", "tel", "Joe Blow", msg9.contact.uuid, "Outgoing",
+                             "Hey out 9", "", "Failed Sending"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 2,
+                            [msg8.created_on, "123", "tel", "Joe Blow", msg8.contact.uuid, "Outgoing",
+                             "Hey out 8", "", "Error Sending"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 3,
+                            [msg7.created_on, "123", "tel", "Joe Blow", msg7.contact.uuid, "Outgoing",
+                             "Hey out 7", "", "Delivered"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 4,
+                            [msg6.created_on, "123", "tel", "Joe Blow", msg6.contact.uuid, "Outgoing",
+                             "Hey out 6", "", "Sent"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 5, [msg5.created_on, "123", "tel", "Joe Blow", msg5.contact.uuid, "Incoming",
+                                       "Media message", "", "Handled"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 6, [msg4.created_on, "", "", "Joe Blow", msg4.contact.uuid, "Incoming",
+                                       "hello 4", "", "Handled"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 7, [msg2.created_on, "123", "tel", "Joe Blow", msg2.contact.uuid, "Incoming",
+                                       "hello 2", "", "Handled"], pytz.UTC)
+
+        self.assertExcelRow(sheet, 8, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming",
+                                       "hello 1", "label1", "Handled"], pytz.UTC)
 
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
@@ -686,7 +757,7 @@ class MsgTest(TembaTest):
         sheet = workbook.sheets()[0]
 
         self.assertEquals(sheet.nrows, 2)  # only header and msg1
-        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
+        self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
 
         ExportMessagesTask.objects.all().delete()
 
@@ -699,11 +770,31 @@ class MsgTest(TembaTest):
             workbook = open_workbook(filename, 'rb')
             sheet = workbook.sheets()[0]
 
-            self.assertEquals(sheet.nrows, 5)
-            self.assertExcelRow(sheet, 1, [msg5.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg5.contact.uuid, "Incoming", "Media message", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 2, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid, "Incoming", "hello 4", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 3, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid, "Incoming", "hello 2", ""], pytz.UTC)
-            self.assertExcelRow(sheet, 4, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1"], pytz.UTC)
+            self.assertEquals(sheet.nrows, 9)
+
+            self.assertExcelRow(sheet, 1, [msg9.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg9.contact.uuid,
+                                           "Outgoing", "Hey out 9", "", "Failed Sending"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 2, [msg8.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg8.contact.uuid,
+                                           "Outgoing", "Hey out 8", "", "Error Sending"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 3, [msg7.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg7.contact.uuid,
+                                           "Outgoing", "Hey out 7", "", "Delivered"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 4, [msg6.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg6.contact.uuid,
+                                           "Outgoing", "Hey out 6", "", "Sent"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 5, [msg5.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg5.contact.uuid,
+                                           "Incoming", "Media message", "", "Handled"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 6, [msg4.created_on, "%010d" % self.joe.pk, "", "Joe Blow", msg4.contact.uuid,
+                                           "Incoming", "hello 4", "", "Handled"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 7, [msg2.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg2.contact.uuid,
+                                           "Incoming", "hello 2", "", "Handled"], pytz.UTC)
+
+            self.assertExcelRow(sheet, 8, [msg1.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg1.contact.uuid,
+                                           "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
 
     def assertHasClass(self, text, clazz):
         self.assertTrue(text.find(clazz) >= 0)
@@ -853,7 +944,7 @@ class BroadcastTest(TembaTest):
             broadcast.send()
 
             self.assertEquals(broadcast.get_message_count(), 3)
-            self.assertEqual(broadcast.recipients.all().count(), 3)
+            self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin})
         finally:
             msgs_models.BATCH_SIZE = orig_batch_size
 
@@ -870,12 +961,12 @@ class BroadcastTest(TembaTest):
         self.assertEquals(4, broadcast.recipient_count)
 
         # no recipients created yet, done when we send
-        self.assertEquals(0, broadcast.recipients.all().count())
+        self.assertEqual(set(broadcast.recipients.all()), set())
 
         broadcast.send(trigger_send=False)
-        self.assertEquals('Q', broadcast.status)
-        self.assertEquals(broadcast.get_message_count(), 4)
-        self.assertEqual(broadcast.recipients.all().count(), 4)
+        self.assertEqual('Q', broadcast.status)
+        self.assertEqual(broadcast.get_message_count(), 4)
+        self.assertEqual(set(broadcast.recipients.all()), {self.joe, self.frank, self.kevin, self.lucy})
 
         bcast_commands = broadcast.get_sync_commands(self.channel)
         self.assertEquals(1, len(bcast_commands))
@@ -930,7 +1021,7 @@ class BroadcastTest(TembaTest):
         self.login(self.admin)
 
         # try with no channel
-        post_data = dict(text="some text", omnibox="c-%d" % self.joe.pk)
+        post_data = dict(text="some text", omnibox="c-%s" % self.joe.uuid)
         response = self.client.post(send_url, post_data, follow=True)
         self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
 
@@ -940,7 +1031,7 @@ class BroadcastTest(TembaTest):
 
         test_contact = Contact.get_test_contact(self.admin)
 
-        post_data = dict(text="you simulator display this", omnibox="c-%d,c-%d,c-%d" % (self.joe.pk, self.frank.pk, test_contact.pk))
+        post_data = dict(text="you simulator display this", omnibox="c-%s,c-%s,c-%s" % (self.joe.uuid, self.frank.uuid, test_contact.uuid))
         self.client.post(send_url + "?simulation=true", post_data)
         self.assertEquals(Broadcast.objects.all().count(), 1)
         self.assertEquals(Broadcast.objects.all()[0].groups.all().count(), 0)
@@ -958,7 +1049,7 @@ class BroadcastTest(TembaTest):
         response = self.client.get(send_url)
         self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
 
-        post_data = dict(text="message #1", omnibox="g-%d,c-%d,c-%d" % (self.joe_and_frank.pk, self.joe.pk, self.lucy.pk))
+        post_data = dict(text="message #1", omnibox="g-%s,c-%s,c-%s" % (self.joe_and_frank.uuid, self.joe.uuid, self.lucy.uuid))
         self.client.post(send_url, post_data, follow=True)
         broadcast = Broadcast.objects.get(text="message #1")
         self.assertEquals(1, broadcast.groups.count())
@@ -976,14 +1067,14 @@ class BroadcastTest(TembaTest):
         response = self.client.get(send_url)
         self.assertEquals(['omnibox', 'text', 'schedule'], response.context['fields'])
 
-        post_data = dict(text="message #2", omnibox='g-%d,c-%d' % (self.joe_and_frank.pk, self.kevin.pk))
+        post_data = dict(text="message #2", omnibox='g-%s,c-%s' % (self.joe_and_frank.uuid, self.kevin.uuid))
         self.client.post(send_url, post_data, follow=True)
         broadcast = Broadcast.objects.get(text="message #2")
         self.assertEquals(broadcast.groups.count(), 1)
         self.assertEquals(broadcast.contacts.count(), 1)
 
         # directly on user page
-        post_data = dict(text="contact send", from_contact=True, omnibox="c-%d" % self.kevin.pk)
+        post_data = dict(text="contact send", from_contact=True, omnibox="c-%s" % self.kevin.uuid)
         response = self.client.post(send_url, post_data)
         self.assertRedirect(response, reverse('contacts.contact_read', args=[self.kevin.uuid]))
         self.assertEquals(Broadcast.objects.all().count(), 3)
@@ -1005,7 +1096,7 @@ class BroadcastTest(TembaTest):
         self.assertIn("At least one recipient is required", response.content)
         self.assertEquals('application/json', response._headers.get('content-type')[1])
 
-        post_data = dict(text="this is a test message", omnibox="c-%d" % self.kevin.pk, _format="json")
+        post_data = dict(text="this is a test message", omnibox="c-%s" % self.kevin.uuid, _format="json")
         response = self.client.post(send_url, post_data, follow=True)
         self.assertIn("success", response.content)
 
@@ -1241,12 +1332,12 @@ class BroadcastCRUDLTest(TembaTest):
         url = reverse('msgs.broadcast_send')
 
         # can't send if you're not logged in
-        response = self.client.post(url, dict(text="Test", omnibox="c-%d" % self.joe.pk))
+        response = self.client.post(url, dict(text="Test", omnibox="c-%s" % self.joe.uuid))
         self.assertLoginRedirect(response)
 
         # or just a viewer user
         self.login(self.user)
-        response = self.client.post(url, dict(text="Test", omnibox="c-%d" % self.joe.pk))
+        response = self.client.post(url, dict(text="Test", omnibox="c-%s" % self.joe.uuid))
         self.assertLoginRedirect(response)
 
         # but editors can
@@ -1254,7 +1345,7 @@ class BroadcastCRUDLTest(TembaTest):
 
         just_joe = self.create_group("Just Joe")
         just_joe.contacts.add(self.joe)
-        post_data = dict(omnibox="g-%d,c-%d,n-0780000001" % (just_joe.pk, self.frank.pk),
+        post_data = dict(omnibox="g-%s,c-%s,n-0780000001" % (just_joe.uuid, self.frank.uuid),
                          text="Hey Joe, where you goin' with that gun in your hand?")
         response = self.client.post(url + '?_format=json', post_data)
 
@@ -1273,7 +1364,7 @@ class BroadcastCRUDLTest(TembaTest):
 
     def test_update(self):
         self.login(self.editor)
-        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%s" % self.joe.uuid,
                                                               text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
         url = reverse('msgs.broadcast_update', args=[broadcast.pk])
@@ -1281,7 +1372,7 @@ class BroadcastCRUDLTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(response.context['form'].fields.keys(), ['message', 'omnibox', 'loc'])
 
-        response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%d" % self.frank.pk))
+        response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%s" % self.frank.uuid))
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
@@ -1298,9 +1389,9 @@ class BroadcastCRUDLTest(TembaTest):
         self.login(self.editor)
 
         # send some messages - one immediately, one scheduled
-        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%s" % self.joe.uuid,
                                                               text="See you later"))
-        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%s" % self.joe.uuid,
                                                               text="Lunch reminder", schedule=True))
 
         scheduled = Broadcast.objects.exclude(schedule=None).first()
@@ -1310,7 +1401,7 @@ class BroadcastCRUDLTest(TembaTest):
 
     def test_schedule_read(self):
         self.login(self.editor)
-        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%d" % self.joe.pk,
+        self.client.post(reverse('msgs.broadcast_send'), dict(omnibox="c-%s" % self.joe.uuid,
                                                               text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
@@ -1568,12 +1659,10 @@ class ScheduleTest(TembaTest):
         channel_models.SEND_QUEUE_DEPTH = 500
         channel_models.SEND_BATCH_SIZE = 100
 
-        from temba.msgs import models as sms_models
-        sms_models.BULK_THRESHOLD = 50
+        Broadcast.BULK_THRESHOLD = 50
 
     def test_batch(self):
-        from temba.msgs import models as sms_models
-        sms_models.BULK_THRESHOLD = 10
+        Broadcast.BULK_THRESHOLD = 10
 
         # broadcast out to 11 contacts to test our batching
         contacts = []
@@ -1592,7 +1681,7 @@ class ScheduleTest(TembaTest):
 
         # get one of our messages, should be at bulk priority since it was in a broadcast over our bulk threshold
         sms = broadcast.get_messages()[0]
-        self.assertEquals(SMS_BULK_PRIORITY, sms.priority)
+        self.assertEqual(sms.priority, Msg.PRIORITY_BULK)
 
         # we should now have 11 messages pending
         self.assertEquals(11, Msg.all_messages.filter(channel=self.channel, status=PENDING).count())
