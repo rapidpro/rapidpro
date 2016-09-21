@@ -731,7 +731,7 @@ class TableExporterTest(TembaTest):
     def test_csv(self):
         # tests writing a CSV, that is a file that has more than 255 columns
         cols = []
-        for i in range(256):
+        for i in range(16385):
             cols.append("Column %d" % i)
 
         # create a new exporter
@@ -742,7 +742,7 @@ class TableExporterTest(TembaTest):
 
         # write some rows
         values = []
-        for i in range(256):
+        for i in range(16385):
             values.append("Value %d" % i)
 
         exporter.write_row(values)
@@ -778,29 +778,30 @@ class TableExporterTest(TembaTest):
         for i in range(32):
             values.append("Value %d" % i)
 
-        # write out 67,000 rows, that'll make two sheets
-        for i in range(67000):
+        # write out 1050000 rows, that'll make two sheets
+        for i in range(1050000):
             exporter.write_row(values)
 
         file = exporter.save_file()
         workbook = open_workbook(file.name, 'rb')
 
-        self.assertEquals(2, len(workbook.sheets()))
+        self.assertEquals(2, len(workbook.worksheets))
 
         # check our sheet 1 values
-        sheet1 = workbook.sheets()[0]
+        sheet1 = workbook.worksheets[0]
         self.assertEquals(cols, sheet1.row_values(0))
         self.assertEquals(values, sheet1.row_values(1))
 
-        self.assertEquals(65536, sheet1.nrows)
-        self.assertEquals(32, sheet1.ncols)
+        self.assertEquals(1048576, len(list(sheet1.rows)))
+        self.assertEquals(32, len(list(sheet1.columns)))
 
-        sheet2 = workbook.sheets()[1]
-        self.assertEquals(cols, sheet2.row_values(0))
-        self.assertEquals(values, sheet2.row_values(1))
+        sheet2 = workbook.worksheets[1]
+        rows = tuple(sheet2.rows)
+        self.assertEquals(cols, [cell.value for cell in rows[0]])
+        self.assertEquals(values, [cell.value for cell in rows[1]])
 
-        self.assertEquals(67000 + 2 - 65536, sheet2.nrows)
-        self.assertEquals(32, sheet2.ncols)
+        self.assertEquals(1050000 + 2 - 1048576, len(list(sheet2.rows)))
+        self.assertEquals(32, len(list(sheet2.columns)))
 
 
 class CurrencyTest(TembaTest):
