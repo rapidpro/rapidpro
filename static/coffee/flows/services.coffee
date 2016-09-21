@@ -481,8 +481,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         { type: 'random', name:'Random Split', verbose_name: 'Split randomly', hide_other: true, filter:ALL},
 
-        # Not supported yet
-        # { type: 'group', verbose_name: 'Split by group membership', ivr:true, text:true},
+        { type: 'group', name:'Group Membership', verbose_name: 'Split by group membership', filter:ALL}
 
       ]
 
@@ -491,7 +490,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         'subflow': ['subflow'],
         'timeout': ['wait_message'],
         'webhook_status': ['webhook', 'resthook'],
-        'airtime_status': ['airtime']
+        'airtime_status': ['airtime'],
+        'in_group': ['group']
       }
 
       @supportsRules = [
@@ -519,6 +519,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'ward', name: 'Has a ward', verbose_name:'has a ward', operands: 2, operand_required: false, auto_complete: true, show:true}
         { type: 'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true, show:true }
         { type: 'subflow', name: 'Subflow', verbose_name:'subflow', operands: 0, show:false }
+        { type: 'in_group', name:'Is in group', verbose_name:'is in group', operands:0, show:false }
         { type: 'airtime_status', name: 'Airtime Status', verbose_name:'airtime', operands: 0, show:false }
         { type: 'webhook', name: 'Webhook', verbose_name:'webhook', operands: 0, show:false }
         { type: 'webhook_status', name: 'Webhook Status', verbose_name:'webhook status', operands: 0, show:false }
