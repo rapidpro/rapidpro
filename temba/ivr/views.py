@@ -1,11 +1,8 @@
 from __future__ import unicode_literals
 
 import json
-import mimetypes
 
 from django.core.exceptions import ValidationError
-from django.core.files import File
-from django.core.files.temp import NamedTemporaryFile
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
@@ -30,6 +27,12 @@ class CallHandler(View):
         if not call:
             return HttpResponse("Not found", status=404)
 
+        print "====="
+        print request.body
+        print "====="
+        print request.REQUEST
+        print "====="
+
         channel = call.channel
         channel_type = channel.channel_type
         client = channel.get_ivr_client()
@@ -50,8 +53,10 @@ class CallHandler(View):
                 status = request.POST.get('CallStatus', None)
                 duration = request.POST.get('CallDuration', None)
             elif channel_type in [Channel.TYPE_NEXMO]:
-                status = request.POST.get('status', None)
-                duration = request.POST.get('call-duration', None)
+                if request.body:
+                    body_json = json.loads(request.body)
+                    status = body_json.get('status', None)
+                    duration = body_json.get('duration', None)
 
             call.update_status(status, duration, channel_type)
 
@@ -66,15 +71,16 @@ class CallHandler(View):
 
             hangup = False
             saved_media_url = None
-
-            # figure out if this is a callback due to an empty gather
-            is_empty = '1' == request.GET.get('empty', '0')
-
-            # if the user pressed pound, then record no digits as the input
-            if is_empty:
-                user_response['Digits'] = ''
+            text = None
 
             if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
+
+                # figure out if this is a callback due to an empty gather
+                is_empty = '1' == request.GET.get('empty', '0')
+
+                # if the user pressed pound, then record no digits as the input
+                if is_empty:
+                    user_response['Digits'] = ''
 
                 hangup = 'hangup' == user_response.get('Digits', None)
 
@@ -83,26 +89,33 @@ class CallHandler(View):
                 if media_url:
                     saved_media_url = client.download_media(media_url)
 
+                # parse the user response
+                text = user_response.get('Digits', None)
+
             elif channel_type in [Channel.TYPE_NEXMO]:
-                user_recording = request.FILES.get('UserRecording', None)
-                if user_recording is not None:
-                    content_type = user_recording.content_type
-                    extension = mimetypes.guess_extension(content_type)
-                    extension = extension.strip('.')
+                if request.body:
+                    body_json = json.loads(request.body)
+                    media_url = body_json.get('recording_url', None)
 
-                    temp = NamedTemporaryFile(delete=True)
-                    for chunk in user_recording.chunks():
-                        temp.write(chunk)
-                    temp.flush()
+                    if media_url:
+                        saved_media_url = client.download_media(media_url)
 
-                    saved_media_url = '%s:%s' % (content_type, client.org.save_media(File(temp), extension))
+                    text = body_json.get('dtmf', None)
 
-            # parse the user response
-            text = user_response.get('Digits', None)
+                has_event = '1' == request.GET.get('has_event', '0')
+                if has_event:
+                    print 'event======'
+                    return
 
             if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
+                    if channel_type in [Channel.TYPE_NEXMO]:
+                        print "++++"
+                        print unicode(response)
+                        print "++++"
+                        return build_json_response(json.loads(unicode(response)))
+
                     return HttpResponse(unicode(response))
             else:
                 if call.status == COMPLETED:

@@ -1,5 +1,9 @@
 from __future__ import absolute_import
 
+import time
+import uuid
+
+import jwt
 import requests
 import nexmo
 
@@ -14,13 +18,15 @@ class NexmoClient(nexmo.Client):
     URL = 'https://rest.nexmo.com'
     SEND_URL = 'https://rest.nexmo.com/sms/json'
 
-    def __init__(self, api_key, api_secret, **kwargs):
-        kwargs['api_key'] = api_key.strip()
-        kwargs['api_secret'] = api_secret.strip()
+    def __init__(self, api_key, api_secret, app_id, app_private_key, **kwargs):
+        kwargs['key'] = api_key.strip()
+        kwargs['secret'] = api_secret.strip()
+        kwargs['application_id'] = app_id.strip()
+        kwargs['private_key'] = app_private_key.strip()
         nexmo.Client.__init__(self, **kwargs)
 
     def update_account(self, mo_url, dr_url):
-        nexmo.Client.update_settings(moCallBackUrl=mo_url, drCallBackUrl=dr_url)
+        nexmo.Client.update_settings(self, moCallBackUrl=mo_url, drCallBackUrl=dr_url)
 
     def get_numbers(self, pattern=None, size=10):
         params = dict()
@@ -28,7 +34,7 @@ class NexmoClient(nexmo.Client):
             params['pattern'] = str(pattern).strip('+')
         params['size'] = size
 
-        response = nexmo.Client.get_account_numbers(params=params)
+        response = nexmo.Client.get_account_numbers(self, params=params)
 
         if int(response.get('count', 0)):
             return response['numbers']
@@ -94,9 +100,10 @@ class NexmoClient(nexmo.Client):
         params = dict(msisdn=number, country=country)
         nexmo.Client.buy_number(self, params=params)
 
-    def update_nexmo_number(self, country, number, moURL, answerURL):
+    def update_nexmo_number(self, country, number, moURL, app_id):
         number = number.lstrip('+')
-        params = dict(moHttpUrl=moURL, msisdn=number, country=country)
+        params = dict(moHttpUrl=moURL, msisdn=number, country=country, voiceCallbackType='app',
+                      voiceCallbackValue=app_id)
         nexmo.Client.update_number(self, params=params)
 
     def test_credentials(self):
@@ -105,6 +112,22 @@ class NexmoClient(nexmo.Client):
             return True
         except Exception:
             return False
+
+    def download_recording(self, url, params=None, **kwargs):
+        return requests.get(url, params=params, headers=self.gen_headers())
+
+    def gen_headers(self):
+        iat = int(time.time())
+
+        payload = dict(self.auth_params)
+        payload.setdefault('application_id', self.application_id)
+        payload.setdefault('iat', iat)
+        payload.setdefault('exp', iat + 60)
+        payload.setdefault('jti', str(uuid.uuid4()))
+
+        token = jwt.encode(payload, self.private_key, algorithm='RS256')
+
+        return dict(self.headers, Authorization=b'Bearer ' + token)
 
 
 def __main__():  # pragma: no cover

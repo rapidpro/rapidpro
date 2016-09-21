@@ -186,14 +186,15 @@ class IVRCall(SmartModel):
                 self.status = CANCELED
 
         elif channel_type in [Channel.TYPE_NEXMO]:
-            if status is None:
+            if status == 'ringing':
+                self.status = RINGING
+            elif status == 'answered':
                 self.status = IN_PROGRESS
-            elif status != 'ok':
-                self.status = FAILED
-            else:
+            elif status == 'completed':
                 self.status = COMPLETED
 
-        self.duration = duration
+        if duration is not None:
+            self.duration = duration
 
     def get_duration(self):
         """

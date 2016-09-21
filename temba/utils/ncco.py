@@ -38,21 +38,17 @@ class Response(object):
 
         if url:
             result['action'] = 'stream'
-            result['streamUrl'] = url
+            result['streamUrl'] = [url]
         self.document.append(result)
         return self
 
     def pause(self, **kwargs):
-        raise NCCOException('Not implemented yet')
         return self
 
     def redirect(self, url=None, **kwargs):
-        raise NCCOException('Not implemented yet')
-
         return self
 
     def hangup(self, **kwargs):
-        raise NCCOException('Not implemented yet')
         return self
 
     def reject(self, reason=None, **kwargs):
@@ -66,7 +62,7 @@ class Response(object):
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
             result['eventMethod'] = method
-            result['eventUrl'] = kwargs.get('action')
+            result['eventUrl'] = [kwargs.get('action')]
 
         result['submitOnHash'] = kwargs.get('finishOnKey', '#') == '#'
 
@@ -88,7 +84,7 @@ class Response(object):
         if kwargs.get('action', False):
             method = kwargs.get('method', 'post')
             result['eventMethod'] = method
-            result['eventUrl'] = kwargs.get('action')
+            result['eventUrl'] = [kwargs.get('action')]
 
         self.document.append(result)
         return self

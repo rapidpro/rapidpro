@@ -30,9 +30,9 @@ from phonenumbers import NumberParseException
 from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.temba_nexmo import NexmoClient
-from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
+from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID, NEXMO_APP_ID
 from temba.utils.email import send_template_email
-from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, voicexml
+from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, ncco
 from time import sleep
 
 from twilio import twiml
@@ -382,7 +382,9 @@ class Channel(TembaModel):
     @classmethod
     def add_nexmo_channel(cls, org, user, country, phone_number):
         client = org.get_nexmo_client()
-        org_uuid = org.config_json().get(NEXMO_UUID)
+        org_config = org.config_json()
+        org_uuid = org_config.get(NEXMO_UUID)
+        app_id = org_config.get(NEXMO_APP_ID)
 
         nexmo_phones = client.get_numbers(phone_number)
         is_shortcode = False
@@ -411,13 +413,10 @@ class Channel(TembaModel):
 
         channel_uuid = generate_uuid()
 
-        answer_url = reverse('handlers.nexmo_call_handler', args=['answer', channel_uuid])
-
         # update the delivery URLs for it
         from temba.settings import TEMBA_HOST
         try:
-            client.update_nexmo_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path),
-                                       'http://%s%s' % (TEMBA_HOST, answer_url))
+            client.update_nexmo_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path), app_id)
 
         except Exception as e:
             # shortcodes don't seem to claim right on nexmo, move forward anyways
@@ -709,7 +708,7 @@ class Channel(TembaModel):
         if self.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
             return twiml.Response()
         if self.channel_type in [Channel.TYPE_NEXMO]:
-            return voicexml.Response()
+            return ncco.Response()
         return None
 
     def get_ivr_client(self):

@@ -29,9 +29,9 @@ class IVRException(Exception):
 
 class NexmoClient(NexmoCli):
 
-    def __init__(self, api_key, api_secret, org=None):
+    def __init__(self, api_key, api_secret, app_id, app_private_key, org=None):
         self.org = org
-        super(NexmoClient, self).__init__(api_key=api_key, api_secret=api_secret)
+        NexmoCli.__init__(self, api_key, api_secret, app_id, app_private_key)
 
     def validate(self, request):
         return True
@@ -44,7 +44,7 @@ class NexmoClient(NexmoCli):
         params['answer_method'] = 'POST'
         params['to'] = [dict(type='phone', number=to.strip('+'))]
         params['from'] = dict(type='phone', number=from_.strip('+'))
-        params['event_url'] = url
+        params['event_url'] = ["%s?has_event=1" % url]
         params['event_method'] = "POST"
 
         try:
@@ -54,6 +54,46 @@ class NexmoClient(NexmoCli):
             call.save()
         except nexmo.Error as e:
             raise IVRException(_("Nexmo call failed, with error %s") % e.message)
+
+    def download_media(self, media_url):
+        """
+        Fetches the recording and stores it with the provided recording_id
+        :param media_url: the url where the media lives
+        :return: the url for our downloaded media with full content type prefix
+        """
+        attempts = 0
+        while attempts < 4:
+            response = self.download_recording(media_url)
+
+            # in some cases Twilio isn't ready for us to fetch the recording URL yet, if we get a 404
+            # sleep for a bit then try again up to 4 times
+            if response.status_code == 200:
+                break
+            else:
+                attempts += 1
+                time.sleep(.250)
+
+        disposition = response.headers.get('Content-Disposition', None)
+        content_type = response.headers.get('Content-Type', None)
+
+        if content_type:
+            extension = None
+            if disposition == 'inline':
+                extension = mimetypes.guess_extension(content_type)
+                extension = extension.strip('.')
+            elif disposition:
+                filename = re.findall("filename=\"(.+)\"", disposition)[0]
+                extension = filename.rpartition('.')[2]
+            elif content_type == 'audio/x-wav':
+                extension = 'wav'
+
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
+
+        return None
 
 
 class TwilioClient(TwilioRestClient):

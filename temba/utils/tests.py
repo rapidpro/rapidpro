@@ -982,7 +982,8 @@ class NCCOTest(TembaTest):
         response = ncco.Response()
         response.play(url='http://example.com/audio.wav')
 
-        self.assertEqual(json.loads(unicode(response)), [dict(action='stream', streamUrl='http://example.com/audio.wav')])
+        self.assertEqual(json.loads(unicode(response)), [dict(action='stream',
+                                                              streamUrl=['http://example.com/audio.wav'])])
 
     def test_pause(self):
         response = ncco.Response()
@@ -991,18 +992,15 @@ class NCCOTest(TembaTest):
 
     def test_redirect(self):
         response = ncco.Response()
-        with self.assertRaises(NCCOException):
-            response.redirect('http://example.com/')
+        response.redirect('http://example.com/')
 
     def test_hangup(self):
         response = ncco.Response()
-        with self.assertRaises(NCCOException):
-            response.hangup()
+        response.hangup()
 
     def test_reject(self):
         response = ncco.Response()
-        with self.assertRaises(NCCOException):
-            response.reject()
+        response.reject()
 
     def test_gather(self):
         response = ncco.Response()
@@ -1014,14 +1012,14 @@ class NCCOTest(TembaTest):
         response.gather(action='http://example.com')
 
         self.assertEqual(json.loads(unicode(response)), [dict(eventMethod='post', action='input', submitOnHash=True,
-                                                              eventUrl='http://example.com')])
+                                                              eventUrl=['http://example.com'])])
 
         response = ncco.Response()
         response.gather(action='http://example.com', numDigits=1, timeout=45, finishOnKey='*')
 
         self.assertEqual(json.loads(unicode(response)), [dict(maxDigits='1', eventMethod='post', action='input',
                                                               submitOnHash=False,
-                                                              eventUrl='http://example.com',
+                                                              eventUrl=['http://example.com'],
                                                               timeOut='45')])
 
     def test_record(self):
@@ -1035,6 +1033,6 @@ class NCCOTest(TembaTest):
         response.record(action="http://example.com", method="post", maxLength=60)
 
         self.assertEqual(json.loads(unicode(response)), [dict(format='wav', eventMethod='post',
-                                                              eventUrl='http://example.com',
+                                                              eventUrl=['http://example.com'],
                                                               endOnSilence='4', timeOut='60',
                                                               action='record', beepStart=True)])
