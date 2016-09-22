@@ -50,7 +50,7 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
     Processes a single incoming message through our queue.
     """
     r = get_redis_connection()
-    msg = Msg.current_messages.filter(pk=msg_id, status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
+    msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
 
     # somebody already handled this message, move on
     if not msg:
@@ -127,28 +127,28 @@ def collect_message_metrics_task():
     if not r.get(key):
         with r.lock(key, timeout=900):
             # current # of queued messages (excluding Android)
-            count = Msg.current_messages.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).\
+            count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).\
                 exclude(topup=None).exclude(channel__channel_type='A').exclude(next_attempt__gte=timezone.now()).count()
             analytics.gauge('temba.current_outgoing_queued', count)
 
             # current # of initializing messages (excluding Android)
-            count = Msg.current_messages.filter(direction=OUTGOING, status=INITIALIZING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+            count = Msg.objects.filter(direction=OUTGOING, status=INITIALIZING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
             analytics.gauge('temba.current_outgoing_initializing', count)
 
             # current # of pending messages (excluding Android)
-            count = Msg.current_messages.filter(direction=OUTGOING, status=PENDING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+            count = Msg.objects.filter(direction=OUTGOING, status=PENDING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
             analytics.gauge('temba.current_outgoing_pending', count)
 
             # current # of errored messages (excluding Android)
-            count = Msg.current_messages.filter(direction=OUTGOING, status=ERRORED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+            count = Msg.objects.filter(direction=OUTGOING, status=ERRORED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
             analytics.gauge('temba.current_outgoing_errored', count)
 
             # current # of android outgoing messages waiting to be sent
-            count = Msg.current_messages.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], channel__channel_type='A').exclude(channel=None).exclude(topup=None).count()
+            count = Msg.objects.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], channel__channel_type='A').exclude(channel=None).exclude(topup=None).count()
             analytics.gauge('temba.current_outgoing_android', count)
 
             # current # of pending incoming messages that haven't yet been handled
-            count = Msg.current_messages.filter(direction=INCOMING, status=PENDING).exclude(channel=None).count()
+            count = Msg.objects.filter(direction=INCOMING, status=PENDING).exclude(channel=None).count()
             analytics.gauge('temba.current_incoming_pending', count)
 
             # stuff into redis when we last run, we do this as a canary as to whether our tasks are falling behind or not running
@@ -188,7 +188,7 @@ def check_messages_task():
             handle_event_task.delay()
 
             # also check any incoming messages that are still pending somehow, reschedule them to be handled
-            unhandled_messages = Msg.current_messages.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
+            unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
             unhandled_messages = unhandled_messages.exclude(channel__org=None).exclude(contact__is_test=True)
             unhandled_count = unhandled_messages.count()
 
@@ -271,7 +271,11 @@ def purge_broadcasts_task():
             broadcasts = Broadcast.objects.filter(created_on__lt=purge_date, purged=False)
 
             for broadcast in broadcasts:
-                broadcast.msgs.filter(purged=False).update(purged=True)
+                # TODO actually delete messages!
+                #
+                # Need to also create Debit objects for topups associated with messages being deleted, and then
+                # regularly squash those.
+
                 broadcast.purged = True
                 broadcast.save(update_fields=['purged'])
 

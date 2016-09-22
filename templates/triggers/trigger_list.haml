@@ -139,7 +139,7 @@
                         -else
                           -trans "starts the"
                         %span.attn
-                          %a{href:'{%url "flows.flow_editor" obj.flow.pk%}'}= obj.flow
+                          %a{href:'{%url "flows.flow_editor" obj.flow.uuid %}'}= obj.flow
                         -trans "flow"
 
                         -if obj.groups.all

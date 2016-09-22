@@ -89,7 +89,7 @@ STATUS_CONFIG = (
     (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
     (RESENT, _("Resent message"), 'resent'),   # we retried this message
 
-    (INTERRUPTED, _("Interrupt message"), 'interrupted'),   # we retried this message
+    (INTERRUPTED, _("Interrupt message"), 'interrupted'),   # we were interrupted, ie, ussd termination
 )
 
 
@@ -465,12 +465,12 @@ class Broadcast(models.Model):
 
             # we commit our messages in batches
             if len(batch) >= BATCH_SIZE:
-                Msg.all_messages.bulk_create(batch)
+                Msg.objects.bulk_create(batch)
                 RelatedRecipient.objects.bulk_create(recipient_batch)
 
                 # send any messages
                 if trigger_send:
-                    self.org.trigger_send(Msg.current_messages.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
+                    self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
 
                     # increment our created on so we can load our next batch
                     created_on = created_on + timedelta(seconds=1)
@@ -480,11 +480,11 @@ class Broadcast(models.Model):
 
         # commit any remaining objects
         if batch:
-            Msg.all_messages.bulk_create(batch)
+            Msg.objects.bulk_create(batch)
             RelatedRecipient.objects.bulk_create(recipient_batch)
 
             if trigger_send:
-                self.org.trigger_send(Msg.current_messages.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
+                self.org.trigger_send(Msg.objects.filter(broadcast=self, created_on=created_on).select_related('contact', 'contact_urn', 'channel'))
 
         # for large batches, status is handled externally
         # we do this as with the high concurrency of sending we can run into postgresl deadlocks
@@ -531,11 +531,6 @@ class Broadcast(models.Model):
 
     def __unicode__(self):
         return "%s (%s)" % (self.org.name, self.pk)
-
-
-class CurrentMessagesManager(models.Manager):
-    def get_queryset(self):
-        return super(CurrentMessagesManager, self).get_queryset().filter(purged=False)
 
 
 class Msg(models.Model):
@@ -663,15 +658,6 @@ class Msg(models.Model):
     media = models.URLField(null=True, blank=True, max_length=255,
                             help_text=_("The media associated with this message if any"))
 
-    purged = models.NullBooleanField(default=False,
-                                     help_text="If this message has been purged")
-
-    all_messages = models.Manager()
-    current_messages = models.Manager()
-
-    # TODO: once migration is complete
-    # current_messages = CurrentMessagesManager()
-
     @classmethod
     def send_messages(cls, all_msgs):
         """
@@ -695,11 +681,11 @@ class Msg(models.Model):
                 queued_on = timezone.now()
 
                 # update them to queued
-                send_messages = Msg.current_messages.filter(id__in=msg_ids)\
-                                                    .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
-                                                    .exclude(msg_type=IVR)\
-                                                    .exclude(topup=None)\
-                                                    .exclude(contact__is_test=True)
+                send_messages = Msg.objects.filter(id__in=msg_ids)\
+                                           .exclude(channel__channel_type=Channel.TYPE_ANDROID)\
+                                           .exclude(msg_type=IVR)\
+                                           .exclude(topup=None)\
+                                           .exclude(contact__is_test=True)
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
                 # now push each onto our queue
@@ -783,7 +769,7 @@ class Msg(models.Model):
 
     @classmethod
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
-        messages = Msg.all_messages.filter(org=org)
+        messages = Msg.objects.filter(org=org)
 
         if is_archived:
             messages = messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)
@@ -805,8 +791,8 @@ class Msg(models.Model):
         probably be confusing to go out.
         """
         one_week_ago = timezone.now() - timedelta(days=7)
-        failed_messages = Msg.current_messages.filter(created_on__lte=one_week_ago, direction=OUTGOING,
-                                                      status__in=[QUEUED, PENDING, ERRORED])
+        failed_messages = Msg.objects.filter(created_on__lte=one_week_ago, direction=OUTGOING,
+                                             status__in=[QUEUED, PENDING, ERRORED])
 
         failed_broadcasts = list(failed_messages.order_by('broadcast').values('broadcast').distinct())
 
@@ -825,9 +811,9 @@ class Msg(models.Model):
         unread_count = cache.get(key, None)
 
         if unread_count is None:
-            unread_count = Msg.current_messages.filter(org=org, visibility=Msg.VISIBILITY_VISIBLE, direction=INCOMING,
-                                                       msg_type=INBOX, contact__is_test=False,
-                                                       created_on__gt=org.msg_last_viewed, labels=None).count()
+            unread_count = Msg.objects.filter(org=org, visibility=Msg.VISIBILITY_VISIBLE, direction=INCOMING,
+                                              msg_type=INBOX, contact__is_test=False,
+                                              created_on__gt=org.msg_last_viewed, labels=None).count()
             cache.set(key, unread_count, 900)
 
         return unread_count
@@ -861,7 +847,7 @@ class Msg(models.Model):
             if isinstance(msg, Msg):
                 msg.fail()
             else:
-                Msg.current_messages.select_related('org').get(pk=msg.id).fail()
+                Msg.objects.select_related('org').get(pk=msg.id).fail()
 
             if channel:
                 analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
@@ -873,8 +859,8 @@ class Msg(models.Model):
             if isinstance(msg, Msg):
                 msg.save(update_fields=('status', 'modified_on', 'next_attempt', 'error_count'))
             else:
-                Msg.all_messages.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt,
-                                                          error_count=msg.error_count, modified_on=msg.modified_on)
+                Msg.objects.filter(id=msg.id).update(status=msg.status, next_attempt=msg.next_attempt,
+                                                     error_count=msg.error_count, modified_on=msg.modified_on)
 
             # clear that we tried to send this message (otherwise we'll ignore it when we retry)
             pipe = r.pipeline()
@@ -904,9 +890,9 @@ class Msg(models.Model):
         pipe.execute()
 
         if external_id:
-            Msg.current_messages.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
+            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
         else:
-            Msg.current_messages.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
+            Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
 
         # record our latency between the message being created and it being sent
         # (this will have some db latency but will still be a good measure in the second-range)
@@ -980,7 +966,7 @@ class Msg(models.Model):
         current_msg = None
         contact_id_pairs = []
 
-        ordered_msgs = Msg.all_messages.filter(id__in=[m.id for m in msgs]).order_by('created_on')
+        ordered_msgs = Msg.objects.filter(id__in=[m.id for m in msgs]).order_by('created_on')
 
         for msg in ordered_msgs:
             if msg.text != current_msg and contact_id_pairs:
@@ -1111,18 +1097,18 @@ class Msg(models.Model):
         # see if we should use a new channel
         channel = self.org.get_send_channel(contact_urn=self.contact_urn)
 
-        cloned = Msg.all_messages.create(org=self.org,
-                                         channel=channel,
-                                         contact=self.contact,
-                                         contact_urn=self.contact_urn,
-                                         created_on=now,
-                                         modified_on=now,
-                                         text=self.text,
-                                         response_to=self.response_to,
-                                         direction=self.direction,
-                                         topup_id=topup_id,
-                                         status=PENDING,
-                                         broadcast=self.broadcast)
+        cloned = Msg.objects.create(org=self.org,
+                                    channel=channel,
+                                    contact=self.contact,
+                                    contact_urn=self.contact_urn,
+                                    created_on=now,
+                                    modified_on=now,
+                                    text=self.text,
+                                    response_to=self.response_to,
+                                    direction=self.direction,
+                                    topup_id=topup_id,
+                                    status=PENDING,
+                                    broadcast=self.broadcast)
 
         # mark ourselves as resent
         self.status = RESENT
@@ -1144,13 +1130,9 @@ class Msg(models.Model):
         steps = list(self.steps.all())  # steps may have been pre-fetched
         return steps[0] if steps else None
 
-    def get_flow_id(self):
+    def get_flow(self):
         step = self.get_flow_step()
-        return step.run.flow_id if step else None
-
-    def get_flow_name(self):
-        step = self.get_flow_step()
-        return step.run.flow.name if step else ""
+        return step.run.flow if step else None
 
     def as_task_json(self):
         """
@@ -1199,7 +1181,7 @@ class Msg(models.Model):
         if contact_urn:
             contact_urn.update_affinity(channel)
 
-        existing = Msg.all_messages.filter(text=text, created_on=date, contact=contact, direction='I').first()
+        existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:
             return existing
 
@@ -1234,7 +1216,7 @@ class Msg(models.Model):
         if status == INTERRUPTED:
             msg = Msg(**msg_args)
         else:
-            msg = Msg.all_messages.create(**msg_args)
+            msg = Msg.objects.create(**msg_args)
 
         # if this contact is currently stopped, unstop them
         if contact.is_stopped:
@@ -1345,13 +1327,13 @@ class Msg(models.Model):
         if insert_object:
             # prevent the loop of message while the sending phone is the channel
             # get all messages with same text going to same number
-            same_msgs = Msg.current_messages.filter(contact_urn=contact_urn,
-                                                    contact__is_test=False,
-                                                    channel=channel,
-                                                    media=media,
-                                                    text=text,
-                                                    direction=OUTGOING,
-                                                    created_on__gte=created_on - timedelta(minutes=10))
+            same_msgs = Msg.objects.filter(contact_urn=contact_urn,
+                                           contact__is_test=False,
+                                           channel=channel,
+                                           media=media,
+                                           text=text,
+                                           direction=OUTGOING,
+                                           created_on__gte=created_on - timedelta(minutes=10))
 
             # we aren't considered with robo detection on calls
             same_msg_count = same_msgs.exclude(msg_type=IVR).count()
@@ -1364,12 +1346,12 @@ class Msg(models.Model):
             # we don't want machines talking to each other
             tel = contact.raw_tel()
             if tel and len(tel) < 6:
-                same_msg_count = Msg.current_messages.filter(contact_urn=contact_urn,
-                                                             contact__is_test=False,
-                                                             channel=channel,
-                                                             text=text,
-                                                             direction=OUTGOING,
-                                                             created_on__gte=created_on - timedelta(hours=24)).count()
+                same_msg_count = Msg.objects.filter(contact_urn=contact_urn,
+                                                    contact__is_test=False,
+                                                    channel=channel,
+                                                    text=text,
+                                                    direction=OUTGOING,
+                                                    created_on__gte=created_on - timedelta(hours=24)).count()
                 if same_msg_count >= 10:
                     analytics.gauge('temba.msg_shortcode_loop_caught')
                     return None
@@ -1406,7 +1388,7 @@ class Msg(models.Model):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        return Msg.all_messages.create(**msg_args) if insert_object else Msg(**msg_args)
+        return Msg.objects.create(**msg_args) if insert_object else Msg(**msg_args)
 
     @staticmethod
     def resolve_recipient(org, user, recipient, channel, role=Channel.ROLE_SEND):
@@ -1490,13 +1472,13 @@ class Msg(models.Model):
         """
         Archives all incoming messages for the given contacts
         """
-        msgs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, contact__in=contacts)
+        msgs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, contact__in=contacts)
         msg_ids = list(msgs.values_list('pk', flat=True))
 
         # update modified on in small batches to avoid long table lock, and having too many non-unique values for
         # modified_on which is the primary ordering for the API
         for batch in chunk_list(msg_ids, 100):
-            Msg.all_messages.filter(pk__in=batch).update(visibility=Msg.VISIBILITY_ARCHIVED, modified_on=timezone.now())
+            Msg.objects.filter(pk__in=batch).update(visibility=Msg.VISIBILITY_ARCHIVED, modified_on=timezone.now())
 
     def restore(self):
         """
@@ -1620,8 +1602,6 @@ class SystemLabel(models.Model):
         start = time.time()
         squash_count = 0
         for count in SystemLabel.objects.filter(id__gt=last_squash).order_by('org_id', 'label_type').distinct('org_id', 'label_type'):
-            print "Squashing: %d %s" % (count.org_id, count.label_type)
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_systemlabel(%s, %s);", (count.org_id, count.label_type))
@@ -1653,17 +1633,17 @@ class SystemLabel(models.Model):
         """
         # TODO: (Indexing) Sent and Failed require full message history
         if label_type == cls.TYPE_INBOX:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=INBOX)
+            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=INBOX)
         elif label_type == cls.TYPE_FLOWS:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW)
+            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_VISIBLE, msg_type=FLOW)
         elif label_type == cls.TYPE_ARCHIVED:
-            qs = Msg.all_messages.filter(direction=INCOMING, visibility=Msg.VISIBILITY_ARCHIVED)
+            qs = Msg.objects.filter(direction=INCOMING, visibility=Msg.VISIBILITY_ARCHIVED)
         elif label_type == cls.TYPE_OUTBOX:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED))
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(PENDING, QUEUED))
         elif label_type == cls.TYPE_SENT:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED))
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status__in=(WIRED, SENT, DELIVERED))
         elif label_type == cls.TYPE_FAILED:
-            qs = Msg.all_messages.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
+            qs = Msg.objects.filter(direction=OUTGOING, visibility=Msg.VISIBILITY_VISIBLE, status=FAILED)
         elif label_type == cls.TYPE_SCHEDULED:
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
@@ -1822,7 +1802,7 @@ class Label(TembaModel):
 
     def get_messages(self):
         # TODO: consider purpose built indexes
-        return self.filter_messages(Msg.all_messages.all())
+        return self.filter_messages(Msg.objects.all())
 
     def get_visible_count(self):
         """
@@ -1862,12 +1842,15 @@ class Label(TembaModel):
                     changed.add(msg.pk)
 
         # update modified on all our changed msgs
-        Msg.all_messages.filter(id__in=changed).update(modified_on=timezone.now())
+        Msg.objects.filter(id__in=changed).update(modified_on=timezone.now())
 
         return changed
 
     def is_folder(self):
         return self.label_type == Label.TYPE_FOLDER
+
+    def release(self):
+        self.delete()
 
     def __unicode__(self):
         if self.folder:
@@ -1892,7 +1875,7 @@ class MsgIterator(object):
 
     def _setup(self):
         for i in xrange(0, len(self._ids), self.max_obj_num):
-            chunk_queryset = Msg.all_messages.filter(id__in=self._ids[i:i + self.max_obj_num])
+            chunk_queryset = Msg.objects.filter(id__in=self._ids[i:i + self.max_obj_num])
 
             if self._order_by:
                 chunk_queryset = chunk_queryset.order_by(*self._order_by)
@@ -2016,7 +1999,7 @@ class ExportMessagesTask(SmartModel):
             if self.org.is_anon:
                 urn_path = msg.contact.anon_identifier
             elif msg.contact_urn:
-                urn_path = msg.contact_urn.get_display(org=self.org, full=True)
+                urn_path = msg.contact_urn.get_display(org=self.org, formatted=False)
             else:
                 urn_path = ''
 

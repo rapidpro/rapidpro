@@ -508,7 +508,8 @@ class Flow(TembaModel):
 
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
-                        triggered_start=False, resume_parent_run=False, resume_after_timeout=False):
+                        triggered_start=False, resume_parent_run=False,
+                        resume_after_timeout=False, user_input=True):
 
         if started_flows is None:
             started_flows = []
@@ -525,7 +526,7 @@ class Flow(TembaModel):
                 continue
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
-                                                      user_input=True, triggered_start=triggered_start,
+                                                      user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
                                                       resume_after_timeout=resume_after_timeout)
 
@@ -565,7 +566,7 @@ class Flow(TembaModel):
                 should_pause = False
 
                 # check if we need to stop
-                if destination.is_pause() or msg.status == HANDLED:
+                if destination.is_pause():
                     should_pause = True
 
                 if triggered_start and destination.is_ussd():
@@ -1436,6 +1437,9 @@ class Flow(TembaModel):
         ancestor_ids = []
         ancestor = parent_run
         while ancestor:
+            # we don't consider it an ancestor if it's not current in our start list
+            if ancestor.contact.id not in all_contact_ids:
+                break
             ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
@@ -1642,7 +1646,7 @@ class Flow(TembaModel):
                                partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.current_messages.filter(broadcast=broadcast, created_on=created_on):
+                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:
@@ -1717,7 +1721,7 @@ class Flow(TembaModel):
         if msgs:
             # then send them off
             msgs.sort(key=lambda message: (message.contact_id, message.created_on))
-            Msg.all_messages.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
 
             # trigger a sync
             self.org.trigger_send(msgs)
@@ -2543,10 +2547,9 @@ class FlowRun(models.Model):
 
     def get_last_msg(self, direction):
         """
-        Returns the last incoming msg on this run, or an empty dummy message if there is none
+        Returns the last incoming msg on this run
         """
-        msg = Msg.all_messages.filter(steps__run=self, direction=direction).order_by('-created_on').first()
-        return msg
+        return Msg.objects.filter(steps__run=self, direction=direction).order_by('-created_on').first()
 
     @classmethod
     def continue_parent_flow_runs(cls, runs):
@@ -2572,7 +2575,7 @@ class FlowRun(models.Model):
                         msg.contact = run.contact
 
                     # finally, trigger our parent flow
-                    Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
+                    Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
     def resume_after_timeout(self):
         """
@@ -2647,8 +2650,12 @@ class FlowRun(models.Model):
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         # let our parent know we finished
-        from .tasks import continue_parent_flows
-        continue_parent_flows.delay([self.pk])
+        if self.contact.is_test:
+            # test contacts should operate in same thread
+            FlowRun.continue_parent_flow_runs(FlowRun.objects.filter(id=self.id))
+        else:
+            from .tasks import continue_parent_flows
+            continue_parent_flows.delay([self.id])
 
     def set_interrupted(self, final_step=None):
         """
@@ -2840,14 +2847,14 @@ class FlowStep(models.Model):
                                                    media=media, msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:
-                incoming = Msg.current_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+                incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             if incoming:
                 msgs.append(incoming)
         else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
-            last_incoming = Msg.all_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+            last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
                 msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)
@@ -3587,8 +3594,6 @@ class FlowRunCount(models.Model):
         start = time.time()
         squash_count = 0
         for count in FlowRunCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
-            print "Squashing: %d %s" % (count.flow_id, count.exit_type)
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
@@ -3879,7 +3884,7 @@ class ExportFlowResultsTask(SmartModel):
             urn_display = urn_display_cache.get(contact.pk)
             if urn_display:
                 return urn_display
-            urn_display = contact.get_urn_display(org=org, full=True)
+            urn_display = contact.get_urn_display(org=org, formatted=False)
             urn_display_cache[contact.pk] = urn_display
             return urn_display
 
@@ -4064,7 +4069,7 @@ class ExportFlowResultsTask(SmartModel):
                         msgs.col(5).width = large_width
                         msgs.col(6).width = small_width
 
-                    msg_urn_display = msg.contact_urn.get_display(org=org, full=True) if msg.contact_urn else ''
+                    msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
                     channel_name = msg.channel.name if msg.channel else ''
 
                     msgs.write(msg_row, 0, run_step.contact.uuid)
@@ -5053,7 +5058,7 @@ class TriggerFlowAction(VariableContactAction):
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
                 self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
-                                extra=extra, parent_run=run, interrupt=False)
+                                extra=extra, parent_run=run)
                 return []
             else:
                 unique_contacts = set()
@@ -5338,7 +5343,11 @@ class SetChannelAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         # if we found the channel to set
         if self.channel:
-            run.contact.set_preferred_channel(self.channel)
+
+            # don't set preferred channel for test contacts
+            if not run.contact.is_test:
+                run.contact.set_preferred_channel(self.channel)
+
             self.log(run, _("Updated preferred channel to %s") % self.channel.name)
             return []
         else:
@@ -5536,6 +5545,7 @@ class Test(object):
                 TimeoutTest.TYPE: TimeoutTest,
                 AirtimeStatusTest.TYPE: AirtimeStatusTest,
                 WebhookStatusTest.TYPE: WebhookStatusTest,
+                InGroupTest.TYPE: InGroupTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -5623,6 +5633,34 @@ class AirtimeStatusTest(Test):
         status = text
         if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
             return 1, status
+        return 0, None
+
+
+class InGroupTest(Test):
+    """
+    { op: "in_group" }
+    """
+    TYPE = 'in_group'
+    NAME = 'name'
+    UUID = 'uuid'
+    TEST = 'test'
+
+    def __init__(self, group):
+        self.group = group
+
+    @classmethod
+    def from_json(cls, org, json):
+        group = json.get(InGroupTest.TEST)
+        name = group.get(InGroupTest.NAME)
+        uuid = group.get(InGroupTest.UUID)
+        return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid))
+
+    def as_json(self):
+        return dict(type=InGroupTest.TYPE, name=self.group.name, uuid=self.group.uuid)
+
+    def evaluate(self, run, sms, context, text):
+        if run.contact.user_groups.filter(id=self.group.id).first():
+            return 1, self.group.name
         return 0, None
 
 
