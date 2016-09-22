@@ -3729,7 +3729,7 @@ class ExportFlowResultsTask(SmartModel):
 
         def as_org_tz(dt):
             if dt:
-                return dt.astimezone(org_tz).replace(tzinfo=None)
+                return dt.astimezone(org_tz).replace(tzinfo=None, microsecond=0)
             else:
                 return None
 
@@ -3899,7 +3899,7 @@ class ExportFlowResultsTask(SmartModel):
 
                 # a new contact
                 if last_contact != run_step.contact.pk:
-                    merged_earliest = run_step.arrived_on.replace(microsecond=0)
+                    merged_earliest = run_step.arrived_on
                     merged_latest = None
 
                     merged_row += 1
@@ -3912,7 +3912,7 @@ class ExportFlowResultsTask(SmartModel):
 
                 # a new run
                 if last_run != run_step.run.pk:
-                    earliest = run_step.arrived_on.replace(microsecond=0)
+                    earliest = run_step.arrived_on
                     latest = None
 
                     if include_runs:
@@ -3975,10 +3975,10 @@ class ExportFlowResultsTask(SmartModel):
                         cf_padding += 1
 
                 if not latest or latest < run_step.arrived_on:
-                    latest = run_step.arrived_on.replace(microsecond=0)
+                    latest = run_step.arrived_on
 
                 if not merged_latest or merged_latest < run_step.arrived_on:
-                    merged_latest = run_step.arrived_on.replace(microsecond=0)
+                    merged_latest = run_step.arrived_on
 
                 if include_runs:
                     runs.cell(row=run_row, column=padding + 4 + cf_padding, value=as_org_tz(earliest))
@@ -4044,7 +4044,7 @@ class ExportFlowResultsTask(SmartModel):
                     msgs.cell(row=msg_row, column=1, value=run_step.contact.uuid)
                     msgs.cell(row=msg_row, column=2, value=msg_urn_display)
                     msgs.cell(row=msg_row, column=3, value=run_step.contact.name)
-                    msgs.cell(row=msg_row, column=4, value=as_org_tz(msg.created_on.replace(microsecond=0)))
+                    msgs.cell(row=msg_row, column=4, value=as_org_tz(msg.created_on))
                     msgs.cell(row=msg_row, column=5, value="IN" if msg.direction == INCOMING else "OUT")
                     msgs.cell(row=msg_row, column=6, value=msg.text)
                     msgs.cell(row=msg_row, column=7, value=channel_name)
