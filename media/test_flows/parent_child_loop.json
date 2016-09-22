@@ -9,28 +9,75 @@
         {
           "y": 0, 
           "x": 100, 
-          "destination": null, 
-          "uuid": "cd51f968-bb1d-4745-9c64-56baf5306186", 
+          "destination": "53132fb7-68ec-4a63-9b0f-0c8ce898d0cc", 
+          "uuid": "24027d2a-7ea7-4ab2-9f3b-d6d9f71fad4b", 
           "actions": [
             {
               "msg": {
-                "eng": "Hey you, you are the child."
+                "eng": "what is your name?"
               }, 
               "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 250, 
+          "x": 364, 
+          "destination": null, 
+          "uuid": "9cf15122-6638-4f44-88e9-66d52e7cf6c4", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Thanks for your message."
+              }, 
+              "type": "reply"
+            }, 
+            {
+              "type": "flow", 
+              "flow": {
+                "name": "Parent Flow", 
+                "uuid": "823ef124-809c-4b99-89f0-a351595258c6"
+              }
             }
           ]
         }
       ], 
       "version": 10, 
       "flow_type": "F", 
-      "entry": "cd51f968-bb1d-4745-9c64-56baf5306186", 
-      "rule_sets": [], 
+      "entry": "24027d2a-7ea7-4ab2-9f3b-d6d9f71fad4b", 
+      "rule_sets": [
+        {
+          "uuid": "53132fb7-68ec-4a63-9b0f-0c8ce898d0cc", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "9cf15122-6638-4f44-88e9-66d52e7cf6c4", 
+              "uuid": "dd60f655-c4f8-445c-8541-d3370622858e", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Name", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 117, 
+          "x": 288, 
+          "config": {}
+        }
+      ], 
       "metadata": {
         "expires": 10080, 
-        "revision": 1, 
-        "uuid": "98b28375-0de5-41a1-a609-ba6b2ec42454", 
+        "revision": 19, 
+        "uuid": "6af6bf81-44fb-4e0b-952f-7c2b697c9d4b", 
         "name": "Child Flow", 
-        "saved_on": "2016-09-01T16:46:41.947365Z"
+        "saved_on": "2016-09-13T18:53:17.036840Z"
       }
     }, 
     {
@@ -39,8 +86,8 @@
         {
           "y": 0, 
           "x": 621, 
-          "destination": "c851accb-718e-4df7-bb03-62c54b8ccae2", 
-          "uuid": "5bf5bd68-0489-45d0-9376-5f7c1597b4d2", 
+          "destination": "b3b33148-2213-43d1-817c-3695c46e2126", 
+          "uuid": "301b2f1f-3e8c-4ad3-b14d-ca1e519c7b3a", 
           "actions": [
             {
               "msg": {
@@ -53,8 +100,8 @@
         {
           "y": 507, 
           "x": 214, 
-          "destination": "5bf5bd68-0489-45d0-9376-5f7c1597b4d2", 
-          "uuid": "7c565498-e08c-44c2-8957-0097062b0e64", 
+          "destination": "301b2f1f-3e8c-4ad3-b14d-ca1e519c7b3a", 
+          "uuid": "9d7d709c-7a5a-4da2-8338-4003b0da71a4", 
           "actions": [
             {
               "type": "trigger-flow", 
@@ -65,7 +112,7 @@
               ], 
               "flow": {
                 "name": "Child Flow", 
-                "uuid": "98b28375-0de5-41a1-a609-ba6b2ec42454"
+                "uuid": "6af6bf81-44fb-4e0b-952f-7c2b697c9d4b"
               }, 
               "groups": [], 
               "contacts": []
@@ -75,10 +122,10 @@
       ], 
       "version": 10, 
       "flow_type": "F", 
-      "entry": "5bf5bd68-0489-45d0-9376-5f7c1597b4d2", 
+      "entry": "301b2f1f-3e8c-4ad3-b14d-ca1e519c7b3a", 
       "rule_sets": [
         {
-          "uuid": "c851accb-718e-4df7-bb03-62c54b8ccae2", 
+          "uuid": "b3b33148-2213-43d1-817c-3695c46e2126", 
           "rules": [
             {
               "test": {
@@ -90,8 +137,8 @@
               "category": {
                 "eng": "Add"
               }, 
-              "destination": "3c72a17f-6465-4d5a-a787-790f2eaf4ffb", 
-              "uuid": "6448281f-7cb2-4179-80a8-7dd98adb348a", 
+              "destination": "a88c7746-fcf6-42eb-beb8-eae9e7e32913", 
+              "uuid": "abb36cb5-7b31-4027-806c-1bd473ee4055", 
               "destination_type": "R"
             }, 
             {
@@ -102,8 +149,8 @@
               "category": {
                 "eng": "Other"
               }, 
-              "destination": "5bf5bd68-0489-45d0-9376-5f7c1597b4d2", 
-              "uuid": "0a57a48a-482a-4a00-a4ce-3183a1c8d861", 
+              "destination": "301b2f1f-3e8c-4ad3-b14d-ca1e519c7b3a", 
+              "uuid": "127d59c3-1f85-4eef-a114-80fd8a21c4f8", 
               "destination_type": "A"
             }
           ], 
@@ -117,7 +164,7 @@
           "config": {}
         }, 
         {
-          "uuid": "3c72a17f-6465-4d5a-a787-790f2eaf4ffb", 
+          "uuid": "a88c7746-fcf6-42eb-beb8-eae9e7e32913", 
           "rules": [
             {
               "test": {
@@ -127,8 +174,8 @@
               "category": {
                 "eng": "All Responses"
               }, 
-              "destination": "7c565498-e08c-44c2-8957-0097062b0e64", 
-              "uuid": "7002ae90-d73d-4189-8502-4fa67f9c9f32", 
+              "destination": "9d7d709c-7a5a-4da2-8338-4003b0da71a4", 
+              "uuid": "ee7592f3-1369-4b69-8380-1f2b3a1a6e4b", 
               "destination_type": "A"
             }
           ], 
@@ -144,10 +191,10 @@
       ], 
       "metadata": {
         "expires": 10080, 
-        "revision": 14, 
-        "uuid": "a85fcfc1-417b-4e1f-97f4-742b933e75cb", 
+        "revision": 21, 
+        "uuid": "823ef124-809c-4b99-89f0-a351595258c6", 
         "name": "Parent Flow", 
-        "saved_on": "2016-09-01T16:48:51.416060Z"
+        "saved_on": "2016-09-13T18:51:39.977178Z"
       }
     }
   ], 
@@ -156,7 +203,17 @@
       "trigger_type": "K", 
       "flow": {
         "name": "Parent Flow", 
-        "uuid": "a85fcfc1-417b-4e1f-97f4-742b933e75cb"
+        "uuid": "823ef124-809c-4b99-89f0-a351595258c6"
+      }, 
+      "groups": [], 
+      "keyword": "test", 
+      "channel": null
+    }, 
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Parent Flow", 
+        "uuid": "823ef124-809c-4b99-89f0-a351595258c6"
       }, 
       "groups": [], 
       "keyword": "weird", 

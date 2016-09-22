@@ -252,7 +252,7 @@ class MsgBulkActionSerializer(WriteSerializer):
         action = self.validated_data['action']
 
         # fetch messages to be modified
-        msgs = Msg.current_messages.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).exclude(visibility=Msg.VISIBILITY_DELETED)
+        msgs = Msg.objects.filter(org=self.org, direction=INCOMING, pk__in=msg_ids).exclude(visibility=Msg.VISIBILITY_DELETED)
         msgs = msgs.select_related('contact')
 
         if action == 'label':
@@ -375,7 +375,7 @@ class ContactReadSerializer(ReadSerializer):
         return fields
 
     def get_tel(self, obj):
-        return obj.get_urn_display(obj.org, scheme=TEL_SCHEME, full=True) if obj.is_active else None
+        return obj.get_urn_display(obj.org, scheme=TEL_SCHEME, formatted=False) if obj.is_active else None
 
     class Meta:
         model = Contact
@@ -425,7 +425,9 @@ class ContactWriteSerializer(WriteSerializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn)
-                    if not URN.validate(normalized):
+                    scheme, path = URN.to_parts(normalized)
+                    # for backwards compatibility we don't validate phone numbers here
+                    if scheme != TEL_SCHEME and not URN.validate(normalized):
                         raise ValueError()
                 except ValueError:
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
@@ -439,6 +441,8 @@ class ContactWriteSerializer(WriteSerializer):
             org_fields = self.context['contact_fields']
 
             for field_key, field_val in value.items():
+                if field_key in Contact.RESERVED_FIELDS:
+                    raise serializers.ValidationError("Invalid contact field key: '%s' is a reserved word" % field_key)
                 for field in org_fields:
                     # TODO get users to stop writing fields via labels
                     if field.key == field_key or field.label == field_key:
@@ -483,8 +487,11 @@ class ContactWriteSerializer(WriteSerializer):
         if self.parsed_urns is not None:
             # look up these URNs, keeping track of the contacts that are connected to them
             urn_contacts = set()
+            country = self.org.get_country_code()
+
             for parsed_urn in self.parsed_urns:
-                urn = ContactURN.objects.filter(org=self.org, urn__exact=parsed_urn).first()
+                normalized_urn = URN.normalize(parsed_urn, country)
+                urn = ContactURN.objects.filter(org=self.org, urn__exact=normalized_urn).first()
                 if urn and urn.contact:
                     urn_contacts.add(urn.contact)
 
@@ -1701,7 +1708,7 @@ class ChannelEventSerializer(ReadSerializer):
         return obj.contact.uuid
 
     def get_phone(self, obj):
-        return obj.contact.get_urn_display(org=obj.org, scheme=TEL_SCHEME, full=True)
+        return obj.contact.get_urn_display(org=obj.org, scheme=TEL_SCHEME, formatted=False)
 
     def get_call(self, obj):
         return obj.pk

@@ -116,7 +116,7 @@
 
               -elif evt.event_type == 'F'
                 -trans "Start"
-                %a.href{ href: "{% url 'flows.flow_editor' evt.flow_id %}" }= evt.flow_name
+                %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
           %td.created_on
             {{evt.scheduled}}
 

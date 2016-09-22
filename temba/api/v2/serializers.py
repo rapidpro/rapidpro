@@ -394,6 +394,37 @@ class ContactGroupReadSerializer(ReadSerializer):
         fields = ('uuid', 'name', 'query', 'count')
 
 
+class ContactGroupWriteSerializer(WriteSerializer):
+    uuid = fields.ContactGroupField(required=False)
+    name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN)
+
+    def validate_name(self, value):
+        if not ContactGroup.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
+                                              % ContactGroup.MAX_NAME_LEN)
+        return value
+
+    def validate(self, data):
+        instance = data.get('uuid')
+        name = data.get('name')
+
+        if not instance and ContactGroup.user_groups.filter(org=self.context['org'], name=name).exists():
+            raise serializers.ValidationError("Name must be unique")
+
+        return data
+
+    def save(self):
+        instance = self.validated_data.get('uuid')
+        name = self.validated_data.get('name')
+
+        if instance:
+            instance.name = name
+            instance.save(update_fields=('name',))
+            return instance
+        else:
+            return ContactGroup.get_or_create(self.context['org'], self.context['user'], name)
+
+
 class FlowReadSerializer(ReadSerializer):
     archived = serializers.ReadOnlyField(source='is_archived')
     labels = serializers.SerializerMethodField()
@@ -504,6 +535,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     urns = fields.URNListField(required=False)
+    restart_participants = serializers.BooleanField(required=False)
     extra = serializers.JSONField(required=False)
 
     def validate_extra(self, value):
@@ -524,6 +556,8 @@ class FlowStartWriteSerializer(WriteSerializer):
         urns = self.validated_data.get('urns', [])
         contacts = self.validated_data.get('contacts', [])
         groups = self.validated_data.get('groups', [])
+        restart_participants = self.validated_data.get('restart_participants', True)
+        extra = self.validated_data.get('extra')
 
         # convert URNs to contacts
         for urn in urns:
@@ -531,16 +565,9 @@ class FlowStartWriteSerializer(WriteSerializer):
             contacts.append(contact)
 
         # ok, let's go create our flow start, the actual starting will happen in our view
-        start = FlowStart.create(self.validated_data['flow'], self.context['user'],
-                                 restart_participants=self.validated_data.get('restart_participants', True),
-                                 contacts=contacts, groups=groups,
-                                 extra=self.validated_data.get('extra', None))
-
-        return start
-
-    class Meta:
-        model = FlowStart
-        fields = ('flow', 'contacts', 'groups', 'urns', 'extra')
+        return FlowStart.create(self.validated_data['flow'], self.context['user'],
+                                restart_participants=restart_participants,
+                                contacts=contacts, groups=groups, extra=extra)
 
 
 class LabelReadSerializer(ReadSerializer):
@@ -552,6 +579,37 @@ class LabelReadSerializer(ReadSerializer):
     class Meta:
         model = Label
         fields = ('uuid', 'name', 'count')
+
+
+class LabelWriteSerializer(WriteSerializer):
+    uuid = fields.LabelField(required=False)
+    name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN)
+
+    def validate_name(self, value):
+        if not Label.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
+                                              % Label.MAX_NAME_LEN)
+        return value
+
+    def validate(self, data):
+        instance = data.get('uuid')
+        name = data.get('name')
+
+        if not instance and Label.label_objects.filter(org=self.context['org'], name=name).exists():
+            raise serializers.ValidationError("Name must be unique")
+
+        return data
+
+    def save(self):
+        instance = self.validated_data.get('uuid')
+        name = self.validated_data.get('name')
+
+        if instance:
+            instance.name = name
+            instance.save(update_fields=('name',))
+            return instance
+        else:
+            return Label.get_or_create(self.context['org'], self.context['user'], name)
 
 
 class MsgReadSerializer(ReadSerializer):
@@ -576,7 +634,7 @@ class MsgReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
     visibility = serializers.SerializerMethodField()
-    labels = serializers.SerializerMethodField()
+    labels = fields.LabelField(many=True)
 
     def get_broadcast(self, obj):
         return obj.broadcast_id
@@ -597,9 +655,6 @@ class MsgReadSerializer(ReadSerializer):
     def get_visibility(self, obj):
         return self.VISIBILITIES.get(obj.visibility)
 
-    def get_labels(self, obj):
-        return [{'uuid': l.uuid, 'name': l.name} for l in obj.labels.all()]
-
     class Meta:
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
@@ -619,7 +674,7 @@ class ResthookReadSerializer(ReadSerializer):
 
 
 class ResthookSubscriberReadSerializer(ReadSerializer):
-    resthook = serializers.SlugField()
+    resthook = serializers.SerializerMethodField()
 
     def get_resthook(self, obj):
         return obj.resthook.slug
@@ -630,22 +685,18 @@ class ResthookSubscriberReadSerializer(ReadSerializer):
 
 
 class ResthookSubscriberWriteSerializer(WriteSerializer):
-    resthook = serializers.SlugField()
-    target_url = serializers.URLField()
-
-    def get_resthook(self, slug):
-        return Resthook.objects.filter(is_active=True, org=self.context['org'], slug=slug).first()
+    resthook = serializers.CharField(required=True)
+    target_url = serializers.URLField(required=True)
 
     def validate_resthook(self, value):
-        if value:
-            resthook = self.get_resthook(value)
-            if not resthook:
-                raise serializers.ValidationError("No resthook with slug: %s" % value)
-        return value
+        resthook = Resthook.objects.filter(is_active=True, org=self.context['org'], slug=value).first()
+        if not resthook:
+            raise serializers.ValidationError("No resthook with slug: %s" % value)
+        return resthook
 
     def validate(self, data):
-        resthook = self.get_resthook(data.get('resthook'))
-        target_url = data.get('target_url')
+        resthook = data['resthook']
+        target_url = data['target_url']
 
         # make sure this combination doesn't already exist
         if ResthookSubscriber.objects.filter(resthook=resthook, target_url=target_url, is_active=True):
@@ -654,13 +705,9 @@ class ResthookSubscriberWriteSerializer(WriteSerializer):
         return data
 
     def save(self):
-        resthook = self.get_resthook(self.validated_data['resthook'])
+        resthook = self.validated_data['resthook']
         target_url = self.validated_data['target_url']
         return resthook.add_subscriber(target_url, self.context['user'])
-
-    class Meta:
-        model = ResthookSubscriber
-        fields = ('resthook', 'target_url')
 
 
 class WebHookEventReadSerializer(ReadSerializer):

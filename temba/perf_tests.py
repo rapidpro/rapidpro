@@ -117,10 +117,10 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             text = '%s %d' % (base_text, m + 1)
             contact = contacts[m % len(contacts)]
             contact_urn = contact.urn_objects.values()[0]
-            msg = Msg.all_messages.create(contact=contact, contact_urn=contact_urn,
-                                          org=self.org, channel=channel,
-                                          text=text, direction=INCOMING, status=PENDING,
-                                          created_on=date, queued_on=date)
+            msg = Msg.objects.create(contact=contact, contact_urn=contact_urn,
+                                     org=self.org, channel=channel,
+                                     text=text, direction=INCOMING, status=PENDING,
+                                     created_on=date, queued_on=date)
             messages.append(msg)
         return messages
 
@@ -138,7 +138,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
             assign_to = messages[(g % num_bases)::num_bases]
             for msg in assign_to:
-                Msg.all_messages.get(pk=msg.pk).labels.add(label)
+                Msg.objects.get(pk=msg.pk).labels.add(label)
         return labels
 
     def _create_calls(self, count, channel, contacts):
@@ -216,9 +216,9 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         # check messages for each channel
         incoming_total = 2 * num_contacts
-        self.assertEqual(incoming_total / 3, Msg.all_messages.filter(direction=INCOMING, channel=self.tel_mtn).count())
-        self.assertEqual(incoming_total / 3, Msg.all_messages.filter(direction=INCOMING, channel=self.tel_tigo).count())
-        self.assertEqual(incoming_total / 3, Msg.all_messages.filter(direction=INCOMING, channel=self.twitter).count())
+        self.assertEqual(incoming_total / 3, Msg.objects.filter(direction=INCOMING, channel=self.tel_mtn).count())
+        self.assertEqual(incoming_total / 3, Msg.objects.filter(direction=INCOMING, channel=self.tel_tigo).count())
+        self.assertEqual(incoming_total / 3, Msg.objects.filter(direction=INCOMING, channel=self.twitter).count())
 
     def test_message_outgoing(self):
         num_contacts = 3000
@@ -252,9 +252,9 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         # check messages for each channel
         outgoing_total = 3 * num_contacts
-        self.assertEqual(outgoing_total / 3, Msg.all_messages.filter(direction=OUTGOING, channel=self.tel_mtn).count())
-        self.assertEqual(outgoing_total / 3, Msg.all_messages.filter(direction=OUTGOING, channel=self.tel_bulk).count())
-        self.assertEqual(outgoing_total / 3, Msg.all_messages.filter(direction=OUTGOING, channel=self.twitter).count())
+        self.assertEqual(outgoing_total / 3, Msg.objects.filter(direction=OUTGOING, channel=self.tel_mtn).count())
+        self.assertEqual(outgoing_total / 3, Msg.objects.filter(direction=OUTGOING, channel=self.tel_bulk).count())
+        self.assertEqual(outgoing_total / 3, Msg.objects.filter(direction=OUTGOING, channel=self.twitter).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_mtn).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_tigo).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.twitter).count())
@@ -280,7 +280,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         with SegmentProfiler("Starting a flow", self, True, force_profile=True):
             flow.start(groups, [])
 
-        self.assertEqual(10000, Msg.all_messages.all().count())
+        self.assertEqual(10000, Msg.objects.all().count())
         self.assertEqual(10000, FlowRun.objects.all().count())
         self.assertEqual(20000, FlowStep.objects.all().count())
 
