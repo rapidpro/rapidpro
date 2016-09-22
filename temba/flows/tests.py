@@ -311,17 +311,17 @@ class FlowTest(TembaTest):
 
     def test_flow_read(self):
         self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_read', args=[self.flow.pk]))
+        response = self.client.get(reverse('flows.flow_read', args=[self.flow.uuid]))
         self.assertTrue('initial' in response.context)
 
     def test_flow_editor(self):
         self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
         self.assertTrue('mutable' in response.context)
         self.assertTrue('has_airtime_service' in response.context)
 
         self.login(self.superuser)
-        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
         self.assertTrue('mutable' in response.context)
         self.assertTrue('has_airtime_service' in response.context)
 
@@ -348,7 +348,7 @@ class FlowTest(TembaTest):
         self.assertTrue(broadcast.contacts.filter(pk=self.contact2.pk))
 
         # should have received a single message
-        msg = Msg.all_messages.get(contact=self.contact)
+        msg = Msg.objects.get(contact=self.contact)
         self.assertEquals("What is your favorite color?", msg.text)
         self.assertEquals(PENDING, msg.status)
         self.assertEquals(Msg.PRIORITY_NORMAL, msg.priority)
@@ -414,7 +414,7 @@ class FlowTest(TembaTest):
         self.assertFalse(Flow.find_and_handle(incoming))
 
         # no reply, our flow isn't active
-        self.assertFalse(Msg.all_messages.filter(response_to=incoming))
+        self.assertFalse(Msg.objects.filter(response_to=incoming))
         step = FlowStep.objects.get(pk=contact1_steps[1].pk)
         self.assertFalse(step.left_on)
         self.assertFalse(step.messages.all())
@@ -431,7 +431,7 @@ class FlowTest(TembaTest):
         self.assertTrue(contact1_run.responded)
 
         # our message should have gotten a reply
-        reply = Msg.all_messages.get(response_to=incoming)
+        reply = Msg.objects.get(response_to=incoming)
         self.assertEquals(self.contact, reply.contact)
         self.assertEquals("I love orange too! You said: orange which is category: Orange You are: 0788 382 382 SMS: orange Flow: color: orange", reply.text)
 
@@ -580,7 +580,7 @@ class FlowTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(50):
             workbook = self.export_flow_results(self.flow)
 
         tz = pytz.timezone(self.org.timezone)
@@ -652,9 +652,9 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
 
-        contact1_out1 = Msg.all_messages.get(steps__run=contact1_run1, text="What is your favorite color?")
-        contact1_out2 = Msg.all_messages.get(steps__run=contact1_run1, text="That is a funny color. Try again.")
-        contact1_out3 = Msg.all_messages.get(steps__run=contact1_run1, text__startswith="I love orange too")
+        contact1_out1 = Msg.objects.get(steps__run=contact1_run1, text="What is your favorite color?")
+        contact1_out2 = Msg.objects.get(steps__run=contact1_run1, text="That is a funny color. Try again.")
+        contact1_out3 = Msg.objects.get(steps__run=contact1_run1, text__startswith="I love orange too")
 
         self.assertExcelRow(sheet_msgs, 1, [contact1_out1.contact.uuid, "+250788382382", "Eric",
                                             contact1_out1.created_on, "OUT",
@@ -673,7 +673,7 @@ class FlowTest(TembaTest):
                                             "Test Channel"], tz)
 
         # test without msgs or runs or unresponded
-        with self.assertNumQueries(48):
+        with self.assertNumQueries(49):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
         tz = pytz.timezone(self.org.timezone)
@@ -700,7 +700,7 @@ class FlowTest(TembaTest):
         # insert a duplicate age field, this can happen due to races
         Value.objects.create(org=self.org, contact=self.contact, contact_field=age, string_value='36', decimal_value='36')
 
-        with self.assertNumQueries(53):
+        with self.assertNumQueries(54):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=True, responded_only=True,
                                                 contact_fields=[age])
 
@@ -741,6 +741,15 @@ class FlowTest(TembaTest):
         self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "", "36",
                                             c1_run1_first, c1_run1_last, "Orange", "orange", "orange"], tz)
 
+        # validate we have not more than the maximum columns possible
+        with patch('temba.flows.models.Flow.get_columns') as mock_get_columns:
+            mock_get_columns.return_value = ["column %s" % i for i in range(100)]
+
+            response = self.client.post(reverse('flows.flow_export_results'), dict(flows=[self.flow.pk]), follow=True)
+            self.assertFormError(response, 'form', None, "This export exceeds the maximum number of columns (255). "
+                                                         "Please remove one or more of the flows from the export "
+                                                         "to continue.")
+
     def test_export_results_with_surveyor_msgs(self):
         self.flow.update(self.definition)
         self.flow.flow_type = Flow.SURVEY
@@ -766,7 +775,7 @@ class FlowTest(TembaTest):
         self.assertExcelRow(sheet_runs, 1, ["", run.contact.uuid, "+250788382382", "Eric", "", run1_first, run1_last,
                                             "Blue", "blue", "blue"], tz)
 
-        out1 = Msg.all_messages.get(steps__run=run, text="What is your favorite color?")
+        out1 = Msg.objects.get(steps__run=run, text="What is your favorite color?")
 
         self.assertExcelRow(sheet_msgs, 1, [run.contact.uuid, "+250788382382", "Eric", out1.created_on, "OUT",
                                             "What is your favorite color?", "Test Channel"], tz)
@@ -862,8 +871,8 @@ class FlowTest(TembaTest):
             self.flow.start([], [self.contact])
 
             self.assertTrue(self.flow.steps())
-            self.assertTrue(Msg.all_messages.all())
-            msg = Msg.all_messages.all()[0]
+            self.assertTrue(Msg.objects.all())
+            msg = Msg.objects.all()[0]
             self.assertFalse("@extra.coupon" in msg.text)
             self.assertEquals(msg.text, "text to get NEXUS4")
             self.assertEquals(PENDING, msg.status)
@@ -1649,7 +1658,7 @@ class FlowTest(TembaTest):
         self.assertEquals(0, len(response.context['object_list']))
 
         # also shouldn't be able to view other flow
-        response = self.client.get(reverse('flows.flow_editor', args=[other_flow.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[other_flow.uuid]))
         self.assertEquals(302, response.status_code)
 
         # get our create page
@@ -1684,7 +1693,7 @@ class FlowTest(TembaTest):
         self.assertEqual(flow2.expires_after_minutes, 5)
 
         # make sure we don't get a start flow button for Android Surveys
-        response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[flow2.uuid]))
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
 
         # test flows with triggers
@@ -1724,7 +1733,7 @@ class FlowTest(TembaTest):
         flow3 = Flow.objects.get(name=post_data['name'])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow3.pk]))
+        self.assertEqual(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow3.uuid]))
         self.assertEqual(response.context['object'].triggers.count(), 3)
 
         # update flow triggers
@@ -1922,7 +1931,7 @@ class FlowTest(TembaTest):
         # test our copy view
         response = self.client.post(reverse('flows.flow_copy', args=[flow.pk]))
         flow_copy = Flow.objects.get(org=self.org, name="Copy of %s" % flow.name)
-        self.assertRedirect(response, reverse('flows.flow_editor', args=[flow_copy.pk]))
+        self.assertRedirect(response, reverse('flows.flow_editor', args=[flow_copy.uuid]))
 
         FlowLabel.objects.create(name="one", org=self.org, parent=None)
         FlowLabel.objects.create(name="two", org=self.org2, parent=None)
@@ -1989,7 +1998,7 @@ class FlowTest(TembaTest):
         msg_flow = Flow.objects.get(name=post_data['name'])
 
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[msg_flow.pk]))
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[msg_flow.uuid]))
         self.assertEquals(msg_flow.flow_type, 'F')
 
         post_data = dict(name="Call flow", expires_after_minutes=5, flow_type='V')
@@ -1997,7 +2006,7 @@ class FlowTest(TembaTest):
         call_flow = Flow.objects.get(name=post_data['name'])
 
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[call_flow.pk]))
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[call_flow.uuid]))
         self.assertEquals(call_flow.flow_type, 'V')
 
         # test creating a  flow with base language
@@ -2011,7 +2020,7 @@ class FlowTest(TembaTest):
         language_flow = Flow.objects.get(name=post_data['name'])
 
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[language_flow.pk]))
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[language_flow.uuid]))
         self.assertEquals(language_flow.base_language, language.iso_code)
 
     def test_views_viewers(self):
@@ -2079,7 +2088,7 @@ class FlowTest(TembaTest):
         response = self.client.get(flow_archived_url)
         self.assertEquals(0, len(response.context['object_list']))
 
-        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
         self.assertEquals(200, response.status_code)
         self.assertFalse(response.context['mutable'])
 
@@ -2118,7 +2127,7 @@ class FlowTest(TembaTest):
         self.assertEquals(302, response.status_code)
 
         # also shouldn't be able to view other flow
-        response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[flow2.uuid]))
         self.assertEquals(302, response.status_code)
 
     def test_flow_update_error(self):
@@ -2158,7 +2167,7 @@ class FlowTest(TembaTest):
         self.assertTrue(actionset_step.messages.filter(pk=sms.pk))
 
         # sms msg_type should be FLOW
-        self.assertEquals(Msg.all_messages.get(pk=sms.pk).msg_type, FLOW)
+        self.assertEquals(Msg.objects.get(pk=sms.pk).msg_type, FLOW)
 
     def test_multiple(self):
         # set our flow
@@ -2320,7 +2329,7 @@ class ActionTest(TembaTest):
 
         action = ReplyAction(dict(base="We love green too!"))
         action.execute(run, None, msg)
-        msg = Msg.all_messages.get(contact=self.contact, direction='O')
+        msg = Msg.objects.get(contact=self.contact, direction='O')
         self.assertEquals("We love green too!", msg.text)
 
         Broadcast.objects.all().delete()
@@ -2782,7 +2791,7 @@ class ActionTest(TembaTest):
 
         # our contact should now be in the flow
         self.assertTrue(FlowStep.objects.filter(run__flow=new_flow, run__contact=self.contact))
-        self.assertTrue(Msg.all_messages.filter(contact=self.contact, direction='O', text='You chose Blue'))
+        self.assertTrue(Msg.objects.filter(contact=self.contact, direction='O', text='You chose Blue'))
 
     def test_group_actions(self):
         msg = self.create_msg(direction=INCOMING, contact=self.contact, text="Green is my favorite")
@@ -3006,7 +3015,7 @@ class ActionTest(TembaTest):
         label = Label.label_objects.get(pk=label.pk)
 
         # and message should have been labeled with both labels
-        msg = Msg.all_messages.get(pk=msg.pk)
+        msg = Msg.objects.get(pk=msg.pk)
         self.assertEqual(set(msg.labels.all()), {label, new_label})
         self.assertEqual(set(label.get_messages()), {msg})
         self.assertEqual(label.get_visible_count(), 1)
@@ -3016,7 +3025,7 @@ class ActionTest(TembaTest):
         # passing through twice doesn't change anything
         action.execute(run, None, msg)
 
-        self.assertEqual(set(Msg.all_messages.get(pk=msg.pk).labels.all()), {label, new_label})
+        self.assertEqual(set(Msg.objects.get(pk=msg.pk).labels.all()), {label, new_label})
         self.assertEquals(Label.label_objects.get(pk=label.pk).get_visible_count(), 1)
         self.assertEquals(Label.label_objects.get(pk=new_label.pk).get_visible_count(), 1)
 
@@ -3335,11 +3344,11 @@ class WebhookTest(TembaTest):
             flow.start(groups=[], contacts=[contact1], restart_participants=True)
 
             # first message from our trigger flow action
-            msg = Msg.all_messages.all().order_by('-created_on')[0]
+            msg = Msg.objects.all().order_by('-created_on')[0]
             self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
 
             # second message from our start flow action
-            msg = Msg.all_messages.all().order_by('-created_on')[1]
+            msg = Msg.objects.all().order_by('-created_on')[1]
             self.assertEqual('Honey, I triggered the flow! (I came from a webhook)', msg.text)
 
     def test_webhook(self):
@@ -3503,8 +3512,8 @@ class WebhookTest(TembaTest):
             self.assertEqual(mock_post.call_count, 0)
 
             # should have two messages of failures
-            self.assertEqual("That was a success.", Msg.all_messages.filter(contact=self.contact).last().text)
-            self.assertEqual("The second succeeded.", Msg.all_messages.filter(contact=self.contact).first().text)
+            self.assertEqual("That was a success.", Msg.objects.filter(contact=self.contact).last().text)
+            self.assertEqual("The second succeeded.", Msg.objects.filter(contact=self.contact).first().text)
 
             # but we should have created a webhook event regardless
             self.assertTrue(WebHookEvent.objects.filter(resthook__slug='new-registration'))
@@ -3515,7 +3524,7 @@ class WebhookTest(TembaTest):
         resthook.subscribers.create(target_url='https://bar.foo/', created_by=self.admin, modified_by=self.admin)
 
         # clear out our messages
-        Msg.all_messages.filter(contact=self.contact).delete()
+        Msg.objects.filter(contact=self.contact).delete()
 
         # start over, have our first webhook fail, check that routing still works with failure
         with patch('requests.post') as mock_post:
@@ -3531,10 +3540,10 @@ class WebhookTest(TembaTest):
             self.assertEqual(mock_post.call_args_list[3][0][0], 'https://bar.foo/')
 
             # first should be a success because we had at least one success
-            self.assertEqual("That was a success.", Msg.all_messages.filter(contact=self.contact).last().text)
+            self.assertEqual("That was a success.", Msg.objects.filter(contact=self.contact).last().text)
 
             # second, both failed so should be a failure
-            self.assertEqual("The second failed.", Msg.all_messages.filter(contact=self.contact).first().text)
+            self.assertEqual("The second failed.", Msg.objects.filter(contact=self.contact).first().text)
 
             # we should also have unsubscribed from one of our endpoints
             self.assertTrue(resthook.subscribers.filter(is_active=False, target_url='https://foo.bar/'))
@@ -4242,7 +4251,7 @@ class FlowsTest(FlowFileTest):
 
         eminem = self.create_contact('Eminem', '+12345')
         flow.start(groups=[], contacts=[eminem])
-        msg = Msg.all_messages.filter(direction='O', contact=eminem).first()
+        msg = Msg.objects.filter(direction='O', contact=eminem).first()
         self.assertEquals('Hi there Eminem', msg.text)
 
         # put a webhook on the rule first and make sure it executes
@@ -4252,7 +4261,7 @@ class FlowsTest(FlowFileTest):
 
         tupac = self.create_contact('Tupac', '+15432')
         flow.start(groups=[], contacts=[tupac])
-        msg = Msg.all_messages.filter(direction='O', contact=tupac).first()
+        msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Hi there Tupac', msg.text)
 
     def test_webhook_rule_first(self):
@@ -4262,8 +4271,33 @@ class FlowsTest(FlowFileTest):
         flow.start(groups=[], contacts=[tupac])
 
         # a message should have been sent
-        msg = Msg.all_messages.filter(direction='O', contact=tupac).first()
+        msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Testing this out', msg.text)
+
+    def test_group_split(self):
+        flow = self.get_flow('group_split')
+        flow.start_msg_flow([self.contact.id])
+
+        # not in any group
+        self.assertEqual(0, ContactGroup.user_groups.filter(contacts__in=[self.contact]).count())
+
+        # add us to Group A
+        self.send('add group a')
+
+        self.assertEqual('Awaiting command.', Msg.objects.filter(direction='O').order_by('-created_on').first().text)
+        groups = ContactGroup.user_groups.filter(contacts__in=[self.contact])
+        self.assertEqual(1, groups.count())
+        self.assertEqual('Group A', groups.first().name)
+
+        # now split us on group membership
+        self.send('split')
+        self.assertEqual('You are in Group A', Msg.objects.filter(direction='O').order_by('-created_on')[1].text)
+
+        # now add us to group b and remove from group a
+        self.send("remove group a")
+        self.send("add group b")
+        self.send('split')
+        self.assertEqual('You are in Group B', Msg.objects.filter(direction='O').order_by('-created_on')[1].text)
 
     def test_substitution(self):
         flow = self.get_flow('substitution')
@@ -4277,7 +4311,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals('Hi Ben Haggerty, what is your phone number?', self.contact.msgs.all()[0].text)
 
         self.assertEquals("Thanks, you typed +250788123123", self.send_message(flow, "0788123123"))
-        sms = Msg.all_messages.get(org=flow.org, contact__urns__path="+250788123123")
+        sms = Msg.objects.get(org=flow.org, contact__urns__path="+250788123123")
         self.assertEquals("Hi from Ben Haggerty! Your phone is 0788 123 123.", sms.text)
 
     def test_group_send(self):
@@ -4337,7 +4371,7 @@ class FlowsTest(FlowFileTest):
         self.assertEquals("Your CHW will be in contact soon!", self.send_message(pain_flow, "yes", contact=mother))
 
         chw = self.contact
-        sms = Msg.all_messages.filter(contact=chw).order_by('-created_on')[0]
+        sms = Msg.objects.filter(contact=chw).order_by('-created_on')[0]
         self.assertEquals("Please follow up with Judy Pottier, she has reported she is in pain.", sms.text)
 
     def test_flow_delete(self):
@@ -4613,12 +4647,12 @@ class FlowsTest(FlowFileTest):
         parent = Flow.objects.get(org=self.org, name='Parent Flow')
         parent.start(groups=[], contacts=[self.contact], restart_participants=True)
 
-        msg = Msg.all_messages.filter(contact=self.contact).first()
+        msg = Msg.objects.filter(contact=self.contact).first()
         self.assertEqual("This is a parent flow. What would you like to do?", msg.text)
 
         # this should launch the child flow
         self.send_message(parent, "color", assert_reply=False)
-        msg = Msg.all_messages.filter(contact=self.contact).order_by('-created_on').first()
+        msg = Msg.objects.filter(contact=self.contact).order_by('-created_on').first()
 
         subflow_ruleset = RuleSet.objects.filter(flow=parent, ruleset_type='subflow').first()
 
@@ -4641,11 +4675,11 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(parent.name, active_run.flow.name)
 
         # we should have a new outbound message from the the parent flow
-        msg = Msg.all_messages.filter(contact=self.contact, direction='O').order_by('-created_on').first()
+        msg = Msg.objects.filter(contact=self.contact, direction='O').order_by('-created_on').first()
         self.assertEqual("Complete: You picked Red.", msg.text)
 
         # should only have one response msg
-        self.assertEqual(1, Msg.all_messages.filter(text='Complete: You picked Red.', contact=self.contact, direction='O').count())
+        self.assertEqual(1, Msg.objects.filter(text='Complete: You picked Red.', contact=self.contact, direction='O').count())
 
     def test_subflow_expired(self):
         self.get_flow('subflow')
@@ -4671,7 +4705,7 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
 
         # and should follow the expiration route
-        msg = Msg.all_messages.all().order_by('-created_on').first()
+        msg = Msg.objects.all().order_by('-created_on').first()
         self.assertEqual("You expired out of the subflow", msg.text)
 
     def test_subflow_updates(self):
@@ -4700,16 +4734,71 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(run.modified_on > starting_modified)
 
     def test_subflow_no_interaction(self):
-        self.get_flow('subflow-no-pause')
+        self.get_flow('subflow_no_pause')
         parent = Flow.objects.get(org=self.org, name='Flow A')
         parent.start(groups=[], contacts=[self.contact], restart_participants=True)
 
         # check we got our three messages, the third populated by the child, but sent form the parent
-        msgs = Msg.all_messages.order_by('created_on')
+        msgs = Msg.objects.order_by('created_on')
         self.assertEqual(3, msgs.count())
         self.assertEqual("Message 1", msgs[0].text)
         self.assertEqual("Message 2", msgs[1].text)
         self.assertEqual("Message 3 (FLOW B)", msgs[2].text)
+
+    def test_subflow_resumes(self):
+        self.get_flow('subflow_resumes')
+
+        self.send("radio")
+
+        # upon starting, we see our starting message, then our language subflow question
+        msgs = Msg.objects.order_by('created_on')
+        self.assertEqual(3, msgs.count())
+        self.assertEqual('radio', msgs[0].text)
+        self.assertEqual('Welcome message.', msgs[1].text)
+        self.assertEqual('What language? English or French?', msgs[2].text)
+
+        runs = FlowRun.objects.filter(is_active=True).order_by('created_on')
+        self.assertEqual(2, runs.count())
+        self.assertEqual('Radio Show Poll', runs[0].flow.name)
+        self.assertEqual('Ask Language', runs[1].flow.name)
+
+        # choose english as our language
+        self.send('english')
+
+        # we bounce back to the parent flow, and then into the gender flow
+        msgs = Msg.objects.order_by('created_on')
+        self.assertEqual(5, msgs.count())
+        self.assertEqual('english', msgs[3].text)
+        self.assertEqual('Are you Male or Female?', msgs[4].text)
+
+        # still two runs, except a different subflow is active now
+        runs = FlowRun.objects.filter(is_active=True).order_by('created_on')
+        self.assertEqual(2, runs.count())
+        self.assertEqual('Radio Show Poll', runs[0].flow.name)
+        self.assertEqual('Ask Gender', runs[1].flow.name)
+
+        # choose our gender
+        self.send('male')
+
+        # back in the parent flow, asking our first parent question
+        msgs = Msg.objects.order_by('created_on')
+        self.assertEqual(7, msgs.count())
+        self.assertEqual('male', msgs[5].text)
+        self.assertEqual('Have you heard of show X? Yes or No?', msgs[6].text)
+
+        # now only one run should be active, our parent
+        runs = FlowRun.objects.filter(is_active=True).order_by('created_on')
+        self.assertEqual(1, runs.count())
+        self.assertEqual('Radio Show Poll', runs[0].flow.name)
+
+        # let's start over, we should pass right through language and gender
+        self.send("radio")
+
+        msgs = Msg.objects.order_by('created_on')
+        self.assertEqual(10, msgs.count())
+        self.assertEqual('radio', msgs[7].text)
+        self.assertEqual('Welcome message.', msgs[8].text)
+        self.assertEqual('Have you heard of show X? Yes or No?', msgs[9].text)
 
     def test_translations_rule_first(self):
 
@@ -4821,7 +4910,7 @@ class FlowsTest(FlowFileTest):
 
         FlowRun.objects.all().delete()
         self.send_message(favorites, "klerk", assert_reply=False)
-        sms = Msg.all_messages.filter(contact=self.contact).order_by('-pk')[0]
+        sms = Msg.objects.filter(contact=self.contact).order_by('-pk')[0]
         self.assertEquals("Katishklick Shnik Klerkistikloperopikshtop Errrrrrrrklop", sms.text)
 
         # test dirty json
@@ -5159,7 +5248,7 @@ class FlowMigrationTest(FlowFileTest):
             self.assertEqual(mock_post.call_args[0][0], 'http://foo.bar/')
 
             # assert the code we received was right
-            msg = Msg.all_messages.filter(direction='O', contact=self.contact).first()
+            msg = Msg.objects.filter(direction='O', contact=self.contact).first()
             self.assertEqual("Great, your code is ABABUUDDLRS. Enter your name", msg.text)
 
             with patch('requests.get') as mock_get:
@@ -5175,7 +5264,7 @@ class FlowMigrationTest(FlowFileTest):
             self.assertEqual(mock_post.call_args[0][0], 'http://foo.bar/')
 
             # assert the code we received was right
-            msg = Msg.all_messages.filter(direction='O', contact=self.contact).first()
+            msg = Msg.objects.filter(direction='O', contact=self.contact).first()
             self.assertEqual("Great, your code is @extra.code. Enter your name", msg.text)
 
     def test_migrate_to_9(self):
@@ -5631,14 +5720,14 @@ class MissedCallChannelTest(FlowFileTest):
         FlowRun.objects.get(flow=flow)
 
         # should have sent a message to the user
-        msg = Msg.all_messages.get(contact=call.contact, channel=self.channel)
+        msg = Msg.objects.get(contact=call.contact, channel=self.channel)
         self.assertEquals(msg.text, "Matched +250785551212")
 
         # try the same thing with a contact trigger (same as missed calls via twilio)
         Trigger.catch_triggers(msg.contact, Trigger.TYPE_MISSED_CALL, msg.channel)
 
-        self.assertEquals(2, Msg.all_messages.filter(contact=call.contact, channel=self.channel).count())
-        last = Msg.all_messages.filter(contact=call.contact, channel=self.channel).order_by('-pk').first()
+        self.assertEquals(2, Msg.objects.filter(contact=call.contact, channel=self.channel).count())
+        last = Msg.objects.filter(contact=call.contact, channel=self.channel).order_by('-pk').first()
         self.assertEquals(last.text, "Matched +250785551212")
 
 
@@ -5664,7 +5753,7 @@ class GhostActionNodeTest(FlowFileTest):
 
         # we should have gotten a response from our child flow
         self.assertEquals("I like butter too.",
-                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+                          Msg.objects.filter(direction=OUTGOING).order_by('-created_on').first().text)
 
 
 class TriggerStartTest(FlowFileTest):
@@ -5752,7 +5841,7 @@ class FlowBatchTest(FlowFileTest):
         self.assertEquals(11, FlowRun.objects.all().count())
 
         # ensure 11 outgoing messages were created
-        self.assertEquals(11, Msg.all_messages.all().count())
+        self.assertEquals(11, Msg.objects.all().count())
 
         # but only one broadcast
         self.assertEquals(1, Broadcast.objects.all().count())
@@ -5906,7 +5995,7 @@ class OrderingTest(FlowFileTest):
             flow.start([], [self.contact])
 
             # check the ordering of when the msgs were sent
-            msgs = Msg.all_messages.filter(status=WIRED).order_by('sent_on')
+            msgs = Msg.objects.filter(status=WIRED).order_by('sent_on')
 
             # the four messages should have been sent in order
             self.assertEqual(msgs[0].text, "Msg1")
@@ -5925,7 +6014,7 @@ class OrderingTest(FlowFileTest):
             msg = self.create_msg(contact=self.contact, direction=INCOMING, text="onwards!")
             Flow.find_and_handle(msg)
 
-            msgs = Msg.all_messages.filter(direction=OUTGOING, status=WIRED).order_by('sent_on')[4:]
+            msgs = Msg.objects.filter(direction=OUTGOING, status=WIRED).order_by('sent_on')[4:]
             self.assertEqual(msgs[0].text, "Ack1")
             self.assertEqual(msgs[1].text, "Ack2")
             self.assertTrue(msgs[1].sent_on - msgs[0].sent_on > timedelta(seconds=.750))
@@ -5937,14 +6026,14 @@ class OrderingTest(FlowFileTest):
             # again, only one send_msg
             self.assertEqual(mock_send_msg.call_count, 1)
 
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
 
         # try with multiple contacts
         with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
             flow.start([], [self.contact, self.contact2], restart_participants=True)
 
             # we should have two batches of messages, for for each contact
-            msgs = Msg.all_messages.filter(status=WIRED).order_by('sent_on')
+            msgs = Msg.objects.filter(status=WIRED).order_by('sent_on')
 
             self.assertEqual(msgs[0].contact, self.contact)
             self.assertEqual(msgs[0].text, "Msg1")
@@ -6061,7 +6150,7 @@ class TimeoutTest(FlowFileTest):
 
         # and we should have sent our message
         self.assertEquals("Thanks, Wilson",
-                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+                          Msg.objects.filter(direction=OUTGOING).order_by('-created_on').first().text)
 
     def test_timeout(self):
         from temba.flows.tasks import check_flow_timeouts_task
@@ -6076,7 +6165,7 @@ class TimeoutTest(FlowFileTest):
 
         # we should have sent a response
         self.assertEquals("Great. Good to meet you Wilson",
-                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+                          Msg.objects.filter(direction=OUTGOING).order_by('-created_on').first().text)
 
         # assert we have exited our flow
         run = FlowRun.objects.get()
@@ -6085,7 +6174,7 @@ class TimeoutTest(FlowFileTest):
 
         # ok, now let's try with a timeout
         FlowRun.objects.all().delete()
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
 
         # start the flow
         flow.start([], [self.contact])
@@ -6125,7 +6214,7 @@ class TimeoutTest(FlowFileTest):
 
         # and we should have sent our message
         self.assertEquals("Don't worry about it , we'll catch up next week.",
-                          Msg.all_messages.filter(direction=OUTGOING).order_by('-created_on').first().text)
+                          Msg.objects.filter(direction=OUTGOING).order_by('-created_on').first().text)
 
 
 class MigrationUtilsTest(TembaTest):
@@ -6174,11 +6263,16 @@ class TriggerFlowTest(FlowFileTest):
         msg = self.create_msg(contact=self.contact, direction='I', text="add 12067797878")
         Flow.find_and_handle(msg)
 
-        FlowRun.objects.get(contact__urns__path="+12067797878")
+        child_run = FlowRun.objects.get(contact__urns__path="+12067797878")
+        msg = self.create_msg(contact=child_run.contact, direction='I', text="Christine")
+        Flow.find_and_handle(msg)
+        child_run.refresh_from_db()
+        self.assertEqual('C', child_run.exit_type)
 
         # main contact should still be in the flow
         run = FlowRun.objects.get(flow=flow, contact=self.contact)
         self.assertTrue(run.is_active)
+        self.assertIsNone(run.exit_type)
 
         # and can do it again
         msg = self.create_msg(contact=self.contact, direction='I', text="add 12067798080")

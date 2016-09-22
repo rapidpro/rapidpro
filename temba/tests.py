@@ -266,7 +266,7 @@ class TembaTest(SmartminTest):
         if not kwargs['contact'].is_test:
             (kwargs['topup_id'], amount) = kwargs['org'].decrement_credit()
 
-        return Msg.all_messages.create(**kwargs)
+        return Msg.objects.create(**kwargs)
 
     def create_flow(self, uuid_start=None, **kwargs):
         if 'org' not in kwargs:
@@ -387,7 +387,7 @@ class FlowFileTest(TembaTest):
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
 
     def assertLastResponse(self, message):
-        response = Msg.all_messages.filter(contact=self.contact).order_by('-created_on', '-pk').first()
+        response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
 
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
@@ -398,8 +398,12 @@ class FlowFileTest(TembaTest):
         if contact.is_test:
             Contact.set_simulation(True)
         incoming = self.create_msg(direction=INCOMING, contact=contact, text=message)
-        Flow.find_and_handle(incoming)
-        return Msg.all_messages.filter(response_to=incoming).order_by('pk').first()
+
+        # evaluate the inbound message against our triggers first
+        from temba.triggers.models import Trigger
+        if not Trigger.find_and_handle(incoming):
+            Flow.find_and_handle(incoming)
+        return Msg.objects.filter(response_to=incoming).order_by('pk').first()
 
     def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False,
                      assert_reply=True, assert_handle=True):
@@ -431,7 +435,7 @@ class FlowFileTest(TembaTest):
 
             # our message should have gotten a reply
             if assert_reply:
-                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
+                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
                 self.assertGreaterEqual(len(replies), 1)
 
                 if len(replies) == 1:
@@ -443,7 +447,7 @@ class FlowFileTest(TembaTest):
 
             else:
                 # assert we got no reply
-                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
+                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
                 self.assertFalse(replies)
 
             return None

@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
-from django.http import Http404, HttpResponseRedirect, HttpResponse
+from django.http import HttpResponseRedirect, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -24,7 +24,7 @@ from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
 from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime
 from temba.utils.views import BaseActionForm
-from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG
+from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG, TEL_SCHEME
 from .models import ExportContactsTask
 from .omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task
@@ -258,17 +258,24 @@ class ContactForm(forms.ModelForm):
         country = self.org.get_country_code()
 
         def validate_urn(key, scheme, path):
-            normalized = URN.normalize(URN.from_parts(scheme, path), country)
-            existing_urn = ContactURN.lookup(self.org, normalized, normalize=False)
+            try:
+                normalized = URN.normalize(URN.from_parts(scheme, path), country)
+                existing_urn = ContactURN.lookup(self.org, normalized, normalize=False)
 
-            if existing_urn and existing_urn.contact and existing_urn.contact != self.instance:
-                self._errors[key] = _("Used by another contact")
+                if existing_urn and existing_urn.contact and existing_urn.contact != self.instance:
+                    self._errors[key] = _("Used by another contact")
+                    return False
+                # validate but not with country as users are allowed to enter numbers before adding a channel
+                elif not URN.validate(normalized):
+                    if scheme == TEL_SCHEME:
+                        self._errors[key] = _("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")
+                    else:
+                        self._errors[key] = _("Invalid format")
+                    return False
+                return True
+            except ValueError:
+                self._errors[key] = _("Invalid input")
                 return False
-            # validate but not with country as users are allowed to enter numbers before adding a channel
-            elif not URN.validate(normalized):
-                self._errors[key] = _("Invalid format")
-                return False
-            return True
 
         # validate URN fields
         for field_key, value in self.data.iteritems():
@@ -557,6 +564,15 @@ class ContactCRUDL(SmartCRUDL):
                 super(ContactCRUDL.Import.ImportForm, self).__init__(*args, **kwargs)
 
             def clean_csv_file(self):
+                uploaded_file = self.cleaned_data['csv_file']
+
+                uploaded_file_name = uploaded_file.name.lower()
+
+                if not (uploaded_file_name.endswith('.xls') or uploaded_file_name.endswith('.csv')):
+                    raise forms.ValidationError(_("The file you provided has an unsupported format. "
+                                                  "Please make sure you upload a CSV file or an Excel file "
+                                                  "saved as Excel 2003 format(.xls)"))
+
                 try:
                     Contact.get_org_import_file_headers(ContentFile(self.cleaned_data['csv_file'].read()), self.org)
                 except Exception as e:
@@ -654,27 +670,14 @@ class ContactCRUDL(SmartCRUDL):
             return HttpResponse(json.dumps(json_result), content_type='application/json')
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
         fields = ('name',)
 
         def derive_title(self):
             return self.object.get_display()
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            # overloaded to have uuid pattern instead of integer id
-            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
-
-        def get_object(self, queryset=None):
-            uuid = self.kwargs.get('uuid')
-            if self.request.user.is_superuser:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
-            else:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
-
-            if contact is None:
-                raise Http404("No active contact with that UUID")
-
-            return contact
+        def get_queryset(self):
+            return Contact.objects.filter(is_active=True, is_test=False)
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
@@ -691,11 +694,12 @@ class ContactCRUDL(SmartCRUDL):
             merged_upcoming_events = []
             for fire in event_fires:
                 merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.message,
-                                                   flow_id=fire.event.flow.pk, flow_name=fire.event.flow.name,
+                                                   flow_uuid=fire.event.flow.uuid, flow_name=fire.event.flow.name,
                                                    scheduled=fire.scheduled))
 
             for sched_broadcast in scheduled_messages:
-                merged_upcoming_events.append(dict(repeat_period=sched_broadcast.schedule.repeat_period, event_type='M', message=sched_broadcast.text, flow_id=None,
+                merged_upcoming_events.append(dict(repeat_period=sched_broadcast.schedule.repeat_period, event_type='M',
+                                                   message=sched_broadcast.text, flow_uuid=None,
                                                    flow_name=None, scheduled=sched_broadcast.schedule.next_fire))
 
             # upcoming scheduled events
@@ -786,27 +790,18 @@ class ContactCRUDL(SmartCRUDL):
             return links
 
     class History(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            # overloaded to have uuid pattern instead of integer id
-            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
-
-        def get_object(self, queryset=None):
-            uuid = self.kwargs.get('uuid')
-            if self.request.user.is_superuser:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
-            else:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
-
-            if contact is None:
-                raise Http404("No active contact with that id")
-
-            return contact
+        def get_queryset(self):
+            return Contact.objects.filter(is_active=True, is_test=False)
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.History, self).get_context_data(*args, **kwargs)
             contact = self.get_object()
+
+            # since we create messages with timestamps from external systems, always a chance a contact's initial
+            # message has a timestamp slightly earlier than the contact itself.
+            contact_creation = contact.created_on - timedelta(hours=1)
 
             refresh_recent = self.request.REQUEST.get('r', False)
             recent_start = ms_to_datetime(int(self.request.GET.get('rs', 0)))
@@ -823,20 +818,20 @@ class ContactCRUDL(SmartCRUDL):
 
                 activity = contact.get_activity(start_time, end_time)
             else:
-                start_time = max(older_before - timedelta(days=90), contact.created_on)
+                start_time = max(older_before - timedelta(days=90), contact_creation)
                 end_time = older_before
 
                 while True:
                     activity = contact.get_activity(start_time, end_time)
 
                     # keep looking further back until we get at least 20 items
-                    if len(activity) >= 20 or start_time == contact.created_on:
+                    if len(activity) >= 20 or start_time == contact_creation:
                         break
                     else:
-                        start_time = max(start_time - timedelta(days=90), contact.created_on)
+                        start_time = max(start_time - timedelta(days=90), contact_creation)
 
             if start_time > contact.created_on:
-                has_older = bool(contact.get_activity(contact.created_on, start_time))
+                has_older = bool(contact.get_activity(contact_creation, start_time))
             else:
                 has_older = False
 
@@ -1347,7 +1342,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                                                                          success_url=self.get_success_url(),
                                                                          success_script=getattr(self, 'success_script', None)))
 
-            except IntegrityError as e:  # pragma: no cover
+            except (IntegrityError, ValueError) as e:  # pragma: no cover
                 message = str(e).capitalize()
                 errors = self.form._errors.setdefault(forms.forms.NON_FIELD_ERRORS, forms.utils.ErrorList())
                 errors.append(message)
