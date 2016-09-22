@@ -5,6 +5,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import pytz
 
+from celery.app.task import Task
 from datetime import datetime, time
 from decimal import Decimal
 from django.conf import settings
@@ -22,7 +23,7 @@ from .exporter import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
-from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY
+from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .currencies import currency_for_country
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
@@ -395,6 +396,43 @@ class QueueTest(TembaTest):
                 curr2 += 1
 
         self.assertFalse(pop_task('test'))
+
+    @patch('redis.client.StrictRedis.lock')
+    def test_nonoverlapping_task(self, mock_redis_lock):
+        test_global = []
+
+        @nonoverlapping_task()
+        def test_task1():
+            test_global.append(1)
+
+        @nonoverlapping_task(name='task2', time_limit=100)
+        def test_task2():
+            test_global.append(2)
+
+        @nonoverlapping_task(name='task3', time_limit=100, lock_key='test_key', lock_timeout=55)
+        def test_task3():
+            test_global.append(3)
+
+        self.assertIsInstance(test_task1, Task)
+        # self.assertEqual(test_task1.name, 'test_task1')
+
+        self.assertIsInstance(test_task2, Task)
+        self.assertEqual(test_task2.name, 'task2')
+        self.assertEqual(test_task2.time_limit, 100)
+
+        self.assertIsInstance(test_task3, Task)
+        self.assertEqual(test_task3.name, 'task3')
+        self.assertEqual(test_task3.time_limit, 100)
+
+        test_task1()
+        test_task2()
+        test_task3()
+
+        mock_redis_lock.assert_any_call('celery-task-lock:test_task1', timeout=900)
+        mock_redis_lock.assert_any_call('celery-task-lock:task2', timeout=100)
+        mock_redis_lock.assert_any_call('test_key', timeout=55)
+
+        self.assertEqual(test_global, [1, 2, 3])
 
 
 class PageableQueryTest(TembaTest):
