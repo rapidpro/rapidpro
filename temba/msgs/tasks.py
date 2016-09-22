@@ -10,7 +10,7 @@ from djcelery_transactions import task
 from redis_cache import get_redis_connection
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import pop_task, nonoverlapping_task
-from temba.utils import json_date_to_datetime
+from temba.utils import json_date_to_datetime, chunk_list
 from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
 from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel
 
@@ -264,3 +264,17 @@ def purge_broadcasts_task():
 @nonoverlapping_task(track_started=True, name="squash_systemlabels")
 def squash_systemlabels():
     SystemLabel.squash_counts()
+
+
+@nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids')
+def clear_old_msg_external_ids():
+    """
+    Clears external_id on older messages to reduce the size of the index on that column. External ids aren't surfaced
+    anywhere and are only used for debugging channel issues, so are of limited usefulness on older messages.
+    """
+    threshold = timezone.now() - timedelta(days=30)  # 30 days ago
+
+    msg_ids = list(Msg.objects.filter(created_on__lt=threshold).exclude(external_id=None).values_list('id', flat=True))
+
+    for msg_id_batch in chunk_list(msg_ids, 1000):
+        Msg.objects.filter(pk__in=msg_id_batch).update(external_id=None)
