@@ -11,11 +11,11 @@ from django.conf import settings
 from django.core.paginator import Paginator
 from django.utils import timezone
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-from mock import patch
+from mock import patch, PropertyMock
+from openpyxl import load_workbook
 from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
 from temba.tests import TembaTest
-from xlrd import open_workbook
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .email import is_valid_address
 from .exporter import TableExporter
@@ -727,11 +727,14 @@ class ChunkTest(TembaTest):
 
 
 class TableExporterTest(TembaTest):
+    @patch('temba.utils.exporter.TableExporter.MAX_XLS_COLS', new_callable=PropertyMock)
+    def test_csv(self, mock_max_cols):
+        test_max_cols = 255
+        mock_max_cols.return_value = test_max_cols
 
-    def test_csv(self):
         # tests writing a CSV, that is a file that has more than 255 columns
         cols = []
-        for i in range(16385):
+        for i in range(test_max_cols + 1):
             cols.append("Column %d" % i)
 
         # create a new exporter
@@ -742,7 +745,7 @@ class TableExporterTest(TembaTest):
 
         # write some rows
         values = []
-        for i in range(16385):
+        for i in range(test_max_cols + 1):
             values.append("Value %d" % i)
 
         exporter.write_row(values)
@@ -764,7 +767,11 @@ class TableExporterTest(TembaTest):
             # should only be three rows
             self.assertEquals(2, idx)
 
-    def test_xls(self):
+    @patch('temba.utils.exporter.TableExporter.MAX_XLS_ROWS', new_callable=PropertyMock)
+    def test_xls(self, mock_max_rows):
+        test_max_rows = 1500
+        mock_max_rows.return_value = test_max_rows
+
         cols = []
         for i in range(32):
             cols.append("Column %d" % i)
@@ -779,20 +786,23 @@ class TableExporterTest(TembaTest):
             values.append("Value %d" % i)
 
         # write out 1050000 rows, that'll make two sheets
-        for i in range(1050000):
+        for i in range(test_max_rows + 200):
             exporter.write_row(values)
 
-        file = exporter.save_file()
-        workbook = open_workbook(file.name, 'rb')
+        exporter_file = exporter.save_file()
+        workbook = load_workbook(filename=exporter_file.name)
 
         self.assertEquals(2, len(workbook.worksheets))
 
         # check our sheet 1 values
         sheet1 = workbook.worksheets[0]
-        self.assertEquals(cols, sheet1.row_values(0))
-        self.assertEquals(values, sheet1.row_values(1))
 
-        self.assertEquals(1048576, len(list(sheet1.rows)))
+        rows = tuple(sheet1.rows)
+
+        self.assertEquals(cols, [cell.value for cell in rows[0]])
+        self.assertEquals(values, [cell.value for cell in rows[1]])
+
+        self.assertEquals(test_max_rows, len(list(sheet1.rows)))
         self.assertEquals(32, len(list(sheet1.columns)))
 
         sheet2 = workbook.worksheets[1]
@@ -800,7 +810,7 @@ class TableExporterTest(TembaTest):
         self.assertEquals(cols, [cell.value for cell in rows[0]])
         self.assertEquals(values, [cell.value for cell in rows[1]])
 
-        self.assertEquals(1050000 + 2 - 1048576, len(list(sheet2.rows)))
+        self.assertEquals(200 + 2, len(list(sheet2.rows)))
         self.assertEquals(32, len(list(sheet2.columns)))
 
 

@@ -4,6 +4,7 @@ import csv
 
 from django.core.files.temp import NamedTemporaryFile
 from openpyxl import Workbook
+from openpyxl.writer.write_only import WriteOnlyCell
 
 
 class TableExporter(object):
@@ -26,7 +27,7 @@ class TableExporter(object):
         self.current_sheet = 0
         self.current_row = 0
 
-        self.file = NamedTemporaryFile(delete=True)
+        self.file = NamedTemporaryFile(delete=True, suffix='.xlsx')
 
         # if this is a csv file, create our csv writer and write our header
         if self.is_csv:
@@ -35,7 +36,7 @@ class TableExporter(object):
 
         # otherwise, just open a workbook, initializing the first sheet
         else:
-            self.workbook = Workbook()
+            self.workbook = Workbook(write_only=True)
             self.sheet_number = 0
             self._add_sheet()
 
@@ -44,9 +45,11 @@ class TableExporter(object):
 
         # add our sheet
         self.sheet = self.workbook.create_sheet(u"%s %d" % (self.sheet_name, self.sheet_number))
-        for col, label in enumerate(self.columns):
-            self.sheet.cell(row=1, column=col + 1, value=unicode(label))
 
+        row_cells = []
+        for col, label in enumerate(self.columns):
+            row_cells.append(WriteOnlyCell(self.sheet, value=unicode(label)))
+        self.sheet.append(row_cells)
         self.sheet_row = 2
 
     def write_row(self, values):
@@ -61,10 +64,11 @@ class TableExporter(object):
             if self.sheet_row > TableExporter.MAX_XLS_ROWS:
                 self._add_sheet()
 
+            row_cells = []
             for col, value in enumerate(values):
-                if value is not None:
-                    self.sheet.cell(row=self.sheet_row, column=col + 1, value=unicode(value))
+                row_cells.append(WriteOnlyCell(self.sheet, value=unicode(value) if value is not None else ''))
 
+            self.sheet.append(row_cells)
             self.sheet_row += 1
 
     def save_file(self):
@@ -73,9 +77,6 @@ class TableExporter(object):
         """
         # have to flush the XLS file
         if not self.is_csv:
-            ws = self.workbook['Sheet']
-            self.workbook.remove(ws)
-
             self.workbook.save(self.file)
 
         self.file.flush()
