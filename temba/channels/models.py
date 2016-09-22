@@ -499,21 +499,25 @@ class Channel(TembaModel):
     def add_twiml_api_channel(cls, org, user, country, address, config, role):
         is_short_code = len(address) <= 6
 
+        name = address
+
         if is_short_code:
             role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
-            address = str(address).replace('+', '')
+        else:
+            address = "+%s" % address
+            name = phonenumbers.format_number(phonenumbers.parse(address, None), phonenumbers.PhoneNumberFormat.NATIONAL)
 
         existing = Channel.objects.filter(address=address, org=org, channel_type=Channel.TYPE_TWIML).first()
         if existing:
-            existing.name = address
+            existing.name = name
             existing.address = address
             existing.config = json.dumps(config)
             existing.country = country
             existing.role = role
             existing.save()
             return existing
-        else:
-            return Channel.create(org, user, country, Channel.TYPE_TWIML, name=address, address=address, config=config, role=role)
+
+        return Channel.create(org, user, country, Channel.TYPE_TWIML, name=name, address=address, config=config, role=role)
 
     @classmethod
     def add_africas_talking_channel(cls, org, user, country, phone, username, api_key, is_shared=False):
