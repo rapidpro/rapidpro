@@ -184,13 +184,13 @@ class TwimlAPIHandler(View):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    def get_ringing_channel(cls, to_number):
+    def get_ringing_channel(self, to_number):
         return Channel.objects.filter(address=to_number, channel_type=Channel.TYPE_TWILIO, role__contains='A', is_active=True).exclude(org=None).first()
 
-    def get_received_channel(cls, channel_uuid=None, to_number=None):
+    def get_received_channel(self, channel_uuid=None, to_number=None):
         return Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
 
-    def get_client(cls, org):
+    def get_client(self, org):
         return org.get_twilio_client()
 
 

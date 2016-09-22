@@ -5433,7 +5433,7 @@ class TwimlAPITest(TembaTest):
             self.assertEquals(201, response.status_code)
 
         # we should have two messages, one for the text, the other for the media
-        msgs = Msg.all_messages.all().order_by('-created_on')
+        msgs = Msg.objects.all().order_by('-created_on')
         self.assertEqual(2, msgs.count())
         self.assertEqual('Test', msgs[0].text)
         self.assertIsNone(msgs[0].media)
@@ -5444,7 +5444,7 @@ class TwimlAPITest(TembaTest):
         self.assertTrue(msgs[1].text.startswith('https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msgs[1].text.endswith('.wav'))
 
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
 
         # try with no message body
         with patch('requests.get') as response:
@@ -5459,7 +5459,7 @@ class TwimlAPITest(TembaTest):
             self.assertEquals(201, response.status_code)
 
         # jsut a single message this time
-        msg = Msg.all_messages.get()
+        msg = Msg.objects.get()
         self.assertTrue(msg.media.startswith('audio/x-wav:https://%s' % settings.AWS_BUCKET_DOMAIN))
         self.assertTrue(msg.media.endswith('.wav'))
 
@@ -5491,7 +5491,7 @@ class TwimlAPITest(TembaTest):
         self.assertEquals(201, response.status_code)
 
         # and we should have a new message
-        msg1 = Msg.all_messages.get()
+        msg1 = Msg.objects.get()
         self.assertEquals("+250788383300", msg1.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg1.direction)
         self.assertEquals(self.org, msg1.org)
@@ -5506,15 +5506,15 @@ class TwimlAPITest(TembaTest):
         self.assertEquals(201, response.status_code)
 
         # and we should have another new message
-        msg2 = Msg.all_messages.exclude(pk=msg1.pk).get()
+        msg2 = Msg.objects.exclude(pk=msg1.pk).get()
         self.assertEquals(self.channel, msg2.channel)
 
         # create an outgoing message instead
         contact = msg2.contact
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
 
         contact.send("outgoing message", self.admin)
-        sms = Msg.all_messages.get()
+        sms = Msg.objects.get()
 
         # now update the status via a callback
         twiml_api_url = reverse('handlers.twiml_api_handler', args=[self.channel.uuid]) + "?action=callback&id=%d" % sms.id
@@ -5525,13 +5525,13 @@ class TwimlAPITest(TembaTest):
 
         self.assertEquals(200, response.status_code)
 
-        sms = Msg.all_messages.get()
+        sms = Msg.objects.get()
         self.assertEquals(SENT, sms.status)
 
         # try it with a failed SMS
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
         contact.send("outgoing message", self.admin)
-        sms = Msg.all_messages.get()
+        sms = Msg.objects.get()
 
         # now update the status via a callback (also test old api/v1 URL)
         twiml_api_url = reverse('handlers.twiml_api_handler', args=[self.channel.uuid]) + "?action=callback&id=%d" % sms.id
@@ -5541,7 +5541,7 @@ class TwimlAPITest(TembaTest):
         response = self.client.post(twiml_api_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
         self.assertEquals(200, response.status_code)
-        sms = Msg.all_messages.get()
+        sms = Msg.objects.get()
         self.assertEquals(FAILED, sms.status)
 
     def test_send(self):
