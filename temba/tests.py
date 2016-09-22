@@ -374,6 +374,9 @@ class TembaTest(SmartminTest):
             if actual is None:
                 actual = ''
 
+            if isinstance(actual, datetime):
+                actual = actual.replace(microsecond=0)
+
             actual_values.append(actual)
 
         self.assertEqual(actual_values, expected_values)
