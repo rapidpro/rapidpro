@@ -1937,7 +1937,8 @@ class ExportMessagesTask(SmartModel):
 
     def do_export(self):
         from openpyxl import Workbook
-        book = Workbook()
+        from openpyxl.writer.write_only import WriteOnlyCell
+        book = Workbook(write_only=True)
         max_rows = 1048576
 
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels', "Status"]
@@ -1965,9 +1966,13 @@ class ExportMessagesTask(SmartModel):
         messages_sheet_number = 1
 
         current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+        sheet_row = []
         for col in range(1, len(fields) + 1):
             field = fields[col - 1]
-            current_messages_sheet.cell(row=1, column=col, value=unicode(field))
+            cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
+            sheet_row.append(cell)
+
+        current_messages_sheet.append(sheet_row)
 
         row = 2
         processed = 0
@@ -1983,9 +1988,13 @@ class ExportMessagesTask(SmartModel):
             if row >= max_rows:
                 messages_sheet_number += 1
                 current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+                sheet_row = []
                 for col in range(len(fields)):
                     field = fields[col]
-                    current_messages_sheet.cell(row=1, column=col, value=unicode(field))
+                    cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
+                    sheet_row.append(cell)
+
+                current_messages_sheet.append(sheet_row)
                 row = 2
 
             contact_name = msg.contact.name if msg.contact.name else ''
@@ -2003,24 +2012,35 @@ class ExportMessagesTask(SmartModel):
 
             urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ''
 
-            current_messages_sheet.cell(row=row, column=1, value=created_on)
-            current_messages_sheet.cell(row=row, column=2, value=urn_path)
-            current_messages_sheet.cell(row=row, column=3, value=urn_scheme)
-            current_messages_sheet.cell(row=row, column=4, value=contact_name)
-            current_messages_sheet.cell(row=row, column=5, value=contact_uuid)
-            current_messages_sheet.cell(row=row, column=6, value=msg.get_direction_display())
-            current_messages_sheet.cell(row=row, column=7, value=msg.text)
-            current_messages_sheet.cell(row=row, column=8, value=msg_labels)
-            current_messages_sheet.cell(row=row, column=9, value=msg.get_status_display())
+            sheet_row = []
+
+            cell = WriteOnlyCell(current_messages_sheet, value=created_on)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=urn_path)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=urn_scheme)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=contact_name)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=contact_uuid)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_direction_display())
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=msg.text)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=msg_labels)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_status_display())
+            sheet_row.append(cell)
+
+            current_messages_sheet.append(sheet_row)
+
             row += 1
             processed += 1
 
             if processed % 10000 == 0:
                 print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
                       (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
-
-        ws = book['Sheet']
-        book.remove(ws)
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
