@@ -1938,10 +1938,25 @@ class ExportMessagesTask(SmartModel):
     def do_export(self):
         from openpyxl import Workbook
         from openpyxl.writer.write_only import WriteOnlyCell
+        from openpyxl.utils.cell import get_column_letter
+
         book = Workbook(write_only=True)
         max_rows = 1048576
 
+        small_width = 15
+        medium_width = 20
+        large_width = 100
+
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels', "Status"]
+        fields_col_width = [medium_width,  # Date
+                            medium_width,  # Contact
+                            small_width,   # Contact Type
+                            medium_width,  # Name
+                            medium_width,  # Contact UUID
+                            small_width,   # Direction
+                            large_width,   # Text
+                            medium_width,  # Labels
+                            small_width]   # Status
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
@@ -1968,9 +1983,11 @@ class ExportMessagesTask(SmartModel):
         current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
         sheet_row = []
         for col in range(1, len(fields) + 1):
-            field = fields[col - 1]
+            index = col - 1
+            field = fields[index]
             cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
             sheet_row.append(cell)
+            current_messages_sheet.column_dimensions[get_column_letter(index)].width = fields_col_width[index]
 
         current_messages_sheet.append(sheet_row)
 

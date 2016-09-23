@@ -3697,6 +3697,7 @@ class ExportFlowResultsTask(SmartModel):
     def do_export(self):
         from openpyxl import Workbook
         from openpyxl.writer.write_only import WriteOnlyCell
+        from openpyxl.utils.cell import get_column_letter
         book = Workbook(write_only=True)
         max_rows = 1048576
 
@@ -3711,6 +3712,10 @@ class ExportFlowResultsTask(SmartModel):
             cf = ContactField.objects.filter(id=cf_id, org=self.org, is_active=True).first()
             if cf:
                 contact_fields.append(cf)
+
+        small_width = 15
+        medium_width = 20
+        large_width = 100
 
         # merge the columns for all of our flows
         show_submitted_by = False
@@ -3806,46 +3811,57 @@ class ExportFlowResultsTask(SmartModel):
             index = 1
             if show_submitted_by:
                 cell = WriteOnlyCell(sheet, value="Surveyor")
+                sheet.column_dimensions[get_column_letter(index)].width = medium_width
                 sheet_row.append(cell)
                 index += 1
 
             cell = WriteOnlyCell(sheet, value="Contact UUID")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
             sheet_row.append(cell)
             index += 1
 
             cell = WriteOnlyCell(sheet, value="URN")
+            sheet.column_dimensions[get_column_letter(index)].width = small_width
             sheet_row.append(cell)
             index += 1
 
             cell = WriteOnlyCell(sheet, value="Name")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
             sheet_row.append(cell)
             index += 1
 
             cell = WriteOnlyCell(sheet, value="Groups")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
             sheet_row.append(cell)
             index += 1
 
             # add our contact fields
             for cf in contact_fields:
                 cell = WriteOnlyCell(sheet, value=cf.label)
+                sheet.column_dimensions[get_column_letter(index)].width = medium_width
                 sheet_row.append(cell)
                 index += 1
 
             cell = WriteOnlyCell(sheet, value="First Seen")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
             sheet_row.append(cell)
             index += 1
 
             cell = WriteOnlyCell(sheet, value="Last Seen")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
             sheet_row.append(cell)
             index += 1
 
             for col in range(len(columns)):
                 ruleset = columns[col]
                 cell = WriteOnlyCell(sheet, value="%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.column_dimensions[get_column_letter(index)].width = small_width
                 sheet_row.append(cell)
                 cell = WriteOnlyCell(sheet, value="%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.column_dimensions[get_column_letter(index)].width = small_width
                 sheet_row.append(cell)
                 cell = WriteOnlyCell(sheet, value="%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.column_dimensions[get_column_letter(index)].width = small_width
                 sheet_row.append(cell)
 
             sheet.append(sheet_row)
@@ -4087,18 +4103,25 @@ class ExportFlowResultsTask(SmartModel):
 
                         cell = WriteOnlyCell(msgs, value="Contact UUID")
                         msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
                         cell = WriteOnlyCell(msgs, value="URN")
                         msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
                         cell = WriteOnlyCell(msgs, value="Name")
                         msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
                         cell = WriteOnlyCell(msgs, value="Date")
                         msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
                         cell = WriteOnlyCell(msgs, value="Direction")
                         msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
                         cell = WriteOnlyCell(msgs, value="Message")
                         msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
                         cell = WriteOnlyCell(msgs, value="Channel")
                         msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
 
                         msgs.append(msgs_row)
                         msgs_row = []
