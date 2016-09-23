@@ -976,7 +976,7 @@ CELERYBEAT_SCHEDULE = {
     },
     "clear-old-msg-external-ids": {
         'task': 'clear_old_msg_external_ids',
-        'schedule': crontab(hour=0, minute=0),
+        'schedule': crontab(hour=1, minute=0),
     },
     "trim-channel-log": {
         'task': 'trim_channel_log_task',
