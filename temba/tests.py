@@ -10,7 +10,7 @@ import shutil
 import string
 import time
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
@@ -375,11 +375,17 @@ class TembaTest(SmartminTest):
                 actual = ''
 
             if isinstance(actual, datetime):
-                actual = actual.replace(microsecond=0)
+                actual = actual
 
             actual_values.append(actual)
 
-        self.assertEqual(actual_values, expected_values)
+        for index, expected in enumerate(expected_values):
+            actual = actual_values[index]
+
+            if isinstance(expected, datetime):
+                self.assertTrue(abs(expected - actual) < timedelta(seconds=1))
+            else:
+                self.assertEqual(expected, actual)
 
 
 class FlowFileTest(TembaTest):
