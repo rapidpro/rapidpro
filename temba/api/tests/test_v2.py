@@ -74,8 +74,12 @@ class APITest(TembaTest):
         response.json = json.loads(response.content)
         return response
 
-    def postJSON(self, url, data):
-        response = self.client.post(url + ".json", json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
+    def postJSON(self, url, query, data):
+        url += ".json"
+        if query:
+            url = url + "?" + query
+
+        response = self.client.post(url, json.dumps(data), content_type="application/json", HTTP_X_FORWARDED_HTTPS='https')
         if response.content:
             response.json = json.loads(response.content)
         return response
@@ -1172,42 +1176,42 @@ class APITest(TembaTest):
         self.assertResultsByUUID(response, [customers])
 
         # try to create empty group
-        response = self.postJSON(url, {})
+        response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
 
         # create new group
-        response = self.postJSON(url, {'name': "Reporters"})
+        response = self.postJSON(url, None, {'name': "Reporters"})
         self.assertEqual(response.status_code, 201)
 
         reporters = ContactGroup.user_groups.get(name="Reporters")
         self.assertEqual(response.json, {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
 
         # try to create another group with same name
-        response = self.postJSON(url, {'name': "Reporters"})
-        self.assertResponseError(response, 'non_field_errors', "Name must be unique")
+        response = self.postJSON(url, None, {'name': "Reporters"})
+        self.assertResponseError(response, 'name', "Must be unique")
 
         # try to create a group with invalid name
-        response = self.postJSON(url, {'name': "!!!#$%^"})
+        response = self.postJSON(url, None, {'name': "!!!#$%^"})
         self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
 
         # try to create a group with name that's too long
-        response = self.postJSON(url, {'name': "x" * 65})
+        response = self.postJSON(url, None, {'name': "x" * 65})
         self.assertResponseError(response, 'name', "Ensure this field has no more than 64 characters.")
 
         # update group by UUID
-        response = self.postJSON(url, {'uuid': reporters.uuid, 'name': "U-Reporters"})
+        response = self.postJSON(url, 'uuid=%s' % reporters.uuid, {'name': "U-Reporters"})
         self.assertEqual(response.status_code, 201)
 
         reporters.refresh_from_db()
         self.assertEqual(reporters.name, "U-Reporters")
 
         # can't update group from other org
-        response = self.postJSON(url, {'uuid': spammers.uuid, 'name': "Won't work"})
-        self.assertResponseError(response, 'uuid', "No such object with UUID: %s" % spammers.uuid)
+        response = self.postJSON(url, 'uuid=%s' % spammers.uuid, {'name': "Won't work"})
+        self.assertEqual(response.status_code, 404)
 
         # try an empty delete request
         response = self.deleteJSON(url, {})
-        self.assertResponseError(response, None, "Must provide one of the following fields: uuid")
+        self.assertResponseError(response, None, "URL must contain one of the following parameters: uuid")
 
         # delete a group by UUID
         response = self.deleteJSON(url, 'uuid=%s' % reporters.uuid)
@@ -1248,42 +1252,42 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
 
         # try to create empty label
-        response = self.postJSON(url, {})
+        response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
 
         # create new label
-        response = self.postJSON(url, {'name': "Interesting"})
+        response = self.postJSON(url, None, {'name': "Interesting"})
         self.assertEqual(response.status_code, 201)
 
         interesting = Label.label_objects.get(name="Interesting")
         self.assertEqual(response.json, {'uuid': interesting.uuid, 'name': "Interesting", 'count': 0})
 
         # try to create another label with same name
-        response = self.postJSON(url, {'name': "Interesting"})
-        self.assertResponseError(response, 'non_field_errors', "Name must be unique")
+        response = self.postJSON(url, None, {'name': "Interesting"})
+        self.assertResponseError(response, 'name', "Must be unique")
 
         # try to create a label with invalid name
-        response = self.postJSON(url, {'name': "!!!#$%^"})
+        response = self.postJSON(url, None, {'name': "!!!#$%^"})
         self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
 
         # try to create a label with name that's too long
-        response = self.postJSON(url, {'name': "x" * 65})
+        response = self.postJSON(url, None, {'name': "x" * 65})
         self.assertResponseError(response, 'name', "Ensure this field has no more than 64 characters.")
 
         # update label by UUID
-        response = self.postJSON(url, {'uuid': interesting.uuid, 'name': "More Interesting"})
+        response = self.postJSON(url, 'uuid=%s' % interesting.uuid, {'name': "More Interesting"})
         self.assertEqual(response.status_code, 201)
 
         interesting.refresh_from_db()
         self.assertEqual(interesting.name, "More Interesting")
 
         # can't update label from other org
-        response = self.postJSON(url, {'uuid': spam.uuid, 'name': "Won't work"})
-        self.assertResponseError(response, 'uuid', "No such object with UUID: %s" % spam.uuid)
+        response = self.postJSON(url, 'uuid=%s' % spam.uuid, {'name': "Won't work"})
+        self.assertEqual(response.status_code, 404)
 
         # try an empty delete request
-        response = self.deleteJSON(url, {})
-        self.assertResponseError(response, None, "Must provide one of the following fields: uuid")
+        response = self.deleteJSON(url, None)
+        self.assertResponseError(response, None, "URL must contain one of the following parameters: uuid")
 
         # delete a label by UUID
         response = self.deleteJSON(url, 'uuid=%s' % interesting.uuid)

@@ -192,6 +192,7 @@ class BaseAPIView(generics.GenericAPIView):
     throttle_scope = 'v2'
     model = None
     model_manager = 'objects'
+    lookup_params = {'uuid': 'uuid'}
 
     @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
@@ -200,6 +201,26 @@ class BaseAPIView(generics.GenericAPIView):
     def get_queryset(self):
         org = self.request.user.get_org()
         return getattr(self.model, self.model_manager).filter(org=org)
+
+    def get_lookup_values(self):
+        """
+        Extracts lookup_params from the request URL, e.g. {"uuid": "123..."}
+        """
+        lookup_values = {}
+        for param, field in six.iteritems(self.lookup_params):
+            if param in self.request.query_params:
+                param_value = self.request.query_params[param]
+                lookup_values[field] = param_value
+
+        if len(lookup_values) > 1:
+            raise InvalidQueryError("URL can only contain one of the following parameters: " + ", ".join(self.lookup_params.keys()))
+
+        return lookup_values
+
+    def get_object(self):
+        queryset = self.get_queryset().filter(**self.lookup_values)
+
+        return generics.get_object_or_404(queryset)
 
     def get_serializer_context(self):
         context = super(BaseAPIView, self).get_serializer_context()
@@ -274,11 +295,11 @@ class ListAPIMixin(mixins.ListModelMixin):
         pass
 
 
-class CreateAPIMixin(object):
+class WriteAPIMixin(object):
     """
-    Mixin for any endpoint which can create or update objects with a write serializer. Our list and create approach
-    differs slightly a bit from ListCreateAPIView in the REST framework as we use separate read and write serializers...
-    and sometimes we use another serializer again for write output
+    Mixin for any endpoint which can create or update objects with a write serializer. Our approach differs a bit from
+    the REST framework default way as we use POST requests for both create and update operations, and use separate
+    serializers for reading and writing.
     """
     write_serializer_class = None
 
@@ -289,8 +310,18 @@ class CreateAPIMixin(object):
         pass
 
     def post(self, request, *args, **kwargs):
+        self.lookup_values = self.get_lookup_values()
+
+        # determine if this is an update of an existing object or a create of a new object
+        if self.lookup_values:
+            instance = self.get_object()
+        else:
+            instance = None
+
+        # TODO handle contact by URN special case
+
         context = self.get_serializer_context()
-        serializer = self.write_serializer_class(data=request.data, context=context)
+        serializer = self.write_serializer_class(instance=instance, data=request.data, context=context)
 
         if serializer.is_valid():
             with transaction.atomic():
@@ -309,26 +340,18 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
     """
     Mixin for any endpoint that can delete objects with a DELETE request
     """
-    lookup_params = {'uuid': 'uuid'}
-
     def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+        self.lookup_values = self.get_lookup_values()
 
-    def get_object(self):
-        queryset = self.get_queryset()
+        if not self.lookup_values:
+            raise InvalidQueryError("URL must contain one of the following parameters: " + ", ".join(self.lookup_params.keys()))
 
-        filter_kwargs = {}
-        for param, field in six.iteritems(self.lookup_params):
-            if param in self.request.query_params:
-                param_value = self.request.query_params[param]
-                filter_kwargs[field] = param_value
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-        if not filter_kwargs:
-            raise InvalidQueryError("Must provide one of the following fields: " + ", ".join(self.lookup_params.keys()))
-
-        queryset = queryset.filter(**filter_kwargs)
-
-        return generics.get_object_or_404(queryset)
+    def perform_destroy(self, instance):
+        instance.release()
 
 
 # ============================================================
@@ -425,7 +448,7 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class BroadcastsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
+class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to send new message broadcasts using the `POST` method and list existing broadcasts on your
     account using the `GET` method.
@@ -876,7 +899,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
+class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Adding Contacts
 
@@ -1382,7 +1405,7 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
+class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Listing Groups
 
@@ -1436,16 +1459,12 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     ## Updating a Group
 
-    A **POST** can also be used to update a contact group if you do specify its UUID.
-
-    * **uuid** - the group UUID
-    * **name** - the group name (string)
+    A **POST** can also be used to update an existing contact group if you specify its UUID in the URL.
 
     Example:
 
-        POST /api/v2/groups.json
+        POST /api/v2/groups.json?uuid=5f05311e-8f81-4a67-a5b5-1501b6d6496a
         {
-            "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
             "name": "Checked"
         }
 
@@ -1460,13 +1479,13 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     ## Deleting a Group
 
-    A **DELETE** can  be used to delete a contact group if you specify its UUID
+    A **DELETE** can be used to delete a contact group if you specify its UUID in the URL.
 
     Example:
 
         DELETE /api/v2/groups.json?uuid=5f05311e-8f81-4a67-a5b5-1501b6d6496a
 
-    You will receive either a 204 response if a group was deleted, or a 404 response if no matching label was found.
+    You will receive either a 204 response if a group was deleted, or a 404 response if no matching group was found.
     """
     permission = 'contacts.contactgroup_api'
     model = ContactGroup
@@ -1484,9 +1503,6 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             queryset = queryset.filter(uuid=uuid)
 
         return queryset.filter(is_active=True)
-
-    def perform_destroy(self, instance):
-        instance.release()
 
     @classmethod
     def get_read_explorer(cls):
@@ -1510,7 +1526,6 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             'slug': 'group-write',
             'request': "",
             'fields': [
-                {'name': "uuid", 'required': False, 'help': "The UUID of the contact group to update"},
                 {'name': "name", 'required': True, 'help': "The name of the contact group"}
             ]
         }
@@ -1529,7 +1544,7 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
         }
 
 
-class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
+class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     ## Listing Labels
 
@@ -1581,16 +1596,12 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     ## Updating a Label
 
-    A **POST** can also be used to update a message label if you do specify its UUID.
-
-    * **uuid** - the label UUID
-    * **name** - the label name (string)
+    A **POST** can also be used to update an existing message label if you specify its UUID in the URL.
 
     Example:
 
-        POST /api/v2/labels.json
+        POST /api/v2/labels.json?uuid=fdd156ca-233a-48c1-896d-a9d594d59b95
         {
-            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
             "name": "Checked"
         }
 
@@ -1604,7 +1615,7 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     ## Deleting a Label
 
-    A **DELETE** can  be used to delete a message label if you specify its UUID
+    A **DELETE** can be used to delete a message label if you specify its UUID in the URL.
 
     Example:
 
@@ -1628,9 +1639,6 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             queryset = queryset.filter(uuid=uuid)
 
         return queryset.filter(is_active=True)
-
-    def perform_destroy(self, instance):
-        instance.release()
 
     @classmethod
     def get_read_explorer(cls):
@@ -1968,7 +1976,7 @@ class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ResthookSubscribersEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
+class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list, add or remove subscribers to resthooks.
 
@@ -2347,7 +2355,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
+class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list manual flow starts on your account and add or start contacts in a flow.
 

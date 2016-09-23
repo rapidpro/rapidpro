@@ -43,11 +43,6 @@ class WriteSerializer(serializers.Serializer):
     The normal REST framework way is to have the view decide if it's an update on existing instance or a create for a
     new instance. Since our logic for that gets relatively complex, we have the serializer make that call.
     """
-
-    def __init__(self, *args, **kwargs):
-        super(WriteSerializer, self).__init__(*args, **kwargs)
-        self.instance = None
-
     def run_validation(self, data=serializers.empty):
         if not isinstance(data, dict):
             raise serializers.ValidationError(detail={
@@ -395,32 +390,25 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 
 class ContactGroupWriteSerializer(WriteSerializer):
-    uuid = fields.ContactGroupField(required=False)
     name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN)
 
     def validate_name(self, value):
         if not ContactGroup.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
                                               % ContactGroup.MAX_NAME_LEN)
+
+        if not self.instance and ContactGroup.user_groups.filter(org=self.context['org'], name=value).exists():
+            raise serializers.ValidationError("Must be unique")
+
         return value
 
-    def validate(self, data):
-        instance = data.get('uuid')
-        name = data.get('name')
-
-        if not instance and ContactGroup.user_groups.filter(org=self.context['org'], name=name).exists():
-            raise serializers.ValidationError("Name must be unique")
-
-        return data
-
     def save(self):
-        instance = self.validated_data.get('uuid')
         name = self.validated_data.get('name')
 
-        if instance:
-            instance.name = name
-            instance.save(update_fields=('name',))
-            return instance
+        if self.instance:
+            self.instance.name = name
+            self.instance.save(update_fields=('name',))
+            return self.instance
         else:
             return ContactGroup.get_or_create(self.context['org'], self.context['user'], name)
 
@@ -582,32 +570,25 @@ class LabelReadSerializer(ReadSerializer):
 
 
 class LabelWriteSerializer(WriteSerializer):
-    uuid = fields.LabelField(required=False)
     name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN)
 
     def validate_name(self, value):
         if not Label.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
                                               % Label.MAX_NAME_LEN)
+
+        if not self.instance and Label.label_objects.filter(org=self.context['org'], name=value).exists():
+            raise serializers.ValidationError("Must be unique")
+
         return value
 
-    def validate(self, data):
-        instance = data.get('uuid')
-        name = data.get('name')
-
-        if not instance and Label.label_objects.filter(org=self.context['org'], name=name).exists():
-            raise serializers.ValidationError("Name must be unique")
-
-        return data
-
     def save(self):
-        instance = self.validated_data.get('uuid')
         name = self.validated_data.get('name')
 
-        if instance:
-            instance.name = name
-            instance.save(update_fields=('name',))
-            return instance
+        if self.instance:
+            self.instance.name = name
+            self.instance.save(update_fields=('name',))
+            return self.instance
         else:
             return Label.get_or_create(self.context['org'], self.context['user'], name)
 
