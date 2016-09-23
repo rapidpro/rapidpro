@@ -327,13 +327,21 @@ class WriteAPIMixin(object):
             with transaction.atomic():
                 output = serializer.save()
                 self.post_save(output)
+
+                # TODO handle contact by URN special case
+                context['instance_created'] = not bool(instance)
+
                 return self.render_write_response(output, context)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        # if we created a new object, notify caller by returning 201
+        status_code = status.HTTP_201_CREATED if context['instance_created'] else status.HTTP_200_OK
+
+        return Response(response_serializer.data, status=status_code)
 
 
 class DeleteAPIMixin(mixins.DestroyModelMixin):

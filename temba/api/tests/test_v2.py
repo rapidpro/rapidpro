@@ -983,7 +983,7 @@ class APITest(TembaTest):
 
         # try an empty delete request
         response = self.deleteJSON(url, None)
-        self.assertResponseError(response, None, "Must provide one of the following fields: urn, uuid")
+        self.assertResponseError(response, None, "URL must contain one of the following parameters: urn, uuid")
 
         # delete a contact by UUID
         response = self.deleteJSON(url, 'uuid=%s' % jean.uuid)
@@ -1200,7 +1200,7 @@ class APITest(TembaTest):
 
         # update group by UUID
         response = self.postJSON(url, 'uuid=%s' % reporters.uuid, {'name': "U-Reporters"})
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
 
         reporters.refresh_from_db()
         self.assertEqual(reporters.name, "U-Reporters")
@@ -1276,7 +1276,7 @@ class APITest(TembaTest):
 
         # update label by UUID
         response = self.postJSON(url, 'uuid=%s' % interesting.uuid, {'name': "More Interesting"})
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
 
         interesting.refresh_from_db()
         self.assertEqual(interesting.name, "More Interesting")
