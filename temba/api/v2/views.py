@@ -443,7 +443,6 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Administrative Boundaries",
             'url': reverse('api.v2.boundaries'),
             'slug': 'boundary-list',
-            'request': "",
             'params': []
         }
 
@@ -549,7 +548,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             'title': "List Broadcasts",
             'url': reverse('api.v2.broadcasts'),
             'slug': 'broadcast-list',
-            'request': "",
             'params': [
                 {'name': 'id', 'required': False, 'help': "A broadcast ID to filter by, ex: 123456"},
                 {'name': 'before', 'required': False, 'help': "Only return broadcasts created before this date, ex: 2015-01-28T18:00:00.000"},
@@ -564,7 +562,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             'title': "Send Broadcasts",
             'url': reverse('api.v2.broadcasts'),
             'slug': 'broadcast-write',
-            'request': "",
             'fields': [
                 {'name': 'text', 'required': True, 'help': "The text of the message you want to send"},
                 {'name': 'urns', 'required': False, 'help': "The URNs of contacts you want to send to"},
@@ -634,7 +631,6 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Campaigns",
             'url': reverse('api.v2.campaigns'),
             'slug': 'campaign-list',
-            'request': "",
             'params': [
                 {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
             ]
@@ -725,7 +721,6 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Campaign Events",
             'url': reverse('api.v2.campaign_events'),
             'slug': 'campaign-event-list',
-            'request': "",
             'params': [
                 {'name': "uuid", 'required': False, 'help': "An event UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter by. ex: Reminders"},
@@ -809,7 +804,6 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Channels",
             'url': reverse('api.v2.channels'),
             'slug': 'channel-list',
-            'request': "",
             'params': [
                 {'name': "uuid", 'required': False, 'help': "A channel UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': "address", 'required': False, 'help': "A channel address to filter by. ex: +250783530001"},
@@ -889,7 +883,6 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Channel Events",
             'url': reverse('api.v2.channel_events'),
             'slug': 'channel-event-list',
-            'request': "",
             'params': [
                 {'name': "id", 'required': False, 'help': "An event ID to filter by. ex: 12345"},
                 {'name': "contact", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
@@ -1082,7 +1075,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             'title': "List Contacts",
             'url': reverse('api.v2.contacts'),
             'slug': 'contact-list',
-            'request': "urn=tel%3A%2B250788123123",
             'params': [
                 {'name': "uuid", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': "urn", 'required': False, 'help': "A contact URN to filter by. ex: tel:+250788123123"},
@@ -1090,7 +1082,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                 {'name': "deleted", 'required': False, 'help': "Whether to return only deleted contacts. ex: false"},
                 {'name': 'before', 'required': False, 'help': "Only return contacts modified before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return contacts modified after this date, ex: 2015-01-28T18:00:00.000"}
-            ]
+            ],
+            'example': {'query': "urn=tel%3A%2B250788123123"},
         }
 
     @classmethod
@@ -1100,7 +1093,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             'title': "Add or Update Contacts",
             'url': reverse('api.v2.contacts'),
             'slug': 'contact-write',
-            'request': '{"name": "Ben Haggerty", "groups": [], "urns": ["tel:+250788123123"]}',
             'params': [
                 {'name': "uuid", 'required': False, 'help': "UUID of the contact to be updated"},
                 {'name': "urn", 'required': False, 'help': "URN of the contact to be updated. ex: tel:+250788123123"},
@@ -1111,7 +1103,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                 {'name': "urns", 'required': False, 'help': "List of URNs belonging to the contact."},
                 {'name': "groups", 'required': False, 'help': "List of UUIDs of groups that the contact belongs to."},
                 {'name': "fields", 'required': False, 'help': "Custom fields as a JSON dictionary."},
-            ]
+            ],
+            'example': {'body': '{"name": "Ben Haggerty", "groups": [], "urns": ["tel:+250788123123"]}'},
         }
 
     @classmethod
@@ -1121,7 +1114,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             'title': "Delete Contacts",
             'url': reverse('api.v2.contacts'),
             'slug': 'contact-delete',
-            'request': '',
             'params': [
                 {'name': "uuid", 'required': False, 'help': "UUID of the contact to be deleted"},
                 {'name': "urn", 'required': False, 'help': "URN of the contact to be deleted. ex: tel:+250788123123"}
@@ -1268,7 +1260,6 @@ class DefinitionsEndpoint(BaseAPIView):
             'title': "Export Definitions",
             'url': reverse('api.v2.definitions'),
             'slug': 'definition-list',
-            'request': "flow=f14e4ff0-724d-43fe-a953-1d16aefd1c0b&flow=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
             'params': [
                 {'name': "flow", 'required': False, 'help': "One or more flow UUIDs to include"},
                 {'name': "campaign", 'required': False, 'help': "One or more campaign UUIDs to include"},
@@ -1328,10 +1319,10 @@ class FieldsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Fields",
             'url': reverse('api.v2.fields'),
             'slug': 'field-list',
-            'request': "key=nick_name",
             'params': [
                 {'name': "key", 'required': False, 'help': "A field key to filter by. ex: nick_name"}
-            ]
+            ],
+            'example': {'query': "key=nick_name"},
         }
 
 
@@ -1400,7 +1391,6 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Flows",
             'url': reverse('api.v2.flows'),
             'slug': 'flow-list',
-            'request': "",
             'params': [
                 {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
@@ -1513,7 +1503,6 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "List Contact Groups",
             'url': reverse('api.v2.groups'),
             'slug': 'group-list',
-            'request': "",
             'params': [
                 {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"}
             ]
@@ -1526,7 +1515,6 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "Add or Update Contact Groups",
             'url': reverse('api.v2.groups'),
             'slug': 'group-write',
-            'request': "",
             'params': [
                 {'name': "uuid", 'required': False, 'help': "The UUID of the contact group to update"}
             ],
@@ -1542,7 +1530,6 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "Delete Contact Groups",
             'url': reverse('api.v2.groups'),
             'slug': 'group-delete',
-            'request': '',
             'params': [
                 {'name': "uuid", 'required': True, 'help': "The UUID of the contact group to delete"}
             ],
@@ -1652,7 +1639,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "List Message Labels",
             'url': reverse('api.v2.labels'),
             'slug': 'label-list',
-            'request': "",
             'params': [
                 {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"}
             ]
@@ -1665,7 +1651,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "Add or Update Message Labels",
             'url': reverse('api.v2.labels'),
             'slug': 'label-write',
-            'request': "",
             'params': [
                 {'name': "uuid", 'required': False, 'help': "The UUID of the message label to update"},
             ],
@@ -1681,7 +1666,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "Delete Message Labels",
             'url': reverse('api.v2.contacts'),
             'slug': 'label-delete',
-            'request': '',
             'params': [
                 {'name': "uuid", 'required': True, 'help': "The UUID of the message label to delete"}
             ],
@@ -1869,7 +1853,6 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Messages",
             'url': reverse('api.v2.messages'),
             'slug': 'msg-list',
-            'request': "folder=incoming&after=2014-01-01T00:00:00.000",
             'params': [
                 {'name': 'id', 'required': False, 'help': "A message ID to filter by, ex: 123456"},
                 {'name': 'broadcast', 'required': False, 'help': "A broadcast ID to filter by, ex: 12345"},
@@ -1878,7 +1861,8 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'label', 'required': False, 'help': "A label name or UUID to filter by, ex: Spam"},
                 {'name': 'before', 'required': False, 'help': "Only return messages created before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return messages created after this date, ex: 2015-01-28T18:00:00.000"}
-            ]
+            ],
+            'example': {'query': "folder=incoming&after=2014-01-01T00:00:00.000"},
         }
 
 
@@ -1927,8 +1911,7 @@ class OrgEndpoint(BaseAPIView):
             'method': "GET",
             'title': "View Current Org",
             'url': reverse('api.v2.org'),
-            'slug': 'org-read',
-            'request': ""
+            'slug': 'org-read'
         }
 
 
@@ -1978,7 +1961,6 @@ class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Resthooks",
             'url': reverse('api.v2.resthooks'),
             'slug': 'resthook-list',
-            'request': "?",
             'params': []
         }
 
@@ -2095,7 +2077,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
             'title': "List Resthook Subscribers",
             'url': reverse('api.v2.resthook_subscribers'),
             'slug': 'resthooksubscriber-list',
-            'request': "?",
             'params': []
         }
 
@@ -2105,11 +2086,11 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
                     title="Add Resthook Subscriber",
                     url=reverse('api.v2.resthook_subscribers'),
                     slug='resthooksubscriber-write',
-                    request='{ "resthook": "new-report", "target_url": "https://zapier.com/handle/1515155" }',
                     fields=[dict(name='resthook', required=True,
                                  help="The slug for the resthook you want to subscribe to"),
                             dict(name='target_url', required=True,
-                                 help="The URL that will be called when the resthook is triggered.")])
+                                 help="The URL that will be called when the resthook is triggered.")],
+                    example=dict(body='{"resthook": "new-report", "target_url": "https://zapier.com/handle/1515155"}'))
 
     @classmethod
     def get_delete_explorer(cls):
@@ -2117,7 +2098,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
                     title="Delete Resthook Subscriber",
                     url=reverse('api.v2.resthook_subscribers'),
                     slug='resthooksubscriber-delete',
-                    request="id=10404055",
                     params=[dict(name='id', required=True, help="The id of the subscriber to delete")])
 
 
@@ -2214,7 +2194,6 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Resthook Events",
             'url': reverse('api.v2.resthook_events'),
             'slug': 'resthook-event-list',
-            'request': "?",
             'params': []
         }
 
@@ -2344,7 +2323,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Flow Runs",
             'url': reverse('api.v2.runs'),
             'slug': 'run-list',
-            'request': "after=2014-01-01T00:00:00.000",
             'params': [
                 {'name': 'id', 'required': False, 'help': "A run ID to filter by, ex: 123456"},
                 {'name': 'flow', 'required': False, 'help': "A flow UUID to filter by, ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"},
@@ -2352,7 +2330,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'responded', 'required': False, 'help': "Whether to only return runs with contact responses"},
                 {'name': 'before', 'required': False, 'help': "Only return runs modified before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return runs modified after this date, ex: 2015-01-28T18:00:00.000"}
-            ]
+            ],
+            'example': {'query': "after=2016-01-01T00:00:00.000"}
         }
 
 
@@ -2490,12 +2469,12 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             'title': "List Flow Starts",
             'url': reverse('api.v2.flow_starts'),
             'slug': 'flow-start-list',
-            'request': "?after=2014-01-01T00:00:00.000",
             'params': [
                 {'name': 'id', 'required': False, 'help': "Only return the flow start with this id"},
                 {'name': 'after', 'required': False, 'help': "Only return flow starts modified after this date"},
                 {'name': 'before', 'required': False, 'help': "Only return flow starts modified before this date"}
-            ]
+            ],
+            'example': {'query': "after=2016-01-01T00:00:00.000"}
         }
 
     @classmethod
@@ -2504,7 +2483,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                     title="Start contacts in a flow",
                     url=reverse('api.v2.flow_starts'),
                     slug='flow-start-write',
-                    request='{ "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "urns": ["twitter:sirmixalot"] }',
                     fields=[dict(name='flow', required=True,
                                  help="The UUID of the flow to start"),
                             dict(name='groups', required=False,
@@ -2516,4 +2494,5 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                             dict(name='restart_participants', required=False,
                                  help="Whether to restart any participants already in the flow"),
                             dict(name='extra', required=False,
-                                 help="Any extra parameters to pass to the flow start")])
+                                 help="Any extra parameters to pass to the flow start")],
+                    example=dict(body='{"flow":"f5901b62-ba76-4003-9c62-72fdacc1b7b7","urns":["twitter:sirmixalot"]}'))

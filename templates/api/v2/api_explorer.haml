@@ -37,7 +37,7 @@
     .endpoint{ class: "endpoint-{{ endpoint.method|lower }}" }
       -if endpoint.params
         .field-title
-          -trans "Query Parameters"
+          -trans "Query String Parameters"
         %table.table
           .tbody
             -for item in endpoint.params
@@ -50,7 +50,7 @@
                     (optional)
       -if endpoint.fields
         .field-title
-          -trans "Post Body"
+          -trans "Post Body Fields"
         %table.table
           .tbody
             -for item in endpoint.fields
@@ -62,39 +62,41 @@
                   -else
                     (optional)
 
-      %pre.prettyprint<
-        :plain
-          <b>{{ endpoint.method }}</b> {{brand.api_link}}{{ endpoint.url }}.json
+      .request-form.form-horizontal
+        .request-header
+          <b>{{ endpoint.method }}</b> {{brand.api_link}}{{ endpoint.url }}.json<br/>
           <b>Authorization:</b> Token {{ request.user.api_token }}
 
-      -if endpoint.method == 'GET' or endpoint.method == 'DELETE'
-        .request.request-get
-          %textarea{ id: "request-{{ endpoint.slug }}", rows:"1" }<
-            {{ endpoint.request }}
-      -else
-        .request.request-post
-          %textarea{ id: "request-{{ endpoint.slug }}", rows:"5" }<
-            {{ endpoint.request }}
+        -if endpoint.params
+          .form-group
+            %label.col-sm-2.control-label
+              -trans "Query String"
+            .col-sm-10
+              .request-query
+                %textarea{ id:"request-query-{{ endpoint.slug }}", rows:"1" }<
+                  {{ endpoint.example.query }}
 
-      .request-buttons
-        -if endpoint.method == 'GET'
-          %i GET query parameters
-        -elif endpoint.method == 'DELETE'
-          %i DELETE query parameters
-        -else
-          %i POST body
+        -if endpoint.fields
+          .form-group
+            %label.col-sm-2.control-label
+              -trans "Post Body"
+            .col-sm-10
+              .request-body
+                %textarea{ id:"request-body-{{ endpoint.slug }}", rows:"5" }<
+                  {{ endpoint.example.body }}
 
-        %a{ href: '{{ endpoint.url }}' }
-          %i - View Full Documentation
+        .request-buttons
+          %a{ href: '{{ endpoint.url }}' }
+            -trans "View Full Documentation"
 
-        -if user.api_token
-          %a.btn.btn-primary.pull-right{ onclick:'javascript:send("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")' }= endpoint.method|upper
-        -else
-          %span.pull-right Log in to use the Explorer
+          -if user.api_token
+            %a.btn.btn-primary.pull-right{ onclick:'javascript:send("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")' }= endpoint.method|upper
+          -else
+            %span.pull-right Log in to use the Explorer
 
-      .clearfix
+        .clearfix
 
-      %pre.prettyprint.result{ id: "result-{{ endpoint.slug }}" }
+        %pre.prettyprint.result{ id: "result-{{ endpoint.slug }}" }
 
 -block extra-script
   {{ block.super }}
@@ -103,17 +105,17 @@
   :javascript
     var codeMirrors = {};
     $(function(){
-        var textareas = $(".request textarea");
-        for (var i=0; i<textareas.length; i++){
-          codeMirrors[textareas[i].id] = CodeMirror.fromTextArea(textareas[i],
-                                         { mode: "application/json", "lineNumbers": false });
+        // setup syntax highlighting on all textareas used to edit JSON
+        var textareas = $(".request-body textarea");
+        for (var i = 0; i < textareas.length; i++) {
+          codeMirrors[textareas[i].id] = CodeMirror.fromTextArea(textareas[i], { mode: "application/json", "lineNumbers": false });
         }
 
         $(".endpoint-title").click(function(){
           $(this).next(".endpoint").toggle();
           var slug = $(this).attr("data-slug");
           var method = $(this).attr("data-method");
-          refresh(codeMirrors["request-" + slug], method);
+          // refresh(codeMirrors["request-" + slug], method);
         });
     });
 
@@ -129,36 +131,39 @@
     }
 
     function send(slug, method, url){
-      var codeMirror = codeMirrors['request-' + slug];
-      var data = codeMirror.getValue();
-      $("#result-" + slug).text("Requesting..");
+      var query = $('#request-query-' + slug).val();
+      var body = codeMirrors['request-body-' + slug].getValue();
 
-      // by default jQuery sends delete data as the body
-      if (method == 'DELETE') {
-        url += '?' + data
-        data = null;
+      if (query) {
+        if (!query.startsWith('?')) {
+          query = '?' + query;
+        }
+        url += query;
       }
 
-      $.ajax({ type: method,
-               url: url,
-               data: data,
-               headers: {
-                 Accept : "application/json; charset=utf-8; indent=4;",
-                 "Content-Type": "application/json; charset=utf-8; indent=4;"
-               },
-               dataType: "text",
-               success: function(data, textStatus, xhr){
-                 var data = "HTTP/1.0 " + xhr.status + " " + textStatus.toUpperCase() + "\n" + data;
-                 $("#result-" + slug).show();
-                 $("#result-" + slug).text(data);
-                 prettyPrint();
-               },
-               error: function(request, status, error){
-                 var data = "HTTP/1.0 " + request.status + " " + error + "\n" + request.responseText;
-                 $("#result-" + slug).show();
-                 $("#result-" + slug).text(data);
-                 prettyPrint();
-               }
+      $("#result-" + slug).text("Requesting...");
+
+      $.ajax({
+        type: method,
+        url: url,
+        data: data,
+        headers: {
+          Accept : "application/json; charset=utf-8; indent=4;",
+          "Content-Type": "application/json; charset=utf-8; indent=4;"
+        },
+        dataType: "text",
+        success: function(data, textStatus, xhr){
+          var data = "HTTP/1.0 " + xhr.status + " " + textStatus.toUpperCase() + "\n" + data;
+          $("#result-" + slug).show();
+          $("#result-" + slug).text(data);
+          prettyPrint();
+        },
+        error: function(request, status, error){
+          var data = "HTTP/1.0 " + request.status + " " + error + "\n" + request.responseText;
+          $("#result-" + slug).show();
+          $("#result-" + slug).text(data);
+          prettyPrint();
+        }
       });
     }
 
@@ -168,40 +173,29 @@
   <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}css/codemirror.css"/>
   <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
   :css
-    .request {
+    .request-form {
+      background-color: #EEE;
+    }
+    .request-header {
+      font-family: monospace;
+      line-height: 110%;
+    }
+
+    .request-query .CodeMirror {
+      height: 30px;
       border: 1px solid #ccc;
     }
 
-    .request-post .CodeMirror {
+    .request-body .CodeMirror {
+      background-color: white;
       height: 110px;
-    }
-
-    .request-get .CodeMirror {
-      height: 30px;
+      border: 1px solid #ccc;
     }
 
     .request-buttons {
       margin-top: 5px;
       margin-bottom: 5px;
       height: 35px;
-    }
-
-    select {
-      width: 400px;
-    }
-
-    pre.prettyprint {
-      margin-top: 0px;
-      margin-bottom: 0px;
-
-      font-family: monospace;
-      font-size: inherit;
-      white-space: pre;
-      line-height: 110%;
-
-      -webkit-border-radius: 0px;
-      -moz-border-radius: 0px;
-      border-radius: 0px;
     }
 
     .endpoint-title {
