@@ -4000,7 +4000,7 @@ class ExportFlowResultsTask(SmartModel):
                         cell = WriteOnlyCell(runs, value=run_step.contact.name)
                         runs_sheet_row[padding + 2] = cell
                         cell = WriteOnlyCell(runs, value=groups)
-                        runs_sheet_row[padding + 4] = cell
+                        runs_sheet_row[padding + 3] = cell
 
                     cell = WriteOnlyCell(merged_runs, value=contact_uuid)
                     merged_sheet_row[padding + 0] = cell
