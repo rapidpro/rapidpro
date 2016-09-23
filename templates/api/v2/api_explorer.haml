@@ -1,8 +1,7 @@
-{% extends "frame.html" %}
-{% load smartmin %}
+- extends "frame.html"
+- load smartmin i18n
 
-{% block page-top %}
-{% endblock %}
+- block page-top
 
 -block page-title
   {{ brand.name }} - API Explorer
@@ -36,22 +35,32 @@
       %span.endpoint-url {{ endpoint.url }}.json
 
     .endpoint{ class: "endpoint-{{ endpoint.method|lower }}" }
-      .field-title
-        -if endpoint.method == 'GET' or endpoint.method == 'DELETE'
-          Query Parameters
-        -else
-          Post Body
-
-      %table.table
-        .tbody
-          -for field in endpoint.fields
-            %tr
-              %td.field{ class:"{% if field.required %}field-required{% endif %}" }= field.name
-              %td {{ field.help }}
-                -if field.required
-                  (required)
-                -else
-                  (optional)
+      -if endpoint.params
+        .field-title
+          -trans "Query Parameters"
+        %table.table
+          .tbody
+            -for item in endpoint.params
+              %tr
+                %td.field{ class:"{% if item.required %}field-required{% endif %}" }= item.name
+                %td {{ item.help }}
+                  -if item.required
+                    (required)
+                  -else
+                    (optional)
+      -if endpoint.fields
+        .field-title
+          -trans "Post Body"
+        %table.table
+          .tbody
+            -for item in endpoint.fields
+              %tr
+                %td.field{ class:"{% if item.required %}field-required{% endif %}" }= item.name
+                %td {{ item.help }}
+                  -if item.required
+                    (required)
+                  -else
+                    (optional)
 
       %pre.prettyprint<
         :plain
