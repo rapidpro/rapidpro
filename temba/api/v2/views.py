@@ -1672,7 +1672,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         return {
             'method': "DELETE",
             'title': "Delete Message Labels",
-            'url': reverse('api.v2.contacts'),
+            'url': reverse('api.v2.labels'),
             'slug': 'label-delete',
             'params': [
                 {'name': "uuid", 'required': True, 'help': "The UUID of the message label to delete"}
