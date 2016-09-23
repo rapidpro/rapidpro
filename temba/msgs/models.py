@@ -25,7 +25,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, remove_control_characters
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.email import send_template_email
 from temba.utils.expressions import evaluate_template
@@ -2014,6 +2014,8 @@ class ExportMessagesTask(SmartModel):
 
             sheet_row = []
 
+            text = remove_control_characters(msg.text)
+
             cell = WriteOnlyCell(current_messages_sheet, value=created_on)
             sheet_row.append(cell)
             cell = WriteOnlyCell(current_messages_sheet, value=urn_path)
@@ -2026,7 +2028,7 @@ class ExportMessagesTask(SmartModel):
             sheet_row.append(cell)
             cell = WriteOnlyCell(current_messages_sheet, value=msg.get_direction_display())
             sheet_row.append(cell)
-            cell = WriteOnlyCell(current_messages_sheet, value=msg.text)
+            cell = WriteOnlyCell(current_messages_sheet, value=text)
             sheet_row.append(cell)
             cell = WriteOnlyCell(current_messages_sheet, value=msg_labels)
             sheet_row.append(cell)

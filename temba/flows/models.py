@@ -34,7 +34,8 @@ from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, W
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
 from temba.msgs.models import INTERRUPTED, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
+from temba.utils import chunk_list, remove_control_characters
 from temba.utils.email import send_template_email, is_valid_address
 from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
@@ -3794,6 +3795,7 @@ class ExportFlowResultsTask(SmartModel):
             book.create_sheet(name)
             run_sheets.append(name)
 
+        sheet_row = []
         # then populate their header columns
         for (sheet_num, sheet_name) in enumerate(run_sheets):
 
@@ -4047,6 +4049,7 @@ class ExportFlowResultsTask(SmartModel):
 
                     value = run_step.rule_value
                     if value:
+                        value = remove_control_characters(value)
                         if include_runs:
                             cell = WriteOnlyCell(runs, value=value)
                             runs_sheet_row[col + 1] = cell
@@ -4055,6 +4058,7 @@ class ExportFlowResultsTask(SmartModel):
 
                     text = run_step.get_text()
                     if text:
+                        text = remove_control_characters(text)
                         if include_runs:
                             cell = WriteOnlyCell(runs, value=text)
                             runs_sheet_row[col + 2] = cell
@@ -4101,6 +4105,7 @@ class ExportFlowResultsTask(SmartModel):
 
                     msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
                     channel_name = msg.channel.name if msg.channel else ''
+                    text = remove_control_characters(msg.text)
 
                     cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
                     msgs_row.append(cell)
@@ -4112,7 +4117,7 @@ class ExportFlowResultsTask(SmartModel):
                     msgs_row.append(cell)
                     cell = WriteOnlyCell(msgs, value="IN" if msg.direction == INCOMING else "OUT")
                     msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=msg.text)
+                    cell = WriteOnlyCell(msgs, value=text)
                     msgs_row.append(cell)
                     cell = WriteOnlyCell(msgs, value=channel_name)
                     msgs_row.append(cell)
