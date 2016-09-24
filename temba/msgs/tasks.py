@@ -278,3 +278,5 @@ def clear_old_msg_external_ids():
 
     for msg_id_batch in chunk_list(msg_ids, 1000):
         Msg.objects.filter(pk__in=msg_id_batch).update(external_id=None)
+
+    print("Cleared external ids on %d messages" % len(msg_ids))
