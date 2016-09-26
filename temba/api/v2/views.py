@@ -497,7 +497,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                     "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
                     "groups": [],
                     "text": "hello world",
-                    "created_on": "2013-03-02T17:28:12.123Z"
+                    "created_on": "2013-03-02T17:28:12.123456Z"
                 },
                 ...
 
@@ -513,7 +513,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     Example:
 
-        POST /api/v1/broadcasts.json
+        POST /api/v2/broadcasts.json
         {
             "urns": ["tel:+250788123123", "tel:+250788123124"],
             "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
@@ -528,8 +528,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
             "groups": [],
             "text": "hello world",
-            "created_on": "2013-03-02T17:28:12",
-            "status": "Q"
+            "created_on": "2013-03-02T17:28:12.123456Z"
         }
     """
     permission = 'msgs.broadcast_api'
@@ -2083,9 +2082,7 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
 
     ## Deleting a Subscription
 
-    By making a `DELETE` request with the id of the subscription, you can remove it.
-
-     * **id** - the id of the resthook subscription you want to remove
+    A **DELETE** can be used to delete a subscription if you specify its id in the URL.
 
     Example:
 
@@ -2531,7 +2528,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     @classmethod
     def get_write_explorer(cls):
         return dict(method="POST",
-                    title="Start contacts in a flow",
+                    title="Start Contacts in a Flow",
                     url=reverse('api.v2.flow_starts'),
                     slug='flow-start-write',
                     fields=[dict(name='flow', required=True,
