@@ -601,12 +601,12 @@ class APITest(TembaTest):
         self.assertResultsByUUID(response, [campaign1])
 
         # try to create empty campaign
-        response = self.postJSON(url, {})
+        response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
         self.assertResponseError(response, 'group', "This field is required.")
 
         # create new campaign
-        response = self.postJSON(url, {'name': "Reminders #3", 'group': reporters.uuid})
+        response = self.postJSON(url, None, {'name': "Reminders #3", 'group': reporters.uuid})
         self.assertEqual(response.status_code, 201)
 
         campaign3 = Campaign.objects.get(name="Reminders #3")
@@ -618,24 +618,24 @@ class APITest(TembaTest):
         })
 
         # try to create another campaign with same name
-        response = self.postJSON(url, {'name': "Reminders #3", 'group': reporters.uuid})
-        self.assertResponseError(response, 'non_field_errors', "Name must be unique")
+        response = self.postJSON(url, None, {'name': "Reminders #3", 'group': reporters.uuid})
+        self.assertResponseError(response, 'name', "Must be unique")
 
         # try to create a campaign with name that's too long
-        response = self.postJSON(url, {'name': "x" * 256, 'group': reporters.uuid})
+        response = self.postJSON(url, None, {'name': "x" * 256, 'group': reporters.uuid})
         self.assertResponseError(response, 'name', "Ensure this field has no more than 255 characters.")
 
         # update campaign by UUID
-        response = self.postJSON(url, {'uuid': campaign3.uuid, 'name': "Reminders III", 'group': other_group.uuid})
-        self.assertEqual(response.status_code, 201)
+        response = self.postJSON(url, 'uuid=%s' % campaign3.uuid, {'name': "Reminders III", 'group': other_group.uuid})
+        self.assertEqual(response.status_code, 200)
 
         campaign3.refresh_from_db()
         self.assertEqual(campaign3.name, "Reminders III")
         self.assertEqual(campaign3.group, other_group)
 
         # can't update campaign in other org
-        response = self.postJSON(url, {'uuid': spam.uuid, 'name': "Won't work", 'group': spammers.uuid})
-        self.assertResponseError(response, 'uuid', "No such object with UUID: %s" % spam.uuid)
+        response = self.postJSON(url, 'uuid=%s' % spam.uuid, {'name': "Won't work", 'group': spammers.uuid})
+        self.assertEqual(response.status_code, 404)
 
     def test_campaign_events(self):
         url = reverse('api.v2.campaign_events')
@@ -697,7 +697,7 @@ class APITest(TembaTest):
         self.assertResultsByUUID(response, [])
 
         # try to create empty campaign event
-        response = self.postJSON(url, {})
+        response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'campaign', "This field is required.")
         self.assertResponseError(response, 'relative_to', "This field is required.")
         self.assertResponseError(response, 'offset', "This field is required.")
@@ -705,7 +705,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'delivery_hour', "This field is required.")
 
         # try again with some invalid values
-        response = self.postJSON(url, {
+        response = self.postJSON(url, None, {
             'campaign': campaign1.uuid,
             'relative_to': 'registration',
             'offset': 15,
@@ -716,7 +716,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'delivery_hour', "Ensure this value is less than or equal to 23.")
 
         # provide valid values for those fields.. but not a message or flow
-        response = self.postJSON(url, {
+        response = self.postJSON(url, None, {
             'campaign': campaign1.uuid,
             'relative_to': 'registration',
             'offset': 15,
@@ -726,7 +726,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'non_field_errors', "Flow UUID or a message text required.")
 
         # create a message event
-        response = self.postJSON(url, {
+        response = self.postJSON(url, None, {
             'campaign': campaign1.uuid,
             'relative_to': 'registration',
             'offset': 15,
@@ -744,7 +744,7 @@ class APITest(TembaTest):
         self.assertEqual(event1.delivery_hour, -1)
 
         # create a flow event
-        response = self.postJSON(url, {
+        response = self.postJSON(url, None, {
             'campaign': campaign1.uuid,
             'relative_to': 'registration',
             'offset': 15,
@@ -762,8 +762,7 @@ class APITest(TembaTest):
         self.assertEqual(event2.delivery_hour, -1)
 
         # update the message event to be a flow event
-        response = self.postJSON(url, {
-            'uuid': event1.uuid,
+        response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
             'campaign': campaign1.uuid,
             'relative_to': 'registration',
             'offset': 15,
@@ -771,7 +770,7 @@ class APITest(TembaTest):
             'delivery_hour': -1,
             'flow': flow.uuid
         })
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
 
         event1.refresh_from_db()
         self.assertEqual(event1.event_type, CampaignEvent.TYPE_FLOW)
@@ -779,8 +778,7 @@ class APITest(TembaTest):
         self.assertEqual(event1.flow, flow)
 
         # and update the flow event to be a message event
-        response = self.postJSON(url, {
-            'uuid': event2.uuid,
+        response = self.postJSON(url, 'uuid=%s' % event2.uuid, {
             'campaign': campaign1.uuid,
             'relative_to': 'registration',
             'offset': 15,
@@ -788,15 +786,14 @@ class APITest(TembaTest):
             'delivery_hour': -1,
             'message': "OK"
         })
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
 
         event2.refresh_from_db()
         self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
         self.assertEqual(event2.message, "OK")
 
         # try to change an existing event's campaign
-        response = self.postJSON(url, {
-            'uuid': event1.uuid,
+        response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
             'campaign': campaign2.uuid,
             'relative_to': 'registration',
             'offset': 15,
@@ -804,11 +801,11 @@ class APITest(TembaTest):
             'delivery_hour': -1,
             'flow': flow.uuid
         })
-        self.assertResponseError(response, 'non_field_errors', "Cannot change campaign for existing events")
+        self.assertResponseError(response, 'campaign', "Cannot change campaign for existing events")
 
         # try an empty delete request
-        response = self.deleteJSON(url, {})
-        self.assertResponseError(response, None, "Must provide one of the following fields: uuid")
+        response = self.deleteJSON(url, '')
+        self.assertResponseError(response, None, "URL must contain one of the following parameters: uuid")
 
         # delete an event by UUID
         response = self.deleteJSON(url, 'uuid=%s' % event1.uuid)

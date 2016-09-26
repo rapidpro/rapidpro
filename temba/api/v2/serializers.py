@@ -169,7 +169,7 @@ class CampaignWriteSerializer(WriteSerializer):
 
     def validate_name(self, value):
         if not self.instance and Campaign.objects.filter(org=self.context['org'], name=value).exists():
-            raise serializers.ValidationError("Name must be unique")
+            raise serializers.ValidationError("Must be unique")
 
         return value
 
