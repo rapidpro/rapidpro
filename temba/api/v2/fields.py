@@ -19,6 +19,17 @@ def validate_list_size(value):
         raise serializers.ValidationError("Exceeds maximum list size of %d" % MAX_LIST_SIZE)
 
 
+def validate_urn(value, strict=True):
+    try:
+        normalized = URN.normalize(value)
+
+        if strict and not URN.validate(normalized):
+            raise ValueError()
+    except ValueError:
+        raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % value)
+    return normalized
+
+
 class LimitedListField(serializers.ListField):
     """
     A list field which can be only be written to with a limited number of items
@@ -39,15 +50,7 @@ class URNField(serializers.CharField):
             return six.text_type(obj)
 
     def to_internal_value(self, data):
-        try:
-            country_code = self.context['org'].get_country_code()
-            normalized = URN.normalize(data, country_code=country_code)
-            if not URN.validate(normalized):
-                raise ValueError()
-        except ValueError:
-            raise serializers.ValidationError("Invalid URN: %s" % data)
-
-        return normalized
+        return validate_urn(data)
 
 
 class URNListField(LimitedListField):

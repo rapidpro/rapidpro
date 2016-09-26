@@ -37,7 +37,7 @@ class TwilioHandler(View):
     def dispatch(self, *args, **kwargs):
         return super(TwilioHandler, self).dispatch(*args, **kwargs)
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):  # pragma: no cover
         return HttpResponse("ILLEGAL METHOD")
 
     def post(self, request, *args, **kwargs):
@@ -180,7 +180,7 @@ class TwilioHandler(View):
 
             return HttpResponse("", status=201)
 
-        return HttpResponse("Not Handled, unknown action", status=400)
+        return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
 
 class TwilioMessagingServiceHandler(View):
@@ -188,7 +188,7 @@ class TwilioMessagingServiceHandler(View):
     def dispatch(self, *args, **kwargs):
         return super(TwilioMessagingServiceHandler, self).dispatch(*args, **kwargs)
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):  # pragma: no cover
         return self.post(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -223,7 +223,7 @@ class TwilioMessagingServiceHandler(View):
 
             return HttpResponse("", status=201)
 
-        return HttpResponse("Not Handled, unknown action", status=400)
+        return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
 
 class AfricasTalkingHandler(View):
@@ -276,7 +276,7 @@ class AfricasTalkingHandler(View):
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
-        else:
+        else:  # pragma: no cover
             return HttpResponse("Not handled", status=400)
 
 
@@ -1920,9 +1920,11 @@ class ViberHandler(View):
             #    "message_status": 0
             # }
             external_id = body['message_token']
-            msg = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
+
+            msg = Msg.objects.filter(channel=channel, direction='O', external_id=external_id).select_related('channel').first()
             if not msg:
-                return HttpResponse("Message with external id of '%s' not found" % external_id, status=400)
+                # viber is hammers us incessantly if we give 400s for non-existant message_ids
+                return HttpResponse("Message with external id of '%s' not found" % external_id)
 
             msg.status_delivered()
 
@@ -1950,5 +1952,5 @@ class ViberHandler(View):
             Msg.objects.filter(pk=msg.id).update(external_id=body['message_token'])
             return HttpResponse('Msg Accepted: %d' % msg.id)
 
-        else:
+        else:  # pragma: no cover
             return HttpResponse("Not handled, unknown action", status=400)

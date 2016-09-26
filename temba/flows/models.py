@@ -5343,7 +5343,11 @@ class SetChannelAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         # if we found the channel to set
         if self.channel:
-            run.contact.set_preferred_channel(self.channel)
+
+            # don't set preferred channel for test contacts
+            if not run.contact.is_test:
+                run.contact.set_preferred_channel(self.channel)
+
             self.log(run, _("Updated preferred channel to %s") % self.channel.name)
             return []
         else:
@@ -5541,6 +5545,7 @@ class Test(object):
                 TimeoutTest.TYPE: TimeoutTest,
                 AirtimeStatusTest.TYPE: AirtimeStatusTest,
                 WebhookStatusTest.TYPE: WebhookStatusTest,
+                InGroupTest.TYPE: InGroupTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -5628,6 +5633,34 @@ class AirtimeStatusTest(Test):
         status = text
         if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
             return 1, status
+        return 0, None
+
+
+class InGroupTest(Test):
+    """
+    { op: "in_group" }
+    """
+    TYPE = 'in_group'
+    NAME = 'name'
+    UUID = 'uuid'
+    TEST = 'test'
+
+    def __init__(self, group):
+        self.group = group
+
+    @classmethod
+    def from_json(cls, org, json):
+        group = json.get(InGroupTest.TEST)
+        name = group.get(InGroupTest.NAME)
+        uuid = group.get(InGroupTest.UUID)
+        return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid))
+
+    def as_json(self):
+        return dict(type=InGroupTest.TYPE, name=self.group.name, uuid=self.group.uuid)
+
+    def evaluate(self, run, sms, context, text):
+        if run.contact.user_groups.filter(id=self.group.id).first():
+            return 1, self.group.name
         return 0, None
 
 
