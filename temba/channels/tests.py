@@ -7,8 +7,6 @@ import copy
 import hashlib
 import hmac
 import json
-from linebot.client import LineBotClient
-from linebot.users import UserProfile
 import pytz
 import telegram
 import time
