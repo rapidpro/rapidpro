@@ -212,6 +212,7 @@ def channel_status_processor(request):
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
         status['has_outgoing_channel'] = send_channel or call_channel
+        status['is_ussd_channel'] = send_channel.is_ussd() if send_channel else False
 
         channels = org.channels.filter(is_active=True)
         for channel in channels:
@@ -246,8 +247,8 @@ def get_commands(channel, commands, sync_event=None):
         retry_msgs = sync_event.get_retry_messages()
 
     # messages without broadcast
-    msgs = list(Msg.all_messages.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel,
-                                        broadcast=None).select_related('contact_urn').order_by('text', 'pk'))
+    msgs = list(Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel,
+                                   broadcast=None).select_related('contact_urn').order_by('text', 'pk'))
 
     # all outgoing messages for our channel that are queued up
     broadcasts = Broadcast.objects.filter(status__in=[QUEUED, PENDING], schedule=None,
@@ -265,7 +266,7 @@ def get_commands(channel, commands, sync_event=None):
 
         outgoing_messages += len(msgs)
 
-    msgs = Msg.all_messages.filter(pk__in=[m.id for m in msgs]).exclude(contact__is_test=True).exclude(topup=None)
+    msgs = Msg.objects.filter(pk__in=[m.id for m in msgs]).exclude(contact__is_test=True).exclude(topup=None)
 
     if sync_event:
         msgs = msgs.exclude(pk__in=pending_msgs).exclude(pk__in=retry_msgs)
@@ -344,7 +345,7 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.all_messages.filter(pk=cmd['msg_id'], org=channel.org)
+                        msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org)
                         if msg:
                             msg = msg[0]
                             handled = msg.update(cmd)
@@ -542,7 +543,7 @@ class ChannelCRUDL(SmartCRUDL):
     actions = ('list', 'claim', 'update', 'read', 'delete', 'search_numbers', 'claim_twilio',
                'claim_android', 'claim_africas_talking', 'claim_chikka', 'configuration', 'claim_external',
                'search_nexmo', 'claim_nexmo', 'bulk_sender_options', 'create_bulk_sender', 'claim_infobip',
-               'claim_hub9', 'claim_vumi', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
+               'claim_hub9', 'claim_vumi', 'claim_vumi_ussd', 'create_caller', 'claim_kannel', 'claim_twitter', 'claim_shaqodoon',
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
@@ -567,19 +568,11 @@ class ChannelCRUDL(SmartCRUDL):
                 return super(ChannelCRUDL.AnonMixin, self).has_permission(request, *args, **kwargs)
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
         exclude = ('id', 'is_active', 'created_by', 'modified_by', 'modified_on', 'gcm_id')
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            # overloaded to have uuid pattern instead of integer id
-            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
-
-        def get_object(self, queryset=None):
-            uuid = self.kwargs.get('uuid')
-            channel = Channel.objects.filter(uuid=uuid, is_active=True).first()
-            if channel is None:
-                raise Http404("No active channel with that UUID")
-            return channel
+        def get_queryset(self):
+            return Channel.objects.filter(is_active=True)
 
         def get_gear_links(self):
             links = []
@@ -1544,7 +1537,7 @@ class ChannelCRUDL(SmartCRUDL):
                                           help_text=_("Your Vumi account key as found under Account -> Details"))
             conversation_key = forms.CharField(label=_("Conversation Key"),
                                                help_text=_("The key for your Vumi conversation, can be found in the URL"))
-            transport_name = forms.CharField(label=_("Transport Name"),
+            transport_name = forms.CharField(label=_("Transport Name"), required=False,
                                              help_text=_("The name of the Vumi transport you will use to send and receive messages"))
 
         title = _("Connect Vumi")
@@ -1560,13 +1553,16 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
             self.object = Channel.add_config_external_channel(org, self.request.user,
-                                                              data['country'], data['number'], Channel.TYPE_VUMI,
+                                                              data['country'], data['number'], self.channel_type,
                                                               dict(account_key=data['account_key'],
                                                                    access_token=str(uuid4()),
                                                                    transport_name=data['transport_name'],
                                                                    conversation_key=data['conversation_key']))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
+
+    class ClaimVumiUssd(ClaimVumi):
+        channel_type = Channel.TYPE_VUMI_USSD
 
     class ClaimClickatell(ClaimAuthenticatedExternal):
         class ClickatellForm(forms.Form):

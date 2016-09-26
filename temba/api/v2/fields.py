@@ -8,6 +8,7 @@ from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, URN
 from temba.flows.models import Flow
+from temba.msgs.models import Label
 
 # maximum number of items in a posted list
 MAX_LIST_SIZE = 100
@@ -39,12 +40,11 @@ class URNField(serializers.CharField):
 
     def to_internal_value(self, data):
         try:
-            country_code = self.context['org'].get_country_code()
-            normalized = URN.normalize(data, country_code=country_code)
+            normalized = URN.normalize(data)
             if not URN.validate(normalized):
                 raise ValueError()
         except ValueError:
-            raise serializers.ValidationError("Invalid URN: %s" % data)
+            raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % data)
 
         return normalized
 
@@ -110,3 +110,8 @@ class ContactGroupField(TembaModelField):
 
 class FlowField(TembaModelField):
     model = Flow
+
+
+class LabelField(TembaModelField):
+    model = Label
+    model_manager = 'label_objects'

@@ -124,7 +124,7 @@
                 %tbody
                   -for object in object_list
                     -with object.get_and_clear_unread_responses as new_responses
-                      %tr.flow.object-row.select-row{ data-object-id: "{{ object.id }}" }
+                      %tr.flow.object-row.select-row{ data-object-id: "{{ object.uuid }}" }
                         %td.flow.checkbox.object-row-checkbox
                           -if object.flow_type != 'V' or object.org.supports_ivr
                             .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox

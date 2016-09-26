@@ -782,7 +782,7 @@ class APITest(TembaTest):
         self.assertEqual(steps[0].next_uuid, None)
 
         # outgoing message for reply
-        out_msgs = list(Msg.all_messages.filter(direction='O').order_by('pk'))
+        out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
         self.assertEqual(len(out_msgs), 1)
         self.assertEqual(out_msgs[0].contact, self.joe)
         self.assertEqual(out_msgs[0].contact_urn, None)
@@ -880,7 +880,7 @@ class APITest(TembaTest):
         self.assertEqual(steps[2].next_uuid, new_node_uuid)
 
         # new outgoing message for reply
-        out_msgs = list(Msg.all_messages.filter(direction='O').order_by('pk'))
+        out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
         self.assertEqual(len(out_msgs), 2)
         self.assertEqual(out_msgs[1].contact, self.joe)
         self.assertEqual(out_msgs[1].contact_urn, None)
@@ -1596,6 +1596,11 @@ class APITest(TembaTest):
         contact.unblock(self.user)
         artists.contacts.add(contact)
 
+        # try updating with a reserved word field
+        response = self.postJSON(url, dict(phone='+250788123456', fields={"email": "andy@example.com"}))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'fields', "Invalid contact field key: 'email' is a reserved word")
+
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         self.assertEquals(400, response.status_code)
@@ -1632,21 +1637,21 @@ class APITest(TembaTest):
         drdre = Contact.objects.get()
 
         # add another contact
-        jay_z = self.create_contact("Jay-Z", number="123444")
+        jay_z = self.create_contact("Jay-Z", number="+250784444444")
         ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date", None, Value.TYPE_DATETIME)
         jay_z.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
 
         # try to update using URNs from two different contacts
-        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123444']))
+        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:+250784444444']))
         self.assertEqual(response.status_code, 400)
         self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
-        # update URN using UUID
-        response = self.postJSON(url, dict(uuid=jay_z.uuid, name="Jay-Z", urns=['tel:123555']))
+        # update URN using UUID - note this endpoint still allows numbers without country codes
+        response = self.postJSON(url, dict(uuid=jay_z.uuid, name="Jay-Z", urns=['tel:0785555555']))
         self.assertEqual(response.status_code, 201)
 
         jay_z = Contact.objects.get(pk=jay_z.pk)
-        self.assertEqual([u.urn for u in jay_z.urns.all()], ['tel:123555'])
+        self.assertEqual([u.urn for u in jay_z.urns.all()], ['tel:+250785555555'])
 
         # fetch all with blank query
         self.clear_cache()
@@ -1681,7 +1686,7 @@ class APITest(TembaTest):
         self.assertContains(response, "Dr Dre")
 
         # search using urns list
-        response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
+        response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:+250785555555")))
         self.assertResultCount(response, 2)
 
         # search deleted contacts
@@ -1732,7 +1737,7 @@ class APITest(TembaTest):
             self.assertContains(response, 'Andre')
             self.assertNotContains(response, '0788123456')
             self.assertContains(response, "Jay-Z")
-            self.assertNotContains(response, '123555')
+            self.assertNotContains(response, '0785555555')
 
             # try to create a contact with an external URN
             response = self.postJSON(url, dict(urns=['ext:external-id'], name="Test Name"))
@@ -1768,7 +1773,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
         # check deleting a contact by URN
-        response = self.deleteJSON(url, 'urns=tel:123555')
+        response = self.deleteJSON(url, 'urns=%s' % urlquote_plus('tel:+250785555555'))
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=jay_z.pk).is_active)
 
@@ -1822,6 +1827,14 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
         results = json.loads(response.content)['results']
         self.assertEquals('Snoop Dogg', results[0]['name'])
+
+        # add two existing contacts
+        self.create_contact("Zinedine", number="+250788111222")
+        self.create_contact("Rusell", number="+250788333444")
+
+        # return error when trying to to create a new contact with many urns from different existing contacts
+        response = self.postJSON(url, dict(name="Hart", urns=['tel:0788111222', 'tel:+250788333444']))
+        self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.v1.contacts')
@@ -2075,16 +2088,16 @@ class APITest(TembaTest):
         # archive all messages for contacts 1 and 2
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='archive'))
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(Msg.all_messages.filter(contact__in=[contact1, contact2], direction='I', visibility='V').exists())
-        self.assertTrue(Msg.all_messages.filter(contact=contact3, direction='I', visibility='V').exists())
+        self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2], direction='I', visibility='V').exists())
+        self.assertTrue(Msg.objects.filter(contact=contact3, direction='I', visibility='V').exists())
 
         # delete contacts 1 and 2
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='delete'))
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact5})
         self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4, test_contact})
-        self.assertFalse(Msg.all_messages.filter(contact__in=[contact1, contact2]).exclude(visibility='D').exists())
-        self.assertTrue(Msg.all_messages.filter(contact=contact3).exclude(visibility='D').exists())
+        self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2]).exclude(visibility='D').exists())
+        self.assertTrue(Msg.objects.filter(contact=contact3).exclude(visibility='D').exists())
 
         # try to provide a group for a non-group action
         response = self.postJSON(url, dict(contacts=[contact3.uuid], action='block', group='Testers'))
@@ -2121,20 +2134,20 @@ class APITest(TembaTest):
 
         # should be one broadcast and one SMS
         self.assertEquals(1, Broadcast.objects.all().count())
-        self.assertEquals(1, Msg.all_messages.all().count())
+        self.assertEquals(1, Msg.objects.all().count())
 
         broadcast = Broadcast.objects.get()
         self.assertEquals("test1", broadcast.text)
         self.assertEquals(self.admin.get_org(), broadcast.org)
 
-        sms = Msg.all_messages.get()
+        sms = Msg.objects.get()
         self.assertEquals("test1", sms.text)
         self.assertEquals("+250788123123", sms.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(self.admin.get_org(), sms.org)
         self.assertEquals(self.channel, sms.channel)
         self.assertEquals(broadcast, sms.broadcast)
 
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
         Broadcast.objects.all().delete()
 
         # add a broadcast with urns field
@@ -2143,13 +2156,13 @@ class APITest(TembaTest):
 
         # should be one broadcast and one SMS
         self.assertEquals(1, Broadcast.objects.all().count())
-        self.assertEquals(1, Msg.all_messages.all().count())
+        self.assertEquals(1, Msg.objects.all().count())
 
         broadcast = Broadcast.objects.get()
         self.assertEquals("test1", broadcast.text)
         self.assertEquals(self.admin.get_org(), broadcast.org)
 
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
         Broadcast.objects.all().delete()
 
         # add a broadcast using a contact uuid
@@ -2159,13 +2172,13 @@ class APITest(TembaTest):
 
         # should be one broadcast and one SMS
         self.assertEquals(1, Broadcast.objects.all().count())
-        self.assertEquals(1, Msg.all_messages.all().count())
+        self.assertEquals(1, Msg.objects.all().count())
 
         broadcast = Broadcast.objects.get()
         self.assertEquals("test1", broadcast.text)
         self.assertEquals(self.admin.get_org(), broadcast.org)
 
-        msg1 = Msg.all_messages.get()
+        msg1 = Msg.objects.get()
         self.assertEquals("test1", msg1.text)
         self.assertEquals("+250788123123", msg1.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(self.admin.get_org(), msg1.org)
@@ -2270,7 +2283,7 @@ class APITest(TembaTest):
 
         flow = self.create_flow()
         flow.start([], [contact])
-        msg5 = Msg.all_messages.get(contact__is_test=False, msg_type='F')
+        msg5 = Msg.objects.get(contact__is_test=False, msg_type='F')
 
         # check encoding
         response = self.fetchJSON(url, "id=%d" % msg4.pk)
@@ -2354,13 +2367,13 @@ class APITest(TembaTest):
 
         # should be one broadcast and one SMS
         self.assertEquals(1, Broadcast.objects.all().count())
-        self.assertEquals(2, Msg.all_messages.all().count())
+        self.assertEquals(2, Msg.objects.all().count())
 
         broadcast = Broadcast.objects.get()
         self.assertEquals("test1", broadcast.text)
         self.assertEquals(self.admin.get_org(), broadcast.org)
 
-        msgs = Msg.all_messages.all().order_by('contact__urns__path')
+        msgs = Msg.objects.all().order_by('contact__urns__path')
         self.assertEquals(2, msgs.count())
         self.assertEquals("test1", msgs[0].text)
         self.assertEquals("+250788123123", msgs[0].contact.get_urn(TEL_SCHEME).path)
@@ -2407,7 +2420,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(channel=self.channel.pk, phone=['250788123123'], text='test1'))
         self.assertEquals(201, response.status_code)
 
-        sms = Msg.all_messages.get()
+        sms = Msg.objects.get()
         self.assertEquals(self.channel.pk, sms.channel.pk)
 
         # remove our channel
@@ -2482,26 +2495,26 @@ class APITest(TembaTest):
         # archive all messages
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg3.pk, msg4.pk], action='archive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg4})  # ignored as is outgoing
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg1, msg2, msg3})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg4})  # ignored as is outgoing
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg1, msg2, msg3})
 
         # un-archive message 1
         response = self.postJSON(url, dict(messages=[msg1.pk], action='unarchive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg2, msg3})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg2, msg3})
 
         # delete messages 2 and 4
         response = self.postJSON(url, dict(messages=[msg2.pk], action='delete'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})  # 4 ignored as is outgoing
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})  # 4 ignored as is outgoing
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
 
         # can't un-archive a deleted message
         response = self.postJSON(url, dict(messages=[msg2.pk], action='unarchive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
 
         # try to provide a label for a non-labelling action
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='archive', label='Test2'))
