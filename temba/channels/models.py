@@ -1174,7 +1174,6 @@ class Channel(TembaModel):
                                description="Successfully delivered",
                                method='POST',
                                url=response.request.url,
-                               request=response.request.body,
                                response=response.content,
                                response_status=response.status_code)
 
@@ -2726,6 +2725,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
+                  Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
                   Channel.TYPE_NEXMO: Channel.send_nexmo_message,
