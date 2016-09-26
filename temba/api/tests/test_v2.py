@@ -23,6 +23,7 @@ from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
 from temba.tests import TembaTest, AnonymousOrg
 from temba.values.models import Value
+from urllib import quote_plus
 from ..models import APIToken, Resthook, WebHookEvent
 from ..v2 import fields
 from ..v2.serializers import format_datetime
@@ -766,9 +767,13 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % contact2.uuid)
         self.assertResultsByUUID(response, [contact2])
 
-        # filter by URN
-        response = self.fetchJSON(url, 'urn=tel%3A%2B250788000004')
+        # filter by URN (which should be normalized)
+        response = self.fetchJSON(url, 'urn=%s' % quote_plus('tel:+250-78-8000004'))
         self.assertResultsByUUID(response, [contact4])
+
+        # error if URN can't be parsed
+        response = self.fetchJSON(url, 'urn=12345')
+        self.assertResponseError(response, None, "Invalid URN: 12345")
 
         # filter by group name
         response = self.fetchJSON(url, 'group=Customers')
@@ -807,7 +812,11 @@ class APITest(TembaTest):
         })
 
         with AnonymousOrg(self.org):
-            # shouldn't include URNs
+            # can't filter by URN
+            response = self.fetchJSON(url, 'urn=%s' % quote_plus('tel:+250-78-8000004'))
+            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
+
+            # output shouldn't include URNs
             response = self.fetchJSON(url, 'uuid=%s' % contact2.uuid)
             self.assertEqual(response.json['results'][0]['urns'], [])
 
@@ -875,8 +884,8 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'fields', "Invalid contact field key: hmmm")
 
         # update an existing contact by UUID but don't provide any fields
-        response = self.postJSON(url, None, {'uuid': jean.uuid})
-        self.assertEqual(response.status_code, 201)
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {})
+        self.assertEqual(response.status_code, 200)
 
         # contact should be unchanged
         jean = Contact.objects.get(pk=jean.pk)
@@ -887,15 +896,14 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field('nickname').string_value, "Jado")
 
         # update by UUID and change all fields
-        response = self.postJSON(url, None, {
-            'uuid': jean.uuid,
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {
             'name': "Jean II",
             'language': "eng",
             'urns': ["tel:+250784444444"],
             'groups': [],
             'fields': {'nickname': "John"}
         })
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
 
         jean = Contact.objects.get(pk=jean.pk)
         self.assertEqual(jean.name, "Jean II")
@@ -904,82 +912,72 @@ class APITest(TembaTest):
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field('nickname').string_value, "John")
 
-        # update by URN whilst changing URNs
-        response = self.postJSON(url, None, {'urn': "tel:+250784444444", 'urns': ["tel:+250785555555"]})
-        self.assertEqual(response.status_code, 201)
+        # update by URN (which should be normalized)
+        response = self.postJSON(url, 'urn=%s' % quote_plus("tel:+250-78-4444444"), {'name': "Jean III"})
+        self.assertEqual(response.status_code, 200)
 
-        # only URN should have changed
         jean = Contact.objects.get(pk=jean.pk)
-        self.assertEqual(jean.name, "Jean II")
-        self.assertEqual(jean.language, "eng")
-        self.assertEqual(set(jean.urns.values_list('urn', flat=True)), {'tel:+250785555555'})
-        self.assertEqual(set(jean.user_groups.all()), set())
-        self.assertEqual(jean.get_field('nickname').string_value, "John")
+        self.assertEqual(jean.name, "Jean III")
 
-        # create by URN identifier
-        response = self.postJSON(url, None, {'urn': "twitter:BOBBY", 'name': "Bobby"})
+        # try to specify URNs field whilst referencing by URN
+        response = self.postJSON(url, 'urn=%s' % quote_plus("tel:+250784444444"), {'urns': ["tel:+250785555555"]})
+        self.assertResponseError(response, 'urns', "Field not allowed when using URN in URL")
+
+        # if contact doesn't exist with URN, they're created
+        response = self.postJSON(url, 'urn=%s' % quote_plus("tel:+250-78-5555555"), {'name': "Bobby"})
         self.assertEqual(response.status_code, 201)
 
         # URN should be normalized
         bobby = Contact.objects.get(name="Bobby")
-        self.assertEqual(set(bobby.urns.values_list('urn', flat=True)), {'twitter:bobby'})
-
-        # if URNs list also provided, it takes precedence
-        response = self.postJSON(url, None, {'urn': "twitter:jimmy", 'name': "Jimmy", 'urns': ["twitter:jimmy2"]})
-        self.assertEqual(response.status_code, 201)
-
-        jimmy = Contact.objects.get(name="Jimmy")
-        self.assertEqual(set(jimmy.urns.values_list('urn', flat=True)), {'twitter:jimmy2'})
-
-        # URN identifier is also normalized for updates
-        response = self.postJSON(url, None, {'urn': "twitter:BOBBY", 'name': "Bobby II"})
-        self.assertEqual(response.status_code, 201)
-
-        bobby.refresh_from_db()
-        self.assertEqual(bobby.name, "Bobby II")  # updated existing contact
+        self.assertEqual(set(bobby.urns.values_list('urn', flat=True)), {'tel:+250785555555'})
 
         # try to create a contact with a URN belonging to another contact
-        response = self.postJSON(url, None, {'name': "Robert", 'urns': ["twitter:bobby"]})
+        response = self.postJSON(url, None, {'name': "Robert", 'urns': ["tel:+250-78-5555555"]})
         self.assertEqual(response.status_code, 400)
-        self.assertResponseError(response, 'non_field_errors', "Contact URN belongs to another contact: twitter:bobby")
+        self.assertResponseError(response, 'urns', "URN belongs to another contact: tel:+250785555555")
 
         # try to update a contact with non-existent UUID
-        response = self.postJSON(url, None, {'uuid': 'ad6acad9-959b-4d70-b144-5de2891e4d00'})
-        self.assertResponseError(response, 'uuid', "No such contact with UUID: ad6acad9-959b-4d70-b144-5de2891e4d00")
+        response = self.postJSON(url, 'uuid=ad6acad9-959b-4d70-b144-5de2891e4d00', {})
+        self.assertEqual(response.status_code, 404)
 
         # try to update a contact in another org
-        response = self.postJSON(url, None, {'uuid': hans.uuid})
-        self.assertResponseError(response, 'uuid', "No such contact with UUID: %s" % hans.uuid)
+        response = self.postJSON(url, 'uuid=%s' % hans.uuid, {})
+        self.assertEqual(response.status_code, 404)
 
         # try to add a contact to a dynamic group
-        response = self.postJSON(url, None, {'uuid': jean.uuid, 'groups': [dyn_group.uuid]})
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'groups': [dyn_group.uuid]})
         self.assertResponseError(response, 'groups', "Can't add contact to dynamic group with UUID: %s" % dyn_group.uuid)
 
         # try to give a contact more than 100 URNs
-        response = self.postJSON(url, None, {'uuid': jean.uuid, 'urns': ['twitter:bob%d' % u for u in range(101)]})
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(101)]})
         self.assertResponseError(response, 'urns', "Exceeds maximum list size of 100")
 
         # try to move a blocked contact into a group
         jean.block(self.user)
-        response = self.postJSON(url, None, {'uuid': jean.uuid, 'groups': [group.uuid]})
-        self.assertResponseError(response, 'non_field_errors', "Blocked or stopped contacts can't be added to groups")
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'groups': [group.uuid]})
+        self.assertResponseError(response, 'groups', "Blocked or stopped contacts can't be added to groups")
+
+        # try to update a contact by both UUID and URN
+        response = self.postJSON(url, 'uuid=%s&urn=%s' % (jean.uuid, quote_plus("tel:+250784444444")), {})
+        self.assertResponseError(response, None, "URL can only contain one of the following parameters: urn, uuid")
 
         with AnonymousOrg(self.org):
             # can't update via URN
-            response = self.postJSON(url, None, {'urn': 'tel:+250785555555'})
-            self.assertResponseError(response, 'urn', "Referencing by URN not allowed for anonymous organizations")
+            response = self.postJSON(url, 'urn=%s' % 'tel:+250785555555', {})
+            self.assertResponseError(response, None, "URN lookups not allowed for anonymous organizations")
 
             # can't update contact URNs
-            response = self.postJSON(url, None, {'uuid': jean.uuid, 'urns': ["tel:+250786666666"]})
-            self.assertResponseError(response, 'non_field_errors',
-                                     "Updating contact URNs not allowed for anonymous organizations")
+            response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ["tel:+250786666666"]})
+            self.assertResponseError(response, 'urns', "Updating URNs not allowed for anonymous organizations")
 
-            # can create with URNs
-            response = self.postJSON(url, None, {'name': "Xavier", 'urns': ["tel:+250787777777"]})
+            # but can create with URNs
+            response = self.postJSON(url, None, {'name': "Xavier", 'urns': ["tel:+250-78-7777777", "twitter:XAVIER"]})
             self.assertEqual(response.status_code, 201)
 
+            # TODO should UUID be masked in response??
+
             xavier = Contact.objects.get(name="Xavier")
-            self.assertEqual(set(xavier.urns.values_list('urn', flat=True)), {"tel:+250787777777"})
+            self.assertEqual(set(xavier.urns.values_list('urn', flat=True)), {"tel:+250787777777", "twitter:xavier"})
 
         # try an empty delete request
         response = self.deleteJSON(url, None)
@@ -992,12 +990,16 @@ class APITest(TembaTest):
         jean.refresh_from_db()
         self.assertFalse(jean.is_active)
 
-        # delete a contact by URN
-        response = self.deleteJSON(url, 'urn=twitter:bobby')
+        # delete a contact by URN (which should be normalized)
+        response = self.deleteJSON(url, 'urn=%s' % quote_plus('twitter:XAVIER'))
         self.assertEqual(response.status_code, 204)
 
-        bobby.refresh_from_db()
-        self.assertFalse(bobby.is_active)
+        xavier.refresh_from_db()
+        self.assertFalse(xavier.is_active)
+
+        # try deleting a contact by a non-existent URN
+        response = self.deleteJSON(url, 'urn=twitter:billy')
+        self.assertEqual(response.status_code, 404)
 
         # try to delete a contact in another org
         response = self.deleteJSON(url, 'uuid=%s' % hans.uuid)
