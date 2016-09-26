@@ -376,9 +376,6 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
     def perform_destroy(self, instance):
         instance.release()
 
-    def perform_destroy(self, instance):
-        instance.release()
-
 
 # ============================================================
 # Endpoints (A-Z)
