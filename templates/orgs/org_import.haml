@@ -9,10 +9,8 @@
 
 - block pjax
 
-  -if not user_org.get_purchased_credits
+  -if not user_org.is_import_flows_tier
     -include "includes/import_disabled.html"
-
-
   -else
     #pjax
       .row{style:"height:250px;"}

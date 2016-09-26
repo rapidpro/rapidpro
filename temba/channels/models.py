@@ -81,6 +81,7 @@ class Channel(TembaModel):
     TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
     TYPE_VUMI = 'VM'
+    TYPE_VUMI_USSD = 'VMU'
     TYPE_YO = 'YO'
     TYPE_ZENVIA = 'ZV'
 
@@ -158,6 +159,7 @@ class Channel(TembaModel):
         TYPE_VERBOICE: dict(scheme='tel', max_length=1600),
         TYPE_VIBER: dict(scheme='tel', max_length=1000),
         TYPE_VUMI: dict(scheme='tel', max_length=1600),
+        TYPE_VUMI_USSD: dict(scheme='tel', max_length=182),
         TYPE_YO: dict(scheme='tel', max_length=1600),
         TYPE_ZENVIA: dict(scheme='tel', max_length=150),
     }
@@ -188,8 +190,12 @@ class Channel(TembaModel):
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"),
                     (TYPE_VUMI, "Vumi"),
+                    (TYPE_VUMI_USSD, "Vumi USSD"),
                     (TYPE_YO, "Yo!"),
                     (TYPE_ZENVIA, "Zenvia"))
+
+    # list of all USSD channels
+    USSD_CHANNELS = [TYPE_VUMI_USSD]
 
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
@@ -818,7 +824,7 @@ class Channel(TembaModel):
 
     def get_latest_sent_message(self):
         # all message states that are successfully sent
-        messages = self.msgs.filter(status__in=['S', 'D'], purged=False).exclude(sent_on=None).order_by('-sent_on')
+        messages = self.msgs.filter(status__in=['S', 'D']).exclude(sent_on=None).order_by('-sent_on')
 
         # only outgoing messages
         messages = messages.filter(direction='O')
@@ -872,12 +878,15 @@ class Channel(TembaModel):
     def get_unsent_messages(self):
         # use our optimized index for our org outbox
         from temba.msgs.models import Msg
-        return Msg.all_messages.filter(org=self.org.id, status__in=['P', 'Q'], direction='O',
-                                       visibility='V').filter(channel=self, contact__is_test=False)
+        return Msg.objects.filter(org=self.org.id, status__in=['P', 'Q'], direction='O',
+                                  visibility='V').filter(channel=self, contact__is_test=False)
 
     def is_new(self):
         # is this channel newer than an hour
         return self.created_on > timezone.now() - timedelta(hours=1) or not self.get_last_sync()
+
+    def is_ussd(self):
+        return self.channel_type in Channel.USSD_CHANNELS
 
     def claim(self, org, user, phone):
         """
@@ -952,8 +961,7 @@ class Channel(TembaModel):
 
         # mark any messages in sending mode as failed for this channel
         from temba.msgs.models import Msg, OUTGOING, PENDING, QUEUED, ERRORED, FAILED
-        Msg.current_messages.filter(channel=self, direction=OUTGOING,
-                                    status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
+        Msg.objects.filter(channel=self, direction=OUTGOING, status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.channel_type == Channel.TYPE_ANDROID:  # pragma: no cover
@@ -1412,7 +1420,7 @@ class Channel(TembaModel):
 
         # if this is a response to a user SMS, then we need to set this as a reply
         if msg.response_to_id:
-            response_to = Msg.all_messages.filter(id=msg.response_to_id).first()
+            response_to = Msg.objects.filter(id=msg.response_to_id).first()
             if response_to:
                 payload['message_type'] = 'REPLY'
                 payload['request_id'] = response_to.external_id
@@ -1668,16 +1676,17 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
         from temba.contacts.models import Contact
 
-        channel.config['transport_name'] = 'mtech_ng_smpp_transport'
+        is_ussd = channel.channel_type in Channel.USSD_CHANNELS
+        channel.config['transport_name'] = 'ussd_transport' if is_ussd else 'mtech_ng_smpp_transport'
 
         payload = dict(message_id=msg.id,
                        in_reply_to=None,
-                       session_event=None,
+                       session_event="resume" if is_ussd else None,
                        to_addr=msg.urn_path,
                        from_addr=channel.address,
                        content=text,
                        transport_name=channel.config['transport_name'],
-                       transport_type='sms',
+                       transport_type='ussd' if is_ussd else 'sms',
                        transport_metadata={},
                        helper_metadata={})
 
@@ -1704,7 +1713,7 @@ class Channel(TembaModel):
                                 response="",
                                 response_status=503)
 
-        if response.status_code != 200 and response.status_code != 201:
+        if response.status_code not in (200, 201):
             # this is a fatal failure, don't retry
             fatal = response.status_code == 400
 
@@ -2433,19 +2442,20 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
 
         url = 'https://services.viber.com/vibersrvc/1/send_message'
-        payload = {'service_id': channel.address,
+        payload = {'service_id': int(channel.address),
                    'dest': msg.urn_path.lstrip('+'),
                    'seq': msg.id,
                    'type': 206,
-                   'message': {'#txt': text}}
-
+                   'message': {
+                       '#txt': text,
+                       '#tracking_data': 'tracking_id:%d' % msg.id}}
         start = time.time()
 
         headers = dict(Accept='application/json')
         headers.update(TEMBA_HEADERS)
 
         try:
-            response = requests.post(url, params=payload, headers=headers, timeout=5)
+            response = requests.post(url, json=payload, headers=headers, timeout=5)
             response_json = response.json()
         except Exception as e:
             raise SendException(unicode(e),
@@ -2498,7 +2508,7 @@ class Channel(TembaModel):
         now = timezone.now()
         hours_ago = now - timedelta(hours=12)
 
-        pending = Msg.current_messages.filter(org=org, direction=OUTGOING)
+        pending = Msg.objects.filter(org=org, direction=OUTGOING)
         pending = pending.filter(Q(status=PENDING) |
                                  Q(status=QUEUED, queued_on__lte=hours_ago) |
                                  Q(status=ERRORED, next_attempt__lte=now))
@@ -2538,6 +2548,7 @@ class Channel(TembaModel):
 
         # populate redis in our config
         channel.config['r'] = r
+
         type_settings = Channel.CHANNEL_SETTINGS[channel.channel_type]
 
         # Check whether we need to throttle ourselves
@@ -2612,7 +2623,7 @@ class Channel(TembaModel):
 
         # update the number of sms it took to send this if it was more than 1
         if len(parts) > 1:
-            Msg.all_messages.filter(pk=msg.id).update(msg_count=len(parts))
+            Msg.objects.filter(pk=msg.id).update(msg_count=len(parts))
 
     @classmethod
     def track_status(cls, channel, status):
@@ -2695,6 +2706,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_TWITTER: Channel.send_twitter_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message,
                   Channel.TYPE_VUMI: Channel.send_vumi_message,
+                  Channel.TYPE_VUMI_USSD: Channel.send_vumi_message,
                   Channel.TYPE_YO: Channel.send_yo_message,
                   Channel.TYPE_ZENVIA: Channel.send_zenvia_message}
 
@@ -2749,7 +2761,6 @@ class ChannelCount(models.Model):
         squash_count = 0
         for count in ChannelCount.objects.filter(id__gt=last_squash).order_by('channel_id', 'count_type', 'day')\
                                                                     .distinct('channel_id', 'count_type', 'day'):
-            print "Squashing: %d %s %s" % (count.channel_id, count.count_type, count.day)
 
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
@@ -3077,13 +3088,13 @@ class Alert(SmartModel):
         for alert in Alert.objects.filter(alert_type=cls.TYPE_SMS, ended_on=None):
             # are there still queued messages?
 
-            if not Msg.current_messages.filter(status__in=['Q', 'P'], channel=alert.channel, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago):
+            if not Msg.objects.filter(status__in=['Q', 'P'], channel=alert.channel, contact__is_test=False, created_on__lte=thirty_minutes_ago).exclude(created_on__lte=day_ago):
                 alert.ended_on = timezone.now()
                 alert.save()
 
         # now look for channels that have many unsent messages
-        queued_messages = Msg.current_messages.filter(status__in=['Q', 'P'], contact__is_test=False).order_by('channel', 'created_on').exclude(created_on__gte=thirty_minutes_ago).exclude(created_on__lte=day_ago).exclude(channel=None).values('channel').annotate(latest_queued=Max('created_on'))
-        sent_messages = Msg.current_messages.filter(status__in=['S', 'D'], contact__is_test=False).exclude(created_on__lte=day_ago).exclude(channel=None).order_by('channel', 'sent_on').values('channel').annotate(latest_sent=Max('sent_on'))
+        queued_messages = Msg.objects.filter(status__in=['Q', 'P'], contact__is_test=False).order_by('channel', 'created_on').exclude(created_on__gte=thirty_minutes_ago).exclude(created_on__lte=day_ago).exclude(channel=None).values('channel').annotate(latest_queued=Max('created_on'))
+        sent_messages = Msg.objects.filter(status__in=['S', 'D'], contact__is_test=False).exclude(created_on__lte=day_ago).exclude(channel=None).order_by('channel', 'sent_on').values('channel').annotate(latest_sent=Max('sent_on'))
 
         channels = dict()
         for queued in queued_messages:
@@ -3152,7 +3163,7 @@ class Alert(SmartModel):
 
         context = dict(org=self.channel.org, channel=self.channel, now=timezone.now(),
                        last_seen=self.channel.last_seen, sync=self.sync_event)
-        context['unsent_count'] = Msg.current_messages.filter(channel=self.channel, status__in=['Q', 'P'], contact__is_test=False).count()
+        context['unsent_count'] = Msg.objects.filter(channel=self.channel, status__in=['Q', 'P'], contact__is_test=False).count()
         context['subject'] = subject
 
         send_template_email(self.channel.alert_email, subject, template, context, self.channel.org.get_branding())

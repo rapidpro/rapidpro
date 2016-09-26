@@ -1024,11 +1024,14 @@ class Org(SmartModel):
     def is_free_plan(self):
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
+    def is_import_flows_tier(self):
+        return self.get_purchased_credits() >= self.get_branding().get('tiers', {}).get('import_flows', 0)
+
     def is_multi_user_tier(self):
-        return self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_user')
+        return self.get_purchased_credits() >= self.get_branding().get('tiers', {}).get('multi_user', 0)
 
     def is_multi_org_tier(self):
-        return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers').get('multi_org')
+        return not self.parent and self.get_purchased_credits() >= self.get_branding().get('tiers', {}).get('multi_org', 0)
 
     def get_user_org_group(self, user):
         if user in self.get_org_admins():
@@ -1202,7 +1205,7 @@ class Org(SmartModel):
         used_credits_sum = used_credits_sum.aggregate(Sum('used')).get('used__sum')
         used_credits_sum = used_credits_sum if used_credits_sum else 0
 
-        unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None, purged=False).count()
+        unassigned_sum = self.msgs.filter(contact__is_test=False, topup=None).count()
 
         return used_credits_sum + unassigned_sum
 
@@ -1322,7 +1325,7 @@ class Org(SmartModel):
 
         with self.lock_on(OrgLock.credits):
             # get all items that haven't been credited
-            msg_uncredited = self.msgs.filter(topup=None, contact__is_test=False, purged=False).order_by('created_on')
+            msg_uncredited = self.msgs.filter(topup=None, contact__is_test=False).order_by('created_on')
             all_uncredited = list(msg_uncredited)
 
             # get all topups that haven't expired
@@ -1354,7 +1357,7 @@ class Org(SmartModel):
 
             # update items in the database with their new topups
             for topup, items in new_topup_items.iteritems():
-                Msg.all_messages.filter(id__in=[item.pk for item in items if isinstance(item, Msg)]).update(topup=topup)
+                Msg.objects.filter(id__in=[item.pk for item in items if isinstance(item, Msg)]).update(topup=topup)
 
         # deactive all our credit alerts
         CreditAlert.reset_for_org(self)
@@ -2137,7 +2140,7 @@ class CreditAlert(SmartModel):
         from temba.msgs.models import Msg
 
         # all active orgs in the last hour
-        active_orgs = Msg.current_messages.filter(created_on__gte=timezone.now() - timedelta(hours=1))
+        active_orgs = Msg.objects.filter(created_on__gte=timezone.now() - timedelta(hours=1))
         active_orgs = active_orgs.order_by('org').distinct('org')
 
         for msg in active_orgs:

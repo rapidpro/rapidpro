@@ -58,7 +58,7 @@
               .activity-body
                 .summary
                 Started
-                %a{href:'{% url "flows.flow_editor" run.flow.pk%}'}
+                %a{href:'{% url "flows.flow_editor" run.flow.uuid %}'}
                   {{run.flow.name}}
         -elif item.fired
           -with item as eventfire
