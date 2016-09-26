@@ -7200,47 +7200,31 @@ class LINETest(TembaTest):
         self.assertEquals("Hello, BOT API Server!", msg.text)
 
     def test_send(self):
-        joe = self.create_contact("Joe", urn="line:123456789")
+        joe = self.create_contact("Joe", urn="line:1234")
         msg = joe.send("Hello, BOT API Server!", self.admin, trigger_send=False)
 
-        try:
-            settings.SEND_MESSAGES = True
+        settings.SEND_MESSAGES = True
 
-            data = {
-                "to": ["uca51272d3b4e38950d45e4b4e84916cd"],
-                "toChannel": 1383378250,
-                "eventType": "138311608800106203",
-                "content": {
-                    "contentType": 1,
-                    "toType": 1,
-                    "text": "Hello, BOT API Server!"
-                }
-            }
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"failed":[],"messageId":"123456789","timestamp":1474324214493,"version":1}')
 
-            with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(data), method='POST')
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-                print(msg.as_json())
+            # check the status of the message is now sent
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.clear_cache()
 
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                # self.assertEquals(WIRED, msg.status)
-                # self.assertTrue(msg.sent_on)
-                self.clear_cache()
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(400, "Error", method='POST')
 
-            with patch('requests.post') as mock:
-                mock.return_value = MockResponse(400, "Error", method='POST')
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # message should be marked as an error
-                msg.refresh_from_db()
-                # self.assertEquals(ERRORED, msg.status)
-                # self.assertEquals(1, msg.error_count)
-                # self.assertTrue(msg.next_attempt)
-
-        finally:
-            settings.SEND_MESSAGES = False
+            # message should be marked as an error
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+            self.assertEquals(1, msg.error_count)
+            self.assertTrue(msg.next_attempt)
