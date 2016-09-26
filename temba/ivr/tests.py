@@ -588,6 +588,13 @@ class IVRTests(FlowFileTest):
         flow.refresh_from_db()
         self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
 
+        # now try an inbound call after remove our channel
+        self.channel.is_active = False
+        self.channel.save()
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+        self.assertEqual('No channel to answer call for +250785551212', response.content)
+        self.assertEqual(400, response.status_code)
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
