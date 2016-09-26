@@ -7526,7 +7526,7 @@ class LINETest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         # load our message
-        msg = Msg.all_messages.get()
+        msg = Msg.objects.get()
         self.assertEquals("123456789", msg.contact.get_urn(LINE_SCHEME).path)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
