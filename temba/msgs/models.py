@@ -1987,7 +1987,7 @@ class ExportMessagesTask(SmartModel):
             field = fields[index]
             cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
             sheet_row.append(cell)
-            current_messages_sheet.column_dimensions[get_column_letter(index)].width = fields_col_width[index]
+            current_messages_sheet.column_dimensions[get_column_letter(col)].width = fields_col_width[index]
 
         current_messages_sheet.append(sheet_row)
 
