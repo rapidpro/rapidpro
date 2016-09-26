@@ -7,6 +7,8 @@ import copy
 import hashlib
 import hmac
 import json
+from linebot.client import LineBotClient
+from linebot.users import UserProfile
 import pytz
 import telegram
 import time
@@ -1734,6 +1736,29 @@ class ChannelTest(TembaTest):
                 self.assertEqual(config['handle_id'], 123)
                 self.assertEqual(config['oauth_token'], 'defgh')
                 self.assertEqual(config['oauth_token_secret'], '45678')
+
+    def test_claim_line(self):
+        # disassociate all of our channels
+        self.org.channels.all().update(org=None, is_active=False)
+
+        self.login(self.admin)
+        claim_url = reverse('channels.channel_claim')
+        response = self.client.get(claim_url)
+        self.assertContains(response, 'LINE')
+
+        claim_line_url = reverse('channels.channel_claim_line')
+        payload = dict(channel_id='123456', channel_secret='123456', channel_mid='u304ad2c3d5fb655b9ac95cf8267d367c')
+
+        response = self.client.post(claim_line_url, payload)
+        channel = Channel.objects.get(channel_type=Channel.TYPE_LINE)
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+        self.assertEqual(channel.channel_type, "LN")
+        self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_ID], '123456')
+        self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_SECRET], '123456')
+        self.assertEqual(channel.address, 'u304ad2c3d5fb655b9ac95cf8267d367c')
+
+        response = self.client.post(claim_line_url, payload)
+        self.assertContains(response, "Channel with this address already exists, please try again with other.")
 
     def test_release(self):
         Channel.objects.all().delete()

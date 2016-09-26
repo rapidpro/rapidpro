@@ -1859,10 +1859,14 @@ class ChannelCRUDL(SmartCRUDL):
                 channel_secret = self.cleaned_data.get('channel_secret')
                 channel_mid = self.cleaned_data.get('channel_mid')
 
+                existing = Channel.objects.filter(channel_type=Channel.TYPE_LINE, address=channel_mid, is_active=True).first()
+                if existing:
+                    raise ValidationError(_("Channel with this address already exists, please try again with other."))
+
                 credentials = {
                     'channel_id': channel_id,
                     'channel_secret': channel_secret,
-                    'channel_mid': channel_mid,
+                    'channel_mid': channel_mid
                 }
 
                 line_bot_client = LineBotClient(**credentials)
@@ -1872,11 +1876,11 @@ class ChannelCRUDL(SmartCRUDL):
                         {'mid': user._UserProfile__profile.get('mid'),
                          'picture_url': user._UserProfile__profile.get('picture_url'),
                          'display_name': user._UserProfile__profile.get('display_name'),
-                         'status_message': user._UserProfile__profile.get('status_message')} for user in users]
-
-                    credentials['profile'] = profile[0]
+                         'status_message': user._UserProfile__profile.get('status_message')} for user in users][0]
                 except:
-                    raise ValidationError(_("Profile not found, please check it and try again."))
+                    profile = {'mid': channel_mid, 'picture_url': None, 'display_name': channel_id, 'status_message': None}
+
+                credentials['profile'] = profile
 
                 return credentials
 
