@@ -580,7 +580,7 @@ class APITest(TembaTest):
 
         # create campaign for other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
-        spam = Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
+        spam = Campaign.create(self.org2, self.admin2, "Spam", spammers)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
@@ -619,7 +619,11 @@ class APITest(TembaTest):
 
         # try to create another campaign with same name
         response = self.postJSON(url, None, {'name': "Reminders #3", 'group': reporters.uuid})
-        self.assertResponseError(response, 'name', "Must be unique")
+        self.assertResponseError(response, 'name', "This field must be unique.")
+
+        # it's fine if a campaign in another org has that name
+        response = self.postJSON(url, None, {'name': "Spam", 'group': reporters.uuid})
+        self.assertEqual(response.status_code, 201)
 
         # try to create a campaign with name that's too long
         response = self.postJSON(url, None, {'name': "x" * 256, 'group': reporters.uuid})
@@ -1378,11 +1382,15 @@ class APITest(TembaTest):
 
         # try to create another group with same name
         response = self.postJSON(url, None, {'name': "Reporters"})
-        self.assertResponseError(response, 'name', "Must be unique")
+        self.assertResponseError(response, 'name', "This field must be unique.")
+
+        # it's fine if a group in another org has that name
+        response = self.postJSON(url, None, {'name': "Spammers"})
+        self.assertEqual(response.status_code, 201)
 
         # try to create a group with invalid name
         response = self.postJSON(url, None, {'name': "!!!#$%^"})
-        self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
+        self.assertResponseError(response, 'name', "Name contains illegal characters.")
 
         # try to create a group with name that's too long
         response = self.postJSON(url, None, {'name': "x" * 65})
@@ -1454,11 +1462,15 @@ class APITest(TembaTest):
 
         # try to create another label with same name
         response = self.postJSON(url, None, {'name': "Interesting"})
-        self.assertResponseError(response, 'name', "Must be unique")
+        self.assertResponseError(response, 'name', "This field must be unique.")
+
+        # it's fine if a label in another org has that name
+        response = self.postJSON(url, None, {'name': "Spam"})
+        self.assertEqual(response.status_code, 201)
 
         # try to create a label with invalid name
         response = self.postJSON(url, None, {'name': "!!!#$%^"})
-        self.assertResponseError(response, 'name', "Name contains illegal characters or is longer than 64 characters")
+        self.assertResponseError(response, 'name', "Name contains illegal characters.")
 
         # try to create a label with name that's too long
         response = self.postJSON(url, None, {'name': "x" * 65})
