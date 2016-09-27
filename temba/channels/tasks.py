@@ -96,8 +96,14 @@ def trim_channel_log_task():
     """
     Runs daily and clears any channel log items older than 48 hours.
     """
+
+    # keep success messages for only two days
     two_days_ago = timezone.now() - timedelta(hours=48)
-    ChannelLog.objects.filter(created_on__lte=two_days_ago).delete()
+    ChannelLog.objects.filter(created_on__lte=two_days_ago, is_error=False).delete()
+
+    # keep errors for 30 days
+    month_ago = timezone.now() - timedelta(days=30)
+    ChannelLog.objects.filter(created_on__lte=month_ago).delete()
 
 
 @task(track_started=True, name='notify_mage_task')
