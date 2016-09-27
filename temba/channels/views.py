@@ -1848,20 +1848,21 @@ class ChannelCRUDL(SmartCRUDL):
 
     class ClaimLine(OrgPermsMixin, SmartFormView):
         class LineForm(forms.Form):
-            channel_id = forms.CharField(label=_("Channel ID"), required=True, help_text=_("The ID of the your Channel on Business LINE"))
-            channel_secret = forms.CharField(label=_("Channel Secret"), required=True, help_text=_("The Secret of the your Channel on Business LINE"))
-            channel_mid = forms.CharField(label=_("Channel MID"), required=True, help_text=_("The MID of the your Channel on Business LINE"))
+            channel_id = forms.CharField(label=_("ID"), required=True, help_text=_("The ID of the LINE Bot"))
+            channel_secret = forms.CharField(label=_("Secret"), required=True, help_text=_("The Secret of the LINE Bot"))
+            channel_mid = forms.CharField(label=_("MID"), required=True, help_text=_("The MID of the LINE Bot"))
 
             def clean(self):
                 from linebot.client import LineBotClient
+                from django.db.models.query import Q
 
                 channel_id = self.cleaned_data.get('channel_id')
                 channel_secret = self.cleaned_data.get('channel_secret')
                 channel_mid = self.cleaned_data.get('channel_mid')
 
-                existing = Channel.objects.filter(channel_type=Channel.TYPE_LINE, address=channel_mid, is_active=True).first()
+                existing = Channel.objects.filter(Q(config__contains=channel_id) | Q(config__contains=channel_secret), channel_type=Channel.TYPE_LINE, address=channel_mid, is_active=True).first()
                 if existing:
-                    raise ValidationError(_("Channel with this address already exists, please try again with other."))
+                    raise ValidationError(_("A channel with this configuration already exists."))
 
                 credentials = {
                     'channel_id': channel_id,
@@ -1878,7 +1879,7 @@ class ChannelCRUDL(SmartCRUDL):
                          'display_name': user._UserProfile__profile.get('display_name'),
                          'status_message': user._UserProfile__profile.get('status_message')} for user in users][0]
                 except:
-                    profile = {'mid': channel_mid, 'picture_url': None, 'display_name': channel_id, 'status_message': None}
+                    raise ValidationError(_("Profile not found with the information provided."))
 
                 credentials['profile'] = profile
 
