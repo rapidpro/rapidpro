@@ -627,8 +627,8 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     ## Adding Campaigns
 
-    You can add a new campaign to your account, or update the fields on a campaign by sending a **POST** request to this
-    URL with the following data:
+    A **POST** can be used to create a new campaign, by sending the following data. Don't specify a UUID as this will be
+    generated for you.
 
     * **name** - the name of the campaign (string, required)
     * **group** - the UUID of the contact group this campaign will be run against (string, required)
@@ -652,7 +652,15 @@ class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     ## Updating Campaigns
 
-    TODO
+    A **POST** can also be used to update an existing campaign if you specify its UUID in the URL.
+
+    Example:
+
+        POST /api/v2/campaigns.json?uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c00
+        {
+            "name": "Reminders II",
+            "group": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9"
+        }
 
     """
     permission = 'campaigns.campaign_api'
@@ -747,12 +755,11 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
             ...
         }
 
-    ## Adding or Updating Campaign Events
+    ## Adding Campaign Events
 
-    You can add a new event to your campaign, or update the fields on an event by sending a **POST** request to this
-    URL with the following data:
+    A **POST** can be used to create a new campaign event, by sending the following data. Don't specify a UUID as this
+    will be generated for you.
 
-    * **uuid** - the UUID of the event (string, optional, only include if updating an existing campaign)
     * **campaign** - the UUID of the campaign this event should be part of (string, can't be changed for existing events)
     * **relative_to** - the field key that this event will be relative to (string)
     * **offset** - the offset from our contact field (positive or negative integer)
@@ -763,7 +770,7 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
 
     Example:
 
-        POST /api/v2/events.json
+        POST /api/v2/campaign_events.json
         {
             "campaign": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
             "relative_to": "last_hit",
@@ -787,13 +794,28 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
             "created_on": "2013-08-19T19:11:21.088453Z"
         }
 
-    ## Deleting Events
+    ## Updating Campaign Events
 
-    A **DELETE** to the endpoint removes an event from your campaign. You specify which event to remove by its UUID.
+    A **POST** can also be used to update an existing campaign event if you specify its UUID in the URL.
 
     Example:
 
-        DELETE /api/v2/events.json?uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc
+        POST /api/v2/campaign_events.json?uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc
+        {
+            "relative_to": "last_hit",
+            "offset": 100,
+            "unit": "weeks",
+            "delivery_hour": -1,
+            "message": "Feeling sick and helpless, lost the compass where self is."
+        }
+
+    ## Deleting Campaign Events
+
+    A **DELETE** can be used to delete a campaign event if you specify its UUID in the URL.
+
+    Example:
+
+        DELETE /api/v2/campaign_events.json?uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc
 
     You will receive either a 204 response if an event was deleted, or a 404 response if no matching event was found.
 
@@ -842,8 +864,8 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
             'url': reverse('api.v2.campaign_events'),
             'slug': 'campaign-event-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "An event UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
-                {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter by. ex: Reminders"},
+                {'name': "uuid", 'required': False, 'help': "A campaign event UUID to filter by"},
+                {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter"},
             ]
         }
 
@@ -1167,7 +1189,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     ## Deleting Contacts
 
-    A **POST** can also be used to delete an existing contact if you specify either its UUID or one of its URNs in the
+    A **DELETE** can also be used to delete an existing contact if you specify either its UUID or one of its URNs in the
     URL.
 
     Examples:
