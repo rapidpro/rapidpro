@@ -40,7 +40,7 @@ def backfill_recipients(Broadcast, MsgManager):
     start = time.time()
     for (i, broadcast_id) in enumerate(broadcast_ids):
         recipient_count = populate_recipients_for_broadcast(Broadcast, MsgManager, broadcast_id)
-        print "%d - %d ... (%d of %d) in %d" % (broadcast_id, recipient_count, i, len(broadcast_ids)-1, int(time.time() - start))
+        print("%d - %d ... (%d of %d) in %d" % (broadcast_id, recipient_count, i, len(broadcast_ids)-1, int(time.time() - start)))
         r.set(HIGHPOINT_KEY, broadcast_id)
 
     # we finished, no need to track any more status
@@ -58,7 +58,7 @@ def noop(apps, schema):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0061_broadcast_recipients'),
+        ('msgs', '0064_auto_20160908_1340'),
     ]
 
     operations = [
