@@ -110,6 +110,13 @@ twython==3.1.2
 Unidecode==0.4.14
 unittest2==0.5.1
 uservoice==0.0.19
-xlrd==0.9.3
 xlutils==1.7.1
-xlwt==0.7.5
+django-excel==0.0.5
+pyexcel==0.2.5
+pyexcel-io==0.2.3
+pyexcel-webio==0.0.7
+pyexcel-xls==0.2.3
+pyexcel-xlsx==0.2.2
+texttable==0.8.4
+xlrd==1.0.0
+xlwt==1.1.2
