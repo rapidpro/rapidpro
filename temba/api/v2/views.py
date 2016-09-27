@@ -1328,7 +1328,7 @@ class ContactActionsEndpoint(BaseAPIView):
 
     A **POST** can be used to perform an action on a set of contacts in bulk.
 
-    * **contacts** - a JSON array of up to 100 contact UUIDs (array of strings)
+    * **contacts** - a JSON array of up to 100 contact UUIDs or URNs (array of strings)
     * **action** - the action to perform, a string one of:
 
         * _add_ - Add the contacts to the given group
@@ -1345,7 +1345,7 @@ class ContactActionsEndpoint(BaseAPIView):
 
         POST /api/v2/contact_actions.json
         {
-            "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3", "a5901b62-ba76-4003-9c62-72fdacc1b7b8"],
+            "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3", "tel:+250783835665"],
             "action": "add",
             "group": "Testers"
         }

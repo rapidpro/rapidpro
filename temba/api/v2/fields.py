@@ -84,15 +84,18 @@ class TembaModelField(serializers.RelatedField):
         manager = getattr(self.model, self.model_manager)
         return manager.filter(org=self.context['org'], is_active=True)
 
+    def get_object(self, value):
+        query = Q()
+        for lookup_field in self.lookup_fields:
+            query |= Q(**{lookup_field: value})
+
+        return self.get_queryset().filter(query).first()
+
     def to_representation(self, obj):
         return {'uuid': obj.uuid, 'name': obj.name}
 
     def to_internal_value(self, data):
-        query = Q()
-        for lookup_field in self.lookup_fields:
-            query |= Q(**{lookup_field: data})
-
-        obj = self.get_queryset().filter(query).first()
+        obj = self.get_object(data)
 
         if not obj:
             raise serializers.ValidationError("No such object: %s" % data)
@@ -117,9 +120,19 @@ class ChannelField(TembaModelField):
 
 class ContactField(TembaModelField):
     model = Contact
+    lookup_fields = ('uuid', 'urns__urn')
 
     def get_queryset(self):
         return self.model.objects.filter(org=self.context['org'], is_active=True, is_test=False)
+
+    def get_object(self, value):
+        # try to normalize as URN but don't blow up if it's a UUID
+        try:
+            as_urn = URN.normalize(value)
+        except ValueError:
+            as_urn = value
+
+        return self.get_queryset().filter(Q(uuid=value) | Q(urns__urn=as_urn)).first()
 
 
 class ContactFieldField(TembaModelField):

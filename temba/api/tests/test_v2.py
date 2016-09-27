@@ -1227,7 +1227,14 @@ class APITest(TembaTest):
 
         # try adding all contacts to a group by its name
         response = self.postJSON(url, None, {
-            'contacts': [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid, contact5.uuid, test_contact.uuid],
+            'contacts': [
+                contact1.uuid,
+                'tel:+250788000002',
+                contact3.uuid,
+                contact4.uuid,
+                contact5.uuid,
+                test_contact.uuid
+            ],
             'action': 'add',
             'group': "Testers"
         })
@@ -1248,7 +1255,7 @@ class APITest(TembaTest):
 
         # add valid contacts to the group by name
         response = self.postJSON(url, None, {
-            'contacts': [contact1.uuid, contact2.uuid],
+            'contacts': [contact1.uuid, 'tel:+250788000002'],
             'action': 'add',
             'group': "Testers"
         })
