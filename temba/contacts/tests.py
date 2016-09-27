@@ -2727,7 +2727,7 @@ class ContactTest(TembaTest):
 
         self.assertIsNone(contact1.get_field_raw('district'))  # wasn't included
         self.assertEquals(contact1.get_field_raw('job_and_projects'), 'coach')  # renamed from 'Professional Status'
-        self.assertEquals(contact1.get_field_raw('postal_code'), '600')
+        self.assertEquals(contact1.get_field_raw('postal_code'), '600.35')
         self.assertEquals(contact1.get_field_raw('joined'), '31-12-2014 00:00')  # persisted value is localized to org
         self.assertEquals(contact1.get_field_display('joined'), '31-12-2014 00:00')  # display value is also localized
 
