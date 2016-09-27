@@ -521,6 +521,15 @@ app.directive "omnibox", [ "$timeout", "$log", "Flow", ($timeout, $log, Flow) ->
       formatSelection: omniFormatOmniboxSelection
       formatResult: omniFormatOmniboxOption
 
+    # make our options sortable
+    if options.sortable
+      $(ele).select2("container").find("ul.select2-choices").sortable
+        containment:'parent',
+        start: -> $(ele).select2("onSortStart")
+        stop: -> $(ele).select2("onSortEnd")
+
+    return ele
+
   parseData = (data) ->
     groups = []
     contacts = []

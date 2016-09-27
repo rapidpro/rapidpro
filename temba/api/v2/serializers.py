@@ -43,11 +43,6 @@ class WriteSerializer(serializers.Serializer):
     The normal REST framework way is to have the view decide if it's an update on existing instance or a create for a
     new instance. Since our logic for that gets relatively complex, we have the serializer make that call.
     """
-
-    def __init__(self, *args, **kwargs):
-        super(WriteSerializer, self).__init__(*args, **kwargs)
-        self.instance = None
-
     def run_validation(self, data=serializers.empty):
         if not isinstance(data, dict):
             raise serializers.ValidationError(detail={
@@ -262,8 +257,6 @@ class ContactReadSerializer(ReadSerializer):
 
 
 class ContactWriteSerializer(WriteSerializer):
-    uuid = serializers.UUIDField(required=False)
-    urn = fields.URNField(required=False)
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
@@ -273,22 +266,14 @@ class ContactWriteSerializer(WriteSerializer):
     def __init__(self, *args, **kwargs):
         super(ContactWriteSerializer, self).__init__(*args, **kwargs)
 
-    def validate_uuid(self, value):
-        self.instance = Contact.objects.filter(org=self.context['org'], uuid=value, is_active=True).first()
-        if not self.instance:
-            raise serializers.ValidationError("No such contact with UUID: %s" % value)
-
-    def validate_urn(self, value):
-        if self.context['org'].is_anon:
-            raise serializers.ValidationError("Referencing by URN not allowed for anonymous organizations")
-
-        self.instance = Contact.from_urn(self.context['org'], value)
-        return value
-
     def validate_groups(self, value):
         for group in value:
             if group.is_dynamic:
                 raise serializers.ValidationError("Can't add contact to dynamic group with UUID: %s" % group.uuid)
+
+        # if contact is blocked, they can't be added to groups
+        if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and value:
+            raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
 
         return value
 
@@ -301,23 +286,31 @@ class ContactWriteSerializer(WriteSerializer):
 
         return value
 
-    def validate(self, data):
+    def validate_urns(self, value):
         org = self.context['org']
 
-        # we don't allow updating of contact URNs for anon orgs - tho we do allow creation of contacts with URNs
-        if org.is_anon and self.instance and data.get('urns'):
-            raise serializers.ValidationError("Updating contact URNs not allowed for anonymous organizations")
+        # this field isn't allowed if we are looking up by URN in the URL
+        if 'urns__urn' in self.context['lookup_values']:
+            raise serializers.ValidationError("Field not allowed when using URN in URL")
 
-        # if creating a contact, urns can't include URNs which are already taken
-        if not self.instance and 'urns' in data:
-            country_code = org.get_country_code()
-            for urn in data['urns']:
-                if Contact.from_urn(org, urn, country_code):
-                    raise serializers.ValidationError("Contact URN belongs to another contact: %s" % urn)
+        # or for updates by anonymous organizations (we do allow creation of contacts with URNs)
+        if org.is_anon and self.instance:
+            raise serializers.ValidationError("Updating URNs not allowed for anonymous organizations")
 
-        # if contact is blocked, they can't be added to groups
-        if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and data['groups']:
-            raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
+        # if creating a contact, URNs can't belong to other contacts
+        if not self.instance:
+            for urn in value:
+                if Contact.from_urn(org, urn):
+                    raise serializers.ValidationError("URN belongs to another contact: %s" % urn)
+
+        return value
+
+    def validate(self, data):
+        # we allow creation of contacts by URN used for lookup
+        if not data.get('urns') and 'urns__urn' in self.context['lookup_values']:
+            url_urn = self.context['lookup_values']['urns__urn']
+
+            data['urns'] = [fields.validate_urn(url_urn)]
 
         return data
 
@@ -329,7 +322,7 @@ class ContactWriteSerializer(WriteSerializer):
         language = self.validated_data.get('language')
         urns = self.validated_data.get('urns')
         groups = self.validated_data.get('groups')
-        fields = self.validated_data.get('fields')
+        custom_fields = self.validated_data.get('fields')
 
         changed = []
 
@@ -348,19 +341,12 @@ class ContactWriteSerializer(WriteSerializer):
             if changed:
                 self.instance.save(update_fields=changed)
         else:
-            if urns is None:
-                # if user is using URN as identifier, ok to create contact from it if they don't already exist
-                urn_as_id = self.validated_data.get('urn')
-                if urn_as_id:
-                    urns = [urn_as_id]
-                else:
-                    urns = []
-
-            self.instance = Contact.get_or_create(self.context['org'], self.context['user'], name, urns=urns, language=language)
+            self.instance = Contact.get_or_create(self.context['org'], self.context['user'], name,
+                                                  urns=urns, language=language)
 
         # update our fields
-        if fields is not None:
-            for key, value in fields.items():
+        if custom_fields is not None:
+            for key, value in six.iteritems(custom_fields):
                 self.instance.set_field(self.context['user'], key, value)
 
         # update our groups
@@ -395,32 +381,25 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 
 class ContactGroupWriteSerializer(WriteSerializer):
-    uuid = fields.ContactGroupField(required=False)
     name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN)
 
     def validate_name(self, value):
         if not ContactGroup.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
                                               % ContactGroup.MAX_NAME_LEN)
+
+        if not self.instance and ContactGroup.user_groups.filter(org=self.context['org'], name=value).exists():
+            raise serializers.ValidationError("Must be unique")
+
         return value
 
-    def validate(self, data):
-        instance = data.get('uuid')
-        name = data.get('name')
-
-        if not instance and ContactGroup.user_groups.filter(org=self.context['org'], name=name).exists():
-            raise serializers.ValidationError("Name must be unique")
-
-        return data
-
     def save(self):
-        instance = self.validated_data.get('uuid')
         name = self.validated_data.get('name')
 
-        if instance:
-            instance.name = name
-            instance.save(update_fields=('name',))
-            return instance
+        if self.instance:
+            self.instance.name = name
+            self.instance.save(update_fields=('name',))
+            return self.instance
         else:
             return ContactGroup.get_or_create(self.context['org'], self.context['user'], name)
 
@@ -582,32 +561,25 @@ class LabelReadSerializer(ReadSerializer):
 
 
 class LabelWriteSerializer(WriteSerializer):
-    uuid = fields.LabelField(required=False)
     name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN)
 
     def validate_name(self, value):
         if not Label.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
                                               % Label.MAX_NAME_LEN)
+
+        if not self.instance and Label.label_objects.filter(org=self.context['org'], name=value).exists():
+            raise serializers.ValidationError("Must be unique")
+
         return value
 
-    def validate(self, data):
-        instance = data.get('uuid')
-        name = data.get('name')
-
-        if not instance and Label.label_objects.filter(org=self.context['org'], name=name).exists():
-            raise serializers.ValidationError("Name must be unique")
-
-        return data
-
     def save(self):
-        instance = self.validated_data.get('uuid')
         name = self.validated_data.get('name')
 
-        if instance:
-            instance.name = name
-            instance.save(update_fields=('name',))
-            return instance
+        if self.instance:
+            self.instance.name = name
+            self.instance.save(update_fields=('name',))
+            return self.instance
         else:
             return Label.get_or_create(self.context['org'], self.context['user'], name)
 

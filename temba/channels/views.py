@@ -566,19 +566,11 @@ class ChannelCRUDL(SmartCRUDL):
                 return super(ChannelCRUDL.AnonMixin, self).has_permission(request, *args, **kwargs)
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
         exclude = ('id', 'is_active', 'created_by', 'modified_by', 'modified_on', 'gcm_id')
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            # overloaded to have uuid pattern instead of integer id
-            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
-
-        def get_object(self, queryset=None):
-            uuid = self.kwargs.get('uuid')
-            channel = Channel.objects.filter(uuid=uuid, is_active=True).first()
-            if channel is None:
-                raise Http404("No active channel with that UUID")
-            return channel
+        def get_queryset(self):
+            return Channel.objects.filter(is_active=True)
 
         def get_gear_links(self):
             links = []

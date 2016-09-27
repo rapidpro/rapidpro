@@ -425,7 +425,9 @@ class ContactWriteSerializer(WriteSerializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn)
-                    if not URN.validate(normalized):
+                    scheme, path = URN.to_parts(normalized)
+                    # for backwards compatibility we don't validate phone numbers here
+                    if scheme != TEL_SCHEME and not URN.validate(normalized):
                         raise ValueError()
                 except ValueError:
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)

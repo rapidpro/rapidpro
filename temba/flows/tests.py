@@ -311,17 +311,17 @@ class FlowTest(TembaTest):
 
     def test_flow_read(self):
         self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_read', args=[self.flow.pk]))
+        response = self.client.get(reverse('flows.flow_read', args=[self.flow.uuid]))
         self.assertTrue('initial' in response.context)
 
     def test_flow_editor(self):
         self.login(self.admin)
-        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
         self.assertTrue('mutable' in response.context)
         self.assertTrue('has_airtime_service' in response.context)
 
         self.login(self.superuser)
-        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
         self.assertTrue('mutable' in response.context)
         self.assertTrue('has_airtime_service' in response.context)
 
@@ -1658,7 +1658,7 @@ class FlowTest(TembaTest):
         self.assertEquals(0, len(response.context['object_list']))
 
         # also shouldn't be able to view other flow
-        response = self.client.get(reverse('flows.flow_editor', args=[other_flow.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[other_flow.uuid]))
         self.assertEquals(302, response.status_code)
 
         # get our create page
@@ -1693,7 +1693,7 @@ class FlowTest(TembaTest):
         self.assertEqual(flow2.expires_after_minutes, 5)
 
         # make sure we don't get a start flow button for Android Surveys
-        response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[flow2.uuid]))
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
 
         # test flows with triggers
@@ -1733,7 +1733,7 @@ class FlowTest(TembaTest):
         flow3 = Flow.objects.get(name=post_data['name'])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow3.pk]))
+        self.assertEqual(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[flow3.uuid]))
         self.assertEqual(response.context['object'].triggers.count(), 3)
 
         # update flow triggers
@@ -1931,7 +1931,7 @@ class FlowTest(TembaTest):
         # test our copy view
         response = self.client.post(reverse('flows.flow_copy', args=[flow.pk]))
         flow_copy = Flow.objects.get(org=self.org, name="Copy of %s" % flow.name)
-        self.assertRedirect(response, reverse('flows.flow_editor', args=[flow_copy.pk]))
+        self.assertRedirect(response, reverse('flows.flow_editor', args=[flow_copy.uuid]))
 
         FlowLabel.objects.create(name="one", org=self.org, parent=None)
         FlowLabel.objects.create(name="two", org=self.org2, parent=None)
@@ -1998,7 +1998,7 @@ class FlowTest(TembaTest):
         msg_flow = Flow.objects.get(name=post_data['name'])
 
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[msg_flow.pk]))
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[msg_flow.uuid]))
         self.assertEquals(msg_flow.flow_type, 'F')
 
         post_data = dict(name="Call flow", expires_after_minutes=5, flow_type='V')
@@ -2006,7 +2006,7 @@ class FlowTest(TembaTest):
         call_flow = Flow.objects.get(name=post_data['name'])
 
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[call_flow.pk]))
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[call_flow.uuid]))
         self.assertEquals(call_flow.flow_type, 'V')
 
         # test creating a  flow with base language
@@ -2020,7 +2020,7 @@ class FlowTest(TembaTest):
         language_flow = Flow.objects.get(name=post_data['name'])
 
         self.assertEquals(200, response.status_code)
-        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[language_flow.pk]))
+        self.assertEquals(response.request['PATH_INFO'], reverse('flows.flow_editor', args=[language_flow.uuid]))
         self.assertEquals(language_flow.base_language, language.iso_code)
 
     def test_views_viewers(self):
@@ -2088,7 +2088,7 @@ class FlowTest(TembaTest):
         response = self.client.get(flow_archived_url)
         self.assertEquals(0, len(response.context['object_list']))
 
-        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[self.flow.uuid]))
         self.assertEquals(200, response.status_code)
         self.assertFalse(response.context['mutable'])
 
@@ -2127,7 +2127,7 @@ class FlowTest(TembaTest):
         self.assertEquals(302, response.status_code)
 
         # also shouldn't be able to view other flow
-        response = self.client.get(reverse('flows.flow_editor', args=[flow2.pk]))
+        response = self.client.get(reverse('flows.flow_editor', args=[flow2.uuid]))
         self.assertEquals(302, response.status_code)
 
     def test_flow_update_error(self):
@@ -4273,6 +4273,31 @@ class FlowsTest(FlowFileTest):
         # a message should have been sent
         msg = Msg.objects.filter(direction='O', contact=tupac).first()
         self.assertEquals('Testing this out', msg.text)
+
+    def test_group_split(self):
+        flow = self.get_flow('group_split')
+        flow.start_msg_flow([self.contact.id])
+
+        # not in any group
+        self.assertEqual(0, ContactGroup.user_groups.filter(contacts__in=[self.contact]).count())
+
+        # add us to Group A
+        self.send('add group a')
+
+        self.assertEqual('Awaiting command.', Msg.objects.filter(direction='O').order_by('-created_on').first().text)
+        groups = ContactGroup.user_groups.filter(contacts__in=[self.contact])
+        self.assertEqual(1, groups.count())
+        self.assertEqual('Group A', groups.first().name)
+
+        # now split us on group membership
+        self.send('split')
+        self.assertEqual('You are in Group A', Msg.objects.filter(direction='O').order_by('-created_on')[1].text)
+
+        # now add us to group b and remove from group a
+        self.send("remove group a")
+        self.send("add group b")
+        self.send('split')
+        self.assertEqual('You are in Group B', Msg.objects.filter(direction='O').order_by('-created_on')[1].text)
 
     def test_substitution(self):
         flow = self.get_flow('substitution')

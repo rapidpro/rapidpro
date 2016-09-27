@@ -20,7 +20,7 @@ from smartmin.views import SmartTemplateView, SmartFormView
 from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
-from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField
+from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField, URN
 from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
@@ -192,6 +192,7 @@ class BaseAPIView(generics.GenericAPIView):
     throttle_scope = 'v2'
     model = None
     model_manager = 'objects'
+    lookup_params = {'uuid': 'uuid'}
 
     @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
@@ -201,11 +202,45 @@ class BaseAPIView(generics.GenericAPIView):
         org = self.request.user.get_org()
         return getattr(self.model, self.model_manager).filter(org=org)
 
+    def get_lookup_values(self):
+        """
+        Extracts lookup_params from the request URL, e.g. {"uuid": "123..."}
+        """
+        lookup_values = {}
+        for param, field in six.iteritems(self.lookup_params):
+            if param in self.request.query_params:
+                param_value = self.request.query_params[param]
+
+                # try to normalize URN lookup values
+                if param == 'urn':
+                    param_value = self.normalize_urn(param_value)
+
+                lookup_values[field] = param_value
+
+        if len(lookup_values) > 1:
+            raise InvalidQueryError("URL can only contain one of the following parameters: " + ", ".join(self.lookup_params.keys()))
+
+        return lookup_values
+
+    def get_object(self):
+        queryset = self.get_queryset().filter(**self.lookup_values)
+
+        return generics.get_object_or_404(queryset)
+
     def get_serializer_context(self):
         context = super(BaseAPIView, self).get_serializer_context()
         context['org'] = self.request.user.get_org()
         context['user'] = self.request.user
         return context
+
+    def normalize_urn(self, value):
+        if self.request.user.get_org().is_anon:
+            raise InvalidQueryError("URN lookups not allowed for anonymous organizations")
+
+        try:
+            return URN.normalize(value)
+        except ValueError:
+            raise InvalidQueryError("Invalid URN: %s" % value)
 
 
 class ListAPIMixin(mixins.ListModelMixin):
@@ -274,11 +309,11 @@ class ListAPIMixin(mixins.ListModelMixin):
         pass
 
 
-class CreateAPIMixin(object):
+class WriteAPIMixin(object):
     """
-    Mixin for any endpoint which can create or update objects with a write serializer. Our list and create approach
-    differs slightly a bit from ListCreateAPIView in the REST framework as we use separate read and write serializers...
-    and sometimes we use another serializer again for write output
+    Mixin for any endpoint which can create or update objects with a write serializer. Our approach differs a bit from
+    the REST framework default way as we use POST requests for both create and update operations, and use separate
+    serializers for reading and writing.
     """
     write_serializer_class = None
 
@@ -289,8 +324,19 @@ class CreateAPIMixin(object):
         pass
 
     def post(self, request, *args, **kwargs):
+        self.lookup_values = self.get_lookup_values()
+
+        # determine if this is an update of an existing object or a create of a new object
+        if self.lookup_values:
+            instance = self.get_object()
+        else:
+            instance = None
+
         context = self.get_serializer_context()
-        serializer = self.write_serializer_class(data=request.data, context=context)
+        context['lookup_values'] = self.lookup_values
+        context['instance'] = instance
+
+        serializer = self.write_serializer_class(instance=instance, data=request.data, context=context)
 
         if serializer.is_valid():
             with transaction.atomic():
@@ -302,33 +348,29 @@ class CreateAPIMixin(object):
 
     def render_write_response(self, write_output, context):
         response_serializer = self.serializer_class(instance=write_output, context=context)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+        # if we created a new object, notify caller by returning 201
+        status_code = status.HTTP_200_OK if context['instance'] else status.HTTP_201_CREATED
+
+        return Response(response_serializer.data, status=status_code)
 
 
 class DeleteAPIMixin(mixins.DestroyModelMixin):
     """
     Mixin for any endpoint that can delete objects with a DELETE request
     """
-    lookup_params = {'uuid': 'uuid'}
-
     def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
+        self.lookup_values = self.get_lookup_values()
 
-    def get_object(self):
-        queryset = self.get_queryset()
+        if not self.lookup_values:
+            raise InvalidQueryError("URL must contain one of the following parameters: " + ", ".join(self.lookup_params.keys()))
 
-        filter_kwargs = {}
-        for param, field in six.iteritems(self.lookup_params):
-            if param in self.request.query_params:
-                param_value = self.request.query_params[param]
-                filter_kwargs[field] = param_value
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
-        if not filter_kwargs:
-            raise InvalidQueryError("Must provide one of the following fields: " + ", ".join(self.lookup_params.keys()))
-
-        queryset = queryset.filter(**filter_kwargs)
-
-        return generics.get_object_or_404(queryset)
+    def perform_destroy(self, instance):
+        instance.release()
 
 
 # ============================================================
@@ -338,12 +380,12 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
 
 class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to list the administrative boundaries for the country associated with your organization
+    This endpoint allows you to list the administrative boundaries for the country associated with your account,
     along with the simplified GPS geometry for those boundaries in GEOJSON format.
 
     ## Listing Boundaries
 
-    Returns the boundaries for your organization with the following fields. To include geometry,
+    A `GET` returns the boundaries for your organization with the following fields. To include geometry,
     specify `geometry=true`.
 
       * **osm_id** - the OSM ID for this boundary prefixed with the element type (string)
@@ -420,50 +462,17 @@ class BoundariesEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Administrative Boundaries",
             'url': reverse('api.v2.boundaries'),
             'slug': 'boundary-list',
-            'request': "",
-            'fields': []
+            'params': []
         }
 
 
-class BroadcastsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
+class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to send new message broadcasts using the `POST` method and list existing broadcasts on your
-    account using the `GET` method.
-
-    ## Sending Broadcasts
-
-    You can create and send new broadcasts with the following JSON data:
-
-      * **text** - the text of the message to send (string, limited to 480 characters)
-      * **urns** - the URNs of contacts to send to (array of strings, optional)
-      * **contacts** - the UUIDs of contacts to send to (array of strings, optional)
-      * **groups** - the UUIDs of contact groups to send to (array of strings, optional)
-      * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
-
-    Example:
-
-        POST /api/v1/broadcasts.json
-        {
-            "urns": ["tel:+250788123123", "tel:+250788123124"],
-            "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
-            "text": "hello world"
-        }
-
-    You will receive a response containing the message broadcast created:
-
-        {
-            "id": 1234,
-            "urns": ["tel:+250788123123", "tel:+250788123124"],
-            "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
-            "groups": [],
-            "text": "hello world",
-            "created_on": "2013-03-02T17:28:12",
-            "status": "Q"
-        }
+    This endpoint allows you to send new message broadcasts and list existing broadcasts in your account.
 
     ## Listing Broadcasts
 
-    Returns the message activity for your organization, listing the most recent messages first.
+    A `GET` returns the outgoing message activity for your organization, listing the most recent messages first.
 
      * **id** - the id of the broadcast (int), filterable as `id`.
      * **urns** - the URNs that received the broadcast (array of strings)
@@ -488,9 +497,39 @@ class BroadcastsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
                     "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
                     "groups": [],
                     "text": "hello world",
-                    "created_on": "2013-03-02T17:28:12.123Z"
+                    "created_on": "2013-03-02T17:28:12.123456Z"
                 },
                 ...
+
+    ## Sending Broadcasts
+
+    A `POST` allows you to create and send new broadcasts, with the following JSON data:
+
+      * **text** - the text of the message to send (string, limited to 480 characters)
+      * **urns** - the URNs of contacts to send to (array of strings, optional)
+      * **contacts** - the UUIDs of contacts to send to (array of strings, optional)
+      * **groups** - the UUIDs of contact groups to send to (array of strings, optional)
+      * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
+
+    Example:
+
+        POST /api/v2/broadcasts.json
+        {
+            "urns": ["tel:+250788123123", "tel:+250788123124"],
+            "contacts": ["09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"],
+            "text": "hello world"
+        }
+
+    You will receive a response containing the message broadcast created:
+
+        {
+            "id": 1234,
+            "urns": ["tel:+250788123123", "tel:+250788123124"],
+            "contacts": [{"uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab", "name": "Joe"}]
+            "groups": [],
+            "text": "hello world",
+            "created_on": "2013-03-02T17:28:12.123456Z"
+        }
     """
     permission = 'msgs.broadcast_api'
     model = Broadcast
@@ -526,8 +565,7 @@ class BroadcastsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
             'title': "List Broadcasts",
             'url': reverse('api.v2.broadcasts'),
             'slug': 'broadcast-list',
-            'request': "",
-            'fields': [
+            'params': [
                 {'name': 'id', 'required': False, 'help': "A broadcast ID to filter by, ex: 123456"},
                 {'name': 'before', 'required': False, 'help': "Only return broadcasts created before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return broadcasts created after this date, ex: 2015-01-28T18:00:00.000"}
@@ -540,8 +578,7 @@ class BroadcastsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
             'method': "POST",
             'title': "Send Broadcasts",
             'url': reverse('api.v2.broadcasts'),
-            'slug': 'broadcast-send',
-            'request': "",
+            'slug': 'broadcast-write',
             'fields': [
                 {'name': 'text', 'required': True, 'help': "The text of the message you want to send"},
                 {'name': 'urns', 'required': False, 'help': "The URNs of contacts you want to send to"},
@@ -554,10 +591,11 @@ class BroadcastsEndpoint(CreateAPIMixin, ListAPIMixin, BaseAPIView):
 
 class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
     """
+    This endpoint allows you to list campaigns in your account.
+
     ## Listing Campaigns
 
-    You can retrieve the campaigns for your organization by sending a ```GET``` to this endpoint, listing the
-    most recently created campaigns first.
+    A `GET` returns the campaigns, listing the most recently created campaigns first.
 
      * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
      * **name** - the name of the campaign (string).
@@ -611,8 +649,7 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Campaigns",
             'url': reverse('api.v2.campaigns'),
             'slug': 'campaign-list',
-            'request': "",
-            'fields': [
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
             ]
         }
@@ -620,10 +657,11 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
 
 class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
     """
+    This endpoint allows you to list campaign events in your account.
+
     ## Listing Campaign Events
 
-    You can retrieve the campaign events for your organization by sending a ```GET``` to this endpoint, listing the
-    most recently created events first.
+    A `GET` returns the campaign events, listing the most recently created events first.
 
      * **uuid** - the UUID of the campaign (string), filterable as `uuid`.
      * **campaign** - the UUID and name of the campaign (object), filterable as `campaign` with UUID.
@@ -702,8 +740,7 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Campaign Events",
             'url': reverse('api.v2.campaign_events'),
             'slug': 'campaign-event-list',
-            'request': "",
-            'fields': [
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "An event UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter by. ex: Reminders"},
             ]
@@ -712,9 +749,11 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
 
 class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
     """
+    This endpoint allows you to list channels in your account.
+
     ## Listing Channels
 
-    A **GET** returns the list of Android channels for your organization, in the order of last created.  Note that for
+    A **GET** returns the list of channels for your organization, in the order of last created.  Note that for
     Android devices, all status information is as of the last time it was seen and can be null before the first sync.
 
      * **uuid** - the UUID of the channel (string), filterable as `uuid`.
@@ -786,8 +825,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Channels",
             'url': reverse('api.v2.channels'),
             'slug': 'channel-list',
-            'request': "",
-            'fields': [
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "A channel UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': "address", 'required': False, 'help': "A channel address to filter by. ex: +250783530001"},
             ]
@@ -796,7 +834,11 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
 
 class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
     """
-    Returns the channel events for your organization, most recent first.
+    This endpoint allows you to list channel events in your account.
+
+    ## Listing Channel Events
+
+    A **GET** returns the channel events for your organization, most recent first.
 
      * **id** - the ID of the event (int), filterable as `id`.
      * **channel** - the UUID and name of the channel that handled this call (object).
@@ -866,8 +908,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Channel Events",
             'url': reverse('api.v2.channel_events'),
             'slug': 'channel-event-list',
-            'request': "",
-            'fields': [
+            'params': [
                 {'name': "id", 'required': False, 'help': "An event ID to filter by. ex: 12345"},
                 {'name': "contact", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': 'before', 'required': False, 'help': "Only return events created before this date, ex: 2015-01-28T18:00:00.000"},
@@ -876,8 +917,53 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
+class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
+    This endpoint allows you to list, create, update and delete contacts in your account.
+
+    ## Listing Contacts
+
+    A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
+    only deleted contacts by passing the "deleted=true" parameter to your call.
+
+     * **uuid** - the UUID of the contact (string), filterable as `uuid`.
+     * **name** - the name of the contact (string).
+     * **language** - the preferred language of the contact (string).
+     * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
+     * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
+     * **fields** - any contact fields on this contact (dictionary).
+     * **blocked** - whether the contact is blocked (boolean).
+     * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
+     * **created_on** - when this contact was created (datetime).
+     * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
+
+    Example:
+
+        GET /api/v2/contacts.json
+
+    Response containing the contacts for your organization:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                "name": "Ben Haggerty",
+                "language": null,
+                "urns": ["tel:+250788123123"],
+                "groups": [{"name": "Customers", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
+                "fields": {
+                  "nickname": "Macklemore",
+                  "side_kick": "Ryan Lewis"
+                }
+                "blocked": false,
+                "stopped": false,
+                "created_on": "2015-11-11T13:05:57.457742Z",
+                "modified_on": "2015-11-11T13:05:57.576056Z"
+            }]
+        }
+
     ## Adding Contacts
 
     You can add a new contact to your account by sending a **POST** request to this URL with the following JSON data:
@@ -922,16 +1008,16 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
 
     ## Updating Contacts
 
-    You can update contacts in the same manner by including one of the following fields:
+    A **POST** can also be used to update an existing contact if you specify either its UUID or one of its URNs in the
+    URL. Only those fields included in the body will be changed on the contact.
 
-    * **uuid** - the UUID of the contact (string, optional)
-    * **urn** - a URN belonging to the contact (string, optional)
+    If providing a URN in the URL then don't include URNs in the body. Also note that we will create a new contact if
+    there is no contact with that URN. You will receive a 201 response if this occurs.
 
-    Example:
+    Examples:
 
-        POST /api/v2/contacts.json
+        POST /api/v2/contacts.json?uuid=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab
         {
-            "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
             "name": "Ben Haggerty",
             "language": "eng",
             "urns": ["tel:+250788123123", "twitter:ben"],
@@ -939,59 +1025,21 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
             "fields": {}
         }
 
-    ## Listing Contacts
-
-    A **GET** returns the list of contacts for your organization, in the order of last activity date. You can return
-    only deleted contacts by passing the "deleted=true" parameter to your call.
-
-     * **uuid** - the UUID of the contact (string), filterable as `uuid`.
-     * **name** - the name of the contact (string).
-     * **language** - the preferred language of the contact (string).
-     * **urns** - the URNs associated with the contact (string array), filterable as `urn`.
-     * **groups** - the UUIDs of any groups the contact is part of (array of objects), filterable as `group` with group name or UUID.
-     * **fields** - any contact fields on this contact (dictionary).
-     * **blocked** - whether the contact is blocked (boolean).
-     * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
-     * **created_on** - when this contact was created (datetime).
-     * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
-
-    Example:
-
-        GET /api/v1/contacts.json
-
-    Response containing the contacts for your organization:
-
+        POST /api/v2/contacts.json?urn=tel%3A%2B250783835665
         {
-            "next": null,
-            "previous": null,
-            "results": [
-            {
-                "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
-                "name": "Ben Haggerty",
-                "language": null,
-                "urns": ["tel:+250788123123"],
-                "groups": [{"name": "Customers", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
-                "fields": {
-                  "nickname": "Macklemore",
-                  "side_kick": "Ryan Lewis"
-                }
-                "blocked": false,
-                "stopped": false,
-                "created_on": "2015-11-11T13:05:57.457742Z",
-                "modified_on": "2015-11-11T13:05:57.576056Z"
-            }]
+            "fields": {"nickname": "Ben"}
         }
 
     ## Deleting Contacts
 
-    A **DELETE** removes a matching contact from your account. You must provide one of the following:
+    A **POST** can also be used to delete an existing contact if you specify either its UUID or one of its URNs in the
+    URL.
 
-    * **uuid** - the UUID of the contact to delete (string)
-    * **urn** - the URN of the contact to delete (string)
-
-    Example:
+    Examples:
 
         DELETE /api/v2/contacts.json?uuid=27fb583b-3087-4778-a2b3-8af489bf4a93
+
+        DELETE /api/v2/contacts.json?urn=tel%3A%2B250783835665
 
     You will receive either a 204 response if a contact was deleted, or a 404 response if no matching contact was found.
     """
@@ -1018,7 +1066,7 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
         # filter by URN (optional)
         urn = params.get('urn')
         if urn:
-            queryset = queryset.filter(urns__urn=urn)
+            queryset = queryset.filter(urns__urn=self.normalize_urn(urn))
 
         # filter by group name/uuid (optional)
         group_ref = params.get('group')
@@ -1049,6 +1097,15 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
         context['contact_fields'] = ContactField.objects.filter(org=self.request.user.get_org(), is_active=True)
         return context
 
+    def get_object(self):
+        queryset = self.get_queryset().filter(**self.lookup_values)
+
+        # don't blow up if posted a URN that doesn't exist - we'll let the serializer create a new contact
+        if self.request.method == 'POST' and 'urns__urn' in self.lookup_values:
+            return queryset.first()
+        else:
+            return generics.get_object_or_404(queryset)
+
     def perform_destroy(self, instance):
         instance.release(self.request.user)
 
@@ -1059,15 +1116,15 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
             'title': "List Contacts",
             'url': reverse('api.v2.contacts'),
             'slug': 'contact-list',
-            'request': "urn=tel%3A%2B250788123123",
-            'fields': [
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "A contact UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': "urn", 'required': False, 'help': "A contact URN to filter by. ex: tel:+250788123123"},
                 {'name': "group", 'required': False, 'help': "A group name or UUID to filter by. ex: Customers"},
                 {'name': "deleted", 'required': False, 'help': "Whether to return only deleted contacts. ex: false"},
                 {'name': 'before', 'required': False, 'help': "Only return contacts modified before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return contacts modified after this date, ex: 2015-01-28T18:00:00.000"}
-            ]
+            ],
+            'example': {'query': "urn=tel%3A%2B250788123123"},
         }
 
     @classmethod
@@ -1076,17 +1133,19 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
             'method': "POST",
             'title': "Add or Update Contacts",
             'url': reverse('api.v2.contacts'),
-            'slug': 'contact-update',
-            'request': '{"name": "Ben Haggerty", "groups": [], "urns": ["tel:+250788123123"]}',
-            'fields': [
+            'slug': 'contact-write',
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "UUID of the contact to be updated"},
                 {'name': "urn", 'required': False, 'help': "URN of the contact to be updated. ex: tel:+250788123123"},
+            ],
+            'fields': [
                 {'name': "name", 'required': False, 'help': "List of UUIDs of this contact's groups."},
                 {'name': "language", 'required': False, 'help': "Preferred language of the contact (3-letter ISO code). ex: fre, eng"},
                 {'name': "urns", 'required': False, 'help': "List of URNs belonging to the contact."},
                 {'name': "groups", 'required': False, 'help': "List of UUIDs of groups that the contact belongs to."},
                 {'name': "fields", 'required': False, 'help': "Custom fields as a JSON dictionary."},
-            ]
+            ],
+            'example': {'body': '{"name": "Ben Haggerty", "groups": [], "urns": ["tel:+250788123123"]}'},
         }
 
     @classmethod
@@ -1096,8 +1155,7 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
             'title': "Delete Contacts",
             'url': reverse('api.v2.contacts'),
             'slug': 'contact-delete',
-            'request': '',
-            'fields': [
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "UUID of the contact to be deleted"},
                 {'name': "urn", 'required': False, 'help': "URN of the contact to be deleted. ex: tel:+250788123123"}
             ],
@@ -1106,6 +1164,8 @@ class ContactsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView
 
 class DefinitionsEndpoint(BaseAPIView):
     """
+    This endpoint allows you to export definitions of flows, campaigns and triggers in your account.
+
     ## Exporting Definitions
 
     A **GET** exports a set of flows and campaigns, and can automatically include dependencies for the requested items,
@@ -1242,9 +1302,8 @@ class DefinitionsEndpoint(BaseAPIView):
             'method': "GET",
             'title': "Export Definitions",
             'url': reverse('api.v2.definitions'),
-            'slug': 'export-definitions',
-            'request': "flow=f14e4ff0-724d-43fe-a953-1d16aefd1c0b&flow=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
-            'fields': [
+            'slug': 'definition-list',
+            'params': [
                 {'name': "flow", 'required': False, 'help': "One or more flow UUIDs to include"},
                 {'name': "campaign", 'required': False, 'help': "One or more campaign UUIDs to include"},
                 {'name': "dependencies", 'required': False, 'help': "Whether to include dependencies of the requested items. ex: false"}
@@ -1254,6 +1313,8 @@ class DefinitionsEndpoint(BaseAPIView):
 
 class FieldsEndpoint(ListAPIMixin, BaseAPIView):
     """
+    This endpoint allows you to list custom contact fields in your account.
+
     ## Listing Fields
 
     A **GET** returns the list of custom contact fields for your organization, in the order of last created.
@@ -1303,15 +1364,17 @@ class FieldsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Fields",
             'url': reverse('api.v2.fields'),
             'slug': 'field-list',
-            'request': "key=nick_name",
-            'fields': [
+            'params': [
                 {'name': "key", 'required': False, 'help': "A field key to filter by. ex: nick_name"}
-            ]
+            ],
+            'example': {'query': "key=nick_name"},
         }
 
 
 class FlowsEndpoint(ListAPIMixin, BaseAPIView):
     """
+    This endpoint allows you to list flows in your account.
+
     ## Listing Flows
 
     A **GET** returns the list of flows for your organization, in the order of last created.
@@ -1375,15 +1438,16 @@ class FlowsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Flows",
             'url': reverse('api.v2.flows'),
             'slug': 'flow-list',
-            'request': "",
-            'fields': [
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "A flow UUID filter by. ex: 5f05311e-8f81-4a67-a5b5-1501b6d6496a"}
             ]
         }
 
 
-class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
+class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
+    This endpoint allows you to list, create, update and delete contact groups in your account.
+
     ## Listing Groups
 
     A **GET** returns the list of contact groups for your organization, in the order of last created.
@@ -1436,16 +1500,12 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     ## Updating a Group
 
-    A **POST** can also be used to update a contact group if you do specify its UUID.
-
-    * **uuid** - the group UUID
-    * **name** - the group name (string)
+    A **POST** can also be used to update an existing contact group if you specify its UUID in the URL.
 
     Example:
 
-        POST /api/v2/groups.json
+        POST /api/v2/groups.json?uuid=5f05311e-8f81-4a67-a5b5-1501b6d6496a
         {
-            "uuid": "5f05311e-8f81-4a67-a5b5-1501b6d6496a",
             "name": "Checked"
         }
 
@@ -1460,13 +1520,13 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     ## Deleting a Group
 
-    A **DELETE** can  be used to delete a contact group if you specify its UUID
+    A **DELETE** can be used to delete a contact group if you specify its UUID in the URL.
 
     Example:
 
         DELETE /api/v2/groups.json?uuid=5f05311e-8f81-4a67-a5b5-1501b6d6496a
 
-    You will receive either a 204 response if a group was deleted, or a 404 response if no matching label was found.
+    You will receive either a 204 response if a group was deleted, or a 404 response if no matching group was found.
     """
     permission = 'contacts.contactgroup_api'
     model = ContactGroup
@@ -1485,9 +1545,6 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
-    def perform_destroy(self, instance):
-        instance.release()
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -1495,8 +1552,7 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "List Contact Groups",
             'url': reverse('api.v2.groups'),
             'slug': 'group-list',
-            'request': "",
-            'fields': [
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"}
             ]
         }
@@ -1508,9 +1564,10 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "Add or Update Contact Groups",
             'url': reverse('api.v2.groups'),
             'slug': 'group-write',
-            'request': "",
+            'params': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the contact group to update"}
+            ],
             'fields': [
-                {'name': "uuid", 'required': False, 'help': "The UUID of the contact group to update"},
                 {'name': "name", 'required': True, 'help': "The name of the contact group"}
             ]
         }
@@ -1522,15 +1579,16 @@ class GroupsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "Delete Contact Groups",
             'url': reverse('api.v2.groups'),
             'slug': 'group-delete',
-            'request': '',
-            'fields': [
-                {'name': "uuid", 'required': False, 'help': "The UUID of the contact group to delete"}
+            'params': [
+                {'name': "uuid", 'required': True, 'help': "The UUID of the contact group to delete"}
             ],
         }
 
 
-class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
+class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
+    This endpoint allows you to list, create, update and delete message labels in your account.
+
     ## Listing Labels
 
     A **GET** returns the list of message labels for your organization, in the order of last created.
@@ -1581,16 +1639,12 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     ## Updating a Label
 
-    A **POST** can also be used to update a message label if you do specify its UUID.
-
-    * **uuid** - the label UUID
-    * **name** - the label name (string)
+    A **POST** can also be used to update an existing message label if you specify its UUID in the URL.
 
     Example:
 
-        POST /api/v2/labels.json
+        POST /api/v2/labels.json?uuid=fdd156ca-233a-48c1-896d-a9d594d59b95
         {
-            "uuid": "fdd156ca-233a-48c1-896d-a9d594d59b95",
             "name": "Checked"
         }
 
@@ -1604,7 +1658,7 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
     ## Deleting a Label
 
-    A **DELETE** can  be used to delete a message label if you specify its UUID
+    A **DELETE** can be used to delete a message label if you specify its UUID in the URL.
 
     Example:
 
@@ -1629,9 +1683,6 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
 
         return queryset.filter(is_active=True)
 
-    def perform_destroy(self, instance):
-        instance.release()
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -1639,8 +1690,7 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "List Message Labels",
             'url': reverse('api.v2.labels'),
             'slug': 'label-list',
-            'request': "",
-            'fields': [
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"}
             ]
         }
@@ -1652,9 +1702,10 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
             'title': "Add or Update Message Labels",
             'url': reverse('api.v2.labels'),
             'slug': 'label-write',
-            'request': "",
-            'fields': [
+            'params': [
                 {'name': "uuid", 'required': False, 'help': "The UUID of the message label to update"},
+            ],
+            'fields': [
                 {'name': "name", 'required': True, 'help': "The name of the message label"}
             ]
         }
@@ -1664,22 +1715,21 @@ class LabelsEndpoint(CreateAPIMixin, ListAPIMixin, DeleteAPIMixin, BaseAPIView):
         return {
             'method': "DELETE",
             'title': "Delete Message Labels",
-            'url': reverse('api.v2.contacts'),
+            'url': reverse('api.v2.labels'),
             'slug': 'label-delete',
-            'request': '',
-            'fields': [
-                {'name': "uuid", 'required': False, 'help': "The UUID of the message label to delete"}
+            'params': [
+                {'name': "uuid", 'required': True, 'help': "The UUID of the message label to delete"}
             ],
         }
 
 
 class MediaEndpoint(BaseAPIView):
     """
-    This endpoint allows you to submit media which can be embedded in flow steps
+    This endpoint allows you to submit media which can be embedded in flow steps.
 
     ## Creating Media
 
-    By making a ```POST``` request to the endpoint you can add a new media files
+    By making a `POST` request to the endpoint you can add a new media files
     """
     parser_classes = (MultiPartParser, FormParser,)
     permission = 'msgs.msg_api'
@@ -1699,12 +1749,12 @@ class MediaEndpoint(BaseAPIView):
 
 class MessagesEndpoint(ListAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to fetch messages.
+    This endpoint allows you to list messages in your account.
 
     ## Listing Messages
 
-    By making a ```GET``` request you can list the messages for your organization, filtering them as needed. Each
-    message has the following attributes:
+    A `GET` returns the messages for your organization, filtering them as needed. Each message has the following
+    attributes:
 
      * **id** - the ID of the message (int), filterable as `id`.
      * **broadcast** - the id of the broadcast (int), filterable as `broadcast`.
@@ -1854,8 +1904,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Messages",
             'url': reverse('api.v2.messages'),
             'slug': 'msg-list',
-            'request': "folder=incoming&after=2014-01-01T00:00:00.000",
-            'fields': [
+            'params': [
                 {'name': 'id', 'required': False, 'help': "A message ID to filter by, ex: 123456"},
                 {'name': 'broadcast', 'required': False, 'help': "A broadcast ID to filter by, ex: 12345"},
                 {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
@@ -1863,12 +1912,15 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'label', 'required': False, 'help': "A label name or UUID to filter by, ex: Spam"},
                 {'name': 'before', 'required': False, 'help': "Only return messages created before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return messages created after this date, ex: 2015-01-28T18:00:00.000"}
-            ]
+            ],
+            'example': {'query': "folder=incoming&after=2014-01-01T00:00:00.000"},
         }
 
 
 class OrgEndpoint(BaseAPIView):
     """
+    This endpoint allows you to view details about your account.
+
     ## Viewing Current Organization
 
     A **GET** returns the details of your organization. There are no parameters.
@@ -1912,19 +1964,17 @@ class OrgEndpoint(BaseAPIView):
             'method': "GET",
             'title': "View Current Org",
             'url': reverse('api.v2.org'),
-            'slug': 'org-read',
-            'request': ""
+            'slug': 'org-read'
         }
 
 
 class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to list the resthooks on your account.
+    This endpoint allows you to list configured resthooks in your account.
 
     ## Listing Resthooks
 
-    By making a ```GET``` request you can list all the resthooks on your organization.  Each
-    resthook has the following attributes:
+    A `GET` returns the resthooks on your organization. Each resthook has the following attributes:
 
      * **resthook** - the slug for the resthook (string)
      * **created_on** - the datetime when this resthook was created (datetime)
@@ -1963,19 +2013,17 @@ class ResthooksEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Resthooks",
             'url': reverse('api.v2.resthooks'),
             'slug': 'resthook-list',
-            'request': "?",
-            'fields': []
+            'params': []
         }
 
 
-class ResthookSubscribersEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView):
+class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list, add or remove subscribers to resthooks.
 
     ## Listing Resthook Subscribers
 
-    By making a ```GET``` request you can list all the subscribers on your organization.  Each
-    resthook subscriber has the following attributes:
+    A `GET` returns the subscribers on your organization. Each resthook subscriber has the following attributes:
 
      * **id** - the id of the subscriber (integer, filterable)
      * **resthook** - the resthook they are subscribed to (string, filterable)
@@ -2009,8 +2057,8 @@ class ResthookSubscribersEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, 
 
     ## Subscribing to a Resthook
 
-    By making a ```POST``` request with the event you want to subscribe to and the target URL, you can subscribe to be notified
-    whenever your resthook event is triggered.
+    By making a `POST` request with the event you want to subscribe to and the target URL, you can subscribe to be
+    notified whenever your resthook event is triggered.
 
      * **resthook** - the slug of the resthook to subscribe to
      * **target_url** - the URL you want called (will be called with a POST)
@@ -2034,9 +2082,7 @@ class ResthookSubscribersEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, 
 
     ## Deleting a Subscription
 
-    By making a ```DELETE``` request with the id of the subscription, you can remove it.
-
-     * **id** - the id of the resthook subscription you want to remove
+    A **DELETE** can be used to delete a subscription if you specify its id in the URL.
 
     Example:
 
@@ -2080,36 +2126,28 @@ class ResthookSubscribersEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, 
             'title': "List Resthook Subscribers",
             'url': reverse('api.v2.resthook_subscribers'),
             'slug': 'resthooksubscriber-list',
-            'request': "?",
-            'fields': []
+            'params': []
         }
 
     @classmethod
     def get_write_explorer(cls):
-        spec = dict(method="POST",
+        return dict(method="POST",
                     title="Add Resthook Subscriber",
                     url=reverse('api.v2.resthook_subscribers'),
-                    slug='resthooksubscriber-create',
-                    request='{ "resthook": "new-report", "target_url": "https://zapier.com/handle/1515155" }')
-
-        spec['fields'] = [dict(name='resthook', required=True,
-                               help="The slug for the resthook you want to subscribe to"),
-                          dict(name='target_url', required=True,
-                               help="The URL that will be called when the resthook is triggered.")]
-
-        return spec
+                    slug='resthooksubscriber-write',
+                    fields=[dict(name='resthook', required=True,
+                                 help="The slug for the resthook you want to subscribe to"),
+                            dict(name='target_url', required=True,
+                                 help="The URL that will be called when the resthook is triggered.")],
+                    example=dict(body='{"resthook": "new-report", "target_url": "https://zapier.com/handle/1515155"}'))
 
     @classmethod
     def get_delete_explorer(cls):
-        spec = dict(method="DELETE",
+        return dict(method="DELETE",
                     title="Delete Resthook Subscriber",
                     url=reverse('api.v2.resthook_subscribers'),
                     slug='resthooksubscriber-delete',
-                    request="id=10404055")
-        spec['fields'] = [dict(name='id', required=True,
-                               help="The id of the subscriber you want to remove")]
-
-        return spec
+                    params=[dict(name='id', required=True, help="The id of the subscriber to delete")])
 
 
 class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
@@ -2118,8 +2156,7 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
 
     ## Listing Resthook Events
 
-    By making a ```GET``` request you can list all the recent resthook events on your organization.
-    Each event has the following attributes:
+    A `GET` returns the recent resthook events on your organization. Each event has the following attributes:
 
      * **resthook** - the slug for the resthook (filterable)
      * **data** - the data for the resthook
@@ -2205,8 +2242,7 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Resthook Events",
             'url': reverse('api.v2.resthook_events'),
             'slug': 'resthook-event-list',
-            'request': "?",
-            'fields': []
+            'params': []
         }
 
 
@@ -2217,7 +2253,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
 
     ## Listing Flow Runs
 
-    By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
+    A `GET` request returns the flow runs for your organization, filtering them as needed. Each
     run has the following attributes:
 
      * **id** - the ID of the run (int), filterable as `id`.
@@ -2335,21 +2371,21 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             'title': "List Flow Runs",
             'url': reverse('api.v2.runs'),
             'slug': 'run-list',
-            'request': "after=2014-01-01T00:00:00.000",
-            'fields': [
+            'params': [
                 {'name': 'id', 'required': False, 'help': "A run ID to filter by, ex: 123456"},
                 {'name': 'flow', 'required': False, 'help': "A flow UUID to filter by, ex: f5901b62-ba76-4003-9c62-72fdacc1b7b7"},
                 {'name': 'contact', 'required': False, 'help': "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
                 {'name': 'responded', 'required': False, 'help': "Whether to only return runs with contact responses"},
                 {'name': 'before', 'required': False, 'help': "Only return runs modified before this date, ex: 2015-01-28T18:00:00.000"},
                 {'name': 'after', 'required': False, 'help': "Only return runs modified after this date, ex: 2015-01-28T18:00:00.000"}
-            ]
+            ],
+            'example': {'query': "after=2016-01-01T00:00:00.000"}
         }
 
 
-class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
+class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
-    This endpoint allows you to list manual flow starts on your account and add or start contacts in a flow.
+    This endpoint allows you to list manual flow starts in your account, and add or start contacts in a flow.
 
     ## Listing Flow Starts
 
@@ -2480,36 +2516,31 @@ class FlowStartsEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             'method': "GET",
             'title': "List Flow Starts",
             'url': reverse('api.v2.flow_starts'),
-            'slug': 'flow_start-list',
-            'request': "?after=2014-01-01T00:00:00.000",
-            'fields': [dict(name='id', required=False,
-                            help="Only return the flow start with this id"),
-                       dict(name='after', required=False,
-                            help="Only return flow starts modified after this date"),
-                       dict(name='before', required=False,
-                            help="Only return flow starts modified before this date")]
+            'slug': 'flow-start-list',
+            'params': [
+                {'name': 'id', 'required': False, 'help': "Only return the flow start with this id"},
+                {'name': 'after', 'required': False, 'help': "Only return flow starts modified after this date"},
+                {'name': 'before', 'required': False, 'help': "Only return flow starts modified before this date"}
+            ],
+            'example': {'query': "after=2016-01-01T00:00:00.000"}
         }
 
     @classmethod
     def get_write_explorer(cls):
-        spec = dict(method="POST",
-                    title="Start contacts in a flow",
+        return dict(method="POST",
+                    title="Start Contacts in a Flow",
                     url=reverse('api.v2.flow_starts'),
-                    slug='flow_start-create',
-                    request='{ "flow": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "urns": ["twitter:sirmixalot"] }')
-
-        spec['fields'] = [dict(name='flow', required=True,
-                               help="The UUID of the flow to start"),
-                          dict(name='groups', required=False,
-                               help="The UUIDs of any contact groups you want to start"),
-                          dict(name='contacts', required=False,
-                               help="The UUIDs of any contacts you want to start"),
-                          dict(name='urns', required=False,
-                               help="The URNS of any contacts you want to start"),
-                          dict(name='restart_participants', required=False,
-                               help="Whether to restart any participants already in the flow"),
-                          dict(name='extra', required=False,
-                               help="Any extra parameters to pass to the flow start"),
-                          ]
-
-        return spec
+                    slug='flow-start-write',
+                    fields=[dict(name='flow', required=True,
+                                 help="The UUID of the flow to start"),
+                            dict(name='groups', required=False,
+                                 help="The UUIDs of any contact groups you want to start"),
+                            dict(name='contacts', required=False,
+                                 help="The UUIDs of any contacts you want to start"),
+                            dict(name='urns', required=False,
+                                 help="The URNS of any contacts you want to start"),
+                            dict(name='restart_participants', required=False,
+                                 help="Whether to restart any participants already in the flow"),
+                            dict(name='extra', required=False,
+                                 help="Any extra parameters to pass to the flow start")],
+                    example=dict(body='{"flow":"f5901b62-ba76-4003-9c62-72fdacc1b7b7","urns":["twitter:sirmixalot"]}'))
