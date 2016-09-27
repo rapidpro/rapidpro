@@ -1956,11 +1956,11 @@ class ViberHandler(View):
             return HttpResponse("Not handled, unknown action", status=400)
 
 
-class LINEHandler(View):
+class LineHandler(View):
 
     @disable_middleware
     def dispatch(self, *args, **kwargs):
-        return super(LINEHandler, self).dispatch(*args, **kwargs)
+        return super(LineHandler, self).dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1987,7 +1987,7 @@ class LINEHandler(View):
                 from_mid = data.get('from_mid').encode('utf-8')
                 Msg.create_incoming(channel=channel, urn=URN.from_line(from_mid), text=text, date=date)
 
-            return HttpResponse("SMS Accepted")
+            return HttpResponse("Msg Accepted")
 
         except Exception as e:
             return HttpResponse("Not handled. Error: %s" % e.args, status=400)
