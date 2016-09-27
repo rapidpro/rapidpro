@@ -2609,6 +2609,21 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
+        records = self.do_import(user, 'sample_contacts.xlsx')
+        self.assertEquals(3, len(records))
+
+        self.assertEquals(1, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals('Sample Contacts', group.name)
+        self.assertEquals(3, group.contacts.count())
+
+        self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
+        self.assertEquals(1, Contact.objects.filter(name='Nic Pottier').count())
+        self.assertEquals(1, Contact.objects.filter(name='Jen Newcomer').count())
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
         with patch('temba.contacts.models.Org.get_country_code') as mock_country_code:
             mock_country_code.return_value = None
 
@@ -2638,14 +2653,6 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
                              '"Telegram", "Email", "Facebook", "External" should be included.')
-
-        csv_file = open('%s/test_imports/sample_contacts.xlsx' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data)
-        self.assertFormError(response, 'form', 'csv_file',
-                             "The file you provided has an unsupported format. "
-                             "Please make sure you upload a CSV file or an Excel file "
-                             "saved as Excel 2003 format(.xls)")
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
