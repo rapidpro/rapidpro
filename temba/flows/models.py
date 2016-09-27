@@ -2533,9 +2533,8 @@ class FlowRun(models.Model):
             if flow:
                 flow.remove_active_for_run_ids(run_ids)
 
-        modified_on = timezone.now()
         if not exited_on:
-            exited_on = modified_on
+            exited_on = timezone.now()
 
         from .tasks import continue_parent_flows
 
@@ -2543,7 +2542,7 @@ class FlowRun(models.Model):
         for batch in chunk_list(runs, 1000):
             ids = [r['id'] for r in batch]
             run_objs = FlowRun.objects.filter(pk__in=ids)
-            run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type, modified_on=modified_on)
+            run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type)
 
             # continue the parent flows to continue async
             continue_parent_flows.delay(ids)
