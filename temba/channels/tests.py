@@ -1736,6 +1736,8 @@ class ChannelTest(TembaTest):
                 self.assertEqual(config['oauth_token_secret'], '45678')
 
     def test_claim_line(self):
+        from linebot.users import UserProfile
+
         # disassociate all of our channels
         self.org.channels.all().update(org=None, is_active=False)
 
@@ -1745,18 +1747,33 @@ class ChannelTest(TembaTest):
         self.assertContains(response, 'LINE')
 
         claim_line_url = reverse('channels.channel_claim_line')
-        payload = dict(channel_id='123456', channel_secret='123456', channel_mid='u304ad2c3d5fb655b9ac95cf8267d367c')
 
-        response = self.client.post(claim_line_url, payload)
-        channel = Channel.objects.get(channel_type=Channel.TYPE_LINE)
-        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
-        self.assertEqual(channel.channel_type, "LN")
-        self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_ID], '123456')
-        self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_SECRET], '123456')
-        self.assertEqual(channel.address, 'u304ad2c3d5fb655b9ac95cf8267d367c')
+        with patch('linebot.client.LineBotClient.get_user_profile') as get_user_profile:
+            get_user_profile.return_value = [
+                UserProfile({'mid': 'u123456789', 'displayName': 'userDisplayName', 'pictureUrl': 'pictureUrl.png', 'statusMessage': 'statusMessage'})
+            ]
 
-        response = self.client.post(claim_line_url, payload)
-        self.assertContains(response, "Channel with this address already exists, please try again with other.")
+            payload = dict(channel_id='123456', channel_secret='123456', channel_mid='u123456789')
+
+            response = self.client.post(claim_line_url, payload, follow=True)
+            channel = Channel.objects.get(channel_type=Channel.TYPE_LINE)
+            self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+            self.assertEqual(channel.channel_type, "LN")
+            self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_ID], '123456')
+            self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_SECRET], '123456')
+            self.assertEqual(channel.address, 'u123456789')
+
+            response = self.client.post(claim_line_url, payload, follow=True)
+            self.assertContains(response, "A channel with this configuration already exists.")
+
+        self.org.channels.update(is_active=False, org=None)
+
+        with patch('linebot.client.LineBotClient.get_user_profile') as get_user_profile:
+            get_user_profile.return_value = None
+            payload = dict(channel_id='123456', channel_secret='123456', channel_mid='u123456789')
+
+            response = self.client.post(claim_line_url, payload, follow=True)
+            self.assertContains(response, "Profile not found with the information provided.")
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -7510,10 +7527,10 @@ class ViberTest(TembaTest):
             self.clear_cache()
 
 
-class LINETest(TembaTest):
+class LineTest(TembaTest):
 
     def setUp(self):
-        super(LINETest, self).setUp()
+        super(LineTest, self).setUp()
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_LINE, '123456789', '123456789',
@@ -7559,28 +7576,28 @@ class LINETest(TembaTest):
         joe = self.create_contact("Joe", urn="line:1234")
         msg = joe.send("Hello, BOT API Server!", self.admin, trigger_send=False)
 
-        settings.SEND_MESSAGES = True
+        with self.settings(SEND_MESSAGES=True):
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(200, '{"failed":[],"messageId":"123456789","timestamp":1474324214493,"version":1}')
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, '{"failed":[],"messageId":"123456789","timestamp":1474324214493,"version":1}')
 
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
-            # check the status of the message is now sent
-            msg.refresh_from_db()
-            self.assertEqual(msg.status, WIRED)
-            self.assertTrue(msg.sent_on)
-            self.clear_cache()
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEqual(msg.status, WIRED)
+                self.assertTrue(msg.sent_on)
+                self.clear_cache()
 
-        with patch('requests.post') as mock:
-            mock.return_value = MockResponse(400, "Error", method='POST')
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
 
-            # manually send it off
-            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
-            # message should be marked as an error
-            msg.refresh_from_db()
-            self.assertEquals(ERRORED, msg.status)
-            self.assertEquals(1, msg.error_count)
-            self.assertTrue(msg.next_attempt)
+                # message should be marked as an error
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
