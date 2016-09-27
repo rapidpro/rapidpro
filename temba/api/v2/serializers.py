@@ -799,6 +799,56 @@ class MsgReadSerializer(ReadSerializer):
                   'created_on', 'sent_on', 'modified_on')
 
 
+class MsgBulkActionSerializer(WriteSerializer):
+    LABEL = 'label'
+    UNLABEL = 'unlabel'
+    ARCHIVE = 'archive'
+    RESTORE = 'restore'
+    DELETE = 'delete'
+
+    ACTIONS = (LABEL, UNLABEL, ARCHIVE, RESTORE, DELETE)
+
+    messages = fields.MessageField(many=True)
+    action = serializers.ChoiceField(required=True, choices=ACTIONS)
+    label = fields.LabelField(required=False)
+
+    def validate_messages(self, value):
+        for msg in value:
+            if msg.direction != 'I':
+                raise serializers.ValidationError("Not an incoming message: %d" % msg.id)
+
+        return value
+
+    def validate(self, data):
+        action = data['action']
+        label = data.get('label')
+
+        if action in (self.LABEL, self.UNLABEL) and not label:
+            raise serializers.ValidationError("For action \"%s\" you should also specify a label" % action)
+        elif action in (self.ARCHIVE, self.RESTORE, self.DELETE) and label:
+            raise serializers.ValidationError("For action \"%s\" you should not specify a label" % action)
+
+        return data
+
+    def save(self):
+        messages = self.validated_data['messages']
+        action = self.validated_data['action']
+        label = self.validated_data.get('label')
+
+        if action == self.LABEL:
+            label.toggle_label(messages, add=True)
+        elif action == self.UNLABEL:
+            label.toggle_label(messages, add=False)
+        else:
+            for msg in messages:
+                if action == self.ARCHIVE:
+                    msg.archive()
+                elif action == self.RESTORE:
+                    msg.restore()
+                elif action == self.DELETE:
+                    msg.release()
+
+
 class ResthookReadSerializer(ReadSerializer):
     resthook = serializers.SerializerMethodField()
 

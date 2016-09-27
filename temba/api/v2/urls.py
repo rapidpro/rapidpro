@@ -6,7 +6,7 @@ from .views import api, ApiExplorerView, AuthenticateView, BroadcastsEndpoint, C
 from .views import CampaignsEndpoint, CampaignEventsEndpoint, ContactsEndpoint, DefinitionsEndpoint, FlowsEndpoint
 from .views import FieldsEndpoint, FlowStartsEndpoint, GroupsEndpoint, LabelsEndpoint, MediaEndpoint, MessagesEndpoint
 from .views import OrgEndpoint, ResthooksEndpoint, ResthookEventsEndpoint, ResthookSubscribersEndpoint, RunsEndpoint
-from .views import BoundariesEndpoint, ContactActionsEndpoint
+from .views import BoundariesEndpoint, ContactActionsEndpoint, MessageActionsEndpoint
 
 
 urlpatterns = [
@@ -31,6 +31,7 @@ urlpatterns = [
     url(r'^/labels$', LabelsEndpoint.as_view(), name='api.v2.labels'),
     url(r'^/media$', MediaEndpoint.as_view(), name='api.v2.media'),
     url(r'^/messages$', MessagesEndpoint.as_view(), name='api.v2.messages'),
+    url(r'^/message_actions$', MessageActionsEndpoint.as_view(), name='api.v2.message_actions'),
     url(r'^/org$', OrgEndpoint.as_view(), name='api.v2.org'),
     url(r'^/resthooks$', ResthooksEndpoint.as_view(), name='api.v2.resthooks'),
     url(r'^/resthook_events$', ResthookEventsEndpoint.as_view(), name='api.v2.resthook_events'),

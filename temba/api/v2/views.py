@@ -31,7 +31,7 @@ from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, Labe
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, ContactGroupWriteSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
-from .serializers import CampaignEventWriteSerializer, ContactBulkActionSerializer
+from .serializers import CampaignEventWriteSerializer, ContactBulkActionSerializer, MsgBulkActionSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -60,6 +60,7 @@ def api(request, format=None):
      * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
+     * [/api/v2/message_actions](/api/v2/contact_actions) - to perform bulk message actions
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
@@ -84,6 +85,7 @@ def api(request, format=None):
         'groups': reverse('api.v2.groups', request=request),
         'labels': reverse('api.v2.labels', request=request),
         'messages': reverse('api.v2.messages', request=request),
+        'message_actions': reverse('api.v2.message_actions', request=request),
         'org': reverse('api.v2.org', request=request),
         'resthooks': reverse('api.v2.resthooks', request=request),
         'resthook_events': reverse('api.v2.resthook_events', request=request),
@@ -127,6 +129,7 @@ class ApiExplorerView(SmartTemplateView):
             LabelsEndpoint.get_write_explorer(),
             LabelsEndpoint.get_delete_explorer(),
             MessagesEndpoint.get_read_explorer(),
+            MessageActionsEndpoint.get_write_explorer(),
             OrgEndpoint.get_read_explorer(),
             ResthooksEndpoint.get_read_explorer(),
             ResthookEventsEndpoint.get_read_explorer(),
@@ -360,6 +363,20 @@ class WriteAPIMixin(object):
         status_code = status.HTTP_200_OK if context['instance'] else status.HTTP_201_CREATED
 
         return Response(response_serializer.data, status=status_code)
+
+
+class BulkWriteAPIMixin(object):
+    """
+    Mixin for a bulk action endpoint which writes multiple objects in response to a POST but returns nothing.
+    """
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context=self.get_serializer_context())
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response('', status=status.HTTP_204_NO_CONTENT)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeleteAPIMixin(mixins.DestroyModelMixin):
@@ -1322,7 +1339,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         }
 
 
-class ContactActionsEndpoint(BaseAPIView):
+class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
     """
     ## Bulk Contact Updating
 
@@ -1355,15 +1372,6 @@ class ContactActionsEndpoint(BaseAPIView):
     permission = 'contacts.contact_api'
     serializer_class = ContactBulkActionSerializer
 
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data, context=self.get_serializer_context())
-
-        if serializer.is_valid():
-            serializer.save()
-            return Response('', status=status.HTTP_204_NO_CONTENT)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
     @classmethod
     def get_write_explorer(cls):
         return {
@@ -1374,7 +1382,7 @@ class ContactActionsEndpoint(BaseAPIView):
             'fields': [
                 {'name': "contacts", 'required': True, 'help': "The UUIDs of the contacts to update"},
                 {'name': "action", 'required': True, 'help': "One of the following strings: add, remove, block, unblock, expire, archive, delete"},
-                {'name': "uuids", 'required': False, 'help': "The UUID or name of a contact group"},
+                {'name': "group", 'required': False, 'help': "The UUID or name of a contact group"},
             ]
         }
 
@@ -2131,6 +2139,52 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'after', 'required': False, 'help': "Only return messages created after this date, ex: 2015-01-28T18:00:00.000"}
             ],
             'example': {'query': "folder=incoming&after=2014-01-01T00:00:00.000"},
+        }
+
+
+class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+    """
+    ## Bulk Message Updating
+
+    A **POST** can be used to perform an action on a set of messages in bulk.
+
+    * **messages** - a JSON array of up to 100 message ids (array of ints)
+    * **action** - the action to perform, a string one of:
+
+            label - Apply the given label to the messages
+            unlabel - Remove the given label from the messages
+            archive - Archive the messages
+            unarchive - Un-archive the messages
+            delete - Permanently delete the messages
+
+    * **label** - the UUID or name of a label (string, optional)
+
+    Example:
+
+        POST /api/v2/message_actions.json
+        {
+            "messages": [1234, 2345, 3456],
+            "action": "label",
+            "label": "Testing"
+        }
+
+    You will receive an empty response with status code 204 if successful.
+    """
+    permission = 'msgs.msg_api'
+    serializer_class = MsgBulkActionSerializer
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Update Multiple Messages",
+            'url': reverse('api.v2.message_actions'),
+            'slug': 'message-actions',
+            'fields': [
+                {'name': "messages", 'required': True, 'help': "The ids of the messages to update"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: add, remove, block, unblock, expire, archive, delete"},
+                {'name': "label", 'required': False, 'help': "The UUID or name of a message label"},
+            ]
         }
 
 

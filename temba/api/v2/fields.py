@@ -9,7 +9,7 @@ from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactField as ContactFieldModel, URN
 from temba.flows.models import Flow
-from temba.msgs.models import Label
+from temba.msgs.models import Label, Msg
 
 # maximum number of items in a posted list
 MAX_LIST_SIZE = 100
@@ -169,3 +169,11 @@ class LabelField(TembaModelField):
     model = Label
     model_manager = 'label_objects'
     lookup_fields = ('uuid', 'name')
+
+
+class MessageField(TembaModelField):
+    model = Msg
+    lookup_fields = ('id',)
+
+    def get_queryset(self):
+        return self.model.objects.filter(org=self.context['org'], contact__is_test=False).exclude(visibility=Msg.VISIBILITY_DELETED)

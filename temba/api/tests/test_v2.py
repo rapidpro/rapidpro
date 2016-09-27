@@ -2077,6 +2077,81 @@ class APITest(TembaTest):
         self.assertResponseError(response, None,
                                  "You may only specify one of the contact, flow parameters")
 
+    def test_message_actions(self):
+        url = reverse('api.v2.message_actions')
+        self.assertEndpointAccess(url, fetch_returns=405)
+
+        # create some messages to act on
+        msg1 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #1')
+        msg2 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #2')
+        msg3 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #3')
+        label = Label.get_or_create(self.org, self.admin, "Test")
+
+        # add label by name to messages 1 and 2
+        response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label', 'label': "Test"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2})
+
+        # add label by its UUID to message 3
+        response = self.postJSON(url, None, {'messages': [msg3.id], 'action': 'label', 'label': label.uuid})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(label.get_messages()), {msg1, msg2, msg3})
+
+        # try to label with an invalid UUID
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label': "nope"})
+        self.assertResponseError(response, 'label', "No such object: nope")
+
+        # remove label from message 2 by name
+        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'unlabel', 'label': "Test"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(label.get_messages()), {msg1, msg3})
+
+        # and remove from messages 1 and 3 by UUID
+        response = self.postJSON(url, None, {'messages': [msg1.id, msg3.id], 'action': 'unlabel', 'label': label.uuid})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(label.get_messages()), set())
+
+        # try to label without specifying a label
+        response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label'})
+        self.assertResponseError(response, 'non_field_errors', "For action \"label\" you should also specify a label")
+        response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label', 'label': ""})
+        self.assertResponseError(response, 'label', "This field may not be null.")
+
+        # archive all messages
+        response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id, msg3.id], 'action': 'archive'})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg1, msg2, msg3})
+
+        # restore message 1
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'restore'})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg2, msg3})
+
+        # delete messages 2 and 4
+        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'delete'})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
+
+        # try to act on a deleted message
+        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'restore'})
+        self.assertResponseError(response, 'messages', "No such object: %d" % msg2.id)
+
+        # try to act on an outgoing message
+        msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")
+        response = self.postJSON(url, None, {'messages': [msg1.id, msg4.id], 'action': 'archive'})
+        self.assertResponseError(response, 'messages', "Not an incoming message: %d" % msg4.id)
+
+        # try to provide a label for a non-labelling action
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'archive', 'label': "Test"})
+        self.assertResponseError(response, 'non_field_errors', "For action \"archive\" you should not specify a label")
+
+        # try to invoke an invalid action
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'like'})
+        self.assertResponseError(response, 'action', "\"like\" is not a valid choice.")
+
     def test_resthooks(self):
         url = reverse('api.v2.resthooks')
         self.assertEndpointAccess(url)
