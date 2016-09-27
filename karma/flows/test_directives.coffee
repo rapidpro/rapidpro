@@ -168,3 +168,74 @@ describe 'Directives:', ->
       expect(ele.html()).toMatch(/ng-invalid-validate-type/)
 
 
+  describe 'USSD directive', ->
+
+    scope = null
+    ele = null
+    html = null
+    result = null
+
+    beforeEach ->
+      Flow.flow = utils.clone(getJSONFixture('ussd_example.json').flows[0])
+      scope = $rootScope.$new()
+
+    compileElement = ->
+      scope.ruleset = []
+      scope.ruleset.rules = []
+
+      ele = $compile(ele)(scope)
+      scope.$digest()
+      $timeout.flush()
+
+      html = ele.html()
+      result = ele.children().scope()
+
+    it 'should have USSD flow type', ->
+      expect(Flow.flow.flow_type).toBe('U')
+
+    it 'should create a USSD Menu widget', ->
+      # ussd="0" is for USSD Menu functionality
+      ele = angular.element("<div ng-form><span class='wait-ussd' ussd='0'/></div>")
+
+      compileElement()
+
+      expect(html).toContain('Add menu:')
+
+      expect(result.USSD_MENU).toBeTruthy()
+      expect(result.USSD_RESPONSE).toBeFalsy()
+
+      # USSD menu directive creates a default menu point for the widget, that initially takes up some characters
+      expect(result.characters).toBe(178)
+
+    it 'should create a USSD response widget', ->
+      # ussd="1" is for USSD Response functionality
+      ele = angular.element("<div ng-form><span class='wait-ussd' ussd='1'/></div>")
+
+      compileElement()
+
+      expect(result.USSD_MENU).toBeFalsy()
+      expect(result.USSD_RESPONSE).toBeTruthy()
+
+      # no menus here, the default textarea is initially empty hence should be the max length of a USSD message
+      expect(result.characters).toBe(182)
+
+    it 'should call countCharacters for every menu change', ->
+
+      ele = angular.element("<div ng-form><span class='wait-ussd' ussd='0'/></div>")
+
+      compileElement()
+
+      spyOn(result, 'countCharacters')
+
+      testItem =
+        uuid: uuid()
+        option: ""
+        label:
+          base: ""
+        category:
+          _autoName: true
+          _base: ""
+
+      result.updateMenu(testItem, 0)
+
+      expect(result.countCharacters).toHaveBeenCalled();

@@ -5,7 +5,7 @@
   %span{ng-model:"formData.rulesetConfig", data-icon:"show", class:"modal-title ruleset-name"}><
 .modal-body.split-editor
 
-  <ng-form name="splitEditor">
+  .ng-form{name:"splitEditor"}
 
     .split-header
       .split-choice.pull-left
@@ -22,9 +22,12 @@
           .error.ng-hide{ng-show:"variable.$error.alphanum"}
             -trans "The response name must consist of only letters and numbers."
 
+    .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_menu"', ussd:0}
+    .wait-ussd{ng-if:'formData.rulesetConfig.type == "wait_ussd"', ussd:1}
+
     .response{ng-if:'formData.rulesetConfig.type == "wait_message"'}><
       #split-on
-        -trans "If the message response.."
+        -trans "If the message response..."
 
     .subflow{ng-if:'formData.rulesetConfig.type == "subflow"'}><
       .split-margin
@@ -70,6 +73,12 @@
         .buckets
           .bucket{ng-repeat:'bucket in formData.randomBuckets'}
             %input{type:'text', ng-required:'true', ng-model:'bucket._base'}
+
+    .group-membership{ng-if:'formData.rulesetConfig.type == "group"'}><
+      .split-margin
+        %p{class:"description"}
+          -trans "Select all the groups you would like to split by below"
+        %input{style:"height:38px; width:620px",ng-model:"formData.omnibox", name:"omnibox",required:"",omnibox:'{"types":"g", "sortable":true, "arbitraryAdd":true, "completions":true, "allowExtra": true}',groups:"formData.groups",type:"hidden"}
 
     .airtime{ng-if:'formData.rulesetConfig.type == "airtime"'}><
       .split-margin
@@ -145,9 +154,9 @@
 
     // RULE EDITOR
     %form{name:'ruleForm'}
-      %span{ng-if:'hasRules()'}><
+      %span{ng-if:'hasRules() && formData.rulesetConfig.type != "wait_menu"'}
         %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
-          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid", ng-show:'rule._config.show'}
+          .rule{ng-repeat:"rule in ruleset.rules track by rule.uuid",ng-show:'rule._config.show'}
             <ng-form name="inner">
               .icon.icon-menu
               %select{ng-model:"rule._config",ng-options:'operator as operator.verbose_name for operator in operatorConfigs|filter:isVisibleOperator', class:"operator-select",ng-change:"updateCategory(rule)"}
@@ -188,8 +197,11 @@
                 -trans "Please enter a value for evaluating this rule."
               .error.ng-hide{ng-show:'inner.category.$error.required'}
                 -trans "Please enter a category name."
-            </ng-form>
+
 .modal-footer
+  .ussd-counter{ng-class:"{limit: characters < 0}", ng-if:'formData.rulesetConfig.type == "wait_menu" || formData.rulesetConfig.type == "wait_ussd"'}
+    [[characters]] characters remaining
+
   .timeout{ng-show:'flow.type == "F" && isPausingRuleset()', style:'float:left'}
 
     %label
@@ -205,5 +217,5 @@
   <!--[[splitEditor]]-->
   %button{ng-click:"cancel()",class:"btn btn-secondary"}
     -trans "Cancel"
-  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid',ng-click:"okRules(splitEditor)",class:"btn btn-primary"}
+  %button{ng-disabled:'variable.$invalid || (hasRules() && ruleForm.$invalid) || splitEditor.$invalid || (characters && characters < 0)',ng-click:"okRules(splitEditor)",class:"btn btn-primary"}
     -trans "Ok"

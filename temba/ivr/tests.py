@@ -357,6 +357,16 @@ class IVRTests(FlowFileTest):
         # should be using the usersettings number in test mode
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
 
+        # our twilio callback on pickup
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        # simulate a button press and that our message is handled
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
+        msg = Msg.objects.filter(contact=test_contact, text="4", direction='I').first()
+        self.assertIsNotNone(msg)
+        self.assertEqual('H', msg.status)
+
         # explicitly hanging up on a test call should remove it
         call.update_status('in-progress', 0)
         call.save()
@@ -365,6 +375,7 @@ class IVRTests(FlowFileTest):
 
         ActionLog.objects.all().delete()
         IVRCall.objects.all().delete()
+        Msg.objects.all().delete()
 
         # now pretend we are a normal caller
         eric = self.create_contact('Eric Newcomer', number='+13603621737')
@@ -577,6 +588,13 @@ class IVRTests(FlowFileTest):
         flow.refresh_from_db()
         self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
 
+        # now try an inbound call after remove our channel
+        self.channel.is_active = False
+        self.channel.save()
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+        self.assertEqual('No channel to answer call for +250785551212', response.content)
+        self.assertEqual(400, response.status_code)
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
@@ -597,6 +615,59 @@ class IVRTests(FlowFileTest):
         # get just the path and hit it
         response = self.client.post(urlparse(redirect_url).path, post_data)
         self.assertContains(response, "You are not part of group.")
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_no_channel_for_call(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        # remove our channel
+        self.channel.release()
+
+        # create an inbound call
+        post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
+                         From='+250788382382', To=self.channel.address)
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+
+        self.assertEqual(400, response.status_code)
+        self.assertEqual('No channel to answer call for %s' % self.channel.address, response.content)
+
+        # no call object created
+        self.assertFalse(IVRCall.objects.all())
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_no_flow_for_incoming(self):
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+
+        flow = self.get_flow('missed_call_flow')
+
+        # create an inbound call
+        post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
+                         From='+250788382382', To=self.channel.address)
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+
+        self.assertContains(response, 'Hangup')
+        # no call object created
+        self.assertFalse(IVRCall.objects.all())
+
+        # have a run in the missed call flow
+        self.assertTrue(FlowRun.objects.filter(flow=flow))
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_no_twilio_connected(self):
+        # create an inbound call
+        post_data = dict(CallSid='CallSid', CallStatus='ringing', Direction='inbound',
+                         From='+250788382382', To=self.channel.address)
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+
+        self.assertEquals(response.status_code, 400)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

@@ -117,14 +117,11 @@ class URN(object):
             return False
 
         if scheme == TEL_SCHEME:
-            if country_code:
-                try:
-                    normalized = phonenumbers.parse(path, country_code)
-                    return phonenumbers.is_possible_number(normalized)
-                except Exception:
-                    return False
-
-            return True  # if we don't have a channel with country, we can't for now validate tel numbers
+            try:
+                parsed = phonenumbers.parse(path, country_code)
+                return phonenumbers.is_possible_number(parsed)
+            except Exception:
+                return False
 
         # validate twitter URNs look like handles
         elif scheme == TWITTER_SCHEME:
@@ -827,7 +824,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in urns_to_create.iteritems():
-                urn = ContactURN.create(org, contact, normalized, channel=channel)
+                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel)
                 urn_objects[raw] = urn
 
             # save which urns were updated
@@ -1352,7 +1349,7 @@ class Contact(TembaModel):
         contact_dict = dict(__default__=self.get_display(org=org))
         contact_dict[Contact.NAME] = self.name if self.name else ''
         contact_dict[Contact.FIRST_NAME] = self.first_name(org)
-        contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, full=True)
+        contact_dict['tel_e164'] = self.get_urn_display(scheme=TEL_SCHEME, org=org, formatted=False)
         contact_dict['groups'] = ",".join([_.name for _ in self.user_groups.all()])
         contact_dict['uuid'] = self.uuid
         contact_dict[Contact.LANGUAGE] = self.language
@@ -1399,6 +1396,10 @@ class Contact(TembaModel):
         Sets the preferred channel for communicating with this Contact
         """
         if channel is None:
+            return
+
+        # don't set preferred channels for test contacts
+        if self.is_test:
             return
 
         urns = self.get_urns()
@@ -1561,7 +1562,7 @@ class Contact(TembaModel):
         for group in self.user_groups.all():
             group.remove_contacts(user, [self])
 
-    def get_display(self, org=None, full=False, short=False):
+    def get_display(self, org=None, formatted=True, short=False):
         """
         Gets a displayable name or URN for the contact. If available, org can be provided to avoid having to fetch it
         again based on the contact.
@@ -1574,11 +1575,11 @@ class Contact(TembaModel):
         elif org.is_anon:
             res = self.anon_identifier
         else:
-            res = self.get_urn_display(org=org, full=full)
+            res = self.get_urn_display(org=org, formatted=formatted)
 
         return truncate(res, 20) if short else res
 
-    def get_urn_display(self, org=None, scheme=None, full=False):
+    def get_urn_display(self, org=None, scheme=None, formatted=True, international=False):
         """
         Gets a displayable URN for the contact. If available, org can be provided to avoid having to fetch it again
         based on the contact.
@@ -1590,7 +1591,7 @@ class Contact(TembaModel):
             return self.anon_identifier
 
         urn = self.get_urn(scheme)
-        return urn.get_display(org=org, full=full) if urn else ''
+        return urn.get_display(org=org, formatted=formatted, international=international) if urn else ''
 
     def raw_tel(self):
         tel = self.get_urn(TEL_SCHEME)
@@ -1730,7 +1731,7 @@ class ContactURN(models.Model):
         except Exception:
             return None
 
-    def get_display(self, org=None, full=False):
+    def get_display(self, org=None, international=False, formatted=True):
         """
         Gets a representation of the URN for display
         """
@@ -1740,12 +1741,16 @@ class ContactURN(models.Model):
         if org.is_anon:
             return self.ANON_MASK
 
-        if self.scheme == TEL_SCHEME and not full:
+        if self.scheme == TEL_SCHEME and formatted:
             # if we don't want a full tell, see if we can show the national format instead
             try:
                 if self.path and self.path[0] == '+':
-                    return phonenumbers.format_number(phonenumbers.parse(self.path, None),
-                                                      phonenumbers.PhoneNumberFormat.NATIONAL)
+                    phone_format = phonenumbers.PhoneNumberFormat.NATIONAL
+                    if international:
+                        phone_format = phonenumbers.PhoneNumberFormat.INTERNATIONAL
+
+                    return phonenumbers.format_number(phonenumbers.parse(self.path, None), phone_format)
+
             except Exception:  # pragma: no cover
                 pass
 
@@ -1902,7 +1907,7 @@ class ContactGroup(TembaModel):
         """
         Manually adds or removes contacts from a static group. Returns contact ids of contacts whose membership changed.
         """
-        if self.group_type != self.TYPE_USER_DEFINED or self.is_dynamic:
+        if self.group_type != self.TYPE_USER_DEFINED or self.is_dynamic:  # pragma: no cover
             raise ValueError("Can't add or remove contacts from system or dynamic groups")
 
         return self._update_contacts(user, contacts, add)
@@ -1911,7 +1916,7 @@ class ContactGroup(TembaModel):
         """
         Re-evaluates whether contacts belong in a dynamic group. Returns contacts whose membership changed.
         """
-        if self.group_type != self.TYPE_USER_DEFINED or not self.is_dynamic:
+        if self.group_type != self.TYPE_USER_DEFINED or not self.is_dynamic:  # pragma: no cover
             raise ValueError("Can't re-evaluate contacts against system or static groups")
 
         user = get_anonymous_user()
@@ -1927,7 +1932,7 @@ class ContactGroup(TembaModel):
         """
         Forces removal of contacts from this group regardless of whether it is static or dynamic
         """
-        if self.group_type != self.TYPE_USER_DEFINED:
+        if self.group_type != self.TYPE_USER_DEFINED:  # pragma: no cover
             raise ValueError("Can't remove contacts from system groups")
 
         return self._update_contacts(user, contacts, add=False)
@@ -2228,7 +2233,7 @@ class ExportContactsTask(SmartModel):
                             position = field['position']
                             if len(scheme_urns) > position:
                                 urn_obj = scheme_urns[position]
-                                field_value = urn_obj.get_display(org=self.org, full=True) if urn_obj else ''
+                                field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ''
                             else:
                                 field_value = ''
                         else:

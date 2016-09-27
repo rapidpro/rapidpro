@@ -30,7 +30,12 @@
         directly.
 
   .modal-footer
-    -if send_channel
+    -if object.flow_type == 'U' and not is_ussd_channel
+      %a.btn.cancel{tabindex:4}
+        -trans "Cancel"
+      %a.btn.btn-primary{href:"{% url 'channels.channel_list' %}", tabindex:3}
+        -trans "Add USSD Channel"
+    -elif send_channel
       %a.btn.schedule.pull-left
         -trans "Schedule"
       %a.btn.cancel{tabindex:4}
