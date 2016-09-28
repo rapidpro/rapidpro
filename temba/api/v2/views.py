@@ -60,7 +60,7 @@ def api(request, format=None):
      * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
-     * [/api/v2/message_actions](/api/v2/contact_actions) - to perform bulk message actions
+     * [/api/v2/message_actions](/api/v2/message_actions) - to perform bulk message actions
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
@@ -2151,11 +2151,11 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
     * **messages** - a JSON array of up to 100 message ids (array of ints)
     * **action** - the action to perform, a string one of:
 
-            label - Apply the given label to the messages
-            unlabel - Remove the given label from the messages
-            archive - Archive the messages
-            unarchive - Un-archive the messages
-            delete - Permanently delete the messages
+        * _label_ - Apply the given label to the messages
+        * _unlabel_ - Remove the given label from the messages
+        * _archive_ - Archive the messages
+        * _restore_ - Restore the messages if they are archived
+        * _delete_ - Permanently delete the messages
 
     * **label** - the UUID or name of a label (string, optional)
 
@@ -2182,7 +2182,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
             'slug': 'message-actions',
             'fields': [
                 {'name': "messages", 'required': True, 'help': "The ids of the messages to update"},
-                {'name': "action", 'required': True, 'help': "One of the following strings: add, remove, block, unblock, expire, archive, delete"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: label, unlabel, archive, restore, delete"},
                 {'name': "label", 'required': False, 'help': "The UUID or name of a message label"},
             ]
         }
