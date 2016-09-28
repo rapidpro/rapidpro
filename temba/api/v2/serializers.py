@@ -26,14 +26,20 @@ def format_datetime(value):
     return datetime_to_json_date(value, micros=True) if value else None
 
 
+def extract_constants(config, reverse=False):
+    """
+    Extracts a mapping between db and API codes from a constant config in a model
+    """
+    if reverse:
+        return {t[2]: t[0] for t in config}
+    else:
+        return {t[0]: t[2] for t in config}
+
+
 class ReadSerializer(serializers.ModelSerializer):
     """
     We deviate slightly from regular REST framework usage with distinct serializers for reading and writing
     """
-    @staticmethod
-    def extract_constants(config):
-        return {t[0]: t[2] for t in config}
-
     def save(self, **kwargs):  # pragma: no cover
         raise ValueError("Can't call save on a read serializer")
 
@@ -43,11 +49,6 @@ class WriteSerializer(serializers.Serializer):
     The normal REST framework way is to have the view decide if it's an update on existing instance or a create for a
     new instance. Since our logic for that gets relatively complex, we have the serializer make that call.
     """
-
-    def __init__(self, *args, **kwargs):
-        super(WriteSerializer, self).__init__(*args, **kwargs)
-        self.instance = None
-
     def run_validation(self, data=serializers.empty):
         if not isinstance(data, dict):
             raise serializers.ValidationError(detail={
@@ -140,7 +141,7 @@ class BroadcastWriteSerializer(WriteSerializer):
 
 
 class ChannelEventReadSerializer(ReadSerializer):
-    TYPES = ReadSerializer.extract_constants(ChannelEvent.TYPE_CONFIG)
+    TYPES = extract_constants(ChannelEvent.TYPE_CONFIG)
 
     type = serializers.SerializerMethodField()
     contact = fields.ContactField()
@@ -162,12 +163,39 @@ class CampaignReadSerializer(ReadSerializer):
         fields = ('uuid', 'name', 'group', 'created_on')
 
 
+class CampaignWriteSerializer(WriteSerializer):
+    name = serializers.CharField(required=True, max_length=Campaign.MAX_NAME_LEN)
+    group = fields.ContactGroupField(required=True)
+
+    def validate_name(self, value):
+        if not self.instance and Campaign.objects.filter(org=self.context['org'], name=value).exists():
+            raise serializers.ValidationError("Must be unique")
+
+        return value
+
+    def save(self):
+        """
+        Create or update our campaign
+        """
+        name = self.validated_data.get('name')
+        group = self.validated_data.get('group')
+
+        if self.instance:
+            self.instance.name = name
+            self.instance.group = group
+            self.instance.save(update_fields=('name', 'group'))
+        else:
+            self.instance = Campaign.create(self.context['org'], self.context['user'], name, group)
+
+        return self.instance
+
+
 class CampaignEventReadSerializer(ReadSerializer):
-    UNITS = ReadSerializer.extract_constants(CampaignEvent.UNIT_CONFIG)
+    UNITS = extract_constants(CampaignEvent.UNIT_CONFIG)
 
     campaign = fields.CampaignField()
     flow = serializers.SerializerMethodField()
-    relative_to = serializers.SerializerMethodField()
+    relative_to = fields.ContactFieldField()
     unit = serializers.SerializerMethodField()
 
     def get_flow(self, obj):
@@ -176,15 +204,94 @@ class CampaignEventReadSerializer(ReadSerializer):
         else:
             return None
 
-    def get_relative_to(self, obj):
-        return {'key': obj.relative_to.key, 'label': obj.relative_to.label}
-
     def get_unit(self, obj):
         return self.UNITS.get(obj.unit)
 
     class Meta:
         model = CampaignEvent
         fields = ('uuid', 'campaign', 'relative_to', 'offset', 'unit', 'delivery_hour', 'flow', 'message', 'created_on')
+
+
+class CampaignEventWriteSerializer(WriteSerializer):
+    UNITS = extract_constants(CampaignEvent.UNIT_CONFIG, reverse=True)
+
+    campaign = fields.CampaignField(required=True)
+    offset = serializers.IntegerField(required=True)
+    unit = serializers.ChoiceField(required=True, choices=UNITS.keys())
+    delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
+    relative_to = fields.ContactFieldField(required=True)
+    message = serializers.CharField(required=False, max_length=320)
+    flow = fields.FlowField(required=False)
+
+    def validate_unit(self, value):
+        return self.UNITS[value]
+
+    def validate_campaign(self, value):
+        if self.instance and value and self.instance.campaign != value:
+            raise serializers.ValidationError("Cannot change campaign for existing events")
+
+        return value
+
+    def validate(self, data):
+        message = data.get('message')
+        flow = data.get('flow')
+
+        if (message and flow) or (not message and not flow):
+            raise serializers.ValidationError("Flow UUID or a message text required.")
+
+        return data
+
+    def save(self):
+        """
+        Create or update our campaign event
+        """
+        campaign = self.validated_data.get('campaign')
+        offset = self.validated_data.get('offset')
+        unit = self.validated_data.get('unit')
+        delivery_hour = self.validated_data.get('delivery_hour')
+        relative_to = self.validated_data.get('relative_to')
+        message = self.validated_data.get('message')
+        flow = self.validated_data.get('flow')
+
+        if self.instance:
+            # we are being set to a flow
+            if flow:
+                self.instance.flow = flow
+                self.instance.event_type = CampaignEvent.TYPE_FLOW
+                self.instance.message = None
+
+            # we are being set to a message
+            else:
+                self.instance.message = message
+
+                # if we aren't currently a message event, we need to create our hidden message flow
+                if self.instance.event_type != CampaignEvent.TYPE_MESSAGE:
+                    self.instance.flow = Flow.create_single_message(self.context['org'], self.context['user'], message)
+                    self.instance.event_type = CampaignEvent.TYPE_MESSAGE
+
+                # otherwise, we can just update that flow
+                else:
+                    # set our single message on our flow
+                    self.instance.flow.update_single_message_flow(message=message)
+
+            # update our other attributes
+            self.instance.offset = offset
+            self.instance.unit = unit
+            self.instance.delivery_hour = delivery_hour
+            self.instance.relative_to = relative_to
+            self.instance.save()
+            self.instance.update_flow_name()
+
+        else:
+            if flow:
+                self.instance = CampaignEvent.create_flow_event(self.context['org'], self.context['user'], campaign,
+                                                                relative_to, offset, unit, flow, delivery_hour)
+            else:
+                self.instance = CampaignEvent.create_message_event(self.context['org'], self.context['user'], campaign,
+                                                                   relative_to, offset, unit, message, delivery_hour)
+            self.instance.update_flow_name()
+
+        return self.instance
 
 
 class ChannelReadSerializer(ReadSerializer):
@@ -262,8 +369,6 @@ class ContactReadSerializer(ReadSerializer):
 
 
 class ContactWriteSerializer(WriteSerializer):
-    uuid = serializers.UUIDField(required=False)
-    urn = fields.URNField(required=False)
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
@@ -273,22 +378,14 @@ class ContactWriteSerializer(WriteSerializer):
     def __init__(self, *args, **kwargs):
         super(ContactWriteSerializer, self).__init__(*args, **kwargs)
 
-    def validate_uuid(self, value):
-        self.instance = Contact.objects.filter(org=self.context['org'], uuid=value, is_active=True).first()
-        if not self.instance:
-            raise serializers.ValidationError("No such contact with UUID: %s" % value)
-
-    def validate_urn(self, value):
-        if self.context['org'].is_anon:
-            raise serializers.ValidationError("Referencing by URN not allowed for anonymous organizations")
-
-        self.instance = Contact.from_urn(self.context['org'], value)
-        return value
-
     def validate_groups(self, value):
         for group in value:
             if group.is_dynamic:
                 raise serializers.ValidationError("Can't add contact to dynamic group with UUID: %s" % group.uuid)
+
+        # if contact is blocked, they can't be added to groups
+        if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and value:
+            raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
 
         return value
 
@@ -301,23 +398,31 @@ class ContactWriteSerializer(WriteSerializer):
 
         return value
 
-    def validate(self, data):
+    def validate_urns(self, value):
         org = self.context['org']
 
-        # we don't allow updating of contact URNs for anon orgs - tho we do allow creation of contacts with URNs
-        if org.is_anon and self.instance and data.get('urns'):
-            raise serializers.ValidationError("Updating contact URNs not allowed for anonymous organizations")
+        # this field isn't allowed if we are looking up by URN in the URL
+        if 'urns__urn' in self.context['lookup_values']:
+            raise serializers.ValidationError("Field not allowed when using URN in URL")
 
-        # if creating a contact, urns can't include URNs which are already taken
-        if not self.instance and 'urns' in data:
-            country_code = org.get_country_code()
-            for urn in data['urns']:
-                if Contact.from_urn(org, urn, country_code):
-                    raise serializers.ValidationError("Contact URN belongs to another contact: %s" % urn)
+        # or for updates by anonymous organizations (we do allow creation of contacts with URNs)
+        if org.is_anon and self.instance:
+            raise serializers.ValidationError("Updating URNs not allowed for anonymous organizations")
 
-        # if contact is blocked, they can't be added to groups
-        if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and data['groups']:
-            raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
+        # if creating a contact, URNs can't belong to other contacts
+        if not self.instance:
+            for urn in value:
+                if Contact.from_urn(org, urn):
+                    raise serializers.ValidationError("URN belongs to another contact: %s" % urn)
+
+        return value
+
+    def validate(self, data):
+        # we allow creation of contacts by URN used for lookup
+        if not data.get('urns') and 'urns__urn' in self.context['lookup_values']:
+            url_urn = self.context['lookup_values']['urns__urn']
+
+            data['urns'] = [fields.validate_urn(url_urn)]
 
         return data
 
@@ -329,7 +434,7 @@ class ContactWriteSerializer(WriteSerializer):
         language = self.validated_data.get('language')
         urns = self.validated_data.get('urns')
         groups = self.validated_data.get('groups')
-        fields = self.validated_data.get('fields')
+        custom_fields = self.validated_data.get('fields')
 
         changed = []
 
@@ -348,19 +453,12 @@ class ContactWriteSerializer(WriteSerializer):
             if changed:
                 self.instance.save(update_fields=changed)
         else:
-            if urns is None:
-                # if user is using URN as identifier, ok to create contact from it if they don't already exist
-                urn_as_id = self.validated_data.get('urn')
-                if urn_as_id:
-                    urns = [urn_as_id]
-                else:
-                    urns = []
-
-            self.instance = Contact.get_or_create(self.context['org'], self.context['user'], name, urns=urns, language=language)
+            self.instance = Contact.get_or_create(self.context['org'], self.context['user'], name,
+                                                  urns=urns, language=language)
 
         # update our fields
-        if fields is not None:
-            for key, value in fields.items():
+        if custom_fields is not None:
+            for key, value in six.iteritems(custom_fields):
                 self.instance.set_field(self.context['user'], key, value)
 
         # update our groups
@@ -371,7 +469,7 @@ class ContactWriteSerializer(WriteSerializer):
 
 
 class ContactFieldReadSerializer(ReadSerializer):
-    VALUE_TYPES = ReadSerializer.extract_constants(Value.TYPE_CONFIG)
+    VALUE_TYPES = extract_constants(Value.TYPE_CONFIG)
 
     value_type = serializers.SerializerMethodField()
 
@@ -395,32 +493,25 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 
 class ContactGroupWriteSerializer(WriteSerializer):
-    uuid = fields.ContactGroupField(required=False)
     name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN)
 
     def validate_name(self, value):
         if not ContactGroup.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
                                               % ContactGroup.MAX_NAME_LEN)
+
+        if not self.instance and ContactGroup.user_groups.filter(org=self.context['org'], name=value).exists():
+            raise serializers.ValidationError("Must be unique")
+
         return value
 
-    def validate(self, data):
-        instance = data.get('uuid')
-        name = data.get('name')
-
-        if not instance and ContactGroup.user_groups.filter(org=self.context['org'], name=name).exists():
-            raise serializers.ValidationError("Name must be unique")
-
-        return data
-
     def save(self):
-        instance = self.validated_data.get('uuid')
         name = self.validated_data.get('name')
 
-        if instance:
-            instance.name = name
-            instance.save(update_fields=('name',))
-            return instance
+        if self.instance:
+            self.instance.name = name
+            self.instance.save(update_fields=('name',))
+            return self.instance
         else:
             return ContactGroup.get_or_create(self.context['org'], self.context['user'], name)
 
@@ -593,39 +684,32 @@ class LabelReadSerializer(ReadSerializer):
 
 
 class LabelWriteSerializer(WriteSerializer):
-    uuid = fields.LabelField(required=False)
     name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN)
 
     def validate_name(self, value):
         if not Label.is_valid_name(value):
             raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
                                               % Label.MAX_NAME_LEN)
+
+        if not self.instance and Label.label_objects.filter(org=self.context['org'], name=value).exists():
+            raise serializers.ValidationError("Must be unique")
+
         return value
 
-    def validate(self, data):
-        instance = data.get('uuid')
-        name = data.get('name')
-
-        if not instance and Label.label_objects.filter(org=self.context['org'], name=name).exists():
-            raise serializers.ValidationError("Name must be unique")
-
-        return data
-
     def save(self):
-        instance = self.validated_data.get('uuid')
         name = self.validated_data.get('name')
 
-        if instance:
-            instance.name = name
-            instance.save(update_fields=('name',))
-            return instance
+        if self.instance:
+            self.instance.name = name
+            self.instance.save(update_fields=('name',))
+            return self.instance
         else:
             return Label.get_or_create(self.context['org'], self.context['user'], name)
 
 
 class MsgReadSerializer(ReadSerializer):
-    STATUSES = ReadSerializer.extract_constants(STATUS_CONFIG)
-    VISIBILITIES = ReadSerializer.extract_constants(Msg.VISIBILITY_CONFIG)
+    STATUSES = extract_constants(STATUS_CONFIG)
+    VISIBILITIES = extract_constants(Msg.VISIBILITY_CONFIG)
     DIRECTIONS = {
         INCOMING: 'in',
         OUTGOING: 'out'

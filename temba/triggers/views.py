@@ -487,7 +487,7 @@ class TriggerCRUDL(SmartCRUDL):
 
         def lookup_field_link(self, context, field, obj):
             if field == 'flow' and obj.flow:
-                return reverse('flows.flow_editor', args=[obj.flow.pk])
+                return reverse('flows.flow_editor', args=[obj.flow.uuid])
             return super(TriggerCRUDL.List, self).lookup_field_link(context, field, obj)
 
         def get_queryset(self, *args, **kwargs):

@@ -181,8 +181,8 @@
 
                           - if object.get_flow_id
                             %span.label.label-success
-                              %a{href:"{% url 'flows.flow_editor' object.get_flow_id %}"}
-                                ={object.get_flow_name}
+                              %a{href:"{% url 'flows.flow_editor' object.get_flow.uuid %}"}
+                                ={object.get_flow.name}
 
                       %td.value-icon.field_icon
                         -with object.get_last_log as log

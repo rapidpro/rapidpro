@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.db import IntegrityError
-from django.http import Http404, HttpResponseRedirect, HttpResponse
+from django.http import HttpResponseRedirect, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -670,27 +670,14 @@ class ContactCRUDL(SmartCRUDL):
             return HttpResponse(json.dumps(json_result), content_type='application/json')
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
         fields = ('name',)
 
         def derive_title(self):
             return self.object.get_display()
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            # overloaded to have uuid pattern instead of integer id
-            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
-
-        def get_object(self, queryset=None):
-            uuid = self.kwargs.get('uuid')
-            if self.request.user.is_superuser:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
-            else:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
-
-            if contact is None:
-                raise Http404("No active contact with that UUID")
-
-            return contact
+        def get_queryset(self):
+            return Contact.objects.filter(is_active=True, is_test=False)
 
         def get_context_data(self, **kwargs):
             context = super(ContactCRUDL.Read, self).get_context_data(**kwargs)
@@ -707,11 +694,12 @@ class ContactCRUDL(SmartCRUDL):
             merged_upcoming_events = []
             for fire in event_fires:
                 merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.message,
-                                                   flow_id=fire.event.flow.pk, flow_name=fire.event.flow.name,
+                                                   flow_uuid=fire.event.flow.uuid, flow_name=fire.event.flow.name,
                                                    scheduled=fire.scheduled))
 
             for sched_broadcast in scheduled_messages:
-                merged_upcoming_events.append(dict(repeat_period=sched_broadcast.schedule.repeat_period, event_type='M', message=sched_broadcast.text, flow_id=None,
+                merged_upcoming_events.append(dict(repeat_period=sched_broadcast.schedule.repeat_period, event_type='M',
+                                                   message=sched_broadcast.text, flow_uuid=None,
                                                    flow_name=None, scheduled=sched_broadcast.schedule.next_fire))
 
             # upcoming scheduled events
@@ -802,23 +790,10 @@ class ContactCRUDL(SmartCRUDL):
             return links
 
     class History(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            # overloaded to have uuid pattern instead of integer id
-            return r'^%s/%s/(?P<uuid>[^/]+)/$' % (path, action)
-
-        def get_object(self, queryset=None):
-            uuid = self.kwargs.get('uuid')
-            if self.request.user.is_superuser:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True).first()
-            else:
-                contact = Contact.objects.filter(uuid=uuid, is_active=True, is_test=False, org=self.request.user.get_org()).first()
-
-            if contact is None:
-                raise Http404("No active contact with that id")
-
-            return contact
+        def get_queryset(self):
+            return Contact.objects.filter(is_active=True, is_test=False)
 
         def get_context_data(self, *args, **kwargs):
             context = super(ContactCRUDL.History, self).get_context_data(*args, **kwargs)

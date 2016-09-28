@@ -1130,13 +1130,9 @@ class Msg(models.Model):
         steps = list(self.steps.all())  # steps may have been pre-fetched
         return steps[0] if steps else None
 
-    def get_flow_id(self):
+    def get_flow(self):
         step = self.get_flow_step()
-        return step.run.flow_id if step else None
-
-    def get_flow_name(self):
-        step = self.get_flow_step()
-        return step.run.flow.name if step else ""
+        return step.run.flow if step else None
 
     def as_task_json(self):
         """

@@ -4,9 +4,9 @@ import six
 
 from rest_framework import serializers
 
-from temba.campaigns.models import Campaign
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import Contact, ContactGroup, URN
+from temba.contacts.models import Contact, ContactGroup, ContactField as ContactFieldModel, URN
 from temba.flows.models import Flow
 from temba.msgs.models import Label
 
@@ -17,6 +17,17 @@ MAX_LIST_SIZE = 100
 def validate_list_size(value):
     if hasattr(value, '__len__') and len(value) >= MAX_LIST_SIZE:
         raise serializers.ValidationError("Exceeds maximum list size of %d" % MAX_LIST_SIZE)
+
+
+def validate_urn(value, strict=True):
+    try:
+        normalized = URN.normalize(value)
+
+        if strict and not URN.validate(normalized):
+            raise ValueError()
+    except ValueError:
+        raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % value)
+    return normalized
 
 
 class LimitedListField(serializers.ListField):
@@ -39,14 +50,7 @@ class URNField(serializers.CharField):
             return six.text_type(obj)
 
     def to_internal_value(self, data):
-        try:
-            normalized = URN.normalize(data)
-            if not URN.validate(normalized):
-                raise ValueError()
-        except ValueError:
-            raise serializers.ValidationError("Invalid URN: %s. Ensure phone numbers contain country codes." % data)
-
-        return normalized
+        return validate_urn(data)
 
 
 class URNListField(LimitedListField):
@@ -75,15 +79,14 @@ class TembaModelField(serializers.RelatedField):
         return TembaModelField.LimitedSizeList(**list_kwargs)
 
     def get_queryset(self):
-        # we use our own fetching logic in to_internal_value
-        return self.model.none()
+        manager = getattr(self.model, self.model_manager)
+        return manager.filter(org=self.context['org'], is_active=True)
 
     def to_representation(self, obj):
         return {'uuid': obj.uuid, 'name': obj.name}
 
     def to_internal_value(self, data):
-        manager = getattr(self.model, self.model_manager)
-        obj = manager.filter(org=self.context['org'], uuid=data, is_active=True).first()
+        obj = self.get_queryset().filter(uuid=data).first()
 
         if not obj:
             raise serializers.ValidationError("No such object with UUID: %s" % data)
@@ -95,12 +98,35 @@ class CampaignField(TembaModelField):
     model = Campaign
 
 
+class CampaignEventField(TembaModelField):
+    model = CampaignEvent
+
+    def get_queryset(self):
+        return self.model.objects.filter(campaign__org=self.context['org'], is_active=True)
+
+
 class ChannelField(TembaModelField):
     model = Channel
 
 
 class ContactField(TembaModelField):
     model = Contact
+
+
+class ContactFieldField(serializers.RelatedField):
+    def get_queryset(self):  # pragma: no cover
+        # we use our own fetching logic in to_internal_value
+        return self.model.none()
+
+    def to_representation(self, obj):
+        return {'key': obj.key, 'label': obj.label}
+
+    def to_internal_value(self, data):
+        obj = ContactFieldModel.objects.filter(org=self.context['org'], key=data, is_active=True).first()
+        if not obj:
+            raise serializers.ValidationError("No such contact field with key: %s" % data)
+
+        return obj
 
 
 class ContactGroupField(TembaModelField):

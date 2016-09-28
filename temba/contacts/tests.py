@@ -1303,14 +1303,21 @@ class ContactTest(TembaTest):
         activity = response.context['activity']
         self.assertEqual(len(activity), 5)
 
-        # can view history as super user as well
-        response = self.fetch_protected(url, self.superuser)
-        activity = response.context['activity']
-        self.assertEqual(len(activity), 95)
+        # can't view history of contact in another org
+        self.create_secondary_org()
+        hans = self.create_contact("Hans", twitter="hans", org=self.org2)
+        response = self.client.get(reverse('contacts.contact_history', args=[hans.uuid]))
+        self.assertLoginRedirect(response)
 
-        self.login(self.admin)
+        # invalid UUID should return 404
         response = self.client.get(reverse('contacts.contact_history', args=['bad-uuid']))
         self.assertEqual(response.status_code, 404)
+
+        # super users can view history of any contact
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.superuser)
+        self.assertEqual(len(response.context['activity']), 95)
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[hans.uuid]), self.superuser)
+        self.assertEqual(len(response.context['activity']), 0)
 
     def test_event_times(self):
 
@@ -1504,11 +1511,11 @@ class ContactTest(TembaTest):
         # should show the next seven events to fire in reverse order
         self.assertEquals(7, len(upcoming))
 
-        self.assertEquals("Sent 10 days after planting date", upcoming[4]['message'])
-        self.assertEquals("Sent 7 days after planting date", upcoming[5]['message'])
-        self.assertEquals(None, upcoming[6]['message'])
-        self.assertEquals(self.reminder_flow.pk, upcoming[6]['flow_id'])
-        self.assertEquals(self.reminder_flow.name, upcoming[6]['flow_name'])
+        self.assertEqual(upcoming[4]['message'], "Sent 10 days after planting date")
+        self.assertEqual(upcoming[5]['message'], "Sent 7 days after planting date")
+        self.assertEqual(upcoming[6]['message'], None)
+        self.assertEqual(upcoming[6]['flow_uuid'], self.reminder_flow.uuid)
+        self.assertEqual(upcoming[6]['flow_name'], self.reminder_flow.name)
 
         self.assertGreater(upcoming[4]['scheduled'], upcoming[5]['scheduled'])
 
@@ -1526,11 +1533,11 @@ class ContactTest(TembaTest):
         # should show the next 2 events to fire and the scheduled broadcast in reverse order by schedule time
         self.assertEquals(8, len(upcoming))
 
-        self.assertEquals("Sent 7 days after planting date", upcoming[5]['message'])
-        self.assertEquals("Hello", upcoming[6]['message'])
-        self.assertEquals(None, upcoming[7]['message'])
-        self.assertEquals(self.reminder_flow.pk, upcoming[7]['flow_id'])
-        self.assertEquals(self.reminder_flow.name, upcoming[7]['flow_name'])
+        self.assertEqual(upcoming[5]['message'], "Sent 7 days after planting date")
+        self.assertEqual(upcoming[6]['message'], "Hello")
+        self.assertEqual(upcoming[7]['message'], None)
+        self.assertEqual(upcoming[7]['flow_uuid'], self.reminder_flow.uuid)
+        self.assertEqual(upcoming[7]['flow_name'], self.reminder_flow.name)
 
         self.assertGreater(upcoming[6]['scheduled'], upcoming[7]['scheduled'])
 
@@ -1564,6 +1571,22 @@ class ContactTest(TembaTest):
         # try removing it again, should fail
         response = self.client.post(read_url, post_data, follow=True)
         self.assertEquals(200, response.status_code)
+
+        # can't view contact in another org
+        self.create_secondary_org()
+        hans = self.create_contact("Hans", twitter="hans", org=self.org2)
+        response = self.client.get(reverse('contacts.contact_read', args=[hans.uuid]))
+        self.assertLoginRedirect(response)
+
+        # invalid UUID should return 404
+        response = self.client.get(reverse('contacts.contact_read', args=['bad-uuid']))
+        self.assertEqual(response.status_code, 404)
+
+        # super users can view history of any contact
+        response = self.fetch_protected(reverse('contacts.contact_read', args=[self.joe.uuid]), self.superuser)
+        self.assertEqual(response.status_code, 200)
+        response = self.fetch_protected(reverse('contacts.contact_read', args=[hans.uuid]), self.superuser)
+        self.assertEqual(response.status_code, 200)
 
     def test_read_language(self):
 
@@ -3345,6 +3368,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_key("2up"))   # can't start with a number
         self.assertFalse(ContactField.is_valid_key("name"))  # can't be a reserved name
         self.assertFalse(ContactField.is_valid_key("uuid"))
+        self.assertFalse(ContactField.is_valid_key("a" * 37))  # too long
 
     def test_is_valid_label(self):
         self.assertTrue(ContactField.is_valid_label("Age"))
