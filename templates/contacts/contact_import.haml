@@ -44,29 +44,35 @@
                 
 
                 - else 
-                  - if task.status == "SUCCESS" and group.contacts.all
-                    - if results.creates
+                  - if task.status == "SUCCESS"
+                    -if not group.contact.all
+                      %p
+                        Import processed..
+                        %img{src:"{{ STATIC_URL }}images/loader-circles.gif"}
+
+                    -else
+                      - if results.creates
+                        .import-result
+                          .glyph.icon-checkmark.success
+                          -blocktrans count results.creates as create_count
+                            Created {{ create_count }} new contact
+                            -plural
+                              Created {{ create_count }} new contacts
+
+                      - if results.updates
+                        .import-result
+                          .glyph.icon-checkmark.success
+                          -blocktrans count results.updates as update_count
+                            Updated {{ update_count }} contact with an existing phone number
+                            -plural
+                              Updated {{ update_count }} contacts with existing phone numbers
+
                       .import-result
                         .glyph.icon-checkmark.success
-                        -blocktrans count results.creates as create_count
-                          Created {{ create_count }} new contact
-                          -plural
-                            Created {{ create_count }} new contacts
-
-                    - if results.updates
-                      .import-result
-                        .glyph.icon-checkmark.success
-                        -blocktrans count results.updates as update_count
-                          Updated {{ update_count }} contact with an existing phone number
-                          -plural
-                            Updated {{ update_count }} contacts with existing phone numbers
-
-                    .import-result
-                      .glyph.icon-checkmark.success
-                      -blocktrans with contacts_count=results.records
-                        Added all contacts to the new
-                      %a{href:"{% url 'contacts.contact_filter' group.pk %}"}= group.name
-                      group
+                        -blocktrans with contacts_count=results.records
+                          Added all contacts to the new
+                        %a{href:"{% url 'contacts.contact_filter' group.pk %}"}= group.name
+                        group
 
                   - if results.errors
                     .import-result
