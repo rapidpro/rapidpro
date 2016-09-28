@@ -141,10 +141,31 @@ class APITest(TembaTest):
             self.assertEqual(response.json['detail'], expected_message)
 
     def test_serializer_fields(self):
+        group = self.create_group("Customers")
+        field_obj = ContactField.get_or_create(self.org, self.admin, 'registered', "Registered On")
+        flow = self.create_flow()
+        campaign = Campaign.create(self.org, self.admin, "Reminders #1", group)
+        event = CampaignEvent.create_flow_event(self.org, self.admin, campaign, field_obj,
+                                                6, CampaignEvent.UNIT_HOURS, flow, delivery_hour=12)
+
         field = fields.LimitedListField(child=serializers.IntegerField(), source='test')
 
         self.assertEqual(field.to_internal_value([1, 2, 3]), [1, 2, 3])
         self.assertRaises(serializers.ValidationError, field.to_internal_value, list(range(101)))  # too long
+
+        field = fields.CampaignField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value(campaign.uuid), campaign)
+
+        field = fields.CampaignEventField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value(event.uuid), event)
+
+        field.context = {'org': self.org2}
+
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, event.uuid)
 
         field = fields.ChannelField(source='test')
         field.context = {'org': self.org}
@@ -168,13 +189,17 @@ class APITest(TembaTest):
 
         field = fields.ContactGroupField(source='test')
         field.context = {'org': self.org}
-        group = self.create_group("Customers")
 
         self.assertEqual(field.to_internal_value(group.uuid), group)
 
+        field = fields.ContactFieldField(source='test')
+        field.context = {'org': self.org}
+
+        self.assertEqual(field.to_internal_value('registered'), field_obj)
+        self.assertRaises(serializers.ValidationError, field.to_internal_value, 'xyx')
+
         field = fields.FlowField(source='test')
         field.context = {'org': self.org}
-        flow = self.create_flow()
 
         self.assertEqual(field.to_internal_value(flow.uuid), flow)
 
@@ -459,6 +484,13 @@ class APITest(TembaTest):
             }
         })
 
+        # if org doesn't have a country, just return no results
+        self.org.country = None
+        self.org.save()
+
+        response = self.fetchJSON(url)
+        self.assertEqual(response.json['results'], [])
+
     def test_broadcasts(self):
         url = reverse('api.v2.broadcasts')
 
@@ -542,12 +574,13 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
+        other_group = self.create_group("Others", [])
         campaign1 = Campaign.create(self.org, self.admin, "Reminders #1", reporters)
         campaign2 = Campaign.create(self.org, self.admin, "Reminders #2", reporters)
 
         # create campaign for other org
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
-        Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
+        spam = Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
@@ -566,6 +599,43 @@ class APITest(TembaTest):
         # filter by UUID
         response = self.fetchJSON(url, 'uuid=%s' % campaign1.uuid)
         self.assertResultsByUUID(response, [campaign1])
+
+        # try to create empty campaign
+        response = self.postJSON(url, None, {})
+        self.assertResponseError(response, 'name', "This field is required.")
+        self.assertResponseError(response, 'group', "This field is required.")
+
+        # create new campaign
+        response = self.postJSON(url, None, {'name': "Reminders #3", 'group': reporters.uuid})
+        self.assertEqual(response.status_code, 201)
+
+        campaign3 = Campaign.objects.get(name="Reminders #3")
+        self.assertEqual(response.json, {
+            'uuid': campaign3.uuid,
+            'name': "Reminders #3",
+            'group': {'uuid': reporters.uuid, 'name': "Reporters"},
+            'created_on': format_datetime(campaign3.created_on)
+        })
+
+        # try to create another campaign with same name
+        response = self.postJSON(url, None, {'name': "Reminders #3", 'group': reporters.uuid})
+        self.assertResponseError(response, 'name', "Must be unique")
+
+        # try to create a campaign with name that's too long
+        response = self.postJSON(url, None, {'name': "x" * 256, 'group': reporters.uuid})
+        self.assertResponseError(response, 'name', "Ensure this field has no more than 255 characters.")
+
+        # update campaign by UUID
+        response = self.postJSON(url, 'uuid=%s' % campaign3.uuid, {'name': "Reminders III", 'group': other_group.uuid})
+        self.assertEqual(response.status_code, 200)
+
+        campaign3.refresh_from_db()
+        self.assertEqual(campaign3.name, "Reminders III")
+        self.assertEqual(campaign3.group, other_group)
+
+        # can't update campaign in other org
+        response = self.postJSON(url, 'uuid=%s' % spam.uuid, {'name': "Won't work", 'group': spammers.uuid})
+        self.assertEqual(response.status_code, 404)
 
     def test_campaign_events(self):
         url = reverse('api.v2.campaign_events')
@@ -625,6 +695,124 @@ class APITest(TembaTest):
         # filter by invalid campaign
         response = self.fetchJSON(url, 'campaign=invalid')
         self.assertResultsByUUID(response, [])
+
+        # try to create empty campaign event
+        response = self.postJSON(url, None, {})
+        self.assertResponseError(response, 'campaign', "This field is required.")
+        self.assertResponseError(response, 'relative_to', "This field is required.")
+        self.assertResponseError(response, 'offset', "This field is required.")
+        self.assertResponseError(response, 'unit', "This field is required.")
+        self.assertResponseError(response, 'delivery_hour', "This field is required.")
+
+        # try again with some invalid values
+        response = self.postJSON(url, None, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'epocs',
+            'delivery_hour': 25
+        })
+        self.assertResponseError(response, 'unit', "\"epocs\" is not a valid choice.")
+        self.assertResponseError(response, 'delivery_hour', "Ensure this value is less than or equal to 23.")
+
+        # provide valid values for those fields.. but not a message or flow
+        response = self.postJSON(url, None, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1
+        })
+        self.assertResponseError(response, 'non_field_errors', "Flow UUID or a message text required.")
+
+        # create a message event
+        response = self.postJSON(url, None, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'message': "Nice job"
+        })
+        self.assertEqual(response.status_code, 201)
+
+        event1 = CampaignEvent.objects.get(campaign=campaign1, message="Nice job")
+        self.assertEqual(event1.event_type, CampaignEvent.TYPE_MESSAGE)
+        self.assertEqual(event1.relative_to, registration)
+        self.assertEqual(event1.offset, 15)
+        self.assertEqual(event1.unit, 'W')
+        self.assertEqual(event1.delivery_hour, -1)
+
+        # create a flow event
+        response = self.postJSON(url, None, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'flow': flow.uuid
+        })
+        self.assertEqual(response.status_code, 201)
+
+        event2 = CampaignEvent.objects.get(campaign=campaign1, flow=flow)
+        self.assertEqual(event2.event_type, CampaignEvent.TYPE_FLOW)
+        self.assertEqual(event2.relative_to, registration)
+        self.assertEqual(event2.offset, 15)
+        self.assertEqual(event2.unit, 'W')
+        self.assertEqual(event2.delivery_hour, -1)
+
+        # update the message event to be a flow event
+        response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'flow': flow.uuid
+        })
+        self.assertEqual(response.status_code, 200)
+
+        event1.refresh_from_db()
+        self.assertEqual(event1.event_type, CampaignEvent.TYPE_FLOW)
+        self.assertIsNone(event1.message)
+        self.assertEqual(event1.flow, flow)
+
+        # and update the flow event to be a message event
+        response = self.postJSON(url, 'uuid=%s' % event2.uuid, {
+            'campaign': campaign1.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'message': "OK"
+        })
+        self.assertEqual(response.status_code, 200)
+
+        event2.refresh_from_db()
+        self.assertEqual(event2.event_type, CampaignEvent.TYPE_MESSAGE)
+        self.assertEqual(event2.message, "OK")
+
+        # try to change an existing event's campaign
+        response = self.postJSON(url, 'uuid=%s' % event1.uuid, {
+            'campaign': campaign2.uuid,
+            'relative_to': 'registration',
+            'offset': 15,
+            'unit': 'weeks',
+            'delivery_hour': -1,
+            'flow': flow.uuid
+        })
+        self.assertResponseError(response, 'campaign', "Cannot change campaign for existing events")
+
+        # try an empty delete request
+        response = self.deleteJSON(url, '')
+        self.assertResponseError(response, None, "URL must contain one of the following parameters: uuid")
+
+        # delete an event by UUID
+        response = self.deleteJSON(url, 'uuid=%s' % event1.uuid)
+        self.assertEqual(response.status_code, 204)
+
+        event1.refresh_from_db()
+        self.assertFalse(event1.is_active)
 
     def test_channels(self):
         url = reverse('api.v2.channels')
@@ -1969,6 +2157,7 @@ class APITest(TembaTest):
         # check our list
         anon_contact = Contact.objects.get(urns__path="+12067791212")
 
+        # check no params
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
@@ -1989,3 +2178,7 @@ class APITest(TembaTest):
             'created_on': format_datetime(start2.created_on),
             'modified_on': format_datetime(start2.modified_on),
         })
+
+        # check filtering by id
+        response = self.fetchJSON(url, "id=%d" % start2.id)
+        self.assertResultsById(response, [start2])

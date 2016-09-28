@@ -26,14 +26,20 @@ def format_datetime(value):
     return datetime_to_json_date(value, micros=True) if value else None
 
 
+def extract_constants(config, reverse=False):
+    """
+    Extracts a mapping between db and API codes from a constant config in a model
+    """
+    if reverse:
+        return {t[2]: t[0] for t in config}
+    else:
+        return {t[0]: t[2] for t in config}
+
+
 class ReadSerializer(serializers.ModelSerializer):
     """
     We deviate slightly from regular REST framework usage with distinct serializers for reading and writing
     """
-    @staticmethod
-    def extract_constants(config):
-        return {t[0]: t[2] for t in config}
-
     def save(self, **kwargs):  # pragma: no cover
         raise ValueError("Can't call save on a read serializer")
 
@@ -135,7 +141,7 @@ class BroadcastWriteSerializer(WriteSerializer):
 
 
 class ChannelEventReadSerializer(ReadSerializer):
-    TYPES = ReadSerializer.extract_constants(ChannelEvent.TYPE_CONFIG)
+    TYPES = extract_constants(ChannelEvent.TYPE_CONFIG)
 
     type = serializers.SerializerMethodField()
     contact = fields.ContactField()
@@ -157,12 +163,39 @@ class CampaignReadSerializer(ReadSerializer):
         fields = ('uuid', 'name', 'group', 'created_on')
 
 
+class CampaignWriteSerializer(WriteSerializer):
+    name = serializers.CharField(required=True, max_length=Campaign.MAX_NAME_LEN)
+    group = fields.ContactGroupField(required=True)
+
+    def validate_name(self, value):
+        if not self.instance and Campaign.objects.filter(org=self.context['org'], name=value).exists():
+            raise serializers.ValidationError("Must be unique")
+
+        return value
+
+    def save(self):
+        """
+        Create or update our campaign
+        """
+        name = self.validated_data.get('name')
+        group = self.validated_data.get('group')
+
+        if self.instance:
+            self.instance.name = name
+            self.instance.group = group
+            self.instance.save(update_fields=('name', 'group'))
+        else:
+            self.instance = Campaign.create(self.context['org'], self.context['user'], name, group)
+
+        return self.instance
+
+
 class CampaignEventReadSerializer(ReadSerializer):
-    UNITS = ReadSerializer.extract_constants(CampaignEvent.UNIT_CONFIG)
+    UNITS = extract_constants(CampaignEvent.UNIT_CONFIG)
 
     campaign = fields.CampaignField()
     flow = serializers.SerializerMethodField()
-    relative_to = serializers.SerializerMethodField()
+    relative_to = fields.ContactFieldField()
     unit = serializers.SerializerMethodField()
 
     def get_flow(self, obj):
@@ -171,15 +204,94 @@ class CampaignEventReadSerializer(ReadSerializer):
         else:
             return None
 
-    def get_relative_to(self, obj):
-        return {'key': obj.relative_to.key, 'label': obj.relative_to.label}
-
     def get_unit(self, obj):
         return self.UNITS.get(obj.unit)
 
     class Meta:
         model = CampaignEvent
         fields = ('uuid', 'campaign', 'relative_to', 'offset', 'unit', 'delivery_hour', 'flow', 'message', 'created_on')
+
+
+class CampaignEventWriteSerializer(WriteSerializer):
+    UNITS = extract_constants(CampaignEvent.UNIT_CONFIG, reverse=True)
+
+    campaign = fields.CampaignField(required=True)
+    offset = serializers.IntegerField(required=True)
+    unit = serializers.ChoiceField(required=True, choices=UNITS.keys())
+    delivery_hour = serializers.IntegerField(required=True, min_value=-1, max_value=23)
+    relative_to = fields.ContactFieldField(required=True)
+    message = serializers.CharField(required=False, max_length=320)
+    flow = fields.FlowField(required=False)
+
+    def validate_unit(self, value):
+        return self.UNITS[value]
+
+    def validate_campaign(self, value):
+        if self.instance and value and self.instance.campaign != value:
+            raise serializers.ValidationError("Cannot change campaign for existing events")
+
+        return value
+
+    def validate(self, data):
+        message = data.get('message')
+        flow = data.get('flow')
+
+        if (message and flow) or (not message and not flow):
+            raise serializers.ValidationError("Flow UUID or a message text required.")
+
+        return data
+
+    def save(self):
+        """
+        Create or update our campaign event
+        """
+        campaign = self.validated_data.get('campaign')
+        offset = self.validated_data.get('offset')
+        unit = self.validated_data.get('unit')
+        delivery_hour = self.validated_data.get('delivery_hour')
+        relative_to = self.validated_data.get('relative_to')
+        message = self.validated_data.get('message')
+        flow = self.validated_data.get('flow')
+
+        if self.instance:
+            # we are being set to a flow
+            if flow:
+                self.instance.flow = flow
+                self.instance.event_type = CampaignEvent.TYPE_FLOW
+                self.instance.message = None
+
+            # we are being set to a message
+            else:
+                self.instance.message = message
+
+                # if we aren't currently a message event, we need to create our hidden message flow
+                if self.instance.event_type != CampaignEvent.TYPE_MESSAGE:
+                    self.instance.flow = Flow.create_single_message(self.context['org'], self.context['user'], message)
+                    self.instance.event_type = CampaignEvent.TYPE_MESSAGE
+
+                # otherwise, we can just update that flow
+                else:
+                    # set our single message on our flow
+                    self.instance.flow.update_single_message_flow(message=message)
+
+            # update our other attributes
+            self.instance.offset = offset
+            self.instance.unit = unit
+            self.instance.delivery_hour = delivery_hour
+            self.instance.relative_to = relative_to
+            self.instance.save()
+            self.instance.update_flow_name()
+
+        else:
+            if flow:
+                self.instance = CampaignEvent.create_flow_event(self.context['org'], self.context['user'], campaign,
+                                                                relative_to, offset, unit, flow, delivery_hour)
+            else:
+                self.instance = CampaignEvent.create_message_event(self.context['org'], self.context['user'], campaign,
+                                                                   relative_to, offset, unit, message, delivery_hour)
+            self.instance.update_flow_name()
+
+        return self.instance
 
 
 class ChannelReadSerializer(ReadSerializer):
@@ -357,7 +469,7 @@ class ContactWriteSerializer(WriteSerializer):
 
 
 class ContactFieldReadSerializer(ReadSerializer):
-    VALUE_TYPES = ReadSerializer.extract_constants(Value.TYPE_CONFIG)
+    VALUE_TYPES = extract_constants(Value.TYPE_CONFIG)
 
     value_type = serializers.SerializerMethodField()
 
@@ -585,8 +697,8 @@ class LabelWriteSerializer(WriteSerializer):
 
 
 class MsgReadSerializer(ReadSerializer):
-    STATUSES = ReadSerializer.extract_constants(STATUS_CONFIG)
-    VISIBILITIES = ReadSerializer.extract_constants(Msg.VISIBILITY_CONFIG)
+    STATUSES = extract_constants(STATUS_CONFIG)
+    VISIBILITIES = extract_constants(Msg.VISIBILITY_CONFIG)
     DIRECTIONS = {
         INCOMING: 'in',
         OUTGOING: 'out'
