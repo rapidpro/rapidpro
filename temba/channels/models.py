@@ -1419,7 +1419,9 @@ class Channel(TembaModel):
         }
 
         # if this is a response to a user SMS, then we need to set this as a reply
-        if msg.response_to_id:
+        # response ids are only valid for up to 24 hours, let's be conservative
+        response_window = timedelta(hours=12)
+        if msg.response_to_id and msg.created_on > timezone.now() - response_window:
             response_to = Msg.objects.filter(id=msg.response_to_id).first()
             if response_to:
                 payload['message_type'] = 'REPLY'
