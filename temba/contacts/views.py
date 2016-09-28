@@ -627,6 +627,8 @@ class ContactCRUDL(SmartCRUDL):
                 tasks = ImportTask.objects.filter(pk=task_id, created_by=self.request.user)
                 if tasks and tasks[0].status() in ['PENDING', 'RUNNING', 'STARTED']:  # pragma: no cover
                     return 3000
+                elif not ContactGroup.user_groups.filter(import_task__id=task_id).exists():
+                    return 3000
             return 0
 
         def derive_success_message(self):
