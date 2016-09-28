@@ -31,7 +31,7 @@ from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, Labe
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, ContactGroupWriteSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
-from .serializers import CampaignEventWriteSerializer
+from .serializers import CampaignEventWriteSerializer, ContactBulkActionSerializer, MsgBulkActionSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -52,6 +52,7 @@ def api(request, format=None):
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
+     * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
@@ -59,6 +60,7 @@ def api(request, format=None):
      * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
+     * [/api/v2/message_actions](/api/v2/message_actions) - to perform bulk message actions
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
@@ -75,6 +77,7 @@ def api(request, format=None):
         'channels': reverse('api.v2.channels', request=request),
         'channel_events': reverse('api.v2.channel_events', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
+        'contact_actions': reverse('api.v2.contact_actions', request=request),
         'definitions': reverse('api.v2.definitions', request=request),
         'fields': reverse('api.v2.fields', request=request),
         'flow_starts': reverse('api.v2.flow_starts', request=request),
@@ -82,6 +85,7 @@ def api(request, format=None):
         'groups': reverse('api.v2.groups', request=request),
         'labels': reverse('api.v2.labels', request=request),
         'messages': reverse('api.v2.messages', request=request),
+        'message_actions': reverse('api.v2.message_actions', request=request),
         'org': reverse('api.v2.org', request=request),
         'resthooks': reverse('api.v2.resthooks', request=request),
         'resthook_events': reverse('api.v2.resthook_events', request=request),
@@ -112,6 +116,7 @@ class ApiExplorerView(SmartTemplateView):
             ContactsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_write_explorer(),
             ContactsEndpoint.get_delete_explorer(),
+            ContactActionsEndpoint.get_write_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FlowsEndpoint.get_read_explorer(),
@@ -124,6 +129,7 @@ class ApiExplorerView(SmartTemplateView):
             LabelsEndpoint.get_write_explorer(),
             LabelsEndpoint.get_delete_explorer(),
             MessagesEndpoint.get_read_explorer(),
+            MessageActionsEndpoint.get_write_explorer(),
             OrgEndpoint.get_read_explorer(),
             ResthooksEndpoint.get_read_explorer(),
             ResthookEventsEndpoint.get_read_explorer(),
@@ -357,6 +363,20 @@ class WriteAPIMixin(object):
         status_code = status.HTTP_200_OK if context['instance'] else status.HTTP_201_CREATED
 
         return Response(response_serializer.data, status=status_code)
+
+
+class BulkWriteAPIMixin(object):
+    """
+    Mixin for a bulk action endpoint which writes multiple objects in response to a POST but returns nothing.
+    """
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context=self.get_serializer_context())
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response('', status=status.HTTP_204_NO_CONTENT)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeleteAPIMixin(mixins.DestroyModelMixin):
@@ -1319,6 +1339,54 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         }
 
 
+class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+    """
+    ## Bulk Contact Updating
+
+    A **POST** can be used to perform an action on a set of contacts in bulk.
+
+    * **contacts** - a JSON array of up to 100 contact UUIDs or URNs (array of strings)
+    * **action** - the action to perform, a string one of:
+
+        * _add_ - Add the contacts to the given group
+        * _remove_ - Remove the contacts from the given group
+        * _block_ - Block the contacts
+        * _unblock_ - Un-block the contacts
+        * _expire_ - Force expiration of contacts' active flow runs
+        * _archive_ - Archive all of the contacts' messages
+        * _delete_ - Permanently delete the contacts
+
+    * **group** - the UUID or name of a contact group (string, optional)
+
+    Example:
+
+        POST /api/v2/contact_actions.json
+        {
+            "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3", "tel:+250783835665"],
+            "action": "add",
+            "group": "Testers"
+        }
+
+    You will receive an empty response with status code 204 if successful.
+    """
+    permission = 'contacts.contact_api'
+    serializer_class = ContactBulkActionSerializer
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Update Multiple Contacts",
+            'url': reverse('api.v2.contact_actions'),
+            'slug': 'contact-actions',
+            'fields': [
+                {'name': "contacts", 'required': True, 'help': "The UUIDs of the contacts to update"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: add, remove, block, unblock, expire, archive, delete"},
+                {'name': "group", 'required': False, 'help': "The UUID or name of a contact group"},
+            ]
+        }
+
+
 class DefinitionsEndpoint(BaseAPIView):
     """
     This endpoint allows you to export definitions of flows, campaigns and triggers in your account.
@@ -2071,6 +2139,52 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'after', 'required': False, 'help': "Only return messages created after this date, ex: 2015-01-28T18:00:00.000"}
             ],
             'example': {'query': "folder=incoming&after=2014-01-01T00:00:00.000"},
+        }
+
+
+class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+    """
+    ## Bulk Message Updating
+
+    A **POST** can be used to perform an action on a set of messages in bulk.
+
+    * **messages** - a JSON array of up to 100 message ids (array of ints)
+    * **action** - the action to perform, a string one of:
+
+        * _label_ - Apply the given label to the messages
+        * _unlabel_ - Remove the given label from the messages
+        * _archive_ - Archive the messages
+        * _restore_ - Restore the messages if they are archived
+        * _delete_ - Permanently delete the messages
+
+    * **label** - the UUID or name of a label (string, optional)
+
+    Example:
+
+        POST /api/v2/message_actions.json
+        {
+            "messages": [1234, 2345, 3456],
+            "action": "label",
+            "label": "Testing"
+        }
+
+    You will receive an empty response with status code 204 if successful.
+    """
+    permission = 'msgs.msg_api'
+    serializer_class = MsgBulkActionSerializer
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Update Multiple Messages",
+            'url': reverse('api.v2.message_actions'),
+            'slug': 'message-actions',
+            'fields': [
+                {'name': "messages", 'required': True, 'help': "The ids of the messages to update"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: label, unlabel, archive, restore, delete"},
+                {'name': "label", 'required': False, 'help': "The UUID or name of a message label"},
+            ]
         }
 
 

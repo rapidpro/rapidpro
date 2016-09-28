@@ -369,17 +369,13 @@ class ContactWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
-    groups = fields.ContactGroupField(many=True, required=False)
+    groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
     fields = serializers.DictField(required=False)
 
     def __init__(self, *args, **kwargs):
         super(ContactWriteSerializer, self).__init__(*args, **kwargs)
 
     def validate_groups(self, value):
-        for group in value:
-            if group.is_dynamic:
-                raise serializers.ValidationError("Can't add contact to dynamic group with UUID: %s" % group.uuid)
-
         # if contact is blocked, they can't be added to groups
         if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and value:
             raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
@@ -508,6 +504,63 @@ class ContactGroupWriteSerializer(WriteSerializer):
             return self.instance
         else:
             return ContactGroup.get_or_create(self.context['org'], self.context['user'], name)
+
+
+class ContactBulkActionSerializer(WriteSerializer):
+    ADD = 'add'
+    REMOVE = 'remove'
+    BLOCK = 'block'
+    UNBLOCK = 'unblock'
+    EXPIRE = 'expire'
+    ARCHIVE = 'archive'
+    DELETE = 'delete'
+
+    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, EXPIRE, ARCHIVE, DELETE)
+
+    contacts = fields.ContactField(many=True)
+    action = serializers.ChoiceField(required=True, choices=ACTIONS)
+    group = fields.ContactGroupField(required=False, allow_dynamic=False)
+
+    def validate(self, data):
+        contacts = data['contacts']
+        action = data['action']
+        group = data.get('group')
+
+        if action in (self.ADD, self.REMOVE) and not group:
+            raise serializers.ValidationError("For action \"%s\" you should also specify a group" % action)
+        elif action in (self.BLOCK, self.UNBLOCK, self.EXPIRE, self.ARCHIVE, self.DELETE) and group:
+            raise serializers.ValidationError("For action \"%s\" you should not specify a group" % action)
+
+        if action == self.ADD:
+            # if adding to a group, check for blocked contacts
+            invalid_uuids = {c.uuid for c in contacts if c.is_blocked or c.is_stopped}
+            if invalid_uuids:
+                raise serializers.ValidationError("Blocked or stopped contacts cannot be added to groups: %s" % ', '.join(invalid_uuids))
+
+        return data
+
+    def save(self):
+        user = self.context['user']
+        contacts = self.validated_data['contacts']
+        action = self.validated_data['action']
+        group = self.validated_data.get('group')
+
+        if action == self.ADD:
+            group.update_contacts(user, contacts, add=True)
+        elif action == self.REMOVE:
+            group.update_contacts(user, contacts, add=False)
+        elif action == self.EXPIRE:
+            FlowRun.expire_all_for_contacts(contacts)
+        elif action == self.ARCHIVE:
+            Msg.archive_all_for_contacts(contacts)
+        else:
+            for contact in contacts:
+                if action == self.BLOCK:
+                    contact.block(user)
+                elif action == self.UNBLOCK:
+                    contact.unblock(user)
+                elif action == self.DELETE:
+                    contact.release(user)
 
 
 class FlowReadSerializer(ReadSerializer):
@@ -735,6 +788,56 @@ class MsgReadSerializer(ReadSerializer):
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
                   'direction', 'type', 'status', 'archived', 'visibility', 'text', 'labels',
                   'created_on', 'sent_on', 'modified_on')
+
+
+class MsgBulkActionSerializer(WriteSerializer):
+    LABEL = 'label'
+    UNLABEL = 'unlabel'
+    ARCHIVE = 'archive'
+    RESTORE = 'restore'
+    DELETE = 'delete'
+
+    ACTIONS = (LABEL, UNLABEL, ARCHIVE, RESTORE, DELETE)
+
+    messages = fields.MessageField(many=True)
+    action = serializers.ChoiceField(required=True, choices=ACTIONS)
+    label = fields.LabelField(required=False)
+
+    def validate_messages(self, value):
+        for msg in value:
+            if msg.direction != 'I':
+                raise serializers.ValidationError("Not an incoming message: %d" % msg.id)
+
+        return value
+
+    def validate(self, data):
+        action = data['action']
+        label = data.get('label')
+
+        if action in (self.LABEL, self.UNLABEL) and not label:
+            raise serializers.ValidationError("For action \"%s\" you should also specify a label" % action)
+        elif action in (self.ARCHIVE, self.RESTORE, self.DELETE) and label:
+            raise serializers.ValidationError("For action \"%s\" you should not specify a label" % action)
+
+        return data
+
+    def save(self):
+        messages = self.validated_data['messages']
+        action = self.validated_data['action']
+        label = self.validated_data.get('label')
+
+        if action == self.LABEL:
+            label.toggle_label(messages, add=True)
+        elif action == self.UNLABEL:
+            label.toggle_label(messages, add=False)
+        else:
+            for msg in messages:
+                if action == self.ARCHIVE:
+                    msg.archive()
+                elif action == self.RESTORE:
+                    msg.restore()
+                elif action == self.DELETE:
+                    msg.release()
 
 
 class ResthookReadSerializer(ReadSerializer):
