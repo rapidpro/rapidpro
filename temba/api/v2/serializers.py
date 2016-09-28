@@ -17,6 +17,7 @@ from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
 from . import fields
+from .validators import UniqueForOrgValidator
 
 
 def format_datetime(value):
@@ -164,14 +165,10 @@ class CampaignReadSerializer(ReadSerializer):
 
 
 class CampaignWriteSerializer(WriteSerializer):
-    name = serializers.CharField(required=True, max_length=Campaign.MAX_NAME_LEN)
+    name = serializers.CharField(required=True, max_length=Campaign.MAX_NAME_LEN, validators=[
+        UniqueForOrgValidator(queryset=Campaign.objects.filter(is_active=True))
+    ])
     group = fields.ContactGroupField(required=True)
-
-    def validate_name(self, value):
-        if not self.instance and Campaign.objects.filter(org=self.context['org'], name=value).exists():
-            raise serializers.ValidationError("Must be unique")
-
-        return value
 
     def save(self):
         """
@@ -493,16 +490,13 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 
 class ContactGroupWriteSerializer(WriteSerializer):
-    name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN)
+    name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN, validators=[
+        UniqueForOrgValidator(queryset=ContactGroup.user_groups.filter(is_active=True))
+    ])
 
     def validate_name(self, value):
         if not ContactGroup.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
-                                              % ContactGroup.MAX_NAME_LEN)
-
-        if not self.instance and ContactGroup.user_groups.filter(org=self.context['org'], name=value).exists():
-            raise serializers.ValidationError("Must be unique")
-
+            raise serializers.ValidationError("Name contains illegal characters.")
         return value
 
     def save(self):
@@ -673,16 +667,13 @@ class LabelReadSerializer(ReadSerializer):
 
 
 class LabelWriteSerializer(WriteSerializer):
-    name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN)
+    name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN, validators=[
+        UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True))
+    ])
 
     def validate_name(self, value):
         if not Label.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
-                                              % Label.MAX_NAME_LEN)
-
-        if not self.instance and Label.label_objects.filter(org=self.context['org'], name=value).exists():
-            raise serializers.ValidationError("Must be unique")
-
+            raise serializers.ValidationError("Name contains illegal characters.")
         return value
 
     def save(self):
