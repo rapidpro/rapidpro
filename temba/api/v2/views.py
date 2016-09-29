@@ -27,10 +27,11 @@ from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
 from .serializers import BroadcastReadSerializer, BroadcastWriteSerializer, CampaignReadSerializer, CampaignEventReadSerializer
 from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer, ContactWriteSerializer
-from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, LabelWriteSerializer
+from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, LabelWriteSerializer, CampaignWriteSerializer
 from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, ContactGroupWriteSerializer, FlowReadSerializer
 from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
+from .serializers import CampaignEventWriteSerializer, ContactBulkActionSerializer, MsgBulkActionSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -46,11 +47,12 @@ def api(request, format=None):
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
-     * [/api/v2/campaigns](/api/v2/campaigns) - to list campaigns
-     * [/api/v2/campaign_events](/api/v2/campaign_events) - to list campaign events
+     * [/api/v2/campaigns](/api/v2/campaigns) - to list, create, or update campaigns
+     * [/api/v2/campaign_events](/api/v2/campaign_events) - to list, create, update or delete campaign events
      * [/api/v2/channels](/api/v2/channels) - to list channels
      * [/api/v2/channel_events](/api/v2/channel_events) - to list channel events
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
+     * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
@@ -58,6 +60,7 @@ def api(request, format=None):
      * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
      * [/api/v2/labels](/api/v2/labels) - to list, create, update or delete message labels
      * [/api/v2/messages](/api/v2/messages) - to list messages
+     * [/api/v2/message_actions](/api/v2/message_actions) - to perform bulk message actions
      * [/api/v2/org](/api/v2/org) - to view your org
      * [/api/v2/runs](/api/v2/runs) - to list flow runs
      * [/api/v2/resthooks](/api/v2/resthooks) - to list resthooks
@@ -74,6 +77,7 @@ def api(request, format=None):
         'channels': reverse('api.v2.channels', request=request),
         'channel_events': reverse('api.v2.channel_events', request=request),
         'contacts': reverse('api.v2.contacts', request=request),
+        'contact_actions': reverse('api.v2.contact_actions', request=request),
         'definitions': reverse('api.v2.definitions', request=request),
         'fields': reverse('api.v2.fields', request=request),
         'flow_starts': reverse('api.v2.flow_starts', request=request),
@@ -81,6 +85,7 @@ def api(request, format=None):
         'groups': reverse('api.v2.groups', request=request),
         'labels': reverse('api.v2.labels', request=request),
         'messages': reverse('api.v2.messages', request=request),
+        'message_actions': reverse('api.v2.message_actions', request=request),
         'org': reverse('api.v2.org', request=request),
         'resthooks': reverse('api.v2.resthooks', request=request),
         'resthook_events': reverse('api.v2.resthook_events', request=request),
@@ -102,12 +107,16 @@ class ApiExplorerView(SmartTemplateView):
             BroadcastsEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_write_explorer(),
             CampaignsEndpoint.get_read_explorer(),
+            CampaignsEndpoint.get_write_explorer(),
             CampaignEventsEndpoint.get_read_explorer(),
+            CampaignEventsEndpoint.get_write_explorer(),
+            CampaignEventsEndpoint.get_delete_explorer(),
             ChannelsEndpoint.get_read_explorer(),
             ChannelEventsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_read_explorer(),
             ContactsEndpoint.get_write_explorer(),
             ContactsEndpoint.get_delete_explorer(),
+            ContactActionsEndpoint.get_write_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FlowsEndpoint.get_read_explorer(),
@@ -120,6 +129,7 @@ class ApiExplorerView(SmartTemplateView):
             LabelsEndpoint.get_write_explorer(),
             LabelsEndpoint.get_delete_explorer(),
             MessagesEndpoint.get_read_explorer(),
+            MessageActionsEndpoint.get_write_explorer(),
             OrgEndpoint.get_read_explorer(),
             ResthooksEndpoint.get_read_explorer(),
             ResthookEventsEndpoint.get_read_explorer(),
@@ -353,6 +363,20 @@ class WriteAPIMixin(object):
         status_code = status.HTTP_200_OK if context['instance'] else status.HTTP_201_CREATED
 
         return Response(response_serializer.data, status=status_code)
+
+
+class BulkWriteAPIMixin(object):
+    """
+    Mixin for a bulk action endpoint which writes multiple objects in response to a POST but returns nothing.
+    """
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context=self.get_serializer_context())
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response('', status=status.HTTP_204_NO_CONTENT)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeleteAPIMixin(mixins.DestroyModelMixin):
@@ -589,7 +613,7 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
         }
 
 
-class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
+class CampaignsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list campaigns in your account.
 
@@ -621,10 +645,48 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
 
+    ## Adding Campaigns
+
+    A **POST** can be used to create a new campaign, by sending the following data. Don't specify a UUID as this will be
+    generated for you.
+
+    * **name** - the name of the campaign (string, required)
+    * **group** - the UUID of the contact group this campaign will be run against (string, required)
+
+    Example:
+
+        POST /api/v2/campaigns.json
+        {
+            "name": "Reminders",
+            "group": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9"
+        }
+
+    You will receive a campaign object as a response if successful:
+
+        {
+            "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+            "name": "Reminders",
+            "group": {"uuid": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9", "name": "Reporters"},
+            "created_on": "2013-08-19T19:11:21.088Z"
+        }
+
+    ## Updating Campaigns
+
+    A **POST** can also be used to update an existing campaign if you specify its UUID in the URL.
+
+    Example:
+
+        POST /api/v2/campaigns.json?uuid=f14e4ff0-724d-43fe-a953-1d16aefd1c00
+        {
+            "name": "Reminders II",
+            "group": "7ae473e8-f1b5-4998-bd9c-eb8e28c92fa9"
+        }
+
     """
     permission = 'campaigns.campaign_api'
     model = Campaign
     serializer_class = CampaignReadSerializer
+    write_serializer_class = CampaignWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
     def filter_queryset(self, queryset):
@@ -650,12 +712,28 @@ class CampaignsEndpoint(ListAPIMixin, BaseAPIView):
             'url': reverse('api.v2.campaigns'),
             'slug': 'campaign-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
+                {'name': "uuid", 'required': False, 'help': "A campaign UUID to filter by"},
+            ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Add or Update Campaigns",
+            'url': reverse('api.v2.campaigns'),
+            'slug': 'campaign-write',
+            'params': [
+                {'name': "uuid", 'required': False, 'help': "UUID of the campaign to be updated"},
+            ],
+            'fields': [
+                {'name': "name", 'required': True, 'help': "The name of the campaign"},
+                {'name': "group", 'required': True, 'help': "The UUID of the contact group operated on by the campaign"}
             ]
         }
 
 
-class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
+class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list campaign events in your account.
 
@@ -697,10 +775,75 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
             ...
         }
 
+    ## Adding Campaign Events
+
+    A **POST** can be used to create a new campaign event, by sending the following data. Don't specify a UUID as this
+    will be generated for you.
+
+    * **campaign** - the UUID of the campaign this event should be part of (string, can't be changed for existing events)
+    * **relative_to** - the field key that this event will be relative to (string)
+    * **offset** - the offset from our contact field (positive or negative integer)
+    * **unit** - the unit for our offset (one of "minutes", "hours", "days" or "weeks")
+    * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the field)
+    * **message** - the message to send to the contact (string, required if flow is not specified)
+    * **flow** - the UUID of the flow to start the contact down (string, required if message is not specified)
+
+    Example:
+
+        POST /api/v2/campaign_events.json
+        {
+            "campaign": "f14e4ff0-724d-43fe-a953-1d16aefd1c00",
+            "relative_to": "last_hit",
+            "offset": 160,
+            "unit": "weeks",
+            "delivery_hour": -1,
+            "message": "Feeling sick and helpless, lost the compass where self is."
+        }
+
+    You will receive an event object as a response if successful:
+
+        {
+            "uuid": "6a6d7531-6b44-4c45-8c33-957ddd8dfabc",
+            "campaign": {"uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c00", "name": "Hits"},
+            "relative_to": "last_hit",
+            "offset": 160,
+            "unit": "W",
+            "delivery_hour": -1,
+            "message": "Feeling sick and helpless, lost the compass where self is."
+            "flow": null,
+            "created_on": "2013-08-19T19:11:21.088453Z"
+        }
+
+    ## Updating Campaign Events
+
+    A **POST** can also be used to update an existing campaign event if you specify its UUID in the URL.
+
+    Example:
+
+        POST /api/v2/campaign_events.json?uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc
+        {
+            "relative_to": "last_hit",
+            "offset": 100,
+            "unit": "weeks",
+            "delivery_hour": -1,
+            "message": "Feeling sick and helpless, lost the compass where self is."
+        }
+
+    ## Deleting Campaign Events
+
+    A **DELETE** can be used to delete a campaign event if you specify its UUID in the URL.
+
+    Example:
+
+        DELETE /api/v2/campaign_events.json?uuid=6a6d7531-6b44-4c45-8c33-957ddd8dfabc
+
+    You will receive either a 204 response if an event was deleted, or a 404 response if no matching event was found.
+
     """
     permission = 'campaigns.campaignevent_api'
     model = CampaignEvent
     serializer_class = CampaignEventReadSerializer
+    write_serializer_class = CampaignEventWriteSerializer
     pagination_class = CreatedOnCursorPagination
 
     def get_queryset(self):
@@ -741,9 +884,43 @@ class CampaignEventsEndpoint(ListAPIMixin, BaseAPIView):
             'url': reverse('api.v2.campaign_events'),
             'slug': 'campaign-event-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "An event UUID to filter by. ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab"},
-                {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter by. ex: Reminders"},
+                {'name': "uuid", 'required': False, 'help': "A campaign event UUID to filter by"},
+                {'name': "campaign", 'required': False, 'help': "A campaign UUID or name to filter"},
             ]
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Add or Update Campaign Events",
+            'url': reverse('api.v2.campaign_events'),
+            'slug': 'campaign-event-write',
+            'params': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the campaign event to update"},
+            ],
+            'fields': [
+                {'name': "campaign", 'required': False, 'help': "The UUID of the campaign this event belongs to"},
+                {'name': "relative_to", 'required': True, 'help': "The key of the contact field this event is relative to. (string)"},
+                {'name': "offset", 'required': True, 'help': "The offset from the relative_to field value (integer, positive or negative)"},
+                {'name': "unit", 'required': True, 'help': 'The unit of the offset (one of "minutes, "hours", "days", "weeks")'},
+                {'name': "delivery_hour", 'required': True, 'help': "The hour this event should be triggered, or -1 if the event should be sent at the same hour as our date (integer, -1 or 0-23)"},
+                {'name': "message", 'required': False, 'help': "The message that should be sent to the contact when this event is triggered (string)"},
+                {'name': "flow", 'required': False, 'help': "The UUID of the flow that the contact should start when this event is triggered (string)"}
+            ]
+        }
+
+    @classmethod
+    def get_delete_explorer(cls):
+        return {
+            'method': "DELETE",
+            'title': "Delete Campaign Events",
+            'url': reverse('api.v2.campaign_events'),
+            'slug': 'campaign-event-delete',
+            'request': '',
+            'params': [
+                {'name': "uuid", 'required': False, 'help': "The UUID of the campaign event to delete"}
+            ],
         }
 
 
@@ -1032,7 +1209,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     ## Deleting Contacts
 
-    A **POST** can also be used to delete an existing contact if you specify either its UUID or one of its URNs in the
+    A **DELETE** can also be used to delete an existing contact if you specify either its UUID or one of its URNs in the
     URL.
 
     Examples:
@@ -1159,6 +1336,54 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                 {'name': "uuid", 'required': False, 'help': "UUID of the contact to be deleted"},
                 {'name': "urn", 'required': False, 'help': "URN of the contact to be deleted. ex: tel:+250788123123"}
             ],
+        }
+
+
+class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+    """
+    ## Bulk Contact Updating
+
+    A **POST** can be used to perform an action on a set of contacts in bulk.
+
+    * **contacts** - a JSON array of up to 100 contact UUIDs or URNs (array of strings)
+    * **action** - the action to perform, a string one of:
+
+        * _add_ - Add the contacts to the given group
+        * _remove_ - Remove the contacts from the given group
+        * _block_ - Block the contacts
+        * _unblock_ - Un-block the contacts
+        * _expire_ - Force expiration of contacts' active flow runs
+        * _archive_ - Archive all of the contacts' messages
+        * _delete_ - Permanently delete the contacts
+
+    * **group** - the UUID or name of a contact group (string, optional)
+
+    Example:
+
+        POST /api/v2/contact_actions.json
+        {
+            "contacts": ["7acfa6d5-be4a-4bcc-8011-d1bd9dfasff3", "tel:+250783835665"],
+            "action": "add",
+            "group": "Testers"
+        }
+
+    You will receive an empty response with status code 204 if successful.
+    """
+    permission = 'contacts.contact_api'
+    serializer_class = ContactBulkActionSerializer
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Update Multiple Contacts",
+            'url': reverse('api.v2.contact_actions'),
+            'slug': 'contact-actions',
+            'fields': [
+                {'name': "contacts", 'required': True, 'help': "The UUIDs of the contacts to update"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: add, remove, block, unblock, expire, archive, delete"},
+                {'name': "group", 'required': False, 'help': "The UUID or name of a contact group"},
+            ]
         }
 
 
@@ -1914,6 +2139,52 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 {'name': 'after', 'required': False, 'help': "Only return messages created after this date, ex: 2015-01-28T18:00:00.000"}
             ],
             'example': {'query': "folder=incoming&after=2014-01-01T00:00:00.000"},
+        }
+
+
+class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
+    """
+    ## Bulk Message Updating
+
+    A **POST** can be used to perform an action on a set of messages in bulk.
+
+    * **messages** - a JSON array of up to 100 message ids (array of ints)
+    * **action** - the action to perform, a string one of:
+
+        * _label_ - Apply the given label to the messages
+        * _unlabel_ - Remove the given label from the messages
+        * _archive_ - Archive the messages
+        * _restore_ - Restore the messages if they are archived
+        * _delete_ - Permanently delete the messages
+
+    * **label** - the UUID or name of a label (string, optional)
+
+    Example:
+
+        POST /api/v2/message_actions.json
+        {
+            "messages": [1234, 2345, 3456],
+            "action": "label",
+            "label": "Testing"
+        }
+
+    You will receive an empty response with status code 204 if successful.
+    """
+    permission = 'msgs.msg_api'
+    serializer_class = MsgBulkActionSerializer
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Update Multiple Messages",
+            'url': reverse('api.v2.message_actions'),
+            'slug': 'message-actions',
+            'fields': [
+                {'name': "messages", 'required': True, 'help': "The ids of the messages to update"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: label, unlabel, archive, restore, delete"},
+                {'name': "label", 'required': False, 'help': "The UUID or name of a message label"},
+            ]
         }
 
 
