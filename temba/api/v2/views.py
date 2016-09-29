@@ -25,13 +25,15 @@ from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
-from .serializers import BroadcastReadSerializer, BroadcastWriteSerializer, CampaignReadSerializer, CampaignEventReadSerializer
-from .serializers import ChannelReadSerializer, ChannelEventReadSerializer, ContactReadSerializer, ContactWriteSerializer
-from .serializers import FlowStartReadSerializer, FlowStartWriteSerializer, LabelWriteSerializer, CampaignWriteSerializer
-from .serializers import WebHookEventReadSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer, ResthookSubscriberWriteSerializer
-from .serializers import ContactFieldReadSerializer, ContactGroupReadSerializer, ContactGroupWriteSerializer, FlowReadSerializer
-from .serializers import FlowRunReadSerializer, LabelReadSerializer, MsgReadSerializer, AdminBoundaryReadSerializer
-from .serializers import CampaignEventWriteSerializer, ContactBulkActionSerializer, MsgBulkActionSerializer
+from .serializers import AdminBoundaryReadSerializer, BroadcastReadSerializer, BroadcastWriteSerializer
+from .serializers import CampaignReadSerializer, CampaignWriteSerializer, CampaignEventReadSerializer
+from .serializers import CampaignEventWriteSerializer, ChannelReadSerializer, ChannelEventReadSerializer
+from .serializers import ContactReadSerializer, ContactWriteSerializer, ContactBulkActionSerializer
+from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactGroupReadSerializer
+from .serializers import ContactGroupWriteSerializer, FlowReadSerializer, FlowRunReadSerializer, FlowStartReadSerializer
+from .serializers import FlowStartWriteSerializer, LabelReadSerializer, LabelWriteSerializer, MsgReadSerializer
+from .serializers import MsgBulkActionSerializer, ResthookReadSerializer, ResthookSubscriberReadSerializer
+from .serializers import ResthookSubscriberWriteSerializer, WebHookEventReadSerializer
 from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
@@ -54,7 +56,7 @@ def api(request, format=None):
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
      * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
-     * [/api/v2/fields](/api/v2/fields) - to list contact fields
+     * [/api/v2/fields](/api/v2/fields) - to list, create or update contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
      * [/api/v2/flows](/api/v2/flows) - to list flows
      * [/api/v2/groups](/api/v2/groups) - to list, create, update or delete contact groups
@@ -119,6 +121,7 @@ class ApiExplorerView(SmartTemplateView):
             ContactActionsEndpoint.get_write_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
+            FieldsEndpoint.get_write_explorer(),
             FlowsEndpoint.get_read_explorer(),
             FlowStartsEndpoint.get_read_explorer(),
             FlowStartsEndpoint.get_write_explorer(),
@@ -1536,7 +1539,7 @@ class DefinitionsEndpoint(BaseAPIView):
         }
 
 
-class FieldsEndpoint(ListAPIMixin, BaseAPIView):
+class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list custom contact fields in your account.
 
@@ -1566,11 +1569,56 @@ class FieldsEndpoint(ListAPIMixin, BaseAPIView):
                 ...
             ]
         }
+
+    ## Adding Fields
+
+    A **POST** can be used to create a new contact field. Don't specify a key as this will be generated for you.
+
+    * **label** - the display label (string)
+    * **value_type** - one of the value type codes (string)
+
+    Example:
+
+        POST /api/v2/fields.json
+        {
+            "label": "Nick name",
+            "value_type": "text"
+        }
+
+    You will receive a field object (with the new field key) as a response if successful:
+
+        {
+            "key": "nick_name",
+            "label": "Nick name",
+            "value_type": "text"
+        }
+
+    ## Updating Fields
+
+    A **POST** can also be used to update an existing field if you include it's key in the URL.
+
+    Example:
+
+        POST /api/v2/fields.json?key=nick_name
+        {
+            "label": "New label",
+            "value_type": "text"
+        }
+
+    You will receive the updated field object as a response if successful:
+
+        {
+            "key": "nick_name",
+            "label": "New label",
+            "value_type": "text"
+        }
     """
     permission = 'contacts.contactfield_api'
     model = ContactField
     serializer_class = ContactFieldReadSerializer
+    write_serializer_class = ContactFieldWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    lookup_params = {'key': 'key'}
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1591,6 +1639,23 @@ class FieldsEndpoint(ListAPIMixin, BaseAPIView):
             'slug': 'field-list',
             'params': [
                 {'name': "key", 'required': False, 'help': "A field key to filter by. ex: nick_name"}
+            ],
+            'example': {'query': "key=nick_name"},
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return {
+            'method': "POST",
+            'title': "Add or Update Fields",
+            'url': reverse('api.v2.fields'),
+            'slug': 'field-write',
+            'params': [
+                {'name': "key", 'required': False, 'help': "Key of an existing field to update"}
+            ],
+            'fields': [
+                {'name': "label", 'required': True, 'help': "The label of the field"},
+                {'name': "value_type", 'required': True, 'help': "The value type of the field"}
             ],
             'example': {'query': "key=nick_name"},
         }

@@ -140,6 +140,10 @@ class APITest(TembaTest):
             self.assertIn('detail', response.json)
             self.assertEqual(response.json['detail'], expected_message)
 
+    def assert404(self, response):
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json, {'detail': "Not found."})
+
     def test_serializer_fields(self):
         group = self.create_group("Customers")
         field_obj = ContactField.get_or_create(self.org, self.admin, 'registered', "Registered On")
@@ -639,7 +643,7 @@ class APITest(TembaTest):
 
         # can't update campaign in other org
         response = self.postJSON(url, 'uuid=%s' % spam.uuid, {'name': "Won't work", 'group': spammers.uuid})
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
     def test_campaign_events(self):
         url = reverse('api.v2.campaign_events')
@@ -1130,11 +1134,11 @@ class APITest(TembaTest):
 
         # try to update a contact with non-existent UUID
         response = self.postJSON(url, 'uuid=ad6acad9-959b-4d70-b144-5de2891e4d00', {})
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
         # try to update a contact in another org
         response = self.postJSON(url, 'uuid=%s' % hans.uuid, {})
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
         # try to add a contact to a dynamic group
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'groups': [dyn_group.uuid]})
@@ -1191,11 +1195,11 @@ class APITest(TembaTest):
 
         # try deleting a contact by a non-existent URN
         response = self.deleteJSON(url, 'urn=twitter:billy')
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
         # try to delete a contact in another org
         response = self.deleteJSON(url, 'uuid=%s' % hans.uuid)
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
     def test_contact_actions(self):
         url = reverse('api.v2.contact_actions')
@@ -1444,6 +1448,42 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'key=nick_name')
         self.assertEqual(response.json['results'], [{'key': 'nick_name', 'label': "Nick Name", 'value_type': "text"}])
 
+        # try to create empty field
+        response = self.postJSON(url, None, {})
+        self.assertResponseError(response, 'label', "This field is required.")
+        self.assertResponseError(response, 'value_type', "This field is required.")
+
+        # try again with some invalid values
+        response = self.postJSON(url, None, {'label': "!@#$%", 'value_type': "video"})
+        self.assertResponseError(response, 'label', "Can only contain letters, numbers and hypens.")
+        self.assertResponseError(response, 'value_type', "\"video\" is not a valid choice.")
+
+        # try again with a label that would generate an invalid key
+        response = self.postJSON(url, None, {'label': "Created By", 'value_type': "user"})
+        self.assertResponseError(response, 'label', "Generated key \"created_by\" is invalid or a reserved name.")
+
+        # try again with a label that's already taken
+        response = self.postJSON(url, None, {'label': "Nick Name", 'value_type': "text"})
+        self.assertResponseError(response, 'label', "This field must be unique.")
+
+        # create a new field
+        response = self.postJSON(url, None, {'label': "Age", 'value_type': "numeric"})
+        self.assertEqual(response.status_code, 201)
+
+        age = ContactField.objects.get(org=self.org, label="Age", value_type='N', is_active=True)
+
+        # update a field by its key
+        response = self.postJSON(url, 'key=age', {'label': "Real Age", 'value_type': 'datetime'})
+        self.assertEqual(response.status_code, 200)
+
+        age.refresh_from_db()
+        self.assertEqual(age.label, "Real Age")
+        self.assertEqual(age.value_type, "D")
+
+        # try to update with non-existent key
+        response = self.postJSON(url, 'key=not_ours', {'label': "Something", 'value_type': 'text'})
+        self.assert404(response)
+
     def test_flows(self):
         url = reverse('api.v2.flows')
 
@@ -1556,7 +1596,7 @@ class APITest(TembaTest):
 
         # can't update group from other org
         response = self.postJSON(url, 'uuid=%s' % spammers.uuid, {'name': "Won't work"})
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
         # try an empty delete request
         response = self.deleteJSON(url, None)
@@ -1571,7 +1611,7 @@ class APITest(TembaTest):
 
         # try to delete a group in another org
         response = self.deleteJSON(url, 'uuid=%s' % spammers.uuid)
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
     def test_labels(self):
         url = reverse('api.v2.labels')
@@ -1636,7 +1676,7 @@ class APITest(TembaTest):
 
         # can't update label from other org
         response = self.postJSON(url, 'uuid=%s' % spam.uuid, {'name': "Won't work"})
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
         # try an empty delete request
         response = self.deleteJSON(url, None)
@@ -1650,7 +1690,7 @@ class APITest(TembaTest):
 
         # try to delete a label in another org
         response = self.deleteJSON(url, 'uuid=%s' % spam.uuid)
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
     def assertMsgEqual(self, msg_json, msg, msg_type, msg_status, msg_visibility):
         self.assertEqual(msg_json, {
@@ -2270,7 +2310,7 @@ class APITest(TembaTest):
 
         # try to delete a subscriber from another org
         response = self.deleteJSON(url, "id=%d" % other_org_subscriber.id)
-        self.assertEqual(response.status_code, 404)
+        self.assert404(response)
 
         # ok, let's look at the events on this resthook
         url = reverse('api.v2.resthook_events')
