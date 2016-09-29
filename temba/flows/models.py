@@ -2539,8 +2539,8 @@ class FlowRun(models.Model):
         for batch in chunk_list(runs, 1000):
             ids = [r['id'] for r in batch]
             run_objs = FlowRun.objects.filter(pk__in=ids)
-            exited_on = timezone.now()
-            run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type)
+            now = timezone.now()
+            run_objs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
 
             # continue the parent flows to continue async
             continue_parent_flows.delay(ids)
