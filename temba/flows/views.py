@@ -36,7 +36,6 @@ from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING, INTERRUPTED
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.utils.profiler import SegmentProfiler
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
@@ -435,7 +434,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'flow_type', 'base_language')
 
         form_class = FlowCreateForm
-        success_url = 'id@flows.flow_editor'
+        success_url = 'uuid@flows.flow_editor'
         success_message = ''
         field_config = dict(name=dict(help=_("Choose a name to describe this flow, e.g. Demographic Survey")))
 
@@ -486,7 +485,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         fields = ('pk',)
-        cancel_url = 'id@flows.flow_editor'
+        cancel_url = 'uuid@flows.flow_editor'
         redirect_url = '@flows.flow_list'
         default_template = 'smartmin/delete_confirm.html'
         success_message = _("Your flow has been removed.")
@@ -506,7 +505,7 @@ class FlowCRUDL(SmartCRUDL):
             copy = Flow.copy(self.object, self.request.user)
 
             # redirect to the newly created flow
-            return HttpResponseRedirect(reverse('flows.flow_editor', args=[copy.pk]))
+            return HttpResponseRedirect(reverse('flows.flow_editor', args=[copy.uuid]))
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
@@ -775,6 +774,8 @@ class FlowCRUDL(SmartCRUDL):
                                             function_completions=function_completions))
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
+
         def derive_title(self):
             return self.object.name
 
@@ -919,20 +920,6 @@ class FlowCRUDL(SmartCRUDL):
 
                 if 'contact_fields' in cleaned_data and len(cleaned_data['contact_fields']) > 10:
                     raise forms.ValidationError(_("You can only include up to 10 contact fields in your export"))
-
-                if 'flows' in cleaned_data:
-                    columns = []
-                    flows = cleaned_data['flows']
-
-                    with SegmentProfiler("get columns"):
-                        for flow in flows:
-                            columns += flow.get_columns()
-
-                    # we limit to 75 since each takes 3 columns and we reserve 20 columns for other fields
-                    if len(columns) > 75:
-                        raise forms.ValidationError(_("This export exceeds the maximum number of columns (255). "
-                                                      "Please remove one or more of the flows from the export "
-                                                      "to continue."))
 
                 return cleaned_data
 
@@ -1217,7 +1204,7 @@ class FlowCRUDL(SmartCRUDL):
     class Simulate(OrgObjPermsMixin, SmartReadView):
 
         def get(self, request, *args, **kwargs):
-            return HttpResponseRedirect(reverse('flows.flow_editor', args=[self.get_object().pk]))
+            return HttpResponseRedirect(reverse('flows.flow_editor', args=[self.get_object().uuid]))
 
         def post(self, request, *args, **kwargs):
 
@@ -1412,7 +1399,7 @@ class FlowCRUDL(SmartCRUDL):
         fields = ('omnibox', 'restart_participants')
         success_message = ''
         submit_button_name = _("Add Contacts to Flow")
-        success_url = 'id@flows.flow_editor'
+        success_url = 'uuid@flows.flow_editor'
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Broadcast, self).get_context_data(*args, **kwargs)

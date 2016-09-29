@@ -63,4 +63,7 @@ python-telegram-bot
 -e git+http://github.com/nyaruka/python-librato-bg.git#egg=librato_bg
 django-mptt==0.7.4
 nexmo
-
+openpyxl
+django-excel
+pyexcel-xls
+pyexcel-xlsx

@@ -10,6 +10,7 @@ from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.utils import timezone
 from mock import patch
+from openpyxl import load_workbook
 from smartmin.models import SmartImportRowError
 from smartmin.tests import _CRUDLTest
 from smartmin.csv_imports.models import ImportTask
@@ -26,7 +27,6 @@ from temba.tests import AnonymousOrg, TembaTest
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, datetime_to_ms, get_datetime_format
 from temba.values.models import Value
-from xlrd import open_workbook
 from .models import Contact, ContactGroup, ContactField, ContactURN, ExportContactsTask, URN, EXTERNAL_SCHEME
 from .models import TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME, ContactGroupCount
 from .tasks import squash_contactgroupcounts
@@ -1303,14 +1303,21 @@ class ContactTest(TembaTest):
         activity = response.context['activity']
         self.assertEqual(len(activity), 5)
 
-        # can view history as super user as well
-        response = self.fetch_protected(url, self.superuser)
-        activity = response.context['activity']
-        self.assertEqual(len(activity), 95)
+        # can't view history of contact in another org
+        self.create_secondary_org()
+        hans = self.create_contact("Hans", twitter="hans", org=self.org2)
+        response = self.client.get(reverse('contacts.contact_history', args=[hans.uuid]))
+        self.assertLoginRedirect(response)
 
-        self.login(self.admin)
+        # invalid UUID should return 404
         response = self.client.get(reverse('contacts.contact_history', args=['bad-uuid']))
         self.assertEqual(response.status_code, 404)
+
+        # super users can view history of any contact
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[self.joe.uuid]), self.superuser)
+        self.assertEqual(len(response.context['activity']), 95)
+        response = self.fetch_protected(reverse('contacts.contact_history', args=[hans.uuid]), self.superuser)
+        self.assertEqual(len(response.context['activity']), 0)
 
     def test_event_times(self):
 
@@ -1504,11 +1511,11 @@ class ContactTest(TembaTest):
         # should show the next seven events to fire in reverse order
         self.assertEquals(7, len(upcoming))
 
-        self.assertEquals("Sent 10 days after planting date", upcoming[4]['message'])
-        self.assertEquals("Sent 7 days after planting date", upcoming[5]['message'])
-        self.assertEquals(None, upcoming[6]['message'])
-        self.assertEquals(self.reminder_flow.pk, upcoming[6]['flow_id'])
-        self.assertEquals(self.reminder_flow.name, upcoming[6]['flow_name'])
+        self.assertEqual(upcoming[4]['message'], "Sent 10 days after planting date")
+        self.assertEqual(upcoming[5]['message'], "Sent 7 days after planting date")
+        self.assertEqual(upcoming[6]['message'], None)
+        self.assertEqual(upcoming[6]['flow_uuid'], self.reminder_flow.uuid)
+        self.assertEqual(upcoming[6]['flow_name'], self.reminder_flow.name)
 
         self.assertGreater(upcoming[4]['scheduled'], upcoming[5]['scheduled'])
 
@@ -1526,11 +1533,11 @@ class ContactTest(TembaTest):
         # should show the next 2 events to fire and the scheduled broadcast in reverse order by schedule time
         self.assertEquals(8, len(upcoming))
 
-        self.assertEquals("Sent 7 days after planting date", upcoming[5]['message'])
-        self.assertEquals("Hello", upcoming[6]['message'])
-        self.assertEquals(None, upcoming[7]['message'])
-        self.assertEquals(self.reminder_flow.pk, upcoming[7]['flow_id'])
-        self.assertEquals(self.reminder_flow.name, upcoming[7]['flow_name'])
+        self.assertEqual(upcoming[5]['message'], "Sent 7 days after planting date")
+        self.assertEqual(upcoming[6]['message'], "Hello")
+        self.assertEqual(upcoming[7]['message'], None)
+        self.assertEqual(upcoming[7]['flow_uuid'], self.reminder_flow.uuid)
+        self.assertEqual(upcoming[7]['flow_name'], self.reminder_flow.name)
 
         self.assertGreater(upcoming[6]['scheduled'], upcoming[7]['scheduled'])
 
@@ -1564,6 +1571,22 @@ class ContactTest(TembaTest):
         # try removing it again, should fail
         response = self.client.post(read_url, post_data, follow=True)
         self.assertEquals(200, response.status_code)
+
+        # can't view contact in another org
+        self.create_secondary_org()
+        hans = self.create_contact("Hans", twitter="hans", org=self.org2)
+        response = self.client.get(reverse('contacts.contact_read', args=[hans.uuid]))
+        self.assertLoginRedirect(response)
+
+        # invalid UUID should return 404
+        response = self.client.get(reverse('contacts.contact_read', args=['bad-uuid']))
+        self.assertEqual(response.status_code, 404)
+
+        # super users can view history of any contact
+        response = self.fetch_protected(reverse('contacts.contact_read', args=[self.joe.uuid]), self.superuser)
+        self.assertEqual(response.status_code, 200)
+        response = self.fetch_protected(reverse('contacts.contact_read', args=[hans.uuid]), self.superuser)
+        self.assertEqual(response.status_code, 200)
 
     def test_read_language(self):
 
@@ -2586,6 +2609,21 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
+        records = self.do_import(user, 'sample_contacts.xlsx')
+        self.assertEquals(3, len(records))
+
+        self.assertEquals(1, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals('Sample Contacts', group.name)
+        self.assertEquals(3, group.contacts.count())
+
+        self.assertEquals(1, Contact.objects.filter(name='Eric Newcomer').count())
+        self.assertEquals(1, Contact.objects.filter(name='Nic Pottier').count())
+        self.assertEquals(1, Contact.objects.filter(name='Jen Newcomer').count())
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
         with patch('temba.contacts.models.Org.get_country_code') as mock_country_code:
             mock_country_code.return_value = None
 
@@ -2615,14 +2653,6 @@ class ContactTest(TembaTest):
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
                              '"Telegram", "Email", "Facebook", "External" should be included.')
-
-        csv_file = open('%s/test_imports/sample_contacts.xlsx' % settings.MEDIA_ROOT, 'rb')
-        post_data = dict(csv_file=csv_file)
-        response = self.client.post(import_url, post_data)
-        self.assertFormError(response, 'form', 'csv_file',
-                             "The file you provided has an unsupported format. "
-                             "Please make sure you upload a CSV file or an Excel file "
-                             "saved as Excel 2003 format(.xls)")
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -2697,7 +2727,7 @@ class ContactTest(TembaTest):
 
         self.assertIsNone(contact1.get_field_raw('district'))  # wasn't included
         self.assertEquals(contact1.get_field_raw('job_and_projects'), 'coach')  # renamed from 'Professional Status'
-        self.assertEquals(contact1.get_field_raw('postal_code'), '600.0')
+        self.assertEquals(contact1.get_field_raw('postal_code'), '600.35')
         self.assertEquals(contact1.get_field_raw('joined'), '31-12-2014 00:00')  # persisted value is localized to org
         self.assertEquals(contact1.get_field_display('joined'), '31-12-2014 00:00')  # display value is also localized
 
@@ -3177,6 +3207,12 @@ class ContactTest(TembaTest):
         twitter = Channel.create(self.org, self.user, None, 'TT', name="Twitter Channel", address="@rapidpro")
         Channel.create(self.org, self.user, None, 'TG', name="Twitter Channel", address="@rapidpro")
 
+        # can't set preferred channel for test contacts
+        self.test_contact = self.create_contact(name="Test Contact", number="+12065551212", is_test=True)
+        self.test_contact.update_urns(self.admin, ['tel:+12065551212', 'telegram:12515', 'twitter:macklemore'])
+        self.test_contact.set_preferred_channel(twitter)
+        self.assertEqual(self.test_contact.urns.all()[0].scheme, TEL_SCHEME)
+
         # update our contact URNs, give them telegram and twitter with telegram being preferred
         self.joe.update_urns(self.admin, ['telegram:12515', 'twitter:macklemore'])
 
@@ -3339,6 +3375,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_key("2up"))   # can't start with a number
         self.assertFalse(ContactField.is_valid_key("name"))  # can't be a reserved name
         self.assertFalse(ContactField.is_valid_key("uuid"))
+        self.assertFalse(ContactField.is_valid_key("a" * 37))  # too long
 
     def test_is_valid_label(self):
         self.assertTrue(ContactField.is_valid_label("Age"))
@@ -3385,9 +3422,9 @@ class ContactFieldTest(TembaTest):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
-            filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = open_workbook(filename, 'rb')
-            sheet = workbook.sheets()[0]
+            filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+            workbook = load_workbook(filename=filename)
+            sheet = workbook.worksheets[0]
 
             # check our headers
             self.assertExcelRow(sheet, 0, ["UUID", "Name", "Email", "Phone", "Telegram", "Twitter", "First", "Second", "Third"])
@@ -3398,7 +3435,7 @@ class ContactFieldTest(TembaTest):
             # second should be Ben
             self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", ""])
 
-            self.assertEqual(sheet.nrows, 3)  # no other contacts
+            self.assertEqual(len(list(sheet.rows)), 3)  # no other contacts
 
         # more contacts do not increase the queries
         contact3 = self.create_contact('Luol Deng', '+12078776655', twitter='deng')
@@ -3409,9 +3446,9 @@ class ContactFieldTest(TembaTest):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
-            filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = open_workbook(filename, 'rb')
-            sheet = workbook.sheets()[0]
+            filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+            workbook = load_workbook(filename=filename)
+            sheet = workbook.worksheets[0]
 
             # check our headers have 2 phone columns and Twitter
             self.assertExcelRow(sheet, 0, ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"])
@@ -3421,28 +3458,28 @@ class ContactFieldTest(TembaTest):
             self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""])
             self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "+12078778899", "", "", "stephen", "", "", ""])
 
-            self.assertEqual(sheet.nrows, 5)  # no other contacts
+            self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
 
         # export a specified group of contacts
         self.client.post(reverse('contacts.contactgroup_create'), dict(name="Poppin Tags", group_query='Haggerty'))
         group = ContactGroup.user_groups.get(name='Poppin Tags')
         self.client.get(reverse('contacts.contact_export'), dict(g=group.id))
         task = ExportContactsTask.objects.all().order_by('-id').first()
-        filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = open_workbook(filename, 'rb')
-        sheet = workbook.sheets()[0]
+        filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+        workbook = load_workbook(filename=filename)
+        sheet = workbook.worksheets[0]
 
         # just the header and a single contact
-        self.assertEqual(sheet.nrows, 2)
+        self.assertEqual(len(list(sheet.rows)), 2)
 
         # now try with an anonymous org
         with AnonymousOrg(self.org):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
-            filename = "%s/test_orgs/%d/contact_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = open_workbook(filename, 'rb')
-            sheet = workbook.sheets()[0]
+            filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+            workbook = load_workbook(filename=filename)
+            sheet = workbook.worksheets[0]
 
             # check our headers have 2 phone columns and Twitter
             self.assertExcelRow(sheet, 0, ["UUID", "Name", "First", "Second", "Third"])
@@ -3452,7 +3489,7 @@ class ContactFieldTest(TembaTest):
             self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "", "", ""])
             self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "", ""])
 
-            self.assertEqual(sheet.nrows, 5)  # no other contacts
+            self.assertEqual(len(list(sheet.rows)), 5)  # no other contacts
 
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')

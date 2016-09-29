@@ -44,6 +44,7 @@ djorm-ext-core==0.7
 djorm-ext-expressions==0.6
 djorm-ext-hstore==0.5
 enum34==1.0.3
+et-xmlfile==1.0.1
 flake8==2.5.4
 future==0.15.2
 geojson==1.0.7
@@ -58,6 +59,7 @@ iptools==0.6.1
 ipython==2.2.0
 iso639==0.1.1
 isoweek==1.2.0
+jdcal==1.3
 Jinja2==2.7.3
 kombu==3.0.35
 -e git+http://github.com/nyaruka/python-librato-bg.git@d670939749e051a7baeedd1d353c9cbd0e8772c4#egg=librato_bg
@@ -72,6 +74,7 @@ nose==1.3.7
 nose-perfdump==1.5
 numpy==1.8.1
 oauthlib==0.6.1
+openpyxl==2.4.0
 pep8==1.7.0
 phonenumbers
 Pillow==1.7.8
@@ -104,7 +107,7 @@ rsa==3.1.1
 selenium==2.31.0
 simplejson==3.4.1
 six==1.6.1
--e git+https://github.com/nyaruka/smartmin.git@26b7a8980a4894faab9d4cf24ea3d2aefbfdfc1d#egg=smartmin
+-e git+https://github.com/nyaruka/smartmin.git@9c7e6a9a06f5d9a0728ea1999c00e418a4a6cae7#egg=smartmin
 sqlparse==0.1.11
 stop-words==2015.2.23.1
 stripe==1.11.0
@@ -114,6 +117,13 @@ twython==3.1.2
 Unidecode==0.4.14
 unittest2==0.5.1
 uservoice==0.0.19
-xlrd==0.9.3
 xlutils==1.7.1
-xlwt==0.7.5
+django-excel==0.0.5
+pyexcel==0.2.5
+pyexcel-io==0.2.3
+pyexcel-webio==0.0.7
+pyexcel-xls==0.2.3
+pyexcel-xlsx==0.2.2
+texttable==0.8.4
+xlrd==1.0.0
+xlwt==1.1.2

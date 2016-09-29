@@ -151,7 +151,7 @@ class TwilioHandler(View):
         elif action == 'received':
             channel = Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
             if not channel:
-                raise Exception("No active channel found for number: %s" % to_number)
+                raise HttpResponse("No active channel found for number: %s" % to_number, status=400)
 
             # validate this request is coming from twilio
             org = channel.org
