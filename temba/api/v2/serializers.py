@@ -474,6 +474,39 @@ class ContactFieldReadSerializer(ReadSerializer):
         fields = ('key', 'label', 'value_type')
 
 
+class ContactFieldWriteSerializer(WriteSerializer):
+    VALUE_TYPES = extract_constants(Value.TYPE_CONFIG, reverse=True)
+
+    label = serializers.CharField(required=True, max_length=ContactField.MAX_LABEL_LEN, validators=[
+        UniqueForOrgValidator(ContactField.objects.filter(is_active=True))
+    ])
+    value_type = serializers.ChoiceField(required=True, choices=VALUE_TYPES.keys())
+
+    def validate_label(self, value):
+        if not ContactField.is_valid_label(value):
+            raise serializers.ValidationError("Can only contain letters, numbers and hypens.")
+
+        key = ContactField.make_key(value)
+        if not ContactField.is_valid_key(key):
+            raise serializers.ValidationError("Generated key \"%s\" is invalid or a reserved name." % key)
+
+        return value
+
+    def validate_value_type(self, value):
+        return self.VALUE_TYPES.get(value)
+
+    def save(self):
+        label = self.validated_data.get('label')
+        value_type = self.validated_data.get('value_type')
+
+        if self.instance:
+            key = self.instance.key
+        else:
+            key = ContactField.make_key(label)
+
+        return ContactField.get_or_create(self.context['org'], self.context['user'], key, label, value_type=value_type)
+
+
 class ContactGroupReadSerializer(ReadSerializer):
     count = serializers.SerializerMethodField()
 

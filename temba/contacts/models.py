@@ -234,10 +234,11 @@ class ContactField(SmartModel):
     Represents a type of field that can be put on Contacts.
     """
     MAX_KEY_LEN = 36
+    MAX_LABEL_LEN = 36
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
 
-    label = models.CharField(verbose_name=_("Label"), max_length=36)
+    label = models.CharField(verbose_name=_("Label"), max_length=MAX_LABEL_LEN)
 
     key = models.CharField(verbose_name=_("Key"), max_length=MAX_KEY_LEN)
 
@@ -260,7 +261,7 @@ class ContactField(SmartModel):
     @classmethod
     def is_valid_label(cls, label):
         label = label.strip()
-        return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0)
+        return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0) and len(label) <= cls.MAX_LABEL_LEN
 
     @classmethod
     def hide_field(cls, org, user, key):
