@@ -3375,6 +3375,7 @@ class ContactFieldTest(TembaTest):
         self.assertFalse(ContactField.is_valid_key("2up"))   # can't start with a number
         self.assertFalse(ContactField.is_valid_key("name"))  # can't be a reserved name
         self.assertFalse(ContactField.is_valid_key("uuid"))
+        self.assertFalse(ContactField.is_valid_key("a" * 37))  # too long
 
     def test_is_valid_label(self):
         self.assertTrue(ContactField.is_valid_label("Age"))

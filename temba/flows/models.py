@@ -448,8 +448,11 @@ class Flow(TembaModel):
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
 
         # if we handled it, increment our unread count
-        if handled and not call.contact.is_test:
-            run.flow.increment_unread_responses()
+        if handled:
+
+            if not call.contact.is_test:
+                run.flow.increment_unread_responses()
+
             if msg.id:
                 Msg.mark_handled(msg)
 
