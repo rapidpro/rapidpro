@@ -6592,9 +6592,11 @@ class ChikkaTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
+                # REPLY currently disabled per Chikka
                 # assert that we were called as a reply
-                self.assertEqual(mock.call_args[1]['data']['message_type'], 'REPLY')
-                self.assertEqual(mock.call_args[1]['data']['request_id'], '4004')
+                # self.assertEqual(mock.call_args[1]['data']['message_type'], 'REPLY')
+                # self.assertEqual(mock.call_args[1]['data']['request_id'], '4004')
+
                 self.clear_cache()
 
             with patch('requests.get') as mock:
