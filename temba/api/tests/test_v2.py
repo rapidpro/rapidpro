@@ -1906,7 +1906,7 @@ class APITest(TembaTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['next'], None)
-        self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1, joe_run1])
+        self.assertResultsById(response, [joe_run3, frank_run2, joe_run2, frank_run1, joe_run1])
 
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
         frank_run2_steps = list(frank_run2.steps.order_by('pk'))
@@ -1914,7 +1914,7 @@ class APITest(TembaTest):
         joe_msgs = list(Msg.objects.filter(contact=self.joe).order_by('pk'))
         frank_msgs = list(Msg.objects.filter(contact=self.frank).order_by('pk'))
 
-        self.assertEqual(response.json['results'][2], {
+        self.assertEqual(response.json['results'][1], {
             'id': frank_run2.pk,
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
@@ -2020,14 +2020,14 @@ class APITest(TembaTest):
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
             response = self.fetchJSON(url)
 
-        self.assertEqual(response.json['results'][2]['steps'][0]['messages'], [
+        self.assertEqual(response.json['results'][1]['steps'][0]['messages'], [
             {
                 'id': None,
                 'broadcast': frank_msgs[3].broadcast_id,
                 'text': "Quelle est votre couleur préférée?"
             }
         ])
-        self.assertEqual(response.json['results'][2]['steps'][0]['text'], "Quelle est votre couleur préférée?")
+        self.assertEqual(response.json['results'][1]['steps'][0]['text'], "Quelle est votre couleur préférée?")
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)
@@ -2035,7 +2035,7 @@ class APITest(TembaTest):
 
         # filter by flow
         response = self.fetchJSON(url, 'flow=%s' % flow1.uuid)
-        self.assertResultsById(response, [joe_run2, frank_run2, frank_run1, joe_run1])
+        self.assertResultsById(response, [frank_run2, joe_run2, frank_run1, joe_run1])
 
         # doesn't work if flow is inactive
         flow1.is_active = False
@@ -2070,7 +2070,7 @@ class APITest(TembaTest):
 
         # filter by after
         response = self.fetchJSON(url, 'after=%s' % format_datetime(frank_run1.modified_on))
-        self.assertResultsById(response, [joe_run3, joe_run2, frank_run2, frank_run1])
+        self.assertResultsById(response, [joe_run3, frank_run2, joe_run2, frank_run1])
 
         # filter by before
         response = self.fetchJSON(url, 'before=%s' % format_datetime(frank_run1.modified_on))
