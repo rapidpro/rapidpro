@@ -2512,7 +2512,7 @@ class FlowRun(models.Model):
             return unicode(fields), count + 1
 
     @classmethod
-    def bulk_exit(cls, runs, exit_type, exited_on=None):
+    def bulk_exit(cls, runs, exit_type):
         """
         Exits (expires, interrupts) runs in bulk
         """
@@ -2533,15 +2533,13 @@ class FlowRun(models.Model):
             if flow:
                 flow.remove_active_for_run_ids(run_ids)
 
-        if not exited_on:
-            exited_on = timezone.now()
-
         from .tasks import continue_parent_flows
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for batch in chunk_list(runs, 1000):
             ids = [r['id'] for r in batch]
             run_objs = FlowRun.objects.filter(pk__in=ids)
+            exited_on = timezone.now()
             run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type)
 
             # continue the parent flows to continue async
