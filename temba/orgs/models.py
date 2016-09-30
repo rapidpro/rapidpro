@@ -694,7 +694,6 @@ class Org(SmartModel):
 
         nexmo_uuid = str(uuid4())
         nexmo_config = {NEXMO_KEY: api_key.strip(), NEXMO_SECRET: api_secret.strip(), NEXMO_UUID: nexmo_uuid}
-
         client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
         app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), nexmo_uuid)
 

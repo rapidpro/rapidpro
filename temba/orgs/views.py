@@ -33,7 +33,6 @@ from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.channels.models import Channel
 from temba.formax import FormaxMixin
-from temba.temba_nexmo import NexmoClient
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
 from timezones.forms import TimeZoneField
@@ -692,8 +691,10 @@ class OrgCRUDL(SmartCRUDL):
                 api_secret = self.cleaned_data.get('api_secret', None)
 
                 try:
-                    client = NexmoClient(api_key, api_secret)
-                    client.test_credentials()
+                    from nexmo import Client as NexmoClient
+
+                    client = NexmoClient(key=api_key, secret=api_secret)
+                    client.get_balance()
                 except Exception:
                     raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
 
