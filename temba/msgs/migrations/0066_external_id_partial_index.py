@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0066_external_id_partial_index'),
+        ('msgs', '0065_backfill_broadcast_contact_recipients'),
     ]
 
     operations = [
