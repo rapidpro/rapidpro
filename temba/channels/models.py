@@ -1431,10 +1431,11 @@ class Channel(TembaModel):
         url = 'https://post.chikka.com/smsapi/request'
         start = time.time()
 
+        log_payload = payload.copy()
+        log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
+
         try:
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
-            log_payload = payload.copy()
-            log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
         except Exception as e:
             raise SendException(unicode(e),
                                 method='POST',
