@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
+from redis_cache import get_redis_connection
 from temba.channels.models import Channel
 from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
@@ -72,6 +73,7 @@ class CallHandler(View):
             hangup = False
             saved_media_url = None
             text = None
+            media_url = None
 
             if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
 
@@ -93,19 +95,29 @@ class CallHandler(View):
                 text = user_response.get('Digits', None)
 
             elif channel_type in [Channel.TYPE_NEXMO]:
+                r = get_redis_connection()
                 if request.body:
                     body_json = json.loads(request.body)
                     media_url = body_json.get('recording_url', None)
 
                     if media_url:
-                        saved_media_url = client.download_media(media_url)
+                        r.set('last_call:media_url:%d' % call.pk, media_url)
 
+                    media_url = r.get('last_call:media_url:%d' % call.pk, None)
                     text = body_json.get('dtmf', None)
 
                 has_event = '1' == request.GET.get('has_event', '0')
                 if has_event:
                     print 'event======'
-                    return
+                    return HttpResponse(unicode(''))
+
+                save_media = '1' == request.GET.get('save_media', '0')
+                if media_url:
+                    if save_media:
+                        saved_media_url = client.download_media(media_url)
+                        r.delete('last_call:media_url:%d' % call.pk)
+                    else:
+                        return HttpResponse(unicode(''))
 
             if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():

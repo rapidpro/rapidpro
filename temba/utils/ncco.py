@@ -87,4 +87,8 @@ class Response(object):
             result['eventUrl'] = [kwargs.get('action')]
 
         self.document.append(result)
+        result = {"action": "input", "maxDigits": "1", "submitOnHash": True,
+                  "eventUrl": ["%s?save_media=1" % kwargs.get('action')]}
+        self.document.append(result)
+
         return self
