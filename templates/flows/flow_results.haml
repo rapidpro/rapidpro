@@ -17,7 +17,7 @@
       .pull-right
         %a.btn.btn-success{ href: "#", onClick:"exportFlow()" }
           -trans "Download"
-        %a.btn{ href: "{% url 'flows.flow_editor' object.pk %}" }
+        %a.btn{ href: "{% url 'flows.flow_editor' object.uuid %}" }
           -trans "View"
 
 -block buttons

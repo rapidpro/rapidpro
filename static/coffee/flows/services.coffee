@@ -95,6 +95,12 @@ app.service "utils", ['$modal', ($modal) ->
       return false
     return true
 
+  zip: () ->
+    lengthArray = (arr.length for arr in arguments)
+    length = Math.min(lengthArray...)
+    for i in [0...length]
+      arr[i] for arr in arguments
+
   openModal: (templateUrl, controller, resolveObj) ->
     $modal.open
       keyboard: false
@@ -406,15 +412,16 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
     TEXT = 'F'
     VOICE = 'V'
     SURVEY = 'S'
+    USSD = 'U'
 
-    ALL = [TEXT,VOICE,SURVEY]
+    ALL = [TEXT,VOICE,SURVEY,USSD]
 
     constructor: ->
 
       @actions = [
         { type:'say', name:'Play Message', verbose_name:'Play a message', icon: 'icon-bubble-3', message: true, filter:[VOICE] }
         { type:'play', name:'Play Recording', verbose_name:'Play a contact recording', icon: 'icon-mic', filter:[VOICE]}
-        { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true, filter:ALL }
+        { type:'reply', name:'Send Message', verbose_name:'Send an SMS response', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE,SURVEY,USSD] }
         { type:'send', name:'Send Message', verbose_name: 'Send an SMS to somebody else', icon: 'icon-bubble-3', message:true, filter:[TEXT,VOICE] }
         { type:'add_label', name:'Add Label', verbose_name: 'Add a label to a Message', icon: 'icon-tag', filter:ALL }
         { type:'save', name:'Update Contact', verbose_name:'Update the contact', icon: 'icon-user', filter:ALL }
@@ -431,6 +438,8 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       @rulesets = [
 
         { type: 'wait_message', name:'Wait for Response', verbose_name: 'Wait for response', split:'message response', filter:[TEXT,SURVEY] },
+        { type: 'wait_menu', name:'Wait for USSD Menu', verbose_name: 'Wait for USSD Menu', split:'USSD Menu response', filter:USSD },
+        { type: 'wait_ussd', name:'Wait for USSD Response', verbose_name: 'Wait for USSD response', split:'USSD response', filter:USSD },
 
         # survey media types
         { type: 'wait_photo', name:'Wait for a photo', verbose_name: 'Wait for photo', filter:[SURVEY] },
@@ -444,7 +453,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'wait_digits', name:'Get Digits', verbose_name: 'Wait for multiple digits', split:'digits', filter:VOICE },
 
         # online flows
-        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE], rules:[
+        { type: 'webhook', name:'Call Webhook', verbose_name: 'Call webhook', split:'webhook response', filter:[TEXT,VOICE,USSD], rules:[
           { name: 'Success', test: { type: 'webhook_status', status: 'success'}},
           { name: 'Failure', test: { type: 'webhook_status', status: 'failure'}},
         ]},
@@ -472,8 +481,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
 
         { type: 'random', name:'Random Split', verbose_name: 'Split randomly', hide_other: true, filter:ALL},
 
-        # Not supported yet
-        # { type: 'group', verbose_name: 'Split by group membership', ivr:true, text:true},
+        { type: 'group', name:'Group Membership', verbose_name: 'Split by group membership', filter:ALL}
 
       ]
 
@@ -482,10 +490,14 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         'subflow': ['subflow'],
         'timeout': ['wait_message'],
         'webhook_status': ['webhook', 'resthook'],
-        'airtime_status': ['airtime']
+        'airtime_status': ['airtime'],
+        'in_group': ['group']
       }
 
-      @supportsRules = ['wait_message', 'expression', 'flow_field', 'contact_field', 'wait_digits', 'form_field']
+      @supportsRules = [
+        'wait_message', 'wait_menu', 'wait_ussd', 'wait_digits',
+        'expression', 'flow_field', 'contact_field', 'form_field'
+      ]
 
       @operators = [
         { type: 'contains_any', name:'Contains any', verbose_name:'has any of these words', operands: 1, localized:true, show:true }
@@ -507,11 +519,13 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'ward', name: 'Has a ward', verbose_name:'has a ward', operands: 2, operand_required: false, auto_complete: true, show:true}
         { type: 'regex', name: 'Regex', verbose_name:'matches regex', operands: 1, voice:true, localized:true, show:true }
         { type: 'subflow', name: 'Subflow', verbose_name:'subflow', operands: 0, show:false }
+        { type: 'in_group', name:'Is in group', verbose_name:'is in group', operands:0, show:false }
         { type: 'airtime_status', name: 'Airtime Status', verbose_name:'airtime', operands: 0, show:false }
         { type: 'webhook', name: 'Webhook', verbose_name:'webhook', operands: 0, show:false }
         { type: 'webhook_status', name: 'Webhook Status', verbose_name:'webhook status', operands: 0, show:false }
         { type: 'true', name: 'Other', verbose_name:'contains anything', operands: 0, show:false }
         { type: 'timeout', name:'Timeout', verbose_name:'timeout', operands:0, show:false }
+        { type: 'interrupted_status', name:'Interrupted', verbose_name:'interrupted status', operands:0, show:false }
       ]
 
       @opNames =
@@ -708,19 +722,25 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         return @isPausingRulesetType(node.ruleset_type)
       return false
 
+    isUssdRuleset: (node) ->
+      if not node?.actions
+        return node.ruleset_type in ['wait_menu', 'wait_ussd']
+      return false
+
     isPausingRulesetType: (ruleset_type) ->
       return ruleset_type in ['wait_message', 'wait_recording', 'wait_digit', 'wait_digits']
 
     # check if a potential connection would result in an invalid loop
     detectLoop: (nodeId, targetId, path=[]) ->
 
+      node = @getNode(targetId)
+
       # can't go back on ourselves
-      if nodeId == targetId
+      if nodeId == targetId and not @isUssdRuleset(node)
         throw new Error('Loop detected: ' + nodeId)
 
       # break out if our target is a pausing ruleset
-      node = @getNode(targetId)
-      if node and @isPausingRuleset(node)
+      if node and (@isPausingRuleset(node) or @isUssdRuleset(node))
         return false
 
       # check if we just ate our tail
@@ -730,6 +750,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
       # add ourselves
       path = path.slice()
       path.push(targetId)
+
 
       # if we have rules, check each one
       if node?.rules
@@ -1115,6 +1136,16 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
               items++
               if category._missingTranslation
                 missing++
+          # ussd ruleset
+          if ruleset.ruleset_type in ["wait_menu", "wait_ussd"]
+            items++
+            if ruleset.config._missingTranslation
+              missing++
+            if ruleset.ruleset_type == "wait_menu"
+              for item in ruleset.rules
+                items++
+                if item._missingTranslation
+                  missing++
 
         # set our stats and translation status
         flow._pctTranslated = (Math.floor(((items - missing) / items) * 100))

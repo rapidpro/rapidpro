@@ -25,7 +25,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, remove_control_characters
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.email import send_template_email
 from temba.utils.expressions import evaluate_template
@@ -58,6 +58,7 @@ HANDLED = 'H'
 ERRORED = 'E'
 FAILED = 'F'
 RESENT = 'R'
+INTERRUPTED = 'X'
 
 INCOMING = 'I'
 OUTGOING = 'O'
@@ -87,6 +88,8 @@ STATUS_CONFIG = (
     (ERRORED, _("Error Sending"), 'errored'),  # there was an error during delivery
     (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
     (RESENT, _("Resent message"), 'resent'),   # we retried this message
+
+    (INTERRUPTED, _("Interrupt message"), 'interrupted'),   # we were interrupted, ie, ussd termination
 )
 
 
@@ -726,7 +729,7 @@ class Msg(models.Model):
         """
         handlers = get_message_handlers()
 
-        if msg.contact.is_blocked:
+        if msg.contact.is_blocked and not msg.status == INTERRUPTED:
             msg.visibility = Msg.VISIBILITY_ARCHIVED
             msg.modified_on = timezone.now()
             msg.save(update_fields=['visibility', 'modified_on'])
@@ -740,7 +743,7 @@ class Msg(models.Model):
                     handled = handler.handle(msg)
 
                     if start:  # pragma: no cover
-                        print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk)
+                        print "[%0.2f] %s for %d" % (time.time() - start, handler.name, msg.pk or 0)
 
                     if handled:
                         break
@@ -749,7 +752,8 @@ class Msg(models.Model):
                     traceback.print_exc(e)
                     logger.exception("Error in message handling: %s" % e)
 
-        cls.mark_handled(msg)
+        if not msg.status == INTERRUPTED:
+            cls.mark_handled(msg)
 
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
@@ -1126,13 +1130,9 @@ class Msg(models.Model):
         steps = list(self.steps.all())  # steps may have been pre-fetched
         return steps[0] if steps else None
 
-    def get_flow_id(self):
+    def get_flow(self):
         step = self.get_flow_step()
-        return step.run.flow_id if step else None
-
-    def get_flow_name(self):
-        step = self.get_flow_step()
-        return step.run.flow.name if step else ""
+        return step.run.flow if step else None
 
     def as_task_json(self):
         """
@@ -1212,7 +1212,11 @@ class Msg(models.Model):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        msg = Msg.objects.create(**msg_args)
+        # fake interrupt message to handle the flow properly
+        if status == INTERRUPTED:
+            msg = Msg(**msg_args)
+        else:
+            msg = Msg.objects.create(**msg_args)
 
         # if this contact is currently stopped, unstop them
         if contact.is_stopped:
@@ -1222,7 +1226,7 @@ class Msg(models.Model):
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
         # ivr messages are handled in handle_call
-        if status == PENDING and msg_type != IVR:
+        if status in (PENDING, INTERRUPTED) and msg_type != IVR:
             msg.handle()
 
             # fire an event off for this message
@@ -1598,8 +1602,6 @@ class SystemLabel(models.Model):
         start = time.time()
         squash_count = 0
         for count in SystemLabel.objects.filter(id__gt=last_squash).order_by('org_id', 'label_type').distinct('org_id', 'label_type'):
-            print "Squashing: %d %s" % (count.org_id, count.label_type)
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_systemlabel(%s, %s);", (count.org_id, count.label_type))
@@ -1847,6 +1849,9 @@ class Label(TembaModel):
     def is_folder(self):
         return self.label_type == Label.TYPE_FOLDER
 
+    def release(self):
+        self.delete()
+
     def __unicode__(self):
         if self.folder:
             return "%s > %s" % (unicode(self.folder), self.name)
@@ -1931,13 +1936,27 @@ class ExportMessagesTask(SmartModel):
             self.save(update_fields=['is_finished'])
 
     def do_export(self):
-        from xlwt import Workbook, XFStyle
-        book = Workbook()
+        from openpyxl import Workbook
+        from openpyxl.writer.write_only import WriteOnlyCell
+        from openpyxl.utils.cell import get_column_letter
 
-        date_style = XFStyle()
-        date_style.num_format_str = 'DD-MM-YYYY HH:MM:SS'
+        book = Workbook(write_only=True)
+        max_rows = 1048576
+
+        small_width = 15
+        medium_width = 20
+        large_width = 100
 
         fields = ['Date', 'Contact', 'Contact Type', 'Name', 'Contact UUID', 'Direction', 'Text', 'Labels', "Status"]
+        fields_col_width = [medium_width,  # Date
+                            medium_width,  # Contact
+                            small_width,   # Contact Type
+                            medium_width,  # Name
+                            medium_width,  # Contact UUID
+                            small_width,   # Direction
+                            large_width,   # Text
+                            medium_width,  # Labels
+                            small_width]   # Status
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
@@ -1961,12 +1980,18 @@ class ExportMessagesTask(SmartModel):
 
         messages_sheet_number = 1
 
-        current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
-        for col in range(len(fields)):
-            field = fields[col]
-            current_messages_sheet.write(0, col, unicode(field))
+        current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+        sheet_row = []
+        for col in range(1, len(fields) + 1):
+            index = col - 1
+            field = fields[index]
+            cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
+            sheet_row.append(cell)
+            current_messages_sheet.column_dimensions[get_column_letter(col)].width = fields_col_width[index]
 
-        row = 1
+        current_messages_sheet.append(sheet_row)
+
+        row = 2
         processed = 0
         start = time.time()
 
@@ -1977,43 +2002,62 @@ class ExportMessagesTask(SmartModel):
                                select_related=['contact', 'contact_urn'],
                                prefetch_related=[prefetch]):
 
-            if row >= 65535:
+            if row >= max_rows:
                 messages_sheet_number += 1
-                current_messages_sheet = book.add_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+                current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
+                sheet_row = []
                 for col in range(len(fields)):
                     field = fields[col]
-                    current_messages_sheet.write(0, col, unicode(field))
-                row = 1
+                    cell = WriteOnlyCell(current_messages_sheet, value=unicode(field))
+                    sheet_row.append(cell)
+
+                current_messages_sheet.append(sheet_row)
+                row = 2
 
             contact_name = msg.contact.name if msg.contact.name else ''
             contact_uuid = msg.contact.uuid
-            created_on = msg.created_on.astimezone(pytz.utc).replace(tzinfo=None)
+            created_on = msg.created_on.astimezone(pytz.utc).replace(microsecond=0, tzinfo=None)
             msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
 
             # only show URN path if org isn't anon and there is a URN
             if self.org.is_anon:
                 urn_path = msg.contact.anon_identifier
             elif msg.contact_urn:
-                urn_path = msg.contact_urn.get_display(org=self.org, full=True)
+                urn_path = msg.contact_urn.get_display(org=self.org, formatted=False)
             else:
                 urn_path = ''
 
             urn_scheme = msg.contact_urn.scheme if msg.contact_urn else ''
 
-            current_messages_sheet.write(row, 0, created_on, date_style)
-            current_messages_sheet.write(row, 1, urn_path)
-            current_messages_sheet.write(row, 2, urn_scheme)
-            current_messages_sheet.write(row, 3, contact_name)
-            current_messages_sheet.write(row, 4, contact_uuid)
-            current_messages_sheet.write(row, 5, msg.get_direction_display())
-            current_messages_sheet.write(row, 6, msg.text)
-            current_messages_sheet.write(row, 7, msg_labels)
-            current_messages_sheet.write(row, 8, msg.get_status_display())
+            sheet_row = []
+
+            text = remove_control_characters(msg.text)
+
+            cell = WriteOnlyCell(current_messages_sheet, value=created_on)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=urn_path)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=urn_scheme)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=contact_name)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=contact_uuid)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_direction_display())
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=text)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=msg_labels)
+            sheet_row.append(cell)
+            cell = WriteOnlyCell(current_messages_sheet, value=msg.get_status_display())
+            sheet_row.append(cell)
+
+            current_messages_sheet.append(sheet_row)
+
             row += 1
             processed += 1
 
             if processed % 10000 == 0:
-                current_messages_sheet.flush_row_data()
                 print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
                       (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
 
@@ -2029,7 +2073,7 @@ class ExportMessagesTask(SmartModel):
         from temba.assets.views import get_asset_url
 
         store = AssetType.message_export.store
-        store.save(self.pk, File(temp), 'xls')
+        store.save(self.pk, File(temp), 'xlsx')
 
         branding = self.org.get_branding()
 

@@ -99,6 +99,11 @@ findMatches = (query, data, start, lastIdx, prependChar = undefined) ->
 
   ele = $(".font-checkbox")
 
+  helpText = ele.children('.controls').children('.help-block').children('label')
+  helpText.on 'click', (event) ->
+    $(this).parent().parent('.field-input').children('.glyph.notif-checkbox').click()
+    event.preventDefault();
+
   glyphCheck = ele.children('.controls').children('.glyph.notif-checkbox')
   glyphCheck.on 'click', ->
     cell = $(this).parent('.field-input')

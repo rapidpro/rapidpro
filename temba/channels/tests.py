@@ -30,7 +30,7 @@ from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
-from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
@@ -810,6 +810,33 @@ class ChannelTest(TembaTest):
         response = self.client.post("%s?signature=sig&ts=%d" % (reverse('sync', args=[self.tel_channel.pk]), ts), content_type='application/json')
         self.assertEquals(401, response.status_code)
         self.assertEquals(3, json.loads(response.content)['error_id'])
+
+    def test_is_ussd_channel(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        # add a non USSD channel
+        reg_data = dict(cmds=[dict(cmd="gcm", gcm_id="GCM111", uuid='uuid'),
+                              dict(cmd='status', cc='RW', dev='Nexus')])
+
+        response = self.client.post(reverse('register'), json.dumps(reg_data), content_type='application/json')
+        self.assertEqual(200, response.status_code)
+
+        # add a USSD channel
+        post_data = {
+            "country": "ZA",
+            "number": "+273454325324",
+            "account_key": "account1",
+            "conversation_key": "conversation1",
+            "transport_name": ""
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
+        self.assertEqual(302, response.status_code)
+
+        self.assertEqual(Channel.objects.first().channel_type, Channel.TYPE_VUMI_USSD)
+        self.assertTrue(Channel.objects.first().is_ussd())
+        self.assertFalse(Channel.objects.last().is_ussd())
 
     def test_claim(self):
         # no access for regular users
@@ -2566,6 +2593,41 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.chikka_handler', args=[channel.uuid]))
 
+    def test_claim_vumi_ussd(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "country": "ZA",
+            "number": "+273454325324",
+            "account_key": "account1",
+            "conversation_key": "conversation1",
+            "transport_name": ""
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
+        self.assertEquals(channel.country, post_data['country'])
+        self.assertEquals(channel.address, post_data['number'])
+        self.assertEquals(channel.config_json()['account_key'], post_data['account_key'])
+        self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
+        self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('handlers.vumi_handler', args=['receive', channel.uuid]))
+        self.assertContains(response, reverse('handlers.vumi_handler', args=['event', channel.uuid]))
+
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
         # set our last seen to a while ago
@@ -2878,14 +2940,22 @@ class AfricasTalkingTest(TembaTest):
         # ok, what happens with an invalid uuid?
         post_data = dict(id="external1", status="Success")
         response = self.client.post(reverse('handlers.africas_talking_handler', args=['delivery', 'not-real-uuid']), post_data)
-
         self.assertEquals(404, response.status_code)
 
         # ok, try with a valid uuid, but invalid message id
         delivery_url = reverse('handlers.africas_talking_handler', args=['delivery', self.channel.uuid])
         response = self.client.post(delivery_url, post_data)
-
         self.assertEquals(404, response.status_code)
+
+        # requires posts
+        delivery_url = reverse('handlers.africas_talking_handler', args=['delivery', self.channel.uuid])
+        response = self.client.get(delivery_url, post_data)
+        self.assertEquals(400, response.status_code)
+
+        # missing status
+        del post_data['status']
+        response = self.client.post(delivery_url, post_data)
+        self.assertEquals(400, response.status_code)
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
@@ -2910,8 +2980,11 @@ class AfricasTalkingTest(TembaTest):
         post_data = {'from': "0788123123", 'text': "Hello World"}
         callback_url = reverse('handlers.africas_talking_handler', args=['callback', self.channel.uuid])
 
-        response = self.client.post(callback_url, post_data)
+        # missing test data
+        response = self.client.post(callback_url, dict())
+        self.assertEquals(400, response.status_code)
 
+        response = self.client.post(callback_url, post_data)
         self.assertEquals(200, response.status_code)
 
         # load our message
@@ -4076,6 +4149,203 @@ class VumiTest(TembaTest):
             settings.SEND_MESSAGES = False
 
 
+class VumiUssdTest(TembaTest):
+
+    def setUp(self):
+        super(VumiUssdTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_VUMI_USSD, None, '+250788123123',
+                                      config=dict(account_key='vumi-key', access_token='vumi-token', conversation_key='key'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_receive(self):
+        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
+
+        response = self.client.get(callback_url)
+        self.assertEqual(response.status_code, 405)
+
+        response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
+        self.assertEqual(response.status_code, 404)
+
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="Hello from Vumi", transport_type='ussd')
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello from Vumi", msg.text)
+        self.assertEquals('123456', msg.external_id)
+
+    def test_send(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        self.create_group("Reporters", [joe])
+        msg = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        msg.refresh_from_db()
+        r = get_redis_connection()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("1515", msg.external_id)
+                self.assertEquals(1, mock.call_count)
+
+                # should have a failsafe that it was sent
+                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
+
+                # try sending again, our failsafe should kick in
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # we shouldn't have been called again
+                self.assertEquals(1, mock.call_count)
+
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_ack(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        self.create_group("Reporters", [joe])
+        msg = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        msg.refresh_from_db()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("1515", msg.external_id)
+                self.assertEquals(1, mock.call_count)
+
+                # simulate Vumi calling back to us sending an ACK event
+                data = {
+                    "transport_name": "ussd_transport",
+                    "event_type": "ack",
+                    "event_id": unicode(uuid.uuid4()),
+                    "sent_message_id": unicode(uuid.uuid4()),
+                    "helper_metadata": {},
+                    "routing_metadata": {},
+                    "message_version": "20110921",
+                    "timestamp": unicode(timezone.now()),
+                    "transport_metadata": {},
+                    "user_message_id": msg.external_id,
+                    "message_type": "event"
+                }
+                callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
+                self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+                # it should be SENT now
+                msg.refresh_from_db()
+                self.assertEquals(SENT, msg.status)
+
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    def test_nack(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        self.create_group("Reporters", [joe])
+        msg = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        msg.refresh_from_db()
+        r = get_redis_connection()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+                self.assertEquals("1515", msg.external_id)
+                self.assertEquals(1, mock.call_count)
+
+                # should have a failsafe that it was sent
+                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
+
+                # simulate Vumi calling back to us sending an NACK event
+                data = {
+                    "transport_name": "ussd_transport",
+                    "event_type": "nack",
+                    "nack_reason": "Unknown address.",
+                    "event_id": unicode(uuid.uuid4()),
+                    "timestamp": unicode(timezone.now()),
+                    "message_version": "20110921",
+                    "transport_metadata": {},
+                    "user_message_id": msg.external_id,
+                    "message_type": "event"
+                }
+                callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
+                response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(self.create_contact("Joe", "+250788383383").is_stopped)
+
+                self.clear_cache()
+        finally:
+            settings.SEND_MESSAGES = False
+
+    @patch('temba.msgs.models.Msg.create_incoming')
+    def test_interrupt(self, create_incoming):
+        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
+
+        response = self.client.get(callback_url)
+        self.assertEqual(response.status_code, 405)
+
+        response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
+        self.assertEqual(response.status_code, 404)
+
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="Hello from Vumi", transport_type='ussd', session_event="close")
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        # no real messages stored
+        self.assertEquals(Msg.objects.count(), 0)
+
+        self.assertTrue(create_incoming.called)
+        self.assertEqual(create_incoming.call_count, 1)
+
+        args, kwargs = create_incoming.call_args
+        self.assertEqual(kwargs['status'], INTERRUPTED)
+
+
 class ZenviaTest(TembaTest):
 
     def setUp(self):
@@ -4283,7 +4553,7 @@ class BlackmynaTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_received(self):
-        data = {'to': '1212', 'from': '+977788123123', 'text': 'Hello World', 'smsc': 'NTNepal5002'}
+        data = {'to': '1212', 'from': '+9771488532', 'text': 'Hello World', 'smsc': 'NTNepal5002'}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.blackmyna_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
@@ -4293,7 +4563,7 @@ class BlackmynaTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals('+9771488532', msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
@@ -4310,14 +4580,14 @@ class BlackmynaTest(TembaTest):
         self.assertEquals(400, response.status_code)
 
     def test_send(self):
-        joe = self.create_contact("Joe", "+977788123123")
+        joe = self.create_contact("Joe", "+9771488532")
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps([{'recipient': '+977788123123',
+                mock.return_value = MockResponse(200, json.dumps([{'recipient': '+9771488532',
                                                                    'id': 'asdf-asdf-asdf-asdf'}]))
 
                 # manually send it off
@@ -4416,7 +4686,7 @@ class SMSCentralTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_received(self):
-        data = {'mobile': '+977788123123', 'message': 'Hello World', 'telco': 'Ncell'}
+        data = {'mobile': '+9771488532', 'message': 'Hello World', 'telco': 'Ncell'}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.smscentral_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
@@ -4426,7 +4696,7 @@ class SMSCentralTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals('+9771488532', msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
@@ -4440,7 +4710,7 @@ class SMSCentralTest(TembaTest):
         self.assertEquals(400, response.status_code)
 
     def test_send(self):
-        joe = self.create_contact("Joe", "+977788123123")
+        joe = self.create_contact("Joe", "+9771488532")
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
@@ -4459,7 +4729,7 @@ class SMSCentralTest(TembaTest):
 
                 mock.assert_called_with('http://smail.smscentral.com.np/bp/ApiSms.php',
                                         data={'user': 'sc-user', 'pass': 'sc-password',
-                                              'mobile': '977788123123', 'content': "Test message"},
+                                              'mobile': '9771488532', 'content': "Test message"},
                                         headers=TEMBA_HEADERS,
                                         timeout=30)
 
@@ -4776,6 +5046,23 @@ class TwilioTest(TembaTest):
         # this time sign it appropriately, should work
         client = self.org.get_twilio_client()
         validator = RequestValidator(client.auth[1])
+
+        # remove twilio connection
+        self.channel.org.config = json.dumps({})
+        self.channel.org.save()
+
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        self.assertEquals(400, response.status_code)
+
+        # connect twilio again
+        self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
+                                              ACCOUNT_TOKEN: self.account_token,
+                                              APPLICATION_SID: self.application_sid})
+
+        self.channel.org.save()
+
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
@@ -4811,6 +5098,22 @@ class TwilioTest(TembaTest):
         twilio_url = reverse('handlers.twilio_handler') + "?action=callback&id=%d" % msg.id
         post_data['SmsStatus'] = 'sent'
 
+        # remove twilio connection
+        self.channel.org.config = json.dumps({})
+        self.channel.org.save()
+
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '/handlers/twilio/', post_data)
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        self.assertEquals(400, response.status_code)
+
+        # connect twilio again
+        self.channel.org.config = json.dumps({ACCOUNT_SID: self.account_sid,
+                                              ACCOUNT_TOKEN: self.account_token,
+                                              APPLICATION_SID: self.application_sid})
+
+        self.channel.org.save()
+
         signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
         response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
 
@@ -4834,6 +5137,13 @@ class TwilioTest(TembaTest):
         self.assertEquals(200, response.status_code)
         msg = Msg.objects.get()
         self.assertEquals(FAILED, msg.status)
+
+        # no message with id
+        Msg.objects.all().delete()
+        signature = validator.compute_signature('https://' + settings.TEMBA_HOST + '%s' % twilio_url, post_data)
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        self.assertEquals(400, response.status_code)
 
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
@@ -4959,6 +5269,18 @@ class TwilioMessagingServiceTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
+
+        # remove twilio connection
+        self.channel.org.config = json.dumps({})
+        self.channel.org.save()
+
+        signature = validator.compute_signature(
+            'https://' + settings.HOSTNAME + '/handlers/twilio_messaging_service/receive/' + self.channel.uuid,
+            post_data
+        )
+        response = self.client.post(twilio_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+        self.assertEquals(400, response.status_code)
 
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
@@ -6270,9 +6592,11 @@ class ChikkaTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
+                # REPLY currently disabled per Chikka
                 # assert that we were called as a reply
-                self.assertEqual(mock.call_args[1]['data']['message_type'], 'REPLY')
-                self.assertEqual(mock.call_args[1]['data']['request_id'], '4004')
+                # self.assertEqual(mock.call_args[1]['data']['message_type'], 'REPLY')
+                # self.assertEqual(mock.call_args[1]['data']['request_id'], '4004')
+
                 self.clear_cache()
 
             with patch('requests.get') as mock:
@@ -7044,7 +7368,8 @@ class ViberTest(TembaTest):
         # ok, try with a valid uuid, but invalid message id (no msg yet)
         status_url = reverse('handlers.viber_handler', args=['status', self.channel.uuid])
         response = self.client.post(status_url, json.dumps(data), content_type="application/json")
-        self.assertEquals(400, response.status_code)
+        self.assertEquals(200, response.status_code)
+        self.assertContains(response, 'not found')
 
         # ok, lets create an outgoing message to update
         joe = self.create_contact("Joe Biden", "+254788383383")
@@ -7053,10 +7378,20 @@ class ViberTest(TembaTest):
         msg.save(update_fields=('external_id',))
 
         response = self.client.post(status_url, json.dumps(data), content_type="application/json")
+        self.assertNotContains(response, 'not found')
         self.assertEquals(200, response.status_code)
 
         msg = Msg.objects.get(pk=msg.id)
         self.assertEquals(DELIVERED, msg.status)
+
+        # ignore status report from viber for incoming message
+        incoming = self.create_msg(direction=INCOMING, contact=joe, text="Read message")
+        incoming.external_id = "88888"
+        incoming.save(update_fields=('external_id',))
+
+        data['message_token'] = 88888
+        response = self.client.post(status_url, json.dumps(data), content_type="application/json")
+        self.assertEquals(200, response.status_code)
 
     def test_receive(self):
         # invalid UUID

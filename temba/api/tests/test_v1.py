@@ -1596,6 +1596,11 @@ class APITest(TembaTest):
         contact.unblock(self.user)
         artists.contacts.add(contact)
 
+        # try updating with a reserved word field
+        response = self.postJSON(url, dict(phone='+250788123456', fields={"email": "andy@example.com"}))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'fields', "Invalid contact field key: 'email' is a reserved word")
+
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         self.assertEquals(400, response.status_code)
@@ -1632,21 +1637,21 @@ class APITest(TembaTest):
         drdre = Contact.objects.get()
 
         # add another contact
-        jay_z = self.create_contact("Jay-Z", number="123444")
+        jay_z = self.create_contact("Jay-Z", number="+250784444444")
         ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date", None, Value.TYPE_DATETIME)
         jay_z.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
 
         # try to update using URNs from two different contacts
-        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123444']))
+        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:+250784444444']))
         self.assertEqual(response.status_code, 400)
         self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
-        # update URN using UUID
-        response = self.postJSON(url, dict(uuid=jay_z.uuid, name="Jay-Z", urns=['tel:123555']))
+        # update URN using UUID - note this endpoint still allows numbers without country codes
+        response = self.postJSON(url, dict(uuid=jay_z.uuid, name="Jay-Z", urns=['tel:0785555555']))
         self.assertEqual(response.status_code, 201)
 
         jay_z = Contact.objects.get(pk=jay_z.pk)
-        self.assertEqual([u.urn for u in jay_z.urns.all()], ['tel:123555'])
+        self.assertEqual([u.urn for u in jay_z.urns.all()], ['tel:+250785555555'])
 
         # fetch all with blank query
         self.clear_cache()
@@ -1681,7 +1686,7 @@ class APITest(TembaTest):
         self.assertContains(response, "Dr Dre")
 
         # search using urns list
-        response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
+        response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:+250785555555")))
         self.assertResultCount(response, 2)
 
         # search deleted contacts
@@ -1732,7 +1737,7 @@ class APITest(TembaTest):
             self.assertContains(response, 'Andre')
             self.assertNotContains(response, '0788123456')
             self.assertContains(response, "Jay-Z")
-            self.assertNotContains(response, '123555')
+            self.assertNotContains(response, '0785555555')
 
             # try to create a contact with an external URN
             response = self.postJSON(url, dict(urns=['ext:external-id'], name="Test Name"))
@@ -1768,7 +1773,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
         # check deleting a contact by URN
-        response = self.deleteJSON(url, 'urns=tel:123555')
+        response = self.deleteJSON(url, 'urns=%s' % urlquote_plus('tel:+250785555555'))
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=jay_z.pk).is_active)
 
@@ -1822,6 +1827,14 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
         results = json.loads(response.content)['results']
         self.assertEquals('Snoop Dogg', results[0]['name'])
+
+        # add two existing contacts
+        self.create_contact("Zinedine", number="+250788111222")
+        self.create_contact("Rusell", number="+250788333444")
+
+        # return error when trying to to create a new contact with many urns from different existing contacts
+        response = self.postJSON(url, dict(name="Hart", urns=['tel:0788111222', 'tel:+250788333444']))
+        self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.v1.contacts')

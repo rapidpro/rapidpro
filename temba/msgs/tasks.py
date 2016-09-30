@@ -13,7 +13,7 @@ from django.utils import timezone
 from djcelery_transactions import task
 from redis_cache import get_redis_connection
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
-from temba.utils.queues import pop_task
+from temba.utils.queues import pop_task, nonoverlapping_task
 from temba.utils import json_date_to_datetime, chunk_list
 from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
 from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel
@@ -116,7 +116,7 @@ def fail_old_messages():
     Msg.fail_old_messages()
 
 
-@task(track_started=True, name='collect_message_metrics_task', time_limit=900, soft_time_limit=900)
+@nonoverlapping_task(track_started=True, name='collect_message_metrics_task', time_limit=900)
 def collect_message_metrics_task():
     """
     Collects message metrics and sends them to our analytics.
@@ -124,42 +124,36 @@ def collect_message_metrics_task():
     from .models import INCOMING, OUTGOING, PENDING, QUEUED, ERRORED, INITIALIZING
     from temba.utils import analytics
 
-    r = get_redis_connection()
+    # current # of queued messages (excluding Android)
+    count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).\
+        exclude(topup=None).exclude(channel__channel_type='A').exclude(next_attempt__gte=timezone.now()).count()
+    analytics.gauge('temba.current_outgoing_queued', count)
 
-    # only do this if we aren't already running
-    key = 'collect_message_metrics'
-    if not r.get(key):
-        with r.lock(key, timeout=900):
-            # current # of queued messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=QUEUED).exclude(channel=None).\
-                exclude(topup=None).exclude(channel__channel_type='A').exclude(next_attempt__gte=timezone.now()).count()
-            analytics.gauge('temba.current_outgoing_queued', count)
+    # current # of initializing messages (excluding Android)
+    count = Msg.objects.filter(direction=OUTGOING, status=INITIALIZING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+    analytics.gauge('temba.current_outgoing_initializing', count)
 
-            # current # of initializing messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=INITIALIZING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
-            analytics.gauge('temba.current_outgoing_initializing', count)
+    # current # of pending messages (excluding Android)
+    count = Msg.objects.filter(direction=OUTGOING, status=PENDING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+    analytics.gauge('temba.current_outgoing_pending', count)
 
-            # current # of pending messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=PENDING).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
-            analytics.gauge('temba.current_outgoing_pending', count)
+    # current # of errored messages (excluding Android)
+    count = Msg.objects.filter(direction=OUTGOING, status=ERRORED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
+    analytics.gauge('temba.current_outgoing_errored', count)
 
-            # current # of errored messages (excluding Android)
-            count = Msg.objects.filter(direction=OUTGOING, status=ERRORED).exclude(channel=None).exclude(topup=None).exclude(channel__channel_type='A').count()
-            analytics.gauge('temba.current_outgoing_errored', count)
+    # current # of android outgoing messages waiting to be sent
+    count = Msg.objects.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], channel__channel_type='A').exclude(channel=None).exclude(topup=None).count()
+    analytics.gauge('temba.current_outgoing_android', count)
 
-            # current # of android outgoing messages waiting to be sent
-            count = Msg.objects.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], channel__channel_type='A').exclude(channel=None).exclude(topup=None).count()
-            analytics.gauge('temba.current_outgoing_android', count)
+    # current # of pending incoming messages that haven't yet been handled
+    count = Msg.objects.filter(direction=INCOMING, status=PENDING).exclude(channel=None).count()
+    analytics.gauge('temba.current_incoming_pending', count)
 
-            # current # of pending incoming messages that haven't yet been handled
-            count = Msg.objects.filter(direction=INCOMING, status=PENDING).exclude(channel=None).count()
-            analytics.gauge('temba.current_incoming_pending', count)
-
-            # stuff into redis when we last run, we do this as a canary as to whether our tasks are falling behind or not running
-            cache.set('last_cron', timezone.now())
+    # stuff into redis when we last run, we do this as a canary as to whether our tasks are falling behind or not running
+    cache.set('last_cron', timezone.now())
 
 
-@task(track_started=True, name='check_messages_task', time_limit=900, soft_time_limit=900)
+@nonoverlapping_task(track_started=True, name='check_messages_task', time_limit=900)
 def check_messages_task():
     """
     Checks to see if any of our aggregators have errored messages that need to be retried.
@@ -170,36 +164,30 @@ def check_messages_task():
     from temba.orgs.models import Org
     from temba.channels.tasks import send_msg_task
 
-    r = get_redis_connection()
+    now = timezone.now()
+    five_minutes_ago = now - timedelta(minutes=5)
 
-    # only do this if we aren't already running
-    key = 'check_messages_task'
-    if not r.get(key):
-        with r.lock(key, timeout=900):
-            now = timezone.now()
-            five_minutes_ago = now - timedelta(minutes=5)
+    # for any org that sent messages in the past five minutes, check for pending messages
+    for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago).distinct():
+        org.trigger_send()
 
-            # for any org that sent messages in the past five minutes, check for pending messages
-            for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago).distinct():
-                org.trigger_send()
+    # fire a few send msg tasks in case we dropped one somewhere during a restart
+    # (these will be no-ops if there is nothing to do)
+    send_msg_task.delay()
+    send_msg_task.delay()
 
-            # fire a few send msg tasks in case we dropped one somewhere during a restart
-            # (these will be no-ops if there is nothing to do)
-            send_msg_task.delay()
-            send_msg_task.delay()
+    handle_event_task.delay()
+    handle_event_task.delay()
 
-            handle_event_task.delay()
-            handle_event_task.delay()
+    # also check any incoming messages that are still pending somehow, reschedule them to be handled
+    unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
+    unhandled_messages = unhandled_messages.exclude(channel__org=None).exclude(contact__is_test=True)
+    unhandled_count = unhandled_messages.count()
 
-            # also check any incoming messages that are still pending somehow, reschedule them to be handled
-            unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
-            unhandled_messages = unhandled_messages.exclude(channel__org=None).exclude(contact__is_test=True)
-            unhandled_count = unhandled_messages.count()
-
-            if unhandled_count:
-                print "** Found %d unhandled messages" % unhandled_count
-                for msg in unhandled_messages[:100]:
-                    msg.handle()
+    if unhandled_count:
+        print("** Found %d unhandled messages" % unhandled_count)
+        for msg in unhandled_messages[:100]:
+            msg.handle()
 
 
 @task(track_started=True, name='export_sms_task')
@@ -257,64 +245,53 @@ def handle_event_task():
         raise Exception("Unexpected event type: %s" % event_task)
 
 
-@task(track_started=True, name='purge_broadcasts_task', time_limit=900, soft_time_limit=900)
+@nonoverlapping_task(track_started=True, name='purge_broadcasts_task')
 def purge_broadcasts_task():
     """
     Looks for broadcasts older than 90 days and marks their messages as purged
     """
     from temba.orgs.models import Debit
 
-    r = get_redis_connection()
+    purge_before = timezone.now() - timedelta(days=90)  # 90 days ago
 
-    # 90 days ago
-    purge_before = timezone.now() - timedelta(days=90)
-    key = 'purge_broadcasts_task'
-    if not r.get(key):
-        with r.lock(key, timeout=900):
+    # determine which broadcasts are old
+    purge_ids = list(Broadcast.objects.filter(created_on__lt=purge_before, purged=False).values_list('pk', flat=True))
+    msgs_deleted = 0
 
-            # determine which broadcasts are old
-            purge_ids = list(Broadcast.objects.filter(created_on__lt=purge_before, purged=False).values_list('pk', flat=True))
-            msgs_deleted = 0
+    for batch_ids in chunk_list(purge_ids, 1000):
+        batch_broadcasts = Broadcast.objects.filter(pk__in=batch_ids)
+        batch_message_ids = []  # all the message ids in these broadcasts
+        batch_topup_counts = defaultdict(int)  # message counts per topup in these broadcasts
 
-            for batch_ids in chunk_list(purge_ids, 1000):
-                batch_broadcasts = Broadcast.objects.filter(pk__in=batch_ids)
-                batch_message_ids = []  # all the message ids in these broadcasts
-                batch_topup_counts = defaultdict(int)  # message counts per topup in these broadcasts
+        with transaction.atomic():
 
-                with transaction.atomic():
+            # get the topup message counts and message ids for these broadcasts
+            for broadcast in batch_broadcasts:
+                topup_counts = broadcast.msgs.values('topup_id').annotate(count=Count('topup_id'))
+                for tc in topup_counts:
+                    if tc['topup_id']:
+                        batch_topup_counts[tc['topup_id']] += tc['count']
 
-                    # get the topup message counts and message ids for these broadcasts
-                    for broadcast in batch_broadcasts:
-                        topup_counts = broadcast.msgs.values('topup_id').annotate(count=Count('topup_id'))
-                        for tc in topup_counts:
-                            if tc['topup_id']:
-                                batch_topup_counts[tc['topup_id']] += tc['count']
+                batch_message_ids += list(broadcast.msgs.values_list('id', flat=True))
 
-                        batch_message_ids += list(broadcast.msgs.values_list('id', flat=True))
+            # create debit objects for each topup
+            for topup_id, msg_count in six.iteritems(batch_topup_counts):
+                Debit.objects.create(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE)
 
-                    # create debit objects for each topup
-                    for topup_id, msg_count in six.iteritems(batch_topup_counts):
-                        Debit.objects.create(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE)
+            # delete messages in batches to avoid long locks
+            for msg_ids_batch in chunk_list(batch_message_ids, 1000):
+                Msg.objects.filter(pk__in=msg_ids_batch).delete()
 
-                    # delete messages in batches to avoid long locks
-                    for msg_ids_batch in chunk_list(batch_message_ids, 1000):
-                        Msg.objects.filter(pk__in=msg_ids_batch).delete()
+            # mark these broadcasts as purged
+            batch_broadcasts.update(purged=True)
 
-                    # mark these broadcasts as purged
-                    batch_broadcasts.update(purged=True)
+        msgs_deleted += len(batch_message_ids)
 
-                msgs_deleted += len(batch_message_ids)
+    Debit.squash_purge_debits()
 
-            Debit.squash_purge_debits()
-
-            print("Purged %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
+    print("Purged %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
 
 
-@task(track_started=True, name="squash_systemlabels")
+@nonoverlapping_task(track_started=True, name="squash_systemlabels")
 def squash_systemlabels():
-    r = get_redis_connection()
-
-    key = 'squash_systemlabels'
-    if not r.get(key):
-        with r.lock(key, timeout=900):
-            SystemLabel.squash_counts()
+    SystemLabel.squash_counts()

@@ -1,0 +1,850 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 132, 
+          "x": 414, 
+          "destination": "ec99c2cc-802d-4aa6-bf1c-b05efbd00e00", 
+          "uuid": "80855ccb-44e9-4348-b821-65d7b814c553", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Where did you listen? Home, School or somewhere else?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 131, 
+          "x": 709, 
+          "destination": "2e0ddbc5-2c3b-4c51-9acd-107b755c570f", 
+          "uuid": "3ac7a969-7cc0-42ad-a8c9-e5ce0f0f9736", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "What did you like best about the show?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 680, 
+          "x": 305, 
+          "destination": "aad6689e-ec03-46da-9d21-144e99bd852e", 
+          "uuid": "903da624-139d-43dc-848b-1d79e7d78b3e", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Do you own a radio?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 630, 
+          "x": 538, 
+          "destination": null, 
+          "uuid": "98f701bd-bbdd-4b03-b848-3c268d078717", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Thanks for participating!"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 460, 
+          "x": 59, 
+          "destination": "32a0d624-f012-4265-a9d2-7199933d966c", 
+          "uuid": "83114791-f73a-4b0d-b271-5e2824e35833", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Have you heard of show X? Yes or No?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 617, 
+          "x": 798, 
+          "destination": "aad6689e-ec03-46da-9d21-144e99bd852e", 
+          "uuid": "49b00e5a-0431-465f-bc8c-9172f49b512b", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Please reply Yes if you own a radio or No if you do not."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 5, 
+          "x": 41, 
+          "destination": "e24c1843-8ff6-45fd-b65f-a6ba8b528b7a", 
+          "uuid": "b40bfa5b-f399-45ca-becd-0419587b7f20", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Welcome message."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "b40bfa5b-f399-45ca-becd-0419587b7f20", 
+      "rule_sets": [
+        {
+          "uuid": "d4517dad-49f9-4bb5-8c0d-11f900505a60", 
+          "rules": [
+            {
+              "test": {
+                "max": "0.5", 
+                "type": "between", 
+                "min": "0"
+              }, 
+              "category": {
+                "eng": "Bucket 1"
+              }, 
+              "destination": "80855ccb-44e9-4348-b821-65d7b814c553", 
+              "uuid": "3bf67bdb-34b2-402a-a1f0-682fcf2b4146", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "max": "1", 
+                "type": "between", 
+                "min": "0.5"
+              }, 
+              "category": {
+                "eng": "Bucket 2"
+              }, 
+              "destination": "3ac7a969-7cc0-42ad-a8c9-e5ce0f0f9736", 
+              "uuid": "6a5dd1e5-3b30-4608-b58e-74b98544c4a1", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "random", 
+          "label": "Random", 
+          "operand": "@(RAND())", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 16, 
+          "x": 512, 
+          "config": {}
+        }, 
+        {
+          "uuid": "ec99c2cc-802d-4aa6-bf1c-b05efbd00e00", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Home"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Home"
+              }, 
+              "destination": "ec11b4c8-77bf-46c9-b91e-0e007a3835b8", 
+              "uuid": "e5b2df6d-4144-4da8-88e8-cadac4a92c7c", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "School"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "School"
+              }, 
+              "destination": "ec11b4c8-77bf-46c9-b91e-0e007a3835b8", 
+              "uuid": "2cf537fe-17c1-4639-a6c9-a0e0f431b0ee", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "ec11b4c8-77bf-46c9-b91e-0e007a3835b8", 
+              "uuid": "94f194ff-bcba-437c-b282-64546f0f659e", 
+              "destination_type": "R"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Where", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 295, 
+          "x": 331, 
+          "config": {}
+        }, 
+        {
+          "uuid": "e602727a-802b-458b-baa8-023df3f687ad", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "flow.where"
+                }, 
+                "type": "contains"
+              }, 
+              "category": {
+                "eng": "Ask Other"
+              }, 
+              "destination": "80855ccb-44e9-4348-b821-65d7b814c553", 
+              "uuid": "47950d55-b637-4aab-acdf-97eae0d78111", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "903da624-139d-43dc-848b-1d79e7d78b3e", 
+              "uuid": "a219faab-7756-4d6f-84ce-7e35db6bbd7e", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "flow_field", 
+          "label": "Check 2", 
+          "operand": "@flow.where", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 414, 
+          "x": 759, 
+          "config": {}
+        }, 
+        {
+          "uuid": "ec11b4c8-77bf-46c9-b91e-0e007a3835b8", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "flow.liked_best"
+                }, 
+                "type": "contains"
+              }, 
+              "category": {
+                "eng": "Ask Other"
+              }, 
+              "destination": "3ac7a969-7cc0-42ad-a8c9-e5ce0f0f9736", 
+              "uuid": "bfbec2c0-69a9-4e12-9353-b04bdf2a7e6a", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "903da624-139d-43dc-848b-1d79e7d78b3e", 
+              "uuid": "248da853-2f77-47d5-a3fe-92400e660d0f", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "flow_field", 
+          "label": "Check 1", 
+          "operand": "@flow.liked_best", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 415, 
+          "x": 298, 
+          "config": {}
+        }, 
+        {
+          "uuid": "2e0ddbc5-2c3b-4c51-9acd-107b755c570f", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "e602727a-802b-458b-baa8-023df3f687ad", 
+              "uuid": "074ecee1-c571-4c7e-b669-c417df824184", 
+              "destination_type": "R"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Liked Best", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 304, 
+          "x": 694, 
+          "config": {}
+        }, 
+        {
+          "uuid": "aad6689e-ec03-46da-9d21-144e99bd852e", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Yes"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Yes"
+              }, 
+              "destination": "98f701bd-bbdd-4b03-b848-3c268d078717", 
+              "uuid": "c6245b3c-c143-4a23-b3ba-a7493cbd743e", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "No"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "No"
+              }, 
+              "destination": "98f701bd-bbdd-4b03-b848-3c268d078717", 
+              "uuid": "b7417640-0407-4e45-9f23-aafe9b1ae9c1", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "49b00e5a-0431-465f-bc8c-9172f49b512b", 
+              "uuid": "f1d203f4-98f1-4a46-8ed8-be412ddde6e4", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Own Radio", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 517, 
+          "x": 539, 
+          "config": {}
+        }, 
+        {
+          "uuid": "32a0d624-f012-4265-a9d2-7199933d966c", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Yes"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Yes"
+              }, 
+              "destination": "d4517dad-49f9-4bb5-8c0d-11f900505a60", 
+              "uuid": "f01e0202-852c-4be7-be33-2ee124c09091", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "No"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "No"
+              }, 
+              "destination": "903da624-139d-43dc-848b-1d79e7d78b3e", 
+              "uuid": "8d1ff775-9c65-4d88-a597-710abc4f13d8", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "83114791-f73a-4b0d-b271-5e2824e35833", 
+              "uuid": "de11a98e-a6f2-4a40-8c73-99502340a1dc", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Heard", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 619, 
+          "x": 26, 
+          "config": {}
+        }, 
+        {
+          "uuid": "e24c1843-8ff6-45fd-b65f-a6ba8b528b7a", 
+          "rules": [
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }, 
+              "category": {
+                "eng": "Completed"
+              }, 
+              "destination": "fdaef78f-6a66-4c3b-9a93-7839e6d63022", 
+              "uuid": "fa9d418d-0f3c-468e-8f5c-0194ae0d93f7", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }, 
+              "category": {
+                "eng": "Expired"
+              }, 
+              "destination": null, 
+              "uuid": "0eb6b61c-c397-46cf-8eac-f13fd4660e5c"
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 8", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 136, 
+          "x": 26, 
+          "config": {
+            "flow": {
+              "name": "Ask Language", 
+              "uuid": "620b6fed-333d-43e5-9205-eb6ca8e4f378"
+            }
+          }
+        }, 
+        {
+          "uuid": "fdaef78f-6a66-4c3b-9a93-7839e6d63022", 
+          "rules": [
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "completed"
+              }, 
+              "category": {
+                "eng": "Completed"
+              }, 
+              "destination": "83114791-f73a-4b0d-b271-5e2824e35833", 
+              "uuid": "634f3499-674f-4cf9-b30e-7ef8736b626d", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "type": "subflow", 
+                "exit_type": "expired"
+              }, 
+              "category": {
+                "eng": "Expired"
+              }, 
+              "destination": null, 
+              "uuid": "a67ae53c-6341-435b-aeec-183d6dd04906"
+            }
+          ], 
+          "ruleset_type": "subflow", 
+          "label": "Response 9", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 304, 
+          "x": 38, 
+          "config": {
+            "flow": {
+              "name": "Ask Gender", 
+              "uuid": "3ece326f-c3ca-453b-a8cf-419a8a357ee5"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 476, 
+        "uuid": "2b576547-ca27-4c5a-983f-8f9ea1fea1ab", 
+        "name": "Radio Show Poll", 
+        "saved_on": "2016-09-08T13:43:45.525845Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 146, 
+          "x": 393, 
+          "destination": "5af60349-d6fa-4c68-957a-fb48bf7349f7", 
+          "uuid": "c185ee1a-85e4-4595-98db-650938cdfbb5", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Are you Male or Female?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 169, 
+          "x": 705, 
+          "destination": "5af60349-d6fa-4c68-957a-fb48bf7349f7", 
+          "uuid": "0d83e932-d2b0-43b9-8456-5de4c89fb1cc", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "That is not a valid option, please reply with Male or Female."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 381, 
+          "x": 360, 
+          "destination": null, 
+          "uuid": "8860ee03-6ef7-4da1-8cf1-645fa3920def", 
+          "actions": [
+            {
+              "field": "gender", 
+              "type": "save", 
+              "value": "@flow.gender.category", 
+              "label": "Gender"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "24b9ea2e-8e0c-4263-afb0-df2236001c5a", 
+      "rule_sets": [
+        {
+          "uuid": "5af60349-d6fa-4c68-957a-fb48bf7349f7", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Male"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Male"
+              }, 
+              "destination": "8860ee03-6ef7-4da1-8cf1-645fa3920def", 
+              "uuid": "b9d64b8f-9896-4d64-98b6-53e01e261952", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "Female"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Female"
+              }, 
+              "destination": "8860ee03-6ef7-4da1-8cf1-645fa3920def", 
+              "uuid": "f7402272-db1b-413d-b090-364d0ba1f98b", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "0d83e932-d2b0-43b9-8456-5de4c89fb1cc", 
+              "uuid": "146c7987-ddda-476c-b457-2162d6717d69", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Gender", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 266, 
+          "x": 360, 
+          "config": {}
+        }, 
+        {
+          "uuid": "24b9ea2e-8e0c-4263-afb0-df2236001c5a", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Female Male"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Already Know"
+              }, 
+              "destination": null, 
+              "uuid": "7112ec44-9edb-4a5e-9f49-d86d47d0fef3"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "c185ee1a-85e4-4595-98db-650938cdfbb5", 
+              "uuid": "eb8f1bed-0a76-44e2-b1e0-c36f3eae8347", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "contact_field", 
+          "label": "Know Gender", 
+          "operand": "@contact.gender", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 24, 
+          "x": 319, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "uuid": "3ece326f-c3ca-453b-a8cf-419a8a357ee5", 
+        "notes": [
+          {
+            "y": 22, 
+            "x": 37, 
+            "body": "Asks the contact their gender and then stores it on their contact field if we don't already have it", 
+            "title": "Gender"
+          }
+        ], 
+        "expires": 10080, 
+        "name": "Ask Gender", 
+        "saved_on": "2016-09-08T01:17:31.175723Z", 
+        "revision": 64
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 98, 
+          "x": 316, 
+          "destination": "5750e805-68d5-4e83-b621-3aa2ef35e167", 
+          "uuid": "1149e255-7cf4-48fa-b35c-0e0cf31482ba", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "What language? English or French?"
+              }, 
+              "type": "reply"
+            }, 
+            {
+              "field": "score", 
+              "type": "save", 
+              "value": "10", 
+              "label": "Score"
+            }
+          ]
+        }, 
+        {
+          "y": 349, 
+          "x": 259, 
+          "destination": null, 
+          "uuid": "784af3af-046f-4e4f-8969-c83b2792b0f9", 
+          "actions": [
+            {
+              "lang": "eng", 
+              "type": "lang", 
+              "name": "English"
+            }
+          ]
+        }, 
+        {
+          "y": 353, 
+          "x": 605, 
+          "destination": null, 
+          "uuid": "5b3e0e35-d316-4a3c-b79a-4ecec21c5a16", 
+          "actions": [
+            {
+              "lang": "fre", 
+              "type": "lang", 
+              "name": "French"
+            }
+          ]
+        }, 
+        {
+          "y": 140, 
+          "x": 783, 
+          "destination": "5750e805-68d5-4e83-b621-3aa2ef35e167", 
+          "uuid": "1ac5fbfb-1ef4-434e-880b-193e5c74f7e7", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Sorry, that isn't a valid option. Please reply with English or French."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "e543b31d-cb78-45eb-aa76-ecbfd70a7836", 
+      "rule_sets": [
+        {
+          "uuid": "e543b31d-cb78-45eb-aa76-ecbfd70a7836", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "eng fre"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Already Know"
+              }, 
+              "uuid": "98459298-40ba-499a-b2ab-6d2527b59748"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "1149e255-7cf4-48fa-b35c-0e0cf31482ba", 
+              "uuid": "bd6458ad-125b-42e0-9e03-58fe5fe666e0", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Response 1", 
+          "operand": "@contact.language", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 400, 
+          "config": {}
+        }, 
+        {
+          "uuid": "5750e805-68d5-4e83-b621-3aa2ef35e167", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "English eng"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "English"
+              }, 
+              "destination": "784af3af-046f-4e4f-8969-c83b2792b0f9", 
+              "uuid": "5cea5130-fe93-47c5-8c19-9966c4778556", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "French fre"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "French"
+              }, 
+              "destination": "5b3e0e35-d316-4a3c-b79a-4ecec21c5a16", 
+              "uuid": "125831d2-bf28-4c06-ab37-3314f7349cc3", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "1ac5fbfb-1ef4-434e-880b-193e5c74f7e7", 
+              "uuid": "5d536d30-e946-4e75-9a81-09fdc9af601f", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Language", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 271, 
+          "x": 438, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "uuid": "620b6fed-333d-43e5-9205-eb6ca8e4f378", 
+        "notes": [
+          {
+            "y": 0, 
+            "x": 63, 
+            "body": "Asks the contact for their language and sets it on the contact, but only if we don't know it already.", 
+            "title": "Language"
+          }
+        ], 
+        "expires": 10080, 
+        "name": "Ask Language", 
+        "saved_on": "2016-09-08T13:55:58.189284Z", 
+        "revision": 47
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Radio Show Poll", 
+        "uuid": "2b576547-ca27-4c5a-983f-8f9ea1fea1ab"
+      }, 
+      "groups": [], 
+      "keyword": "radio", 
+      "channel": null
+    }
+  ]
+}

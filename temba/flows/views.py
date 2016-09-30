@@ -32,7 +32,7 @@ from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, INCOMING, OUTGOING
+from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING, INTERRUPTED
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
@@ -415,6 +415,7 @@ class FlowCRUDL(SmartCRUDL):
             flow_type = forms.ChoiceField(label=_('Run flow over'),
                                           help_text=_('Send messages, place phone calls, or submit Surveyor runs'),
                                           choices=((Flow.FLOW, 'Messaging'),
+                                                   (Flow.USSD, 'USSD Messaging'),
                                                    (Flow.VOICE, 'Phone Call'),
                                                    (Flow.SURVEY, 'Surveyor')))
 
@@ -433,7 +434,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'flow_type', 'base_language')
 
         form_class = FlowCreateForm
-        success_url = 'id@flows.flow_editor'
+        success_url = 'uuid@flows.flow_editor'
         success_message = ''
         field_config = dict(name=dict(help=_("Choose a name to describe this flow, e.g. Demographic Survey")))
 
@@ -484,7 +485,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         fields = ('pk',)
-        cancel_url = 'id@flows.flow_editor'
+        cancel_url = 'uuid@flows.flow_editor'
         redirect_url = '@flows.flow_list'
         default_template = 'smartmin/delete_confirm.html'
         success_message = _("Your flow has been removed.")
@@ -504,7 +505,7 @@ class FlowCRUDL(SmartCRUDL):
             copy = Flow.copy(self.object, self.request.user)
 
             # redirect to the newly created flow
-            return HttpResponseRedirect(reverse('flows.flow_editor', args=[copy.pk]))
+            return HttpResponseRedirect(reverse('flows.flow_editor', args=[copy.uuid]))
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
@@ -773,6 +774,8 @@ class FlowCRUDL(SmartCRUDL):
                                             function_completions=function_completions))
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = 'uuid'
+
         def derive_title(self):
             return self.object.name
 
@@ -1201,7 +1204,7 @@ class FlowCRUDL(SmartCRUDL):
     class Simulate(OrgObjPermsMixin, SmartReadView):
 
         def get(self, request, *args, **kwargs):
-            return HttpResponseRedirect(reverse('flows.flow_editor', args=[self.get_object().pk]))
+            return HttpResponseRedirect(reverse('flows.flow_editor', args=[self.get_object().uuid]))
 
         def post(self, request, *args, **kwargs):
 
@@ -1272,12 +1275,16 @@ class FlowCRUDL(SmartCRUDL):
                 media = '%s/mp4:%s/simulator_audio.m4a' % (Msg.MEDIA_AUDIO, media_url)
 
             if new_message or media:
+                status = PENDING
+                if new_message == "__interrupt__":
+                    status = INTERRUPTED
                 try:
                     Msg.create_incoming(None,
                                         test_contact.get_urn(TEL_SCHEME).urn,
                                         new_message,
                                         media=media,
-                                        org=user.get_org())
+                                        org=user.get_org(),
+                                        status=status)
                 except Exception as e:
                     traceback.print_exc(e)
                     return build_json_response(dict(status="error", description="Error creating message: %s" % str(e)), status=400)
@@ -1392,7 +1399,7 @@ class FlowCRUDL(SmartCRUDL):
         fields = ('omnibox', 'restart_participants')
         success_message = ''
         submit_button_name = _("Add Contacts to Flow")
-        success_url = 'id@flows.flow_editor'
+        success_url = 'uuid@flows.flow_editor'
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Broadcast, self).get_context_data(*args, **kwargs)

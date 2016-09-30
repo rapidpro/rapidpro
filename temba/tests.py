@@ -10,7 +10,7 @@ import shutil
 import string
 import time
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
@@ -30,8 +30,6 @@ from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
-from xlrd import xldate_as_tuple
-from xlrd.sheet import XL_CELL_DATE
 
 
 class ExcludeTestRunner(DiscoverRunner):
@@ -367,17 +365,27 @@ class TembaTest(SmartminTest):
 
             expected_values.append(expected)
 
+        rows = tuple(sheet.rows)
+
         actual_values = []
-        for c in range(0, sheet.ncols):
-            cell = sheet.cell(row_num, c)
+        for cell in rows[row_num]:
             actual = cell.value
 
-            if cell.ctype == XL_CELL_DATE:
-                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
+            if actual is None:
+                actual = ''
+
+            if isinstance(actual, datetime):
+                actual = actual
 
             actual_values.append(actual)
 
-        self.assertEqual(actual_values, expected_values)
+        for index, expected in enumerate(expected_values):
+            actual = actual_values[index]
+
+            if isinstance(expected, datetime):
+                self.assertTrue(abs(expected - actual) < timedelta(seconds=1))
+            else:
+                self.assertEqual(expected, actual)
 
 
 class FlowFileTest(TembaTest):
@@ -398,7 +406,11 @@ class FlowFileTest(TembaTest):
         if contact.is_test:
             Contact.set_simulation(True)
         incoming = self.create_msg(direction=INCOMING, contact=contact, text=message)
-        Flow.find_and_handle(incoming)
+
+        # evaluate the inbound message against our triggers first
+        from temba.triggers.models import Trigger
+        if not Trigger.find_and_handle(incoming):
+            Flow.find_and_handle(incoming)
         return Msg.objects.filter(response_to=incoming).order_by('pk').first()
 
     def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False,
