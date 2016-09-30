@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0064_auto_20160908_1340'),
+        ('msgs', '0066_external_id_partial_index'),
     ]
 
     operations = [
