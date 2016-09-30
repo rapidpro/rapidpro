@@ -1374,7 +1374,9 @@ class OrgTest(TembaTest):
         response = self.client.get(resthook_url)
         self.assertFalse(response.context['current_resthooks'])
 
-    def test_connect_nexmo(self):
+    @patch('nexmo.Client.create_application')
+    def test_connect_nexmo(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         self.login(self.admin)
 
         # connect nexmo
@@ -1407,7 +1409,10 @@ class OrgTest(TembaTest):
         self.assertFalse(self.org.config_json()['NEXMO_KEY'])
         self.assertFalse(self.org.config_json()['NEXMO_SECRET'])
 
-    def test_nexmo_configuration(self):
+    @patch('nexmo.Client.create_application')
+    def test_nexmo_configuration(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+
         self.login(self.admin)
 
         nexmo_configuration_url = reverse('orgs.org_nexmo_configuration')
@@ -1422,7 +1427,7 @@ class OrgTest(TembaTest):
 
         self.org.connect_nexmo('key', 'secret', self.admin)
 
-        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
+        with patch('temba.temba_nexmo.NexmoClient.update_account') as mock_update_account:
             # try automatic nexmo settings update
             mock_update_account.return_value = True
 
@@ -1432,7 +1437,7 @@ class OrgTest(TembaTest):
             response = self.client.get(nexmo_configuration_url, follow=True)
             self.assertEqual(response.request['PATH_INFO'], reverse('channels.channel_claim_nexmo'))
 
-        with patch('temba.nexmo.NexmoClient.update_account') as mock_update_account:
+        with patch('temba.temba_nexmo.NexmoClient.update_account') as mock_update_account:
             mock_update_account.side_effect = [nexmo.Error, nexmo.Error]
 
             response = self.client.get(nexmo_configuration_url)

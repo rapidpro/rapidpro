@@ -1056,8 +1056,7 @@ class NCCOTest(TembaTest):
 
     def test_pause(self):
         response = ncco.Response()
-        with self.assertRaises(NCCOException):
-            response.pause()
+        response.pause()
 
     def test_redirect(self):
         response = ncco.Response()
@@ -1096,7 +1095,10 @@ class NCCOTest(TembaTest):
         response.record()
 
         self.assertEqual(json.loads(unicode(response)), [dict(format='wav', endOnSilence='4', beepStart=True,
-                                                              action='record')])
+                                                              action='record'),
+                                                         dict(action='input', maxDigits=1, submitOnHash=True, timeOut=1,
+                                                              eventUrl=["None?save_media=1"])
+                                                         ])
 
         response = ncco.Response()
         response.record(action="http://example.com", method="post", maxLength=60)
@@ -1104,4 +1106,7 @@ class NCCOTest(TembaTest):
         self.assertEqual(json.loads(unicode(response)), [dict(format='wav', eventMethod='post',
                                                               eventUrl=['http://example.com'],
                                                               endOnSilence='4', timeOut='60',
-                                                              action='record', beepStart=True)])
+                                                              action='record', beepStart=True),
+                                                         dict(action='input', maxDigits=1, submitOnHash=True, timeOut=1,
+                                                              eventUrl=["%s?save_media=1" % "http://example.com"])
+                                                         ])

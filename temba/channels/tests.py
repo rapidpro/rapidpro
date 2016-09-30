@@ -1024,10 +1024,12 @@ class ChannelTest(TembaTest):
         self.assertFalse(self.org.is_connected_to_nexmo())
 
         # now connect to nexmo
-        with patch('temba.nexmo.NexmoClient.update_account') as connect:
+        with patch('temba.temba_nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456', self.admin)
-            self.org.save()
+            with patch('nexmo.Client.create_application') as create_app:
+                create_app.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+                self.org.connect_nexmo('123', '456', self.admin)
+                self.org.save()
         self.assertTrue(self.org.is_connected_to_nexmo())
 
         # now adding Nexmo bulk sender should work
@@ -1435,7 +1437,8 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Nexmo")
         self.assertContains(response, reverse('orgs.org_nexmo_connect'))
 
-        nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid')
+        nexmo_config = dict(NEXMO_KEY='nexmo-key', NEXMO_SECRET='nexmo-secret', NEXMO_UUID='nexmo-uuid',
+                            NEXMO_APP_ID='nexmo-app-id', NEXMO_APP_PRIVATE_KEY='nexmo-app-private-key')
         self.org.config = json.dumps(nexmo_config)
         self.org.save()
 
@@ -1760,8 +1763,10 @@ class ChannelTest(TembaTest):
         # connect org to Nexmo and add bulk sender
         with patch('temba.nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
-            self.org.connect_nexmo('123', '456', self.admin)
-            self.org.save()
+            with patch('nexmo.Client.create_application') as create_app:
+                create_app.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+                self.org.connect_nexmo('123', '456', self.admin)
+                self.org.save()
 
         claim_nexmo_url = reverse('channels.channel_create_bulk_sender') + "?connection=NX&channel=%d" % android.pk
         self.client.post(claim_nexmo_url, dict(connection='NX', channel=android.pk))
@@ -3841,10 +3846,12 @@ class NexmoTest(TembaTest):
         self.assertEquals('external1', msg.external_id)
 
     def test_send(self):
-        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
+        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
         org_config = self.org.config_json()
         org_config[NEXMO_KEY] = 'nexmo_key'
         org_config[NEXMO_SECRET] = 'nexmo_secret'
+        org_config[NEXMO_APP_ID] = 'nexmo-app-id'
+        org_config[NEXMO_APP_PRIVATE_KEY] = 'nexmo-private-key'
         self.org.config = json.dumps(org_config)
 
         self.channel.channel_type = Channel.TYPE_NEXMO

@@ -103,7 +103,7 @@ class CallHandler(View):
                     if media_url:
                         r.set('last_call:media_url:%d' % call.pk, media_url)
 
-                    media_url = r.get('last_call:media_url:%d' % call.pk, None)
+                    media_url = r.get('last_call:media_url:%d' % call.pk)
                     text = body_json.get('dtmf', None)
 
                 has_event = '1' == request.GET.get('has_event', '0')
