@@ -1418,28 +1418,23 @@ class Channel(TembaModel):
             'secret_key': channel.config[Channel.CONFIG_PASSWORD]
         }
 
-        # TODO: Either Chikka is providing duplicate external ids or we are
-        # over-replying somehow. Per their recommendation, removing this until we have clarity.
-
         # if this is a response to a user SMS, then we need to set this as a reply
-        # response ids are only valid for up to 24 hours, let's be conservative
-        # response_window = timedelta(hours=12)
-        # if msg.response_to_id and msg.created_on > timezone.now() - response_window:
-        #    response_to = Msg.objects.filter(id=msg.response_to_id).first()
-        #    if response_to:
-        #        payload['message_type'] = 'REPLY'
-        #        payload['request_id'] = response_to.external_id
+        # response ids are only valid for up to 24 hours
+        response_window = timedelta(hours=24)
+        if msg.response_to_id and msg.created_on > timezone.now() - response_window:
+            response_to = Msg.objects.filter(id=msg.response_to_id).first()
+            if response_to:
+                payload['message_type'] = 'REPLY'
+                payload['request_id'] = response_to.external_id
 
         # build our send URL
         url = 'https://post.chikka.com/smsapi/request'
-        log_payload = payload.copy()
-        log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
-
         start = time.time()
 
         try:
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
-
+            log_payload = payload.copy()
+            log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
         except Exception as e:
             raise SendException(unicode(e),
                                 method='POST',
@@ -1447,6 +1442,30 @@ class Channel(TembaModel):
                                 request=log_payload,
                                 response="",
                                 response_status=503)
+
+        # if they reject our request_id, send it as a normal send
+        if response.status_code == 400 and 'request_id' in payload:
+            error = response.json()
+            if error.get('message', None) == 'BAD REQUEST' and error.get('description', None) == 'Invalid/Used Request ID':
+                try:
+
+                    # operate on a copy so we can still inspect our original call
+                    payload = payload.copy()
+                    del payload['request_id']
+                    payload['message_type'] = 'SEND'
+
+                    response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
+
+                    log_payload = payload.copy()
+                    log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
+
+                except Exception as e:
+                    raise SendException(unicode(e),
+                                        method='POST',
+                                        url=url,
+                                        request=log_payload,
+                                        response="",
+                                        response_status=503)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
