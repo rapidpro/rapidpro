@@ -163,7 +163,7 @@ class URN(object):
             if norm_path[0:1] == '@':  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
-        elif scheme == EMAIL_SCHEME or scheme == LINE_SCHEME:
+        elif scheme == EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
         return cls.from_parts(scheme, norm_path)
