@@ -2224,7 +2224,12 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _restore_ - Restore the messages if they are archived
         * _delete_ - Permanently delete the messages
 
-    * **label** - the UUID or name of a label (string, optional)
+    * **label** - the UUID or name of an existing label (string, optional)
+    * **label_name** - the name of a label which can be created if it doesn't exist (string, optional)
+
+    If labelling or unlabelling messages using `label` you will get an error response (400) if the label doesn't exist.
+    If labelling with `label_name` the label will be created if it doesn't exist, and if unlabelling it is ignored if
+    it doesn't exist.
 
     Example:
 
