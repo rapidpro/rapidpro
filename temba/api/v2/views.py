@@ -1838,7 +1838,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         # filter by name (optional)
         name = params.get('name')
         if name:
-            queryset = queryset.filter(name=name)
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 
@@ -1982,7 +1982,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         # filter by name (optional)
         name = params.get('name')
         if name:
-            queryset = queryset.filter(name=name)
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 

@@ -1568,7 +1568,7 @@ class APITest(TembaTest):
         self.assertResultsByUUID(response, [customers])
 
         # filter by name
-        response = self.fetchJSON(url, 'name=Developers')
+        response = self.fetchJSON(url, 'name=developers')
         self.assertResultsByUUID(response, [developers])
 
         # try to create empty group
@@ -1652,7 +1652,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
 
         # filter by name
-        response = self.fetchJSON(url, 'name=Important')
+        response = self.fetchJSON(url, 'name=important')
         self.assertResultsByUUID(response, [important])
 
         # try to create empty label
