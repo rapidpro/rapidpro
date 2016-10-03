@@ -871,13 +871,17 @@ class MsgBulkActionSerializer(WriteSerializer):
         label = self.validated_data.get('label')
         label_name = self.validated_data.get('label_name')
 
-        if label_name:
-            label = Label.get_or_create(self.context['org'], self.context['user'], label_name)
-
         if action == self.LABEL:
+            if not label:
+                label = Label.get_or_create(self.context['org'], self.context['user'], label_name)
+
             label.toggle_label(messages, add=True)
         elif action == self.UNLABEL:
-            label.toggle_label(messages, add=False)
+            if not label:
+                label = Label.label_objects.filter(org=self.context['org'], is_active=True, name=label_name).first()
+
+            if label:
+                label.toggle_label(messages, add=False)
         else:
             for msg in messages:
                 if action == self.ARCHIVE:
