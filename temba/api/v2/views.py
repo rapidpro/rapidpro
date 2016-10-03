@@ -2222,7 +2222,11 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _restore_ - Restore the messages if they are archived
         * _delete_ - Permanently delete the messages
 
-    * **label** - the UUID or name of a label (string, optional)
+    * **label** - the UUID or name of an existing label (string, optional)
+    * **label_name** - the name of a label which will be created if it doesn't exist (string, optional)
+
+    The difference between `label` and `label_name` is that the former will give an error if the label doesn't exist,
+    but the latter will create the label if it doesn't exist.
 
     Example:
 

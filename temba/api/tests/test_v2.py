@@ -2163,11 +2163,31 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), set())
 
+        # add new label via label_name
+        response = self.postJSON(url, None, {'messages': [msg2.id, msg3.id], 'action': 'label', 'label_name': "New"})
+        self.assertEqual(response.status_code, 204)
+
+        new_label = Label.all_objects.get(org=self.org, name="New", is_active=True)
+        self.assertEqual(set(new_label.get_messages()), {msg2, msg3})
+
+        # no difference if label already exists as it does now
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label_name': "New"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(new_label.get_messages()), {msg1, msg2, msg3})
+
+        # try to use invalid label name
+        response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label', 'label_name': "$$$"})
+        self.assertResponseError(response, 'label_name', "Name contains illegal characters.")
+
         # try to label without specifying a label
         response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label'})
         self.assertResponseError(response, 'non_field_errors', "For action \"label\" you should also specify a label")
         response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label', 'label': ""})
         self.assertResponseError(response, 'label', "This field may not be null.")
+
+        # try to provide both label and label_name
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label': "Test", 'label_name': "Test"})
+        self.assertResponseError(response, 'non_field_errors', "Can't specify both label and label_name.")
 
         # archive all messages
         response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id, msg3.id], 'action': 'archive'})
