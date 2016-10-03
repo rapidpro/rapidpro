@@ -1560,6 +1560,10 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
         self.assertResultsByUUID(response, [customers])
 
+        # filter by name
+        response = self.fetchJSON(url, 'name=Developers')
+        self.assertResultsByUUID(response, [developers])
+
         # try to create empty group
         response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
@@ -1639,6 +1643,10 @@ class APITest(TembaTest):
         # filter by UUID
         response = self.fetchJSON(url, 'uuid=%s' % feedback.uuid)
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
+
+        # filter by name
+        response = self.fetchJSON(url, 'name=Important')
+        self.assertResultsByUUID(response, [important])
 
         # try to create empty label
         response = self.postJSON(url, None, {})
