@@ -1873,7 +1873,7 @@ class ChannelCRUDL(SmartCRUDL):
                         'channel_access_token': channel_access_token
                     }
 
-                    existing = Channel.objects.filter(Q(config__contains=channel_id) | Q(config__contains=channel_secret), channel_type=Channel.TYPE_LINE, address=channel_mid, is_active=True).first()
+                    existing = Channel.objects.filter(Q(config__contains=channel_id) | Q(config__contains=channel_secret) | Q(config__contains=channel_access_token), channel_type=Channel.TYPE_LINE, address=channel_mid, is_active=True).first()
                     if existing:
                         raise ValidationError(_("A channel with this configuration already exists."))
 
