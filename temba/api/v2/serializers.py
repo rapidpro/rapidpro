@@ -544,11 +544,11 @@ class ContactBulkActionSerializer(WriteSerializer):
     REMOVE = 'remove'
     BLOCK = 'block'
     UNBLOCK = 'unblock'
-    EXPIRE = 'expire'
+    INTERRUPT = 'interrupt'
     ARCHIVE = 'archive'
     DELETE = 'delete'
 
-    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, EXPIRE, ARCHIVE, DELETE)
+    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, INTERRUPT, ARCHIVE, DELETE)
 
     contacts = fields.ContactField(many=True)
     action = serializers.ChoiceField(required=True, choices=ACTIONS)
@@ -561,7 +561,7 @@ class ContactBulkActionSerializer(WriteSerializer):
 
         if action in (self.ADD, self.REMOVE) and not group:
             raise serializers.ValidationError("For action \"%s\" you should also specify a group" % action)
-        elif action in (self.BLOCK, self.UNBLOCK, self.EXPIRE, self.ARCHIVE, self.DELETE) and group:
+        elif action in (self.BLOCK, self.UNBLOCK, self.INTERRUPT, self.ARCHIVE, self.DELETE) and group:
             raise serializers.ValidationError("For action \"%s\" you should not specify a group" % action)
 
         if action == self.ADD:
@@ -582,8 +582,8 @@ class ContactBulkActionSerializer(WriteSerializer):
             group.update_contacts(user, contacts, add=True)
         elif action == self.REMOVE:
             group.update_contacts(user, contacts, add=False)
-        elif action == self.EXPIRE:
-            FlowRun.expire_all_for_contacts(contacts)
+        elif action == self.INTERRUPT:
+            FlowRun.exit_all_for_contacts(contacts, FlowRun.EXIT_TYPE_INTERRUPTED)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         else:

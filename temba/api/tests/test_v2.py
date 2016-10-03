@@ -10,6 +10,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db import connection
+from django.db.models import Q
 from django.test import override_settings
 from django.utils import timezone
 from mock import patch
@@ -1324,11 +1325,17 @@ class APITest(TembaTest):
         self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, contact5, test_contact})
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
 
-        # expire contacts 1 and 2 from any active runs
-        response = self.postJSON(url, None, {'contacts': [contact1.uuid, contact2.uuid], 'action': 'expire'})
+        # interrupt any active runs of contacts 1 and 2
+        response = self.postJSON(url, None, {'contacts': [contact1.uuid, contact2.uuid], 'action': 'interrupt'})
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(FlowRun.objects.filter(contact__in=[contact1, contact2], is_active=True).exists())
-        self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True).exists())
+
+        # check that their flow runs were interrupted
+        interrupted = FlowRun.objects.filter(contact__in=[contact1, contact2])
+        self.assertFalse(interrupted.filter(Q(is_active=True) | Q(exited_on=None)).exists())
+        self.assertFalse(interrupted.exclude(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).exists())
+
+        # check other contact's runs weren't
+        self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True, exited_on=None).exists())
 
         # archive all messages for contacts 1 and 2
         response = self.postJSON(url, None, {'contacts': [contact1.uuid, contact2.uuid], 'action': 'archive'})
