@@ -2717,9 +2717,9 @@ class FlowRun(models.Model):
         self.bulk_exit([self], FlowRun.EXIT_TYPE_EXPIRED)
 
     @classmethod
-    def expire_all_for_contacts(cls, contacts):
+    def exit_all_for_contacts(cls, contacts, exit_type):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
-        cls.bulk_exit(contact_runs, FlowRun.EXIT_TYPE_EXPIRED)
+        cls.bulk_exit(contact_runs, exit_type)
 
     def update_fields(self, field_map, max_values=128):
         # validate our field

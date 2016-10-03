@@ -641,7 +641,7 @@ class ContactBulkActionSerializer(WriteSerializer):
         elif action == self.REMOVE:
             self.group_obj.update_contacts(self.user, contacts, add=False)
         elif action == self.EXPIRE:
-            FlowRun.expire_all_for_contacts(contacts)
+            FlowRun.exit_all_for_contacts(contacts, FlowRun.EXIT_TYPE_EXPIRED)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         else:

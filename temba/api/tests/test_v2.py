@@ -10,6 +10,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db import connection
+from django.db.models import Q
 from django.test import override_settings
 from django.utils import timezone
 from mock import patch
@@ -1324,11 +1325,17 @@ class APITest(TembaTest):
         self.assertEqual(set(Contact.objects.filter(is_blocked=False)), {contact1, contact5, test_contact})
         self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact2, contact3, contact4})
 
-        # expire contacts 1 and 2 from any active runs
-        response = self.postJSON(url, None, {'contacts': [contact1.uuid, contact2.uuid], 'action': 'expire'})
+        # interrupt any active runs of contacts 1 and 2
+        response = self.postJSON(url, None, {'contacts': [contact1.uuid, contact2.uuid], 'action': 'interrupt'})
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(FlowRun.objects.filter(contact__in=[contact1, contact2], is_active=True).exists())
-        self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True).exists())
+
+        # check that their flow runs were interrupted
+        interrupted = FlowRun.objects.filter(contact__in=[contact1, contact2])
+        self.assertFalse(interrupted.filter(Q(is_active=True) | Q(exited_on=None)).exists())
+        self.assertFalse(interrupted.exclude(exit_type=FlowRun.EXIT_TYPE_INTERRUPTED).exists())
+
+        # check other contact's runs weren't
+        self.assertTrue(FlowRun.objects.filter(contact=contact3, is_active=True, exited_on=None).exists())
 
         # archive all messages for contacts 1 and 2
         response = self.postJSON(url, None, {'contacts': [contact1.uuid, contact2.uuid], 'action': 'archive'})
@@ -2163,11 +2170,43 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), set())
 
+        # add new label via label_name
+        response = self.postJSON(url, None, {'messages': [msg2.id, msg3.id], 'action': 'label', 'label_name': "New"})
+        self.assertEqual(response.status_code, 204)
+
+        new_label = Label.all_objects.get(org=self.org, name="New", is_active=True)
+        self.assertEqual(set(new_label.get_messages()), {msg2, msg3})
+
+        # no difference if label already exists as it does now
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label_name': "New"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(new_label.get_messages()), {msg1, msg2, msg3})
+
+        # can also remove by label_name
+        response = self.postJSON(url, None, {'messages': [msg3.id], 'action': 'unlabel', 'label_name': "New"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(new_label.get_messages()), {msg1, msg2})
+
+        # and no error if label doesn't exist
+        response = self.postJSON(url, None, {'messages': [msg3.id], 'action': 'unlabel', 'label_name': "XYZ"})
+        self.assertEqual(response.status_code, 204)
+
+        # and label not lazy created in this case
+        self.assertIsNone(Label.all_objects.filter(name="XYZ").first())
+
+        # try to use invalid label name
+        response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label', 'label_name': "$$$"})
+        self.assertResponseError(response, 'label_name', "Name contains illegal characters.")
+
         # try to label without specifying a label
         response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label'})
         self.assertResponseError(response, 'non_field_errors', "For action \"label\" you should also specify a label")
         response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label', 'label': ""})
         self.assertResponseError(response, 'label', "This field may not be null.")
+
+        # try to provide both label and label_name
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label': "Test", 'label_name': "Test"})
+        self.assertResponseError(response, 'non_field_errors', "Can't specify both label and label_name.")
 
         # archive all messages
         response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id, msg3.id], 'action': 'archive'})
