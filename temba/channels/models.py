@@ -1163,18 +1163,12 @@ class Channel(TembaModel):
 
         channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
 
-        data = json.dumps({
-            'to': msg.urn_path,
-            'messages': [
-                {
-                    'type': 'text',
-                    'text': text
-                }
-            ]
-        })
+        data = json.dumps({'to': msg.urn_path, 'messages': [{'type': 'text', 'text': text}]})
 
-        response = requests.post('https://api.line.me/v2/bot/message/push', data=data, headers={'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token})
         start = time.time()
+        response = requests.post('https://api.line.me/v2/bot/message/push',
+                                 data=data,
+                                 headers={'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token})
         content = json.loads(response.content)
 
         if response.status_code == 200:
