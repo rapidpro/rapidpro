@@ -909,6 +909,11 @@ class NexmoCallHandler(View):
                 # either way, we need to hangup now
                 return HttpResponse(unicode(response))
 
+        if action == 'event':
+            # event are handled by call event webhook
+            # this url is just required to be able to create the nexmo application
+            return HttpResponse('')
+
 
 class NexmoHandler(View):
 

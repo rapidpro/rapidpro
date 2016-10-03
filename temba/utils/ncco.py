@@ -24,7 +24,7 @@ class Response(object):
         return self
 
     def say(self, text, **kwargs):
-        self.document.append(dict(action='talk', text=text))
+        self.document.append(dict(action='talk', text=str(text)))
         return self
 
     def play(self, url=None, digits=None, **kwargs):
@@ -32,13 +32,13 @@ class Response(object):
             raise NCCOException("Please specify either a url or digits to play.", )
 
         result = dict()
-        if digits:
-            result['action'] = 'talk'
-            result['text'] = digits
-
         if url:
             result['action'] = 'stream'
             result['streamUrl'] = [url]
+
+        elif digits:
+            result['action'] = 'talk'
+            result['text'] = digits
         self.document.append(result)
         return self
 
@@ -46,6 +46,10 @@ class Response(object):
         return self
 
     def redirect(self, url=None, **kwargs):
+        result = dict(action='input', maxDigits=1, submitOnHash=True, timeOut=1,
+                      eventUrl=["%s?input_redirect=1" % url])
+
+        self.document.append(result)
         return self
 
     def hangup(self, **kwargs):
@@ -89,6 +93,7 @@ class Response(object):
         self.document.append(result)
         result = dict(action='input', maxDigits=1, submitOnHash=True, timeOut=1,
                       eventUrl=["%s?save_media=1" % kwargs.get('action')])
+
         self.document.append(result)
 
         return self

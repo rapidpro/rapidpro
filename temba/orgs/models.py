@@ -697,9 +697,9 @@ class Org(SmartModel):
         client = NexmoClient(key=nexmo_config[NEXMO_KEY], secret=nexmo_config[NEXMO_SECRET])
         app_name = "%s/%s" % (settings.TEMBA_HOST.lower(), nexmo_uuid)
 
-        answer_url = reverse('handlers.nexmo_handler', args=['answer', nexmo_uuid])
+        answer_url = reverse('handlers.nexmo_call_handler', args=['answer', nexmo_uuid])
 
-        event_url = reverse('handlers.nexmo_handler', args=['event', nexmo_uuid])
+        event_url = reverse('handlers.nexmo_call_handler', args=['event', nexmo_uuid])
 
         params = dict(name=app_name, type='voice', answer_url=answer_url, answer_method='POST',
                       event_url=event_url, event_method='POST')

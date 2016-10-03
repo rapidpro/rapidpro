@@ -1822,9 +1822,10 @@ class Channel(TembaModel):
     @classmethod
     def send_nexmo_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, SENT
-        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET
+        from temba.orgs.models import NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 
-        client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET])
+        client = NexmoClient(channel.org_config[NEXMO_KEY], channel.org_config[NEXMO_SECRET],
+                             channel.org_config[NEXMO_APP_ID], channel.org_config[NEXMO_APP_PRIVATE_KEY])
         start = time.time()
 
         attempts = 0

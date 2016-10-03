@@ -393,8 +393,10 @@ class IVRTests(FlowFileTest):
         # make sure we have a redirect to deal with empty responses
         self.assertContains(response, 'empty=1')
 
+    @patch('nexmo.Client.create_application')
     @patch('requests.post')
-    def test_ivr_digital_gather_with_voicexml(self, mock_post):
+    def test_ivr_digital_gather_with_voicexml(self, mock_post, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
         mock_post.return_value = MockResponse(200, json.dumps({"call-id": '12345'}))
 
         self.org.connect_nexmo('123', '456', self.admin)
@@ -576,13 +578,9 @@ class IVRTests(FlowFileTest):
         test_status_update(call, 'failed', FAILED, Channel.TYPE_TWILIO)
         test_status_update(call, 'no-answer', NO_ANSWER, Channel.TYPE_TWILIO)
 
-        test_status_update(call, None, IN_PROGRESS, Channel.TYPE_NEXMO)
-        test_status_update(call, 'ok', COMPLETED, Channel.TYPE_NEXMO)
-        test_status_update(call, 'failed', FAILED, Channel.TYPE_NEXMO)
-        test_status_update(call, 'error', FAILED, Channel.TYPE_NEXMO)
-        test_status_update(call, 'vxml_error', FAILED, Channel.TYPE_NEXMO)
-        test_status_update(call, 'blocked', FAILED, Channel.TYPE_NEXMO)
-        test_status_update(call, 'machine', FAILED, Channel.TYPE_NEXMO)
+        test_status_update(call, 'answered', IN_PROGRESS, Channel.TYPE_NEXMO)
+        test_status_update(call, 'ringing', RINGING, Channel.TYPE_NEXMO)
+        test_status_update(call, 'completed', COMPLETED, Channel.TYPE_NEXMO)
 
         FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()
@@ -732,7 +730,10 @@ class IVRTests(FlowFileTest):
         response = self.client.post(urlparse(redirect_url).path, post_data)
         self.assertContains(response, "You are not part of group.")
 
-    def test_incoming_start_nexmo(self):
+    @patch('nexmo.Client.create_application')
+    def test_incoming_start_nexmo(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
@@ -742,15 +743,16 @@ class IVRTests(FlowFileTest):
         self.get_flow('call_me_start')
 
         # create an inbound call
-        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382', )
+        post_data = dict(nexmo_call_id="ext-id", nexmo_caller_id="+250788382382")
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
                                     post_data)
 
         # grab the redirect URL
-        redirect_url = re.match(r'.*<subdialog src="(.*)" ></subdialog>.*', response.content).group(1)
+        redirect_url = re.match(r'.*"eventUrl": \["(.*)"\].*', response.content).group(1)
 
         # get just the path and hit it
-        response = self.client.post(urlparse(redirect_url).path, post_data)
+        response = self.client.post("%s?%s" % (urlparse(redirect_url).path, urlparse(redirect_url).query),
+                                    json.dumps(post_data), content_type='application/json')
         self.assertContains(response, "You are not part of group.")
 
         # we have an incoming call
@@ -760,7 +762,10 @@ class IVRTests(FlowFileTest):
         self.assertEquals('+250788382382', call.contact_urn.path)
         self.assertEquals('ext-id', call.external_id)
 
-    def test_incoming_call_nexmo(self):
+    @patch('nexmo.Client.create_application')
+    def test_incoming_call_nexmo(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
@@ -780,10 +785,13 @@ class IVRTests(FlowFileTest):
                                     spec_version=3, revision=2, created_by=self.admin, modified_by=self.admin)
 
         # create an inbound call
-        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382', )
+        post_data = dict(nexmo_call_id='ext-id', nexmo_caller_id='+250788382382')
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
                                     post_data)
-        self.assertContains(response, '<prompt>Would you like me to call you? Press one for yes, two for no, or three for maybe.</prompt>')
+
+        self.assertTrue(dict(action='talk',
+                             text='Would you like me to call you? Press one for yes, two for no, or three for maybe.')
+                        in json.loads(response.content))
 
         call = IVRCall.objects.all().first()
         self.assertIsNotNone(call)
@@ -795,14 +803,20 @@ class IVRTests(FlowFileTest):
         flow.refresh_from_db()
         self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
 
-    def test_nexmo_config_empty_callbacks(self):
+    @patch('nexmo.Client.create_application')
+    def test_nexmo_config_empty_callbacks(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]), {})
         self.assertEqual(200, response.status_code)
 
-    def test_no_channel_for_call_nexmo(self):
+    @patch('nexmo.Client.create_application')
+    def test_no_channel_for_call_nexmo(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
@@ -820,7 +834,10 @@ class IVRTests(FlowFileTest):
         # no call object created
         self.assertFalse(IVRCall.objects.all())
 
-    def test_no_flow_for_incoming_nexmo(self):
+    @patch('nexmo.Client.create_application')
+    def test_no_flow_for_incoming_nexmo(self, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
 
@@ -834,7 +851,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
                                     post_data)
 
-        self.assertContains(response, 'exit')
+        self.assertEqual(json.loads(response.content), [dict(action='talk', text='')])
         # no call object created
         self.assertFalse(IVRCall.objects.all())
 

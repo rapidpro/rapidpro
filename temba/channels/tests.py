@@ -32,7 +32,8 @@ from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
-from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID
+from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID, \
+    NEXMO_APP_ID, NEXMO_APP_PRIVATE_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
@@ -3786,7 +3787,8 @@ class NexmoTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
         self.nexmo_uuid = str(uuid.uuid4())
-        nexmo_config = {NEXMO_KEY: '1234', NEXMO_SECRET: '1234', NEXMO_UUID: self.nexmo_uuid}
+        nexmo_config = {NEXMO_KEY: '1234', NEXMO_SECRET: '1234', NEXMO_UUID: self.nexmo_uuid,
+                        NEXMO_APP_ID: 'nexmo-app-id', NEXMO_APP_PRIVATE_KEY: 'nexmo-private-key'}
 
         org = self.channel.org
 
@@ -3853,6 +3855,7 @@ class NexmoTest(TembaTest):
         org_config[NEXMO_APP_ID] = 'nexmo-app-id'
         org_config[NEXMO_APP_PRIVATE_KEY] = 'nexmo-private-key'
         self.org.config = json.dumps(org_config)
+        self.org.clear_channel_caches()
 
         self.channel.channel_type = Channel.TYPE_NEXMO
         self.channel.save()

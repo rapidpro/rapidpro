@@ -1054,6 +1054,12 @@ class NCCOTest(TembaTest):
         self.assertEqual(json.loads(unicode(response)), [dict(action='stream',
                                                               streamUrl=['http://example.com/audio.wav'])])
 
+        response = ncco.Response()
+        response.play(url='http://example.com/audio.wav', digits='123')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(action='stream',
+                                                              streamUrl=['http://example.com/audio.wav'])])
+
     def test_pause(self):
         response = ncco.Response()
         response.pause()
@@ -1061,6 +1067,9 @@ class NCCOTest(TembaTest):
     def test_redirect(self):
         response = ncco.Response()
         response.redirect('http://example.com/')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(action='input', maxDigits=1, submitOnHash=True, timeOut=1,
+                                                              eventUrl=["%s?input_redirect=1" % 'http://example.com'])])
 
     def test_hangup(self):
         response = ncco.Response()
