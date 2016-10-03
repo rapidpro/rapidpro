@@ -1967,7 +1967,6 @@ class LineHandler(View):
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
-        from linebot.receives import Receive
 
         channel_uuid = kwargs['uuid']
 
@@ -1977,15 +1976,18 @@ class LineHandler(View):
 
         try:
             data = request.body.decode('utf-8', errors='ignore')
-            receive = Receive(data)
+            content = json.loads(data)
+            events = content.get('events')
 
-            for r in receive:
-                data = r._Message__data
-                content = data.get('content')
-                text = content.content.get('text')
-                date = ms_to_datetime(data.get('created_time'))
-                from_mid = data.get('from_mid').encode('utf-8')
-                Msg.create_incoming(channel=channel, urn=URN.from_line(from_mid), text=text, date=date)
+            for item in events:
+                source = item.get('source')
+                message = item.get('message')
+
+                if message.get('type') == 'text':
+                    text = message.get('text')
+                    user_id = source.get('userId')
+                    date = ms_to_datetime(item.get('timestamp'))
+                    Msg.create_incoming(channel=channel, urn=URN.from_line(user_id), text=text, date=date)
 
             return HttpResponse("Msg Accepted")
 

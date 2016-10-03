@@ -538,8 +538,9 @@ class Channel(TembaModel):
         channel_id = credentials.get('channel_id')
         channel_secret = credentials.get('channel_secret')
         channel_mid = credentials.get('channel_mid')
+        channel_access_token = credentials.get('channel_access_token')
 
-        return Channel.create(org, user, None, Channel.TYPE_LINE, name=name, address=channel_mid, config={Channel.CONFIG_CHANNEL_ID: channel_id, Channel.CONFIG_CHANNEL_SECRET: channel_secret, Channel.CONFIG_CHANNEL_MID: channel_mid})
+        return Channel.create(org, user, None, Channel.TYPE_LINE, name=name, address=channel_mid, config={Channel.CONFIG_AUTH_TOKEN: channel_access_token, Channel.CONFIG_CHANNEL_ID: channel_id, Channel.CONFIG_CHANNEL_SECRET: channel_secret, Channel.CONFIG_CHANNEL_MID: channel_mid})
 
     @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
@@ -1159,30 +1160,34 @@ class Channel(TembaModel):
     @classmethod
     def send_line_message(cls, channel, msg, text):
         from temba.msgs.models import Msg, WIRED
-        from linebot.client import LineBotClient
 
-        credentials = {
-            Channel.CONFIG_CHANNEL_MID: channel.config.get(Channel.CONFIG_CHANNEL_MID),
-            Channel.CONFIG_CHANNEL_SECRET: channel.config.get(Channel.CONFIG_CHANNEL_SECRET),
-            Channel.CONFIG_CHANNEL_ID: channel.config.get(Channel.CONFIG_CHANNEL_ID)
-        }
+        channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
 
-        line_bot_client = LineBotClient(**credentials)
+        data = json.dumps({
+            'to': msg.urn_path,
+            'messages': [
+                {
+                    'type': 'text',
+                    'text': text
+                }
+            ]
+        })
 
+        response = requests.post('https://api.line.me/v2/bot/message/push', data=data, headers={'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token})
         start = time.time()
-
-        response = line_bot_client.send_text(to_mid=msg.urn_path, text=text)
         content = json.loads(response.content)
-        external_id = int(content.get('messageId'))
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
+        if response.status_code == 200:
+            Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=None)
 
-        ChannelLog.log_success(msg=msg,
-                               description="Successfully delivered",
-                               method='POST',
-                               url=response.request.url,
-                               response=response.content,
-                               response_status=response.status_code)
+            ChannelLog.log_success(msg=msg,
+                                   description="Successfully delivered",
+                                   method='POST',
+                                   url=response.request.url,
+                                   response=response.content,
+                                   response_status=response.status_code)
+        else:
+            ChannelLog.log_error(msg=msg, description=content.get('message'))
 
     @classmethod
     def send_mblox_message(cls, channel, msg, text):
