@@ -1736,7 +1736,6 @@ class ChannelTest(TembaTest):
                 self.assertEqual(config['oauth_token_secret'], '45678')
 
     def test_claim_line(self):
-        from linebot.users import UserProfile
 
         # disassociate all of our channels
         self.org.channels.all().update(org=None, is_active=False)
@@ -1748,32 +1747,30 @@ class ChannelTest(TembaTest):
 
         claim_line_url = reverse('channels.channel_claim_line')
 
-        with patch('linebot.client.LineBotClient.get_user_profile') as get_user_profile:
-            get_user_profile.return_value = [
-                UserProfile({'mid': 'u123456789', 'displayName': 'userDisplayName', 'pictureUrl': 'pictureUrl.png', 'statusMessage': 'statusMessage'})
-            ]
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(200, json.dumps(dict(channelId=123456789, mid='u1234567890')))
 
-            payload = dict(channel_id='123456', channel_secret='123456', channel_mid='u123456789')
+            payload = dict(channel_access_token='abcdef123456', channel_secret='123456')
 
             response = self.client.post(claim_line_url, payload, follow=True)
             channel = Channel.objects.get(channel_type=Channel.TYPE_LINE)
             self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
             self.assertEqual(channel.channel_type, "LN")
-            self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_ID], '123456')
+            self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], 'abcdef123456')
             self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_SECRET], '123456')
-            self.assertEqual(channel.address, 'u123456789')
+            self.assertEqual(channel.address, 'u1234567890')
 
             response = self.client.post(claim_line_url, payload, follow=True)
             self.assertContains(response, "A channel with this configuration already exists.")
 
         self.org.channels.update(is_active=False, org=None)
 
-        with patch('linebot.client.LineBotClient.get_user_profile') as get_user_profile:
-            get_user_profile.return_value = None
-            payload = dict(channel_id='123456', channel_secret='123456', channel_mid='u123456789')
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(401, json.dumps(dict(error_desciption="invalid token")))
+            payload = dict(channel_auth_token='abcdef123456', channel_secret='123456')
 
             response = self.client.post(claim_line_url, payload, follow=True)
-            self.assertContains(response, "Profile not found with the information provided.")
+            self.assertContains(response, "invalid token")
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -7534,28 +7531,38 @@ class LineTest(TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_LINE, '123456789', '123456789',
-                                      config=dict(channel_id='1234', channel_secret='1234', channel_mid='1234'),
+                                      config=dict(channel_id='1234', channel_secret='1234', channel_mid='1234', auth_token='abcdefgij'),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):
+
         data = {
-            "result": [{
-                "from": "123456789",
-                "fromChannel": 123456789,
-                "to": ["123456789"],
-                "toChannel": 123456789,
-                "eventType": "138311609000106303",
-                "id": "123456789",
-                "content": {
-                    "location": None,
-                    "id": "123456789",
-                    "contentType": 1,
-                    "from": "123456789",
-                    "createdTime": 1332394961610,
-                    "to": ["123456789"],
-                    "toType": 1,
-                    "contentMetadata": None,
-                    "text": "Hello, BOT API Server!"
+            "events": [{
+                "replyToken": "abcdefghij",
+                "type": "message",
+                "timestamp": 1451617200000,
+                "source": {
+                    "type": "user",
+                    "userId": "uabcdefghij"
+                },
+                "message": {
+                    "id": "100001",
+                    "type": "text",
+                    "text": "Hello, world"
+                }
+            }, {
+                "replyToken": "abcdefghijklm",
+                "type": "message",
+                "timestamp": 1451617210000,
+                "source": {
+                    "type": "user",
+                    "userId": "uabcdefghij"
+                },
+                "message": {
+                    "id": "100002",
+                    "type": "sticker",
+                    "packageId": "1",
+                    "stickerId": "1"
                 }
             }]
         }
@@ -7567,19 +7574,22 @@ class LineTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals("123456789", msg.contact.get_urn(LINE_SCHEME).path)
+        self.assertEquals("uabcdefghij", msg.contact.get_urn(LINE_SCHEME).path)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
-        self.assertEquals("Hello, BOT API Server!", msg.text)
+        self.assertEquals("Hello, world", msg.text)
+
+        response = self.client.get(callback_url)
+        self.assertEquals(400, response.status_code)
 
     def test_send(self):
-        joe = self.create_contact("Joe", urn="line:1234")
-        msg = joe.send("Hello, BOT API Server!", self.admin, trigger_send=False)
+        joe = self.create_contact("Joe", urn="line:uabcdefghij")
+        msg = joe.send("Hello, world", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, '{"failed":[],"messageId":"123456789","timestamp":1474324214493,"version":1}')
+                mock.return_value = MockResponse(200, '{}')
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
