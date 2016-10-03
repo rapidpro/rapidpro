@@ -1129,6 +1129,11 @@ class Contact(TembaModel):
             # trim all our values
             row = [cls.normalize_value(cell_value) for cell_value in row]
 
+            row = [str(cell_value)
+                   if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime)
+                   else cell_value
+                   for cell_value in row]
+
             line_number += 1
 
             # make sure there are same number of fields
