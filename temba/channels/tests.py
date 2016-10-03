@@ -6560,8 +6560,7 @@ class ChikkaTest(TembaTest):
 
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
-        try:
-            settings.SEND_MESSAGES = True
+        with self.settings(SEND_MESSAGES=True):
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, "Success", method='POST')
@@ -6592,16 +6591,74 @@ class ChikkaTest(TembaTest):
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                # REPLY currently disabled per Chikka
                 # assert that we were called as a reply
-                # self.assertEqual(mock.call_args[1]['data']['message_type'], 'REPLY')
-                # self.assertEqual(mock.call_args[1]['data']['request_id'], '4004')
+                self.assertEqual(mock.call_args[1]['data']['message_type'], 'REPLY')
+                self.assertEqual(mock.call_args[1]['data']['request_id'], '4004')
 
                 self.clear_cache()
 
-            with patch('requests.get') as mock:
-                mock.side_effect = Exception("Couldn't reach server")
-                mock.return_value = MockResponse(400, "Error", method='POST')
+            with patch('requests.post') as mock:
+                error = dict(status=400, message='BAD REQUEST', description='Invalid/Used Request ID')
+
+                # first request (as a reply) is an error, second should be success without request id
+                mock.side_effect = [
+                    MockResponse(400, json.dumps(error), method='POST'),
+                    MockResponse(200, 'Success', method='POST')
+                ]
+
+                msg.response_to = incoming
+                msg.save()
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                first_call_args = mock.call_args_list[0][1]['data']
+                second_call_args = mock.call_args_list[1][1]['data']
+
+                # first request is as a reply
+                self.assertEqual(first_call_args['message_type'], 'REPLY')
+                self.assertEqual(first_call_args['request_id'], '4004')
+
+                # but when that fails, we should try again as a send
+                self.assertEqual(second_call_args['message_type'], 'SEND')
+                self.assertTrue('request_id' not in second_call_args)
+
+                # our message should be succeeded
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertEquals(0, msg.error_count)
+
+                self.clear_cache()
+
+            # test with an invalid request id, then an unexpected error
+            with patch('requests.post') as mock:
+                error = dict(status=400, message='BAD REQUEST', description='Invalid/Used Request ID')
+
+                # first request (as a reply) is an error, second should be success without request id
+                mock.side_effect = [
+                    MockResponse(400, json.dumps(error), method='POST'),
+                    Exception("Unexpected Error")
+                ]
+
+                msg.response_to = incoming
+                msg.save()
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "{}", method='POST')
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -6609,23 +6666,22 @@ class ChikkaTest(TembaTest):
                 # message should be marked as an error
                 msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
                 self.clear_cache()
 
-            with patch('requests.get') as mock:
+            with patch('requests.post') as mock:
                 mock.side_effect = Exception("Couldn't reach server")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # should also have an error
                 msg.refresh_from_db()
-                self.assertEquals(ERRORED, msg.status)
+
+                # third try, we should be failed now
+                self.assertEquals(FAILED, msg.status)
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class JasminTest(TembaTest):

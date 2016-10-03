@@ -1355,7 +1355,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _remove_ - Remove the contacts from the given group
         * _block_ - Block the contacts
         * _unblock_ - Un-block the contacts
-        * _expire_ - Force expiration of contacts' active flow runs
+        * _interrupt_ - Interrupt and end any of the contacts' active flow runs
         * _archive_ - Archive all of the contacts' messages
         * _delete_ - Permanently delete the contacts
 
@@ -1377,6 +1377,8 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     @classmethod
     def get_write_explorer(cls):
+        actions = cls.serializer_class.ACTIONS
+
         return {
             'method': "POST",
             'title': "Update Multiple Contacts",
@@ -1384,7 +1386,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
             'slug': 'contact-actions',
             'fields': [
                 {'name': "contacts", 'required': True, 'help': "The UUIDs of the contacts to update"},
-                {'name': "action", 'required': True, 'help': "One of the following strings: add, remove, block, unblock, expire, archive, delete"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: " + ", ".join(actions)},
                 {'name': "group", 'required': False, 'help': "The UUID or name of a contact group"},
             ]
         }
@@ -2240,6 +2242,8 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     @classmethod
     def get_write_explorer(cls):
+        actions = cls.serializer_class.ACTIONS
+
         return {
             'method': "POST",
             'title': "Update Multiple Messages",
@@ -2247,7 +2251,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
             'slug': 'message-actions',
             'fields': [
                 {'name': "messages", 'required': True, 'help': "The ids of the messages to update"},
-                {'name': "action", 'required': True, 'help': "One of the following strings: label, unlabel, archive, restore, delete"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: " + ", ".join(actions)},
                 {'name': "label", 'required': False, 'help': "The UUID or name of a message label"},
             ]
         }
