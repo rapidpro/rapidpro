@@ -543,11 +543,11 @@ class ContactBulkActionSerializer(WriteSerializer):
     REMOVE = 'remove'
     BLOCK = 'block'
     UNBLOCK = 'unblock'
-    EXPIRE = 'expire'
+    INTERRUPT = 'interrupt'
     ARCHIVE = 'archive'
     DELETE = 'delete'
 
-    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, EXPIRE, ARCHIVE, DELETE)
+    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, INTERRUPT, ARCHIVE, DELETE)
     ACTIONS_WITH_GROUP = (ADD, REMOVE)
 
     contacts = fields.ContactField(many=True)
@@ -582,8 +582,8 @@ class ContactBulkActionSerializer(WriteSerializer):
             group.update_contacts(user, contacts, add=True)
         elif action == self.REMOVE:
             group.update_contacts(user, contacts, add=False)
-        elif action == self.EXPIRE:
-            FlowRun.expire_all_for_contacts(contacts)
+        elif action == self.INTERRUPT:
+            FlowRun.exit_all_for_contacts(contacts, FlowRun.EXIT_TYPE_INTERRUPTED)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         else:
