@@ -544,6 +544,10 @@ class FlowTest(TembaTest):
 
         self.create_group('Devs', [self.contact])
 
+        # contact name with an illegal character
+        self.contact3.name = "Nor\02bert"
+        self.contact3.save()
+
         self.flow.update(self.definition)
         contact1_run1, contact2_run1, contact3_run1 = self.flow.start([], [self.contact, self.contact2, self.contact3])
 

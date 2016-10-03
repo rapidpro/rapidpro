@@ -3931,6 +3931,7 @@ class ExportFlowResultsTask(SmartModel):
 
             contact_urn_display = get_contact_urn_display(run_step.contact)
             contact_uuid = run_step.contact.uuid
+            contact_name = remove_control_characters(run_step.contact.name)
 
             # if this is a rule step, write out the value collected
             if run_step.step_type == FlowStep.TYPE_RULE_SET:
@@ -3997,7 +3998,7 @@ class ExportFlowResultsTask(SmartModel):
                         runs_sheet_row[padding + 0] = cell
                         cell = WriteOnlyCell(runs, value=contact_urn_display)
                         runs_sheet_row[padding + 1] = cell
-                        cell = WriteOnlyCell(runs, value=run_step.contact.name)
+                        cell = WriteOnlyCell(runs, value=contact_name)
                         runs_sheet_row[padding + 2] = cell
                         cell = WriteOnlyCell(runs, value=groups)
                         runs_sheet_row[padding + 3] = cell
@@ -4006,7 +4007,7 @@ class ExportFlowResultsTask(SmartModel):
                     merged_sheet_row[padding + 0] = cell
                     cell = WriteOnlyCell(merged_runs, value=contact_urn_display)
                     merged_sheet_row[padding + 1] = cell
-                    cell = WriteOnlyCell(merged_runs, value=run_step.contact.name)
+                    cell = WriteOnlyCell(merged_runs, value=contact_name)
                     merged_sheet_row[padding + 2] = cell
                     cell = WriteOnlyCell(merged_runs, value=groups)
                     merged_sheet_row[padding + 3] = cell
@@ -4134,7 +4135,7 @@ class ExportFlowResultsTask(SmartModel):
                     msgs_row.append(cell)
                     cell = WriteOnlyCell(msgs, value=msg_urn_display)
                     msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=run_step.contact.name)
+                    cell = WriteOnlyCell(msgs, value=contact_name)
                     msgs_row.append(cell)
                     cell = WriteOnlyCell(msgs, value=as_org_tz(msg.created_on))
                     msgs_row.append(cell)
