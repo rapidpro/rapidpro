@@ -4590,7 +4590,7 @@ class BlackmynaTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_received(self):
-        data = {'to': '1212', 'from': '977788123123', 'text': 'Hello World', 'smsc': 'NTNepal5002'}
+        data = {'to': '1212', 'from': '+977788123123', 'text': 'Hello World', 'smsc': 'NTNepal5002'}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.blackmyna_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
@@ -4600,7 +4600,7 @@ class BlackmynaTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals('977788123123', msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
@@ -4723,7 +4723,7 @@ class SMSCentralTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_received(self):
-        data = {'mobile': '977788123123', 'message': 'Hello World', 'telco': 'Ncell'}
+        data = {'mobile': '+977788123123', 'message': 'Hello World', 'telco': 'Ncell'}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.smscentral_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
@@ -4733,7 +4733,7 @@ class SMSCentralTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals('977788123123', msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
