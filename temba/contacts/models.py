@@ -1127,15 +1127,20 @@ class Contact(TembaModel):
 
         for row in sheet_data_records:
             # trim all our values
-            row = [cls.normalize_value(cell_value) for cell_value in row]
+            row_data = []
+            for cell in row:
+                cell_value = cls.normalize_value(cell)
+                if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime):
+                    cell_value = unicode(cell_value)
+                row_data.append(cell_value)
 
             line_number += 1
 
             # make sure there are same number of fields
-            if len(row) != len(header):
-                raise Exception("Line %d: The number of fields for this row is incorrect. Expected %d but found %d." % (line_number, len(header), len(row)))
+            if len(row_data) != len(header):
+                raise Exception("Line %d: The number of fields for this row is incorrect. Expected %d but found %d." % (line_number, len(header), len(row_data)))
 
-            field_values = dict(zip(header, row))
+            field_values = dict(zip(header, row_data))
             log_field_values = field_values.copy()
             field_values['created_by'] = user
             field_values['modified_by'] = user
