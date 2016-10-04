@@ -5191,11 +5191,21 @@ class TwilioTest(TembaTest):
         Msg.objects.all().delete()
 
         # Test TwiML Handler right now
+        self.channel.delete()
+
+        post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
+        twiml_api_url = reverse('handlers.twiml_api_handler', args=['1234-1234-1234-12345'])
+        response = self.client.post(twiml_api_url, post_data)
+        self.assertEquals(400, response.status_code)
+
+        # Create new channel
+        self.channel = Channel.create(self.org, self.user, 'RW', 'TW', None, '+250785551212',
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
         send_url = "https://api.twilio.com"
 
         self.channel.config = json.dumps({ACCOUNT_SID: self.account_sid, ACCOUNT_TOKEN: self.account_token,
                                           Channel.CONFIG_SEND_URL: send_url})
-        self.channel.channel_type = Channel.TYPE_TWIML
         self.channel.save()
 
         post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
