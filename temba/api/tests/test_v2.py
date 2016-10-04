@@ -1470,7 +1470,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'label', "Generated key \"created_by\" is invalid or a reserved name.")
 
         # try again with a label that's already taken
-        response = self.postJSON(url, None, {'label': "Nick Name", 'value_type': "text"})
+        response = self.postJSON(url, None, {'label': "nick name", 'value_type': "text"})
         self.assertResponseError(response, 'label', "This field must be unique.")
 
         # create a new field
@@ -1583,7 +1583,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json, {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
 
         # try to create another group with same name
-        response = self.postJSON(url, None, {'name': "Reporters"})
+        response = self.postJSON(url, None, {'name': "reporters"})
         self.assertResponseError(response, 'name', "This field must be unique.")
 
         # it's fine if a group in another org has that name
@@ -1667,7 +1667,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json, {'uuid': interesting.uuid, 'name': "Interesting", 'count': 0})
 
         # try to create another label with same name
-        response = self.postJSON(url, None, {'name': "Interesting"})
+        response = self.postJSON(url, None, {'name': "interesting"})
         self.assertResponseError(response, 'name', "This field must be unique.")
 
         # it's fine if a label in another org has that name

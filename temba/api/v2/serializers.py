@@ -478,7 +478,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
     VALUE_TYPES = extract_constants(Value.TYPE_CONFIG, reverse=True)
 
     label = serializers.CharField(required=True, max_length=ContactField.MAX_LABEL_LEN, validators=[
-        UniqueForOrgValidator(ContactField.objects.filter(is_active=True))
+        UniqueForOrgValidator(ContactField.objects.filter(is_active=True), ignore_case=True)
     ])
     value_type = serializers.ChoiceField(required=True, choices=VALUE_TYPES.keys())
 
@@ -520,7 +520,7 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 class ContactGroupWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN, validators=[
-        UniqueForOrgValidator(queryset=ContactGroup.user_groups.filter(is_active=True))
+        UniqueForOrgValidator(queryset=ContactGroup.user_groups.filter(is_active=True), ignore_case=True)
     ])
 
     def validate_name(self, value):
@@ -754,7 +754,7 @@ class LabelReadSerializer(ReadSerializer):
 
 class LabelWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN, validators=[
-        UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True))
+        UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True)
     ])
 
     def validate_name(self, value):
