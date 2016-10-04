@@ -1183,7 +1183,11 @@ class Channel(TembaModel):
                                    response=response.content,
                                    response_status=response.status_code)
         else:
-            ChannelLog.log_error(msg=msg, description=content.get('message'))
+            ChannelLog.log_success(msg=msg,
+                                   description=content.get('message'),
+                                   url=response.request.url,
+                                   response=response.content,
+                                   response_status=response.status_code)
 
     @classmethod
     def send_mblox_message(cls, channel, msg, text):
