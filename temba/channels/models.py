@@ -1166,9 +1166,11 @@ class Channel(TembaModel):
         data = json.dumps({'to': msg.urn_path, 'messages': [{'type': 'text', 'text': text}]})
 
         start = time.time()
+        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
+        headers.update(TEMBA_HEADERS)
         response = requests.post('https://api.line.me/v2/bot/message/push',
                                  data=data,
-                                 headers={'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token})
+                                 headers=headers)
         content = json.loads(response.content)
 
         if response.status_code == 200:

@@ -4600,7 +4600,7 @@ class BlackmynaTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals('977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
@@ -4733,7 +4733,7 @@ class SMSCentralTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals('977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
@@ -7580,6 +7580,23 @@ class LineTest(TembaTest):
         self.assertEquals("Hello, world", msg.text)
 
         response = self.client.get(callback_url)
+        self.assertEquals(400, response.status_code)
+
+        data = {
+            "events": [{
+                "replyToken": "abcdefghij",
+                "type": "message",
+                "timestamp": 1451617200000,
+                "source": {
+                    "type": "user",
+                    "userId": "uabcdefghij"
+                }
+            }]
+        }
+
+        callback_url = reverse('handlers.line_handler', args=[self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
         self.assertEquals(400, response.status_code)
 
     def test_send(self):

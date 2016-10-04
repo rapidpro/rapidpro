@@ -1853,11 +1853,15 @@ class ChannelCRUDL(SmartCRUDL):
 
             def clean(self):
                 from django.db.models.query import Q
+                from .models import TEMBA_HEADERS
 
                 channel_secret = self.cleaned_data.get('channel_secret')
                 channel_access_token = self.cleaned_data.get('channel_access_token')
 
-                response = requests.get('https://api.line.me/v1/oauth/verify', headers={'Authorization': 'Bearer %s' % channel_access_token})
+                headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
+                headers.update(TEMBA_HEADERS)
+
+                response = requests.get('https://api.line.me/v1/oauth/verify', headers=headers)
                 content = json.loads(response.content)
 
                 if response.status_code != 200:
@@ -1877,7 +1881,8 @@ class ChannelCRUDL(SmartCRUDL):
                     if existing:
                         raise ValidationError(_("A channel with this configuration already exists."))
 
-                    response_profile = requests.get('https://api.line.me/v1/profile', headers={'Authorization': 'Bearer %s' % channel_access_token})
+                    headers.pop('Content-Type')
+                    response_profile = requests.get('https://api.line.me/v1/profile', headers=headers)
                     content_profile = json.loads(response_profile.content)
 
                     credentials['profile'] = {

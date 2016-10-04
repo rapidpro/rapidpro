@@ -1975,11 +1975,14 @@ class LineHandler(View):
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
         try:
-            data = request.body.decode('utf-8', errors='ignore')
-            content = json.loads(data)
-            events = content.get('events')
+            data = json.loads(request.body)
+            events = data.get('events')
 
             for item in events:
+
+                if 'source' not in item or 'message' not in item or 'type' not in item.get('message'):
+                    return HttpResponse("Missing message, source or type in the event", status=400)
+
                 source = item.get('source')
                 message = item.get('message')
 
@@ -1988,8 +1991,9 @@ class LineHandler(View):
                     user_id = source.get('userId')
                     date = ms_to_datetime(item.get('timestamp'))
                     Msg.create_incoming(channel=channel, urn=URN.from_line(user_id), text=text, date=date)
-
-            return HttpResponse("Msg Accepted")
+                    return HttpResponse("Msg Accepted")
+                else:
+                    return HttpResponse("Msg Ignored")
 
         except Exception as e:
             return HttpResponse("Not handled. Error: %s" % e.args, status=400)
