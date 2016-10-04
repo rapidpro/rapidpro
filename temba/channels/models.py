@@ -2167,6 +2167,16 @@ class Channel(TembaModel):
 
         response_data = response.json()
 
+        # grab the status out of our response
+        status = response_data['SMSMessageData']['Recipients'][0]['status']
+        if status != 'Success':
+            raise SendException("Got non success status from API: %s" % status,
+                                url=api_url,
+                                method='POST',
+                                request=json.dumps(payload),
+                                response=response.text,
+                                response_status=response.status_code)
+
         # set our external id so we know when it is actually sent, this is missing in cases where
         # it wasn't sent, in which case we'll become an errored message
         external_id = response_data['SMSMessageData']['Recipients'][0]['messageId']

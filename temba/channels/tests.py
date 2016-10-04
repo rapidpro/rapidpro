@@ -3003,7 +3003,7 @@ class AfricasTalkingTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1')]))))
+                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1', status='Success')]))))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -3019,12 +3019,28 @@ class AfricasTalkingTest(TembaTest):
 
                 self.clear_cache()
 
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps(
+                    dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1', status='Could Not Send')]))))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+                self.clear_cache()
+
             # test with a non-dedicated shortcode
             self.channel.config = json.dumps(dict(username='at-user', api_key='africa-key', is_shared=True))
             self.channel.save()
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1')]))))
+                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1', status='Success')]))))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -3042,7 +3058,7 @@ class AfricasTalkingTest(TembaTest):
                 # message should be marked as an error
                 msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
