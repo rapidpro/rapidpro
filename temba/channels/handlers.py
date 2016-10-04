@@ -155,7 +155,7 @@ class TwimlAPIHandler(View):
         elif action == 'received':
             channel = self.get_receive_channel(channel_uuid=channel_uuid, to_number=to_number)
             if not channel:
-                raise HttpResponse("No active channel found for number: %s" % to_number, status=400)
+                return HttpResponse("No active channel found for number: %s" % to_number, status=400)
 
             org = channel.org
 
@@ -207,10 +207,6 @@ class TwilioHandler(TwimlAPIHandler):
     @disable_middleware
     def dispatch(self, *args, **kwargs):
         return super(TwilioHandler, self).dispatch(*args, **kwargs)
-
-    @classmethod
-    def get_ringing_channel(cls, to_number):
-        return Channel.objects.filter(address=to_number, channel_type=cls.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
 
     @classmethod
     def get_receive_channel(cls, channel_uuid=None, to_number=None):
