@@ -727,9 +727,23 @@ class Channel(TembaModel):
         if self.channel_type == Channel.TYPE_TWILIO:
             return self.org.get_twilio_client()
         if self.channel_type == Channel.TYPE_TWIML:
-            return self.org.get_twiml_client()
+            return self.get_twiml_client()
         if self.channel_type == Channel.TYPE_VERBOICE:
             return self.org.get_verboice_client()
+        return None
+
+    def get_twiml_client(self):
+        from temba.ivr.clients import TwilioClient
+        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
+
+        config = self.config_json()
+
+        if config:
+            account_sid = config.get(ACCOUNT_SID, None)
+            auth_token = config.get(ACCOUNT_TOKEN, None)
+            base = config.get(Channel.CONFIG_SEND_URL, None)
+            if account_sid and auth_token:
+                return TwilioClient(account_sid, auth_token, org=self, base=base)
         return None
 
     def supports_ivr(self):
@@ -2196,25 +2210,20 @@ class Channel(TembaModel):
         if channel.channel_type == Channel.TYPE_TWIML:
             config = channel.config
             client = TwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN), base=config.get(Channel.CONFIG_SEND_URL))
+        else:
+            client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
+
+        if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
+            messaging_service_sid = channel.config['messaging_service_sid']
+            client.messages.create(to=msg.urn_path,
+                                   messaging_service_sid=messaging_service_sid,
+                                   body=text,
+                                   status_callback=callback_url)
+        else:
             client.messages.create(to=msg.urn_path,
                                    from_=channel.address,
                                    body=text,
                                    status_callback=callback_url)
-
-        else:
-            client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
-
-            if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
-                messaging_service_sid = channel.config['messaging_service_sid']
-                client.messages.create(to=msg.urn_path,
-                                       messaging_service_sid=messaging_service_sid,
-                                       body=text,
-                                       status_callback=callback_url)
-            else:
-                client.messages.create(to=msg.urn_path,
-                                       from_=channel.address,
-                                       body=text,
-                                       status_callback=callback_url)
 
         Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
         ChannelLog.log_success(msg, "Successfully delivered message")

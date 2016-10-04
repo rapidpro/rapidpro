@@ -812,24 +812,6 @@ class Org(SmartModel):
                 return TwilioClient(account_sid, auth_token, org=self)
         return None
 
-    def get_twiml_client(self):
-        from temba.channels.models import Channel
-        from temba.ivr.clients import TwilioClient
-        channel = self.channels.filter(channel_type=Channel.TYPE_TWIML).first()
-
-        try:
-            config = channel.config_json()
-        except:
-            config = None
-
-        if config:
-            account_sid = config.get(ACCOUNT_SID, None)
-            auth_token = config.get(ACCOUNT_TOKEN, None)
-            base = config.get(Channel.CONFIG_SEND_URL, None)
-            if account_sid and auth_token:
-                return TwilioClient(account_sid, auth_token, org=self, base=base)
-        return None
-
     def get_nexmo_client(self):
         config = self.config_json()
         if config:
