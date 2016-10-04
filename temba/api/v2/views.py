@@ -1355,7 +1355,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _remove_ - Remove the contacts from the given group
         * _block_ - Block the contacts
         * _unblock_ - Un-block the contacts
-        * _expire_ - Force expiration of contacts' active flow runs
+        * _interrupt_ - Interrupt and end any of the contacts' active flow runs
         * _archive_ - Archive all of the contacts' messages
         * _delete_ - Permanently delete the contacts
 
@@ -1377,6 +1377,8 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     @classmethod
     def get_write_explorer(cls):
+        actions = cls.serializer_class.ACTIONS
+
         return {
             'method': "POST",
             'title': "Update Multiple Contacts",
@@ -1384,7 +1386,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
             'slug': 'contact-actions',
             'fields': [
                 {'name': "contacts", 'required': True, 'help': "The UUIDs of the contacts to update"},
-                {'name': "action", 'required': True, 'help': "One of the following strings: add, remove, block, unblock, expire, archive, delete"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: " + ", ".join(actions)},
                 {'name': "group", 'required': False, 'help': "The UUID or name of a contact group"},
             ]
         }
@@ -1743,7 +1745,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **GET** returns the list of contact groups for your organization, in the order of last created.
 
      * **uuid** - the UUID of the group (string), filterable as `uuid`
-     * **name** - the name of the group (string)
+     * **name** - the name of the group (string), filterable as `name`
      * **count** - the number of contacts in the group (int)
 
     Example:
@@ -1824,6 +1826,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1832,6 +1835,11 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by name (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 
@@ -1843,7 +1851,8 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'url': reverse('api.v2.groups'),
             'slug': 'group-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"}
+                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"},
+                {'name': "name", 'required': False, 'help': "A contact group name to filter by"}
             ]
         }
 
@@ -1884,7 +1893,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **GET** returns the list of message labels for your organization, in the order of last created.
 
      * **uuid** - the UUID of the label (string), filterable as `uuid`
-     * **name** - the name of the label (string)
+     * **name** - the name of the label (string), filterable as `name`
      * **count** - the number of messages with this label (int)
 
     Example:
@@ -1962,6 +1971,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1970,6 +1980,11 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by name (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 
@@ -1981,7 +1996,8 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'url': reverse('api.v2.labels'),
             'slug': 'label-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"}
+                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"},
+                {'name': "name", 'required': False, 'help': "A message label name to filter by"}
             ]
         }
 
@@ -2222,7 +2238,12 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _restore_ - Restore the messages if they are archived
         * _delete_ - Permanently delete the messages
 
-    * **label** - the UUID or name of a label (string, optional)
+    * **label** - the UUID or name of an existing label (string, optional)
+    * **label_name** - the name of a label which can be created if it doesn't exist (string, optional)
+
+    If labelling or unlabelling messages using `label` you will get an error response (400) if the label doesn't exist.
+    If labelling with `label_name` the label will be created if it doesn't exist, and if unlabelling it is ignored if
+    it doesn't exist.
 
     Example:
 
@@ -2240,6 +2261,8 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     @classmethod
     def get_write_explorer(cls):
+        actions = cls.serializer_class.ACTIONS
+
         return {
             'method': "POST",
             'title': "Update Multiple Messages",
@@ -2247,7 +2270,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
             'slug': 'message-actions',
             'fields': [
                 {'name': "messages", 'required': True, 'help': "The ids of the messages to update"},
-                {'name': "action", 'required': True, 'help': "One of the following strings: label, unlabel, archive, restore, delete"},
+                {'name': "action", 'required': True, 'help': "One of the following strings: " + ", ".join(actions)},
                 {'name': "label", 'required': False, 'help': "The UUID or name of a message label"},
             ]
         }
