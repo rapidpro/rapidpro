@@ -1,10 +1,48 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+from collections import defaultdict
+
 from django.db import migrations, models
 from temba.utils import chunk_list
 from django.utils import timezone
 from django.db.models import Count
+
+
+def bulk_exit(runs, exit_type, exited_on=None):
+    from temba.flows.models import Flow, FlowRun
+
+    if isinstance(runs, list):
+        runs = [{'id': r.pk, 'flow_id': r.flow_id} for r in runs]
+    else:
+        runs = list(runs.values('id', 'flow_id'))  # select only what we need...
+
+    # organize runs by flow
+    runs_by_flow = defaultdict(list)
+    for run in runs:
+        runs_by_flow[run['flow_id']].append(run['id'])
+
+    # for each flow, remove activity for all runs
+    for flow_id, run_ids in runs_by_flow.iteritems():
+        flow = Flow.objects.filter(id=flow_id).first()
+
+        if flow:
+            flow.remove_active_for_run_ids(run_ids)
+
+    modified_on = timezone.now()
+    if not exited_on:
+        exited_on = modified_on
+
+    from temba.flows.tasks import continue_parent_flows
+
+    # batch this for 1,000 runs at a time so we don't grab locks for too long
+    for batch in chunk_list(runs, 1000):
+        ids = [r['id'] for r in batch]
+        run_objs = FlowRun.objects.filter(pk__in=ids)
+        run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type, modified_on=modified_on)
+
+        # continue the parent flows to continue async
+        continue_parent_flows.delay(ids)
 
 
 def exit_active_flowruns(Contact, log=False):
@@ -41,7 +79,7 @@ def exit_active_flowruns(Contact, log=False):
     exited = 0
     for batch in chunk_list(exit_runs, 1000):
         runs = FlowRun.objects.filter(id__in=batch)
-        FlowRun.bulk_exit(runs, FlowRun.EXIT_TYPE_INTERRUPTED, timezone.now())
+        bulk_exit(runs, FlowRun.EXIT_TYPE_INTERRUPTED, timezone.now())
 
         exited += len(batch)
         if log:
