@@ -233,11 +233,14 @@ class ContactField(SmartModel):
     """
     Represents a type of field that can be put on Contacts.
     """
+    MAX_KEY_LEN = 36
+    MAX_LABEL_LEN = 36
+
     org = models.ForeignKey(Org, verbose_name=_("Org"), related_name="contactfields")
 
-    label = models.CharField(verbose_name=_("Label"), max_length=36)
+    label = models.CharField(verbose_name=_("Label"), max_length=MAX_LABEL_LEN)
 
-    key = models.CharField(verbose_name=_("Key"), max_length=36)
+    key = models.CharField(verbose_name=_("Key"), max_length=MAX_KEY_LEN)
 
     value_type = models.CharField(choices=Value.TYPE_CHOICES, max_length=1, default=Value.TYPE_TEXT,
                                   verbose_name="Field Type")
@@ -253,12 +256,12 @@ class ContactField(SmartModel):
 
     @classmethod
     def is_valid_key(cls, key):
-        return regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0) and key not in Contact.RESERVED_FIELDS
+        return regex.match(r'^[a-z][a-z0-9_]*$', key, regex.V0) and key not in Contact.RESERVED_FIELDS and len(key) <= cls.MAX_KEY_LEN
 
     @classmethod
     def is_valid_label(cls, label):
         label = label.strip()
-        return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0)
+        return regex.match(r'^[A-Za-z0-9\- ]+$', label, regex.V0) and len(label) <= cls.MAX_LABEL_LEN
 
     @classmethod
     def hide_field(cls, org, user, key):
@@ -928,6 +931,8 @@ class Contact(TembaModel):
             if not value:
                 continue
 
+            value = str(value)
+
             urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
 
             if urn_scheme == TEL_SCHEME:
@@ -1086,8 +1091,87 @@ class Contact(TembaModel):
             raise Exception(ugettext('The file you provided is missing a required header called "Name".'))
 
     @classmethod
+    def normalize_value(cls, val):
+        if isinstance(val, str) or isinstance(val, unicode):
+            return SmartModel.normalize_value(val)
+        return val
+
+    @classmethod
+    def import_excel(cls, filename, user, import_params, log=None, import_results=None):
+
+        import pyexcel
+        sheet_data = pyexcel.get_array(file_name=filename.name)
+
+        line_number = 0
+
+        header = sheet_data[line_number]
+        line_number += 1
+        while header is not None and len(header[0]) > 1 and header[0][0] == "#":
+            header = sheet_data[line_number]
+            line_number += 1
+
+        # do some sanity checking to make sure they uploaded the right kind of file
+        if len(header) < 1:
+            raise Exception("Invalid header for import file")
+
+        # normalize our header names, removing quotes and spaces
+        header = [cls.normalize_value(str(cell_value)).lower() for cell_value in header]
+
+        cls.validate_import_header(header)
+
+        records = []
+        num_errors = 0
+        error_messages = []
+
+        sheet_data_records = sheet_data[line_number:]
+
+        for row in sheet_data_records:
+            # trim all our values
+            row_data = []
+            for cell in row:
+                cell_value = cls.normalize_value(cell)
+                if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime):
+                    cell_value = unicode(cell_value)
+                row_data.append(cell_value)
+
+            line_number += 1
+
+            # make sure there are same number of fields
+            if len(row_data) != len(header):
+                raise Exception("Line %d: The number of fields for this row is incorrect. Expected %d but found %d." % (line_number, len(header), len(row_data)))
+
+            field_values = dict(zip(header, row_data))
+            log_field_values = field_values.copy()
+            field_values['created_by'] = user
+            field_values['modified_by'] = user
+            try:
+
+                field_values = cls.prepare_fields(field_values, import_params, user)
+                record = cls.create_instance(field_values)
+                if record:
+                    records.append(record)
+                else:
+                    num_errors += 1
+
+            except SmartImportRowError as e:
+                error_messages.append(dict(line=line_number, error=str(e)))
+
+            except Exception as e:
+                if log:
+                    import traceback
+                    traceback.print_exc(100, log)
+                raise Exception("Line %d: %s\n\n%s" % (line_number, str(e), str(log_field_values)))
+
+        if import_results is not None:
+            import_results['records'] = len(records)
+            import_results['errors'] = num_errors + len(error_messages)
+            import_results['error_messages'] = error_messages
+
+        return records
+
+    @classmethod
     def import_csv(cls, task, log=None):
-        from xlrd import XLRDError
+        import pyexcel
 
         filename = task.csv_file.file
         user = task.created_by
@@ -1111,21 +1195,26 @@ class Contact(TembaModel):
             pass
 
         # rewrite our file to local disk
-        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s' % str(uuid4()))
+        extension = filename.name.rpartition('.')[2]
+        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension))
         filename.open()
 
         out_file = open(tmp_file, 'w')
         out_file.write(filename.read())
         out_file.close()
 
+        # convert the file to CSV
+        csv_tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.csv' % str(uuid4()))
+
+        pyexcel.save_as(file_name=out_file.name, dest_file_name=csv_tmp_file)
+
         import_results = dict()
 
         try:
-            contacts = cls.import_xls(open(tmp_file), user, import_params, log, import_results)
-        except XLRDError:
-            contacts = cls.import_raw_csv(open(tmp_file), user, import_params, log, import_results)
+            contacts = cls.import_excel(open(tmp_file), user, import_params, log, import_results)
         finally:
             os.remove(tmp_file)
+            os.remove(csv_tmp_file)
 
         # save the import results even if no record was created
         task.import_results = json.dumps(import_results)
@@ -2271,7 +2360,7 @@ class ExportContactsTask(SmartModel):
         self.save(update_fields=['uuid'])
 
         store = AssetType.contact_export.store
-        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xls')
+        store.save(self.pk, File(table_file), 'csv' if exporter.is_csv else 'xlsx')
 
         branding = self.org.get_branding()
         download_url = branding['link'] + get_asset_url(AssetType.contact_export, self.pk)

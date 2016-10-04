@@ -4596,7 +4596,7 @@ class BlackmynaTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_received(self):
-        data = {'to': '1212', 'from': '+977788123123', 'text': 'Hello World', 'smsc': 'NTNepal5002'}
+        data = {'to': '1212', 'from': '+9771488532', 'text': 'Hello World', 'smsc': 'NTNepal5002'}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.blackmyna_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
@@ -4606,7 +4606,7 @@ class BlackmynaTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals('+9771488532', msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
@@ -4623,14 +4623,14 @@ class BlackmynaTest(TembaTest):
         self.assertEquals(400, response.status_code)
 
     def test_send(self):
-        joe = self.create_contact("Joe", "+977788123123")
+        joe = self.create_contact("Joe", "+9771488532")
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps([{'recipient': '+977788123123',
+                mock.return_value = MockResponse(200, json.dumps([{'recipient': '+9771488532',
                                                                    'id': 'asdf-asdf-asdf-asdf'}]))
 
                 # manually send it off
@@ -4729,7 +4729,7 @@ class SMSCentralTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_received(self):
-        data = {'mobile': '+977788123123', 'message': 'Hello World', 'telco': 'Ncell'}
+        data = {'mobile': '+9771488532', 'message': 'Hello World', 'telco': 'Ncell'}
         encoded_message = urlencode(data)
 
         callback_url = reverse('handlers.smscentral_handler', args=['receive', self.channel.uuid]) + "?" + encoded_message
@@ -4739,7 +4739,7 @@ class SMSCentralTest(TembaTest):
 
         # load our message
         msg = Msg.objects.get()
-        self.assertEquals('+977788123123', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals('+9771488532', msg.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(INCOMING, msg.direction)
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
@@ -4753,7 +4753,7 @@ class SMSCentralTest(TembaTest):
         self.assertEquals(400, response.status_code)
 
     def test_send(self):
-        joe = self.create_contact("Joe", "+977788123123")
+        joe = self.create_contact("Joe", "+9771488532")
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         try:
@@ -4772,7 +4772,7 @@ class SMSCentralTest(TembaTest):
 
                 mock.assert_called_with('http://smail.smscentral.com.np/bp/ApiSms.php',
                                         data={'user': 'sc-user', 'pass': 'sc-password',
-                                              'mobile': '977788123123', 'content': "Test message"},
+                                              'mobile': '9771488532', 'content': "Test message"},
                                         headers=TEMBA_HEADERS,
                                         timeout=30)
 
@@ -6603,8 +6603,7 @@ class ChikkaTest(TembaTest):
 
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
-        try:
-            settings.SEND_MESSAGES = True
+        with self.settings(SEND_MESSAGES=True):
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, "Success", method='POST')
@@ -6638,11 +6637,71 @@ class ChikkaTest(TembaTest):
                 # assert that we were called as a reply
                 self.assertEqual(mock.call_args[1]['data']['message_type'], 'REPLY')
                 self.assertEqual(mock.call_args[1]['data']['request_id'], '4004')
+
                 self.clear_cache()
 
-            with patch('requests.get') as mock:
-                mock.side_effect = Exception("Couldn't reach server")
-                mock.return_value = MockResponse(400, "Error", method='POST')
+            with patch('requests.post') as mock:
+                error = dict(status=400, message='BAD REQUEST', description='Invalid/Used Request ID')
+
+                # first request (as a reply) is an error, second should be success without request id
+                mock.side_effect = [
+                    MockResponse(400, json.dumps(error), method='POST'),
+                    MockResponse(200, 'Success', method='POST')
+                ]
+
+                msg.response_to = incoming
+                msg.save()
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                first_call_args = mock.call_args_list[0][1]['data']
+                second_call_args = mock.call_args_list[1][1]['data']
+
+                # first request is as a reply
+                self.assertEqual(first_call_args['message_type'], 'REPLY')
+                self.assertEqual(first_call_args['request_id'], '4004')
+
+                # but when that fails, we should try again as a send
+                self.assertEqual(second_call_args['message_type'], 'SEND')
+                self.assertTrue('request_id' not in second_call_args)
+
+                # our message should be succeeded
+                msg.refresh_from_db()
+                self.assertEquals(WIRED, msg.status)
+                self.assertEquals(0, msg.error_count)
+
+                self.clear_cache()
+
+            # test with an invalid request id, then an unexpected error
+            with patch('requests.post') as mock:
+                error = dict(status=400, message='BAD REQUEST', description='Invalid/Used Request ID')
+
+                # first request (as a reply) is an error, second should be success without request id
+                mock.side_effect = [
+                    MockResponse(400, json.dumps(error), method='POST'),
+                    Exception("Unexpected Error")
+                ]
+
+                msg.response_to = incoming
+                msg.save()
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "{}", method='POST')
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -6650,23 +6709,22 @@ class ChikkaTest(TembaTest):
                 # message should be marked as an error
                 msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
                 self.clear_cache()
 
-            with patch('requests.get') as mock:
+            with patch('requests.post') as mock:
                 mock.side_effect = Exception("Couldn't reach server")
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
                 # should also have an error
                 msg.refresh_from_db()
-                self.assertEquals(ERRORED, msg.status)
+
+                # third try, we should be failed now
+                self.assertEquals(FAILED, msg.status)
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
-
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class JasminTest(TembaTest):

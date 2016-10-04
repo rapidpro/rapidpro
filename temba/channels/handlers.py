@@ -155,7 +155,7 @@ class TwimlAPIHandler(View):
         elif action == 'received':
             channel = self.get_receive_channel(channel_uuid=channel_uuid, to_number=to_number)
             if not channel:
-                raise Exception("No active channel found for number: %s" % to_number)
+                raise HttpResponse("No active channel found for number: %s" % to_number, status=400)
 
             org = channel.org
 

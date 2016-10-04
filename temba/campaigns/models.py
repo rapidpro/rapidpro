@@ -5,16 +5,17 @@ from django.db import models
 from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from smartmin.models import SmartModel
 from temba.contacts.models import ContactGroup, ContactField, Contact
 from temba.flows.models import Flow
 from temba.orgs.models import Org
-from temba.utils.models import generate_uuid
+from temba.utils.models import TembaModel
 from temba.values.models import Value
 
 
-class Campaign(SmartModel):
-    name = models.CharField(max_length=255,
+class Campaign(TembaModel):
+    MAX_NAME_LEN = 255
+
+    name = models.CharField(max_length=MAX_NAME_LEN,
                             help_text="The name of this campaign")
     group = models.ForeignKey(ContactGroup,
                               help_text="The group this campaign operates on")
@@ -22,9 +23,6 @@ class Campaign(SmartModel):
                                       help_text="Whether this campaign is archived or not")
     org = models.ForeignKey(Org,
                             help_text="The organization this campaign exists for")
-
-    uuid = models.CharField(max_length=36, unique=True, default=generate_uuid,
-                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
 
     @classmethod
     def create(cls, org, user, name, group):
@@ -202,7 +200,7 @@ class Campaign(SmartModel):
         return self.name
 
 
-class CampaignEvent(SmartModel):
+class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
     """
@@ -245,9 +243,6 @@ class CampaignEvent(SmartModel):
     message = models.TextField(help_text="The message to send out", null=True, blank=True)
 
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
-
-    uuid = models.CharField(max_length=36, unique=True, default=generate_uuid,
-                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
 
     @classmethod
     def create_message_event(cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1):
