@@ -1762,7 +1762,7 @@ class ChannelTest(TembaTest):
         android.refresh_from_db()
 
         # connect org to Nexmo and add bulk sender
-        with patch('temba.nexmo.NexmoClient.update_account') as connect:
+        with patch('temba.temba_nexmo.NexmoClient.update_account') as connect:
             connect.return_value = True
             with patch('nexmo.Client.create_application') as create_app:
                 create_app.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
