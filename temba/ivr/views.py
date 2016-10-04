@@ -28,12 +28,6 @@ class CallHandler(View):
         if not call:
             return HttpResponse("Not found", status=404)
 
-        print "====="
-        print request.body
-        print "====="
-        print request.REQUEST
-        print "====="
-
         channel = call.channel
         channel_type = channel.channel_type
         client = channel.get_ivr_client()
@@ -114,7 +108,6 @@ class CallHandler(View):
 
                 has_event = '1' == request.GET.get('has_event', '0')
                 if has_event:
-                    print 'event======'
                     return HttpResponse(unicode(''))
 
                 save_media = '1' == request.GET.get('save_media', '0')
@@ -129,9 +122,6 @@ class CallHandler(View):
                 if call.is_flow():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
                     if channel_type in [Channel.TYPE_NEXMO]:
-                        print "++++"
-                        print unicode(response)
-                        print "++++"
                         return build_json_response(json.loads(unicode(response)))
 
                     return HttpResponse(unicode(response))
