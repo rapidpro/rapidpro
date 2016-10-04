@@ -1571,6 +1571,10 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'name=developers')
         self.assertResultsByUUID(response, [developers])
 
+        # try to filter by both
+        response = self.fetchJSON(url, 'uuid=%s&name=developers' % developers.uuid)
+        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
+
         # try to create empty group
         response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
@@ -1654,6 +1658,10 @@ class APITest(TembaTest):
         # filter by name
         response = self.fetchJSON(url, 'name=important')
         self.assertResultsByUUID(response, [important])
+
+        # try to filter by both
+        response = self.fetchJSON(url, 'uuid=%s&name=important' % important.uuid)
+        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
 
         # try to create empty label
         response = self.postJSON(url, None, {})

@@ -1826,6 +1826,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1970,6 +1971,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
