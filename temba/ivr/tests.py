@@ -144,8 +144,11 @@ class IVRTests(FlowFileTest):
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
 
-    @patch('requests.post')
-    def test_ivr_recording_with_voicexml(self, mock_post):
+    @patch('nexmo.Client.create_application')
+    @patch('nexmo.Client.create_call')
+    def test_ivr_recording_with_nexmo(self, mock_create_call, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+        mock_create_call.return_value = dict(conversation_uuid='12345')
 
         # connect Nexmo
         self.org.connect_nexmo('123', '456', self.admin)
@@ -162,22 +165,42 @@ class IVRTests(FlowFileTest):
         flow.start([], [contact])
         call = IVRCall.objects.filter(direction=OUTGOING).first()
 
-        # after a call is picked up, nexmo will make a get call back to our server
-        response = self.client.get(reverse('ivr.ivrcall_handle', args=[call.pk]))
-        self.assertContains(response, '<prompt>Please make a recording after the tone.</prompt>')
+        callback_url = reverse('ivr.ivrcall_handle', args=[call.pk])
 
-        # we have a voicexml response
-        self.assertContains(response, '</form></vxml>')
+        # after a call is picked up, nexmo will send a get call back to our server
+        response = self.client.post(callback_url, content_type='application/json',
+                                    data=json.dumps(dict(status='ringing', duration=0)))
 
-        with open('%s/test_media/allo.wav' % settings.MEDIA_ROOT) as audio_file:
-            # nexmo will call back with the audio recorded
-            response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), data={"UserRecording": audio_file})
+        # we have a talk action
+        self.assertContains(response, '"action": "talk",')
+        self.assertContains(response, '"text": "Please make a recording after the tone."')
 
-            # we have a voicexml response
-            self.assertContains(response, '</form></vxml>')
+        # we have a record action
+        self.assertContains(response, '"action": "record"')
+        self.assertContains(response, '"eventUrl": ["https://%s%s"]' % (settings.TEMBA_HOST, callback_url))
+
+        # we have an input to redirect so we save the recording
+        # hack to make the recording look synchrous for our flows
+        self.assertContains(response, '"action": "input"')
+        self.assertContains(response, '"eventUrl": ["https://%s%s?save_media=1"]' % (settings.TEMBA_HOST, callback_url))
+
+        with patch('temba.temba_nexmo.NexmoClient.download_recording') as mock_download_recording:
+            mock_download_recording.return_value = MockResponse(200, "SOUND_BITS",
+                                                                headers={"Content-Type": "audio/x-wav"})
+
+            # async callback to tell us the recording url
+            response = self.client.post(callback_url, content_type='application/json',
+                                        data=json.dumps(dict(recording_url='http://example.com/allo.wav')))
+
+            self.assertContains(response, 'media URL saved')
+
+            # hack input call back to tell us to save the recording and an empty input submission
+            self.client.post("%s?save_media=1" % callback_url, content_type='application/json',
+                             data=json.dumps(dict(status='answered', duration=2, dtmf='')))
 
         # nexmo will also send us a final completion message with the call duration
-        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), data={"status": "ok", "call-duration": "15"})
+        self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), content_type='application/json',
+                         data=json.dumps({"status": "completed", "duration": "15"}))
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
@@ -394,10 +417,10 @@ class IVRTests(FlowFileTest):
         self.assertContains(response, 'empty=1')
 
     @patch('nexmo.Client.create_application')
-    @patch('requests.post')
-    def test_ivr_digital_gather_with_voicexml(self, mock_post, mock_create_application):
+    @patch('nexmo.Client.create_call')
+    def test_ivr_digital_gather_with_nexmo(self, mock_create_call, mock_create_application):
         mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
-        mock_post.return_value = MockResponse(200, json.dumps({"call-id": '12345'}))
+        mock_create_call.return_value = dict(conversation_uuid='12345')
 
         self.org.connect_nexmo('123', '456', self.admin)
         self.org.save()
@@ -416,17 +439,22 @@ class IVRTests(FlowFileTest):
         flow.start([], [eric])
         call = IVRCall.objects.filter(direction=OUTGOING).first()
 
+        callback_url = reverse('ivr.ivrcall_handle', args=[call.pk])
+
         # after a call is picked up, nexmo will send a get call back to our server
-        response = self.client.get(reverse('ivr.ivrcall_handle', args=[call.pk]))
+        response = self.client.post(callback_url, content_type='application/json',
+                                    data=json.dumps(dict(status='ringing', duration=0)))
 
-        # make sure we send the termchar attribute to nexmo
-        self.assertContains(response, 'termchar="#"')
+        self.assertTrue(dict(action='talk', text="Enter your phone number followed by the pound sign.")
+                        in json.loads(response.content))
 
-        # make sure we have a redirect to deal with empty responses
-        self.assertContains(response, 'empty=1')
+        # we have an input to collect the digits
+        self.assertContains(response, '"action": "input",')
 
-        # it is in a voicexml format
-        self.assertContains(response, '</form></vxml>')
+        # make sure we set submitOnHash to true nexmo
+        self.assertContains(response, '"submitOnHash": true,')
+
+        self.assertContains(response, '"eventUrl": ["https://%s%s"]}]' % (settings.TEMBA_HOST, callback_url))
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

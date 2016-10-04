@@ -123,7 +123,7 @@ class CallHandler(View):
                         saved_media_url = client.download_media(media_url)
                         cache.delete('last_call:media_url:%d' % call.pk)
                     else:
-                        return HttpResponse(unicode(''))
+                        return HttpResponse(unicode('media URL saved'))
 
             if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():
