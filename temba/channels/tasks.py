@@ -12,7 +12,7 @@ from enum import Enum
 from redis_cache import get_redis_connection
 from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
-from temba.utils.queues import pop_task, push_task
+from temba.utils.queues import pop_task, push_task, nonoverlapping_task
 from temba.utils.mage import MageClient
 from .models import Channel, Alert, ChannelLog, ChannelCount
 
@@ -91,13 +91,19 @@ def send_alert_task(alert_id, resolved):
     alert.send_email(resolved)
 
 
-@task(track_started=True, name='trim_channel_log_task')
+@nonoverlapping_task(track_started=True, name='trim_channel_log_task')
 def trim_channel_log_task():
     """
     Runs daily and clears any channel log items older than 48 hours.
     """
+
+    # keep success messages for only two days
     two_days_ago = timezone.now() - timedelta(hours=48)
-    ChannelLog.objects.filter(created_on__lte=two_days_ago).delete()
+    ChannelLog.objects.filter(created_on__lte=two_days_ago, is_error=False).delete()
+
+    # keep errors for 30 days
+    month_ago = timezone.now() - timedelta(days=30)
+    ChannelLog.objects.filter(created_on__lte=month_ago).delete()
 
 
 @task(track_started=True, name='notify_mage_task')
