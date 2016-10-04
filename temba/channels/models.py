@@ -1419,7 +1419,9 @@ class Channel(TembaModel):
         }
 
         # if this is a response to a user SMS, then we need to set this as a reply
-        if msg.response_to_id:
+        # response ids are only valid for up to 24 hours
+        response_window = timedelta(hours=24)
+        if msg.response_to_id and msg.created_on > timezone.now() - response_window:
             response_to = Msg.objects.filter(id=msg.response_to_id).first()
             if response_to:
                 payload['message_type'] = 'REPLY'
@@ -1427,14 +1429,13 @@ class Channel(TembaModel):
 
         # build our send URL
         url = 'https://post.chikka.com/smsapi/request'
+        start = time.time()
+
         log_payload = payload.copy()
         log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
 
-        start = time.time()
-
         try:
             response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
-
         except Exception as e:
             raise SendException(unicode(e),
                                 method='POST',
@@ -1442,6 +1443,30 @@ class Channel(TembaModel):
                                 request=log_payload,
                                 response="",
                                 response_status=503)
+
+        # if they reject our request_id, send it as a normal send
+        if response.status_code == 400 and 'request_id' in payload:
+            error = response.json()
+            if error.get('message', None) == 'BAD REQUEST' and error.get('description', None) == 'Invalid/Used Request ID':
+                try:
+
+                    # operate on a copy so we can still inspect our original call
+                    payload = payload.copy()
+                    del payload['request_id']
+                    payload['message_type'] = 'SEND'
+
+                    response = requests.post(url, data=payload, headers=TEMBA_HEADERS, timeout=5)
+
+                    log_payload = payload.copy()
+                    log_payload['secret_key'] = 'x' * len(log_payload['secret_key'])
+
+                except Exception as e:
+                    raise SendException(unicode(e),
+                                        method='POST',
+                                        url=url,
+                                        request=log_payload,
+                                        response="",
+                                        response_status=503)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
