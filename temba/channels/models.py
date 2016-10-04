@@ -742,8 +742,10 @@ class Channel(TembaModel):
             account_sid = config.get(ACCOUNT_SID, None)
             auth_token = config.get(ACCOUNT_TOKEN, None)
             base = config.get(Channel.CONFIG_SEND_URL, None)
+            
             if account_sid and auth_token:
                 return TwilioClient(account_sid, auth_token, org=self, base=base)
+
         return None
 
     def supports_ivr(self):
