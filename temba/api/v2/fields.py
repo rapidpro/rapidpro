@@ -62,6 +62,7 @@ class TembaModelField(serializers.RelatedField):
     model = None
     model_manager = 'objects'
     lookup_fields = ('uuid',)
+    ignore_case_for_fields = ()
 
     class LimitedSizeList(serializers.ManyRelatedField):
         def run_validation(self, data=serializers.empty):
@@ -87,7 +88,9 @@ class TembaModelField(serializers.RelatedField):
     def get_object(self, value):
         query = Q()
         for lookup_field in self.lookup_fields:
-            query |= Q(**{lookup_field: value})
+            ignore_case = lookup_field in self.ignore_case_for_fields
+            lookup = '%s__%s' % (lookup_field, 'iexact' if ignore_case else 'exact')
+            query |= Q(**{lookup: value})
 
         return self.get_queryset().filter(query).first()
 
@@ -147,6 +150,7 @@ class ContactGroupField(TembaModelField):
     model = ContactGroup
     model_manager = 'user_groups'
     lookup_fields = ('uuid', 'name')
+    ignore_case_for_fields = ('name',)
 
     def __init__(self, **kwargs):
         self.allow_dynamic = kwargs.pop('allow_dynamic', True)
@@ -169,6 +173,7 @@ class LabelField(TembaModelField):
     model = Label
     model_manager = 'label_objects'
     lookup_fields = ('uuid', 'name')
+    ignore_case_for_fields = ('name',)
 
 
 class MessageField(TembaModelField):

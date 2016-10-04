@@ -1288,8 +1288,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {'contacts': [contact3.uuid], 'action': 'add', 'group': "nope"})
         self.assertResponseError(response, 'group', "No such object: nope")
 
-        # remove contact 2 from group by its name
-        response = self.postJSON(url, None, {'contacts': [contact2.uuid], 'action': 'remove', 'group': "Testers"})
+        # remove contact 2 from group by its name (which is case-insensitive)
+        response = self.postJSON(url, None, {'contacts': [contact2.uuid], 'action': 'remove', 'group': "testers"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1, contact3})
 
@@ -2168,8 +2168,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label': "nope"})
         self.assertResponseError(response, 'label', "No such object: nope")
 
-        # remove label from message 2 by name
-        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'unlabel', 'label': "Test"})
+        # remove label from message 2 by name (which is case-insensitive)
+        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'unlabel', 'label': "test"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
