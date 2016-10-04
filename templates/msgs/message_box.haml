@@ -305,3 +305,14 @@
       modal.show();
     });
     {% endif %}
+
+
+-block extra-style
+  {{ block.super }}
+  :css
+    .field_text {
+      /* forces wrapping of messages with no spaces */
+      max-width: 600px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
