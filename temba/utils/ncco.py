@@ -46,7 +46,7 @@ class Response(object):
         return self
 
     def redirect(self, url=None, **kwargs):
-        result = dict(action='input', maxDigits=1, submitOnHash=True, timeOut=1,
+        result = dict(action='input', maxDigits=1, timeOut=1,
                       eventUrl=["%s?input_redirect=1" % url])
 
         self.document.append(result)
@@ -91,7 +91,7 @@ class Response(object):
             result['eventUrl'] = [kwargs.get('action')]
 
         self.document.append(result)
-        result = dict(action='input', maxDigits=1, submitOnHash=True, timeOut=1,
+        result = dict(action='input', maxDigits=1, timeOut=1,
                       eventUrl=["%s?save_media=1" % kwargs.get('action')])
 
         self.document.append(result)
