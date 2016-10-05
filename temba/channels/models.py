@@ -212,7 +212,7 @@ class Channel(TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=64, blank=True, null=True,
                             help_text=_("Descriptive label for this channel"))
 
-    address = models.CharField(verbose_name=_("Address"), max_length=16, blank=True, null=True,
+    address = models.CharField(verbose_name=_("Address"), max_length=64, blank=True, null=True,
                                help_text=_("Address with which this channel communicates"))
 
     country = CountryField(verbose_name=_("Country"), null=True, blank=True,
