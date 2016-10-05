@@ -186,6 +186,7 @@ class InitTest(TembaTest):
     def test_remove_control_charaters(self):
         self.assertIsNone(remove_control_characters(None))
         self.assertEqual(remove_control_characters("ngert\x07in."), "ngertin.")
+        self.assertEqual(remove_control_characters("Norbért"), "Norbért")
 
 
 class TemplateTagTest(TembaTest):
