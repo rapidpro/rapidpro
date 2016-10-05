@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.db import migrations, models
-from temba.orgs.models import Org, NEXMO_UUID
+from temba.orgs.models import Org, NEXMO_UUID, NEXMO_KEY, NEXMO_SECRET, NEXMO_APP_ID
 
 
 class Migration(migrations.Migration):
@@ -19,19 +19,30 @@ class Migration(migrations.Migration):
         nexmo_channels = Channel.objects.filter(channel_type='NX').exclude(org=None)
 
         updated = []
+        updated_orgs = []
         for channel in nexmo_channels:
             try:
                 org = Org.objects.get(pk=channel.org_id)
-                org_uuid = org.config_json().get(NEXMO_UUID)
 
-                nexmo_client = org.get_nexmo_client()
+                if org.pk not in updated_orgs:
+                    org_uuid = org.config_json().get(NEXMO_UUID)
+                    nexmo_api_key = org.config_json().get(NEXMO_KEY, None)
+                    nexmo_secret = org.config_json().get(NEXMO_SECRET, None)
 
-                mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
-                answer_url = reverse('handlers.nexmo_call_handler', args=['answer', channel.uuid])
+                    org.connect_nexmo(nexmo_api_key, nexmo_secret, org.created_by)
+                    org.refresh_from_db()
 
-                nexmo_client.update_nexmo_number(channel.country, channel.address,
-                                           'http://%s%s' % (settings.TEMBA_HOST, mo_path),
-                                           'http://%s%s' % (settings.TEMBA_HOST, answer_url))
+                    updated_orgs.append(org.pk)
+
+                    app_id = org.config_json().get(NEXMO_APP_ID, None)
+
+                    nexmo_client = org.get_nexmo_client()
+
+                    mo_path = reverse('handlers.nexmo_handler', args=['receive', org_uuid])
+
+                    nexmo_client.update_nexmo_number(channel.country, channel.address,
+                                                     'http://%s%s' % (settings.TEMBA_HOST, mo_path),
+                                                     app_id)
 
                 updated.append(channel.id)
             except Exception:
