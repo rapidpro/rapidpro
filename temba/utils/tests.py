@@ -26,7 +26,7 @@ from .gsm7 import is_gsm7, replace_non_gsm7_accents
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .currencies import currency_for_country
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
-    remove_control_characters
+    clean_string
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
 from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
 from . import datetime_to_str, chunk_list, get_country_code_by_name
@@ -184,9 +184,9 @@ class InitTest(TembaTest):
         self.assertEqual('CD', get_country_code_by_name('Democratic Republic of the Congo'))
 
     def test_remove_control_charaters(self):
-        self.assertIsNone(remove_control_characters(None))
-        self.assertEqual(remove_control_characters("ngert\x07in."), "ngertin.")
-        self.assertEqual(remove_control_characters("Norbért"), "Norbért")
+        self.assertIsNone(clean_string(None))
+        self.assertEqual(clean_string("ngert\x07in."), "ngertin.")
+        self.assertEqual(clean_string("Norbért"), "Norbért")
 
 
 class TemplateTagTest(TembaTest):

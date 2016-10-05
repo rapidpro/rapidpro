@@ -25,7 +25,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, remove_control_characters
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, clean_string
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.email import send_template_email
 from temba.utils.expressions import evaluate_template
@@ -2014,10 +2014,10 @@ class ExportMessagesTask(SmartModel):
                 current_messages_sheet.append(sheet_row)
                 row = 2
 
-            contact_name = remove_control_characters(msg.contact.name) if msg.contact.name else ''
+            contact_name = clean_string(msg.contact.name) if msg.contact.name else ''
             contact_uuid = msg.contact.uuid
             created_on = msg.created_on.astimezone(pytz.utc).replace(microsecond=0, tzinfo=None)
-            msg_labels = ", ".join(remove_control_characters(msg_label.name) for msg_label in msg.labels.all())
+            msg_labels = ", ".join(clean_string(msg_label.name) for msg_label in msg.labels.all())
 
             # only show URN path if org isn't anon and there is a URN
             if self.org.is_anon:
@@ -2031,7 +2031,7 @@ class ExportMessagesTask(SmartModel):
 
             sheet_row = []
 
-            text = remove_control_characters(msg.text)
+            text = clean_string(msg.text)
 
             cell = WriteOnlyCell(current_messages_sheet, value=created_on)
             sheet_row.append(cell)
