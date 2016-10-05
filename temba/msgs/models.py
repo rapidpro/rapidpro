@@ -649,7 +649,7 @@ class Msg(models.Model):
     next_attempt = models.DateTimeField(auto_now_add=True, verbose_name=_("Next Attempt"),
                                         help_text=_("When we should next attempt to deliver this message"))
 
-    external_id = models.CharField(max_length=255, null=True, blank=True, db_index=True, verbose_name=_("External ID"),
+    external_id = models.CharField(max_length=255, null=True, blank=True, verbose_name=_("External ID"),
                                    help_text=_("External id used for integrating with callbacks from other APIs"))
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
