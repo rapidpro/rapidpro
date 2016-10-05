@@ -609,6 +609,14 @@
     %code
       https://{{ domain }}{% url 'handlers.line_handler' object.uuid %}
 
+    %hr
+
+    %h4
+      -trans "IP Addresses"
+
+    -for ip_address in ip_addresses
+      %code= ip_address
+
   -elif object.channel_type == 'GL'
     %h4
       -blocktrans
