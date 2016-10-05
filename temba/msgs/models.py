@@ -2014,10 +2014,10 @@ class ExportMessagesTask(SmartModel):
                 current_messages_sheet.append(sheet_row)
                 row = 2
 
-            contact_name = msg.contact.name if msg.contact.name else ''
+            contact_name = remove_control_characters(msg.contact.name) if msg.contact.name else ''
             contact_uuid = msg.contact.uuid
             created_on = msg.created_on.astimezone(pytz.utc).replace(microsecond=0, tzinfo=None)
-            msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
+            msg_labels = ", ".join(remove_control_characters(msg_label.name) for msg_label in msg.labels.all())
 
             # only show URN path if org isn't anon and there is a URN
             if self.org.is_anon:
