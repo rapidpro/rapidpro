@@ -17,6 +17,87 @@
       -blocktrans
         To start creating a LINE bot, go to <a href="https://developers.line.me/messaging-api/getting-started" target="_blank">Getting started with the Messaging API</a>.
 
+      %ol.line-steps
+        %li
+          -blocktrans
+            Access the <a href="https://developers.line.me/channels/" target="_blank">LINE Channels</a> page e add a new Channel.</li>
+
+        %li
+          -blocktrans
+            Create a Line account using the application on your smartphone
+
+        %li
+          -blocktrans
+            Active the permission to login via web application in the "Settings > Account > Allow login"
+
+        %li
+          -blocktrans
+            Register your email and password via the application "Settings > Account > Email Account"
+
+        %li
+          -blocktrans
+            Create a new business account Line (With Messaging API enabled)
+
+          %ol.line-steps
+            %li
+              -blocktrans
+                In <a href="https://business.line.me/en/" target="_blank">LINE Business Center</a>, select "Messaging API" in the "Services"
+
+            %li
+              -blocktrans
+                Select "Start using Messaging API"
+
+            %li
+              -blocktrans
+                Enter your credentials created through the application and wait for the confirmation code in it.
+
+              .important
+                %p
+                  -blocktrans
+                    Note: At this time will be create a LINE business account and some information, for example, address, phone, etc., will be requested.
+
+            %li
+              -blocktrans
+                After the creation process of the LINE business account, you will see the page to add a new channel of communication "Messaging API." Enter the name and select the appropriate category and click OK.
+
+            %li
+              -blocktrans
+                In the next step, click the "LINE @ Manager" and it will direct you to the API activation page.
+
+            %li
+              -blocktrans
+                Click "Enable API" and confirm. (By doing so, the status of your API will be "Valid")
+
+            %li
+              -blocktrans
+                Enable the option to allow the use of Webhooks and click "Save."
+
+        %li
+          -blocktrans
+            Set your bot:
+
+          %ol.line-steps
+            %li
+              -blocktrans
+                Click on the menu "Accounts" at the top of the page at the link <a href="https://business.line.me" target="_blank">https://business.line.me</a>
+
+            %li
+              -blocktrans
+                In the communication channel of your choice, click on the "LINE Developers" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel Secret and Channel Access Token).
+
+              .important
+                %p
+                  -blocktrans
+                    Note: To generate the Channel Access Token click on "Issue" button
+
+        %li
+          -blocktrans
+            After filling out the information in the form below, will be generated a "Callback URL" in the next step, you need to configure it on the same page which rescued the information Channel Secret and Channel Access Token by clicking on the "Edit" button, filling the field "webhook URL" and pressing on the "Save" button.
+
+        %li
+          -blocktrans
+            Enter also the IP addresses in the "Server IP Whitelist" menu with the list of addresses that will be displayed after the correct filling out the form below.
+
 -block extra-style
   {{ block.super }}
 
