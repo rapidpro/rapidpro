@@ -29,7 +29,7 @@ from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, 
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED
 from temba.msgs.views import InboxView
-from temba.orgs.models import Org, ACCOUNT_SID
+from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.utils.middleware import disable_middleware
 from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_code
@@ -46,6 +46,7 @@ RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
                       Channel.TYPE_NEXMO: "icon-channel-nexmo",
                       Channel.TYPE_VERBOICE: "icon-channel-external",
                       Channel.TYPE_TWILIO: "icon-channel-twilio",
+                      Channel.TYPE_TWIML: "icon-channel-twilio",
                       Channel.TYPE_TWILIO_MESSAGING_SERVICE: "icon-channel-twilio",
                       Channel.TYPE_PLIVO: "icon-channel-plivo",
                       Channel.TYPE_CLICKATELL: "icon-channel-clickatell",
@@ -547,7 +548,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_line')
+               'claim_twiml_api', 'claim_line')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1683,6 +1684,60 @@ class ChannelCRUDL(SmartCRUDL):
                                                                        country=data['country'])
 
             return super(ChannelCRUDL.ClaimTwilioMessagingService, self).form_valid(form)
+
+    class ClaimTwimlApi(OrgPermsMixin, SmartFormView):
+
+        class TwimlApiClaimForm(forms.Form):
+            ROLES = (
+                (Channel.ROLE_SEND + Channel.ROLE_RECEIVE, _('Messaging')),
+                (Channel.ROLE_CALL + Channel.ROLE_ANSWER, _('Voice')),
+                (Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER, _('Both')),
+            )
+            country = forms.ChoiceField(choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in"))
+            number = forms.CharField(max_length=14, min_length=1, label=_("Number"), help_text=_("The phone number without country code or short code you are connecting."))
+            url = forms.URLField(max_length=1024, label=_("TwiML REST API Host"), help_text=_("The publicly accessible URL for your TwiML REST API instance ex: https://api.twilio.com"))
+            role = forms.ChoiceField(choices=ROLES, label=_("Role"), help_text=_("Choose the role that this channel supports"))
+            account_sid = forms.CharField(max_length=64, required=False, help_text=_("The Account SID to use to authenticate to the TwiML REST API"), widget=forms.TextInput(attrs={'autocomplete': 'off'}))
+            account_token = forms.CharField(max_length=64, required=False, help_text=_("The Account Token to use to authenticate to the TwiML REST API"), widget=forms.TextInput(attrs={'autocomplete': 'off'}))
+
+        title = _("Connect TwiML REST API")
+        success_url = "id@channels.channel_configuration"
+        form_class = TwimlApiClaimForm
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            data = form.cleaned_data
+
+            country = data.get('country')
+            number = data.get('number')
+            url = data.get('url')
+            role = data.get('role')
+
+            config = {Channel.CONFIG_SEND_URL: url,
+                      ACCOUNT_SID: data.get('account_sid', None),
+                      ACCOUNT_TOKEN: data.get('account_token', None)}
+
+            is_short_code = len(number) <= 6
+
+            if not is_short_code:
+                phone_number = phonenumbers.parse(number=number, region=country)
+                number = "{0}{1}".format(str(phone_number.country_code), str(phone_number.national_number))
+
+            self.object = Channel.add_twiml_api_channel(org=org, user=self.request.user, country=country, address=number, config=config, role=role)
+
+            # if they didn't set a username or password, generate them, we do this after the addition above
+            # because we use the channel id in the configuration
+            config = self.object.config_json()
+            if not config.get(ACCOUNT_SID, None):
+                config[ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
+
+            if not config.get(ACCOUNT_TOKEN, None):
+                config[ACCOUNT_TOKEN] = str(uuid4())
+
+            self.object.config = json.dumps(config)
+            self.object.save()
+
+            return super(ChannelCRUDL.ClaimTwimlApi, self).form_valid(form)
 
     class Configuration(OrgPermsMixin, SmartReadView):
 
