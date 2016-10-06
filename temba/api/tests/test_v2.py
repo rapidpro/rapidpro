@@ -1149,6 +1149,11 @@ class APITest(TembaTest):
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(101)]})
         self.assertResponseError(response, 'urns', "Exceeds maximum list size of 100")
 
+        # ok to give them 100 URNs
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(100)]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(jean.urns.count(), 100)
+
         # try to move a blocked contact into a group
         jean.block(self.user)
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'groups': [group.uuid]})

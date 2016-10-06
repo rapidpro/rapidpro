@@ -16,7 +16,7 @@ MAX_LIST_SIZE = 100
 
 
 def validate_list_size(value):
-    if hasattr(value, '__len__') and len(value) >= MAX_LIST_SIZE:
+    if hasattr(value, '__len__') and len(value) > MAX_LIST_SIZE:
         raise serializers.ValidationError("Exceeds maximum list size of %d" % MAX_LIST_SIZE)
 
 
