@@ -24,7 +24,7 @@ from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.utils.email import send_template_email
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
@@ -2331,7 +2331,7 @@ class ExportContactsTask(SmartModel):
                             field_value = ''
 
                         if field_value:
-                            field_value = unicode(field_value)
+                            field_value = unicode(clean_string(field_value))
 
                         values.append(field_value)
 
