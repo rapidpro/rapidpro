@@ -24,7 +24,7 @@ from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
 from redis_cache import get_redis_connection
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_systemlabels
+from .tasks import squash_systemlabels, clear_old_msg_external_ids
 
 
 class MsgTest(TembaTest):
@@ -1321,6 +1321,24 @@ class BroadcastTest(TembaTest):
 
         # TODO will eventually delete messages
         # self.assertFalse(broadcast.msgs.all())
+
+    def test_clear_old_msg_external_ids(self):
+        last_month = timezone.now() - timedelta(days=31)
+        msg1 = self.create_msg(contact=self.joe, text="What's your name?", direction='O', external_id='ex101',
+                               created_on=last_month)
+        msg2 = self.create_msg(contact=self.joe, text="It's Joe", direction='I', external_id='ex102',
+                               created_on=last_month)
+        msg3 = self.create_msg(contact=self.joe, text="Good name", direction='O', external_id='ex103')
+
+        clear_old_msg_external_ids()
+
+        msg1.refresh_from_db()
+        msg2.refresh_from_db()
+        msg3.refresh_from_db()
+
+        self.assertIsNone(msg1.external_id)
+        self.assertIsNone(msg2.external_id)
+        self.assertEqual(msg3.external_id, 'ex103')
 
 
 class BroadcastCRUDLTest(TembaTest):
