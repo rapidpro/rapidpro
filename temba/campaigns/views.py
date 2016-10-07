@@ -196,8 +196,8 @@ class CampaignCRUDL(SmartCRUDL):
 
 class EventForm(forms.ModelForm):
 
-    event_type = forms.ChoiceField(choices=(('M', "Send a message"),
-                                            ('F', "Start a flow")), required=True)
+    event_type = forms.ChoiceField(choices=((CampaignEvent.TYPE_MESSAGE, "Send a message"),
+                                            (CampaignEvent.TYPE_FLOW, "Start a flow")), required=True)
 
     direction = forms.ChoiceField(choices=(('B', "Before"),
                                            ('A', "After")), required=True)
@@ -210,7 +210,7 @@ class EventForm(forms.ModelForm):
 
     def clean(self):
         data = super(EventForm, self).clean()
-        if self.data['event_type'] == 'M' and self.languages:
+        if self.data['event_type'] == CampaignEvent.TYPE_MESSAGE and self.languages:
             language = self.languages[0].language
             iso_code = language['iso_code']
             if iso_code not in self.data or not self.data[iso_code].strip():
@@ -219,7 +219,7 @@ class EventForm(forms.ModelForm):
         return data
 
     def clean_flow_to_start(self):
-        if self.data['event_type'] == 'F':
+        if self.data['event_type'] == CampaignEvent.TYPE_FLOW:
             if 'flow_to_start' not in self.data or not self.data['flow_to_start']:
                 raise ValidationError("Please select a flow")
         return self.data['flow_to_start']
@@ -233,7 +233,7 @@ class EventForm(forms.ModelForm):
             obj.delivery_hour = -1
 
         # if its a message flow, set that accordingly
-        if self.cleaned_data['event_type'] == 'M':
+        if self.cleaned_data['event_type'] == CampaignEvent.TYPE_MESSAGE:
 
             message_dict = {}
             for language in self.languages:
