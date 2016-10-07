@@ -404,19 +404,9 @@ class @Modax extends @ConfirmationModal
           if modal.listeners and modal.listeners.onFormLoaded
             modal.listeners.onFormLoaded()
 
-          modal.wireEnter()
           prepareOmnibox()
       )
 
-    # trap ENTER on the form, use our modal submit
-    wireEnter: ->
-      modal = @
-      modal.ele.find("form").on('keydown', (e) ->
-        if e.keyCode == ENTER
-          modal.submit()
-          return false
-        )
- 
     submit: ->
       modal = @
       modal.ele.find('.primary').text(gettext("Processing..")).addClass("disabled")
@@ -456,7 +446,6 @@ class @Modax extends @ConfirmationModal
           if modal.listeners and modal.listeners.onCompleted
               modal.listeners.onCompleted()
           else
-            modal.wireEnter()
             modal.focusFirstInput()
       )
 
