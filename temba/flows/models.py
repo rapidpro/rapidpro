@@ -1527,6 +1527,9 @@ class Flow(TembaModel):
                 # trigger the call to start (in the background)
                 call.start_call()
 
+            # no start msgs in call flows but we want the variable there
+            run.start_msgs = []
+
             runs.append(run)
 
         if flow_start:
