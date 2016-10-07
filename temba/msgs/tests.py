@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
 from mock import patch
+from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
@@ -22,9 +23,8 @@ from temba.utils import dict_to_struct, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
 from redis_cache import get_redis_connection
-from xlrd import open_workbook
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_systemlabels
+from .tasks import squash_systemlabels, clear_old_msg_external_ids
 
 
 class MsgTest(TembaTest):
@@ -698,11 +698,11 @@ class MsgTest(TembaTest):
         self.client.post(reverse('msgs.msg_export'))
         task = ExportMessagesTask.objects.all().order_by('-id').first()
 
-        filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = open_workbook(filename, 'rb')
-        sheet = workbook.sheets()[0]
+        filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+        workbook = load_workbook(filename=filename)
+        sheet = workbook.worksheets[0]
 
-        self.assertEquals(sheet.nrows, 9)  # msg3 not included as it's archived
+        self.assertEquals(len(list(sheet.rows)), 9)  # msg3 not included as it's archived
 
         self.assertExcelRow(sheet, 0, ["Date", "Contact", "Contact Type", "Name", "Contact UUID", "Direction",
                                        "Text", "Labels", "Status"])
@@ -752,11 +752,11 @@ class MsgTest(TembaTest):
         self.client.post("%s?label=%s" % (reverse('msgs.msg_export'), label.pk))
         task = ExportMessagesTask.objects.get()
 
-        filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-        workbook = open_workbook(filename, 'rb')
-        sheet = workbook.sheets()[0]
+        filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+        workbook = load_workbook(filename=filename)
+        sheet = workbook.worksheets[0]
 
-        self.assertEquals(sheet.nrows, 2)  # only header and msg1
+        self.assertEquals(len(list(sheet.rows)), 2)  # only header and msg1
         self.assertExcelRow(sheet, 1, [msg1.created_on, "123", "tel", "Joe Blow", msg1.contact.uuid, "Incoming", "hello 1", "label1", "Handled"], pytz.UTC)
 
         ExportMessagesTask.objects.all().delete()
@@ -766,11 +766,11 @@ class MsgTest(TembaTest):
             self.client.post(reverse('msgs.msg_export'))
             task = ExportMessagesTask.objects.get()
 
-            filename = "%s/test_orgs/%d/message_exports/%s.xls" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
-            workbook = open_workbook(filename, 'rb')
-            sheet = workbook.sheets()[0]
+            filename = "%s/test_orgs/%d/message_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
+            workbook = load_workbook(filename=filename)
+            sheet = workbook.worksheets[0]
 
-            self.assertEquals(sheet.nrows, 9)
+            self.assertEquals(len(list(sheet.rows)), 9)
 
             self.assertExcelRow(sheet, 1, [msg9.created_on, "%010d" % self.joe.pk, "tel", "Joe Blow", msg9.contact.uuid,
                                            "Outgoing", "Hey out 9", "", "Failed Sending"], pytz.UTC)
@@ -1321,6 +1321,24 @@ class BroadcastTest(TembaTest):
 
         # TODO will eventually delete messages
         # self.assertFalse(broadcast.msgs.all())
+
+    def test_clear_old_msg_external_ids(self):
+        last_month = timezone.now() - timedelta(days=31)
+        msg1 = self.create_msg(contact=self.joe, text="What's your name?", direction='O', external_id='ex101',
+                               created_on=last_month)
+        msg2 = self.create_msg(contact=self.joe, text="It's Joe", direction='I', external_id='ex102',
+                               created_on=last_month)
+        msg3 = self.create_msg(contact=self.joe, text="Good name", direction='O', external_id='ex103')
+
+        clear_old_msg_external_ids()
+
+        msg1.refresh_from_db()
+        msg2.refresh_from_db()
+        msg3.refresh_from_db()
+
+        self.assertIsNone(msg1.external_id)
+        self.assertIsNone(msg2.external_id)
+        self.assertEqual(msg3.external_id, 'ex103')
 
 
 class BroadcastCRUDLTest(TembaTest):

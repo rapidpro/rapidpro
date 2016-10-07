@@ -322,6 +322,8 @@ class IVRTests(FlowFileTest):
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_flow(self):
+        from temba.orgs.models import ACCOUNT_TOKEN, ACCOUNT_SID
+
         # should be able to create an ivr flow
         self.assertTrue(self.org.supports_ivr())
         self.assertTrue(self.admin.groups.filter(name="Beta"))
@@ -336,6 +338,17 @@ class IVRTests(FlowFileTest):
         self.org.save()
         self.assertTrue(self.org.is_connected_to_twilio())
         self.assertIsNotNone(self.org.get_twilio_client())
+
+        # no twiml api config yet
+        self.assertIsNone(self.channel.get_twiml_client())
+
+        # twiml api config
+        config = {Channel.CONFIG_SEND_URL: 'https://api.twilio.com',
+                  ACCOUNT_SID: 'TEST_SID',
+                  ACCOUNT_TOKEN: 'TEST_TOKEN'}
+        channel = Channel.add_twiml_api_channel(self.org, self.org.get_user(), 'BR', '558299990000', config, 'AC')
+        self.assertEqual(channel.org, self.org)
+        self.assertEqual(channel.address, '+558299990000')
 
         # import an ivr flow
         self.import_file('call_me_maybe')
@@ -357,6 +370,16 @@ class IVRTests(FlowFileTest):
         # should be using the usersettings number in test mode
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
 
+        # our twilio callback on pickup
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+
+        # simulate a button press and that our message is handled
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=4))
+        msg = Msg.objects.filter(contact=test_contact, text="4", direction='I').first()
+        self.assertIsNotNone(msg)
+        self.assertEqual('H', msg.status)
+
         # explicitly hanging up on a test call should remove it
         call.update_status('in-progress', 0)
         call.save()
@@ -365,6 +388,7 @@ class IVRTests(FlowFileTest):
 
         ActionLog.objects.all().delete()
         IVRCall.objects.all().delete()
+        Msg.objects.all().delete()
 
         # now pretend we are a normal caller
         eric = self.create_contact('Eric Newcomer', number='+13603621737')
@@ -576,6 +600,13 @@ class IVRTests(FlowFileTest):
         from temba.orgs.models import CURRENT_EXPORT_VERSION
         flow.refresh_from_db()
         self.assertEquals(CURRENT_EXPORT_VERSION, flow.version_number)
+
+        # now try an inbound call after remove our channel
+        self.channel.is_active = False
+        self.channel.save()
+        response = self.client.post(reverse('handlers.twilio_handler'), post_data)
+        self.assertEqual('No channel to answer call for +250785551212', response.content)
+        self.assertEqual(400, response.status_code)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
