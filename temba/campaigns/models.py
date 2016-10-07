@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import json
 from datetime import timedelta
 from django.db import models
 from django.db.models import Model
@@ -276,6 +277,15 @@ class CampaignEvent(TembaModel):
                     hour -= 12
             hours.append((i, 'at %s:00 %s' % (hour, period)))
         return hours
+
+    def get_message(self):
+        message = self.message
+        try:
+            message = json.loads(message).get(self.flow.base_language, '')
+        except:
+            pass
+
+        return message
 
     def update_flow_name(self):
         """
