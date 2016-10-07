@@ -250,19 +250,19 @@ class CampaignTest(TembaTest):
         self.assertContains(response, self.voice_flow.name)
         self.assertEquals(200, response.status_code)
 
-        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
-        self.assertTrue('Please enter a message' in response.context['form'].errors['message'])
+        self.assertTrue('A message is required' in unicode(response.context['form'].errors['__all__']))
 
-        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=2, unit='D', event_type='F')
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=2, unit='D', event_type='F')
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
         self.assertTrue('Please select a flow' in response.context['form'].errors['flow_to_start'])
 
-        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=2, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=2, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         # should be redirected back to our campaign read page
@@ -287,7 +287,7 @@ class CampaignTest(TembaTest):
         self.assertEquals(2020, fire.scheduled.year)
         self.assertEquals(event, fire.event)
 
-        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=1, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=1, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
         response = self.client.post(reverse('campaigns.campaignevent_update', args=[event.pk]), post_data)
 
         # should be redirected back to our campaign event read page
