@@ -48,7 +48,7 @@ class Migration(migrations.Migration):
             except Exception:
                 pass
 
-        # change role for those we successfully updated the callback urls
+        # change role for those we successfully updated the callback URLs
         Channel.objects.filter(id__in=updated).update(role='SRCA')
 
     operations = [
