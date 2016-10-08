@@ -32,7 +32,7 @@ class CallHandler(View):
         channel_type = channel.channel_type
         client = channel.get_ivr_client()
 
-        if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE] and request.REQUEST.get('hangup', 0):
+        if channel_type in Channel.TWIML_CHANNELS and request.REQUEST.get('hangup', 0):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
@@ -45,10 +45,10 @@ class CallHandler(View):
         if client.validate(request):
             status = None
             duration = None
-            if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
+            if channel_type in Channel.TWIML_CHANNELS:
                 status = request.POST.get('CallStatus', None)
                 duration = request.POST.get('CallDuration', None)
-            elif channel_type in [Channel.TYPE_NEXMO]:
+            elif channel_type in Channel.NCCO_CHANNELS:
                 if request.body:
                     body_json = json.loads(request.body)
                     status = body_json.get('status', None)
@@ -74,7 +74,7 @@ class CallHandler(View):
             text = None
             media_url = None
 
-            if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
+            if channel_type in Channel.TWIML_CHANNELS:
 
                 # figure out if this is a callback due to an empty gather
                 is_empty = '1' == request.GET.get('empty', '0')
@@ -93,7 +93,7 @@ class CallHandler(View):
                 # parse the user response
                 text = user_response.get('Digits', None)
 
-            elif channel_type in [Channel.TYPE_NEXMO]:
+            elif channel_type in Channel.NCCO_CHANNELS:
                 if request.body:
                     body_json = json.loads(request.body)
                     media_url = body_json.get('recording_url', None)
@@ -121,7 +121,7 @@ class CallHandler(View):
             if call.status in [IN_PROGRESS, RINGING] or hangup:
                 if call.is_flow():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
-                    if channel_type in [Channel.TYPE_NEXMO]:
+                    if channel_type in Channel.NCCO_CHANNELS:
                         return build_json_response(json.loads(unicode(response)))
 
                     return HttpResponse(unicode(response))

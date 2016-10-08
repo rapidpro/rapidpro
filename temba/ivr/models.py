@@ -97,7 +97,7 @@ class IVRCall(SmartModel):
         test_call = IVRCall.objects.filter(contact__is_test=True, flow=flow)
         if test_call:
             test_call = test_call[0]
-            if test_call.channel.channel_type in [Channel.TYPE_TWILIO]:
+            if test_call.channel.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_TWIML]:
                 if not test_call.is_done():
                     test_call.hangup()
 
@@ -161,7 +161,7 @@ class IVRCall(SmartModel):
         """
         Updates our status from a twilio status string
         """
-        if channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
+        if channel_type in Channel.TWIML_CHANNELS:
             if status == 'queued':
                 self.status = QUEUED
             elif status == 'ringing':
@@ -185,7 +185,7 @@ class IVRCall(SmartModel):
             elif status == 'canceled':
                 self.status = CANCELED
 
-        elif channel_type in [Channel.TYPE_NEXMO]:
+        elif channel_type in Channel.NCCO_CHANNELS:
             if status == 'ringing':
                 self.status = RINGING
             elif status == 'answered':

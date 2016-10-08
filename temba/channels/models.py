@@ -202,6 +202,10 @@ class Channel(TembaModel):
     # list of all USSD channels
     USSD_CHANNELS = [TYPE_VUMI_USSD]
 
+    TWIML_CHANNELS = [TYPE_TWIML, TYPE_VERBOICE, TYPE_TWIML]
+
+    NCCO_CHANNELS = [TYPE_NEXMO]
+
     GET_STARTED = 'get_started'
     VIBER_NO_SERVICE_ID = 'no_service_id'
 
@@ -732,9 +736,9 @@ class Channel(TembaModel):
         return self.parent and Channel.ROLE_CALL in self.role
 
     def generate_ivr_response(self):
-        if self.channel_type in [Channel.TYPE_TWILIO, Channel.TYPE_VERBOICE]:
+        if self.channel_type in Channel.TWIML_CHANNELS:
             return twiml.Response()
-        if self.channel_type in [Channel.TYPE_NEXMO]:
+        if self.channel_type in Channel.NCCO_CHANNELS:
             return ncco.Response()
         return None
 
