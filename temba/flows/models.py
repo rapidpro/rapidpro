@@ -35,7 +35,7 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INI
 from temba.msgs.models import INTERRUPTED, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
-from temba.utils import chunk_list, remove_control_characters
+from temba.utils import chunk_list, clean_string
 from temba.utils.email import send_template_email, is_valid_address
 from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
@@ -3925,7 +3925,7 @@ class ExportFlowResultsTask(SmartModel):
 
             contact_urn_display = get_contact_urn_display(run_step.contact)
             contact_uuid = run_step.contact.uuid
-            contact_name = remove_control_characters(run_step.contact.name)
+            contact_name = clean_string(run_step.contact.name)
 
             # if this is a rule step, write out the value collected
             if run_step.step_type == FlowStep.TYPE_RULE_SET:
@@ -4060,7 +4060,7 @@ class ExportFlowResultsTask(SmartModel):
 
                     value = run_step.rule_value
                     if value:
-                        value = remove_control_characters(value)
+                        value = clean_string(value)
                         if include_runs:
                             cell = WriteOnlyCell(runs, value=value)
                             runs_sheet_row[col + 1] = cell
@@ -4069,7 +4069,7 @@ class ExportFlowResultsTask(SmartModel):
 
                     text = run_step.get_text()
                     if text:
-                        text = remove_control_characters(text)
+                        text = clean_string(text)
                         if include_runs:
                             cell = WriteOnlyCell(runs, value=text)
                             runs_sheet_row[col + 2] = cell
@@ -4123,7 +4123,7 @@ class ExportFlowResultsTask(SmartModel):
 
                     msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
                     channel_name = msg.channel.name if msg.channel else ''
-                    text = remove_control_characters(msg.text)
+                    text = clean_string(msg.text)
 
                     cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
                     msgs_row.append(cell)
