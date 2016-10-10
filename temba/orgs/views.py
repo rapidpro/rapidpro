@@ -658,23 +658,72 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class NexmoAccount(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        fields = ()
-        submit_button_name = "Disconnect Nexmo"
-        success_message = "Nexmo Account successfully disconnected."
+    class NexmoAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
+        success_message = ""
 
-        def get_success_url(self):
-            return reverse("orgs.org_home")
+        class NexmoKeys(forms.ModelForm):
+            api_key = forms.CharField(max_length=128, label=_("API Key"), required=False)
+            api_secret = forms.CharField(max_length=128, label=_("API Secret"), required=False)
+            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
 
-        def save(self, obj):
-            obj.remove_nexmo_account(self.request.user)
+            def clean(self):
+                super(OrgCRUDL.NexmoAccount.NexmoKeys, self).clean()
+                if self.cleaned_data.get('disconnect', 'false') == 'false':
+                    api_key = self.cleaned_data.get('api_key', None)
+                    api_secret = self.cleaned_data.get('api_secret', None)
+
+                    if not api_key:
+                        raise ValidationError(_("You must enter your Nexmo Account API Key"))
+
+                    if not api_secret:
+                        raise ValidationError(_("You must enter your Nexmo Account API Secret"))
+
+                    try:
+                        client = NexmoClient(api_key, api_secret)
+                        client.get_numbers()
+                    except Exception:
+                        raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
+
+                return self.cleaned_data
+
+            class Meta:
+                model = Org
+                fields = ('api_key', 'api_secret', 'disconnect')
+
+        form_class = NexmoKeys
+
+        def derive_initial(self):
+            initial = super(OrgCRUDL.NexmoAccount, self).derive_initial()
+            org = self.get_object()
+            config = json.loads(org.config)
+            initial['api_key'] = config.get(NEXMO_KEY, '')
+            initial['api_secret'] = config.get(NEXMO_SECRET, '')
+            initial['disconnect'] = 'false'
+            return initial
+
+        def form_valid(self, form):
+            disconnect = form.cleaned_data.get('disconnect', 'false') == 'true'
+            user = self.request.user
+            org = user.get_org()
+
+            if disconnect:
+                org.remove_nexmo_account(user)
+                return HttpResponseRedirect(reverse('orgs.org_home'))
+            else:
+                api_key = form.cleaned_data['api_key']
+                api_secret = form.cleaned_data['api_secret']
+
+                org.connect_nexmo(api_key, api_secret, user)
+                return super(OrgCRUDL.NexmoAccount, self).form_valid(form)
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.NexmoAccount, self).get_context_data(**kwargs)
 
             org = self.get_object()
-            config = org.config_json()
-            context['config'] = config
+            client = org.get_nexmo_client()
+            if client:
+                config = org.config_json()
+                context['api_key'] = config.get(NEXMO_KEY, '--')
 
             return context
 
@@ -1809,9 +1858,13 @@ class OrgCRUDL(SmartCRUDL):
                 for channel in channels:
                     self.add_channel_section(formax, channel)
 
-                client = org.get_twilio_client()
-                if client:
+                twilio_client = org.get_twilio_client()
+                if twilio_client:
                     formax.add_section('twilio', reverse('orgs.org_twilio_account'), icon='icon-channel-twilio')
+
+                nexmo_client = org.get_nexmo_client()
+                if nexmo_client:
+                    formax.add_section('nexmo', reverse('orgs.org_nexmo_account'), icon='icon-channel-nexmo')
 
             if self.has_org_perm('orgs.org_profile'):
                 formax.add_section('user', reverse('orgs.user_edit'), icon='icon-user', action='redirect')
