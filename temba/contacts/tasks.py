@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 from djcelery_transactions import task
-from redis_cache import get_redis_connection
+from temba.utils.queues import nonoverlapping_task
 from .models import ExportContactsTask, ContactGroupCount
 
 
@@ -15,14 +15,9 @@ def export_contacts_task(id):
         export_task.start_export()
 
 
-@task(track_started=True, name='squash_contactgroupcounts')
+@nonoverlapping_task(track_started=True, name='squash_contactgroupcounts')
 def squash_contactgroupcounts():
     """
     Squashes our ContactGroupCounts into single rows per ContactGroup
     """
-    r = get_redis_connection()
-
-    key = 'squash_channelcounts'
-    if not r.get(key):
-        with r.lock(key, timeout=900):
-            ContactGroupCount.squash_counts()
+    ContactGroupCount.squash_counts()
