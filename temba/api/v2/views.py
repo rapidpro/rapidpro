@@ -533,9 +533,9 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     A `POST` allows you to create and send new broadcasts, with the following JSON data:
 
       * **text** - the text of the message to send (string, limited to 480 characters)
-      * **urns** - the URNs of contacts to send to (array of strings, optional)
-      * **contacts** - the UUIDs of contacts to send to (array of strings, optional)
-      * **groups** - the UUIDs of contact groups to send to (array of strings, optional)
+      * **urns** - the URNs of contacts to send to (array of up to 100 strings, optional)
+      * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
+      * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
       * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
 
     Example:
@@ -1150,9 +1150,9 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     * **name** - the full name of the contact (string, optional)
     * **language** - the preferred language for the contact (3 letter iso code, optional)
-    * **urns** - a list of URNs you want associated with the contact (string array)
-    * **groups** - a list of the UUIDs of any groups this contact is part of (string array, optional)
-    * **fields** - the contact fields you want to set or update on this contact (dictionary, optional)
+    * **urns** - a list of URNs you want associated with the contact (array of up to 100 strings, optional)
+    * **groups** - a list of the UUIDs of any groups this contact is part of (array of up to 100 strings, optional)
+    * **fields** - the contact fields you want to set or update on this contact (dictionary of up to 100 items, optional)
 
     Example:
 
@@ -1348,7 +1348,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     A **POST** can be used to perform an action on a set of contacts in bulk.
 
-    * **contacts** - a JSON array of up to 100 contact UUIDs or URNs (array of strings)
+    * **contacts** - the contact UUIDs or URNs (array of up to 100 strings)
     * **action** - the action to perform, a string one of:
 
         * _add_ - Add the contacts to the given group
@@ -2229,7 +2229,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     A **POST** can be used to perform an action on a set of messages in bulk.
 
-    * **messages** - a JSON array of up to 100 message ids (array of ints)
+    * **messages** - the message ids (array of up to 100 integers)
     * **action** - the action to perform, a string one of:
 
         * _label_ - Apply the given label to the messages
@@ -2800,9 +2800,9 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     runs created by this start.
 
      * **flow** - the UUID of the flow to start contacts in (required)
-     * **groups** - a list of the UUIDs of the groups you want to start in this flow (optional)
-     * **contacts** - a list of the UUIDs of the contacts you want to start in this flow (optional)
-     * **urns** - a list of URNs you want to start in this flow (optional)
+     * **groups** - the UUIDs of the groups you want to start in this flow (array of up to 100 strings, optional)
+     * **contacts** - the UUIDs of the contacts you want to start in this flow (array of up to 100 strings, optional)
+     * **urns** - the URNs you want to start in this flow (array of up to 100 strings, optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
      * **extra** - a dictionary of extra parameters to pass to the flow start (accessible via @extra in your flow)
 
