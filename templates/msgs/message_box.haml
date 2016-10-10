@@ -177,7 +177,7 @@
                       %td.value-phone.field_phone
                         %nobr
                           {{ object.contact|short_name:user_org }}
-                      %td.value-text.field_text
+                      %td.value-text.field_text.wrapped
                         {% get_value object 'text' %}
                         - if 'label' in actions
                           .value-labels
@@ -312,14 +312,3 @@
       modal.show();
     });
     {% endif %}
-
-
--block extra-style
-  {{ block.super }}
-  :css
-    .field_text {
-      /* forces wrapping of messages with no spaces */
-      max-width: 0;
-      word-wrap: break-word;  /* IE 10 */
-      overflow-wrap: break-word;
-    }
