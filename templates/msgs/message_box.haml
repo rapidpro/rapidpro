@@ -20,6 +20,13 @@
 
 -block content
 
+  // Needed for table wrapping on IE 9
+  <!--[if IE]>
+  <style>
+    table.sms_list { table-layout: fixed; }
+  </style>
+  <![endif]-->
+
   #numeric-form.hide
     %form
       %label
@@ -312,7 +319,7 @@
   :css
     .field_text {
       /* forces wrapping of messages with no spaces */
-      max-width: 600px;
-      word-wrap: break-word;
+      max-width: 0;
+      word-wrap: break-word;  /* IE 10 */
       overflow-wrap: break-word;
     }
