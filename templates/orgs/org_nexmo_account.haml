@@ -6,28 +6,33 @@
   .title-icon
     %span.glyph.icon-nexmo
 
+-block form-span
+
 -block title-text
   .title-text
     %h1
       -trans "Disconnect Nexmo"
 
--block pre-form
-  .row
-    .span6.disconnect-help
-      -if config.NEXMO_KEY and config.NEXMO_SECRET
-        -trans "This account is connected to a Nexmo account."
-        .account_details
-          .account_key
-            -trans "API Key:"
-          .account_value
-            {{ config.NEXMO_KEY }}
+-block summary
+  -if object.is_connected_to_nexmo
+    Connected to Nexmo Account with API key {{ api_key }}
+  -else
+    Disconnected from Nexmo
 
-          .account_key
-            -trans "API Secret:"
-          .account_value
-            {{ config.NEXMO_SECRET }}
-      -else
-        -trans "This account is not connected to a Nexmo account."
+-block post-form
+  -if object.is_connected_to_nexmo and request.META.HTTP_X_FORMAX
+    If you no longer want it connected, you can
+    %a{href:'javascript:confirmNexmoDisconnect();'}
+      disconnect your Nexmo Account
+
+  - if org_perms.channels.channel_delete
+    .disconnect-nexmo.hide
+      .title
+        -trans "Disconnect Nexmo"
+      .body
+        -blocktrans
+          Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?
+    %a#disconnect-nexmo-form.posterize{href:'{% url "orgs.org_nexmo_account" %}?disconnect=true'}
 
 
 -block form-buttons
@@ -38,3 +43,8 @@
       %a.btn.btn-primary{href:"{% url 'orgs.org_nexmo_connect'%}"}
         -trans "Connect Nexmo"
 
+-block extra-script
+  :javascript
+    function confirmNexmoDisconnect() {
+      removalConfirmation("disconnect-nexmo", "Disconnect");
+    }

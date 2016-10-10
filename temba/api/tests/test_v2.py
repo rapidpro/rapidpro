@@ -1149,6 +1149,11 @@ class APITest(TembaTest):
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(101)]})
         self.assertResponseError(response, 'urns', "Exceeds maximum list size of 100")
 
+        # ok to give them 100 URNs
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(100)]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(jean.urns.count(), 100)
+
         # try to move a blocked contact into a group
         jean.block(self.user)
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'groups': [group.uuid]})
@@ -1288,8 +1293,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {'contacts': [contact3.uuid], 'action': 'add', 'group': "nope"})
         self.assertResponseError(response, 'group', "No such object: nope")
 
-        # remove contact 2 from group by its name
-        response = self.postJSON(url, None, {'contacts': [contact2.uuid], 'action': 'remove', 'group': "Testers"})
+        # remove contact 2 from group by its name (which is case-insensitive)
+        response = self.postJSON(url, None, {'contacts': [contact2.uuid], 'action': 'remove', 'group': "testers"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1, contact3})
 
@@ -1470,7 +1475,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'label', "Generated key \"created_by\" is invalid or a reserved name.")
 
         # try again with a label that's already taken
-        response = self.postJSON(url, None, {'label': "Nick Name", 'value_type': "text"})
+        response = self.postJSON(url, None, {'label': "nick name", 'value_type': "text"})
         self.assertResponseError(response, 'label', "This field must be unique.")
 
         # create a new field
@@ -1567,6 +1572,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
         self.assertResultsByUUID(response, [customers])
 
+        # filter by name
+        response = self.fetchJSON(url, 'name=developers')
+        self.assertResultsByUUID(response, [developers])
+
+        # try to filter by both
+        response = self.fetchJSON(url, 'uuid=%s&name=developers' % developers.uuid)
+        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
+
         # try to create empty group
         response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
@@ -1579,7 +1592,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json, {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
 
         # try to create another group with same name
-        response = self.postJSON(url, None, {'name': "Reporters"})
+        response = self.postJSON(url, None, {'name': "reporters"})
         self.assertResponseError(response, 'name', "This field must be unique.")
 
         # it's fine if a group in another org has that name
@@ -1647,6 +1660,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % feedback.uuid)
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
 
+        # filter by name
+        response = self.fetchJSON(url, 'name=important')
+        self.assertResultsByUUID(response, [important])
+
+        # try to filter by both
+        response = self.fetchJSON(url, 'uuid=%s&name=important' % important.uuid)
+        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
+
         # try to create empty label
         response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
@@ -1659,7 +1680,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json, {'uuid': interesting.uuid, 'name': "Interesting", 'count': 0})
 
         # try to create another label with same name
-        response = self.postJSON(url, None, {'name': "Interesting"})
+        response = self.postJSON(url, None, {'name': "interesting"})
         self.assertResponseError(response, 'name', "This field must be unique.")
 
         # it's fine if a label in another org has that name
@@ -2160,8 +2181,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label': "nope"})
         self.assertResponseError(response, 'label', "No such object: nope")
 
-        # remove label from message 2 by name
-        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'unlabel', 'label': "Test"})
+        # remove label from message 2 by name (which is case-insensitive)
+        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'unlabel', 'label': "test"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
