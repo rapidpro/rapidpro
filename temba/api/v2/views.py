@@ -69,7 +69,8 @@ def api(request, format=None):
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
 
-    You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
+    You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API. There is also an
+    official [Python client library](https://github.com/rapidpro/rapidpro-python) for the API.
     """
     return Response({
         'boundaries': reverse('api.v2.boundaries', request=request),
