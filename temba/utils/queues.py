@@ -6,7 +6,7 @@ import importlib
 
 from celery import current_app, shared_task
 from django.conf import settings
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 from temba.utils import dict_to_json
 
 

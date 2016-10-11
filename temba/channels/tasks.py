@@ -7,9 +7,9 @@ import time
 from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
+from django_redis import get_redis_connection
 from djcelery_transactions import task
 from enum import Enum
-from redis_cache import get_redis_connection
 from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
 from temba.utils.queues import pop_task, push_task, nonoverlapping_task

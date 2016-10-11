@@ -4,10 +4,10 @@ import logging
 import time
 
 from datetime import timedelta
-from django.utils import timezone
 from django.core.cache import cache
+from django.utils import timezone
+from django_redis import get_redis_connection
 from djcelery_transactions import task
-from redis_cache import get_redis_connection
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import pop_task, nonoverlapping_task
 from temba.utils import json_date_to_datetime, chunk_list
