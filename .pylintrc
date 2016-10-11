@@ -1,0 +1,12 @@
+[MASTER]
+
+jobs=1
+
+[MESSAGES CONTROL]
+
+disable=W,no-absolute-import
+
+[REPORTS]
+
+output-format=text
+reports=no
