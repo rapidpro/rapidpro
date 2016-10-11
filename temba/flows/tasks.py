@@ -1,13 +1,13 @@
 from __future__ import unicode_literals
 
 from django.utils import timezone
+from django_redis import get_redis_connection
 from djcelery_transactions import task
 from temba.msgs.models import Broadcast, Msg
 from temba.flows.models import FlowStatsCache
 from temba.utils.email import send_simple_email
 from temba.utils.queues import pop_task
 from temba.msgs.models import TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
-from redis_cache import get_redis_connection
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount
 from temba.utils.queues import push_task
 

@@ -11,12 +11,12 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.utils import timezone
-from temba_expressions.evaluator import EvaluationContext, DateStyle
+from django_redis import get_redis_connection
 from mock import patch, PropertyMock
 from openpyxl import load_workbook
-from redis_cache import get_redis_connection
 from temba.contacts.models import Contact
 from temba.tests import TembaTest
+from temba_expressions.evaluator import EvaluationContext, DateStyle
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .email import is_valid_address
 from .exporter import TableExporter

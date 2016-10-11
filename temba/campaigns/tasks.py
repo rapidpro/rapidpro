@@ -2,8 +2,8 @@ from __future__ import unicode_literals
 
 from django.db import transaction
 from django.utils import timezone
+from django_redis import get_redis_connection
 from djcelery_transactions import task
-from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
 from temba.utils.queues import push_task

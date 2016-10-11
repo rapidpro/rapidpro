@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 
 import json
 
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 
 
 def get_cacheable(cache_key, cache_ttl, callable, r=None, force_dirty=False):

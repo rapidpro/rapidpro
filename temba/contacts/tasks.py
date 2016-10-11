@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
+from django_redis import get_redis_connection
 from djcelery_transactions import task
-from redis_cache import get_redis_connection
 from .models import ExportContactsTask, ContactGroupCount
 
 
