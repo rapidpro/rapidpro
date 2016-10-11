@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import json
 import logging
+
+import pytz
 import regex
 import traceback
 
@@ -36,7 +38,6 @@ from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING, INTERRUPTED
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.utils.profiler import SegmentProfiler
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
@@ -336,6 +337,9 @@ class FlowCRUDL(SmartCRUDL):
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
+            org = self.get_object_org()
+            tz = pytz.timezone(org.timezone)
+
             step_uuid = request.REQUEST.get('step', None)
             next_uuid = request.REQUEST.get('destination', None)
             rule_uuid = request.REQUEST.get('rule', None)
@@ -366,7 +370,7 @@ class FlowCRUDL(SmartCRUDL):
                 if not step.contact.is_test:
                     for msg in step.messages.all():
                         if msg.visibility == Msg.VISIBILITY_VISIBLE and msg.direction == msg_direction_filter:
-                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on),
+                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=tz),
                                                         text=msg.text))
 
             return build_json_response(recent_messages[:5])
@@ -921,20 +925,6 @@ class FlowCRUDL(SmartCRUDL):
 
                 if 'contact_fields' in cleaned_data and len(cleaned_data['contact_fields']) > 10:
                     raise forms.ValidationError(_("You can only include up to 10 contact fields in your export"))
-
-                if 'flows' in cleaned_data:
-                    columns = []
-                    flows = cleaned_data['flows']
-
-                    with SegmentProfiler("get columns"):
-                        for flow in flows:
-                            columns += flow.get_columns()
-
-                    # we limit to 75 since each takes 3 columns and we reserve 20 columns for other fields
-                    if len(columns) > 75:
-                        raise forms.ValidationError(_("This export exceeds the maximum number of columns (255). "
-                                                      "Please remove one or more of the flows from the export "
-                                                      "to continue."))
 
                 return cleaned_data
 

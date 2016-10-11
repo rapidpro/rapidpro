@@ -3,7 +3,6 @@ from __future__ import absolute_import, unicode_literals
 import json
 import six
 
-from django.forms import ValidationError
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -17,6 +16,7 @@ from temba.utils import datetime_to_json_date
 from temba.values.models import Value
 
 from . import fields
+from .validators import UniqueForOrgValidator
 
 
 def format_datetime(value):
@@ -164,14 +164,10 @@ class CampaignReadSerializer(ReadSerializer):
 
 
 class CampaignWriteSerializer(WriteSerializer):
-    name = serializers.CharField(required=True, max_length=Campaign.MAX_NAME_LEN)
+    name = serializers.CharField(required=True, max_length=Campaign.MAX_NAME_LEN, validators=[
+        UniqueForOrgValidator(queryset=Campaign.objects.filter(is_active=True))
+    ])
     group = fields.ContactGroupField(required=True)
-
-    def validate_name(self, value):
-        if not self.instance and Campaign.objects.filter(org=self.context['org'], name=value).exists():
-            raise serializers.ValidationError("Must be unique")
-
-        return value
 
     def save(self):
         """
@@ -372,17 +368,13 @@ class ContactWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=False, max_length=64, allow_null=True)
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
-    groups = fields.ContactGroupField(many=True, required=False)
+    groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
     fields = serializers.DictField(required=False)
 
     def __init__(self, *args, **kwargs):
         super(ContactWriteSerializer, self).__init__(*args, **kwargs)
 
     def validate_groups(self, value):
-        for group in value:
-            if group.is_dynamic:
-                raise serializers.ValidationError("Can't add contact to dynamic group with UUID: %s" % group.uuid)
-
         # if contact is blocked, they can't be added to groups
         if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and value:
             raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
@@ -481,6 +473,39 @@ class ContactFieldReadSerializer(ReadSerializer):
         fields = ('key', 'label', 'value_type')
 
 
+class ContactFieldWriteSerializer(WriteSerializer):
+    VALUE_TYPES = extract_constants(Value.TYPE_CONFIG, reverse=True)
+
+    label = serializers.CharField(required=True, max_length=ContactField.MAX_LABEL_LEN, validators=[
+        UniqueForOrgValidator(ContactField.objects.filter(is_active=True), ignore_case=True)
+    ])
+    value_type = serializers.ChoiceField(required=True, choices=VALUE_TYPES.keys())
+
+    def validate_label(self, value):
+        if not ContactField.is_valid_label(value):
+            raise serializers.ValidationError("Can only contain letters, numbers and hypens.")
+
+        key = ContactField.make_key(value)
+        if not ContactField.is_valid_key(key):
+            raise serializers.ValidationError("Generated key \"%s\" is invalid or a reserved name." % key)
+
+        return value
+
+    def validate_value_type(self, value):
+        return self.VALUE_TYPES.get(value)
+
+    def save(self):
+        label = self.validated_data.get('label')
+        value_type = self.validated_data.get('value_type')
+
+        if self.instance:
+            key = self.instance.key
+        else:
+            key = ContactField.make_key(label)
+
+        return ContactField.get_or_create(self.context['org'], self.context['user'], key, label, value_type=value_type)
+
+
 class ContactGroupReadSerializer(ReadSerializer):
     count = serializers.SerializerMethodField()
 
@@ -493,16 +518,13 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 
 class ContactGroupWriteSerializer(WriteSerializer):
-    name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN)
+    name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN, validators=[
+        UniqueForOrgValidator(queryset=ContactGroup.user_groups.filter(is_active=True), ignore_case=True)
+    ])
 
     def validate_name(self, value):
         if not ContactGroup.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
-                                              % ContactGroup.MAX_NAME_LEN)
-
-        if not self.instance and ContactGroup.user_groups.filter(org=self.context['org'], name=value).exists():
-            raise serializers.ValidationError("Must be unique")
-
+            raise serializers.ValidationError("Name contains illegal characters.")
         return value
 
     def save(self):
@@ -514,6 +536,64 @@ class ContactGroupWriteSerializer(WriteSerializer):
             return self.instance
         else:
             return ContactGroup.get_or_create(self.context['org'], self.context['user'], name)
+
+
+class ContactBulkActionSerializer(WriteSerializer):
+    ADD = 'add'
+    REMOVE = 'remove'
+    BLOCK = 'block'
+    UNBLOCK = 'unblock'
+    INTERRUPT = 'interrupt'
+    ARCHIVE = 'archive'
+    DELETE = 'delete'
+
+    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, INTERRUPT, ARCHIVE, DELETE)
+    ACTIONS_WITH_GROUP = (ADD, REMOVE)
+
+    contacts = fields.ContactField(many=True)
+    action = serializers.ChoiceField(required=True, choices=ACTIONS)
+    group = fields.ContactGroupField(required=False, allow_dynamic=False)
+
+    def validate(self, data):
+        contacts = data['contacts']
+        action = data['action']
+        group = data.get('group')
+
+        if action in self.ACTIONS_WITH_GROUP and not group:
+            raise serializers.ValidationError("For action \"%s\" you should also specify a group" % action)
+        elif action not in self.ACTIONS_WITH_GROUP and group:
+            raise serializers.ValidationError("For action \"%s\" you should not specify a group" % action)
+
+        if action == self.ADD:
+            # if adding to a group, check for blocked contacts
+            invalid_uuids = {c.uuid for c in contacts if c.is_blocked or c.is_stopped}
+            if invalid_uuids:
+                raise serializers.ValidationError("Blocked or stopped contacts cannot be added to groups: %s" % ', '.join(invalid_uuids))
+
+        return data
+
+    def save(self):
+        user = self.context['user']
+        contacts = self.validated_data['contacts']
+        action = self.validated_data['action']
+        group = self.validated_data.get('group')
+
+        if action == self.ADD:
+            group.update_contacts(user, contacts, add=True)
+        elif action == self.REMOVE:
+            group.update_contacts(user, contacts, add=False)
+        elif action == self.INTERRUPT:
+            FlowRun.exit_all_for_contacts(contacts, FlowRun.EXIT_TYPE_INTERRUPTED)
+        elif action == self.ARCHIVE:
+            Msg.archive_all_for_contacts(contacts)
+        else:
+            for contact in contacts:
+                if action == self.BLOCK:
+                    contact.block(user)
+                elif action == self.UNBLOCK:
+                    contact.unblock(user)
+                elif action == self.DELETE:
+                    contact.release(user)
 
 
 class FlowReadSerializer(ReadSerializer):
@@ -650,7 +730,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         # need at least one of urns, groups or contacts
         args = data.get('groups', []) + data.get('contacts', []) + data.get('urns', [])
         if not args:
-            raise ValidationError("Must specify at least one group, contact or URN")
+            raise serializers.ValidationError("Must specify at least one group, contact or URN")
 
         return data
 
@@ -684,16 +764,13 @@ class LabelReadSerializer(ReadSerializer):
 
 
 class LabelWriteSerializer(WriteSerializer):
-    name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN)
+    name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN, validators=[
+        UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True)
+    ])
 
     def validate_name(self, value):
         if not Label.is_valid_name(value):
-            raise serializers.ValidationError("Name contains illegal characters or is longer than %d characters"
-                                              % Label.MAX_NAME_LEN)
-
-        if not self.instance and Label.label_objects.filter(org=self.context['org'], name=value).exists():
-            raise serializers.ValidationError("Must be unique")
-
+            raise serializers.ValidationError("Name contains illegal characters.")
         return value
 
     def save(self):
@@ -755,6 +832,75 @@ class MsgReadSerializer(ReadSerializer):
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
                   'direction', 'type', 'status', 'archived', 'visibility', 'text', 'labels',
                   'created_on', 'sent_on', 'modified_on')
+
+
+class MsgBulkActionSerializer(WriteSerializer):
+    LABEL = 'label'
+    UNLABEL = 'unlabel'
+    ARCHIVE = 'archive'
+    RESTORE = 'restore'
+    DELETE = 'delete'
+
+    ACTIONS = (LABEL, UNLABEL, ARCHIVE, RESTORE, DELETE)
+    ACTIONS_WITH_LABEL = (LABEL, UNLABEL)
+
+    messages = fields.MessageField(many=True)
+    action = serializers.ChoiceField(required=True, choices=ACTIONS)
+    label = fields.LabelField(required=False)
+    label_name = serializers.CharField(required=False, max_length=Label.MAX_NAME_LEN)
+
+    def validate_messages(self, value):
+        for msg in value:
+            if msg.direction != 'I':
+                raise serializers.ValidationError("Not an incoming message: %d" % msg.id)
+
+        return value
+
+    def validate_label_name(self, value):
+        if not Label.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters.")
+        return value
+
+    def validate(self, data):
+        action = data['action']
+        label = data.get('label')
+        label_name = data.get('label_name')
+
+        if label and label_name:
+            raise serializers.ValidationError("Can't specify both label and label_name.")
+
+        if action in self.ACTIONS_WITH_LABEL and not (label or label_name):
+            raise serializers.ValidationError("For action \"%s\" you should also specify a label" % action)
+        elif action not in self.ACTIONS_WITH_LABEL and (label or label_name):
+            raise serializers.ValidationError("For action \"%s\" you should not specify a label" % action)
+
+        return data
+
+    def save(self):
+        messages = self.validated_data['messages']
+        action = self.validated_data['action']
+        label = self.validated_data.get('label')
+        label_name = self.validated_data.get('label_name')
+
+        if action == self.LABEL:
+            if not label:
+                label = Label.get_or_create(self.context['org'], self.context['user'], label_name)
+
+            label.toggle_label(messages, add=True)
+        elif action == self.UNLABEL:
+            if not label:
+                label = Label.label_objects.filter(org=self.context['org'], is_active=True, name=label_name).first()
+
+            if label:
+                label.toggle_label(messages, add=False)
+        else:
+            for msg in messages:
+                if action == self.ARCHIVE:
+                    msg.archive()
+                elif action == self.RESTORE:
+                    msg.restore()
+                elif action == self.DELETE:
+                    msg.release()
 
 
 class ResthookReadSerializer(ReadSerializer):

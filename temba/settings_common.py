@@ -422,6 +422,7 @@ PERMISSIONS = {
                          'claim_start',
                          'claim_telegram',
                          'claim_twilio',
+                         'claim_twiml_api',
                          'claim_twilio_messaging_service',
                          'claim_twitter',
                          'claim_verboice',
@@ -648,6 +649,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_start',
         'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
+        'channels.channel_claim_twiml_api',
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -782,6 +784,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_start',
         'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
+        'channels.channel_claim_twiml_api',
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -973,6 +976,10 @@ CELERYBEAT_SCHEDULE = {
     "fail-old-messages": {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
+    },
+    "clear-old-msg-external-ids": {
+        'task': 'clear_old_msg_external_ids',
+        'schedule': crontab(hour=1, minute=0),
     },
     "trim-channel-log": {
         'task': 'trim_channel_log_task',
