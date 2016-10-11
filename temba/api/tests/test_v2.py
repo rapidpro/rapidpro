@@ -1147,7 +1147,11 @@ class APITest(TembaTest):
 
         # try to give a contact more than 100 URNs
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(101)]})
-        self.assertResponseError(response, 'urns', "Exceeds maximum list size of 100")
+        self.assertResponseError(response, 'urns', "This field can only contain up to 100 items.")
+
+        # try to give a contact more than 100 contact fields
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'fields': {'field_%d' % f: f for f in range(101)}})
+        self.assertResponseError(response, 'fields', "This field can only contain up to 100 items.")
 
         # ok to give them 100 URNs
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(100)]})
@@ -1237,7 +1241,7 @@ class APITest(TembaTest):
 
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
         response = self.postJSON(url, None, {'contacts': [unicode(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
-        self.assertResponseError(response, 'contacts', "Exceeds maximum list size of 100")
+        self.assertResponseError(response, 'contacts', "This field can only contain up to 100 items.")
 
         # try adding all contacts to a group by its name
         response = self.postJSON(url, None, {
@@ -2490,7 +2494,7 @@ class APITest(TembaTest):
             group_uuids.append(self.create_group("Group %d" % g).uuid)
 
         response = self.postJSON(url, None, dict(flow=flow.uuid, restart_participants=True, groups=group_uuids))
-        self.assertResponseError(response, 'groups', "Exceeds maximum list size of 100")
+        self.assertResponseError(response, 'groups', "This field can only contain up to 100 items.")
 
         # check our list
         anon_contact = Contact.objects.get(urns__path="+12067791212")
