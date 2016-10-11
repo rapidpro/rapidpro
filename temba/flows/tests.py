@@ -272,6 +272,25 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'), post_data)
         self.assertContains(response, self.flow.name)
 
+    def test_campaign_filter(self):
+        self.login(self.admin)
+        self.get_flow('the_clinic')
+
+        # should have a list of four flows for our appointment schedule
+        response = self.client.get(reverse('flows.flow_list'))
+        self.assertContains(response, 'Appointment Schedule (4)')
+
+        from temba.campaigns.models import Campaign
+        campaign = Campaign.objects.filter(name='Appointment Schedule').first()
+        self.assertIsNotNone(campaign)
+
+        # check that our four flows in the campaign are there
+        response = self.client.get(reverse('flows.flow_campaign', args=[campaign.id]))
+        self.assertContains(response, 'Confirm Appointment')
+        self.assertContains(response, 'Start Notifications')
+        self.assertContains(response, 'Stop Notifications')
+        self.assertContains(response, 'Appointment Followup')
+
     def test_flows_select2(self):
         self.login(self.admin)
 
