@@ -20,6 +20,13 @@
 
 -block content
 
+  // Needed for table wrapping on IE 9
+  <!--[if IE]>
+  <style>
+    table.sms_list { table-layout: fixed; }
+  </style>
+  <![endif]-->
+
   #numeric-form.hide
     %form
       %label
@@ -170,7 +177,7 @@
                       %td.value-phone.field_phone
                         %nobr
                           {{ object.contact|short_name:user_org }}
-                      %td.value-text.field_text
+                      %td.value-text.field_text.wrapped
                         {% get_value object 'text' %}
                         - if 'label' in actions
                           .value-labels
