@@ -369,7 +369,7 @@ class ContactWriteSerializer(WriteSerializer):
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
     groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
-    fields = serializers.DictField(required=False)
+    fields = fields.LimitedDictField(required=False)
 
     def __init__(self, *args, **kwargs):
         super(ContactWriteSerializer, self).__init__(*args, **kwargs)
