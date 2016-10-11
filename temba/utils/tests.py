@@ -256,7 +256,7 @@ class CacheTest(TembaTest):
 
     def test_incrby_existing(self):
         r = get_redis_connection()
-        r.setex('foo', 10, 100)
+        r.setex('foo', 100, 10)
         r.set('bar', 20)
 
         incrby_existing('foo', 3, r)  # positive delta
@@ -267,7 +267,7 @@ class CacheTest(TembaTest):
         self.assertEqual(r.get('foo'), '12')
         self.assertTrue(r.ttl('foo') > 0)
 
-        r.setex('foo', 0, 100)
+        r.setex('foo', 100, 0)
         incrby_existing('foo', 5, r)  # zero val key
         self.assertEqual(r.get('foo'), '5')
         self.assertTrue(r.ttl('foo') > 0)
