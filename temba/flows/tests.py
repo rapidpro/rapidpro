@@ -1599,6 +1599,41 @@ class FlowTest(TembaTest):
 
         self.assertEquals(HasWardTest, Test.from_json(self.org, js).__class__)
 
+    def test_flow_keyword_create(self):
+        self.login(self.admin)
+
+        post_data = dict()
+        post_data['name'] = "Survey Flow"
+        post_data['keyword_triggers'] = "notallowed"
+        post_data['flow_type'] = Flow.SURVEY
+        post_data['expires_after_minutes'] = 60 * 12
+        self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        flow = Flow.objects.filter(name='Survey Flow').first()
+
+        # should't be allowed to have a survey flow and keywords
+        self.assertEqual(0, flow.triggers.all().count())
+
+    def test_flow_keyword_update(self):
+        self.login(self.admin)
+        flow = Flow.create(self.org, self.admin, "Flow")
+        flow.flow_type = Flow.SURVEY
+        flow.save()
+
+        # keywords aren't and option for survey flows
+        response = self.client.get(reverse('flows.flow_update', args=[flow.pk]))
+        self.assertTrue('keyword_triggers' not in response.context['form'].fields)
+
+        # send update with triggers anyways
+        post_data = dict()
+        post_data['name'] = "Flow With Keyword Triggers"
+        post_data['keyword_triggers'] = "notallowed"
+        post_data['expires_after_minutes'] = 60 * 12
+        response = self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        # still shouldn't have any triggers
+        self.assertEqual(0, flow.triggers.all().count())
+
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)
         flow = Flow.create(self.org, self.admin, "Flow")
