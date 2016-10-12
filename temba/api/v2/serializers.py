@@ -639,7 +639,9 @@ class FlowRunReadSerializer(ReadSerializer):
         for value in obj.values.all():
             values[value.ruleset.context_key] = {
                 'value': value.decimal_value if value.decimal_value is not None else value.string_value,
-                'category': value.category
+                'category': value.category,
+                'node': value.ruleset.uuid,
+                'time': value.modified_on,
             }
 
         return values

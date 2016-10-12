@@ -2644,8 +2644,18 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "responded": true,
                 "values": {
-                    "color": {"value": "blue", "category": "Blue"},
-                    "reason": {"value": "Because it's the color of sky", "category": "All Responses"}
+                    "color": {
+                        "value": "blue",
+                        "category": "Blue",
+                        "node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1",
+                        "time": "2015-11-11T13:03:51.635662Z"
+                    },
+                    "reason": {
+                        "value": "Because it's the color of sky",
+                        "category": "All Responses",
+                        "node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466",
+                        "time": "2015-11-11T13:05:57.576056Z"
+                    }
                 },
                 "created_on": "2015-11-11T13:05:57.457742Z",
                 "modified_on": "2015-11-11T13:05:57.576056Z",

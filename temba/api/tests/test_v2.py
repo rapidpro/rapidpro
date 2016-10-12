@@ -2031,7 +2031,12 @@ class APITest(TembaTest):
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'responded': True,
             'values': {
-                'color': {'value': "blue", 'category': "Blue"}
+                'color': {
+                    'value': "blue",
+                    'category': "Blue",
+                    'node': "00000000-00000000-00000000-00000005",
+                    'time': format_datetime(self.joe.values.get(ruleset__uuid="00000000-00000000-00000000-00000005").modified_on)
+                }
             },
             'steps': [
                 {
