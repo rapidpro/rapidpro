@@ -1620,18 +1620,22 @@ class FlowTest(TembaTest):
         flow.flow_type = Flow.SURVEY
         flow.save()
 
-        # keywords aren't and option for survey flows
+        # keywords aren't an option for survey flows
         response = self.client.get(reverse('flows.flow_update', args=[flow.pk]))
         self.assertTrue('keyword_triggers' not in response.context['form'].fields)
+        self.assertTrue('ignore_triggers' not in response.context['form'].fields)
 
-        # send update with triggers anyways
+        # send update with triggers and ignore flag anyways
         post_data = dict()
         post_data['name'] = "Flow With Keyword Triggers"
         post_data['keyword_triggers'] = "notallowed"
+        post_data['ignore_keywords'] = True
         post_data['expires_after_minutes'] = 60 * 12
         response = self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
 
         # still shouldn't have any triggers
+        flow.refresh_from_db()
+        self.assertFalse(flow.ignore_triggers)
         self.assertEqual(0, flow.triggers.all().count())
 
     def test_global_keywords_trigger_update(self):

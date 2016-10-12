@@ -555,7 +555,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ('name', 'labels', 'base_language', 'expires_after_minutes', 'ignore_triggers')
 
         success_message = ''
-        fields = ('name', 'expires_after_minutes', 'ignore_triggers')
+        fields = ('name', 'expires_after_minutes')
         form_class = FlowUpdateForm
 
         def derive_fields(self):
@@ -569,6 +569,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields.insert(len(fields) - 1, Flow.CONTACT_CREATION)
             else:
                 fields.insert(1, 'keyword_triggers')
+                fields.append('ignore_triggers')
 
             return fields
 
