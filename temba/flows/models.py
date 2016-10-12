@@ -3106,6 +3106,10 @@ class RuleSet(models.Model):
     def get(cls, flow, uuid):
         return RuleSet.objects.filter(flow=flow, uuid=uuid).select_related('flow', 'flow__org').first()
 
+    @property
+    def context_key(self):
+        return Flow.label_to_slug(self.label)
+
     @classmethod
     def contains_step(cls, text):
 
