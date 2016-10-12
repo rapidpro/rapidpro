@@ -6352,3 +6352,28 @@ class TriggerFlowTest(FlowFileTest):
         FlowRun.objects.get(contact__urns__path="+12067798080")
         run.refresh_from_db()
         self.assertTrue(run.is_active)
+
+
+class ParentChildOrderingTest(FlowFileTest):
+
+    def setUp(self):
+        super(ParentChildOrderingTest, self).setUp()
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+                                      config=dict(send_url='https://google.com'), uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_parent_child_ordering(self):
+        from temba.channels.tasks import send_msg_task
+
+        # start our parent flow
+        flow = self.get_flow('parent_child_ordering')
+
+        with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
+            flow.start([], [self.contact])
+
+            # get the msgs for our contact
+            msgs = Msg.objects.filter(contact=self.contact).order_by('sent_on')
+            self.assertEquals(msgs[0].text, "Parent 1")
+            self.assertEquals(msgs[1].text, "Child Msg")
+
+            self.assertEqual(mock_send_msg.call_count, 1)

@@ -266,7 +266,7 @@ def squash_systemlabels():
     SystemLabel.squash_counts()
 
 
-@nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids')
+@nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids', time_limit=60 * 60 * 36)
 def clear_old_msg_external_ids():
     """
     Clears external_id on older messages to reduce the size of the index on that column. External ids aren't surfaced
