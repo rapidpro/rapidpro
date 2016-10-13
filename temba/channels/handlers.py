@@ -198,7 +198,8 @@ class TwimlAPIHandler(View):
     def get_client(self, channel):
         if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
             return channel.org.get_twilio_client()
-        return channel.get_ivr_client()
+        else:
+            return channel.get_ivr_client()
 
     def get_channel_type(self):
         return Channel.TYPE_TWIML
