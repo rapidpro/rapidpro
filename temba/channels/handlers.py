@@ -185,20 +185,16 @@ class TwimlAPIHandler(View):
 
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
-    @classmethod
-    def get_ringing_channel(cls, to_number):
-        return Channel.objects.filter(address=to_number, channel_type=cls.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
+    def get_ringing_channel(self, to_number):
+        return Channel.objects.filter(address=to_number, channel_type=self.get_channel_type(), role__contains='A', is_active=True).exclude(org=None).first()
 
-    @classmethod
-    def get_receive_channel(cls, channel_uuid=None, to_number=None):
-        return Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=cls.get_channel_type()).exclude(org=None).first()
+    def get_receive_channel(self, channel_uuid=None, to_number=None):
+        return Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
 
-    @classmethod
-    def get_client(cls, channel):
+    def get_client(self, channel):
         return channel.get_ivr_client()
 
-    @classmethod
-    def get_channel_type(cls):
+    def get_channel_type(self):
         return Channel.TYPE_TWIML
 
 
@@ -208,12 +204,10 @@ class TwilioHandler(TwimlAPIHandler):
     def dispatch(self, *args, **kwargs):
         return super(TwilioHandler, self).dispatch(*args, **kwargs)
 
-    @classmethod
-    def get_receive_channel(cls, channel_uuid=None, to_number=None):
+    def get_receive_channel(self, channel_uuid=None, to_number=None):
         return Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
 
-    @classmethod
-    def get_channel_type(cls):
+    def get_channel_type(self):
         return Channel.TYPE_TWILIO
 
 
