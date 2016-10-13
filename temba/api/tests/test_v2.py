@@ -117,10 +117,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, query)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
-        # 200 for administrator
+        # 200 for administrator assuming this endpoint supports fetches
         self.login(self.admin)
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, fetch_returns)
+
+        # 405 for OPTIONS requests
+        response = self.client.options(url, HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEqual(response.status_code, 405)
 
     def assertResultsById(self, response, expected):
         self.assertEqual(response.status_code, 200)

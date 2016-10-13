@@ -212,6 +212,13 @@ class BaseAPIView(generics.GenericAPIView):
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
 
+    def options(self, request, *args, **kwargs):
+        """
+        Disable the default behaviour of OPTIONS returning serializer fields since we typically have two serializers
+        per endpoint.
+        """
+        return self.http_method_not_allowed(request, *args, **kwargs)
+
     def get_queryset(self):
         org = self.request.user.get_org()
         return getattr(self.model, self.model_manager).filter(org=org)
