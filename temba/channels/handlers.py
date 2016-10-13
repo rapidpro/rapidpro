@@ -130,10 +130,14 @@ class TwimlAPIHandler(View):
             # validate this request is coming from twilio
             org = sms.org
 
-            if self.get_channel_type() == Channel.TYPE_TWILIO and not org.is_connected_to_twilio():
+            if self.get_channel_type() in [Channel.TYPE_TWILIO,
+                                           Channel.TYPE_TWIML,
+                                           Channel.TYPE_TWILIO_MESSAGING_SERVICE] and not org.is_connected_to_twilio():
                 return HttpResponse("No Twilio account is connected", status=400)
 
-            channel = org.channels.filter(channel_type=self.get_channel_type()).first()
+            channel = sms.channel
+            if not channel:
+                channel = org.channels.filter(channel_type=self.get_channel_type()).first()
 
             client = self.get_client(channel=channel)
             validator = RequestValidator(client.auth[1])
@@ -192,6 +196,8 @@ class TwimlAPIHandler(View):
         return Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
 
     def get_client(self, channel):
+        if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
+            return channel.org.get_twilio_client()
         return channel.get_ivr_client()
 
     def get_channel_type(self):
