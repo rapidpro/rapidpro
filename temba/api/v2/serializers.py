@@ -630,8 +630,21 @@ class FlowRunReadSerializer(ReadSerializer):
 
     flow = fields.FlowField()
     contact = fields.ContactField()
-    steps = serializers.SerializerMethodField()
+    values = serializers.SerializerMethodField()
+    steps = serializers.SerializerMethodField()  # TODO deprecated
     exit_type = serializers.SerializerMethodField()
+
+    def get_values(self, obj):
+        values = {}
+        for value in obj.values.all():
+            values[value.ruleset.context_key] = {
+                'value': value.decimal_value if value.decimal_value is not None else value.string_value,
+                'category': value.category,
+                'node': value.ruleset.uuid,
+                'time': value.modified_on,
+            }
+
+        return values
 
     def get_steps(self, obj):
         # avoiding fetching org again
@@ -646,7 +659,7 @@ class FlowRunReadSerializer(ReadSerializer):
                           'arrived_on': format_datetime(step.arrived_on),
                           'left_on': format_datetime(step.left_on),
                           'messages': self.get_step_messages(run, step),
-                          'text': step.get_text(run=run),  # TODO remove
+                          'text': step.get_text(run=run),
                           'value': val,
                           'category': step.rule_category})
         return steps
@@ -669,7 +682,7 @@ class FlowRunReadSerializer(ReadSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('id', 'flow', 'contact', 'responded', 'steps',
+        fields = ('id', 'flow', 'contact', 'responded', 'values', 'steps',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')
 
 
