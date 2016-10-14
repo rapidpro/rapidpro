@@ -2718,7 +2718,7 @@ class Channel(TembaModel):
 
     @classmethod
     def build_twilio_callback_url(cls, sms_id):
-        url = "https://" + settings.TEMBA_HOST + "/api/v1/twilio/?action=callback&id=%d" % sms_id
+        url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms_id
         return url
 
     def __unicode__(self):  # pragma: no cover
