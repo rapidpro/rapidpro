@@ -451,6 +451,7 @@ PERMISSIONS = {
                    'api',
                    'archived',
                    'broadcast',
+                   'campaign',
                    'completion',
                    'copy',
                    'editor',
@@ -867,6 +868,7 @@ GROUP_PERMISSIONS = {
 
         'flows.flow_activity',
         'flows.flow_archived',
+        'flows.flow_campaign',
         'flows.flow_completion',
         'flows.flow_export',
         'flows.flow_export_results',

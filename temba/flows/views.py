@@ -331,7 +331,7 @@ class PartialTemplate(SmartTemplateView):
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter',
-               'completion', 'revisions', 'recent_messages')
+               'campaign', 'completion', 'revisions', 'recent_messages')
 
     model = Flow
 
@@ -640,9 +640,17 @@ class FlowCRUDL(SmartCRUDL):
             context['org_has_flows'] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count()
             context['folders'] = self.get_folders()
             context['labels'] = self.get_flow_labels()
+            context['campaigns'] = self.get_campaigns()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
             return context
+
+        def get_campaigns(self):
+            from temba.campaigns.models import CampaignEvent
+            org = self.request.user.get_org()
+            events = CampaignEvent.objects.filter(campaign__org=org, is_active=True, campaign__is_active=True,
+                                                  flow__is_active=True, flow__flow_type=Flow.FLOW)
+            return events.values('campaign__name', 'campaign__id').annotate(count=Count('id')).order_by('campaign')
 
         def get_flow_labels(self):
             labels = []
@@ -676,6 +684,38 @@ class FlowCRUDL(SmartCRUDL):
             if types:
                 queryset = queryset.filter(flow_type__in=types)
             return queryset
+
+    class Campaign(BaseList):
+        actions = ['unlabel', 'label']
+        campaign = None
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r'^%s/%s/(?P<campaign_id>\d+)/$' % (path, action)
+
+        def derive_title(self, *args, **kwargs):
+            return self.get_campaign().name
+
+        def get_campaign(self):
+            if not self.campaign:
+                from temba.campaigns.models import Campaign
+                campaign_id = self.kwargs['campaign_id']
+                self.campaign = Campaign.objects.filter(id=campaign_id).first()
+            return self.campaign
+
+        def get_queryset(self, **kwargs):
+            from temba.campaigns.models import CampaignEvent
+            flow_ids = CampaignEvent.objects.filter(campaign=self.get_campaign(),
+                                                    flow__is_archived=False,
+                                                    flow__flow_type=Flow.FLOW).values('flow__id')
+
+            flows = Flow.objects.filter(id__in=flow_ids).order_by('-modified_on')
+            return flows
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(FlowCRUDL.Campaign, self).get_context_data(*args, **kwargs)
+            context['current_campaign'] = self.get_campaign()
+            return context
 
     class Filter(BaseList):
         add_button = True
