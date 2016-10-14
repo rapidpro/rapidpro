@@ -241,7 +241,12 @@ class Flow(TembaModel):
         Creates a special 'single message' flow
         """
         name = 'Single Message (%s)' % unicode(uuid4())
-        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
+
+        base_language = 'base'
+        if org.primary_language:
+            base_language = org.primary_language.iso_code
+
+        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE, base_language=base_language)
         flow.update_single_message_flow(message)
         return flow
 
@@ -1149,15 +1154,17 @@ class Flow(TembaModel):
 
         self.is_archived = False
         self.save(update_fields=['is_archived'])
-        # we don't know enough to restore triggers automatically
 
-    def update_single_message_flow(self, message):
+    def update_single_message_flow(self, message_dict):
         self.flow_type = Flow.MESSAGE
         self.save(update_fields=['name', 'flow_type'])
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
-        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language='base'))
+        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=message_dict)])]
+        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=self.base_language))
+
+    def extract_first_message(self):
+        ActionSet.objects.filter(flow=self, )
 
     def steps(self):
         return FlowStep.objects.filter(run__flow=self)
