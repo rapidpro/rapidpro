@@ -9,12 +9,8 @@
 
 -block modal-script
   {{ block.super }}
-  -load compress
-  -compress js
-    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.caret.coffee" />
-
-    %script{src:"{{ STATIC_URL }}scripts/At.js/bower_components/Caret.js/dist/jquery.caret.js"}
-    %script{src:"{{ STATIC_URL }}scripts/At.js/dist/js/jquery.atwho.js"}
+  %script{src:"{{ STATIC_URL }}scripts/At.js/bower_components/Caret.js/dist/jquery.caret.js"}
+  %script{src:"{{ STATIC_URL }}scripts/At.js/dist/js/jquery.atwho.js"}
 
   :javascript
     $(document).ready(function() {
