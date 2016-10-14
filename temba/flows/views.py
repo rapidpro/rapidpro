@@ -481,10 +481,11 @@ class FlowCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            # create triggers for this flow only if there are keywords
-            if len(self.form.cleaned_data['keyword_triggers']) > 0:
-                for keyword in self.form.cleaned_data['keyword_triggers'].split(','):
-                    Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
+            # create triggers for this flow only if there are keywords and we aren't a survey
+            if self.form.cleaned_data.get('flow_type') != Flow.SURVEY:
+                if len(self.form.cleaned_data['keyword_triggers']) > 0:
+                    for keyword in self.form.cleaned_data['keyword_triggers'].split(','):
+                        Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
 
             return obj
 
@@ -514,11 +515,6 @@ class FlowCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
-            keyword_triggers = forms.CharField(
-                required=False,
-                label=_("Global keyword triggers"),
-                help_text=_("When a user sends any of these keywords they will begin this flow")
-            )
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Update.FlowUpdateForm, self).__init__(*args, **kwargs)
@@ -548,15 +544,18 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
                     self.fields[Flow.CONTACT_CREATION] = contact_creation
-
-                self.fields['keyword_triggers'].initial = ','.join([t.keyword for t in flow_triggers])
+                else:
+                    self.fields['keyword_triggers'] = forms.CharField(required=False,
+                                                                      label=_("Global keyword triggers"),
+                                                                      help_text=_("When a user sends any of these keywords they will begin this flow"),
+                                                                      initial=','.join([t.keyword for t in flow_triggers]))
 
             class Meta:
                 model = Flow
-                fields = ('name', 'keyword_triggers', 'labels', 'base_language', 'expires_after_minutes', 'ignore_triggers')
+                fields = ('name', 'labels', 'base_language', 'expires_after_minutes', 'ignore_triggers')
 
         success_message = ''
-        fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'ignore_triggers')
+        fields = ('name', 'expires_after_minutes')
         form_class = FlowUpdateForm
 
         def derive_fields(self):
@@ -568,6 +567,9 @@ class FlowCRUDL(SmartCRUDL):
 
             if obj.flow_type == Flow.SURVEY:
                 fields.insert(len(fields) - 1, Flow.CONTACT_CREATION)
+            else:
+                fields.insert(1, 'keyword_triggers')
+                fields.append('ignore_triggers')
 
             return fields
 
@@ -589,28 +591,31 @@ class FlowCRUDL(SmartCRUDL):
             keywords = set()
             user = self.request.user
             org = user.get_org()
-            existing_keywords = set(t.keyword for t in obj.triggers.filter(org=org, flow=obj,
-                                                                           trigger_type=Trigger.TYPE_KEYWORD,
-                                                                           is_archived=False, groups=None))
 
-            if len(self.form.cleaned_data['keyword_triggers']) > 0:
-                keywords = set(self.form.cleaned_data['keyword_triggers'].split(','))
+            if 'keyword_triggers' in self.form.cleaned_data:
 
-            removed_keywords = existing_keywords.difference(keywords)
-            for keyword in removed_keywords:
-                obj.triggers.filter(org=org, flow=obj, keyword=keyword,
-                                    groups=None, is_archived=False).update(is_archived=True)
+                existing_keywords = set(t.keyword for t in obj.triggers.filter(org=org, flow=obj,
+                                                                               trigger_type=Trigger.TYPE_KEYWORD,
+                                                                               is_archived=False, groups=None))
 
-            added_keywords = keywords.difference(existing_keywords)
-            archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, trigger_type=Trigger.TYPE_KEYWORD,
-                                                                        is_archived=True, groups=None)]
-            for keyword in added_keywords:
-                # first check if the added keyword is not amongst archived
-                if keyword in archived_keywords:
-                    obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None).update(is_archived=False)
-                else:
-                    Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
-                                           flow=obj, created_by=user, modified_by=user)
+                if len(self.form.cleaned_data['keyword_triggers']) > 0:
+                    keywords = set(self.form.cleaned_data['keyword_triggers'].split(','))
+
+                removed_keywords = existing_keywords.difference(keywords)
+                for keyword in removed_keywords:
+                    obj.triggers.filter(org=org, flow=obj, keyword=keyword,
+                                        groups=None, is_archived=False).update(is_archived=True)
+
+                added_keywords = keywords.difference(existing_keywords)
+                archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, trigger_type=Trigger.TYPE_KEYWORD,
+                                                                            is_archived=True, groups=None)]
+                for keyword in added_keywords:
+                    # first check if the added keyword is not amongst archived
+                    if keyword in archived_keywords:
+                        obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None).update(is_archived=False)
+                    else:
+                        Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
+                                               flow=obj, created_by=user, modified_by=user)
 
             # run async task to update all runs
             from .tasks import update_run_expirations_task
