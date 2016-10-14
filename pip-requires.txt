@@ -19,7 +19,7 @@ python-gcm
 pytz==2014.7
 hamlpy
 django_select2
-django-redis==3.1.5
+django-redis
 redis==2.10.1
 BeautifulSoup
 xlutils

@@ -1047,10 +1047,10 @@ OUTGOING_PROXIES = {}
 # -----------------------------------------------------------------------------------
 CACHES = {
     "default": {
-        "BACKEND": "redis_cache.cache.RedisCache",
-        "LOCATION": "%s:%s:%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
         "OPTIONS": {
-            "CLIENT_CLASS": "redis_cache.client.DefaultClient",
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
 }

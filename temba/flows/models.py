@@ -24,8 +24,8 @@ from django.db.models import Q, Count, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
+from django_redis import get_redis_connection
 from enum import Enum
-from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
