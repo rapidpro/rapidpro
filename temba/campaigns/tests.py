@@ -77,6 +77,9 @@ class CampaignTest(TembaTest):
         response = self.client.get(url)
         self.assertTrue('base' in response.context['form'].fields)
 
+        # should be no language list
+        self.assertNotContains(response, 'show_language')
+
         # set our primary language to Achinese
         from temba.orgs.models import Language
         ace = Language.objects.create(org=self.org, name='Achinese', iso_code='ace',
@@ -98,6 +101,9 @@ class CampaignTest(TembaTest):
         self.assertFalse('base' in response.context['form'].fields)
         self.assertTrue('ace' in response.context['form'].fields)
         self.assertTrue('spa' in response.context['form'].fields)
+
+        # and our language list should be there
+        self.assertContains(response, 'show_language')
 
         self.org.primary_language = None
         self.org.save()
