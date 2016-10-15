@@ -4710,7 +4710,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, msg, offline_on=None):
         if len(self.groups) == 0:
             contact = run.contact
             user = get_flow_user()
@@ -4723,7 +4723,7 @@ class DeleteFromGroupAction(AddToGroupAction):
                     if run.contact.is_test:
                         ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
             return []
-        return AddToGroupAction.execute(self, run, actionset, sms)
+        return AddToGroupAction.execute(self, run, actionset, msg, offline_on)
 
 
 class AddLabelAction(Action):
