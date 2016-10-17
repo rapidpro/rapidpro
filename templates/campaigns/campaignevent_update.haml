@@ -182,14 +182,13 @@
   #message-section
 
     #languages
-      -for field in form.languages
-        {%if forloop.counter0 > 0%} | {% endif %}
-        -if field.language.name
-          %a.show_language{data-iso:"{{field.language.iso_code}}", href:"javascript:void(0);"}><
-            {{field.language.name}}
 
-
-
+      -if form.languages|length > 1
+        -for field in form.languages
+          {%if forloop.counter0 > 0%} | {% endif %}
+          -if field.language.name
+            %a.show_language{data-iso:"{{field.language.iso_code}}", href:"javascript:void(0);"}><
+              {{field.language.name}}
 
     -for field in form.languages
       .language{class:'{{field.language.iso_code}} {%if forloop.counter0 > 0%}hide{%endif%}'}
