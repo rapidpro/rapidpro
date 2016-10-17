@@ -1991,6 +1991,10 @@ class APITest(TembaTest):
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'responded': False,
+            'path': [
+                {'node': "00000000-00000000-00000000-00000001", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
+                {'node': "00000000-00000000-00000000-00000005", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+            ],
             'values': {},
             'steps': [
                 {
@@ -2030,6 +2034,11 @@ class APITest(TembaTest):
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'responded': True,
+            'path': [
+                {'node': "00000000-00000000-00000000-00000001", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
+                {'node': "00000000-00000000-00000000-00000005", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
+                {'node': "00000000-00000000-00000000-00000003", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+            ],
             'values': {
                 'color': {
                     'value': "blue",
