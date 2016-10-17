@@ -630,9 +630,13 @@ class FlowRunReadSerializer(ReadSerializer):
 
     flow = fields.FlowField()
     contact = fields.ContactField()
+    path = serializers.SerializerMethodField()
     values = serializers.SerializerMethodField()
     steps = serializers.SerializerMethodField()  # TODO deprecated
     exit_type = serializers.SerializerMethodField()
+
+    def get_path(self, obj):
+        return [{'node': s.step_uuid, 'time': format_datetime(s.arrived_on)} for s in obj.steps.all()]
 
     def get_values(self, obj):
         values = {}
@@ -682,7 +686,7 @@ class FlowRunReadSerializer(ReadSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('id', 'flow', 'contact', 'responded', 'values', 'steps',
+        fields = ('id', 'flow', 'contact', 'responded', 'path', 'values', 'steps',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')
 
 
