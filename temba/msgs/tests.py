@@ -12,7 +12,7 @@ from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
+from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED, TRIGGERED
 from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
@@ -319,6 +319,13 @@ class MsgTest(TembaTest):
         self.client.get(reverse('msgs.msg_inbox'))
 
         self.assertEqual(Msg.get_unread_msg_count(self.admin), 3)
+
+    @patch('temba.msgs.models.Msg.process_message')
+    def test_incoming_trigger(self, process_message):
+        msg = Msg.create_incoming(self.channel, "tel:250788382382", "*111#", status=TRIGGERED)
+
+        self.assertTrue(process_message.called)
+        self.assertEqual(process_message.call_count, 1)
 
     def test_empty(self):
         broadcast = Broadcast.create(self.org, self.admin, "If a broadcast is sent and nobody receives it, does it still send?", [])

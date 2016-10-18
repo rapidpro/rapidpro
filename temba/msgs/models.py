@@ -731,7 +731,7 @@ class Msg(models.Model):
         """
         handlers = get_message_handlers()
 
-        if msg.contact.is_blocked and not msg.status == INTERRUPTED:
+        if msg.contact.is_blocked and msg.status not in (TRIGGERED, INTERRUPTED):
             msg.visibility = Msg.VISIBILITY_ARCHIVED
             msg.modified_on = timezone.now()
             msg.save(update_fields=['visibility', 'modified_on'])
@@ -754,11 +754,11 @@ class Msg(models.Model):
                     traceback.print_exc(e)
                     logger.exception("Error in message handling: %s" % e)
 
-        if not msg.status == INTERRUPTED:
+        if msg.status not in (INTERRUPTED, TRIGGERED):
             cls.mark_handled(msg)
 
         # if this is an inbox message, increment our unread inbox count
-        if msg.msg_type == INBOX:
+        if msg.msg_type == INBOX and msg.msg_type not in (INTERRUPTED, TRIGGERED):
             msg.org.increment_unread_msg_count(UNREAD_INBOX_MSGS)
 
         # record our handling latency for this object
@@ -1070,7 +1070,8 @@ class Msg(models.Model):
             raise ValueError(ugettext("Cannot process an outgoing message."))
 
         # process Android and test contact messages inline
-        if not self.channel or self.channel.channel_type == Channel.TYPE_ANDROID or self.contact.is_test:
+        if not self.channel or self.channel.channel_type == Channel.TYPE_ANDROID or self.contact.is_test \
+                or self.status in (TRIGGERED, INTERRUPTED):
             Msg.process_message(self)
 
         # others do in celery
@@ -1183,20 +1184,22 @@ class Msg(models.Model):
         if contact_urn:
             contact_urn.update_affinity(channel)
 
-        existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
-        if existing:
-            return existing
-
-        # costs 1 credit to receive a message
         topup_id = None
-        if topup:
-            topup_id = topup.pk
-        elif not contact.is_test:
-            (topup_id, amount) = org.decrement_credit()
 
-        # we limit text messages to 640 characters
-        if text:
-            text = text[:640]
+        if status != TRIGGERED:
+            existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
+            if existing:
+                return existing
+
+            # costs 1 credit to receive a message
+            if topup:
+                topup_id = topup.pk
+            elif not contact.is_test:
+                (topup_id, amount) = org.decrement_credit()
+
+            # we limit text messages to 640 characters
+            if text:
+                text = text[:640]
 
         msg_args = dict(contact=contact,
                         contact_urn=contact_urn,
@@ -1215,7 +1218,7 @@ class Msg(models.Model):
             msg_args['topup_id'] = topup_id
 
         # fake interrupt message to handle the flow properly
-        if status == INTERRUPTED:
+        if status in (INTERRUPTED, TRIGGERED):
             msg = Msg(**msg_args)
         else:
             msg = Msg.objects.create(**msg_args)
@@ -1228,9 +1231,10 @@ class Msg(models.Model):
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
         # ivr messages are handled in handle_call
-        if status in (PENDING, INTERRUPTED) and msg_type != IVR:
+        if status in (PENDING, INTERRUPTED, TRIGGERED) and msg_type != IVR:
             msg.handle()
 
+        if status == PENDING and msg_type != IVR:
             # fire an event off for this message
             WebHookEvent.trigger_sms_event(SMS_RECEIVED, msg, date)
 
