@@ -3,7 +3,6 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
-import regex
 import requests
 import xml.etree.ElementTree as ET
 

@@ -322,7 +322,7 @@ class MsgTest(TembaTest):
 
     @patch('temba.msgs.models.Msg.process_message')
     def test_incoming_trigger(self, process_message):
-        msg = Msg.create_incoming(self.channel, "tel:250788382382", "*111#", status=TRIGGERED)
+        Msg.create_incoming(self.channel, "tel:250788382382", "*111#", status=TRIGGERED)
 
         self.assertTrue(process_message.called)
         self.assertEqual(process_message.call_count, 1)
