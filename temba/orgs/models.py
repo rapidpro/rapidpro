@@ -537,6 +537,10 @@ class Org(SmartModel):
         from temba.channels.models import Channel
         return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
+    def get_ussd_channels(self):
+        from temba.channels.models import Channel
+        return self.channels.filter(is_active=True, org=self, channel_type__in=Channel.USSD_CHANNELS)
+
     def get_channel_delegate(self, channel, role):
         """
         Gets a channel's delegate for the given role with caching on the org object
