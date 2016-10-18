@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 import pytz
+import regex
 import requests
 import xml.etree.ElementTree as ET
 
@@ -998,7 +999,7 @@ class VumiHandler(View):
         return HttpResponse("Illegal method, must be POST", status=405)
 
     def post(self, request, *args, **kwargs):
-        from temba.msgs.models import Msg, PENDING, QUEUED, WIRED, SENT
+        from temba.msgs.models import Msg, PENDING, QUEUED, WIRED, SENT, TRIGGERED
 
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
@@ -1067,24 +1068,33 @@ class VumiHandler(View):
 
         # this is a new incoming message
         elif action == 'receive':
-            if not any(attr in body for attr in ('timestamp', 'from_addr', 'content', 'message_id')):
-                return HttpResponse("Missing one of timestamp, from_addr, content or message_id, ignoring message", status=400)
+            if not any(attr in body for attr in ('timestamp', 'from_addr', 'message_id')):
+                return HttpResponse("Missing one of timestamp, from_addr or message_id, ignoring message", status=400)
 
             # dates come in the format "2014-04-18 03:54:20.570618" GMT
             message_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
             gmt_date = pytz.timezone('GMT').localize(message_date)
 
             status = PENDING
+            content = body.get('content')
+
             if body.get('session_event') == "close":
                 status = INTERRUPTED
-            message = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), body['content'], date=gmt_date, status=status)
+            elif body.get('session_event') == "new":
+                status = TRIGGERED
+                # save the trigger code as content for further processing
+                content = body.get('to_addr')
 
-            if status != INTERRUPTED:
+            if not content:
+                return HttpResponse("Missing content, ignoring message", status=400)
+
+            message = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), content, date=gmt_date, status=status)
+
+            if status not in (INTERRUPTED, TRIGGERED):
                 # use an update so there is no race with our handling
                 Msg.objects.filter(pk=message.id).update(external_id=body['message_id'])
 
-            # TODO: handle "session_event" == "new" as USSD Trigger
-            return HttpResponse("Message Accepted: %d" % message.id)
+            return HttpResponse("Message Accepted: %d" % (message.id or 0))
 
         else:
             return HttpResponse("Not handled", status=400)
