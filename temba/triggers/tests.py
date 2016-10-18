@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import time
 import json
+from uuid import uuid4
 
 from mock import patch
 from datetime import timedelta
@@ -12,7 +13,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import TEL_SCHEME, Contact
 from temba.flows.models import Flow, ActionSet, FlowRun
 from temba.orgs.models import Language
-from temba.msgs.models import Msg, INCOMING
+from temba.msgs.models import Msg, INCOMING, TRIGGERED
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, MockResponse
 from .models import Trigger
@@ -954,3 +955,69 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.flow, flow)
         self.assertEqual(trigger.channel, self.channel)
         self.assertEqual(list(trigger.groups.all()), [group])
+
+    def test_ussd_trigger(self):
+        self.login(self.admin)
+
+        flow = self.get_flow('ussd_example')
+
+        channel = Channel.add_config_external_channel(self.org, self.user,
+                                                      "HU", 1234, Channel.TYPE_VUMI_USSD,
+                                                      dict(account_key="11111",
+                                                           access_token=str(uuid4()),
+                                                           transport_name="ussd_transport",
+                                                           conversation_key="22222"))
+
+        # flow options should show ussd flow example
+        response = self.client.get(reverse("triggers.trigger_ussd"))
+        self.assertContains(response, flow.name)
+
+        # try a ussd code with letters instead of numbers
+        post_data = dict(channel=channel.pk, keyword='*keyword#', flow=flow.pk)
+        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
+        self.assertEquals(1, len(response.context['form'].errors))
+        self.assertTrue("keyword" in response.context['form'].errors)
+        self.assertEquals(response.context['form'].errors['keyword'], [u'USSD code must contain only *,# and numbers'])
+
+        # try a proper ussd code
+        post_data = dict(channel=channel.pk, keyword='*111#', flow=flow.pk)
+        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
+        self.assertEquals(0, len(response.context['form'].errors))
+        trigger = Trigger.objects.get(keyword='*111#')
+        self.assertEquals(flow.pk, trigger.flow.pk)
+
+        # try a duplicate ussd code
+        post_data = dict(channel=channel.pk, keyword='*111#', flow=flow.pk)
+        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
+        self.assertEquals(1, len(response.context['form'].errors))
+        self.assertEquals(response.context['form'].errors['keyword'],
+                          [u'Another active trigger uses this code, code must be unique'])
+
+        # try a second ussd code with the same channel
+        post_data = dict(channel=channel.pk, keyword='*112#', flow=flow.pk)
+        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
+        self.assertEquals(0, len(response.context['form'].errors))
+        self.assertEquals(2, Trigger.objects.count())
+        trigger = Trigger.objects.get(keyword='*112#')
+        self.assertEquals(flow.pk, trigger.flow.pk)
+
+        self.contact = self.create_contact('George', '+362000011333')
+
+        # create an incoming message with no text
+        msg = Msg(direction=INCOMING, contact=self.contact, text="WRONG", status=TRIGGERED,
+                  org=self.org, channel=channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
+
+        # check wrong ussd code not handled
+        self.assertFalse(Trigger.find_and_handle(msg))
+
+        # create an incoming message with no text
+        msg = Msg(direction=INCOMING, contact=self.contact, text="*111#", status=TRIGGERED,
+                  org=self.org, channel=channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
+
+        # check proper ussd code is handled
+        self.assertTrue(Trigger.find_and_handle(msg))
+
+        # should also have a flow run
+        run = FlowRun.objects.get()
+        self.assertTrue(run.is_active)
+        self.assertFalse(run.is_completed())
