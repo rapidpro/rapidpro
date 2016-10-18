@@ -47,6 +47,7 @@
     window.uploadURL = '{% url "flows.flow_upload_action_recording" object.pk %}';
     window.mutable = {{mutable|lower}};
     window.ivr = '{{object.flow_type}}' == 'V';
+    window.ussd = '{{object.flow_type}}' == 'U';
     window.flow_type = '{{object.flow_type}}';
     window.mediaURL = '{{media_url}}';
     window.hasAirtimeService = {{has_airtime_service|lower}};
@@ -83,6 +84,10 @@
         // check if there is no channel, change the primary button behavior to redirect to channel creation
         if('{{has_outgoing_channel}}' == 'None') {
           modal.setPrimaryButton(gettext("Add Channel"));
+          onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
+        }
+        if (window.ussd && !{{is_ussd_channel|yesno:"true,false"}}) {
+          modal.setPrimaryButton(gettext("Add USSD Channel"));
           onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
         }
         modal.setListeners(onActions);
@@ -249,14 +254,24 @@
                 It's a good idea to start your call off by saying something first. You'll probably want to
                 introduce yourself and ask them a question. Just type the message for now, you'll be able to
                 add a voice recording of your message later.
+            -elif flow.flow_type == 'U'
+              -blocktrans
+                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow
+                by sending a USSD message. This message will be sent to anybody right after they join the flow.
+                This is your chance to send a single message or menu.
             -else
               -blocktrans
                 We recommend starting your flow by sending a message. This message will be sent to anybody right
                 after they join the flow. This is your chance to send a single message or ask them a question.
 
             .button
-              %a.btn.btn-primary{ng-click:'createFirstAction()'}
-                Create Message
+              -if flow.flow_type == 'U'
+                %a.btn.btn-primary{ng-click:'createFirstUssd()'}
+                  Create USSD Message
+              -else
+                %a.btn.btn-primary{ng-click:'createFirstAction()'}
+                  Create Message
+
 
 
           .option.hide
@@ -461,6 +476,12 @@
               -trans "Wait for "
               [[ruleset.label]]
 
+            .title.wait-ussd{ng-show:'ruleset.ruleset_type=="wait_menu"'}
+              -trans "Wait for USSD Menu"
+
+            .title.wait-ussd{ng-show:'ruleset.ruleset_type=="wait_ussd"'}
+              -trans "Wait for USSD Response"
+
             .title.wait-photo{ng-show:'ruleset.ruleset_type=="wait_photo"'}
               -trans "Wait for "
               [[ruleset.label]]
@@ -515,6 +536,9 @@
             .title.passive.transfer-airtime-header{ng-show:'ruleset.ruleset_type=="airtime"'}
               -trans "Transfer Airtime"
 
+            .title.passive.group-header{ng-show:'ruleset.ruleset_type=="group"'}
+              -trans "Split on Group"
+
             .title.passive.subflow-header{ng-show:'ruleset.ruleset_type=="subflow"'}
               -trans "Run Flow"
 
@@ -522,6 +546,14 @@
               Remove Rules?
 
             .remove.icon-close{ ng-click: 'confirmRemoveRuleset($event, ruleset); $event.stopPropagation()' }
+
+          .ussd-flow-items-wrapper{ng-show:'ruleset.ruleset_type=="wait_menu" || ruleset.ruleset_type=="wait_ussd"', ng-class:'{ missing: ruleset.config._missingTranslation }', ng-click:"clickRuleset(ruleset); $event.stopPropagation();"}
+            .ussd-flow-text{ng-class:'{ missing: ruleset.config._missingTranslation }'}
+              [[ruleset.config._ussd_translation]]
+            .ussd-flow-items
+              .ussd-flow-item{ng-repeat:'rule in ruleset.rules', ng-if:'ruleset.ruleset_type=="wait_menu"', ng-class:'{ missing: rule._missingTranslation }'}
+                %span.ussd-label{ng-show:'rule.test.type != "true" && rule.test.type != "interrupted_status"'}
+                  [[rule.test.test]]: [[rule._translation]]
 
           .div
             .ruleset-body{ng-show:'ruleset.ruleset_type=="subflow"'}
@@ -531,7 +563,7 @@
           %table{style:'width:100%;', ruleset:"ruleset"}
             %tr.rules
               %td.rule{valign:'bottom', ng-repeat:'category in ruleset._categories', ng-attr-id:'[[category.source]]',
-                       ng-class:'{ missing: category._missingTranslation }'}
+                       ng-class:'{ missing: category._missingTranslation, interrupted: category.type == "interrupted_status" }'}
                 .category
                   [[category._translation]]
                 .source{ng-attr-id:'[[ruleset.uuid]]_[[category.source]]_source', drop-scope:'actions', ng-class:'{connected:category.target}', ng-click:'clickRuleSource(category); $event.stopPropagation();'}

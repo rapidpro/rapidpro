@@ -8,7 +8,6 @@ import pytz
 import regex
 import time
 import urllib2
-import xlwt
 import re
 
 from collections import OrderedDict, defaultdict
@@ -33,9 +32,10 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
-from temba.msgs.models import OUTGOING, UnreachableException
+from temba.msgs.models import INTERRUPTED, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
-from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime, chunk_list
+from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
+from temba.utils import chunk_list, remove_control_characters
 from temba.utils.email import send_template_email, is_valid_address
 from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
@@ -160,7 +160,6 @@ class Flow(TembaModel):
     SAVED_ON = 'saved_on'
     NAME = 'name'
     REVISION = 'revision'
-    VERSION = 'version'
     FLOW_TYPE = 'flow_type'
     ID = 'id'
     EXPIRES = 'expires'
@@ -172,6 +171,7 @@ class Flow(TembaModel):
     MESSAGE = 'M'
     VOICE = 'V'
     SURVEY = 'S'
+    USSD = 'U'
 
     RULES_ENTRY = 'R'
     ACTIONS_ENTRY = 'A'
@@ -179,7 +179,8 @@ class Flow(TembaModel):
     FLOW_TYPES = ((FLOW, _("Message flow")),
                   (MESSAGE, _("Single Message Flow")),
                   (VOICE, _("Phone call flow")),
-                  (SURVEY, _("Android Survey")))
+                  (SURVEY, _("Android Survey")),
+                  (USSD, _("USSD flow")))
 
     ENTRY_TYPES = ((RULES_ENTRY, "Rules"),
                    (ACTIONS_ENTRY, "Actions"))
@@ -447,8 +448,11 @@ class Flow(TembaModel):
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
 
         # if we handled it, increment our unread count
-        if handled and not call.contact.is_test:
-            run.flow.increment_unread_responses()
+        if handled:
+
+            if not call.contact.is_test:
+                run.flow.increment_unread_responses()
+
             if msg.id:
                 Msg.mark_handled(msg)
 
@@ -507,7 +511,8 @@ class Flow(TembaModel):
 
     @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
-                        triggered_start=False, resume_parent_run=False, resume_after_timeout=False):
+                        triggered_start=False, resume_parent_run=False,
+                        resume_after_timeout=False, user_input=True):
 
         if started_flows is None:
             started_flows = []
@@ -524,7 +529,7 @@ class Flow(TembaModel):
                 continue
 
             (handled, msgs) = Flow.handle_destination(destination, step, step.run, msg, started_flows,
-                                                      user_input=True, triggered_start=triggered_start,
+                                                      user_input=user_input, triggered_start=triggered_start,
                                                       resume_parent_run=resume_parent_run,
                                                       resume_after_timeout=resume_after_timeout)
 
@@ -558,18 +563,27 @@ class Flow(TembaModel):
         # lookup our next destination
         handled = False
         while destination:
-            result = {handled: False}
+            result = {"handled": False}
 
             if destination.get_step_type() == FlowStep.TYPE_RULE_SET:
                 should_pause = False
 
                 # check if we need to stop
-                if destination.is_pause() or msg.status == HANDLED:
+                if destination.is_pause():
                     should_pause = True
 
+                if triggered_start and destination.is_ussd():
+                    result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                    msgs += result['msgs']
                 if (user_input or resume_after_timeout) or not should_pause:
-                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run, resume_after_timeout)
+                    result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run,
+                                                 resume_after_timeout)
                     add_to_path(path, destination.uuid)
+                # USSD ruleset has extra functionality to send out messages.
+                # This is handled as a shadow step for the ruleset.
+                elif destination.is_ussd():
+                    result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
+                    msgs += result['msgs']
 
                 # if we used this input, then mark our user input as used
                 if should_pause:
@@ -643,27 +657,34 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
-        if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
-            if not resume_parent_run:
-                flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
-                flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
-                message_context = run.flow.build_message_context(run.contact, msg)
 
-                # our extra will be the current flow variables
-                extra = message_context.get('extra', {})
-                extra['flow'] = message_context.get('flow', {})
+        if msg.status == INTERRUPTED:  # check interrupt
+            rule, value = ruleset.find_interrupt_rule(step, run, msg)
+            if not rule:
+                run.set_interrupted(final_step=step)
+                return dict(handled=True, destination=None, destination_type=None)
+        else:
+            if ruleset.ruleset_type == RuleSet.TYPE_SUBFLOW:
+                if not resume_parent_run:
+                    flow_uuid = json.loads(ruleset.config).get('flow').get('uuid')
+                    flow = Flow.objects.filter(org=run.org, uuid=flow_uuid).first()
+                    message_context = run.flow.build_message_context(run.contact, msg)
 
-                if msg.id > 0:
-                    step.add_message(msg)
-                    run.update_expiration(timezone.now())
+                    # our extra will be the current flow variables
+                    extra = message_context.get('extra', {})
+                    extra['flow'] = message_context.get('flow', {})
 
-                if flow:
-                    flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                               extra=extra, parent_run=run, interrupt=False)
-                    return dict(handled=True, destination=None, destination_type=None)
+                    if msg.id > 0:
+                        step.add_message(msg)
+                        run.update_expiration(timezone.now())
 
-        # find a matching rule
-        rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
+                    if flow:
+                        flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
+                                   extra=extra, parent_run=run, interrupt=False)
+                        return dict(handled=True, destination=None, destination_type=None)
+            # find a matching rule
+            rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
+
         flow = ruleset.flow
 
         # add the message to our step
@@ -675,17 +696,26 @@ class Flow(TembaModel):
             # store the media path as the value
             value = msg.media.split(':', 1)[1]
 
-        step.save_rule_match(rule, value)
-        ruleset.save_run_value(run, rule, value)
+        if not msg.status == INTERRUPTED:
+            step.save_rule_match(rule, value)
+            ruleset.save_run_value(run, rule, value)
 
         # output the new value if in the simulator
         if run.contact.is_test:
-            ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
+            if msg.status == INTERRUPTED:
+                ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
+            else:
+                ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
-            # log it for our test contacts
-            run.set_completed(final_step=step)
+            if msg.status == INTERRUPTED:
+                # run was interrupted and interrupt state not handled (not connected)
+                run.set_interrupted(final_step=step)
+            else:
+                # log it for our test contacts
+                run.set_completed(final_step=step)
+
             return dict(handled=True, destination=None, destination_type=None)
 
         # Create the step for our destination
@@ -697,6 +727,16 @@ class Flow(TembaModel):
             step.save(update_fields=['left_on', 'next_uuid'])
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
         return dict(handled=True, destination=destination, step=step)
+
+    @classmethod
+    def handle_ussd_ruleset_action(cls, ruleset, step, run, msg):
+        action = UssdAction.from_ruleset(ruleset, run)
+        msgs = action.execute(run, ruleset.uuid, msg)
+
+        for msg in msgs:
+            step.add_message(msg)
+
+        return dict(handled=True, destination=None, step=step, msgs=msgs)
 
     @classmethod
     def apply_action_label(cls, user, flows, label, add):
@@ -1400,6 +1440,9 @@ class Flow(TembaModel):
         ancestor_ids = []
         ancestor = parent_run
         while ancestor:
+            # we don't consider it an ancestor if it's not current in our start list
+            if ancestor.contact.id not in all_contact_ids:
+                break
             ancestor_ids.append(ancestor.id)
             ancestor = ancestor.parent
 
@@ -1606,7 +1649,7 @@ class Flow(TembaModel):
                                partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
-                for msg in Msg.current_messages.filter(broadcast=broadcast, created_on=created_on):
+                for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
                     else:
@@ -1662,7 +1705,7 @@ class Flow(TembaModel):
                     Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
 
                 # if we didn't get an incoming message, see if we need to evaluate it passively
-                elif not entry_rules.is_pause():
+                elif not entry_rules.is_pause() or entry_rules.is_ussd():
                     # create an empty placeholder message
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                     handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
@@ -1681,7 +1724,7 @@ class Flow(TembaModel):
         if msgs:
             # then send them off
             msgs.sort(key=lambda message: (message.contact_id, message.created_on))
-            Msg.all_messages.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
 
             # trigger a sync
             self.org.trigger_send(msgs)
@@ -2469,7 +2512,7 @@ class FlowRun(models.Model):
             return unicode(fields), count + 1
 
     @classmethod
-    def bulk_exit(cls, runs, exit_type, exited_on=None):
+    def bulk_exit(cls, runs, exit_type):
         """
         Exits (expires, interrupts) runs in bulk
         """
@@ -2490,27 +2533,23 @@ class FlowRun(models.Model):
             if flow:
                 flow.remove_active_for_run_ids(run_ids)
 
-        modified_on = timezone.now()
-        if not exited_on:
-            exited_on = modified_on
-
         from .tasks import continue_parent_flows
 
         # batch this for 1,000 runs at a time so we don't grab locks for too long
         for batch in chunk_list(runs, 1000):
             ids = [r['id'] for r in batch]
             run_objs = FlowRun.objects.filter(pk__in=ids)
-            run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type, modified_on=modified_on)
+            now = timezone.now()
+            run_objs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
 
             # continue the parent flows to continue async
             continue_parent_flows.delay(ids)
 
     def get_last_msg(self, direction):
         """
-        Returns the last incoming msg on this run, or an empty dummy message if there is none
+        Returns the last incoming msg on this run
         """
-        msg = Msg.all_messages.filter(steps__run=self, direction=direction).order_by('-created_on').first()
-        return msg
+        return Msg.objects.filter(steps__run=self, direction=direction).order_by('-created_on').first()
 
     @classmethod
     def continue_parent_flow_runs(cls, runs):
@@ -2536,7 +2575,7 @@ class FlowRun(models.Model):
                         msg.contact = run.contact
 
                     # finally, trigger our parent flow
-                    Flow.find_and_handle(msg, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
+                    Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
     def resume_after_timeout(self):
         """
@@ -2611,8 +2650,33 @@ class FlowRun(models.Model):
         self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
         # let our parent know we finished
-        from .tasks import continue_parent_flows
-        continue_parent_flows.delay([self.pk])
+        if self.contact.is_test:
+            # test contacts should operate in same thread
+            FlowRun.continue_parent_flow_runs(FlowRun.objects.filter(id=self.id))
+        else:
+            from .tasks import continue_parent_flows
+            continue_parent_flows.delay([self.id])
+
+    def set_interrupted(self, final_step=None):
+        """
+        Mark run as interrupted
+        """
+        if self.contact.is_test:
+            ActionLog.create(self, _('%s has interrupted this flow') % self.contact.get_display(self.flow.org, short=True))
+
+        now = timezone.now()
+
+        if final_step:
+            final_step.left_on = now
+            final_step.save(update_fields=['left_on'])
+            self.flow.remove_active_for_step(final_step)
+
+        # mark this flow as inactive
+        self.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
+        self.exited_on = now
+        self.modified_on = now
+        self.is_active = False
+        self.save(update_fields=('exit_type', 'exited_on', 'modified_on', 'is_active'))
 
     def update_timeout(self, now, minutes):
         """
@@ -2653,9 +2717,9 @@ class FlowRun(models.Model):
         self.bulk_exit([self], FlowRun.EXIT_TYPE_EXPIRED)
 
     @classmethod
-    def expire_all_for_contacts(cls, contacts):
+    def exit_all_for_contacts(cls, contacts, exit_type):
         contact_runs = cls.objects.filter(is_active=True, contact__in=contacts)
-        cls.bulk_exit(contact_runs, FlowRun.EXIT_TYPE_EXPIRED)
+        cls.bulk_exit(contact_runs, exit_type)
 
     def update_fields(self, field_map, max_values=128):
         # validate our field
@@ -2675,6 +2739,9 @@ class FlowRun(models.Model):
 
     def is_completed(self):
         return self.exit_type == FlowRun.EXIT_TYPE_COMPLETED
+
+    def is_interrupted(self):
+        return self.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED
 
     def create_outgoing_ivr(self, text, recording_url, response_to=None):
 
@@ -2780,14 +2847,14 @@ class FlowStep(models.Model):
                                                    media=media, msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
             else:
-                incoming = Msg.current_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+                incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             if incoming:
                 msgs.append(incoming)
         else:
             actions = Action.from_json_array(flow.org, json_obj['actions'])
 
-            last_incoming = Msg.all_messages.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
+            last_incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             for action in actions:
                 msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)
@@ -2930,6 +2997,10 @@ class FlowStep(models.Model):
 class RuleSet(models.Model):
     TYPE_WAIT_MESSAGE = 'wait_message'
 
+    # Ussd
+    TYPE_WAIT_USSD_MENU = 'wait_menu'
+    TYPE_WAIT_USSD = 'wait_ussd'
+
     # Calls
     TYPE_WAIT_RECORDING = 'wait_recording'
     TYPE_WAIT_DIGIT = 'wait_digit'
@@ -2957,10 +3028,14 @@ class RuleSet(models.Model):
 
     TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
 
-    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS,
-                 TYPE_WAIT_PHOTO, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_GPS)
+    TYPE_WAIT = (TYPE_WAIT_MESSAGE, TYPE_WAIT_RECORDING, TYPE_WAIT_DIGIT, TYPE_WAIT_DIGITS, TYPE_WAIT_USSD_MENU,
+                 TYPE_WAIT_USSD, TYPE_WAIT_PHOTO, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_GPS)
+
+    TYPE_USSD = (TYPE_WAIT_USSD_MENU, TYPE_WAIT_USSD)
 
     TYPE_CHOICES = ((TYPE_WAIT_MESSAGE, "Wait for message"),
+                    (TYPE_WAIT_USSD_MENU, "Wait for USSD menu"),
+                    (TYPE_WAIT_USSD, "Wait for USSD message"),
                     (TYPE_WAIT_RECORDING, "Wait for recording"),
                     (TYPE_WAIT_DIGIT, "Wait for digit"),
                     (TYPE_WAIT_DIGITS, "Wait for digits"),
@@ -3107,6 +3182,9 @@ class RuleSet(models.Model):
     def is_pause(self):
         return self.ruleset_type in RuleSet.TYPE_WAIT
 
+    def is_ussd(self):
+        return self.ruleset_type in RuleSet.TYPE_USSD
+
     def get_timeout(self):
         for rule in self.get_rules():
             if isinstance(rule.test, TimeoutTest):
@@ -3238,6 +3316,15 @@ class RuleSet(models.Model):
                 if msg:
                     msg.text = orig_text
 
+        return None, None
+
+    def find_interrupt_rule(self, step, run, msg):
+        rules = self.get_rules()
+        for rule in rules:
+            result, value = rule.matches(run, msg, {}, "")
+
+            if result and value == "interrupted_status":
+                return rule, value
         return None, None
 
     def save_run_value(self, run, rule, value):
@@ -3507,8 +3594,6 @@ class FlowRunCount(models.Model):
         start = time.time()
         squash_count = 0
         for count in FlowRunCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'exit_type').distinct('flow_id', 'exit_type'):
-            print "Squashing: %d %s" % (count.flow_id, count.exit_type)
-
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
                 c.execute("SELECT temba_squash_flowruncount(%s, %s);", (count.flow_id, count.exit_type))
@@ -3610,9 +3695,11 @@ class ExportFlowResultsTask(SmartModel):
             self.save(update_fields=['is_finished'])
 
     def do_export(self):
-        from xlwt import Workbook
-        book = Workbook()
-        max_rows = 65535
+        from openpyxl import Workbook
+        from openpyxl.writer.write_only import WriteOnlyCell
+        from openpyxl.utils.cell import get_column_letter
+        book = Workbook(write_only=True)
+        max_rows = 1048576
 
         config = json.loads(self.config) if self.config else dict()
         include_runs = config.get(ExportFlowResultsTask.INCLUDE_RUNS, False)
@@ -3626,10 +3713,9 @@ class ExportFlowResultsTask(SmartModel):
             if cf:
                 contact_fields.append(cf)
 
-        date_format = xlwt.easyxf(num_format_str='MM/DD/YYYY HH:MM:SS')
-        small_width = 15 * 256
-        medium_width = 20 * 256
-        large_width = 100 * 256
+        small_width = 15
+        medium_width = 20
+        large_width = 100
 
         # merge the columns for all of our flows
         show_submitted_by = False
@@ -3650,7 +3736,7 @@ class ExportFlowResultsTask(SmartModel):
 
         def as_org_tz(dt):
             if dt:
-                return dt.astimezone(org_tz).replace(tzinfo=None)
+                return dt.astimezone(org_tz).replace(tzinfo=None, microsecond=0)
             else:
                 return None
 
@@ -3702,8 +3788,8 @@ class ExportFlowResultsTask(SmartModel):
             for i in range(all_runs_count / max_rows + 1):
                 total_run_sheet_count += 1
                 name = "Runs" if (i + 1) <= 1 else "Runs (%d)" % (i + 1)
-                sheet = book.add_sheet(name, cell_overwrite_ok=True)
-                run_sheets.append(sheet)
+                book.create_sheet(name)
+                run_sheets.append(name)
 
         total_merged_run_sheet_count = 0
 
@@ -3711,61 +3797,83 @@ class ExportFlowResultsTask(SmartModel):
         for i in range(contacts_count / max_rows + 1):
             total_merged_run_sheet_count += 1
             name = "Contacts" if (i + 1) <= 1 else "Contacts (%d)" % (i + 1)
-            sheet = book.add_sheet(name, cell_overwrite_ok=True)
-            run_sheets.append(sheet)
+            book.create_sheet(name)
+            run_sheets.append(name)
 
+        sheet_row = []
         # then populate their header columns
-        for (sheet_num, sheet) in enumerate(run_sheets):
-            # build up our header row
+        for (sheet_num, sheet_name) in enumerate(run_sheets):
 
-            index = 0
+            sheet = book[sheet_name]
+            # build up our header row
+            sheet_row = []
+
+            index = 1
             if show_submitted_by:
-                sheet.write(0, index, "Surveyor")
-                sheet.col(0).width = medium_width
+                cell = WriteOnlyCell(sheet, value="Surveyor")
+                sheet.column_dimensions[get_column_letter(index)].width = medium_width
+                sheet_row.append(cell)
                 index += 1
 
-            sheet.write(0, index, "Contact UUID")
-            sheet.col(index).width = medium_width
+            cell = WriteOnlyCell(sheet, value="Contact UUID")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
+            sheet_row.append(cell)
             index += 1
 
-            sheet.write(0, index, "URN")
-            sheet.col(index).width = small_width
+            cell = WriteOnlyCell(sheet, value="URN")
+            sheet.column_dimensions[get_column_letter(index)].width = small_width
+            sheet_row.append(cell)
             index += 1
 
-            sheet.write(0, index, "Name")
-            sheet.col(index).width = medium_width
+            cell = WriteOnlyCell(sheet, value="Name")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
+            sheet_row.append(cell)
             index += 1
 
-            sheet.write(0, index, "Groups")
-            sheet.col(index).width = medium_width
+            cell = WriteOnlyCell(sheet, value="Groups")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
+            sheet_row.append(cell)
             index += 1
 
             # add our contact fields
             for cf in contact_fields:
-                sheet.write(0, index, cf.label)
-                sheet.col(index).width = medium_width
+                cell = WriteOnlyCell(sheet, value=cf.label)
+                sheet.column_dimensions[get_column_letter(index)].width = medium_width
+                sheet_row.append(cell)
                 index += 1
 
-            sheet.write(0, index, "First Seen")
-            sheet.col(index).width = medium_width
+            cell = WriteOnlyCell(sheet, value="First Seen")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
+            sheet_row.append(cell)
             index += 1
 
-            sheet.write(0, index, "Last Seen")
-            sheet.col(index).width = medium_width
+            cell = WriteOnlyCell(sheet, value="Last Seen")
+            sheet.column_dimensions[get_column_letter(index)].width = medium_width
+            sheet_row.append(cell)
             index += 1
 
             for col in range(len(columns)):
                 ruleset = columns[col]
-                sheet.write(0, index + col * 3, "%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, index + col * 3 + 1, "%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.write(0, index + col * 3 + 2, "%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
-                sheet.col(index + col * 3).width = 15 * 256
-                sheet.col(index + col * 3 + 1).width = 15 * 256
-                sheet.col(index + col * 3 + 2).width = 15 * 256
+                cell = WriteOnlyCell(sheet, value="%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.column_dimensions[get_column_letter(index)].width = small_width
+                sheet_row.append(cell)
+                cell = WriteOnlyCell(sheet, value="%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.column_dimensions[get_column_letter(index)].width = small_width
+                sheet_row.append(cell)
+                cell = WriteOnlyCell(sheet, value="%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                sheet.column_dimensions[get_column_letter(index)].width = small_width
+                sheet_row.append(cell)
 
-        run_row = 0
-        merged_row = 0
-        msg_row = 0
+            sheet.append(sheet_row)
+
+        run_row = 1
+        merged_row = 1
+        msg_row = 1
+
+        sheet_columns_number = len(sheet_row)
+
+        runs_sheet_row = [None] * sheet_columns_number
+        merged_sheet_row = [None] * sheet_columns_number
 
         latest = None
         earliest = None
@@ -3781,8 +3889,8 @@ class ExportFlowResultsTask(SmartModel):
         msg_sheet_index = 0
 
         # get our initial runs and merged runs to write to
-        runs = book.get_sheet(run_sheet_index)
-        merged_runs = book.get_sheet(merged_run_sheet_index)
+        runs = book[run_sheets[run_sheet_index]]
+        merged_runs = book[run_sheets[merged_run_sheet_index]]
         msgs = None
 
         processed_steps = 0
@@ -3799,7 +3907,7 @@ class ExportFlowResultsTask(SmartModel):
             urn_display = urn_display_cache.get(contact.pk)
             if urn_display:
                 return urn_display
-            urn_display = contact.get_urn_display(org=org, full=True)
+            urn_display = contact.get_urn_display(org=org, formatted=False)
             urn_display_cache[contact.pk] = urn_display
             return urn_display
 
@@ -3823,6 +3931,7 @@ class ExportFlowResultsTask(SmartModel):
 
             contact_urn_display = get_contact_urn_display(run_step.contact)
             contact_uuid = run_step.contact.uuid
+            contact_name = remove_control_characters(run_step.contact.name)
 
             # if this is a rule step, write out the value collected
             if run_step.step_type == FlowStep.TYPE_RULE_SET:
@@ -3831,17 +3940,16 @@ class ExportFlowResultsTask(SmartModel):
                 if last_contact != run_step.contact.pk:
                     merged_earliest = run_step.arrived_on
                     merged_latest = None
-
-                    if merged_row % 1000 == 0:
-                        merged_runs.flush_row_data()
-
+                    if merged_sheet_row != [None] * sheet_columns_number:
+                        merged_runs.append(merged_sheet_row)
+                    merged_sheet_row = [None] * sheet_columns_number
                     merged_row += 1
 
                     if merged_row > max_rows:
                         # get the next sheet to use for Contacts
                         merged_row = 1
                         merged_run_sheet_index += 1
-                        merged_runs = book.get_sheet(merged_run_sheet_index)
+                        merged_runs = book[run_sheets[merged_run_sheet_index]]
 
                 # a new run
                 if last_run != run_step.run.pk:
@@ -3849,16 +3957,17 @@ class ExportFlowResultsTask(SmartModel):
                     latest = None
 
                     if include_runs:
-                        if run_row % 1000 == 0:
-                            runs.flush_row_data()
 
+                        if runs_sheet_row != [None] * sheet_columns_number:
+                            runs.append(runs_sheet_row)
+                        runs_sheet_row = [None] * sheet_columns_number
                         run_row += 1
 
                         if run_row > max_rows:
                             # get the next sheet to use for Runs
                             run_row = 1
                             run_sheet_index += 1
-                            runs = book.get_sheet(run_sheet_index)
+                            runs = book[run_sheets[run_sheet_index]]
 
                     # build up our group names
                     group_names = []
@@ -3878,20 +3987,30 @@ class ExportFlowResultsTask(SmartModel):
                             submitted_by = run_step.run.submitted_by.username
 
                         if include_runs:
-                            runs.write(run_row, 0, submitted_by)
-                        merged_runs.write(merged_row, 0, submitted_by)
+                            cell = WriteOnlyCell(runs, value=submitted_by)
+                            runs_sheet_row[0] = cell
+                        cell = WriteOnlyCell(merged_runs, value=submitted_by)
+                        merged_sheet_row[0] = cell
                         padding = 1
 
                     if include_runs:
-                        runs.write(run_row, padding + 0, contact_uuid)
-                        runs.write(run_row, padding + 1, contact_urn_display)
-                        runs.write(run_row, padding + 2, run_step.contact.name)
-                        runs.write(run_row, padding + 3, groups)
+                        cell = WriteOnlyCell(runs, value=contact_uuid)
+                        runs_sheet_row[padding + 0] = cell
+                        cell = WriteOnlyCell(runs, value=contact_urn_display)
+                        runs_sheet_row[padding + 1] = cell
+                        cell = WriteOnlyCell(runs, value=contact_name)
+                        runs_sheet_row[padding + 2] = cell
+                        cell = WriteOnlyCell(runs, value=groups)
+                        runs_sheet_row[padding + 3] = cell
 
-                    merged_runs.write(merged_row, padding + 0, contact_uuid)
-                    merged_runs.write(merged_row, padding + 1, contact_urn_display)
-                    merged_runs.write(merged_row, padding + 2, run_step.contact.name)
-                    merged_runs.write(merged_row, padding + 3, groups)
+                    cell = WriteOnlyCell(merged_runs, value=contact_uuid)
+                    merged_sheet_row[padding + 0] = cell
+                    cell = WriteOnlyCell(merged_runs, value=contact_urn_display)
+                    merged_sheet_row[padding + 1] = cell
+                    cell = WriteOnlyCell(merged_runs, value=contact_name)
+                    merged_sheet_row[padding + 2] = cell
+                    cell = WriteOnlyCell(merged_runs, value=groups)
+                    merged_sheet_row[padding + 3] = cell
 
                     cf_padding = 0
 
@@ -3903,9 +4022,11 @@ class ExportFlowResultsTask(SmartModel):
 
                         field_value = unicode(field_value)
 
-                        merged_runs.write(merged_row, padding + 4 + cf_padding, field_value)
+                        cell = WriteOnlyCell(merged_runs, value=field_value)
+                        merged_sheet_row[padding + 4 + cf_padding] = cell
                         if include_runs:
-                            runs.write(run_row, padding + 4 + cf_padding, field_value)
+                            cell = WriteOnlyCell(runs, value=field_value)
+                            runs_sheet_row[padding + 4 + cf_padding] = cell
 
                         cf_padding += 1
 
@@ -3916,11 +4037,15 @@ class ExportFlowResultsTask(SmartModel):
                     merged_latest = run_step.arrived_on
 
                 if include_runs:
-                    runs.write(run_row, padding + 4 + cf_padding, as_org_tz(earliest), date_format)
-                    runs.write(run_row, padding + 5 + cf_padding, as_org_tz(latest), date_format)
+                    cell = WriteOnlyCell(runs, value=as_org_tz(earliest))
+                    runs_sheet_row[padding + 4 + cf_padding] = cell
+                    cell = WriteOnlyCell(runs, value=as_org_tz(latest))
+                    runs_sheet_row[padding + 5 + cf_padding] = cell
 
-                merged_runs.write(merged_row, padding + 4 + cf_padding, as_org_tz(merged_earliest), date_format)
-                merged_runs.write(merged_row, padding + 5 + cf_padding, as_org_tz(merged_latest), date_format)
+                cell = WriteOnlyCell(merged_runs, value=as_org_tz(merged_earliest))
+                merged_sheet_row[padding + 4 + cf_padding] = cell
+                cell = WriteOnlyCell(merged_runs, value=as_org_tz(merged_latest))
+                merged_sheet_row[padding + 5 + cf_padding] = cell
 
                 # write the step data
                 col = column_map.get(run_step.step_uuid, 0) + padding
@@ -3928,24 +4053,34 @@ class ExportFlowResultsTask(SmartModel):
                     category = category_map.get(run_step.rule_uuid, None)
                     if category:
                         if include_runs:
-                            runs.write(run_row, col, category)
-                        merged_runs.write(merged_row, col, category)
+                            cell = WriteOnlyCell(runs, value=category)
+                            runs_sheet_row[col] = cell
+                        cell = WriteOnlyCell(merged_runs, value=category)
+                        merged_sheet_row[col] = cell
                     elif run_step.rule_category:
                         if include_runs:
-                            runs.write(run_row, col, run_step.rule_category)
-                        merged_runs.write(merged_row, col, run_step.rule_category)
+                            cell = WriteOnlyCell(runs, value=run_step.rule_category)
+                            runs_sheet_row[col] = cell
+                        cell = WriteOnlyCell(merged_runs, value=run_step.rule_category)
+                        merged_sheet_row[col] = cell
 
                     value = run_step.rule_value
                     if value:
+                        value = remove_control_characters(value)
                         if include_runs:
-                            runs.write(run_row, col + 1, value)
-                        merged_runs.write(merged_row, col + 1, value)
+                            cell = WriteOnlyCell(runs, value=value)
+                            runs_sheet_row[col + 1] = cell
+                        cell = WriteOnlyCell(merged_runs, value=value)
+                        merged_sheet_row[col + 1] = cell
 
                     text = run_step.get_text()
                     if text:
+                        text = remove_control_characters(text)
                         if include_runs:
-                            runs.write(run_row, col + 2, text)
-                        merged_runs.write(merged_row, col + 2, text)
+                            cell = WriteOnlyCell(runs, value=text)
+                            runs_sheet_row[col + 2] = cell
+                        cell = WriteOnlyCell(merged_runs, value=text)
+                        merged_sheet_row[col + 2] = cell
 
                 last_run = run_step.run.pk
                 last_contact = run_step.contact.pk
@@ -3957,43 +4092,67 @@ class ExportFlowResultsTask(SmartModel):
                 if step_msgs:
                     msg = step_msgs[0]
                     msg_row += 1
-
-                    if msg_row % 1000 == 0:
-                        msgs.flush_row_data()
+                    msgs_row = []
 
                     if msg_row > max_rows or not msgs:
-                        msg_row = 1
-                        msg_sheet_index += 1
+                        msg_row = 2
 
                         name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
-                        msgs = book.add_sheet(name)
+                        msgs = book.create_sheet(name)
+                        msgs_row = []
+                        msg_sheet_index += 1
 
-                        msgs.write(0, 0, "Contact UUID")
-                        msgs.write(0, 1, "URN")
-                        msgs.write(0, 2, "Name")
-                        msgs.write(0, 3, "Date")
-                        msgs.write(0, 4, "Direction")
-                        msgs.write(0, 5, "Message")
-                        msgs.write(0, 6, "Channel")
+                        cell = WriteOnlyCell(msgs, value="Contact UUID")
+                        msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                        cell = WriteOnlyCell(msgs, value="URN")
+                        msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                        cell = WriteOnlyCell(msgs, value="Name")
+                        msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                        cell = WriteOnlyCell(msgs, value="Date")
+                        msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                        cell = WriteOnlyCell(msgs, value="Direction")
+                        msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                        cell = WriteOnlyCell(msgs, value="Message")
+                        msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
+                        cell = WriteOnlyCell(msgs, value="Channel")
+                        msgs_row.append(cell)
+                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
 
-                        msgs.col(0).width = medium_width
-                        msgs.col(1).width = small_width
-                        msgs.col(2).width = medium_width
-                        msgs.col(3).width = medium_width
-                        msgs.col(4).width = small_width
-                        msgs.col(5).width = large_width
-                        msgs.col(6).width = small_width
+                        msgs.append(msgs_row)
+                        msgs_row = []
 
-                    msg_urn_display = msg.contact_urn.get_display(org=org, full=True) if msg.contact_urn else ''
+                    msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
                     channel_name = msg.channel.name if msg.channel else ''
+                    text = remove_control_characters(msg.text)
 
-                    msgs.write(msg_row, 0, run_step.contact.uuid)
-                    msgs.write(msg_row, 1, msg_urn_display)
-                    msgs.write(msg_row, 2, run_step.contact.name)
-                    msgs.write(msg_row, 3, as_org_tz(msg.created_on), date_format)
-                    msgs.write(msg_row, 4, "IN" if msg.direction == INCOMING else "OUT")
-                    msgs.write(msg_row, 5, msg.text)
-                    msgs.write(msg_row, 6, channel_name)
+                    cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
+                    msgs_row.append(cell)
+                    cell = WriteOnlyCell(msgs, value=msg_urn_display)
+                    msgs_row.append(cell)
+                    cell = WriteOnlyCell(msgs, value=contact_name)
+                    msgs_row.append(cell)
+                    cell = WriteOnlyCell(msgs, value=as_org_tz(msg.created_on))
+                    msgs_row.append(cell)
+                    cell = WriteOnlyCell(msgs, value="IN" if msg.direction == INCOMING else "OUT")
+                    msgs_row.append(cell)
+                    cell = WriteOnlyCell(msgs, value=text)
+                    msgs_row.append(cell)
+                    cell = WriteOnlyCell(msgs, value=channel_name)
+                    msgs_row.append(cell)
+
+                    msgs.append(msgs_row)
+
+        if runs_sheet_row != [None] * sheet_columns_number:
+            runs.append(runs_sheet_row)
+
+        if merged_sheet_row != [None] * sheet_columns_number:
+            merged_runs.append(merged_sheet_row)
 
         temp = NamedTemporaryFile(delete=True)
         book.save(temp)
@@ -4008,7 +4167,7 @@ class ExportFlowResultsTask(SmartModel):
         from temba.assets.views import get_asset_url
 
         store = AssetType.results_export.store
-        store.save(self.pk, File(temp), 'xls')
+        store.save(self.pk, File(temp), 'xlsx')
 
         subject = "Your export is ready"
         template = 'flows/email/flow_export_download'
@@ -4761,6 +4920,75 @@ class ReplyAction(Action):
         return [reply] if reply else []
 
 
+class UssdAction(ReplyAction):
+    """
+    USSD action to send outgoing USSD messages
+    Created from a USSD ruleset
+    It builds localised text with localised USSD menu support
+    """
+    TYPE = 'ussd'
+    MESSAGE = 'ussd_message'
+    TYPE_WAIT_USSD_MENU = 'wait_menu'
+    TYPE_WAIT_USSD = 'wait_ussd'
+
+    def __init__(self, msg=None, base_language=None, languages=None, primary_language=None):
+        super(UssdAction, self).__init__(msg)
+        self.languages = languages
+        if msg and base_language and primary_language:
+            self.base_language = base_language if base_language in msg else primary_language
+        else:
+            self.base_language = None
+
+    @classmethod
+    def from_ruleset(cls, ruleset, run):
+        if ruleset and hasattr(ruleset, 'config') and isinstance(ruleset.config, basestring):
+            # initial message, menu obj
+            obj = json.loads(ruleset.config)
+            rules = json.loads(ruleset.rules)
+            msg = obj.get(cls.MESSAGE, '')
+            org = run.flow.org
+
+            # define languages
+            base_language = run.flow.base_language
+            org_languages = {l.iso_code for l in org.languages.all()}
+            primary_language = getattr(getattr(org, 'primary_language', None), 'iso_code', None)
+
+            # initialize UssdAction
+            ussd_action = cls(msg=msg, base_language=base_language, languages=org_languages,
+                              primary_language=primary_language)
+
+            ussd_action.substitute_missing_languages()
+
+            if ruleset.ruleset_type == cls.TYPE_WAIT_USSD_MENU:
+                ussd_action.add_menu_to_msg(rules)
+
+            return ussd_action
+        else:
+            return cls()
+
+    def substitute_missing_languages(self):
+        # if there is a translation missing fill it with the base language
+        for language in self.languages:
+            if language not in self.msg:
+                self.msg[language] = self.msg.get(self.base_language)
+
+    def get_menu_label(self, label, language):
+        if language not in label:
+            return str(label.get(self.base_language))
+        else:
+            return str(label[language])
+
+    def add_menu_to_msg(self, rules):
+        # start with a new line
+        self.msg = {language: localised_msg + '\n' for language, localised_msg in self.msg.iteritems()}
+
+        # add menu to the msg
+        for rule in rules:
+            if rule.get('label'):  # filter "other" and "interrupted"
+                self.msg = {language: localised_msg + ": ".join(
+                    (str(rule['test']['test']), self.get_menu_label(rule['label'], language),)) + '\n' for language, localised_msg in self.msg.iteritems()}
+
+
 class VariableContactAction(Action):
     """
     Base action that resolves variables into contacts. Used for actions that take
@@ -4904,7 +5132,7 @@ class TriggerFlowAction(VariableContactAction):
                 # our extra will be our flow variables in our message context
                 extra = message_context.get('extra', dict())
                 self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
-                                extra=extra, parent_run=run, interrupt=False)
+                                extra=extra, parent_run=run)
                 return []
             else:
                 unique_contacts = set()
@@ -5189,7 +5417,11 @@ class SetChannelAction(Action):
     def execute(self, run, actionset_uuid, msg, offline_on=None):
         # if we found the channel to set
         if self.channel:
-            run.contact.set_preferred_channel(self.channel)
+
+            # don't set preferred channel for test contacts
+            if not run.contact.is_test:
+                run.contact.set_preferred_channel(self.channel)
+
             self.log(run, _("Updated preferred channel to %s") % self.channel.name)
             return []
         else:
@@ -5286,12 +5518,13 @@ class SendAction(VariableContactAction):
 
 class Rule(object):
 
-    def __init__(self, uuid, category, destination, destination_type, test):
+    def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid
         self.category = category
         self.destination = destination
         self.destination_type = destination_type
         self.test = test
+        self.label = label
 
     def get_category_name(self, flow_lang):
         if not self.category:
@@ -5315,7 +5548,8 @@ class Rule(object):
                     category=self.category,
                     destination=self.destination,
                     destination_type=self.destination_type,
-                    test=self.test.as_json())
+                    test=self.test.as_json(),
+                    label=self.label)
 
     @classmethod
     def from_json_array(cls, org, json):
@@ -5342,7 +5576,8 @@ class Rule(object):
                               category,
                               destination,
                               destination_type,
-                              Test.from_json(org, rule['test'])))
+                              Test.from_json(org, rule['test']),
+                              rule.get('label')))
 
         return rules
 
@@ -5380,9 +5615,11 @@ class Test(object):
                 HasDistrictTest.TYPE: HasDistrictTest,
                 HasStateTest.TYPE: HasStateTest,
                 NotEmptyTest.TYPE: NotEmptyTest,
+                InterruptTest.TYPE: InterruptTest,
                 TimeoutTest.TYPE: TimeoutTest,
                 AirtimeStatusTest.TYPE: AirtimeStatusTest,
                 WebhookStatusTest.TYPE: WebhookStatusTest,
+                InGroupTest.TYPE: InGroupTest
             }
 
         type = json_dict.get(cls.TYPE, None)
@@ -5470,6 +5707,34 @@ class AirtimeStatusTest(Test):
         status = text
         if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
             return 1, status
+        return 0, None
+
+
+class InGroupTest(Test):
+    """
+    { op: "in_group" }
+    """
+    TYPE = 'in_group'
+    NAME = 'name'
+    UUID = 'uuid'
+    TEST = 'test'
+
+    def __init__(self, group):
+        self.group = group
+
+    @classmethod
+    def from_json(cls, org, json):
+        group = json.get(InGroupTest.TEST)
+        name = group.get(InGroupTest.NAME)
+        uuid = group.get(InGroupTest.UUID)
+        return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid))
+
+    def as_json(self):
+        return dict(type=InGroupTest.TYPE, name=self.group.name, uuid=self.group.uuid)
+
+    def evaluate(self, run, sms, context, text):
+        if run.contact.user_groups.filter(id=self.group.id).first():
+            return 1, self.group.name
         return 0, None
 
 
@@ -6240,3 +6505,23 @@ class RegexTest(Test):
             traceback.print_exc()
 
         return False, None
+
+
+class InterruptTest(Test):
+    """
+    Test if it's an interrupt status message
+    """
+    TYPE = "interrupted_status"
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls()
+
+    def as_json(self):
+        return dict(type=self.TYPE)
+
+    def evaluate(self, run, msg, context, text):
+        return (True, self.TYPE) if msg.status == INTERRUPTED else (False, None)

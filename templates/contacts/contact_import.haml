@@ -68,7 +68,7 @@
                       %a{href:"{% url 'contacts.contact_filter' group.pk %}"}= group.name
                       group
 
-                  - if results.errors
+                  - elif results.errors
                     .import-result
                       .glyph.icon-warning.warning
                       -blocktrans count results.errors as error_count
@@ -88,7 +88,12 @@
                             Row {{ error_message.line }}: {{ error_message.error }}
                             %br
 
-                  - if not group.contacts.all
+                  - elif task.status == "SUCCESS" and not group.contacts.all
+                    %p
+                      Grouping..
+                      %img{src:"{{ STATIC_URL }}images/loader-circles.gif"}
+
+                  - elif not group.contacts.all
                     %p
                       -blocktrans
                         No contacts imported, please make sure your have a channel connected.

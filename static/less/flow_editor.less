@@ -1,6 +1,7 @@
 @import "variables.less";
 
 @color-response:@flat-mutedblue;
+@color-ussd:@flat-darkblue;
 @color-say:@flat-blue;
 @color-play:@flat-yellow;
 @color-message:@flat-mutedpurple;
@@ -489,6 +490,14 @@
             background: @color-bg-translate;
             border-color: @color-bg-translate - #222;
           }
+
+        }
+      }
+
+      .ussd-flow-items-wrapper, .ussd-flow-text, .ussd-flow-item {
+        &.missing {
+          color: @color-font-translate;
+          background: @color-bg-translate;
         }
       }
     }
@@ -940,6 +949,12 @@
   }
 }*/
 
+.group-membership {
+  .ui-sortable-helper {
+    white-space: nowrap !important;
+  }
+}
+
 // Rule translations
 .translate-rules {
   p {
@@ -1049,6 +1064,11 @@
     }
 
   }
+
+  .split-header-inner {
+     padding: 10px 20px 0px;
+  }
+
   .split-margin {
     padding: 0 20px;
 
@@ -1109,7 +1129,7 @@
     padding-top: 5px;
     padding-bottom: 0px;
     background: #fff;
-    border: 1 px solid #eee;
+    //border: 1 px solid #eee;
 
     &.ui-sortable-helper {
       border: 1px solid @flat-white - #111 !important;
@@ -1126,11 +1146,28 @@
       height: 30px;
     }
 
+    .ordinals {
+      display: inline-block;
+      width: 45px;
+
+       .number {
+          width: 30px;
+          text-align: center;
+       }
+    }
+
     .operation {
       display: inline-block;
       width: 160px;
       padding: 0 8px;
 
+      &.wide {
+        width: 305px;
+
+        .operand {
+          width: 290px;
+        }
+      }
       .operand {
         width: 145px;
       }
@@ -1345,8 +1382,8 @@
 
   #split-on {
     padding-top:2px;
-    margin-top:5px;
-    font-size:13px;
+    margin-top:10px;
+    font-size:15px;
     margin-bottom:9px;
     margin-left:20px;
 
@@ -1802,6 +1839,60 @@ div.modal[role="dialog"] {
     select {
       width:214px;
       margin-left:4px;
+    }
+  }
+
+  // USSD add text
+
+  textarea.ussd-add-text {
+    width: 595px;
+    height: 40px;
+    resize: vertical;
+  }
+}
+
+.force-center {
+  text-align: center;
+}
+
+// USSD flow split view
+
+.ussd-flow-items-wrapper {
+  position: relative;
+  display: block;
+  padding: 6px 6px 0;
+  border: solid rgba(0,0,0,.15);
+  border-width: 0 0 1px;
+}
+
+// set width to 'ruleset' table by js
+
+.ussd-flow-text {
+  display: block;
+  padding: 0 0 6px;
+}
+
+// set width to 'ruleset' table by js
+
+.ussd-flow-items {
+  display: table;
+
+  .ussd-flow-item {
+    display: table-row;
+    color: #999;
+    line-height: 25px;
+
+    &:last-of-type {
+      margin: 0;
+    }
+
+    .ussd-label {
+      display: table-cell;
+      width: auto;
+      height: 25px;
+      line-height: 16px;
+      word-break: break-all;
+      word-wrap: break-word;
     }
   }
 }
