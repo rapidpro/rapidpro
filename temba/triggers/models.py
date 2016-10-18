@@ -67,7 +67,10 @@ class Trigger(SmartModel):
     trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=TYPE_KEYWORD,
                                     verbose_name=_("Trigger Type"), help_text=_('The type of this trigger'))
 
-    channel = models.OneToOneField(Channel, verbose_name=_("Channel"), null=True, help_text=_("The associated channel"))
+    channel = models.ForeignKey(Channel, verbose_name=_("Channel"), null=True, help_text=_("The associated channel"))
+
+    class Meta:
+        unique_together = ('keyword', 'channel',)
 
     def __unicode__(self):
         if self.trigger_type == Trigger.TYPE_KEYWORD:
