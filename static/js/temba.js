@@ -218,9 +218,7 @@ function initMessageLengthCounter(textarea, counter){
         }
     }
 
-
-
-    $(textarea).keyup(onKeyUp);
+    $(textarea).live('keyup', onKeyUp);
 
     // set our initial length
     onKeyUp();

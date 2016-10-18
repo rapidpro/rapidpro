@@ -16,9 +16,9 @@ from django.db import models, connection
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
+from django_redis import get_redis_connection
 from guardian.utils import get_anonymous_user
 from itertools import chain
-from redis_cache import get_redis_connection
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel

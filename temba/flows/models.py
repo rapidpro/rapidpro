@@ -24,8 +24,8 @@ from django.db.models import Q, Count, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
 from django.utils.html import escape
+from django_redis import get_redis_connection
 from enum import Enum
-from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
@@ -241,7 +241,12 @@ class Flow(TembaModel):
         Creates a special 'single message' flow
         """
         name = 'Single Message (%s)' % unicode(uuid4())
-        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE)
+
+        base_language = 'base'
+        if org.primary_language:
+            base_language = org.primary_language.iso_code
+
+        flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE, base_language=base_language)
         flow.update_single_message_flow(message)
         return flow
 
@@ -1149,15 +1154,17 @@ class Flow(TembaModel):
 
         self.is_archived = False
         self.save(update_fields=['is_archived'])
-        # we don't know enough to restore triggers automatically
 
-    def update_single_message_flow(self, message):
+    def update_single_message_flow(self, message_dict):
         self.flow_type = Flow.MESSAGE
         self.save(update_fields=['name', 'flow_type'])
 
         uuid = str(uuid4())
-        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=dict(base=message))])]
-        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language='base'))
+        action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=message_dict)])]
+        self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=self.base_language))
+
+    def extract_first_message(self):
+        ActionSet.objects.filter(flow=self, )
 
     def steps(self):
         return FlowStep.objects.filter(run__flow=self)
@@ -4703,7 +4710,7 @@ class DeleteFromGroupAction(AddToGroupAction):
     def from_json(cls, org, json_obj):
         return DeleteFromGroupAction(DeleteFromGroupAction.get_groups(org, json_obj))
 
-    def execute(self, run, actionset, sms):
+    def execute(self, run, actionset, msg, offline_on=None):
         if len(self.groups) == 0:
             contact = run.contact
             user = get_flow_user()
@@ -4716,7 +4723,7 @@ class DeleteFromGroupAction(AddToGroupAction):
                     if run.contact.is_test:
                         ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
             return []
-        return AddToGroupAction.execute(self, run, actionset, sms)
+        return AddToGroupAction.execute(self, run, actionset, msg, offline_on)
 
 
 class AddLabelAction(Action):

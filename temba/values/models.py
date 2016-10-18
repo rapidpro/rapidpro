@@ -6,7 +6,7 @@ from collections import defaultdict
 from django.db import models, connection
 from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 from temba.locations.models import AdminBoundary
 from temba.orgs.models import Org
 from temba.utils import format_decimal, get_dict_from_cursor, dict_to_json, json_to_dict

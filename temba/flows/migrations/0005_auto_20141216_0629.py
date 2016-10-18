@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 from django.db import models, migrations
 from django.db.models import Count
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 from django.db.models import Q, Count
 import time
 import json
