@@ -806,3 +806,31 @@ class TriggerCRUDL(SmartCRUDL):
             response = self.render_to_response(self.get_context_data(form=form))
             response['REDIRECT'] = self.get_success_url()
             return response
+
+    class Ussd(CreateTrigger):
+        form_class = UssdTriggerForm
+
+        def pre_save(self, obj, *args, **kwargs):
+            obj = super(TriggerCRUDL.CreateTrigger, self).pre_save(obj, *args, **kwargs)
+            obj.org = self.request.user.get_org()
+            return obj
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+
+            trigger = Trigger.objects.create(created_by=user, modified_by=user, org=org,
+                                             keyword=form.cleaned_data['keyword'], trigger_type=Trigger.TYPE_USSD_PULL,
+                                             flow=form.cleaned_data['flow'], channel=form.cleaned_data['channel'])
+            trigger.archive_conflicts(user)
+
+            analytics.track(self.request.user.username, 'temba.trigger_created_ussd')
+
+            response = self.render_to_response(self.get_context_data(form=form))
+            response['REDIRECT'] = self.get_success_url()
+            return response
+
+        def get_form_kwargs(self):
+            kwargs = super(TriggerCRUDL.Ussd, self).get_form_kwargs()
+            kwargs['auto_id'] = "id_ussd_%s"
+            return kwargs
