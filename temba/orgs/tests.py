@@ -26,7 +26,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.nexmo import NexmoValidationError
-from temba.orgs.models import UserSettings
+from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
 from temba.utils.email import link_components
@@ -1400,6 +1400,41 @@ class OrgTest(TembaTest):
                 self.assertTrue(self.org.is_connected_to_nexmo())
                 self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
+
+                nexmo_account_url = reverse('orgs.org_nexmo_account')
+                response = self.client.get(nexmo_account_url)
+                self.assertEquals("key", response.context['api_key'])
+
+                self.org.refresh_from_db()
+                config = self.org.config_json()
+                self.assertEquals('key', config[NEXMO_KEY])
+                self.assertEquals('secret', config[NEXMO_SECRET])
+
+                # post without api token, should get validation error
+                response = self.client.post(nexmo_account_url, dict(disconnect='false'), follow=True)
+                self.assertEquals('[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
+                                  response.context['form'].errors['__all__'].as_json())
+
+                # nexmo config should remain the same
+                self.org.refresh_from_db()
+                config = self.org.config_json()
+                self.assertEquals('key', config[NEXMO_KEY])
+                self.assertEquals('secret', config[NEXMO_SECRET])
+
+                # now try with all required fields, and a bonus field we shouldn't change
+                self.client.post(nexmo_account_url, dict(api_key='other_key',
+                                                         api_secret='secret-too',
+                                                         disconnect='false',
+                                                         name='DO NOT CHNAGE ME'), follow=True)
+                # name shouldn't change
+                self.org.refresh_from_db()
+                self.assertEquals(self.org.name, "Temba")
+
+                self.assertTrue(self.org.is_connected_to_nexmo())
+                self.client.post(nexmo_account_url, dict(disconnect='true'), follow=True)
+
+                self.org.refresh_from_db()
+                self.assertFalse(self.org.is_connected_to_nexmo())
 
         # and disconnect
         self.org.remove_nexmo_account(self.admin)

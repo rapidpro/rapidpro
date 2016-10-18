@@ -1147,7 +1147,16 @@ class APITest(TembaTest):
 
         # try to give a contact more than 100 URNs
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(101)]})
-        self.assertResponseError(response, 'urns', "Exceeds maximum list size of 100")
+        self.assertResponseError(response, 'urns', "This field can only contain up to 100 items.")
+
+        # try to give a contact more than 100 contact fields
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'fields': {'field_%d' % f: f for f in range(101)}})
+        self.assertResponseError(response, 'fields', "This field can only contain up to 100 items.")
+
+        # ok to give them 100 URNs
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(100)]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(jean.urns.count(), 100)
 
         # try to move a blocked contact into a group
         jean.block(self.user)
@@ -1232,7 +1241,7 @@ class APITest(TembaTest):
 
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
         response = self.postJSON(url, None, {'contacts': [unicode(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
-        self.assertResponseError(response, 'contacts', "Exceeds maximum list size of 100")
+        self.assertResponseError(response, 'contacts', "This field can only contain up to 100 items.")
 
         # try adding all contacts to a group by its name
         response = self.postJSON(url, None, {
@@ -1288,8 +1297,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {'contacts': [contact3.uuid], 'action': 'add', 'group': "nope"})
         self.assertResponseError(response, 'group', "No such object: nope")
 
-        # remove contact 2 from group by its name
-        response = self.postJSON(url, None, {'contacts': [contact2.uuid], 'action': 'remove', 'group': "Testers"})
+        # remove contact 2 from group by its name (which is case-insensitive)
+        response = self.postJSON(url, None, {'contacts': [contact2.uuid], 'action': 'remove', 'group': "testers"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1, contact3})
 
@@ -1470,7 +1479,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'label', "Generated key \"created_by\" is invalid or a reserved name.")
 
         # try again with a label that's already taken
-        response = self.postJSON(url, None, {'label': "Nick Name", 'value_type': "text"})
+        response = self.postJSON(url, None, {'label': "nick name", 'value_type': "text"})
         self.assertResponseError(response, 'label', "This field must be unique.")
 
         # create a new field
@@ -1567,6 +1576,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
         self.assertResultsByUUID(response, [customers])
 
+        # filter by name
+        response = self.fetchJSON(url, 'name=developers')
+        self.assertResultsByUUID(response, [developers])
+
+        # try to filter by both
+        response = self.fetchJSON(url, 'uuid=%s&name=developers' % developers.uuid)
+        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
+
         # try to create empty group
         response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
@@ -1579,7 +1596,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json, {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
 
         # try to create another group with same name
-        response = self.postJSON(url, None, {'name': "Reporters"})
+        response = self.postJSON(url, None, {'name': "reporters"})
         self.assertResponseError(response, 'name', "This field must be unique.")
 
         # it's fine if a group in another org has that name
@@ -1647,6 +1664,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % feedback.uuid)
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
 
+        # filter by name
+        response = self.fetchJSON(url, 'name=important')
+        self.assertResultsByUUID(response, [important])
+
+        # try to filter by both
+        response = self.fetchJSON(url, 'uuid=%s&name=important' % important.uuid)
+        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
+
         # try to create empty label
         response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
@@ -1659,7 +1684,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json, {'uuid': interesting.uuid, 'name': "Interesting", 'count': 0})
 
         # try to create another label with same name
-        response = self.postJSON(url, None, {'name': "Interesting"})
+        response = self.postJSON(url, None, {'name': "interesting"})
         self.assertResponseError(response, 'name', "This field must be unique.")
 
         # it's fine if a label in another org has that name
@@ -1948,7 +1973,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -1966,6 +1991,11 @@ class APITest(TembaTest):
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'responded': False,
+            'path': [
+                {'node': "00000000-00000000-00000000-00000001", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
+                {'node': "00000000-00000000-00000000-00000005", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+            ],
+            'values': {},
             'steps': [
                 {
                     'node': "00000000-00000000-00000000-00000001",
@@ -2004,6 +2034,19 @@ class APITest(TembaTest):
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'responded': True,
+            'path': [
+                {'node': "00000000-00000000-00000000-00000001", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
+                {'node': "00000000-00000000-00000000-00000005", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
+                {'node': "00000000-00000000-00000000-00000003", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+            ],
+            'values': {
+                'color': {
+                    'value': "blue",
+                    'category': "Blue",
+                    'node': "00000000-00000000-00000000-00000005",
+                    'time': format_datetime(self.joe.values.get(ruleset__uuid="00000000-00000000-00000000-00000005").modified_on)
+                }
+            },
             'steps': [
                 {
                     'node': "00000000-00000000-00000000-00000001",
@@ -2064,7 +2107,7 @@ class APITest(TembaTest):
         Broadcast.objects.all().update(purged=True)
         Msg.objects.filter(direction='O').delete()
 
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 11):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.json['results'][2]['steps'][0]['messages'], [
@@ -2160,8 +2203,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label': "nope"})
         self.assertResponseError(response, 'label', "No such object: nope")
 
-        # remove label from message 2 by name
-        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'unlabel', 'label': "Test"})
+        # remove label from message 2 by name (which is case-insensitive)
+        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'unlabel', 'label': "test"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
@@ -2170,11 +2213,43 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), set())
 
+        # add new label via label_name
+        response = self.postJSON(url, None, {'messages': [msg2.id, msg3.id], 'action': 'label', 'label_name': "New"})
+        self.assertEqual(response.status_code, 204)
+
+        new_label = Label.all_objects.get(org=self.org, name="New", is_active=True)
+        self.assertEqual(set(new_label.get_messages()), {msg2, msg3})
+
+        # no difference if label already exists as it does now
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label_name': "New"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(new_label.get_messages()), {msg1, msg2, msg3})
+
+        # can also remove by label_name
+        response = self.postJSON(url, None, {'messages': [msg3.id], 'action': 'unlabel', 'label_name': "New"})
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(set(new_label.get_messages()), {msg1, msg2})
+
+        # and no error if label doesn't exist
+        response = self.postJSON(url, None, {'messages': [msg3.id], 'action': 'unlabel', 'label_name': "XYZ"})
+        self.assertEqual(response.status_code, 204)
+
+        # and label not lazy created in this case
+        self.assertIsNone(Label.all_objects.filter(name="XYZ").first())
+
+        # try to use invalid label name
+        response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label', 'label_name': "$$$"})
+        self.assertResponseError(response, 'label_name', "Name contains illegal characters.")
+
         # try to label without specifying a label
         response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label'})
         self.assertResponseError(response, 'non_field_errors', "For action \"label\" you should also specify a label")
         response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id], 'action': 'label', 'label': ""})
         self.assertResponseError(response, 'label', "This field may not be null.")
+
+        # try to provide both label and label_name
+        response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label': "Test", 'label_name': "Test"})
+        self.assertResponseError(response, 'non_field_errors', "Can't specify both label and label_name.")
 
         # archive all messages
         response = self.postJSON(url, None, {'messages': [msg1.id, msg2.id, msg3.id], 'action': 'archive'})
@@ -2437,7 +2512,7 @@ class APITest(TembaTest):
             group_uuids.append(self.create_group("Group %d" % g).uuid)
 
         response = self.postJSON(url, None, dict(flow=flow.uuid, restart_participants=True, groups=group_uuids))
-        self.assertResponseError(response, 'groups', "Exceeds maximum list size of 100")
+        self.assertResponseError(response, 'groups', "This field can only contain up to 100 items.")
 
         # check our list
         anon_contact = Contact.objects.get(urns__path="+12067791212")

@@ -16,10 +16,10 @@ coverage==4.0.3
 defusedxml==0.4.1
 dj-database-url==0.2.1
 Django==1.8.5
-django-appconf==0.6
+django-appconf==1.0.2
 django-celery==3.1.17
 -e git+http://github.com/nyaruka/django-celery-transactions.git@f7adf7f2d5ce0bcd7992e0d4f3624fb96a7d80b8#egg=django_celery_transactions
-django-compressor==1.5
+django-compressor==2.1
 django-countries==3.4.1
 django-debug-toolbar==1.2.2
 django-digest==1.13
@@ -29,7 +29,7 @@ django-hstore==1.3.5
 -e git+http://github.com/nyaruka/django-modeltranslation.git@dffebc9363297d77d91c99d46e8e53b32dc05e61#egg=django_modeltranslation
 django-mptt==0.7.4
 django-picklefield==0.3.0
-django-redis==3.1.5
+django-redis==4.5.0
 django-reversion==1.8.0
 django-rosetta==0.6.2
 Django-Select2==4.2.2

@@ -23,8 +23,8 @@ from django.core.urlresolvers import reverse
 from django.test.utils import override_settings
 from django.utils import timezone
 from django.template import loader, Context
+from django_redis import get_redis_connection
 from mock import patch
-from redis_cache import get_redis_connection
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
@@ -1346,6 +1346,49 @@ class ChannelTest(TembaTest):
         self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
         self.assertEqual(channel.channel_type, "TMS")
         self.assertEqual(channel.config_json(), dict(messaging_service_sid="MSG-SERVICE-SID"))
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_claim_twiml_api(self):
+        self.login(self.admin)
+
+        # remove any existing channels
+        self.org.channels.update(is_active=False, org=None)
+
+        claim_url = reverse('channels.channel_claim_twiml_api')
+
+        response = self.client.get(reverse('channels.channel_claim'))
+        self.assertContains(response, "TwiML")
+        self.assertContains(response, claim_url)
+
+        # can fetch the claim page
+        response = self.client.get(claim_url)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, 'TwiML')
+
+        response = self.client.post(claim_url, dict(number='5512345678', country='AA'))
+        self.assertTrue(response.context['form'].errors)
+
+        response = self.client.post(claim_url, dict(country='US', number='12345678', url='https://twilio.com', role='SR', account_sid='abcd1234', account_token='abcd1234'))
+        channel = self.org.channels.all().first()
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+        self.assertEqual(channel.channel_type, "TW")
+        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
+
+        response = self.client.post(claim_url, dict(country='US', number='12345678', url='https://twilio.com', role='SR', account_sid='abcd4321', account_token='abcd4321'))
+        channel = self.org.channels.all().first()
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+        self.assertEqual(channel.channel_type, "TW")
+        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd4321', send_url='https://twilio.com', ACCOUNT_SID='abcd4321'))
+
+        self.org.channels.update(is_active=False, org=None)
+
+        response = self.client.post(claim_url, dict(country='US', number='8080', url='https://twilio.com', role='SR', account_sid='abcd1234', account_token='abcd1234'))
+        channel = self.org.channels.all().first()
+        self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+        self.assertEqual(channel.channel_type, "TW")
+        self.assertEqual(channel.config_json(), dict(ACCOUNT_TOKEN='abcd1234', send_url='https://twilio.com', ACCOUNT_SID='abcd1234'))
 
     def test_claim_facebook(self):
         self.login(self.admin)
@@ -3003,7 +3046,7 @@ class AfricasTalkingTest(TembaTest):
             settings.SEND_MESSAGES = True
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1')]))))
+                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1', status='Success')]))))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -3019,12 +3062,28 @@ class AfricasTalkingTest(TembaTest):
 
                 self.clear_cache()
 
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, json.dumps(
+                    dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1', status='Could Not Send')]))))
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+                self.clear_cache()
+
             # test with a non-dedicated shortcode
             self.channel.config = json.dumps(dict(username='at-user', api_key='africa-key', is_shared=True))
             self.channel.save()
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1')]))))
+                mock.return_value = MockResponse(200, json.dumps(dict(SMSMessageData=dict(Recipients=[dict(messageId='msg1', status='Success')]))))
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -3042,7 +3101,7 @@ class AfricasTalkingTest(TembaTest):
                 # message should be marked as an error
                 msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
-                self.assertEquals(1, msg.error_count)
+                self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
         finally:
             settings.SEND_MESSAGES = False
@@ -5145,6 +5204,51 @@ class TwilioTest(TembaTest):
 
         self.assertEquals(400, response.status_code)
 
+        Msg.objects.all().delete()
+
+        # Test TwiML Handler right now
+        self.channel.delete()
+
+        post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
+        twiml_api_url = reverse('handlers.twiml_api_handler', args=['1234-1234-1234-12345'])
+        response = self.client.post(twiml_api_url, post_data)
+        self.assertEquals(400, response.status_code)
+
+        # Create new channel
+        self.channel = Channel.create(self.org, self.user, 'RW', 'TW', None, '+250785551212',
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+        send_url = "https://api.twilio.com"
+
+        self.channel.config = json.dumps({ACCOUNT_SID: self.account_sid, ACCOUNT_TOKEN: self.account_token,
+                                          Channel.CONFIG_SEND_URL: send_url})
+        self.channel.save()
+
+        post_data = dict(To=self.channel.address, From='+250788383300', Body="Hello World")
+        twiml_api_url = reverse('handlers.twiml_api_handler', args=[self.channel.uuid])
+
+        try:
+            self.client.post(twiml_api_url, post_data)
+            self.fail("Invalid signature, should have failed")
+        except ValidationError:
+            pass
+
+        client = self.channel.get_twiml_client()
+        validator = RequestValidator(client.auth[1])
+        signature = validator.compute_signature(
+            'https://' + settings.HOSTNAME + '/handlers/twiml_api/' + self.channel.uuid,
+            post_data
+        )
+        response = self.client.post(twiml_api_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+        self.assertEquals(201, response.status_code)
+
+        msg1 = Msg.objects.get()
+        self.assertEquals("+250788383300", msg1.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg1.direction)
+        self.assertEquals(self.org, msg1.org)
+        self.assertEquals(self.channel, msg1.channel)
+        self.assertEquals("Hello World", msg1.text)
+
     def test_send(self):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID
         org_config = self.org.config_json()
@@ -5157,8 +5261,7 @@ class TwilioTest(TembaTest):
         joe = self.create_contact("Joe", "+250788383383")
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
-        try:
-            settings.SEND_MESSAGES = True
+        with self.settings(SEND_MESSAGES=True):
 
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.return_value = "Sent"
@@ -5172,6 +5275,20 @@ class TwilioTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+
+                # handle the status callback
+                callback_url = Channel.build_twilio_callback_url(msg.pk)
+
+                client = self.org.get_twilio_client()
+                validator = RequestValidator(client.auth[1])
+                post_data = dict(SmsStatus='delivered', To='+250788383383')
+                signature = validator.compute_signature(callback_url, post_data)
+
+                response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+                self.assertEquals(response.status_code, 200)
+                msg.refresh_from_db()
+                self.assertEquals(msg.status, DELIVERED)
 
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
@@ -5215,9 +5332,6 @@ class TwilioTest(TembaTest):
             self.channel = Channel.objects.get(id=self.channel.pk)
             self.assertEquals(0, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
-
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class TwilioMessagingServiceTest(TembaTest):
@@ -5294,7 +5408,7 @@ class TwilioMessagingServiceTest(TembaTest):
         joe = self.create_contact("Joe", "+250788383383")
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
-        try:
+        with self.settings(SEND_MESSAGES=True):
             settings.SEND_MESSAGES = True
 
             with patch('twilio.rest.resources.Messages.create') as mock:
@@ -5309,6 +5423,20 @@ class TwilioMessagingServiceTest(TembaTest):
                 self.assertTrue(msg.sent_on)
 
                 self.clear_cache()
+
+                # handle the status callback
+                callback_url = Channel.build_twilio_callback_url(msg.pk)
+
+                client = self.org.get_twilio_client()
+                validator = RequestValidator(client.auth[1])
+                post_data = dict(SmsStatus='delivered', To='+250788383383')
+                signature = validator.compute_signature(callback_url, post_data)
+
+                response = self.client.post(callback_url, post_data, **{'HTTP_X_TWILIO_SIGNATURE': signature})
+
+                self.assertEquals(response.status_code, 200)
+                msg.refresh_from_db()
+                self.assertEquals(msg.status, DELIVERED)
 
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
@@ -5352,9 +5480,6 @@ class TwilioMessagingServiceTest(TembaTest):
             self.channel = Channel.objects.get(id=self.channel.pk)
             self.assertEquals(0, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
-
-        finally:
-            settings.SEND_MESSAGES = False
 
 
 class ClickatellTest(TembaTest):

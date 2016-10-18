@@ -228,25 +228,25 @@ class window.AutoComplete
     if variables
       @completions = variables.concat(@functions)
 
-    $inputor = $(selector).atwho(@config)
-    $inputor.atwho('run')
+    inputor = $(selector).atwho(@config)
+    inputor.atwho('run')
 
     # when an option is selected, insert the text and update the caret
-    $inputor.on 'inserted.atwho', (atEvent, li, browserEvent) ->
-      content = $inputor.val()
-      caretPos = $inputor.caret 'pos'
+    inputor.on 'inserted.atwho', (atEvent, li, browserEvent) ->
+      content = inputor.val()
+      caretPos = inputor.caret 'pos'
       subtext = content.slice 0, caretPos
       if subtext.match(/\(\)$/) isnt null
-        $inputor.caret('pos', subtext.length - 1)
+        inputor.caret('pos', subtext.length - 1)
 
     # do react to clicking inside expressions
-    $inputor.off('click.atwhoInner').on 'click.atwhoInner', (e) ->
+    inputor.off('click.atwhoInner').on 'click.atwhoInner', (e) ->
       $.noop()
 
     # check for possible inserts when a key is pressed
-    $inputor.off('keyup.atwhoInner').on 'keyup.atwhoInner', (e) ->
+    inputor.off('keyup.atwhoInner').on 'keyup.atwhoInner', (e) ->
 
-      atwho = $inputor.data('atwho')
+      atwho = inputor.data('atwho')
 
       if atwho
         app = atwho.setContextFor('@')
@@ -260,11 +260,11 @@ class window.AutoComplete
           else
             app.onKeyup(e)
 
-        content = $inputor.val()
-        caretPos = $inputor.caret 'pos'
+        content = inputor.val()
+        caretPos = inputor.caret 'pos'
         subtext = content.slice(0, caretPos)
         nextPart = content.slice(caretPos)
         if subtext.slice(-2) is '@(' and (not nextPart or nextPart.slice(0,1) is not ')')
           text = subtext + ')' + content.slice(caretPos + 1)
-          $inputor.val(text)
-          $inputor.caret('pos', caretPos)
+          inputor.val(text)
+          inputor.caret('pos', caretPos)

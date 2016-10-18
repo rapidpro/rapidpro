@@ -16,15 +16,15 @@ from django.db import models, connection
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext, ugettext_lazy as _
+from django_redis import get_redis_connection
 from guardian.utils import get_anonymous_user
 from itertools import chain
-from redis_cache import get_redis_connection
 from smartmin.models import SmartModel, SmartImportRowError
 from smartmin.csv_imports.models import ImportTask
 from temba.channels.models import Channel
 from temba.orgs.models import Org, OrgLock
 from temba.utils.email import send_template_email
-from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list
+from temba.utils import analytics, format_decimal, truncate, datetime_to_str, chunk_list, clean_string
 from temba.utils.models import TembaModel
 from temba.utils.exporter import TableExporter
 from temba.utils.profiler import SegmentProfiler
@@ -1127,15 +1127,20 @@ class Contact(TembaModel):
 
         for row in sheet_data_records:
             # trim all our values
-            row = [cls.normalize_value(cell_value) for cell_value in row]
+            row_data = []
+            for cell in row:
+                cell_value = cls.normalize_value(cell)
+                if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime):
+                    cell_value = unicode(cell_value)
+                row_data.append(cell_value)
 
             line_number += 1
 
             # make sure there are same number of fields
-            if len(row) != len(header):
-                raise Exception("Line %d: The number of fields for this row is incorrect. Expected %d but found %d." % (line_number, len(header), len(row)))
+            if len(row_data) != len(header):
+                raise Exception("Line %d: The number of fields for this row is incorrect. Expected %d but found %d." % (line_number, len(header), len(row_data)))
 
-            field_values = dict(zip(header, row))
+            field_values = dict(zip(header, row_data))
             log_field_values = field_values.copy()
             field_values['created_by'] = user
             field_values['modified_by'] = user
@@ -2326,7 +2331,7 @@ class ExportContactsTask(SmartModel):
                             field_value = ''
 
                         if field_value:
-                            field_value = unicode(field_value)
+                            field_value = unicode(clean_string(field_value))
 
                         values.append(field_value)
 

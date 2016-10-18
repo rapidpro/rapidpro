@@ -5,7 +5,7 @@ import time
 from datetime import timedelta
 from djcelery_transactions import task
 from django.utils import timezone
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 from .models import CreditAlert, Invitation, Org, TopUpCredits
 
 

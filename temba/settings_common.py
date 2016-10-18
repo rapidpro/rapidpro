@@ -13,7 +13,6 @@ from django.utils.translation import ugettext_lazy as _
 # Default to debugging
 # -----------------------------------------------------------------------------------
 DEBUG = True
-TEMPLATE_DEBUG = DEBUG
 
 # -----------------------------------------------------------------------------------
 # Sets TESTING to True if this configuration is read during a unit test
@@ -23,7 +22,6 @@ TESTING = sys.argv[1:2] == ['test']
 if TESTING:
     PASSWORD_HASHERS = ('django.contrib.auth.hashers.MD5PasswordHasher',)
     DEBUG = False
-    TEMPLATE_DEBUG = False
 
 ADMINS = (
     ('RapidPro', 'code@yourdomain.io'),
@@ -103,36 +101,63 @@ STATICFILES_FINDERS = (
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = 'your own secret key'
 
-# List of callables that know how to import templates from various sources.
-TEMPLATE_LOADERS = (
-    'hamlpy.template.loaders.HamlPyFilesystemLoader',
-    'hamlpy.template.loaders.HamlPyAppDirectoriesLoader',
-    'django.template.loaders.filesystem.Loader',
-    'django.template.loaders.app_directories.Loader',
-    'django.template.loaders.eggs.Loader',
-)
-
 EMAIL_CONTEXT_PROCESSORS = ('temba.utils.email.link_components',)
 
-TEMPLATE_CONTEXT_PROCESSORS = (
-    'django.contrib.auth.context_processors.auth',
-    'django.core.context_processors.debug',
-    'django.core.context_processors.i18n',
-    'django.core.context_processors.media',
-    'django.core.context_processors.static',
-    'django.contrib.messages.context_processors.messages',
-    'django.core.context_processors.request',
-    'temba.context_processors.branding',
-    'temba.orgs.context_processors.user_group_perms_processor',
-    'temba.orgs.context_processors.unread_count_processor',
-    'temba.channels.views.channel_status_processor',
-    'temba.msgs.views.send_message_auto_complete_processor',
-    'temba.api.views.webhook_status_processor',
-    'temba.orgs.context_processors.settings_includer',
-)
+
+# -----------------------------------------------------------------------------------
+# Directory Configuration
+# -----------------------------------------------------------------------------------
+PROJECT_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+LOCALE_PATHS = (os.path.join(PROJECT_DIR, '../locale'),)
+RESOURCES_DIR = os.path.join(PROJECT_DIR, '../resources')
+FIXTURE_DIRS = (os.path.join(PROJECT_DIR, '../fixtures'),)
+TESTFILES_DIR = os.path.join(PROJECT_DIR, '../testfiles')
+STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), )
+STATIC_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
+STATIC_URL = '/static/'
+COMPRESS_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
+MEDIA_ROOT = os.path.join(PROJECT_DIR, '../media')
+MEDIA_URL = "/media/"
+
+
+# -----------------------------------------------------------------------------------
+# Templates Configuration
+# -----------------------------------------------------------------------------------
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [os.path.join(PROJECT_DIR, '../templates')],
+        'OPTIONS': {
+            'context_processors': [
+                'django.contrib.auth.context_processors.auth',
+                'django.core.context_processors.debug',
+                'django.core.context_processors.i18n',
+                'django.core.context_processors.media',
+                'django.core.context_processors.static',
+                'django.contrib.messages.context_processors.messages',
+                'django.core.context_processors.request',
+                'temba.context_processors.branding',
+                'temba.orgs.context_processors.user_group_perms_processor',
+                'temba.orgs.context_processors.unread_count_processor',
+                'temba.channels.views.channel_status_processor',
+                'temba.msgs.views.send_message_auto_complete_processor',
+                'temba.api.views.webhook_status_processor',
+                'temba.orgs.context_processors.settings_includer',
+            ],
+            'loaders': [
+                'temba.utils.haml.HamlFilesystemLoader',
+                'temba.utils.haml.HamlAppDirectoriesLoader',
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+                'django.template.loaders.eggs.Loader'
+            ],
+            'debug': False if TESTING else DEBUG
+        },
+    },
+]
 
 if TESTING:
-    TEMPLATE_CONTEXT_PROCESSORS += ('temba.tests.add_testing_flag_to_context', )
+    TEMPLATES[0]['OPTIONS']['context_processors'] += ('temba.tests.add_testing_flag_to_context', )
 
 MIDDLEWARE_CLASSES = (
     'django.middleware.common.CommonMiddleware',
@@ -287,22 +312,6 @@ BRANDING = {
 DEFAULT_BRAND = 'rapidpro.io'
 
 # -----------------------------------------------------------------------------------
-# Directory Configuration
-# -----------------------------------------------------------------------------------
-PROJECT_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)))
-LOCALE_PATHS = (os.path.join(PROJECT_DIR, '../locale'),)
-RESOURCES_DIR = os.path.join(PROJECT_DIR, '../resources')
-FIXTURE_DIRS = (os.path.join(PROJECT_DIR, '../fixtures'),)
-TESTFILES_DIR = os.path.join(PROJECT_DIR, '../testfiles')
-TEMPLATE_DIRS = (os.path.join(PROJECT_DIR, '../templates'),)
-STATICFILES_DIRS = (os.path.join(PROJECT_DIR, '../static'), os.path.join(PROJECT_DIR, '../media'), )
-STATIC_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
-STATIC_URL = '/static/'
-COMPRESS_ROOT = os.path.join(PROJECT_DIR, '../sitestatic')
-MEDIA_ROOT = os.path.join(PROJECT_DIR, '../media')
-MEDIA_URL = "/media/"
-
-# -----------------------------------------------------------------------------------
 # Permission Management
 # -----------------------------------------------------------------------------------
 
@@ -422,6 +431,7 @@ PERMISSIONS = {
                          'claim_start',
                          'claim_telegram',
                          'claim_twilio',
+                         'claim_twiml_api',
                          'claim_twilio_messaging_service',
                          'claim_twitter',
                          'claim_verboice',
@@ -450,6 +460,7 @@ PERMISSIONS = {
                    'api',
                    'archived',
                    'broadcast',
+                   'campaign',
                    'completion',
                    'copy',
                    'editor',
@@ -648,6 +659,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_start',
         'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
+        'channels.channel_claim_twiml_api',
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -782,6 +794,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_start',
         'channels.channel_claim_telegram',
         'channels.channel_claim_twilio',
+        'channels.channel_claim_twiml_api',
         'channels.channel_claim_twilio_messaging_service',
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
@@ -864,6 +877,7 @@ GROUP_PERMISSIONS = {
 
         'flows.flow_activity',
         'flows.flow_archived',
+        'flows.flow_campaign',
         'flows.flow_completion',
         'flows.flow_export',
         'flows.flow_export_results',
@@ -974,6 +988,10 @@ CELERYBEAT_SCHEDULE = {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
     },
+    "clear-old-msg-external-ids": {
+        'task': 'clear_old_msg_external_ids',
+        'schedule': crontab(hour=1, minute=0),
+    },
     "trim-channel-log": {
         'task': 'trim_channel_log_task',
         'schedule': crontab(hour=3, minute=0),
@@ -1040,10 +1058,10 @@ OUTGOING_PROXIES = {}
 # -----------------------------------------------------------------------------------
 CACHES = {
     "default": {
-        "BACKEND": "redis_cache.cache.RedisCache",
-        "LOCATION": "%s:%s:%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://%s:%s/%s" % (REDIS_HOST, REDIS_PORT, REDIS_DB),
         "OPTIONS": {
-            "CLIENT_CLASS": "redis_cache.client.DefaultClient",
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
 }

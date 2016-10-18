@@ -69,7 +69,8 @@ def api(request, format=None):
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
 
-    You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
+    You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API. There is also an
+    official [Python client library](https://github.com/rapidpro/rapidpro-python) for the API.
     """
     return Response({
         'boundaries': reverse('api.v2.boundaries', request=request),
@@ -533,9 +534,9 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     A `POST` allows you to create and send new broadcasts, with the following JSON data:
 
       * **text** - the text of the message to send (string, limited to 480 characters)
-      * **urns** - the URNs of contacts to send to (array of strings, optional)
-      * **contacts** - the UUIDs of contacts to send to (array of strings, optional)
-      * **groups** - the UUIDs of contact groups to send to (array of strings, optional)
+      * **urns** - the URNs of contacts to send to (array of up to 100 strings, optional)
+      * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
+      * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
       * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
 
     Example:
@@ -1150,9 +1151,9 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     * **name** - the full name of the contact (string, optional)
     * **language** - the preferred language for the contact (3 letter iso code, optional)
-    * **urns** - a list of URNs you want associated with the contact (string array)
-    * **groups** - a list of the UUIDs of any groups this contact is part of (string array, optional)
-    * **fields** - the contact fields you want to set or update on this contact (dictionary, optional)
+    * **urns** - a list of URNs you want associated with the contact (array of up to 100 strings, optional)
+    * **groups** - a list of the UUIDs of any groups this contact is part of (array of up to 100 strings, optional)
+    * **fields** - the contact fields you want to set or update on this contact (dictionary of up to 100 items, optional)
 
     Example:
 
@@ -1348,7 +1349,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     A **POST** can be used to perform an action on a set of contacts in bulk.
 
-    * **contacts** - a JSON array of up to 100 contact UUIDs or URNs (array of strings)
+    * **contacts** - the contact UUIDs or URNs (array of up to 100 strings)
     * **action** - the action to perform, a string one of:
 
         * _add_ - Add the contacts to the given group
@@ -1745,7 +1746,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **GET** returns the list of contact groups for your organization, in the order of last created.
 
      * **uuid** - the UUID of the group (string), filterable as `uuid`
-     * **name** - the name of the group (string)
+     * **name** - the name of the group (string), filterable as `name`
      * **count** - the number of contacts in the group (int)
 
     Example:
@@ -1826,6 +1827,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1834,6 +1836,11 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by name (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 
@@ -1845,7 +1852,8 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'url': reverse('api.v2.groups'),
             'slug': 'group-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"}
+                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"},
+                {'name': "name", 'required': False, 'help': "A contact group name to filter by"}
             ]
         }
 
@@ -1886,7 +1894,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **GET** returns the list of message labels for your organization, in the order of last created.
 
      * **uuid** - the UUID of the label (string), filterable as `uuid`
-     * **name** - the name of the label (string)
+     * **name** - the name of the label (string), filterable as `name`
      * **count** - the number of messages with this label (int)
 
     Example:
@@ -1964,6 +1972,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1972,6 +1981,11 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by name (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 
@@ -1983,7 +1997,8 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'url': reverse('api.v2.labels'),
             'slug': 'label-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"}
+                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"},
+                {'name': "name", 'required': False, 'help': "A message label name to filter by"}
             ]
         }
 
@@ -2215,7 +2230,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     A **POST** can be used to perform an action on a set of messages in bulk.
 
-    * **messages** - a JSON array of up to 100 message ids (array of ints)
+    * **messages** - the message ids (array of up to 100 integers)
     * **action** - the action to perform, a string one of:
 
         * _label_ - Apply the given label to the messages
@@ -2224,7 +2239,12 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _restore_ - Restore the messages if they are archived
         * _delete_ - Permanently delete the messages
 
-    * **label** - the UUID or name of a label (string, optional)
+    * **label** - the UUID or name of an existing label (string, optional)
+    * **label_name** - the name of a label which can be created if it doesn't exist (string, optional)
+
+    If labelling or unlabelling messages using `label` you will get an error response (400) if the label doesn't exist.
+    If labelling with `label_name` the label will be created if it doesn't exist, and if unlabelling it is ignored if
+    it doesn't exist.
 
     Example:
 
@@ -2600,7 +2620,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
      * **flow** - the UUID and name of the flow (object), filterable as `flow` with UUID.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
-     * **steps** - steps visited by the contact on the flow (array of objects).
+     * **path** - the contact's path through the flow nodes (array of objects)
+     * **values** - values generated by rulesets in the flow (array of objects).
      * **created_on** - the datetime when this run was started (datetime).
      * **modified_on** - when this run was last modified (datetime), filterable as `before` and `after`.
      * **exited_on** - the datetime when this run exited or null if it is still active (datetime).
@@ -2620,29 +2641,29 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             "results": [
             {
                 "id": 12345678,
-                "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Specials"},
+                "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Favorite Color"},
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "responded": true,
-                "steps": [
-                    {
-                        "node": "22bd934e-953b-460d-aaf5-42a84ec8f8af",
-                        "category": null,
-                        "left_on": "2013-08-19T19:11:21.082Z",
-                        "text": "Hi from the Thrift Shop! We are having specials this week. What are you interested in?",
-                        "value": null,
-                        "arrived_on": "2013-08-19T19:11:21.044Z",
-                        "type": "actionset"
-                    },
-                    {
-                        "node": "9a31495d-1c4c-41d5-9018-06f93baa5b98",
-                        "category": "Foxes",
-                        "left_on": null,
-                        "text": "I want to buy a fox skin",
-                        "value": "fox skin",
-                        "arrived_on": "2013-08-19T19:11:21.088Z",
-                        "type": "ruleset"
-                    }
+                "path": [
+                    {"node": "27a86a1b-6cc4-4ae3-b73d-89650966a82f", "time": "2015-11-11T13:05:50.457742Z"},
+                    {"node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1", "time": "2015-11-11T13:03:51.635662Z"},
+                    {"node": "93a624ad-5440-415e-b49f-17bf42754acb", "time": "2015-11-11T13:03:52.532151Z"},
+                    {"node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466", "time": "2015-11-11T13:05:57.576056Z"}
                 ],
+                "values": {
+                    "color": {
+                        "value": "blue",
+                        "category": "Blue",
+                        "node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1",
+                        "time": "2015-11-11T13:03:51.635662Z"
+                    },
+                    "reason": {
+                        "value": "Because it's the color of sky",
+                        "category": "All Responses",
+                        "node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466",
+                        "time": "2015-11-11T13:05:57.576056Z"
+                    }
+                },
                 "created_on": "2015-11-11T13:05:57.457742Z",
                 "modified_on": "2015-11-11T13:05:57.576056Z",
                 "exited_on": "2015-11-11T13:05:57.576056Z",
@@ -2697,6 +2718,10 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.prefetch_related(
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
+            Prefetch('values'),
+            Prefetch('values__ruleset'),
+
+            # TODO remove
             Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
             Prefetch('steps__messages', queryset=Msg.objects.only('broadcast', 'text')),
             Prefetch('steps__broadcasts', queryset=Broadcast.objects.all()),
@@ -2781,9 +2806,9 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     runs created by this start.
 
      * **flow** - the UUID of the flow to start contacts in (required)
-     * **groups** - a list of the UUIDs of the groups you want to start in this flow (optional)
-     * **contacts** - a list of the UUIDs of the contacts you want to start in this flow (optional)
-     * **urns** - a list of URNs you want to start in this flow (optional)
+     * **groups** - the UUIDs of the groups you want to start in this flow (array of up to 100 strings, optional)
+     * **contacts** - the UUIDs of the contacts you want to start in this flow (array of up to 100 strings, optional)
+     * **urns** - the URNs you want to start in this flow (array of up to 100 strings, optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
      * **extra** - a dictionary of extra parameters to pass to the flow start (accessible via @extra in your flow)
 

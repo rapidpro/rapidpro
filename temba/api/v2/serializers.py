@@ -3,7 +3,6 @@ from __future__ import absolute_import, unicode_literals
 import json
 import six
 
-from django.forms import ValidationError
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -370,7 +369,7 @@ class ContactWriteSerializer(WriteSerializer):
     language = serializers.CharField(required=False, min_length=3, max_length=3, allow_null=True)
     urns = fields.URNListField(required=False)
     groups = fields.ContactGroupField(many=True, required=False, allow_dynamic=False)
-    fields = serializers.DictField(required=False)
+    fields = fields.LimitedDictField(required=False)
 
     def __init__(self, *args, **kwargs):
         super(ContactWriteSerializer, self).__init__(*args, **kwargs)
@@ -478,7 +477,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
     VALUE_TYPES = extract_constants(Value.TYPE_CONFIG, reverse=True)
 
     label = serializers.CharField(required=True, max_length=ContactField.MAX_LABEL_LEN, validators=[
-        UniqueForOrgValidator(ContactField.objects.filter(is_active=True))
+        UniqueForOrgValidator(ContactField.objects.filter(is_active=True), ignore_case=True)
     ])
     value_type = serializers.ChoiceField(required=True, choices=VALUE_TYPES.keys())
 
@@ -520,7 +519,7 @@ class ContactGroupReadSerializer(ReadSerializer):
 
 class ContactGroupWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=True, max_length=ContactGroup.MAX_NAME_LEN, validators=[
-        UniqueForOrgValidator(queryset=ContactGroup.user_groups.filter(is_active=True))
+        UniqueForOrgValidator(queryset=ContactGroup.user_groups.filter(is_active=True), ignore_case=True)
     ])
 
     def validate_name(self, value):
@@ -549,6 +548,7 @@ class ContactBulkActionSerializer(WriteSerializer):
     DELETE = 'delete'
 
     ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, INTERRUPT, ARCHIVE, DELETE)
+    ACTIONS_WITH_GROUP = (ADD, REMOVE)
 
     contacts = fields.ContactField(many=True)
     action = serializers.ChoiceField(required=True, choices=ACTIONS)
@@ -559,9 +559,9 @@ class ContactBulkActionSerializer(WriteSerializer):
         action = data['action']
         group = data.get('group')
 
-        if action in (self.ADD, self.REMOVE) and not group:
+        if action in self.ACTIONS_WITH_GROUP and not group:
             raise serializers.ValidationError("For action \"%s\" you should also specify a group" % action)
-        elif action in (self.BLOCK, self.UNBLOCK, self.INTERRUPT, self.ARCHIVE, self.DELETE) and group:
+        elif action not in self.ACTIONS_WITH_GROUP and group:
             raise serializers.ValidationError("For action \"%s\" you should not specify a group" % action)
 
         if action == self.ADD:
@@ -630,8 +630,25 @@ class FlowRunReadSerializer(ReadSerializer):
 
     flow = fields.FlowField()
     contact = fields.ContactField()
-    steps = serializers.SerializerMethodField()
+    path = serializers.SerializerMethodField()
+    values = serializers.SerializerMethodField()
+    steps = serializers.SerializerMethodField()  # TODO deprecated
     exit_type = serializers.SerializerMethodField()
+
+    def get_path(self, obj):
+        return [{'node': s.step_uuid, 'time': format_datetime(s.arrived_on)} for s in obj.steps.all()]
+
+    def get_values(self, obj):
+        values = {}
+        for value in obj.values.all():
+            values[value.ruleset.context_key] = {
+                'value': value.decimal_value if value.decimal_value is not None else value.string_value,
+                'category': value.category,
+                'node': value.ruleset.uuid,
+                'time': value.modified_on,
+            }
+
+        return values
 
     def get_steps(self, obj):
         # avoiding fetching org again
@@ -646,7 +663,7 @@ class FlowRunReadSerializer(ReadSerializer):
                           'arrived_on': format_datetime(step.arrived_on),
                           'left_on': format_datetime(step.left_on),
                           'messages': self.get_step_messages(run, step),
-                          'text': step.get_text(run=run),  # TODO remove
+                          'text': step.get_text(run=run),
                           'value': val,
                           'category': step.rule_category})
         return steps
@@ -669,7 +686,7 @@ class FlowRunReadSerializer(ReadSerializer):
 
     class Meta:
         model = FlowRun
-        fields = ('id', 'flow', 'contact', 'responded', 'steps',
+        fields = ('id', 'flow', 'contact', 'responded', 'path', 'values', 'steps',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')
 
 
@@ -719,7 +736,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         # need at least one of urns, groups or contacts
         args = data.get('groups', []) + data.get('contacts', []) + data.get('urns', [])
         if not args:
-            raise ValidationError("Must specify at least one group, contact or URN")
+            raise serializers.ValidationError("Must specify at least one group, contact or URN")
 
         return data
 
@@ -754,7 +771,7 @@ class LabelReadSerializer(ReadSerializer):
 
 class LabelWriteSerializer(WriteSerializer):
     name = serializers.CharField(required=True, max_length=Label.MAX_NAME_LEN, validators=[
-        UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True))
+        UniqueForOrgValidator(queryset=Label.label_objects.filter(is_active=True), ignore_case=True)
     ])
 
     def validate_name(self, value):
@@ -831,10 +848,12 @@ class MsgBulkActionSerializer(WriteSerializer):
     DELETE = 'delete'
 
     ACTIONS = (LABEL, UNLABEL, ARCHIVE, RESTORE, DELETE)
+    ACTIONS_WITH_LABEL = (LABEL, UNLABEL)
 
     messages = fields.MessageField(many=True)
     action = serializers.ChoiceField(required=True, choices=ACTIONS)
     label = fields.LabelField(required=False)
+    label_name = serializers.CharField(required=False, max_length=Label.MAX_NAME_LEN)
 
     def validate_messages(self, value):
         for msg in value:
@@ -843,13 +862,22 @@ class MsgBulkActionSerializer(WriteSerializer):
 
         return value
 
+    def validate_label_name(self, value):
+        if not Label.is_valid_name(value):
+            raise serializers.ValidationError("Name contains illegal characters.")
+        return value
+
     def validate(self, data):
         action = data['action']
         label = data.get('label')
+        label_name = data.get('label_name')
 
-        if action in (self.LABEL, self.UNLABEL) and not label:
+        if label and label_name:
+            raise serializers.ValidationError("Can't specify both label and label_name.")
+
+        if action in self.ACTIONS_WITH_LABEL and not (label or label_name):
             raise serializers.ValidationError("For action \"%s\" you should also specify a label" % action)
-        elif action in (self.ARCHIVE, self.RESTORE, self.DELETE) and label:
+        elif action not in self.ACTIONS_WITH_LABEL and (label or label_name):
             raise serializers.ValidationError("For action \"%s\" you should not specify a label" % action)
 
         return data
@@ -858,11 +886,19 @@ class MsgBulkActionSerializer(WriteSerializer):
         messages = self.validated_data['messages']
         action = self.validated_data['action']
         label = self.validated_data.get('label')
+        label_name = self.validated_data.get('label_name')
 
         if action == self.LABEL:
+            if not label:
+                label = Label.get_or_create(self.context['org'], self.context['user'], label_name)
+
             label.toggle_label(messages, add=True)
         elif action == self.UNLABEL:
-            label.toggle_label(messages, add=False)
+            if not label:
+                label = Label.label_objects.filter(org=self.context['org'], is_active=True, name=label_name).first()
+
+            if label:
+                label.toggle_label(messages, add=False)
         else:
             for msg in messages:
                 if action == self.ARCHIVE:

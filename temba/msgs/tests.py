@@ -8,6 +8,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+from django_redis import get_redis_connection
 from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
@@ -22,9 +23,8 @@ from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
-from redis_cache import get_redis_connection
 from .management.commands.msg_console import MessageConsole
-from .tasks import squash_systemlabels
+from .tasks import squash_systemlabels, clear_old_msg_external_ids
 
 
 class MsgTest(TembaTest):
@@ -644,6 +644,9 @@ class MsgTest(TembaTest):
         self.clear_storage()
         self.login(self.admin)
 
+        self.joe.name = "Jo\02e Blow"
+        self.joe.save()
+
         # create some messages...
         joe_urn = self.joe.get_urn(TEL_SCHEME).urn
         msg1 = Msg.create_incoming(self.channel, joe_urn, "hello 1")
@@ -680,7 +683,7 @@ class MsgTest(TembaTest):
         self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
 
         # label first message
-        label = Label.get_or_create(self.org, self.user, "label1")
+        label = Label.get_or_create(self.org, self.user, "la\02bel1")
         label.toggle_label([msg1], add=True)
 
         # archive last message
@@ -1373,6 +1376,24 @@ class BroadcastTest(TembaTest):
 
         # check debits were created and squashed
         self.assertEqual(Debit.objects.get(topup__org=self.org).amount, 9)
+
+    def test_clear_old_msg_external_ids(self):
+        last_month = timezone.now() - timedelta(days=31)
+        msg1 = self.create_msg(contact=self.joe, text="What's your name?", direction='O', external_id='ex101',
+                               created_on=last_month)
+        msg2 = self.create_msg(contact=self.joe, text="It's Joe", direction='I', external_id='ex102',
+                               created_on=last_month)
+        msg3 = self.create_msg(contact=self.joe, text="Good name", direction='O', external_id='ex103')
+
+        clear_old_msg_external_ids()
+
+        msg1.refresh_from_db()
+        msg2.refresh_from_db()
+        msg3.refresh_from_db()
+
+        self.assertIsNone(msg1.external_id)
+        self.assertIsNone(msg2.external_id)
+        self.assertEqual(msg3.external_id, 'ex103')
 
 
 class BroadcastCRUDLTest(TembaTest):

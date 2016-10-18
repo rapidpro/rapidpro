@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import models, migrations
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 from temba.flows.models import FlowRun
 
 

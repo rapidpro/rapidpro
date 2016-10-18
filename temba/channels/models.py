@@ -25,9 +25,9 @@ from django.utils.translation import ugettext_lazy as _
 from django.dispatch import receiver
 from django_countries.fields import CountryField
 from django.core.cache import cache
+from django_redis import get_redis_connection
 from gcm.gcm import GCM, GCMNotRegisteredException
 from phonenumbers import NumberParseException
-from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
@@ -76,6 +76,7 @@ class Channel(TembaModel):
     TYPE_START = 'ST'
     TYPE_TELEGRAM = 'TG'
     TYPE_TWILIO = 'T'
+    TYPE_TWIML = 'TW'
     TYPE_TWILIO_MESSAGING_SERVICE = 'TMS'
     TYPE_TWITTER = 'TT'
     TYPE_VERBOICE = 'VB'
@@ -154,6 +155,7 @@ class Channel(TembaModel):
         TYPE_START: dict(scheme='tel', max_length=1600),
         TYPE_TELEGRAM: dict(scheme='telegram', max_length=1600),
         TYPE_TWILIO: dict(scheme='tel', max_length=1600),
+        TYPE_TWIML: dict(scheme='tel', max_length=1600),
         TYPE_TWILIO_MESSAGING_SERVICE: dict(scheme='tel', max_length=1600),
         TYPE_TWITTER: dict(scheme='twitter', max_length=10000),
         TYPE_VERBOICE: dict(scheme='tel', max_length=1600),
@@ -185,6 +187,7 @@ class Channel(TembaModel):
                     (TYPE_START, "Start Mobile"),
                     (TYPE_TELEGRAM, "Telegram"),
                     (TYPE_TWILIO, "Twilio"),
+                    (TYPE_TWIML, "TwiML Rest API"),
                     (TYPE_TWILIO_MESSAGING_SERVICE, "Twilio Messaging Service"),
                     (TYPE_TWITTER, "Twitter"),
                     (TYPE_VERBOICE, "Verboice"),
@@ -493,6 +496,30 @@ class Channel(TembaModel):
                               name=messaging_service_sid, address=None, config=config)
 
     @classmethod
+    def add_twiml_api_channel(cls, org, user, country, address, config, role):
+        is_short_code = len(address) <= 6
+
+        name = address
+
+        if is_short_code:
+            role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+        else:
+            address = "+%s" % address
+            name = phonenumbers.format_number(phonenumbers.parse(address, None), phonenumbers.PhoneNumberFormat.NATIONAL)
+
+        existing = Channel.objects.filter(address=address, org=org, channel_type=Channel.TYPE_TWIML).first()
+        if existing:
+            existing.name = name
+            existing.address = address
+            existing.config = json.dumps(config)
+            existing.country = country
+            existing.role = role
+            existing.save()
+            return existing
+
+        return Channel.create(org, user, country, Channel.TYPE_TWIML, name=name, address=address, config=config, role=role)
+
+    @classmethod
     def add_africas_talking_channel(cls, org, user, country, phone, username, api_key, is_shared=False):
         config = dict(username=username, api_key=api_key, is_shared=is_shared)
 
@@ -699,8 +726,26 @@ class Channel(TembaModel):
     def get_ivr_client(self):
         if self.channel_type == Channel.TYPE_TWILIO:
             return self.org.get_twilio_client()
+        if self.channel_type == Channel.TYPE_TWIML:
+            return self.get_twiml_client()
         if self.channel_type == Channel.TYPE_VERBOICE:
             return self.org.get_verboice_client()
+        return None
+
+    def get_twiml_client(self):
+        from temba.ivr.clients import TwilioClient
+        from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
+
+        config = self.config_json()
+
+        if config:
+            account_sid = config.get(ACCOUNT_SID, None)
+            auth_token = config.get(ACCOUNT_TOKEN, None)
+            base = config.get(Channel.CONFIG_SEND_URL, None)
+
+            if account_sid and auth_token:
+                return TwilioClient(account_sid, auth_token, org=self, base=base)
+
         return None
 
     def supports_ivr(self):
@@ -2167,6 +2212,16 @@ class Channel(TembaModel):
 
         response_data = response.json()
 
+        # grab the status out of our response
+        status = response_data['SMSMessageData']['Recipients'][0]['status']
+        if status != 'Success':
+            raise SendException("Got non success status from API: %s" % status,
+                                url=api_url,
+                                method='POST',
+                                request=json.dumps(payload),
+                                response=response.text,
+                                response_status=response.status_code)
+
         # set our external id so we know when it is actually sent, this is missing in cases where
         # it wasn't sent, in which case we'll become an errored message
         external_id = response_data['SMSMessageData']['Recipients'][0]['messageId']
@@ -2187,8 +2242,13 @@ class Channel(TembaModel):
         from temba.orgs.models import ACCOUNT_SID, ACCOUNT_TOKEN
 
         callback_url = Channel.build_twilio_callback_url(msg.id)
-        client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
         start = time.time()
+
+        if channel.channel_type == Channel.TYPE_TWIML:
+            config = channel.config
+            client = TwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN), base=config.get(Channel.CONFIG_SEND_URL))
+        else:
+            client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
 
         if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
             messaging_service_sid = channel.config['messaging_service_sid']
@@ -2658,7 +2718,7 @@ class Channel(TembaModel):
 
     @classmethod
     def build_twilio_callback_url(cls, sms_id):
-        url = "https://" + settings.TEMBA_HOST + "/api/v1/twilio/?action=callback&id=%d" % sms_id
+        url = "https://" + settings.TEMBA_HOST + reverse('handlers.twilio_handler') + "?action=callback&id=%d" % sms_id
         return url
 
     def __unicode__(self):  # pragma: no cover
@@ -2727,6 +2787,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_START: Channel.send_start_message,
                   Channel.TYPE_TELEGRAM: Channel.send_telegram_message,
                   Channel.TYPE_TWILIO: Channel.send_twilio_message,
+                  Channel.TYPE_TWIML: Channel.send_twilio_message,
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
                   Channel.TYPE_TWITTER: Channel.send_twitter_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message,
