@@ -244,16 +244,24 @@ class Trigger(SmartModel):
 
     @classmethod
     def find_and_handle(cls, msg):
-        # get the first word out of our message
-        words = regex.split(r"[\W]+", msg.text.strip(), flags=regex.UNICODE | regex.V0)
+        from temba.msgs.models import INTERRUPTED, TRIGGERED
 
-        while words and not words[0]:
-            words = words[1:]
-
-        if not words:
+        if msg.status == INTERRUPTED:
             return False
+        elif msg.status == TRIGGERED:
+            matched_object = regex.match('^[\d\*\#]+$', msg.text.strip(), flags=regex.UNICODE)
+            keyword = matched_object.string if matched_object else None
+        else:
+            # get the first word out of our message
+            words = regex.split(r"[\W]+", msg.text.strip(), flags=regex.UNICODE | regex.V0)
 
-        keyword = words[0].lower()
+            while words and not words[0]:
+                words = words[1:]
+
+            if not words:
+                return False
+
+            keyword = words[0].lower()
 
         if not keyword:
             return False
@@ -286,6 +294,10 @@ class Trigger(SmartModel):
             trigger.last_triggered = msg.created_on
             trigger.trigger_count += 1
             trigger.save()
+
+        # There is no actual message, it was only used for triggering the flow
+        if msg.status == TRIGGERED:
+            msg = None
 
         # if we have an associated flow, start this contact in it
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)
