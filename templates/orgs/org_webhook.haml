@@ -107,25 +107,6 @@
   -blocktrans with token=user.api_token
     Your API Token is <span class="attn">{{ token }}</span>.
 
-  -if org.get_webhook_url
-    -trans "WebHook events are being forwarded to"
-    %span.attn= org.get_webhook_url
-    -if webhook_errors_count
-      %div.text-error
-        -trans "There have been"
-        {{ webhook_errors_count }}
-        -trans "webhook errors in the past hour."
-
-  -else
-    -trans "You have"
-    %span.attn
-      -trans "no webhook"
-    -trans "configured."
-    -if webhook_errors_count
-      %div.text-error
-        -trans "There have been"
-        {{ webhook_errors_count }}
-        -trans "webhook errors in the past hour."
 -block extra-script
   {{block.super}}
     :javascript
