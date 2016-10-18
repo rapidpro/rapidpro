@@ -281,6 +281,43 @@ class NewConversationTriggerForm(BaseTriggerForm):
         fields = ('channel', 'flow')
 
 
+class UssdTriggerForm(BaseTriggerForm):
+    """
+    Form for USSD triggers
+    """
+    keyword = forms.CharField(max_length=32, required=True, label=_("USSD Code"),
+                              help_text=_("USSD code to dial (eg: *111#)"))
+    channel = forms.ModelChoiceField(Channel.objects.filter(pk__lt=0), label=_("USSD Channel"), required=True)
+
+    def __init__(self, user, *args, **kwargs):
+        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type__in=[Flow.USSD])
+        super(UssdTriggerForm, self).__init__(user, flows, *args, **kwargs)
+
+        self.fields['channel'].queryset = Channel.objects.filter(is_active=True, org=self.user.get_org(),
+                                                                 channel_type__in=Channel.USSD_CHANNELS)
+
+    def clean_keyword(self):
+        keyword = self.cleaned_data.get('keyword', '').strip()
+
+        if keyword and not regex.match('^[\d\*\#]+$', keyword, flags=regex.UNICODE):
+            raise forms.ValidationError(_("USSD code must contain only *,# and numbers"))
+
+        # make sure it is unique on this org
+        org = self.user.get_org()
+        if keyword and org:
+            existing = Trigger.objects.filter(org=org, keyword__iexact=keyword, is_archived=False, is_active=True)
+            if self.instance:
+                existing = existing.exclude(pk=self.instance.pk)
+
+            if existing:
+                raise forms.ValidationError(_("Another active trigger uses this code, code must be unique"))
+
+        return keyword
+
+    class Meta(BaseTriggerForm.Meta):
+        fields = ('keyword', 'channel', 'flow')
+
+
 class TriggerActionForm(BaseActionForm):
     allowed_actions = (('archive', _("Archive Triggers")),
                        ('restore', _("Restore Triggers")))
@@ -311,7 +348,8 @@ class TriggerActionMixin(SmartListView):
 class TriggerCRUDL(SmartCRUDL):
     model = Trigger
     actions = ('list', 'create', 'update', 'archived',
-               'keyword', 'register', 'schedule', 'inbound_call', 'missed_call', 'catchall', 'follow', 'new_conversation')
+               'keyword', 'register', 'schedule', 'inbound_call', 'missed_call', 'catchall', 'follow',
+               'new_conversation', 'ussd')
 
     class OrgMixin(OrgPermsMixin):
         def derive_queryset(self, *args, **kwargs):
@@ -345,6 +383,8 @@ class TriggerCRUDL(SmartCRUDL):
             if ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
                 add_section('trigger-new-conversation', 'triggers.trigger_new_conversation', 'icon-bubbles-2')
 
+            if self.org.get_ussd_channels():
+                add_section('trigger-ussd', 'triggers.trigger_ussd', 'icon-mobile')
             add_section('trigger-catchall', 'triggers.trigger_catchall', 'icon-bubble')
 
     class Update(ModalMixin, OrgMixin, SmartUpdateView):
@@ -355,7 +395,8 @@ class TriggerCRUDL(SmartCRUDL):
                          Trigger.TYPE_INBOUND_CALL: InboundCallTriggerForm,
                          Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
                          Trigger.TYPE_FOLLOW: FollowTriggerForm,
-                         Trigger.TYPE_NEW_CONVERSATION: NewConversationTriggerForm}
+                         Trigger.TYPE_NEW_CONVERSATION: NewConversationTriggerForm,
+                         Trigger.TYPE_USSD_PULL: UssdTriggerForm}
 
         def get_form_class(self):
             trigger_type = self.object.trigger_type
