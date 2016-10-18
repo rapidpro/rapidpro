@@ -26,6 +26,7 @@ class Trigger(SmartModel):
     TYPE_CATCH_ALL = 'C'
     TYPE_FOLLOW = 'F'
     TYPE_NEW_CONVERSATION = 'N'
+    TYPE_USSD_PULL = 'U'
 
     TRIGGER_TYPES = ((TYPE_KEYWORD, _("Keyword Trigger")),
                      (TYPE_SCHEDULE, _("Schedule Trigger")),
@@ -33,7 +34,8 @@ class Trigger(SmartModel):
                      (TYPE_MISSED_CALL, _("Missed Call Trigger")),
                      (TYPE_CATCH_ALL, _("Catch All Trigger")),
                      (TYPE_FOLLOW, _("Follow Account Trigger")),
-                     (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")))
+                     (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")),
+                     (TYPE_USSD_PULL, _("USSD Pull Session Trigger")))
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to"))
 
