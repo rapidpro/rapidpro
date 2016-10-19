@@ -3,7 +3,10 @@
   "description": "",
   "main": "",
   "authors": [
-    "Eric Newcomer <ericnewcomer@gmail.com>"
+    "Nic Pottier <nicpottier@gmail.com>",
+    "Eric Newcomer <ericnewcomer@gmail.com>",
+    "Norbert Kwizera <norkans7@gmail.com>",
+    "Rowan Seymour <rowanseymour@gmail.com>"
   ],
   "license": "AGPL-3.0",
   "homepage": "https://github.com/nyaruka/rapidpro",
