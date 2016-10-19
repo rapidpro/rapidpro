@@ -313,6 +313,13 @@ class CampaignTest(TembaTest):
         self.assertEquals(2020, fire.scheduled.year)
         self.assertEquals(event, fire.event)
 
+        # trying to archive our flow should fail since it belongs to a campaign
+        post_data = dict(action='archive', objects=self.reminder_flow.pk)
+        response = self.client.post(reverse('flows.flow_list'), post_data)
+        self.reminder_flow.refresh_from_db()
+        self.assertFalse(self.reminder_flow.is_archived)
+        self.assertEqual('Color Flow is used inside a campaign. To archive it, first remove it from your campaigns.', response.get('Temba-Toast'))
+
         # archive the campaign
         post_data = dict(action='archive', objects=campaign.pk)
         self.client.post(reverse('campaigns.campaign_list'), post_data)

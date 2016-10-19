@@ -131,10 +131,26 @@ class FlowActionMixin(SmartListView):
 
         form = FlowActionForm(self.request.POST, org=org, user=user)
 
+        toast = None
+        ignored = []
         if form.is_valid():
-            form.execute()
+            changed = form.execute().get('changed')
+            for flow in form.cleaned_data['objects']:
+                if flow.id not in changed:
+                    ignored.append(flow.name)
 
-        return self.get(request, *args, **kwargs)
+            if form.cleaned_data['action'] == 'archive' and ignored:
+                if len(ignored) > 1:
+                    toast = _('%s are used inside a campaign. To archive them, first remove them from your campaigns.' % ' and '.join(ignored))
+                else:
+                    toast = _('%s is used inside a campaign. To archive it, first remove it from your campaigns.' % ignored[0])
+
+        response = self.get(request, *args, **kwargs)
+
+        if toast:
+            response['Temba-Toast'] = toast
+
+        return response
 
 
 class RuleCRUDL(SmartCRUDL):
