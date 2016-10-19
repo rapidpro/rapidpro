@@ -9,10 +9,9 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import generics, mixins, status
+from rest_framework import generics, mixins, status, views
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -38,14 +37,13 @@ from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
 
-@api_view(['GET'])
-@permission_classes((SSLPermission, IsAuthenticated))
-def api(request, format=None):
+class RootView(views.APIView):
     """
-    This is the **under-development** API v2. Everything in this version of the API is subject to change. We strongly
-    recommend that most users stick with the existing [API v1](/api/v1) for now.
+    **This is the under-development API v2. Everything in this version of the API is subject to change. We strongly
+    recommend that most users stick with the existing [API v1](/api/v1) for now.**
 
-    The following endpoints are provided:
+    We provide a RESTful JSON API for you to interact with your data from outside applications. The following  endpoints
+    are available:
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
@@ -69,42 +67,99 @@ def api(request, format=None):
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
 
-    You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API. There is also an
-    official [Python client library](https://github.com/rapidpro/rapidpro-python) for the API.
+    To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
+    documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
+    flow resources.
+
+    You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
+
+    ## Verbs
+
+    All endpoints follow standard REST conventions. You can list a set of resources by making a `GET` request to the
+    endpoint, create or update resources by making a `POST` request, or delete a resource with a `DELETE` request.
+
+    ## Status Codes
+
+    The success or failure of requests is represented by status codes as well as a message in the response body:
+
+     * **200**: A list or update request was successful
+     * **201**: A resource was successfully created (only returned for `POST` requests)
+     * **204**: An empty response - used for both successful `DELETE` requests and `POST` requests that update multiple
+                resources.
+     * **400**: The request failed due to invalid parameters. Do not retry with the same values, and the body of the
+                response will contain details.
+     * **403**: You do not have permission to access this resource
+     * **404**: The resource was not found (returned by `POST` and `DELETE` methods)
+
+    ## Date Values
+
+    Many endpoints either return datetime values or can take datatime parameters. The values returned will always be in
+    UTC, in the following format: `YYYY-MM-DDThh:mm:ss.ssssssZ`, where `ssssss` is the number of microseconds and
+    `Z` denotes the UTC timezone.
+
+    When passing datetime values as parameters, you should use this same format, e.g. `2016-10-13T11:54:32.525277Z`.
+
+    ## URN Values
+
+    We use URNs (Uniform Resource Names) to describe the different ways of communicating with a contact. These can be
+    phone numbers, Twitter handles etc. For example a contact might have URNs like:
+
+     * **tel:+250788123123**
+     * **twitter:jack**
+     * **mailto:jack@example.com**
+
+    Phone numbers should always be given in full [E164 format](http://en.wikipedia.org/wiki/E.164).
+
+    ## Authentication
+
+    You must authenticate all calls by including an `Authorization` header with your API token. If you are logged in,
+    your token will be visible at the top of this page. The Authorization header should look like:
+
+        Authorization: Token YOUR_API_TOKEN
+
+    For security reasons, all calls must be made using HTTPS.
+
+    ## Clients
+
+    There is an official [Python client library](https://github.com/rapidpro/rapidpro-python) which we recommend for all
+    Python users of the API.
     """
-    return Response({
-        'boundaries': reverse('api.v2.boundaries', request=request),
-        'broadcasts': reverse('api.v2.broadcasts', request=request),
-        'campaigns': reverse('api.v2.campaigns', request=request),
-        'campaign_events': reverse('api.v2.campaign_events', request=request),
-        'channels': reverse('api.v2.channels', request=request),
-        'channel_events': reverse('api.v2.channel_events', request=request),
-        'contacts': reverse('api.v2.contacts', request=request),
-        'contact_actions': reverse('api.v2.contact_actions', request=request),
-        'definitions': reverse('api.v2.definitions', request=request),
-        'fields': reverse('api.v2.fields', request=request),
-        'flow_starts': reverse('api.v2.flow_starts', request=request),
-        'flows': reverse('api.v2.flows', request=request),
-        'groups': reverse('api.v2.groups', request=request),
-        'labels': reverse('api.v2.labels', request=request),
-        'messages': reverse('api.v2.messages', request=request),
-        'message_actions': reverse('api.v2.message_actions', request=request),
-        'org': reverse('api.v2.org', request=request),
-        'resthooks': reverse('api.v2.resthooks', request=request),
-        'resthook_events': reverse('api.v2.resthook_events', request=request),
-        'resthook_subscribers': reverse('api.v2.resthook_subscribers', request=request),
-        'runs': reverse('api.v2.runs', request=request),
-    })
+    permission_classes = (SSLPermission, IsAuthenticated)
+
+    def get(self, request, *args, **kwargs):
+        return Response({
+            'boundaries': reverse('api.v2.boundaries', request=request),
+            'broadcasts': reverse('api.v2.broadcasts', request=request),
+            'campaigns': reverse('api.v2.campaigns', request=request),
+            'campaign_events': reverse('api.v2.campaign_events', request=request),
+            'channels': reverse('api.v2.channels', request=request),
+            'channel_events': reverse('api.v2.channel_events', request=request),
+            'contacts': reverse('api.v2.contacts', request=request),
+            'contact_actions': reverse('api.v2.contact_actions', request=request),
+            'definitions': reverse('api.v2.definitions', request=request),
+            'fields': reverse('api.v2.fields', request=request),
+            'flow_starts': reverse('api.v2.flow_starts', request=request),
+            'flows': reverse('api.v2.flows', request=request),
+            'groups': reverse('api.v2.groups', request=request),
+            'labels': reverse('api.v2.labels', request=request),
+            'messages': reverse('api.v2.messages', request=request),
+            'message_actions': reverse('api.v2.message_actions', request=request),
+            'org': reverse('api.v2.org', request=request),
+            'resthooks': reverse('api.v2.resthooks', request=request),
+            'resthook_events': reverse('api.v2.resthook_events', request=request),
+            'resthook_subscribers': reverse('api.v2.resthook_subscribers', request=request),
+            'runs': reverse('api.v2.runs', request=request),
+        })
 
 
-class ApiExplorerView(SmartTemplateView):
+class ExplorerView(SmartTemplateView):
     """
     Explorer view which lets users experiment with endpoints against their own data
     """
     template_name = "api/v2/api_explorer.html"
 
     def get_context_data(self, **kwargs):
-        context = super(ApiExplorerView, self).get_context_data(**kwargs)
+        context = super(ExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
             BoundariesEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_read_explorer(),
@@ -211,6 +266,13 @@ class BaseAPIView(generics.GenericAPIView):
     @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
+
+    def options(self, request, *args, **kwargs):
+        """
+        Disable the default behaviour of OPTIONS returning serializer fields since we typically have two serializers
+        per endpoint.
+        """
+        return self.http_method_not_allowed(request, *args, **kwargs)
 
     def get_queryset(self):
         org = self.request.user.get_org()
