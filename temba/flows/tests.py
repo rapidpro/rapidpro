@@ -6383,9 +6383,8 @@ class ParentChildOrderingTest(FlowFileTest):
 
     def test_parent_child_ordering(self):
         from temba.channels.tasks import send_msg_task
-
-        # start our parent flow
-        flow = self.get_flow('parent_child_ordering')
+        self.get_flow('parent_child_ordering')
+        flow = Flow.objects.get(name="Parent Flow")
 
         with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
             flow.start([], [self.contact])
@@ -6396,3 +6395,29 @@ class ParentChildOrderingTest(FlowFileTest):
             self.assertEquals(msgs[1].text, "Child Msg")
 
             self.assertEqual(mock_send_msg.call_count, 1)
+
+
+class AndroidChildStatus(FlowFileTest):
+    def setUp(self):
+        super(AndroidChildStatus, self).setUp()
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', scheme='tel',
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_split_first(self):
+        self.get_flow('split_first_child_msg')
+
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="split")
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        # get the msgs for our contact
+        msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
+        self.assertEquals(msgs[0].text, "Child Msg 1")
+
+        # respond
+        msg = self.create_msg(contact=self.contact, direction='I', text="Response")
+        Flow.find_and_handle(msg)
+
+        msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
+        self.assertEquals(msgs[0].text, "Child Msg 1")
+        self.assertEquals(msgs[1].text, "Child Msg 2")
