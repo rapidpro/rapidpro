@@ -631,6 +631,7 @@ class Flow(TembaModel):
         # send any messages generated
         if msgs and trigger_send:
             msgs.sort(key=lambda message: message.created_on)
+            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
             run.flow.org.trigger_send(msgs)
 
         return handled, msgs
@@ -666,7 +667,6 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
-
         if msg.status == INTERRUPTED:  # check interrupt
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
             if not rule:
@@ -696,6 +696,7 @@ class Flow(TembaModel):
                             msgs += run.start_msgs
 
                         return dict(handled=True, destination=None, destination_type=None, msgs=msgs)
+
             # find a matching rule
             rule, value = ruleset.find_matching_rule(step, run, msg, resume_after_timeout=resume_after_timeout)
 
@@ -740,6 +741,7 @@ class Flow(TembaModel):
             step.next_uuid = rule.destination
             step.save(update_fields=['left_on', 'next_uuid'])
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
+
         return dict(handled=True, destination=destination, step=step)
 
     @classmethod
