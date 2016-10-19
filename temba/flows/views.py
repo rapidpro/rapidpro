@@ -670,7 +670,7 @@ class FlowCRUDL(SmartCRUDL):
             from temba.campaigns.models import CampaignEvent
             org = self.request.user.get_org()
             events = CampaignEvent.objects.filter(campaign__org=org, is_active=True, campaign__is_active=True,
-                                                  flow__is_active=True, flow__flow_type=Flow.FLOW)
+                                                  flow__is_archived=False, flow__is_active=True, flow__flow_type=Flow.FLOW)
             return events.values('campaign__name', 'campaign__id').annotate(count=Count('id')).order_by('campaign')
 
         def get_flow_labels(self):
