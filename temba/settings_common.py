@@ -98,6 +98,7 @@ STATICFILES_FINDERS = (
     'compressor.finders.CompressorFinder',
 )
 
+
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = 'your own secret key'
 

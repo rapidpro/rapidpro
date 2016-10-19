@@ -763,8 +763,12 @@ class Flow(TembaModel):
         changed = []
 
         for flow in flows:
-            flow.archive()
-            changed.append(flow.pk)
+
+            # don't archive flows that belong to campaigns
+            from temba.campaigns.models import CampaignEvent
+            if not CampaignEvent.objects.filter(flow=flow, campaign__org=user.get_org()).exists():
+                flow.archive()
+                changed.append(flow.pk)
 
         return changed
 
