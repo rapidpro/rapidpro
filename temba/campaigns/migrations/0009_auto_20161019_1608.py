@@ -9,7 +9,7 @@ def noop(apps, schema):
 
 
 def activate_campaign_flows(apps, schema):
-    CampaignEvent = apps.get_model('campaigns', 'Campaign')
+    CampaignEvent = apps.get_model('campaigns', 'CampaignEvent')
 
     # any flow that is archived referenced by an active event
     events = CampaignEvent.objects.filter(is_active=True, flow__is_archived=True).distinct('flow')
@@ -22,7 +22,7 @@ def activate_campaign_flows(apps, schema):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0072_auto_20160905_1537'),
+        ('campaigns', '0008_auto_20161007_1441'),
     ]
 
     operations = [
