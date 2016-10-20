@@ -114,11 +114,6 @@
 
 -block modal-script
   {{block.super}}
-  -load compress
-  -compress js
-    %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/Caret.js/dist/jquery.caret.js"}
-    %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/At.js/dist/js/jquery.atwho.js"}
-
   %script{src:"{{ STATIC_URL }}js/schedules-ui.js"}
 
   :javascript

@@ -52,7 +52,7 @@
     "jsTimezoneDetect": "1.0.5",
     "less": "1.3.3",
     "leaflet": "0.7.3",
-    "codemirror": "^5.19.0",
+    "codemirror": "5.18.2",
     "jquery.bxslider": "*",
     "xregexp": "2.0.0",
     "angular-mocks": "1.3.15"

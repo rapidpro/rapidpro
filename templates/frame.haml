@@ -35,7 +35,7 @@
     // ==== JQUERY ====
     :javascript
       conditionalLoad('bower/jquery/jquery.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js');
-      conditionalLoad('bower/jquery-migrate/jquery-migrate.js', null);
+      conditionalLoad('bower/jquery-migrate/jquery-migrate.min.js', null);
 
     // ==== ANGULAR ====
     :javascript
@@ -59,6 +59,8 @@
 
       %script{src:"{{ STATIC_URL }}bower/toastr/toastr.js"}
       %script{src:"{{ STATIC_URL }}bower/select2/select2.js"}
+      %script{src:"{{ STATIC_URL }}bower/Caret.js/dist/jquery.caret.js"}
+      %script{src:"{{ STATIC_URL }}bower/At.js/dist/js/jquery.atwho.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-alert.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-button.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-carousel.js"}
@@ -85,10 +87,11 @@
       %script{src:"{{ STATIC_URL }}bower/jquery-easing/jquery.easing.js"}
       %script{src:"{{ STATIC_URL }}bower/jquery-hoverintent/jquery.hoverIntent.js"}
       %script{src:"{{ STATIC_URL }}bower/moment/moment.js"}
-      %script{src:"{{ STATIC_URL }}bower/moment-timezone/moment-timezone.js"}
+      %script{src:"{{ STATIC_URL }}bower/moment-timezone/builds/moment-timezone-with-data.js"}
       %script{src:"{{ STATIC_URL }}bower/featherlight/src/featherlight.js"}
       %script{src:"{{ STATIC_URL }}bower/video.js/dist/video.js"}
       %script{src:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.js"}
+      %script{src:"{{ STATIC_URL }}bower/xregexp/xregexp-all.js"}
 
       // Non-bower packages
       %script{src:"{{ STATIC_URL }}lib/uuid.js"}
