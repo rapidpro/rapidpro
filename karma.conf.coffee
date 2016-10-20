@@ -28,14 +28,16 @@ module.exports = (config) ->
       'static/bower/select2/select2.js',
 
       # non-bower dependencies
-      'static/scripts/angular-file-upload-1.6.12/angular-file-upload.js',
-      'static/js/jasmine-jquery.js',
-      'static/js/uuid.js',
-      'static/js/excellent.js',
+      'static/lib/angular-file-upload-1.6.12/angular-file-upload.js',
+      'static/lib/jasmine-jquery.js',
+      'static/lib/uuid.js',
+
+      # karma helpers
       'karma/helpers.coffee',
       'karma/flows/helpers.coffee',
 
-      # the code we are testing
+      # our code
+      'static/js/excellent.js',
       'static/js/omnibox.js',
       'static/coffee/flows/*.coffee',
       'static/coffee/completions.coffee',
