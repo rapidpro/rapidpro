@@ -89,7 +89,7 @@
 
 -block extra-script
   {{ block.super }}
-  <script src="{{ STATIC_URL }}js/codemirror-compressed.js"></script>
+  <script src="{{ STATIC_URL }}bower/codemirror/lib/codemirror.js"></script>
   <script src="{{ STATIC_URL }}rest_framework/js/prettify-min.js"></script>
   :javascript
     var codeMirrors = {};
@@ -156,7 +156,7 @@
 
 -block extra-style
   {{ block.super }}
-  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}css/codemirror.css"/>
+  <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}bower/codemirror/lib/codemirror.css"/>
   <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
   :css
     .request {

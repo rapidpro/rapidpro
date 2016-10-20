@@ -13,8 +13,8 @@
   {{block.super}}
   -load compress
   -compress js
-    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.caret.coffee" />
-    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.atwho.coffee" />
+    %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/Caret.js/dist/jquery.caret.js"}
+    %script{type:'text/javascript', src:"{{ STATIC_URL }}bower/At.js/dist/js/jquery.atwho.js"}
 
   %script
     $(document).ready(function() {
