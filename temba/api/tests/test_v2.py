@@ -1742,6 +1742,7 @@ class APITest(TembaTest):
             'visibility': msg_visibility,
             'text': msg.text,
             'labels': [dict(name=l.name, uuid=l.uuid) for l in msg.labels.all()],
+            'media': msg.media,
             'created_on': format_datetime(msg.created_on),
             'sent_on': format_datetime(msg.sent_on),
             'modified_on': format_datetime(msg.modified_on)
