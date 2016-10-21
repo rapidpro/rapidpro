@@ -7088,7 +7088,7 @@ class FacebookTest(TembaTest):
         # create test message to update
         joe = self.create_contact("Joe Biden", urn='facebook:1234')
         msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-        msg.external_id = "mblox-id"
+        msg.external_id = "fb-message-id-out"
         msg.save(update_fields=('external_id',))
 
         body = dict(entry=[dict(messaging=[dict(delivery=dict(mids=[msg.external_id]))])])
@@ -7102,7 +7102,7 @@ class FacebookTest(TembaTest):
 
         # ignore incoming messages delivery reports
         msg = self.create_msg(direction=INCOMING, contact=joe, text="Read message")
-        msg.external_id = "mblox-id-in"
+        msg.external_id = "fb-message-id-in"
         msg.save(update_fields=('external_id',))
 
         status = msg.status
