@@ -7100,6 +7100,22 @@ class FacebookTest(TembaTest):
         msg.refresh_from_db()
         self.assertEqual(msg.status, DELIVERED)
 
+        # ignore incoming messages delivery reports
+        msg = self.create_msg(direction=INCOMING, contact=joe, text="Read message")
+        msg.external_id = "mblox-id-in"
+        msg.save(update_fields=('external_id',))
+
+        status = msg.status
+
+        body = dict(entry=[dict(messaging=[dict(delivery=dict(mids=[msg.external_id]))])])
+        response = self.client.post(reverse('handlers.facebook_handler', args=[self.channel.uuid]), json.dumps(body),
+                                    content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
+        msg.refresh_from_db()
+        self.assertEqual(msg.status, status)
+
     def test_affinity(self):
         data = json.loads(FacebookTest.TEST_INCOMING)
 
