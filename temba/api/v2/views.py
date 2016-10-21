@@ -1745,7 +1745,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **GET** returns the list of contact groups for your organization, in the order of last created.
 
      * **uuid** - the UUID of the group (string), filterable as `uuid`
-     * **name** - the name of the group (string)
+     * **name** - the name of the group (string), filterable as `name`
      * **count** - the number of contacts in the group (int)
 
     Example:
@@ -1826,6 +1826,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1834,6 +1835,11 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by name (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 
@@ -1845,7 +1851,8 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'url': reverse('api.v2.groups'),
             'slug': 'group-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"}
+                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"},
+                {'name': "name", 'required': False, 'help': "A contact group name to filter by"}
             ]
         }
 
@@ -1886,7 +1893,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **GET** returns the list of message labels for your organization, in the order of last created.
 
      * **uuid** - the UUID of the label (string), filterable as `uuid`
-     * **name** - the name of the label (string)
+     * **name** - the name of the label (string), filterable as `name`
      * **count** - the number of messages with this label (int)
 
     Example:
@@ -1964,6 +1971,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1972,6 +1980,11 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by name (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 
@@ -1983,7 +1996,8 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'url': reverse('api.v2.labels'),
             'slug': 'label-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"}
+                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"},
+                {'name': "name", 'required': False, 'help': "A message label name to filter by"}
             ]
         }
 

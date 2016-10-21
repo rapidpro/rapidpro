@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 import json
 import logging
+
+import pytz
 import regex
 import traceback
 
@@ -335,6 +337,9 @@ class FlowCRUDL(SmartCRUDL):
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
+            org = self.get_object_org()
+            tz = pytz.timezone(org.timezone)
+
             step_uuid = request.REQUEST.get('step', None)
             next_uuid = request.REQUEST.get('destination', None)
             rule_uuid = request.REQUEST.get('rule', None)
@@ -365,7 +370,7 @@ class FlowCRUDL(SmartCRUDL):
                 if not step.contact.is_test:
                     for msg in step.messages.all():
                         if msg.visibility == Msg.VISIBILITY_VISIBLE and msg.direction == msg_direction_filter:
-                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on),
+                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=tz),
                                                         text=msg.text))
 
             return build_json_response(recent_messages[:5])

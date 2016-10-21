@@ -3751,6 +3751,8 @@ class FlowsTest(FlowFileTest):
         self.assertEquals([], json.loads(response.content))
 
         self.send_message(flow, 'mauve')
+        msg = Msg.objects.filter(text='mauve').first()
+        tz = pytz.timezone(self.org.timezone)
 
         response = self.client.get(recent_messages_url + get_params_entry)
         response_json = json.loads(response.content)
@@ -3763,6 +3765,7 @@ class FlowsTest(FlowFileTest):
         self.assertTrue(response_json)
         self.assertEquals(2, len(response_json))
         self.assertEquals("mauve", response_json[0].get('text'))
+        self.assertEquals(datetime_to_str(msg.created_on, tz=tz), response_json[0].get('sent'))
         self.assertEquals("chartreuse", response_json[1].get('text'))
 
         response = self.client.get(recent_messages_url + get_params_blue_rule)
