@@ -35,7 +35,26 @@
     allow anybody with that password to join {{org}} as a surveyor.
 
 - block summary
-  -trans "User accounts for"
-  %span.attn 
-    {{org.name}}
 
+  %span.attn= object.name
+  -trans "has"
+
+  -blocktrans count org.administrators.count as accounts
+    {{accounts}} Administrator,
+    -plural
+      {{accounts}} Administrators,
+
+  -blocktrans count org.editors.count as accounts
+    {{accounts}} Editor,
+    -plural
+      {{accounts}} Editors,
+
+  -blocktrans count org.viewers.count as accounts
+    {{accounts}} Viewer,
+    -plural
+      {{accounts}} Viewers,
+
+  -blocktrans count org.surveyors.count as accounts
+    {{accounts}} Surveyor.
+    -plural
+      {{accounts}} Surveyors.
