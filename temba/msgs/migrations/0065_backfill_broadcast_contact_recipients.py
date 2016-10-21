@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 from django.db import migrations, models
 from temba.utils import chunk_list
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 import time
 
 HIGHPOINT_KEY = 'recipient_backfill_highpoint'

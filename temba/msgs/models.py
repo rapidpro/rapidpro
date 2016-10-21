@@ -18,9 +18,9 @@ from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
-from temba_expressions.evaluator import EvaluationContext, DateStyle
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 from smartmin.models import SmartModel
+from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
@@ -649,7 +649,7 @@ class Msg(models.Model):
     next_attempt = models.DateTimeField(auto_now_add=True, verbose_name=_("Next Attempt"),
                                         help_text=_("When we should next attempt to deliver this message"))
 
-    external_id = models.CharField(max_length=255, null=True, blank=True, db_index=True, verbose_name=_("External ID"),
+    external_id = models.CharField(max_length=255, null=True, blank=True, verbose_name=_("External ID"),
                                    help_text=_("External id used for integrating with callbacks from other APIs"))
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,

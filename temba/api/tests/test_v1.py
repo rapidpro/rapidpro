@@ -738,7 +738,10 @@ class APITest(TembaTest):
 
         # add a new action set
         definition['action_sets'].append(dict(uuid=new_node_uuid, x=100, y=4, destination=None,
-                                              actions=[dict(type='save', field='tel_e164', value='+12065551212')]))
+                                              actions=[
+                                                  dict(type='save', field='tel_e164', value='+12065551212'),
+                                                  dict(type='del_group', group=dict(name='Remove Me'))
+                                              ]))
 
         # point one of our nodes to it
         definition['action_sets'][1]['destination'] = new_node_uuid
@@ -816,7 +819,8 @@ class APITest(TembaTest):
                         dict(node=new_node_uuid,
                              arrived_on='2015-08-25T11:15:30.088Z',
                              actions=[
-                                 dict(type="save", field="tel_e164", value="+12065551212")
+                                 dict(type="save", field="tel_e164", value="+12065551212"),
+                                 dict(type="del_group", group=dict(name="Remove Me"))
                              ]),
                     ],
                     completed=True)

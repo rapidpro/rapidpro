@@ -11,15 +11,15 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.utils import timezone
+from django_redis import get_redis_connection
+from mock import patch, PropertyMock
+from openpyxl import load_workbook
+from temba.contacts.models import Contact
+from temba.tests import TembaTest
 from temba.utils import voicexml, ncco
 from temba.utils.ncco import NCCOException
 from temba.utils.voicexml import VoiceXMLException
 from temba_expressions.evaluator import EvaluationContext, DateStyle
-from mock import patch, PropertyMock
-from openpyxl import load_workbook
-from redis_cache import get_redis_connection
-from temba.contacts.models import Contact
-from temba.tests import TembaTest
 from .cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from .email import is_valid_address
 from .exporter import TableExporter
@@ -259,7 +259,7 @@ class CacheTest(TembaTest):
 
     def test_incrby_existing(self):
         r = get_redis_connection()
-        r.setex('foo', 10, 100)
+        r.setex('foo', 100, 10)
         r.set('bar', 20)
 
         incrby_existing('foo', 3, r)  # positive delta
@@ -270,7 +270,7 @@ class CacheTest(TembaTest):
         self.assertEqual(r.get('foo'), '12')
         self.assertTrue(r.ttl('foo') > 0)
 
-        r.setex('foo', 0, 100)
+        r.setex('foo', 100, 0)
         incrby_existing('foo', 5, r)  # zero val key
         self.assertEqual(r.get('foo'), '5')
         self.assertTrue(r.ttl('foo') > 0)

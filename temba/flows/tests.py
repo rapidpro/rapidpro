@@ -272,6 +272,25 @@ class FlowTest(TembaTest):
         response = self.client.get(reverse('flows.flow_list'), post_data)
         self.assertContains(response, self.flow.name)
 
+    def test_campaign_filter(self):
+        self.login(self.admin)
+        self.get_flow('the_clinic')
+
+        # should have a list of four flows for our appointment schedule
+        response = self.client.get(reverse('flows.flow_list'))
+        self.assertContains(response, 'Appointment Schedule (4)')
+
+        from temba.campaigns.models import Campaign
+        campaign = Campaign.objects.filter(name='Appointment Schedule').first()
+        self.assertIsNotNone(campaign)
+
+        # check that our four flows in the campaign are there
+        response = self.client.get(reverse('flows.flow_campaign', args=[campaign.id]))
+        self.assertContains(response, 'Confirm Appointment')
+        self.assertContains(response, 'Start Notifications')
+        self.assertContains(response, 'Stop Notifications')
+        self.assertContains(response, 'Appointment Followup')
+
     def test_flows_select2(self):
         self.login(self.admin)
 
@@ -1598,6 +1617,45 @@ class FlowTest(TembaTest):
         self.assertEquals(ward_tuple[1], None)
 
         self.assertEquals(HasWardTest, Test.from_json(self.org, js).__class__)
+
+    def test_flow_keyword_create(self):
+        self.login(self.admin)
+
+        post_data = dict()
+        post_data['name'] = "Survey Flow"
+        post_data['keyword_triggers'] = "notallowed"
+        post_data['flow_type'] = Flow.SURVEY
+        post_data['expires_after_minutes'] = 60 * 12
+        self.client.post(reverse('flows.flow_create'), post_data, follow=True)
+
+        flow = Flow.objects.filter(name='Survey Flow').first()
+
+        # should't be allowed to have a survey flow and keywords
+        self.assertEqual(0, flow.triggers.all().count())
+
+    def test_flow_keyword_update(self):
+        self.login(self.admin)
+        flow = Flow.create(self.org, self.admin, "Flow")
+        flow.flow_type = Flow.SURVEY
+        flow.save()
+
+        # keywords aren't an option for survey flows
+        response = self.client.get(reverse('flows.flow_update', args=[flow.pk]))
+        self.assertTrue('keyword_triggers' not in response.context['form'].fields)
+        self.assertTrue('ignore_triggers' not in response.context['form'].fields)
+
+        # send update with triggers and ignore flag anyways
+        post_data = dict()
+        post_data['name'] = "Flow With Keyword Triggers"
+        post_data['keyword_triggers'] = "notallowed"
+        post_data['ignore_keywords'] = True
+        post_data['expires_after_minutes'] = 60 * 12
+        response = self.client.post(reverse('flows.flow_update', args=[flow.pk]), post_data, follow=True)
+
+        # still shouldn't have any triggers
+        flow.refresh_from_db()
+        self.assertFalse(flow.ignore_triggers)
+        self.assertEqual(0, flow.triggers.all().count())
 
     def test_global_keywords_trigger_update(self):
         self.login(self.admin)
@@ -6313,3 +6371,53 @@ class TriggerFlowTest(FlowFileTest):
         FlowRun.objects.get(contact__urns__path="+12067798080")
         run.refresh_from_db()
         self.assertTrue(run.is_active)
+
+
+class ParentChildOrderingTest(FlowFileTest):
+
+    def setUp(self):
+        super(ParentChildOrderingTest, self).setUp()
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'KE', 'EX', None, '+250788123123', scheme='tel',
+                                      config=dict(send_url='https://google.com'), uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_parent_child_ordering(self):
+        from temba.channels.tasks import send_msg_task
+        self.get_flow('parent_child_ordering')
+        flow = Flow.objects.get(name="Parent Flow")
+
+        with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
+            flow.start([], [self.contact])
+
+            # get the msgs for our contact
+            msgs = Msg.objects.filter(contact=self.contact).order_by('sent_on')
+            self.assertEquals(msgs[0].text, "Parent 1")
+            self.assertEquals(msgs[1].text, "Child Msg")
+
+            self.assertEqual(mock_send_msg.call_count, 1)
+
+
+class AndroidChildStatus(FlowFileTest):
+    def setUp(self):
+        super(AndroidChildStatus, self).setUp()
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', scheme='tel',
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_split_first(self):
+        self.get_flow('split_first_child_msg')
+
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="split")
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        # get the msgs for our contact
+        msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
+        self.assertEquals(msgs[0].text, "Child Msg 1")
+
+        # respond
+        msg = self.create_msg(contact=self.contact, direction='I', text="Response")
+        Flow.find_and_handle(msg)
+
+        msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
+        self.assertEquals(msgs[0].text, "Child Msg 1")
+        self.assertEquals(msgs[1].text, "Child Msg 2")

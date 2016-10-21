@@ -2,7 +2,7 @@
 Django==1.8.5
 coverage==4.0.3
 django-celery==3.1.17
-django-compressor==1.5
+django-compressor
 django-debug-toolbar==1.2.2
 django-digest==1.13
 django-extensions
@@ -19,7 +19,7 @@ python-gcm
 pytz==2014.7
 hamlpy
 django_select2
-django-redis==3.1.5
+django-redis
 redis==2.10.1
 BeautifulSoup
 xlutils

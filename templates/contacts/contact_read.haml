@@ -72,6 +72,13 @@
 
 -block content
 
+  // Needed for table wrapping on IE 9
+  <!--[if IE]>
+  <style>
+    table.activity { table-layout: fixed; }
+  </style>
+  <![endif]-->
+
   -if contact_fields
     .contact-fields{class:'{% if fields %}clickable{%endif%}'}
       -for field in contact_fields
@@ -313,10 +320,6 @@
             .activity-message {
 
               .activity-body {
-
-                .text {
-                  display: inline-block;
-                }
 
                 .channel {
                   display:inline-block;

@@ -4,10 +4,10 @@ import logging
 import time
 
 from datetime import timedelta
-from django.utils import timezone
 from django.core.cache import cache
+from django.utils import timezone
+from django_redis import get_redis_connection
 from djcelery_transactions import task
-from redis_cache import get_redis_connection
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import pop_task, nonoverlapping_task
 from temba.utils import json_date_to_datetime, chunk_list
@@ -266,7 +266,7 @@ def squash_systemlabels():
     SystemLabel.squash_counts()
 
 
-@nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids')
+@nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids', time_limit=60 * 60 * 36)
 def clear_old_msg_external_ids():
     """
     Clears external_id on older messages to reduce the size of the index on that column. External ids aren't surfaced

@@ -17,6 +17,7 @@ install:
 - pip install -r pip-freeze.txt --upgrade
 - pip install coveralls
 - npm install
+- bower install
 before_script:
 - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
 - psql -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
