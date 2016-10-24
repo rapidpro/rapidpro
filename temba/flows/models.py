@@ -2787,7 +2787,6 @@ class FlowRun(models.Model):
         media = None
         if recording_url:
             media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
-            text = recording_url
 
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
                                   response_to=response_to, media=media,
