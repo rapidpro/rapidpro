@@ -5392,11 +5392,16 @@ class SaveToContactAction(Action):
                         new_value = new_value[1:]
 
             # only valid urns get added, sorry
-            new_urn = URN.normalize(URN.from_parts(scheme, new_value))
-            if not URN.validate(new_urn, contact.org.get_country_code()):
-                new_urn = None
+            new_urn = None
+            if new_value:
+                new_urn = URN.normalize(URN.from_parts(scheme, new_value))
+                if not URN.validate(new_urn, contact.org.get_country_code()):
+                    new_urn = False
+                    if contact.is_test:
+                        ActionLog.warn(run, _('Contact not updated, invalid connection for contact (%s:%s)' % (scheme, new_value)))
+            else:
                 if contact.is_test:
-                    ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
+                    ActionLog.warn(run, _('Contact not updated, missing connection for contact'))
 
             if new_urn:
                 urns = [urn.urn for urn in contact.urns.all()]
