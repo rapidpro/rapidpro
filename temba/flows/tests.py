@@ -4777,6 +4777,28 @@ class FlowsTest(FlowFileTest):
         # should only have one response msg
         self.assertEqual(1, Msg.objects.filter(text='Complete: You picked Red.', contact=self.contact, direction='O').count())
 
+    def test_subflow_interrupted(self):
+        self.get_flow('subflow')
+        parent = Flow.objects.get(org=self.org, name='Parent Flow')
+
+        parent.start(groups=[], contacts=[self.contact], restart_participants=True)
+        self.send_message(parent, "color", assert_reply=False)
+
+        # we should now have two active flows
+        runs = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on')
+        self.assertEqual(2, runs.count())
+
+        # now interrupt the child flow
+        run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on').first()
+        FlowRun.bulk_exit([run], FlowRun.EXIT_TYPE_INTERRUPTED)
+
+        # all flows should have finished
+        self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+
+        # and the parent should not have resumed, so our last message was from our subflow
+        msg = Msg.objects.all().order_by('-created_on').first()
+        self.assertEqual('What color do you like?', msg.text)
+
     def test_subflow_expired(self):
         self.get_flow('subflow')
         parent = Flow.objects.get(org=self.org, name='Parent Flow')
