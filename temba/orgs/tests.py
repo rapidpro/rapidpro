@@ -438,6 +438,18 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertEqual('unique password', self.org.surveyor_password)
 
+        # add an extra editor
+        editor = self.create_user('EditorTwo')
+        self.org.editors.add(editor)
+        self.surveyor.delete()
+
+        # fetch it as a formax so we can inspect the summary
+        response = self.client.get(url, HTTP_X_FORMAX=1, HTTP_X_PJAX=1)
+        self.assertContains(response, '1 Administrator')
+        self.assertContains(response, '2 Editors')
+        self.assertContains(response, '1 Viewer')
+        self.assertContains(response, '0 Surveyors')
+
     def test_refresh_tokens(self):
         self.login(self.admin)
         url = reverse('orgs.org_home')
