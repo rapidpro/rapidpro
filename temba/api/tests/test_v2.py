@@ -1382,14 +1382,11 @@ class APITest(TembaTest):
 
         # all flow dependencies and we should get the child flow
         response = self.fetchJSON(url, 'flow=%s' % flow.uuid)
-        self.assertEqual(len(response.json['flows']), 2)
-        self.assertEqual(response.json['flows'][0]['metadata']['name'], "Parent Flow")
-        self.assertEqual(response.json['flows'][1]['metadata']['name'], "Child Flow")
+        self.assertEqual({f['metadata']['name'] for f in response.json['flows']}, {"Parent Flow", "Child Flow"})
 
         # export just the parent flow
         response = self.fetchJSON(url, 'flow=%s&dependencies=false' % flow.uuid)
-        self.assertEqual(len(response.json['flows']), 1)
-        self.assertEqual(response.json['flows'][0]['metadata']['name'], "Parent Flow")
+        self.assertEqual({f['metadata']['name'] for f in response.json['flows']}, {"Parent Flow"})
 
         # import the clinic app which has campaigns
         self.import_file('the_clinic')
