@@ -3078,12 +3078,7 @@ class ChannelLog(models.Model):
 
         # record our latency between the message being created and it being sent
         # (this will have some db latency but will still be a good measure in the second-range)
-
-        # hasattr needed here as queued_on being included is new, so some messages may not have the attribute after push
-        if getattr(msg, 'queued_on', None):
-            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.queued_on).total_seconds())
-        else:
-            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.created_on).total_seconds())
+        analytics.gauge('temba.sending_latency', (msg.sent_on - msg.queued_on).total_seconds())
 
         # logs that a message was sent for this channel type if our latency is known
         if request_time > 0:
