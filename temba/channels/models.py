@@ -1126,14 +1126,16 @@ class Channel(TembaModel):
         if match:
             external_id = match.group(1)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
                                method='GET',
                                url=log_url,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_facebook_message(cls, channel, msg, text):
@@ -1177,7 +1179,7 @@ class Channel(TembaModel):
             # if we can't pull out our message id, that's ok, we still sent
             pass
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1185,7 +1187,9 @@ class Channel(TembaModel):
                                url=url,
                                request=payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_mblox_message(cls, channel, msg, text):
@@ -1248,7 +1252,7 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1256,7 +1260,9 @@ class Channel(TembaModel):
                                url=url,
                                request=request_body,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_kannel_message(cls, channel, msg, text):
@@ -1332,14 +1338,16 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
                                method='GET',
                                url=log_url,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_shaqodoon_message(cls, channel, msg, text):
@@ -1377,7 +1385,7 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1385,7 +1393,9 @@ class Channel(TembaModel):
                                url=url,
                                request=log_payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_external_message(cls, channel, msg, text):
@@ -1439,7 +1449,7 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1447,7 +1457,9 @@ class Channel(TembaModel):
                                url=url,
                                request=log_payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_chikka_message(cls, channel, msg, text):
@@ -1521,7 +1533,7 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1529,7 +1541,9 @@ class Channel(TembaModel):
                                url=url,
                                request=log_payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_high_connection_message(cls, channel, msg, text):
@@ -1570,7 +1584,7 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1578,7 +1592,9 @@ class Channel(TembaModel):
                                url=url,
                                request=log_payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_blackmyna_message(cls, channel, msg, text):
@@ -1626,7 +1642,7 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1634,7 +1650,9 @@ class Channel(TembaModel):
                                url=url,
                                request=log_payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_start_message(cls, channel, msg, text):
@@ -1687,7 +1705,7 @@ class Channel(TembaModel):
         if end > start > 0:
             external_id = response.text[start + 4:end]
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1695,7 +1713,9 @@ class Channel(TembaModel):
                                url=url,
                                request=post_body.decode('utf8'),
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_smscentral_message(cls, channel, msg, text):
@@ -1731,7 +1751,7 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1739,7 +1759,9 @@ class Channel(TembaModel):
                                url=url,
                                request=log_payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_vumi_message(cls, channel, msg, text):
@@ -1805,7 +1827,7 @@ class Channel(TembaModel):
         body = response.json()
 
         # mark our message as sent
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=body.get('message_id', ''))
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=body.get('message_id', ''))
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1813,7 +1835,9 @@ class Channel(TembaModel):
                                url=url,
                                request=payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_globe_message(cls, channel, msg, text):
@@ -1856,7 +1880,7 @@ class Channel(TembaModel):
         response.json()
 
         # mark our message as sent
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1864,7 +1888,9 @@ class Channel(TembaModel):
                                url=url,
                                request=payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_nexmo_message(cls, channel, msg, text):
@@ -1889,14 +1915,16 @@ class Channel(TembaModel):
                 else:
                     raise e
 
-        Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start, external_id=message_id)
+        Msg.mark_sent(channel.config['r'], msg, SENT, external_id=message_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered to Nexmo",
                                method=response.request.method,
                                url=response.request.url,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_yo_message(cls, channel, msg, text):
@@ -1954,7 +1982,7 @@ class Channel(TembaModel):
                                 response_status=response.status_code,
                                 fatal=fatal)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, SENT)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -1962,7 +1990,9 @@ class Channel(TembaModel):
                                method='GET',
                                request='',
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_infobip_message(cls, channel, msg, text):
@@ -2026,7 +2056,7 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start, external_id=messages[0]['messageid'])
+        Msg.mark_sent(channel.config['r'], msg, SENT, external_id=messages[0]['messageid'])
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -2034,7 +2064,9 @@ class Channel(TembaModel):
                                method='POST',
                                request=json.dumps(payload),
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_hub9_message(cls, channel, msg, text):
@@ -2094,14 +2126,16 @@ class Channel(TembaModel):
                                     response=response.text,
                                     response_status=response.status_code)
 
-            Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start)
+            Msg.mark_sent(channel.config['r'], msg, SENT)
 
             ChannelLog.log_success(msg=msg,
                                    description="Successfully delivered",
                                    url=masked_url,
                                    method='GET',
                                    response=response.text,
-                                   response_status=response.status_code)
+                                   response_status=response.status_code,
+                                   request_time=time.time() - start,
+                                   channel=channel)
 
         except SendException as e:
             raise e
@@ -2163,7 +2197,7 @@ class Channel(TembaModel):
         if response_code != 0:
             raise Exception("Got non-zero response from Zenvia: %s" % response.text)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -2171,7 +2205,9 @@ class Channel(TembaModel):
                                method='POST',
                                request=json.dumps(payload),
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_africas_talking_message(cls, channel, msg, text):
@@ -2226,7 +2262,7 @@ class Channel(TembaModel):
         # it wasn't sent, in which case we'll become an errored message
         external_id = response_data['SMSMessageData']['Recipients'][0]['messageId']
 
-        Msg.mark_sent(channel.config['r'], channel, msg, SENT, time.time() - start, external_id=external_id)
+        Msg.mark_sent(channel.config['r'], msg, SENT, external_id=external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -2234,7 +2270,9 @@ class Channel(TembaModel):
                                method='POST',
                                request=json.dumps(payload),
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_twilio_message(cls, channel, msg, text):
@@ -2262,8 +2300,10 @@ class Channel(TembaModel):
                                    body=text,
                                    status_callback=callback_url)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
-        ChannelLog.log_success(msg, "Successfully delivered message")
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
+        ChannelLog.log_success(msg, "Successfully delivered message",
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_telegram_message(cls, channel, msg, text):
@@ -2285,8 +2325,10 @@ class Channel(TembaModel):
                                 response.content,
                                 505)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
-        ChannelLog.log_success(msg, "Successfully delivered message")
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
+        ChannelLog.log_success(msg, "Successfully delivered message",
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_twitter_message(cls, channel, msg, text):
@@ -2330,8 +2372,10 @@ class Channel(TembaModel):
 
         external_id = dm['id']
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
-        ChannelLog.log_success(msg, "Successfully delivered message")
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
+        ChannelLog.log_success(msg, "Successfully delivered message",
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_clickatell_message(cls, channel, msg, text):
@@ -2388,7 +2432,7 @@ class Channel(TembaModel):
         if response.text.startswith("ID: "):
             external_id = response.text[4:]
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id=external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -2396,7 +2440,9 @@ class Channel(TembaModel):
                                url=url,
                                request=log_payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_plivo_message(cls, channel, msg, text):
@@ -2436,7 +2482,7 @@ class Channel(TembaModel):
                                 response_status=plivo_response_status)
 
         external_id = plivo_response['message_uuid'][0]
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -2444,7 +2490,9 @@ class Channel(TembaModel):
                                url=url,
                                request=json.dumps(payload),
                                response=plivo_response,
-                               response_status=plivo_response_status)
+                               response_status=plivo_response_status,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_m3tech_message(cls, channel, msg, text):
@@ -2512,7 +2560,7 @@ class Channel(TembaModel):
                                 response=response.text,
                                 response_status=response.status_code)
 
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start)
+        Msg.mark_sent(channel.config['r'], msg, WIRED)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -2520,7 +2568,9 @@ class Channel(TembaModel):
                                url=url,
                                request=log_payload,
                                response=response.text,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def send_viber_message(cls, channel, msg, text):
@@ -2570,7 +2620,7 @@ class Channel(TembaModel):
                                 fatal=True)
 
         external_id = response.json().get('message_token', None)
-        Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id)
+        Msg.mark_sent(channel.config['r'], msg, WIRED, external_id)
 
         ChannelLog.log_success(msg=msg,
                                description="Successfully delivered",
@@ -2578,7 +2628,9 @@ class Channel(TembaModel):
                                url=url,
                                request=json.dumps(payload),
                                response=response.content,
-                               response_status=response.status_code)
+                               response_status=response.status_code,
+                               request_time=time.time() - start,
+                               channel=channel)
 
     @classmethod
     def get_pending_messages(cls, org):
@@ -2621,7 +2673,7 @@ class Channel(TembaModel):
         channel = Channel.get_cached_channel(msg.channel)
 
         if sent_today or sent_yesterday:
-            Msg.mark_sent(r, channel, msg, WIRED, -1)
+            Msg.mark_sent(r, msg, WIRED, -1)
             print "!! [%d] prevented duplicate send" % (msg.id)
             return
 
@@ -2674,7 +2726,7 @@ class Channel(TembaModel):
 
                 # never send in debug unless overridden
                 if not settings.SEND_MESSAGES:
-                    Msg.mark_sent(r, channel, msg, WIRED, -1)
+                    Msg.mark_sent(r, msg, WIRED, -1)
                     print "FAKED SEND for [%d] - %s" % (msg.id, part)
                 elif channel_type in SEND_FUNCTIONS:
                     SEND_FUNCTIONS[channel_type](channel, msg, part)
@@ -2977,15 +3029,18 @@ class ChannelLog(models.Model):
                                           help_text=_("The response code received when sending the message"))
     created_on = models.DateTimeField(auto_now_add=True,
                                       help_text=_("When this log message was logged"))
+    request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
 
     @classmethod
     def write(cls, log):
         if log.is_error:
+
             print(u"[%d] ERROR - %s %s \"%s\" %s \"%s\"" %
                   (log.msg.pk, log.method, log.url, log.request, log.response_status, log.response))
         else:
-            print(u"[%d] SENT - %s %s \"%s\" %s \"%s\"" %
-                  (log.msg.pk, log.method, log.url, log.request, log.response_status, log.response))
+            request_time = '(%ds)' % log.request_time if log.request_time else ''
+            print(u"[%d] %s SENT - %s %s \"%s\" %s \"%s\"" %
+                  (log.msg.pk, request_time, log.method, log.url, log.request, log.response_status, log.response))
 
     @classmethod
     def log_exception(cls, msg, e):
@@ -3007,7 +3062,9 @@ class ChannelLog(models.Model):
                                             description=description[:255]))
 
     @classmethod
-    def log_success(cls, msg, description, method=None, url=None, request=None, response=None, response_status=None):
+    def log_success(cls, msg, description, method=None, url=None, request=None, response=None, response_status=None,
+                    request_time=None, channel=channel):
+
         cls.write(ChannelLog.objects.create(channel_id=msg.channel,
                                             msg_id=msg.id,
                                             is_error=False,
@@ -3016,7 +3073,17 @@ class ChannelLog(models.Model):
                                             url=url,
                                             request=request,
                                             response=response,
-                                            response_status=response_status))
+                                            response_status=response_status,
+                                            request_time=request_time))
+
+        # record our latency between the message being created and it being sent
+        # (this will have some db latency but will still be a good measure in the second-range)
+        if msg.queued_on:
+            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.queued_on).total_seconds())
+
+        # logs that a message was sent for this channel type if our latency is known
+        if request_time > 0:
+            analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), request_time)
 
 
 class SyncEvent(SmartModel):
