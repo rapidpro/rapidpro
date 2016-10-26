@@ -371,7 +371,13 @@ class Broadcast(models.Model):
         """
         translations = self.get_translations()
         preferred_languages = self.get_preferred_languages(contact, base_language, org)
-        return Language.get_localized_text(translations, preferred_languages, self.text)
+
+        if isinstance(self.text, dict) and base_language:
+            default_text = self.text[base_language]
+        else:
+            default_text = self.text
+
+        return Language.get_localized_text(translations, preferred_languages, default_text)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
              created_on=None, base_language=None, partial_recipients=None, run_map=None):
