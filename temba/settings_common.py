@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import djcelery
 import iptools
 import os
 import sys
@@ -217,9 +216,6 @@ INSTALLED_APPS = (
     # smartmin users
     'smartmin.users',
     'modeltranslation',
-
-    # async tasks,
-    'djcelery',
 
     # django-timezones
     'timezones',
@@ -1032,8 +1028,6 @@ CELERY_TASK_MAP = {
 # -----------------------------------------------------------------------------------
 # Async tasks with django-celery
 # -----------------------------------------------------------------------------------
-djcelery.setup_loader()
-
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 
