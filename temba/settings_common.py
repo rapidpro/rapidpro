@@ -221,8 +221,8 @@ INSTALLED_APPS = (
     # async tasks,
     'djcelery',
 
-    # django-timezones
-    'timezones',
+    # django-timezone-field
+    'timezone_field',
 
     # temba apps
     'temba.assets',

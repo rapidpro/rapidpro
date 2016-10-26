@@ -37,7 +37,7 @@ unidecode
 stripe==1.11.0
 dj-database-url==0.2.1
 psycopg2==2.5.2
-django-timezones
+django-timezone-field
 -e git+http://github.com/nyaruka/django-hstore.git#egg=django-hstore
 colorama
 isoweek==1.2.0
