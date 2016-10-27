@@ -1086,7 +1086,7 @@ class FlowTest(TembaTest):
 
     def assertDateTest(self, expected_test, expected_value, test):
         run = FlowRun.objects.filter(contact=self.contact).first()
-        tz = run.flow.org.get_tzinfo()
+        tz = run.flow.org.timezone
         context = run.flow.build_message_context(run.contact, None)
 
         tuple = test.evaluate(run, self.sms, context, self.sms.text)

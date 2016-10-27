@@ -2,13 +2,14 @@ from __future__ import unicode_literals
 
 import calendar
 import json
-import pytz
-import random
 import datetime
 import locale
-import resource
-
+import pytz
+import random
 import regex
+import resource
+import six
+
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
@@ -451,7 +452,7 @@ def timezone_to_country_code(tz):
         for zone in timezones:
             timezone_country[zone] = countrycode
 
-    return timezone_country.get(tz, '')
+    return timezone_country.get(six.text_type(tz), '')
 
 
 def splitting_getlist(request, name, default=None):

@@ -159,14 +159,13 @@ class InitTest(TembaTest):
         self.assertEqual(dispatch_func(1, arg2=2), 3)
 
     def test_timezone_country_code(self):
-        self.assertEqual('RW', timezone_to_country_code('Africa/Kigali'))
-        self.assertEqual('US', timezone_to_country_code('America/Chicago'))
-        self.assertEqual('US', timezone_to_country_code('US/Pacific'))
-        # GMT and UTC give empty
-        self.assertEqual('', timezone_to_country_code('GMT'))
+        self.assertEqual('RW', timezone_to_country_code(pytz.timezone('Africa/Kigali')))
+        self.assertEqual('US', timezone_to_country_code(pytz.timezone('America/Chicago')))
+        self.assertEqual('US', timezone_to_country_code(pytz.timezone('US/Pacific')))
 
-        # any invalid timezones should return ""
-        self.assertEqual('', timezone_to_country_code('Nyamirambo'))
+        # GMT and UTC give empty
+        self.assertEqual('', timezone_to_country_code(pytz.timezone('GMT')))
+        self.assertEqual('', timezone_to_country_code(pytz.timezone('UTC')))
 
     def test_percentage(self):
         self.assertEquals(0, percentage(0, 100))

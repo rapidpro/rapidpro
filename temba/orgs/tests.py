@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 
 import json
+import pytz
 
 from context_processors import GroupPermWrapper
 from datetime import timedelta
@@ -143,27 +144,27 @@ class OrgTest(TembaTest):
         self.assertEquals("nice-temba", org.slug)
 
     def test_recommended_channel(self):
-        self.org.timezone = 'Africa/Nairobi'
+        self.org.timezone = pytz.timezone('Africa/Nairobi')
         self.org.save()
         self.assertEquals(self.org.get_recommended_channel(), 'africastalking')
 
-        self.org.timezone = 'America/Phoenix'
+        self.org.timezone = pytz.timezone('America/Phoenix')
         self.org.save()
         self.assertEquals(self.org.get_recommended_channel(), 'twilio')
 
-        self.org.timezone = 'Asia/Jakarta'
+        self.org.timezone = pytz.timezone('Asia/Jakarta')
         self.org.save()
         self.assertEquals(self.org.get_recommended_channel(), 'hub9')
 
-        self.org.timezone = 'Africa/Mogadishu'
+        self.org.timezone = pytz.timezone('Africa/Mogadishu')
         self.org.save()
         self.assertEquals(self.org.get_recommended_channel(), 'shaqodoon')
 
-        self.org.timezone = 'Europe/Amsterdam'
+        self.org.timezone = pytz.timezone('Europe/Amsterdam')
         self.org.save()
         self.assertEquals(self.org.get_recommended_channel(), 'nexmo')
 
-        self.org.timezone = 'Africa/Kigali'
+        self.org.timezone = pytz.timezone('Africa/Kigali')
         self.org.save()
         self.assertEquals(self.org.get_recommended_channel(), 'android')
 
@@ -1876,7 +1877,7 @@ class OrgCRUDLTest(TembaTest):
 
         # should have a new org
         org = Org.objects.get(name="AlexCom")
-        self.assertEqual(org.timezone, "Africa/Kigali")
+        self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
 
         # of which our user is an administrator
         self.assertTrue(org.get_org_admins().filter(pk=user.pk))
@@ -1922,7 +1923,7 @@ class OrgCRUDLTest(TembaTest):
 
         # should have a new org
         org = Org.objects.get(name="Relieves World")
-        self.assertEqual(org.timezone, "Africa/Kigali")
+        self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
         self.assertEqual(org.slug, "relieves-world")
 
@@ -2025,7 +2026,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertTrue(user.check_password('Password123'))
 
     def test_org_timezone(self):
-        self.assertEqual(self.org.timezone, 'Africa/Kigali')
+        self.assertEqual(self.org.timezone, pytz.timezone('Africa/Kigali'))
 
         Msg.create_incoming(self.channel, "tel:250788382382", "My name is Frank")
 
@@ -2033,17 +2034,17 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse('msgs.msg_inbox'), follow=True)
 
         # Check the message datetime
-        created_on = response.context['object_list'][0].created_on.astimezone(timezone.pytz.timezone(self.org.timezone))
+        created_on = response.context['object_list'][0].created_on.astimezone(self.org.timezone)
         self.assertIn(created_on.strftime("%I:%M %p").lower().lstrip('0'), response.content)
 
-        # change the org timezone to "Africa/Kenya"
-        self.org.timezone = 'Africa/Nairobi'
+        # change the org timezone to "Africa/Nairobi"
+        self.org.timezone = pytz.timezone('Africa/Nairobi')
         self.org.save()
 
         response = self.client.get(reverse('msgs.msg_inbox'), follow=True)
 
         # checkout the message should have the datetime changed by timezone
-        created_on = response.context['object_list'][0].created_on.astimezone(timezone.pytz.timezone(self.org.timezone))
+        created_on = response.context['object_list'][0].created_on.astimezone(self.org.timezone)
         self.assertIn(created_on.strftime("%I:%M %p").lower().lstrip('0'), response.content)
 
     def test_urn_schemes(self):

@@ -790,7 +790,7 @@ class Flow(TembaModel):
         """
 
         date_format = get_datetime_format(flow.org.get_dayfirst())[1]
-        tz = pytz.timezone(flow.org.timezone)
+        tz = flow.org.timezone
 
         # wrapper around our value dict, lets us do a nice representation of both @flow.foo and @flow.foo.text
         def value_wrapper(value):
@@ -2165,9 +2165,8 @@ class Flow(TembaModel):
             if user and not force:
                 saved_on = json_dict.get(Flow.METADATA).get(Flow.SAVED_ON, None)
                 org = user.get_org()
-                tz = org.get_tzinfo()
 
-                if not saved_on or str_to_datetime(saved_on, tz) < self.saved_on:
+                if not saved_on or str_to_datetime(saved_on, org.timezone) < self.saved_on:
                     saver = ""
                     if self.saved_by.first_name:
                         saver += "%s " % self.saved_by.first_name
@@ -6235,7 +6234,7 @@ class HasDateTest(Test):
         text = text.replace(' ', "-")
         org = run.flow.org
         dayfirst = org.get_dayfirst()
-        tz = org.get_tzinfo()
+        tz = org.timezone
 
         (date_format, time_format) = get_datetime_format(dayfirst)
 
@@ -6269,7 +6268,7 @@ class DateTest(Test):
     def evaluate(self, run, sms, context, text):
         org = run.flow.org
         dayfirst = org.get_dayfirst()
-        tz = org.get_tzinfo()
+        tz = org.timezone
         test, errors = Msg.substitute_variables(self.test, run.contact, context, org=org)
 
         text = text.replace(' ', "-")
