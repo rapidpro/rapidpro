@@ -345,10 +345,12 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org)
+                        msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org).first()
                         if msg:
-                            msg = msg[0]
-                            handled = msg.update(cmd)
+                            if msg.direction == OUTGOING:
+                                handled = msg.update(cmd)
+                            else:
+                                handled = True
 
                     # creating a new message
                     elif keyword == 'mo_sms':
