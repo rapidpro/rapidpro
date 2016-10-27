@@ -1952,7 +1952,7 @@ class ChannelTest(TembaTest):
             dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="60",
                  net="UMTS", org_id=8, retry=[msg6.pk], pending=[]),
 
-            # pending incoming message
+            # pending incoming message that should be acknowledged but not updated
             dict(cmd="mt_sent", msg_id=incoming_message.pk, ts=date),
 
             # results for the outgoing messages
