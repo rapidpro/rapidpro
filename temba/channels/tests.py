@@ -1938,6 +1938,11 @@ class ChannelTest(TembaTest):
         # a pending outgoing message should be included
         Msg.create_outgoing(self.org, self.admin, msg6.contact, "Hello, we heard from you.")
 
+        # an incoming message that should not be included even if it is still pending
+        incoming_message = Msg.create_incoming(self.tel_channel, "tel:+250788382382", 'hey')
+        incoming_message.status = PENDING
+        incoming_message.save()
+
         post_data = dict(cmds=[
 
             # device gcm data
@@ -1987,7 +1992,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(1, Msg.objects.filter(channel=self.tel_channel, status='F', direction='O').count())
 
         # we should now have two incoming messages
-        self.assertEqual(2, Msg.objects.filter(direction='I').count())
+        self.assertEqual(3, Msg.objects.filter(direction='I').count())
 
         # one of them should have an empty 'tel'
         self.assertTrue(Msg.objects.filter(direction='I', contact_urn__path='empty'))
