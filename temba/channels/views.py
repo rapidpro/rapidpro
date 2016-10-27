@@ -348,7 +348,10 @@ def sync(request, channel_id):
                         msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org)
                         if msg:
                             msg = msg[0]
-                            handled = msg.update(cmd)
+                            if msg.direction == OUTGOING:
+                                handled = msg.update(cmd)
+                            else:
+                                handled = True
 
                     # creating a new message
                     elif keyword == 'mo_sms':
