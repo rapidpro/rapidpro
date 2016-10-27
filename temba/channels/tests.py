@@ -1913,6 +1913,11 @@ class ChannelTest(TembaTest):
         msg4 = self.send_message(['250788382382'], "Do you have any children?")
         msg5 = self.send_message(['250788382382'], "What's my dog's name?")
 
+        # an incoming message that should not be included even if it is still pending
+        incoming_message = Msg.create_incoming(self.tel_channel, "tel:+250788382382", 'hey')
+        incoming_message.status = PENDING
+        incoming_message.save()
+
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
 
@@ -1946,6 +1951,9 @@ class ChannelTest(TembaTest):
             # device details status
             dict(cmd="status", p_sts="DIS", p_src="BAT", p_lvl="60",
                  net="UMTS", org_id=8, retry=[msg6.pk], pending=[]),
+
+            # pending incoming message that should be acknowledged but not updated
+            dict(cmd="mt_sent", msg_id=incoming_message.pk, ts=date),
 
             # results for the outgoing messages
             dict(cmd="mt_sent", msg_id=msg1.pk, ts=date),
@@ -1987,7 +1995,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(1, Msg.objects.filter(channel=self.tel_channel, status='F', direction='O').count())
 
         # we should now have two incoming messages
-        self.assertEqual(2, Msg.objects.filter(direction='I').count())
+        self.assertEqual(3, Msg.objects.filter(direction='I').count())
 
         # one of them should have an empty 'tel'
         self.assertTrue(Msg.objects.filter(direction='I', contact_urn__path='empty'))

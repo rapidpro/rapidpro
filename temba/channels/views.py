@@ -27,7 +27,7 @@ from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
 from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
-from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED
+from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
@@ -247,7 +247,7 @@ def get_commands(channel, commands, sync_event=None):
         retry_msgs = sync_event.get_retry_messages()
 
     # messages without broadcast
-    msgs = list(Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel,
+    msgs = list(Msg.objects.filter(status__in=(PENDING, QUEUED, WIRED), channel=channel, direction=OUTGOING,
                                    broadcast=None).select_related('contact_urn').order_by('text', 'pk'))
 
     # all outgoing messages for our channel that are queued up
@@ -345,10 +345,12 @@ def sync(request, channel_id):
 
                     # catchall for commands that deal with a single message
                     if 'msg_id' in cmd:
-                        msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org)
+                        msg = Msg.objects.filter(pk=cmd['msg_id'], org=channel.org).first()
                         if msg:
-                            msg = msg[0]
-                            handled = msg.update(cmd)
+                            if msg.direction == OUTGOING:
+                                handled = msg.update(cmd)
+                            else:
+                                handled = True
 
                     # creating a new message
                     elif keyword == 'mo_sms':
