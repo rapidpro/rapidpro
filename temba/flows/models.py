@@ -4,7 +4,6 @@ import json
 import logging
 import numbers
 import phonenumbers
-import pytz
 import regex
 import time
 import urllib2
@@ -3770,7 +3769,7 @@ class ExportFlowResultsTask(SmartModel):
         if flows:
             org = flows[0].org
 
-        org_tz = pytz.timezone(flows[0].org.timezone)
+        org_tz = flows[0].org.timezone
 
         def as_org_tz(dt):
             if dt:

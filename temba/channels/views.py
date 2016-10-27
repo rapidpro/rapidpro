@@ -8,6 +8,7 @@ import phonenumbers
 import plivo
 import pycountry
 import pytz
+import six
 import time
 import requests
 
@@ -897,6 +898,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             org = self.request.user.get_org()
             context['recommended_channel'] = org.get_recommended_channel()
+            context['org_timezone'] = six.text_type(org.timezone)
 
             return context
 

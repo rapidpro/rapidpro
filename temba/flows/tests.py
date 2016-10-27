@@ -488,7 +488,7 @@ class FlowTest(TembaTest):
         self.assertEqual("orange", context['flow']['color']['text'])
 
         # value time should be in org format and timezone
-        val_time = datetime_to_str(step.left_on, '%d-%m-%Y %H:%M', tz=pytz.timezone(self.org.timezone))
+        val_time = datetime_to_str(step.left_on, '%d-%m-%Y %H:%M', tz=self.org.timezone)
         self.assertEqual(val_time, context['flow']['color']['time'])
 
         self.assertEquals(self.channel.get_address_display(e164=True), context['channel']['tel_e164'])
@@ -609,7 +609,7 @@ class FlowTest(TembaTest):
         with self.assertNumQueries(49):
             workbook = self.export_flow_results(self.flow)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -702,7 +702,7 @@ class FlowTest(TembaTest):
         with self.assertNumQueries(48):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
         sheet_contacts = workbook.worksheets[0]
 
         self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
@@ -736,7 +736,7 @@ class FlowTest(TembaTest):
         # only one present now
         self.assertEqual(Value.objects.filter(contact=self.contact, contact_field=age).count(), 1)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
         sheet_runs, sheet_contacts = workbook.worksheets
 
         self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
@@ -782,7 +782,7 @@ class FlowTest(TembaTest):
 
         workbook = self.export_flow_results(self.flow)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -811,7 +811,7 @@ class FlowTest(TembaTest):
         in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact)
 
         workbook = self.export_flow_results(self.flow)
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -836,7 +836,7 @@ class FlowTest(TembaTest):
         run.save()
 
         workbook = self.export_flow_results(self.flow)
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -3816,7 +3816,7 @@ class FlowsTest(FlowFileTest):
 
         self.send_message(flow, 'mauve')
         msg = Msg.objects.filter(text='mauve').first()
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         response = self.client.get(recent_messages_url + get_params_entry)
         response_json = json.loads(response.content)
