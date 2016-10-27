@@ -3305,7 +3305,7 @@ class ExternalTest(TembaTest):
         self.login(self.admin)
         log_item = ChannelLog.objects.all().order_by('created_on').first()
         response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
-        self.assertEquals(response.context['object'].description, 'Successfully delivered')
+        self.assertEquals(response.context['object'].description, 'Successfully Delivered')
 
         # make sure we can't see it as anon
         self.org.is_anon = True
@@ -3317,7 +3317,7 @@ class ExternalTest(TembaTest):
         # change our admin to be a CS rep, see if they can see the page
         self.admin.groups.add(Group.objects.get(name='Customer Support'))
         response = self.client.get(reverse('channels.channellog_read', args=[log_item.pk]))
-        self.assertEquals(response.context['object'].description, 'Successfully delivered')
+        self.assertEquals(response.context['object'].description, 'Successfully Delivered')
 
 
 class VerboiceTest(TembaTest):
