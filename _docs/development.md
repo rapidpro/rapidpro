@@ -21,6 +21,7 @@ You'll need the following to get started:
    By default the development server uses database 15.
  * [lessc](http://lesscss.org), the Less compiler.
  * [coffee](http://coffeescript.org), the Coffee script compiler.
+ * [bower](http://bower.io), package manager for javascript libraries.
 
 ## Create temba user for PostgreSQL
 
@@ -83,6 +84,16 @@ initializes all the user groups and permissions.
 {% highlight bash %}
 $ python manage.py syncdb
 {% endhighlight %}
+
+## Install bower scripts
+
+Before you can run your server, you will need the web-tier dependencies. These
+are managed by bower (see bower.json in the root for more details).
+
+{% highlight bash %}
+$ bower install
+{% endhighlight %}
+
 
 ## Run development server
 
