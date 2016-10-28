@@ -809,6 +809,7 @@ class MsgReadSerializer(ReadSerializer):
     channel = fields.ChannelField()
     direction = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
+    media = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     archived = serializers.SerializerMethodField()
     visibility = serializers.SerializerMethodField()
@@ -827,6 +828,9 @@ class MsgReadSerializer(ReadSerializer):
         # PENDING and QUEUED are same as far as users are concerned
         return self.STATUSES.get(QUEUED if obj.status == PENDING else obj.status)
 
+    def get_media(self, obj):
+        return obj.media
+
     def get_archived(self, obj):
         return obj.visibility == Msg.VISIBILITY_ARCHIVED
 
@@ -837,7 +841,7 @@ class MsgReadSerializer(ReadSerializer):
         model = Msg
         fields = ('id', 'broadcast', 'contact', 'urn', 'channel',
                   'direction', 'type', 'status', 'archived', 'visibility', 'text', 'labels',
-                  'created_on', 'sent_on', 'modified_on')
+                  'media', 'created_on', 'sent_on', 'modified_on')
 
 
 class MsgBulkActionSerializer(WriteSerializer):

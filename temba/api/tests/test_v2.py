@@ -117,10 +117,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, query)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
-        # 200 for administrator
+        # 200 for administrator assuming this endpoint supports fetches
         self.login(self.admin)
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, fetch_returns)
+
+        # 405 for OPTIONS requests
+        response = self.client.options(url, HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEqual(response.status_code, 405)
 
     def assertResultsById(self, response, expected):
         self.assertEqual(response.status_code, 200)
@@ -264,7 +268,7 @@ class APITest(TembaTest):
 
         # browse as HTML anonymously (should still show docs)
         response = self.fetchHTML(url)
-        self.assertContains(response, "This is the <strong>under-development</strong> API v2", status_code=403)
+        self.assertContains(response, "This is the under-development API v2", status_code=403)
 
         # try to browse as JSON anonymously
         response = self.fetchJSON(url)
@@ -1738,6 +1742,7 @@ class APITest(TembaTest):
             'visibility': msg_visibility,
             'text': msg.text,
             'labels': [dict(name=l.name, uuid=l.uuid) for l in msg.labels.all()],
+            'media': msg.media,
             'created_on': format_datetime(msg.created_on),
             'sent_on': format_datetime(msg.sent_on),
             'modified_on': format_datetime(msg.modified_on)

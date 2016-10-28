@@ -6,6 +6,10 @@
   span8
 
 -block fields
+  .field.api-token{ style:"padding-bottom: 10px" }
+    API Token: <span id="api_token">{{user.api_token}}</span>
+    <a href="javascript:refreshToken()" class='api-token-refresh'><div class="icon-loop"></div></a>
+
   .field.webhook-url
     %label{ for:'webhook' }
       -trans "Webhook"
@@ -56,10 +60,6 @@
           <input type="text" id="id_header_1_value" name="header_1_value" value="" />
     {% endif %}
 
-  API Token: <span id="api_token">{{user.api_token}}</span>
-  <a href="javascript:refreshToken()" class='api-token-refresh'><div class="icon-loop"></div></a>
-
-
   .field.subscribed-events
     .field-label
       -trans "Subscribed Events"
@@ -96,35 +96,17 @@
 
 -block post-fields
   .extra-formax-buttons
-    %a.btn{ href: '{% url "api" %}', style:'width: 60px;'}
+    %a.btn{ href: '{% url "api" %}', style:'width: 100px;'}
       -trans "API Docs"
-    %a.btn{ href: '{% url "api.log" %}', style:'width: 60px;', class: '{% if failed_webhooks %} btn-danger{% endif %}'}
-      -trans "API Log"
+    %a.btn{ href: '{% url "api.webhook" %}', style:'width: 100px;'}
+      -trans "Webhook Docs"
+    %a.btn{ href: '{% url "api.log" %}', style:'width: 100px;', class: '{% if failed_webhooks %} btn-danger{% endif %}'}
+      -trans "Webhook Log"
 
 -block summary
-  -if org.get_webhook_url
-    -trans "WebHook events are being forwarded to"
-    %span.attn= org.get_webhook_url
-    %div
-      -trans "Your API Token is"
-      {{user.api_token}}
-    -if webhook_errors_count
-      %div.text-error
-        -trans "There have been"
-        {{ webhook_errors_count }}
-        -trans "webhook errors in the past hour."
+  -blocktrans with token=user.api_token
+    Your API Token is <span class="attn">{{ token }}</span>.
 
-  -else
-    %div
-      -trans "You have"
-      %span.attn
-        -trans "no webhook"
-      -trans "configured."
-    -if webhook_errors_count
-      %div.text-error
-        -trans "There have been"
-        {{ webhook_errors_count }}
-        -trans "webhook errors in the past hour."
 -block extra-script
   {{block.super}}
     :javascript

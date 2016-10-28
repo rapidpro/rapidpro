@@ -872,7 +872,7 @@ class Msg(models.Model):
                 analytics.gauge('temba.msg_errored_%s' % channel.channel_type.lower())
 
     @classmethod
-    def mark_sent(cls, r, channel, msg, status, latency, external_id=None):
+    def mark_sent(cls, r, msg, status, external_id=None):
         """
         Marks an outgoing message as WIRED or SENT
         :param msg: a JSON representation of the message
@@ -893,19 +893,6 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
         else:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
-
-        # record our latency between the message being created and it being sent
-        # (this will have some db latency but will still be a good measure in the second-range)
-
-        # hasattr needed here as queued_on being included is new, so some messages may not have the attribute after push
-        if getattr(msg, 'queued_on', None):
-            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.queued_on).total_seconds())
-        else:
-            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.created_on).total_seconds())
-
-        # logs that a message was sent for this channel type if our latency is known
-        if latency > 0:
-            analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), latency)
 
     def as_json(self):
         return dict(direction=self.direction,

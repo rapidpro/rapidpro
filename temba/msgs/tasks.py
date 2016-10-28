@@ -173,11 +173,9 @@ def check_messages_task():
 
     # fire a few send msg tasks in case we dropped one somewhere during a restart
     # (these will be no-ops if there is nothing to do)
-    send_msg_task.delay()
-    send_msg_task.delay()
-
-    handle_event_task.delay()
-    handle_event_task.delay()
+    for i in range(250):
+        send_msg_task.delay()
+        handle_event_task.delay()
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)

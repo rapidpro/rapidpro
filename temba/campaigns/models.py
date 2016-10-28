@@ -120,11 +120,12 @@ class Campaign(TembaModel):
                     if event_spec['event_type'] == CampaignEvent.TYPE_MESSAGE:
 
                         message = event_spec['message']
-                        try:
-                            message = json.loads(message)
-                        except:
-                            # if it's not a language dict, turn it into one
-                            message = dict(base=message)
+                        if not isinstance(message, dict):
+                            try:
+                                message = json.loads(message)
+                            except:
+                                # if it's not a language dict, turn it into one
+                                message = dict(base=message)
 
                         event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
                                                                    event_spec['offset'],
@@ -268,6 +269,9 @@ class CampaignEvent(TembaModel):
             raise ValueError("Org mismatch")
 
         flow = Flow.create_single_message(org, user, message)
+
+        if isinstance(message, dict):
+            message = json.dumps(message)
 
         return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
                                   event_type=cls.TYPE_MESSAGE, message=message, flow=flow, delivery_hour=delivery_hour,

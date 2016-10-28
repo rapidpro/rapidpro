@@ -3,6 +3,7 @@
   "repository": "git@github.com:rapidpro/rapidpro.git",
   "license": "AGPL-3.0",
   "dependencies": {
+    "bower": "^1.7.9",
     "coffee-script": "^1.9.3",
     "less": "2.7.1"
   },

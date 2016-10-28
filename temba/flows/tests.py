@@ -2822,7 +2822,7 @@ class ActionTest(TembaTest):
         ActionLog.objects.all().delete()
         action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='foobar.com'))
         action.execute(run, None, None)
-        self.assertEquals(ActionLog.objects.get().text, "Skipping invalid connection for contact (mailto:foobar.com)")
+        self.assertEquals(ActionLog.objects.get().text, "Contact not updated, invalid connection for contact (mailto:foobar.com)")
 
         # URN should be unchanged on the simulator contact
         test_contact = Contact.objects.get(id=test_contact.id)
@@ -2832,6 +2832,12 @@ class ActionTest(TembaTest):
         SaveToContactAction.from_json(self.org, dict(type='save', label="[_NEW_]Ecole", value='@step'))
         field = ContactField.objects.get(org=self.org, key="ecole")
         self.assertEquals("Ecole", field.label)
+
+        # try saving some empty data into mailto
+        ActionLog.objects.all().delete()
+        action = SaveToContactAction.from_json(self.org, dict(type='save', label="mailto", value='@contact.mailto'))
+        action.execute(run, None, None)
+        self.assertEquals(ActionLog.objects.get().text, "Contact not updated, missing connection for contact")
 
     def test_set_language_action(self):
         action = SetLanguageAction('kli', 'Klingon')
@@ -4771,6 +4777,28 @@ class FlowsTest(FlowFileTest):
         # should only have one response msg
         self.assertEqual(1, Msg.objects.filter(text='Complete: You picked Red.', contact=self.contact, direction='O').count())
 
+    def test_subflow_interrupted(self):
+        self.get_flow('subflow')
+        parent = Flow.objects.get(org=self.org, name='Parent Flow')
+
+        parent.start(groups=[], contacts=[self.contact], restart_participants=True)
+        self.send_message(parent, "color", assert_reply=False)
+
+        # we should now have two active flows
+        runs = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on')
+        self.assertEqual(2, runs.count())
+
+        # now interrupt the child flow
+        run = FlowRun.objects.filter(contact=self.contact, is_active=True).order_by('-created_on').first()
+        FlowRun.bulk_exit([run], FlowRun.EXIT_TYPE_INTERRUPTED)
+
+        # all flows should have finished
+        self.assertEqual(0, FlowRun.objects.filter(contact=self.contact, is_active=True).count())
+
+        # and the parent should not have resumed, so our last message was from our subflow
+        msg = Msg.objects.all().order_by('-created_on').first()
+        self.assertEqual('What color do you like?', msg.text)
+
     def test_subflow_expired(self):
         self.get_flow('subflow')
         parent = Flow.objects.get(org=self.org, name='Parent Flow')
@@ -6383,9 +6411,8 @@ class ParentChildOrderingTest(FlowFileTest):
 
     def test_parent_child_ordering(self):
         from temba.channels.tasks import send_msg_task
-
-        # start our parent flow
-        flow = self.get_flow('parent_child_ordering')
+        self.get_flow('parent_child_ordering')
+        flow = Flow.objects.get(name="Parent Flow")
 
         with patch('temba.channels.tasks.send_msg_task', wraps=send_msg_task) as mock_send_msg:
             flow.start([], [self.contact])
@@ -6396,3 +6423,29 @@ class ParentChildOrderingTest(FlowFileTest):
             self.assertEquals(msgs[1].text, "Child Msg")
 
             self.assertEqual(mock_send_msg.call_count, 1)
+
+
+class AndroidChildStatus(FlowFileTest):
+    def setUp(self):
+        super(AndroidChildStatus, self).setUp()
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'RW', 'A', None, '+250788123123', scheme='tel',
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_split_first(self):
+        self.get_flow('split_first_child_msg')
+
+        incoming = self.create_msg(direction=INCOMING, contact=self.contact, text="split")
+        self.assertTrue(Trigger.find_and_handle(incoming))
+
+        # get the msgs for our contact
+        msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
+        self.assertEquals(msgs[0].text, "Child Msg 1")
+
+        # respond
+        msg = self.create_msg(contact=self.contact, direction='I', text="Response")
+        Flow.find_and_handle(msg)
+
+        msgs = Msg.objects.filter(contact=self.contact, status=PENDING, direction=OUTGOING).order_by('created_on')
+        self.assertEquals(msgs[0].text, "Child Msg 1")
+        self.assertEquals(msgs[1].text, "Child Msg 2")
