@@ -2401,6 +2401,26 @@ class BulkExportTest(TembaTest):
             # trigger import failed, new flows that were added should get rolled back
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
 
+    def test_import_campaign_with_translations(self):
+
+        # import all our bits
+        self.import_file('campaign_import_with_translations')
+
+        campaign = Campaign.objects.all().first()
+        event = campaign.events.all().first()
+
+        action_set = event.flow.action_sets.order_by('-y').first()
+        actions = action_set.get_actions_dict()
+        action_msg = actions[0]['msg']
+
+        event_msg = json.loads(event.message)
+
+        self.assertEquals(event_msg['swa'], 'hello')
+        self.assertEquals(event_msg['eng'], 'Hey')
+
+        self.assertEquals(action_msg['swa'], 'hello')
+        self.assertEquals(action_msg['eng'], 'Hey')
+
     def test_export_import(self):
 
         def assert_object_counts():
