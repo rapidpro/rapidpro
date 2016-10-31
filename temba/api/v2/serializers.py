@@ -632,7 +632,6 @@ class FlowRunReadSerializer(ReadSerializer):
     contact = fields.ContactField()
     path = serializers.SerializerMethodField()
     values = serializers.SerializerMethodField()
-    steps = serializers.SerializerMethodField()  # TODO deprecated
     exit_type = serializers.SerializerMethodField()
 
     def get_path(self, obj):
@@ -650,43 +649,12 @@ class FlowRunReadSerializer(ReadSerializer):
 
         return values
 
-    def get_steps(self, obj):
-        # avoiding fetching org again
-        run = obj
-        run.org = self.context['org']
-
-        steps = []
-        for step in obj.steps.all():
-            val = step.rule_decimal_value if step.rule_decimal_value is not None else step.rule_value
-            steps.append({'type': self.NODE_TYPES.get(step.step_type),
-                          'node': step.step_uuid,
-                          'arrived_on': format_datetime(step.arrived_on),
-                          'left_on': format_datetime(step.left_on),
-                          'messages': self.get_step_messages(run, step),
-                          'text': step.get_text(run=run),
-                          'value': val,
-                          'category': step.rule_category})
-        return steps
-
     def get_exit_type(self, obj):
         return self.EXIT_TYPES.get(obj.exit_type)
 
-    @staticmethod
-    def get_step_messages(run, step):
-        messages = []
-        for m in step.messages.all():
-            messages.append({'id': m.id, 'broadcast': m.broadcast_id, 'text': m.text})
-
-        for b in step.broadcasts.all():
-            if b.purged:
-                text = b.get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
-                messages.append({'id': None, 'broadcast': b.id, 'text': text})
-
-        return messages
-
     class Meta:
         model = FlowRun
-        fields = ('id', 'flow', 'contact', 'responded', 'path', 'values', 'steps',
+        fields = ('id', 'flow', 'contact', 'responded', 'path', 'values',
                   'created_on', 'modified_on', 'exited_on', 'exit_type')
 
 

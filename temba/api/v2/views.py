@@ -2784,11 +2784,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
             Prefetch('values'),
             Prefetch('values__ruleset'),
-
-            # TODO remove
-            Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
-            Prefetch('steps__messages', queryset=Msg.objects.only('broadcast', 'text')),
-            Prefetch('steps__broadcasts', queryset=Broadcast.objects.all()),
+            Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
         )
 
         return self.filter_before_after(queryset, 'modified_on')
