@@ -8,7 +8,7 @@ from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup
-from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
+from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
@@ -618,10 +618,6 @@ class FlowReadSerializer(ReadSerializer):
 
 
 class FlowRunReadSerializer(ReadSerializer):
-    NODE_TYPES = {
-        FlowStep.TYPE_RULE_SET: 'ruleset',
-        FlowStep.TYPE_ACTION_SET: 'actionset'
-    }
     EXIT_TYPES = {
         FlowRun.EXIT_TYPE_COMPLETED: 'completed',
         FlowRun.EXIT_TYPE_INTERRUPTED: 'interrupted',
