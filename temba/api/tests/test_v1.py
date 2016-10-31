@@ -171,7 +171,7 @@ class APITest(TembaTest):
 
         # browse as HTML anonymously
         response = self.fetchHTML(url)
-        self.assertContains(response, "We provide a simple REST API", status_code=403)  # still shows docs
+        self.assertContains(response, "This is the now deprecated API v1", status_code=403)  # still shows docs
 
         # try to browse as JSON anonymously
         response = self.fetchJSON(url)

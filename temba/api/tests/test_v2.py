@@ -268,7 +268,11 @@ class APITest(TembaTest):
 
         # browse as HTML anonymously (should still show docs)
         response = self.fetchHTML(url)
-        self.assertContains(response, "This is the under-development API v2", status_code=403)
+        self.assertContains(response, "We provide a RESTful JSON API", status_code=403)
+
+        # same thing if user navigates to just /api
+        response = self.client.get(reverse('api'), follow=True)
+        self.assertContains(response, "We provide a RESTful JSON API", status_code=403)
 
         # try to browse as JSON anonymously
         response = self.fetchJSON(url)
