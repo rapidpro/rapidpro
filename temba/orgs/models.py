@@ -14,18 +14,18 @@ import traceback
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
+from django.contrib.auth.models import User, Group
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
 from django.utils import timezone
-from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
-from django.contrib.auth.models import User, Group
+from django_redis import get_redis_connection
 from enum import Enum
-from redis_cache import get_redis_connection
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -372,7 +372,7 @@ class Org(SmartModel):
         Trigger.import_triggers(data, self, user, same_site)
 
     @classmethod
-    def export_definitions(cls, site_link, flows=[], campaigns=[], triggers=[]):
+    def export_definitions(cls, site_link, flows=(), campaigns=(), triggers=()):
         # remove any triggers that aren't included in our flows
         flow_uuids = set([f.uuid for f in flows])
         filtered_triggers = []

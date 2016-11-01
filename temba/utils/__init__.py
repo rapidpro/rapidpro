@@ -8,6 +8,7 @@ import datetime
 import locale
 import resource
 
+import regex
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
@@ -497,3 +498,16 @@ def get_country_code_by_name(name):
         code = TRANSFERTO_COUNTRY_NAMES.get(name, None)
 
     return code if code else None
+
+
+def clean_string(string_text):
+    if string_text is None:
+        return string_text
+
+    rexp = regex.compile(r'[\000-\010]|[\013-\014]|[\016-\037]', flags=regex.MULTILINE | regex.UNICODE | regex.V0)
+
+    matches = 1
+    while matches:
+        (string_text, matches) = rexp.subn('', string_text)
+
+    return string_text

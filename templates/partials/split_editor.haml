@@ -74,6 +74,12 @@
           .bucket{ng-repeat:'bucket in formData.randomBuckets'}
             %input{type:'text', ng-required:'true', ng-model:'bucket._base'}
 
+    .group-membership{ng-if:'formData.rulesetConfig.type == "group"'}><
+      .split-margin
+        %p{class:"description"}
+          -trans "Select all the groups you would like to split by below"
+        %input{style:"height:38px; width:620px",ng-model:"formData.omnibox", name:"omnibox",required:"",omnibox:'{"types":"g", "sortable":true, "arbitraryAdd":true, "completions":true, "allowExtra": true}',groups:"formData.groups",type:"hidden"}
+
     .airtime{ng-if:'formData.rulesetConfig.type == "airtime"'}><
       .split-margin
         %p{class:"description"}

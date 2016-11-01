@@ -1,20 +1,22 @@
 from __future__ import absolute_import, unicode_literals
 
+import json
 from datetime import timedelta
 from django.db import models
 from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
-from smartmin.models import SmartModel
 from temba.contacts.models import ContactGroup, ContactField, Contact
 from temba.flows.models import Flow
 from temba.orgs.models import Org
-from temba.utils.models import generate_uuid
+from temba.utils.models import TembaModel
 from temba.values.models import Value
 
 
-class Campaign(SmartModel):
-    name = models.CharField(max_length=255,
+class Campaign(TembaModel):
+    MAX_NAME_LEN = 255
+
+    name = models.CharField(max_length=MAX_NAME_LEN,
                             help_text="The name of this campaign")
     group = models.ForeignKey(ContactGroup,
                               help_text="The group this campaign operates on")
@@ -22,9 +24,6 @@ class Campaign(SmartModel):
                                       help_text="Whether this campaign is archived or not")
     org = models.ForeignKey(Org,
                             help_text="The organization this campaign exists for")
-
-    uuid = models.CharField(max_length=36, unique=True, default=generate_uuid,
-                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
 
     @classmethod
     def create(cls, org, user, name, group):
@@ -119,10 +118,19 @@ class Campaign(SmartModel):
 
                     # create our message flow for message events
                     if event_spec['event_type'] == CampaignEvent.TYPE_MESSAGE:
+
+                        message = event_spec['message']
+                        if not isinstance(message, dict):
+                            try:
+                                message = json.loads(message)
+                            except:
+                                # if it's not a language dict, turn it into one
+                                message = dict(base=message)
+
                         event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
                                                                    event_spec['offset'],
                                                                    event_spec['unit'],
-                                                                   event_spec['message'],
+                                                                   message,
                                                                    event_spec['delivery_hour'])
                         event.update_flow_name()
                     else:
@@ -169,13 +177,22 @@ class Campaign(SmartModel):
         events = []
 
         for event in self.events.all().order_by('flow__uuid'):
+
+            message = event.message
+            if message:
+                try:
+                    message = json.loads(message)
+                except:
+                    message = dict(base=message)
+
             events.append(dict(uuid=event.uuid, offset=event.offset,
                                unit=event.unit,
                                event_type=event.event_type,
                                delivery_hour=event.delivery_hour,
-                               message=event.message,
+                               message=message,
                                flow=dict(uuid=event.flow.uuid, name=event.flow.name),
                                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key)))
+
         definition['events'] = events
         return definition
 
@@ -202,7 +219,7 @@ class Campaign(SmartModel):
         return self.name
 
 
-class CampaignEvent(SmartModel):
+class CampaignEvent(TembaModel):
     """
     An event within a campaign that can send a message to a contact or start them in a flow
     """
@@ -246,15 +263,15 @@ class CampaignEvent(SmartModel):
 
     delivery_hour = models.IntegerField(default=-1, help_text="The hour to send the message or flow at.")
 
-    uuid = models.CharField(max_length=36, unique=True, default=generate_uuid,
-                            verbose_name=_("Unique Identifier"), help_text=_("The unique identifier for this object"))
-
     @classmethod
     def create_message_event(cls, org, user, campaign, relative_to, offset, unit, message, delivery_hour=-1):
         if campaign.org != org:  # pragma: no cover
             raise ValueError("Org mismatch")
 
         flow = Flow.create_single_message(org, user, message)
+
+        if isinstance(message, dict):
+            message = json.dumps(message)
 
         return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
                                   event_type=cls.TYPE_MESSAGE, message=message, flow=flow, delivery_hour=delivery_hour,
@@ -281,6 +298,15 @@ class CampaignEvent(SmartModel):
                     hour -= 12
             hours.append((i, 'at %s:00 %s' % (hour, period)))
         return hours
+
+    def get_message(self):
+        message = self.message
+        try:
+            message = json.loads(message).get(self.flow.base_language, '')
+        except:
+            pass
+
+        return message
 
     def update_flow_name(self):
         """

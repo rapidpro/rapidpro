@@ -48,15 +48,9 @@
       %a.btn.btn-primary{href:"{% url 'channels.channel_list' %}", tabindex:3}
         -trans "Add Channel"
 
-  %script{src:"{{ STATIC_URL }}scripts/at/xregexp-min.js"}
-  %script{src:"{{ STATIC_URL }}scripts/At.js/bower_components/Caret.js/dist/jquery.caret.js"}
-  %script{src:"{{ STATIC_URL }}scripts/At.js/dist/js/jquery.atwho.js"}
   %script{src:"{{ STATIC_URL }}js/excellent.js"}
 
-
   -load compress
-
-  %link{href:'{{ STATIC_URL }}scripts/At.js/dist/css/jquery.atwho.css', rel:'stylesheet', type:'text/css'}
 
   :javascript
     $(document).ready(function() {

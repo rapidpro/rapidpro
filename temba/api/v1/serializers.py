@@ -641,7 +641,7 @@ class ContactBulkActionSerializer(WriteSerializer):
         elif action == self.REMOVE:
             self.group_obj.update_contacts(self.user, contacts, add=False)
         elif action == self.EXPIRE:
-            FlowRun.expire_all_for_contacts(contacts)
+            FlowRun.exit_all_for_contacts(contacts, FlowRun.EXIT_TYPE_EXPIRED)
         elif action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         else:
@@ -877,7 +877,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
                 # otherwise, we can just update that flow
                 else:
                     # set our single message on our flow
-                    self.instance.flow.update_single_message_flow(message=message)
+                    self.instance.flow.update_single_message_flow(message_dict=dict(base=message))
 
             # update our other attributes
             self.instance.offset = offset

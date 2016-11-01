@@ -112,9 +112,7 @@ describe 'Controllers:', ->
         if not modalScope.splitEditor
           modalScope.splitEditor = {}
         modalScope.okRules(modalScope.splitEditor)
-
       $timeout.flush()
-      return ruleset
 
     editAction = (actionset, action, edits) ->
       # open our editor modal so we can save it
@@ -249,6 +247,101 @@ describe 'Controllers:', ->
       lastRule = ruleset.rules[ruleset.rules.length - 1]
       expect(lastRule['test']['type']).toBe('timeout')
       expect(lastRule['test']['minutes']).toBe(10)
+
+    it 'should save group split rulesets', ->
+      loadFavoritesFlow()
+      ruleset = flowService.flow.rule_sets[0]
+
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'group'
+        scope.splitEditor =
+          omnibox:
+            selected:
+              groups: [{name:"Can't Hold Us", id:'group1_uuid'}]
+              variables: []
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.ruleset_type).toBe('group')
+      expect(ruleset.rules.length).toBe(2)
+      expect(ruleset.operand).toBe('@step.value')
+      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"in_group","test":{"name":"Can\'t Hold Us","uuid":"group1_uuid"}}')
+      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"test":"true","type":"true"}')
+
+    it 'should retain destination for group split', ->
+      loadFavoritesFlow()
+
+      ruleset = flowService.flow.rule_sets[0]
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'group'
+        scope.splitEditor =
+          omnibox:
+            selected:
+              groups: [{name:"Can't Hold Us", id:'group1_uuid'}]
+              variables: []
+
+      # set a destination
+      flowService.flow.rule_sets[0].rules[0]['destination'] = flowService.flow.action_sets[1].uuid
+
+      # now edit our rule again
+      ruleset = flowService.flow.rule_sets[0]
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'group'
+        scope.splitEditor =
+          omnibox:
+            selected:
+              groups: [
+                { name:"Can't Hold Us", id:'group1_uuid' }
+                { name:"In the Pines", id:'group2_uuid' }
+                { name:"New Group" }
+              ]
+              variables: []
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(4)
+
+      expect(ruleset.rules[0]['destination']).toBe(flowService.flow.action_sets[1].uuid)
+      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"in_group","test":{"name":"Can\'t Hold Us","uuid":"group1_uuid"}}')
+      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"in_group","test":{"name":"In the Pines","uuid":"group2_uuid"}}')
+      expect(JSON.stringify(ruleset.rules[2].test)).toBe('{"type":"in_group","test":{"name":"New Group"}}')
+      expect(JSON.stringify(ruleset.rules[3].test)).toBe('{"test":"true","type":"true"}')
+
+    it 'should honor order when saving group split', ->
+
+      loadFavoritesFlow()
+      ruleset = flowService.flow.rule_sets[0]
+
+      # now try reordering our rules
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'group'
+        scope.splitEditor =
+          omnibox:
+            selected:
+              groups: [
+                { name:"Can't Hold Us", id:'group1_uuid' }
+                { name:"In the Pines", id:'group2_uuid' }
+              ]
+              variables: []
+
+      ruleset = flowService.flow.rule_sets[0]
+
+      # now try reordering our rules
+      editRules ruleset, (scope) ->
+        scope.ruleset.ruleset_type = 'group'
+        scope.splitEditor =
+          omnibox:
+            selected:
+              groups: [
+                { name:"In the Pines", id:'group2_uuid' }
+                { name:"Can't Hold Us", id:'group1_uuid' }
+              ]
+              variables: []
+
+      ruleset = flowService.flow.rule_sets[0]
+      expect(ruleset.rules.length).toBe(3)
+
+      # check that our order has been swapped
+      expect(JSON.stringify(ruleset.rules[0].test)).toBe('{"type":"in_group","test":{"name":"In the Pines","uuid":"group2_uuid"}}')
+      expect(JSON.stringify(ruleset.rules[1].test)).toBe('{"type":"in_group","test":{"name":"Can\'t Hold Us","uuid":"group1_uuid"}}')
 
     it 'should save random rulesets', ->
       loadFavoritesFlow()

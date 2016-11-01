@@ -24,14 +24,14 @@
                 [[rule._translation.test.from]]
               %input{ng-model:"rule._translation.test.to",auto-complete:"",type:"text",class:"translate-to"}
             .translate-static{ng-hide:'rule._translation.test.from.length'}
-              %span{ng-show:'rule.test.test != "true"'}
+              %span{ng-show:'rule.test.test != "true" && rule.test.type != "in_group"'}
                 [[rule.test.test]]
 
           .translate{ng-if:'ruleset.ruleset_type == "wait_menu" && rule.test.test != "true" && rule.test.test != "interrupted"'}
             .translate-from
               [[rule._translation.label.from]]
             %input{ng-model:"rule._translation.label.to",auto-complete:"",type:"text",class:"translate-to"}
-          .categorize-as{ng-if:'rule.test.test != "true" && rule.test.test != "interrupted"'}
+          .categorize-as{ng-if:'rule.test.test != "true" && rule.test.test != "interrupted" && rule.test.type != "in_group"'}
             -trans "refer to as"
           .translate
             .translate-from
