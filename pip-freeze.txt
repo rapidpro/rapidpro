@@ -58,7 +58,7 @@ isoweek==1.2.0
 jdcal==1.3
 Jinja2==2.7.3
 kombu==3.0.35
-librato-bg==1.0.3
+librato-bg==1.0.5
 librato-metrics==1.0.1
 Markdown==2.4
 MarkupSafe==0.23
