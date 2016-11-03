@@ -252,14 +252,14 @@ def purge_broadcasts_task():
 
     purge_before = timezone.now() - timedelta(days=90)  # 90 days ago
 
-    print("Starting purge broadcasts task...")
+    print("[PURGE] Starting purge broadcasts task...")
 
     # determine which broadcasts are old
     purge_ids = list(Broadcast.objects.filter(created_on__lt=purge_before, purged=False).values_list('pk', flat=True))
     bcasts_purged = 0
     msgs_deleted = 0
 
-    print("Found %d broadcasts created before %s..." % (len(purge_ids), purge_before))
+    print("[PURGE] Found %d broadcasts created before %s..." % (len(purge_ids), purge_before))
 
     for batch_ids in chunk_list(purge_ids, 1000):
         batch_broadcasts = Broadcast.objects.filter(pk__in=batch_ids)
@@ -277,25 +277,33 @@ def purge_broadcasts_task():
 
                 batch_message_ids += list(broadcast.msgs.values_list('id', flat=True))
 
+            print("[PURGE] Gathered topup counts and message list (%d topups, %d messages)..." % (len(batch_topup_counts), len(batch_message_ids)))
+
             # create debit objects for each topup
             for topup_id, msg_count in six.iteritems(batch_topup_counts):
                 Debit.objects.create(topup_id=topup_id, amount=msg_count, debit_type=Debit.TYPE_PURGE)
+
+            print("[PURGE] Created debits for each topup (%d debits)..." % len(batch_topup_counts))
 
             # delete messages in batches to avoid long locks
             for msg_ids_batch in chunk_list(batch_message_ids, 1000):
                 Msg.objects.filter(pk__in=msg_ids_batch).delete()
 
+            print("[PURGE] Deleted messages (%d messages)..." % len(batch_message_ids))
+
             # mark these broadcasts as purged
             batch_broadcasts.update(purged=True)
+
+            print("[PURGE] Updated broadcasts as purged (%d broadcasts)..." % len(batch_ids))
 
         bcasts_purged += len(batch_ids)
         msgs_deleted += len(batch_message_ids)
 
-        print("Purged %d of %d broadcasts (%d messages deleted)..." % (bcasts_purged, len(purge_ids), msgs_deleted))
+        print("[PURGE] Purged %d of %d broadcasts (%d messages deleted)..." % (bcasts_purged, len(purge_ids), msgs_deleted))
 
     Debit.squash_purge_debits()
 
-    print("Purged %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
+    print("[PURGE] Finished purging %d broadcasts older than %s, deleting %d messages" % (len(purge_ids), purge_before, msgs_deleted))
 
 
 @nonoverlapping_task(track_started=True, name="squash_systemlabels")
