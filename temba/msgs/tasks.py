@@ -243,7 +243,7 @@ def handle_event_task():
         raise Exception("Unexpected event type: %s" % event_task)
 
 
-@nonoverlapping_task(track_started=True, name='purge_broadcasts_task')
+@nonoverlapping_task(track_started=True, name='purge_broadcasts_task', time_limit=60 * 60 * 36)
 def purge_broadcasts_task():
     """
     Looks for broadcasts older than 90 days and marks their messages as purged
@@ -252,9 +252,13 @@ def purge_broadcasts_task():
 
     purge_before = timezone.now() - timedelta(days=90)  # 90 days ago
 
+    print("Starting purge broadcasts task...")
+
     # determine which broadcasts are old
     purge_ids = list(Broadcast.objects.filter(created_on__lt=purge_before, purged=False).values_list('pk', flat=True))
     msgs_deleted = 0
+
+    print("Found %d broadcasts created before %s..." % (len(purge_ids), purge_before))
 
     for batch_ids in chunk_list(purge_ids, 1000):
         batch_broadcasts = Broadcast.objects.filter(pk__in=batch_ids)
