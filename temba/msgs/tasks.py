@@ -256,6 +256,7 @@ def purge_broadcasts_task():
 
     # determine which broadcasts are old
     purge_ids = list(Broadcast.objects.filter(created_on__lt=purge_before, purged=False).values_list('pk', flat=True))
+    bcasts_purged = 0
     msgs_deleted = 0
 
     print("Found %d broadcasts created before %s..." % (len(purge_ids), purge_before))
@@ -287,7 +288,10 @@ def purge_broadcasts_task():
             # mark these broadcasts as purged
             batch_broadcasts.update(purged=True)
 
+        bcasts_purged += len(batch_ids)
         msgs_deleted += len(batch_message_ids)
+
+        print("Purged %d of %d broadcasts (%d messages deleted)..." % (bcasts_purged, len(purge_ids), msgs_deleted))
 
     Debit.squash_purge_debits()
 
