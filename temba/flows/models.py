@@ -2579,10 +2579,17 @@ class FlowRun(models.Model):
         """
         runs = runs.filter(parent__flow__is_active=True, parent__flow__is_archived=False)
         for run in runs:
+
             steps = run.parent.steps.filter(left_on=None, step_type=FlowStep.TYPE_RULE_SET)
             step = steps.select_related('run', 'run__flow', 'run__contact', 'run__flow__org').first()
 
             if step:
+
+                # if our child was interrupted, so shall we be
+                if run.exit_type == FlowRun.EXIT_TYPE_INTERRUPTED and run.contact.id == step.run.contact.id:
+                    FlowRun.bulk_exit([step.run], FlowRun.EXIT_TYPE_INTERRUPTED)
+                    return
+
                 ruleset = RuleSet.objects.filter(uuid=step.step_uuid, ruleset_type=RuleSet.TYPE_SUBFLOW, flow__org=step.run.org).first()
                 if ruleset:
                     # use the last incoming message on this step
@@ -2774,7 +2781,6 @@ class FlowRun(models.Model):
         media = None
         if recording_url:
             media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
-            text = recording_url
 
         msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
                                   response_to=response_to, media=media,
@@ -5386,11 +5392,16 @@ class SaveToContactAction(Action):
                         new_value = new_value[1:]
 
             # only valid urns get added, sorry
-            new_urn = URN.normalize(URN.from_parts(scheme, new_value))
-            if not URN.validate(new_urn, contact.org.get_country_code()):
-                new_urn = None
+            new_urn = None
+            if new_value:
+                new_urn = URN.normalize(URN.from_parts(scheme, new_value))
+                if not URN.validate(new_urn, contact.org.get_country_code()):
+                    new_urn = False
+                    if contact.is_test:
+                        ActionLog.warn(run, _('Contact not updated, invalid connection for contact (%s:%s)' % (scheme, new_value)))
+            else:
                 if contact.is_test:
-                    ActionLog.warn(run, _('Skipping invalid connection for contact (%s:%s)' % (scheme, new_value)))
+                    ActionLog.warn(run, _('Contact not updated, missing connection for contact'))
 
             if new_urn:
                 urns = [urn.urn for urn in contact.urns.all()]

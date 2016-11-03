@@ -20,7 +20,7 @@ from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEven
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField, URN
-from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
+from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
@@ -2133,6 +2133,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
      * **type** - the type of the message (one of "inbox", "flow", "ivr").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
+     * **media** - the media if set for a message (ie, the recording played for IVR messages, audio-xwav:http://domain.com/recording.wav)
      * **visibility** - the visibility of the message (one of "visible", "archived" or "deleted")
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple physical messages.
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
@@ -2167,6 +2168,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "status": "wired",
                 "visibility": "visible",
                 "text": "How are you?",
+                "media": "wav:http://domain.com/recording.wav"
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
                 "sent_on": "2016-01-06T15:35:03.675716Z",
@@ -2781,12 +2783,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
             Prefetch('values'),
-            Prefetch('values__ruleset'),
-
-            # TODO remove
-            Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
-            Prefetch('steps__messages', queryset=Msg.objects.only('broadcast', 'text')),
-            Prefetch('steps__broadcasts', queryset=Broadcast.objects.all()),
+            Prefetch('values__ruleset', queryset=RuleSet.objects.only('uuid', 'label')),
+            Prefetch('steps', queryset=FlowStep.objects.only('run', 'step_uuid', 'arrived_on').order_by('arrived_on'))
         )
 
         return self.filter_before_after(queryset, 'modified_on')

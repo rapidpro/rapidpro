@@ -438,6 +438,18 @@ class OrgTest(TembaTest):
         self.org.refresh_from_db()
         self.assertEqual('unique password', self.org.surveyor_password)
 
+        # add an extra editor
+        editor = self.create_user('EditorTwo')
+        self.org.editors.add(editor)
+        self.surveyor.delete()
+
+        # fetch it as a formax so we can inspect the summary
+        response = self.client.get(url, HTTP_X_FORMAX=1, HTTP_X_PJAX=1)
+        self.assertContains(response, '1 Administrator')
+        self.assertContains(response, '2 Editors')
+        self.assertContains(response, '1 Viewer')
+        self.assertContains(response, '0 Surveyors')
+
     def test_refresh_tokens(self):
         self.login(self.admin)
         url = reverse('orgs.org_home')
@@ -2393,6 +2405,26 @@ class BulkExportTest(TembaTest):
 
             # trigger import failed, new flows that were added should get rolled back
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
+
+    def test_import_campaign_with_translations(self):
+
+        # import all our bits
+        self.import_file('campaign_import_with_translations')
+
+        campaign = Campaign.objects.all().first()
+        event = campaign.events.all().first()
+
+        action_set = event.flow.action_sets.order_by('-y').first()
+        actions = action_set.get_actions_dict()
+        action_msg = actions[0]['msg']
+
+        event_msg = json.loads(event.message)
+
+        self.assertEquals(event_msg['swa'], 'hello')
+        self.assertEquals(event_msg['eng'], 'Hey')
+
+        self.assertEquals(action_msg['swa'], 'hello')
+        self.assertEquals(action_msg['eng'], 'Hey')
 
     def test_export_import(self):
 
