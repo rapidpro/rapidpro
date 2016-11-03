@@ -20,7 +20,7 @@ from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEven
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField, URN
-from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
+from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
@@ -2783,12 +2783,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
             Prefetch('values'),
-            Prefetch('values__ruleset'),
-
-            # TODO remove
-            Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
-            Prefetch('steps__messages', queryset=Msg.objects.only('broadcast', 'text')),
-            Prefetch('steps__broadcasts', queryset=Broadcast.objects.all()),
+            Prefetch('values__ruleset', queryset=RuleSet.objects.only('uuid', 'label')),
+            Prefetch('steps', queryset=FlowStep.objects.only('run', 'step_uuid', 'arrived_on').order_by('arrived_on'))
         )
 
         return self.filter_before_after(queryset, 'modified_on')
