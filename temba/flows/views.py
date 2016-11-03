@@ -154,11 +154,8 @@ class FlowActionMixin(SmartListView):
 
 
 class RuleCRUDL(SmartCRUDL):
-    actions = ('results', 'analytics', 'map', 'choropleth')
+    actions = ('results', 'analytics', 'choropleth')
     model = RuleSet
-
-    class Map(OrgPermsMixin, SmartReadView):
-        pass
 
     class Results(OrgPermsMixin, SmartReadView):
 

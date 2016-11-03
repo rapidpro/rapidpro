@@ -1382,14 +1382,11 @@ class APITest(TembaTest):
 
         # all flow dependencies and we should get the child flow
         response = self.fetchJSON(url, 'flow=%s' % flow.uuid)
-        self.assertEqual(len(response.json['flows']), 2)
-        self.assertEqual(response.json['flows'][0]['metadata']['name'], "Parent Flow")
-        self.assertEqual(response.json['flows'][1]['metadata']['name'], "Child Flow")
+        self.assertEqual({f['metadata']['name'] for f in response.json['flows']}, {"Parent Flow", "Child Flow"})
 
         # export just the parent flow
         response = self.fetchJSON(url, 'flow=%s&dependencies=false' % flow.uuid)
-        self.assertEqual(len(response.json['flows']), 1)
-        self.assertEqual(response.json['flows'][0]['metadata']['name'], "Parent Flow")
+        self.assertEqual({f['metadata']['name'] for f in response.json['flows']}, {"Parent Flow"})
 
         # import the clinic app which has campaigns
         self.import_file('the_clinic')
@@ -1978,7 +1975,7 @@ class APITest(TembaTest):
         frank_run2.refresh_from_db()
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 7):
             response = self.fetchJSON(url)
 
         self.assertEqual(response.status_code, 200)
@@ -1987,9 +1984,6 @@ class APITest(TembaTest):
 
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
         frank_run2_steps = list(frank_run2.steps.order_by('pk'))
-
-        joe_msgs = list(Msg.objects.filter(contact=self.joe).order_by('pk'))
-        frank_msgs = list(Msg.objects.filter(contact=self.frank).order_by('pk'))
 
         self.assertEqual(response.json['results'][2], {
             'id': frank_run2.pk,
@@ -2001,34 +1995,6 @@ class APITest(TembaTest):
                 {'node': "00000000-00000000-00000000-00000005", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
             ],
             'values': {},
-            'steps': [
-                {
-                    'node': "00000000-00000000-00000000-00000001",
-                    'arrived_on': format_datetime(frank_run2_steps[0].arrived_on),
-                    'left_on': format_datetime(frank_run2_steps[0].left_on),
-                    'messages': [
-                        {
-                            'id': frank_msgs[3].id,
-                            'broadcast': frank_msgs[3].broadcast_id,
-                            'text': "Quelle est votre couleur préférée?"
-                        }
-                    ],
-                    'text': "Quelle est votre couleur préférée?",
-                    'value': None,
-                    'category': None,
-                    'type': 'actionset'
-                },
-                {
-                    'node': "00000000-00000000-00000000-00000005",
-                    'arrived_on': format_datetime(frank_run2_steps[1].arrived_on),
-                    'left_on': None,
-                    'messages': [],
-                    'text': None,
-                    'value': None,
-                    'category': None,
-                    'type': 'ruleset'
-                }
-            ],
             'created_on': format_datetime(frank_run2.created_on),
             'modified_on': format_datetime(frank_run2.modified_on),
             'exited_on': None,
@@ -2052,56 +2018,6 @@ class APITest(TembaTest):
                     'time': format_datetime(self.joe.values.get(ruleset__uuid="00000000-00000000-00000000-00000005").modified_on)
                 }
             },
-            'steps': [
-                {
-                    'node': "00000000-00000000-00000000-00000001",
-                    'arrived_on': format_datetime(joe_run1_steps[0].arrived_on),
-                    'left_on': format_datetime(joe_run1_steps[0].left_on),
-                    'messages': [
-                        {
-                            'id': joe_msgs[0].id,
-                            'broadcast': joe_msgs[0].broadcast_id,
-                            'text': "What is your favorite color?"
-                        }
-                    ],
-                    'text': "What is your favorite color?",
-                    'value': None,
-                    'category': None,
-                    'type': 'actionset'
-                },
-                {
-                    'node': "00000000-00000000-00000000-00000005",
-                    'arrived_on': format_datetime(joe_run1_steps[1].arrived_on),
-                    'left_on': format_datetime(joe_run1_steps[1].left_on),
-                    'messages': [
-                        {
-                            'id': joe_msgs[1].id,
-                            'broadcast': joe_msgs[1].broadcast_id,
-                            'text': "it is blue"
-                        }
-                    ],
-                    'text': "it is blue",
-                    'value': 'blue',
-                    'category': "Blue",
-                    'type': 'ruleset'
-                },
-                {
-                    'node': "00000000-00000000-00000000-00000003",
-                    'arrived_on': format_datetime(joe_run1_steps[2].arrived_on),
-                    'left_on': format_datetime(joe_run1_steps[2].left_on),
-                    'messages': [
-                        {
-                            'id': joe_msgs[2].id,
-                            'broadcast': joe_msgs[2].broadcast_id,
-                            'text': "Blue is sad. :("
-                        }
-                    ],
-                    'text': "Blue is sad. :(",
-                    'value': None,
-                    'category': None,
-                    'type': 'actionset'
-                }
-            ],
             'created_on': format_datetime(joe_run1.created_on),
             'modified_on': format_datetime(joe_run1.modified_on),
             'exited_on': format_datetime(joe_run1.exited_on),
@@ -2111,18 +2027,6 @@ class APITest(TembaTest):
         # check when all broadcasts have been purged
         Broadcast.objects.all().update(purged=True)
         Msg.objects.filter(direction='O').delete()
-
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 11):
-            response = self.fetchJSON(url)
-
-        self.assertEqual(response.json['results'][2]['steps'][0]['messages'], [
-            {
-                'id': None,
-                'broadcast': frank_msgs[3].broadcast_id,
-                'text': "Quelle est votre couleur préférée?"
-            }
-        ])
-        self.assertEqual(response.json['results'][2]['steps'][0]['text'], "Quelle est votre couleur préférée?")
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)

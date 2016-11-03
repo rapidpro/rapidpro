@@ -76,9 +76,8 @@
 -block extra-script
   {{ block.super }}
 
-  <script type="text/javascript" charset="utf8" src="{{ STATIC_URL }}js/jquery.dataTables.min.js"></script>
-  <script src="{{ STATIC_URL }}js/highcharts.js?v=3.0"></script>
-  <script src="{{ STATIC_URL }}js/highcharts-theme.js?v=2"></script>
+  <script type="text/javascript" charset="utf8" src="{{ STATIC_URL }}bower/DataTables/media/js/jquery.dataTables.js"></script>
+  <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js?v=3.0"></script>
 
   :javascript
     function exportFlow(){
@@ -262,7 +261,7 @@
 
 
 -block extra-less
-  <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}css/datatables/jquery.dataTables.css">
+  <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}bower/DataTables/media/css/jquery.dataTables.css">
 
   -compress css inline
     {% lessblock %}
