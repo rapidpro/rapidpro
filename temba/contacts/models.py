@@ -2075,7 +2075,7 @@ class ContactGroup(TembaModel):
         self.query_fields.clear()
 
         for match in regex.finditer(r'\w+', self.query, regex.V0):
-            field = ContactField.objects.filter(key=match.group(), org=self.org, is_active=True).first()
+            field = ContactField.objects.filter(key__iexact=match.group(), org=self.org, is_active=True).first()
             if field:
                 self.query_fields.add(field)
 
