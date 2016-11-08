@@ -12,7 +12,7 @@ from django_redis import get_redis_connection
 from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
-from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
 from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
@@ -1310,18 +1310,21 @@ class BroadcastTest(TembaTest):
         self.assertFalse(sms_to_kevin.has_template_error)
 
     def test_purge(self):
+        today = timezone.now().date()
+        long_ago = timezone.now() - timedelta(days=100)
+
         # create an old broadcast which is a response to an incoming message
         incoming = self.create_msg(contact=self.joe, direction='I', text="Hello")
         broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
         broadcast1.send(trigger_send=False, response_to=incoming)
-        broadcast1.created_on = timezone.now() - timedelta(days=100)
+        broadcast1.created_on = long_ago
         broadcast1.save()
 
         # create an old broadcast which is to several contacts
         broadcast2 = Broadcast.create(self.org, self.user, "Very old broadcast",
                                       [self.joe_and_frank, self.kevin, self.lucy])
         broadcast2.send(trigger_send=False)
-        broadcast2.created_on = timezone.now() - timedelta(days=100)
+        broadcast2.created_on = long_ago
         broadcast2.save()
 
         # create a recent broadcast to same contacts
@@ -1335,8 +1338,12 @@ class BroadcastTest(TembaTest):
         hans = self.create_contact("Hans", "1234567")
         broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for other org", [hans])
         broadcast4.send(trigger_send=False)
-        broadcast4.created_on = timezone.now() - timedelta(days=100)
+        broadcast4.created_on = long_ago
         broadcast4.save()
+
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 9)
+        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 7)
+        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 2)
 
         purge_broadcasts_task()
 
@@ -1362,12 +1369,21 @@ class BroadcastTest(TembaTest):
         debit2 = Debit.objects.get(topup__org=self.org2)
         self.assertEqual(debit2.amount, 1)
 
+        # check system label counts have been updated
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 4)
+
+        # but daily channel counts should be unchanged
+        self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 7)
+        self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 2)
+
         # create another old broadcast
         broadcast5 = Broadcast.create(self.org, self.admin, "Another old broadcast",
                                       [self.joe_and_frank, self.kevin, self.lucy])
         broadcast5.send(trigger_send=False)
         broadcast5.created_on = timezone.now() - timedelta(days=100)
         broadcast5.save()
+
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 8)
 
         purge_broadcasts_task()
 
@@ -1376,6 +1392,8 @@ class BroadcastTest(TembaTest):
 
         # check debits were created and squashed
         self.assertEqual(Debit.objects.get(topup__org=self.org).amount, 9)
+
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 4)
 
     def test_clear_old_msg_external_ids(self):
         last_month = timezone.now() - timedelta(days=31)
