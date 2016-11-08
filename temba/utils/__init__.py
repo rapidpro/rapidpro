@@ -500,14 +500,14 @@ def get_country_code_by_name(name):
     return code if code else None
 
 
-def remove_control_characters(str):
-    if str is None:
-        return str
+def clean_string(string_text):
+    if string_text is None:
+        return string_text
 
     rexp = regex.compile(r'[\000-\010]|[\013-\014]|[\016-\037]', flags=regex.MULTILINE | regex.UNICODE | regex.V0)
 
     matches = 1
     while matches:
-        (str, matches) = rexp.subn('', str)
+        (string_text, matches) = rexp.subn('', string_text)
 
-    return str
+    return string_text

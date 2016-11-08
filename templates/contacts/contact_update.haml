@@ -86,7 +86,7 @@
       %select#id-urn-scheme{name:'new_scheme', float:'left'}
         -for key, value in schemes
           <option value='{{key}}' {% if form.data.new_scheme == key %}selected{%endif%}>{{value}}</option>
-      %input{name:'new_path', type:'text', style:'margin-left:5px;width:347px', value:'{{form.data.new_path}}'}
+      %input{name:'new_path', type:'text', style:'margin-left:5px;width:345px', value:'{{form.data.new_path}}'}
 
       %p.help-block
         Add a new way connect with this contact

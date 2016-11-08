@@ -25,6 +25,7 @@ static/coffee/flows.js
 static/coffee/simulator.js
 static/coffee/temba.js
 static/coffee/formax.js
+static/bower
 static/javascripts/
 temba/settings.py
 temba/smartmin

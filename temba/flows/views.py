@@ -131,18 +131,31 @@ class FlowActionMixin(SmartListView):
 
         form = FlowActionForm(self.request.POST, org=org, user=user)
 
+        toast = None
+        ignored = []
         if form.is_valid():
-            form.execute()
+            changed = form.execute().get('changed')
+            for flow in form.cleaned_data['objects']:
+                if flow.id not in changed:
+                    ignored.append(flow.name)
 
-        return self.get(request, *args, **kwargs)
+            if form.cleaned_data['action'] == 'archive' and ignored:
+                if len(ignored) > 1:
+                    toast = _('%s are used inside a campaign. To archive them, first remove them from your campaigns.' % ' and '.join(ignored))
+                else:
+                    toast = _('%s is used inside a campaign. To archive it, first remove it from your campaigns.' % ignored[0])
+
+        response = self.get(request, *args, **kwargs)
+
+        if toast:
+            response['Temba-Toast'] = toast
+
+        return response
 
 
 class RuleCRUDL(SmartCRUDL):
-    actions = ('results', 'analytics', 'map', 'choropleth')
+    actions = ('results', 'analytics', 'choropleth')
     model = RuleSet
-
-    class Map(OrgPermsMixin, SmartReadView):
-        pass
 
     class Results(OrgPermsMixin, SmartReadView):
 
@@ -331,7 +344,7 @@ class PartialTemplate(SmartTemplateView):
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
                'upload_action_recording', 'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter',
-               'completion', 'revisions', 'recent_messages')
+               'campaign', 'completion', 'revisions', 'recent_messages')
 
     model = Flow
 
@@ -481,10 +494,11 @@ class FlowCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            # create triggers for this flow only if there are keywords
-            if len(self.form.cleaned_data['keyword_triggers']) > 0:
-                for keyword in self.form.cleaned_data['keyword_triggers'].split(','):
-                    Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
+            # create triggers for this flow only if there are keywords and we aren't a survey
+            if self.form.cleaned_data.get('flow_type') != Flow.SURVEY:
+                if len(self.form.cleaned_data['keyword_triggers']) > 0:
+                    for keyword in self.form.cleaned_data['keyword_triggers'].split(','):
+                        Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
 
             return obj
 
@@ -514,11 +528,6 @@ class FlowCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class FlowUpdateForm(BaseFlowForm):
-            keyword_triggers = forms.CharField(
-                required=False,
-                label=_("Global keyword triggers"),
-                help_text=_("When a user sends any of these keywords they will begin this flow")
-            )
 
             def __init__(self, user, *args, **kwargs):
                 super(FlowCRUDL.Update.FlowUpdateForm, self).__init__(*args, **kwargs)
@@ -548,15 +557,18 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
                     self.fields[Flow.CONTACT_CREATION] = contact_creation
-
-                self.fields['keyword_triggers'].initial = ','.join([t.keyword for t in flow_triggers])
+                else:
+                    self.fields['keyword_triggers'] = forms.CharField(required=False,
+                                                                      label=_("Global keyword triggers"),
+                                                                      help_text=_("When a user sends any of these keywords they will begin this flow"),
+                                                                      initial=','.join([t.keyword for t in flow_triggers]))
 
             class Meta:
                 model = Flow
-                fields = ('name', 'keyword_triggers', 'labels', 'base_language', 'expires_after_minutes', 'ignore_triggers')
+                fields = ('name', 'labels', 'base_language', 'expires_after_minutes', 'ignore_triggers')
 
         success_message = ''
-        fields = ('name', 'keyword_triggers', 'expires_after_minutes', 'ignore_triggers')
+        fields = ('name', 'expires_after_minutes')
         form_class = FlowUpdateForm
 
         def derive_fields(self):
@@ -568,6 +580,9 @@ class FlowCRUDL(SmartCRUDL):
 
             if obj.flow_type == Flow.SURVEY:
                 fields.insert(len(fields) - 1, Flow.CONTACT_CREATION)
+            else:
+                fields.insert(1, 'keyword_triggers')
+                fields.append('ignore_triggers')
 
             return fields
 
@@ -589,28 +604,31 @@ class FlowCRUDL(SmartCRUDL):
             keywords = set()
             user = self.request.user
             org = user.get_org()
-            existing_keywords = set(t.keyword for t in obj.triggers.filter(org=org, flow=obj,
-                                                                           trigger_type=Trigger.TYPE_KEYWORD,
-                                                                           is_archived=False, groups=None))
 
-            if len(self.form.cleaned_data['keyword_triggers']) > 0:
-                keywords = set(self.form.cleaned_data['keyword_triggers'].split(','))
+            if 'keyword_triggers' in self.form.cleaned_data:
 
-            removed_keywords = existing_keywords.difference(keywords)
-            for keyword in removed_keywords:
-                obj.triggers.filter(org=org, flow=obj, keyword=keyword,
-                                    groups=None, is_archived=False).update(is_archived=True)
+                existing_keywords = set(t.keyword for t in obj.triggers.filter(org=org, flow=obj,
+                                                                               trigger_type=Trigger.TYPE_KEYWORD,
+                                                                               is_archived=False, groups=None))
 
-            added_keywords = keywords.difference(existing_keywords)
-            archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, trigger_type=Trigger.TYPE_KEYWORD,
-                                                                        is_archived=True, groups=None)]
-            for keyword in added_keywords:
-                # first check if the added keyword is not amongst archived
-                if keyword in archived_keywords:
-                    obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None).update(is_archived=False)
-                else:
-                    Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
-                                           flow=obj, created_by=user, modified_by=user)
+                if len(self.form.cleaned_data['keyword_triggers']) > 0:
+                    keywords = set(self.form.cleaned_data['keyword_triggers'].split(','))
+
+                removed_keywords = existing_keywords.difference(keywords)
+                for keyword in removed_keywords:
+                    obj.triggers.filter(org=org, flow=obj, keyword=keyword,
+                                        groups=None, is_archived=False).update(is_archived=True)
+
+                added_keywords = keywords.difference(existing_keywords)
+                archived_keywords = [t.keyword for t in obj.triggers.filter(org=org, flow=obj, trigger_type=Trigger.TYPE_KEYWORD,
+                                                                            is_archived=True, groups=None)]
+                for keyword in added_keywords:
+                    # first check if the added keyword is not amongst archived
+                    if keyword in archived_keywords:
+                        obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None).update(is_archived=False)
+                    else:
+                        Trigger.objects.create(org=org, keyword=keyword, trigger_type=Trigger.TYPE_KEYWORD,
+                                               flow=obj, created_by=user, modified_by=user)
 
             # run async task to update all runs
             from .tasks import update_run_expirations_task
@@ -640,9 +658,17 @@ class FlowCRUDL(SmartCRUDL):
             context['org_has_flows'] = Flow.objects.filter(org=self.request.user.get_org(), is_active=True).count()
             context['folders'] = self.get_folders()
             context['labels'] = self.get_flow_labels()
+            context['campaigns'] = self.get_campaigns()
             context['request_url'] = self.request.path
             context['actions'] = self.actions
             return context
+
+        def get_campaigns(self):
+            from temba.campaigns.models import CampaignEvent
+            org = self.request.user.get_org()
+            events = CampaignEvent.objects.filter(campaign__org=org, is_active=True, campaign__is_active=True,
+                                                  flow__is_archived=False, flow__is_active=True, flow__flow_type=Flow.FLOW)
+            return events.values('campaign__name', 'campaign__id').annotate(count=Count('id')).order_by('campaign__name')
 
         def get_flow_labels(self):
             labels = []
@@ -676,6 +702,38 @@ class FlowCRUDL(SmartCRUDL):
             if types:
                 queryset = queryset.filter(flow_type__in=types)
             return queryset
+
+    class Campaign(BaseList):
+        actions = ['label']
+        campaign = None
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r'^%s/%s/(?P<campaign_id>\d+)/$' % (path, action)
+
+        def derive_title(self, *args, **kwargs):
+            return self.get_campaign().name
+
+        def get_campaign(self):
+            if not self.campaign:
+                from temba.campaigns.models import Campaign
+                campaign_id = self.kwargs['campaign_id']
+                self.campaign = Campaign.objects.filter(id=campaign_id).first()
+            return self.campaign
+
+        def get_queryset(self, **kwargs):
+            from temba.campaigns.models import CampaignEvent
+            flow_ids = CampaignEvent.objects.filter(campaign=self.get_campaign(),
+                                                    flow__is_archived=False,
+                                                    flow__flow_type=Flow.FLOW).values('flow__id')
+
+            flows = Flow.objects.filter(id__in=flow_ids).order_by('-modified_on')
+            return flows
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(FlowCRUDL.Campaign, self).get_context_data(*args, **kwargs)
+            context['current_campaign'] = self.get_campaign()
+            return context
 
     class Filter(BaseList):
         add_button = True

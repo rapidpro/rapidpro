@@ -2,8 +2,8 @@ from __future__ import unicode_literals
 
 from datetime import timedelta
 from django.utils import timezone
+from django_redis import get_redis_connection
 from djcelery_transactions import task
-from redis_cache import get_redis_connection
 from .models import WebHookEvent, WebHookResult, COMPLETE, FAILED, ERRORED, PENDING
 
 

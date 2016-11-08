@@ -7,9 +7,9 @@ import time
 from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
+from django_redis import get_redis_connection
 from djcelery_transactions import task
 from enum import Enum
-from redis_cache import get_redis_connection
 from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
 from temba.utils.queues import pop_task, push_task, nonoverlapping_task
@@ -70,19 +70,13 @@ def send_msg_task():
             push_task(msg_tasks[0]['org'], MSG_QUEUE, SEND_MSG_TASK, msg_tasks)
 
 
-@task(track_started=True, name='check_channels_task')
+@nonoverlapping_task(track_started=True, name='check_channels_task', lock_key='check_channels')
 def check_channels_task():
     """
     Run every 30 minutes.  Checks if any channels who are active have not been seen in that
     time.  Triggers alert in that case
     """
-    r = get_redis_connection()
-
-    # only do this if we aren't already checking campaigns
-    key = 'check_channels'
-    if not r.get(key):
-        with r.lock(key, timeout=300):
-            Alert.check_alerts()
+    Alert.check_alerts()
 
 
 @task(track_started=True, name='send_alert_task')
@@ -124,14 +118,9 @@ def notify_mage_task(channel_uuid, action):
         raise ValueError('Invalid action: %s' % action)
 
 
-@task(track_started=True, name="squash_channelcounts")
+@nonoverlapping_task(track_started=True, name="squash_channelcounts", lock_key='squash_channelcounts')
 def squash_channelcounts():
-    r = get_redis_connection()
-
-    key = 'squash_channelcounts'
-    if not r.get(key):
-        with r.lock(key, timeout=900):
-            ChannelCount.squash_counts()
+    ChannelCount.squash_counts()
 
 
 @task(track_started=True, name="fb_channel_subscribe")
