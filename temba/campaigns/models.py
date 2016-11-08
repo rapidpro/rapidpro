@@ -215,7 +215,8 @@ class Campaign(TembaModel):
         events = list(self.events.filter(is_active=True))
 
         for evt in events:
-            evt.flow.ensure_current_version()
+            if evt.flow.flow_type == Flow.MESSAGE:
+                evt.flow.ensure_current_version()
 
         return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
 

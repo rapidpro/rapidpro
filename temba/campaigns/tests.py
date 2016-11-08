@@ -66,7 +66,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3])
 
         flow_json = self.get_flow_json('call_me_maybe')['definition']
-        flow = Flow.create_instance(dict(name='Call Me Maybe', org=self.org,
+        flow = Flow.create_instance(dict(name='Call Me Maybe', org=self.org, flow_type=Flow.MESSAGE,
                                          created_by=self.admin, modified_by=self.admin,
                                          saved_by=self.admin, version_number=3))
 
@@ -77,8 +77,10 @@ class CampaignTest(TembaTest):
         event4 = CampaignEvent.create_flow_event(self.org, self.admin, campaign, self.planting_date,
                                                  offset=2, unit='W', flow=flow, delivery_hour='5')
 
+        self.assertEquals(flow.version_number, 3)
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3, event4])
         flow.refresh_from_db()
+        self.assertNotEquals(flow.version_number, 3)
         self.assertEquals(flow.version_number, CURRENT_EXPORT_VERSION)
 
     def test_message_event(self):
