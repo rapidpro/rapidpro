@@ -16,7 +16,8 @@ install:
 - pip --version
 - pip install -r pip-freeze.txt --upgrade
 - pip install coveralls
-- npm install
+- npm update
+- npm list -g --depth=0
 - bower install
 before_script:
 - psql -U postgres -c "CREATE USER temba WITH PASSWORD 'temba';"
