@@ -771,4 +771,7 @@
 .icon-facebook-official:before {
   content: "\e902";
 }
+.icon-fcm:before {
+  content: "\e905";
+}
 

@@ -61,6 +61,7 @@ class Channel(TembaModel):
     TYPE_CLICKATELL = 'CT'
     TYPE_EXTERNAL = 'EX'
     TYPE_FACEBOOK = 'FB'
+    TYPE_FCM = 'FCM'
     TYPE_GLOBE = 'GL'
     TYPE_HIGH_CONNECTION = 'HX'
     TYPE_HUB9 = 'H9'
@@ -103,6 +104,8 @@ class Channel(TembaModel):
     CONFIG_PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
     CONFIG_PLIVO_APP_ID = 'PLIVO_APP_ID'
     CONFIG_AUTH_TOKEN = 'auth_token'
+    CONFIG_FCM_KEY = 'FCM_KEY'
+    CONFIG_FCM_TITLE = 'FCM_TITLE'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -140,6 +143,7 @@ class Channel(TembaModel):
         TYPE_CLICKATELL: dict(scheme='tel', max_length=420),
         TYPE_EXTERNAL: dict(max_length=160),
         TYPE_FACEBOOK: dict(scheme='facebook', max_length=320),
+        TYPE_FCM: dict(scheme='fcm', max_length=10000),
         TYPE_GLOBE: dict(scheme='tel', max_length=160),
         TYPE_HIGH_CONNECTION: dict(scheme='tel', max_length=320),
         TYPE_HUB9: dict(scheme='tel', max_length=1600),
@@ -172,6 +176,7 @@ class Channel(TembaModel):
                     (TYPE_CLICKATELL, "Clickatell"),
                     (TYPE_EXTERNAL, "External"),
                     (TYPE_FACEBOOK, "Facebook"),
+                    (TYPE_FCM, "Firebase Cloud Messaging"),
                     (TYPE_GLOBE, "Globe Labs"),
                     (TYPE_HIGH_CONNECTION, "High Connection"),
                     (TYPE_HUB9, "Hub9"),
@@ -312,6 +317,23 @@ class Channel(TembaModel):
     @classmethod
     def add_viber_channel(cls, org, user, name):
         return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
+
+    @classmethod
+    def add_fcm_channel(cls, org, user, data):
+        """
+        Creates a new Firebase Cloud Messaging channel
+        """
+        from temba.contacts.models import FCM_SCHEME
+
+        assert Channel.CONFIG_FCM_KEY in data and Channel.CONFIG_FCM_TITLE in data, "%s and %s are required" % (Channel.CONFIG_FCM_KEY, Channel.CONFIG_FCM_TITLE)
+
+        existing = Channel.objects.filter(is_active=True, org=org, channel_type=Channel.TYPE_FCM).first()
+        if existing:
+            existing.config = json.dumps(data)
+            existing.save(update_fields=('config',))
+            return existing
+        else:
+            return Channel.create(org, user, None, Channel.TYPE_FCM, name=org.name, address="fcm-%s" % org.slug, config=data, scheme=FCM_SCHEME)
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
@@ -1071,6 +1093,43 @@ class Channel(TembaModel):
             url = url.replace("{{%s}}" % key, quote_plus(unicode(variables[key]).encode('utf-8')))
 
         return url
+
+    @classmethod
+    def send_fcm_message(cls, channel, msg, text):
+        from temba.msgs.models import Msg, WIRED
+        start = time.time()
+
+        api_key = channel.config.get(Channel.CONFIG_FCM_KEY) if Channel.CONFIG_FCM_KEY in channel.config else None
+
+        if api_key:
+            url = 'https://fcm.googleapis.com/fcm/send'
+            title = channel.config.get(Channel.CONFIG_FCM_TITLE)
+            data_message = {'type': 'rapidpro', 'title': title, 'message': text, 'message_id': msg.id}
+            payload = json.dumps({
+                'data': data_message,
+                'content_available': True,
+                'to': msg.urn_path,
+                'notification': {
+                    "title": title,
+                    'body': data_message['message']
+                },
+                'priority': 'high'
+            })
+            try:
+                headers = {'Content-Type': 'application/json', 'Authorization': 'key=%s' % api_key}
+                headers.update(TEMBA_HEADERS)
+                response = requests.post(url, data=payload, headers=headers, timeout=5)
+                result = json.loads(response.content)
+                if response.status_code == 200 and 'success' in result and result['success'] == 1:
+                    external_id = result.get('multicast_id')
+                    Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=external_id)
+                    ChannelLog.log_success(msg, "Successfully delivered message")
+                else:
+                    ChannelLog.log_error(msg, "Failed to send message")
+            except Exception as e:
+                ChannelLog.log_error(msg, e)
+        else:
+            ChannelLog.log_error(msg, "FCM key not found.")
 
     @classmethod
     def send_jasmin_message(cls, channel, msg, text):
@@ -2772,6 +2831,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
                   Channel.TYPE_FACEBOOK: Channel.send_facebook_message,
+                  Channel.TYPE_FCM: Channel.send_fcm_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
                   Channel.TYPE_HUB9: Channel.send_hub9_message,

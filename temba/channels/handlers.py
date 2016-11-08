@@ -1988,3 +1988,37 @@ class ViberHandler(View):
 
         else:  # pragma: no cover
             return HttpResponse("Not handled, unknown action", status=400)
+
+
+class FCMHandler(View):
+    @disable_middleware
+    def dispatch(self, *args, **kwargs):
+        return super(FCMHandler, self).dispatch(*args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+
+        channel_uuid = kwargs['uuid']
+
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_FCM).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
+
+        if 'from' not in request.REQUEST or 'msg' not in request.REQUEST:
+            return HttpResponse("Missing parameters, requires 'from' and 'msg'", status=400)
+
+        try:
+            date = request.REQUEST.get('date', request.REQUEST.get('time', None))
+            if date:
+                date = json_date_to_datetime(date)
+
+            fcm_urn = URN.from_fcm(request.REQUEST['from'])
+            contact = Contact.get_or_create(channel.org, channel.created_by, name=request.REQUEST.get('name', None), urns=[fcm_urn], channel=channel)
+
+            sms = Msg.create_incoming(channel, fcm_urn, request.REQUEST['msg'], date=date, contact=contact)
+            return HttpResponse("Msg Accepted: %d" % sms.id)
+        except Exception as e:
+            return HttpResponse(e.args, status=400)

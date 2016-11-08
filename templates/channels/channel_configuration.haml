@@ -432,6 +432,42 @@
     %code
       https://{{ domain }}{% url 'handlers.hub9_handler' 'delivered' object.uuid %}
 
+  -elif object.channel_type == 'FCM'
+    %h4
+      -trans "To finish configuring your Firebase Cloud Messaging connection you'll need to send the data to URL with parameters `from` and `msg`."
+
+    .clearfix
+      .config-value
+        .name
+          -trans "Name:"
+        .value {{ object.name }}
+      .config-value
+        .name
+          -trans "Address:"
+        .value {{ object.address }}
+      .config-value
+        .name
+          -trans "Notification title:"
+        .value {{ object.config_json.FCM_TITLE }}
+      .config-value
+        .name
+          -trans "Key:"
+        .value {{ object.config_json.FCM_KEY }}
+
+    .clearfix
+    %hr
+
+    %h4
+      -trans "Receive URL"
+
+    %p
+      -trans "To receive incoming messages, you need to send the data to URL below on your App."
+
+    %code
+      https://{{ domain }}{% url 'handlers.fcm_handler' object.uuid %}
+
+    %hr
+
   -elif object.channel_type == 'VM' or object.channel_type == 'VMU'
     %h4
       -blocktrans
