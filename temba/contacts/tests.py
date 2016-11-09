@@ -2654,6 +2654,13 @@ class ContactTest(TembaTest):
                              'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
                              '"Telegram", "Email", "Facebook", "External" should be included.')
 
+        csv_file = open('%s/test_imports/sample_contacts_with_filename_very_long_that_it_will_not_validate.xls'
+                        % settings.MEDIA_ROOT, 'rb')
+        post_data = dict(csv_file=csv_file)
+        response = self.client.post(import_url, post_data)
+        self.assertFormError(response, 'form', 'csv_file',
+                             "Please make sure the name of the import file is less than 60 characters")
+
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
         self.assertEquals(ContactGroup.user_groups.all().count(), 0)
