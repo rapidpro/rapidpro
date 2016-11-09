@@ -7,7 +7,7 @@ import time
 from collections import defaultdict
 from datetime import timedelta
 from django.core.cache import cache
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Count
 from django.utils import timezone
 from django_redis import get_redis_connection
@@ -287,7 +287,14 @@ def purge_broadcasts_task():
 
             # delete messages in batches to avoid long locks
             for msg_ids_batch in chunk_list(batch_message_ids, 1000):
-                Msg.objects.filter(pk__in=msg_ids_batch).delete()
+                # manually delete to avoid slow and unnecessary checks on related fields like response_to
+                cursor = connection.cursor()
+
+                msg_ids = tuple(msg_ids_batch)
+
+                cursor.execute('DELETE FROM channels_channellog WHERE msg_id IN %s', params=[msg_ids])
+                cursor.execute('DELETE FROM flows_flowstep_messages WHERE msg_id IN %s', params=[msg_ids])
+                cursor.execute('DELETE FROM msgs_msg WHERE id IN %s', params=[msg_ids])
 
             print("[PURGE] Deleted messages (%d messages)..." % len(batch_message_ids))
 
