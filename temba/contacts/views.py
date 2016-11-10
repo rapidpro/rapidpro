@@ -564,11 +564,6 @@ class ContactCRUDL(SmartCRUDL):
                 super(ContactCRUDL.Import.ImportForm, self).__init__(*args, **kwargs)
 
             def clean_csv_file(self):
-
-                if len(self.cleaned_data['csv_file'].name) > 60:
-                    raise forms.ValidationError(_("Please make sure the name of the import file is less "
-                                                  "than 60 characters"))
-
                 try:
                     Contact.get_org_import_file_headers(ContentFile(self.cleaned_data['csv_file'].read()), self.org)
                 except Exception as e:
