@@ -2281,6 +2281,29 @@ class ContactTest(TembaTest):
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
+
+        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        self.assertEquals(2, len(records))
+
+        self.assertEquals(1, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals(group.name, "Sample Contacts With Filename Very Long That It Will N")
+        self.assertEquals(2, group.contacts.count())
+
+        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        self.assertEquals(2, len(records))
+
+        self.assertEquals(2, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals(2, group.contacts.count())
+        group = ContactGroup.user_groups.all()[1]
+        self.assertEquals(2, group.contacts.count())
+        self.assertEquals(set(["Sample Contacts With Filename Very Long That It Will N",
+                               "Sample Contacts With Filename Very Long That It Will N 2"]),
+                          set(ContactGroup.user_groups.all().values_list('name', flat=True)))
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number='+250788111111')
         contact.uuid = 'uuid-1111'
         contact.save()
