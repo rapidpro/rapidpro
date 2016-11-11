@@ -31,6 +31,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SC
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED, TRIGGERED
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
@@ -3347,13 +3348,13 @@ class VerboiceTest(TembaTest):
         call.external_id = "12345"
         call.save()
 
-        self.assertEqual(call.status, PENDING)
+        self.assertEqual(call.status, IVRCall.PENDING)
 
         response = self.client.get(callback_url + "?From=250788456456&CallStatus=ringing&CallSid=12345")
 
         self.assertEqual(response.status_code, 200)
         call = IVRCall.objects.get(pk=call.pk)
-        self.assertEqual(call.status, RINGING)
+        self.assertEqual(call.status, IVRCall.RINGING)
 
 
 class YoTest(TembaTest):
