@@ -162,14 +162,18 @@ def check_messages_task():
 
     now = timezone.now()
     five_minutes_ago = now - timedelta(minutes=5)
+    r = get_redis_connection()
 
     # for any org that sent messages in the past five minutes, check for pending messages
     for org in Org.objects.filter(msgs__created_on__gte=five_minutes_ago).distinct():
-        org.trigger_send()
+        # more than 1,000 messages queued? don't do anything, wait for our queue to go down
+        queued = r.zcard('send_message_task:%d' % org.id)
+        if queued < 1000:
+            org.trigger_send()
 
     # fire a few send msg tasks in case we dropped one somewhere during a restart
     # (these will be no-ops if there is nothing to do)
-    for i in range(250):
+    for i in range(100):
         send_msg_task.delay()
         handle_event_task.delay()
 
