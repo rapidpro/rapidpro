@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='org',
             name='is_purgeable',
-            field=models.BooleanField(default=False, help_text="Whether this org's outgoing messages can be purged"),
+            field=models.BooleanField(default=False, help_text="Whether this org's outgoing messages should be purged"),
         ),
     ]
