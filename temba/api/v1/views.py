@@ -1,6 +1,5 @@
 from __future__ import absolute_import, unicode_literals
 
-import json
 import urllib
 
 from django import forms
@@ -25,7 +24,6 @@ from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label
 from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
-from temba.values.models import Value
 from ..models import APIPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
 from .serializers import ChannelEventSerializer, CampaignReadSerializer, CampaignWriteSerializer
@@ -1743,102 +1741,6 @@ class ContactBulkActionEndpoint(BaseAPIView):
                                help="The name of a contact group if the action is add or remove"),
                           dict(name='label_uuid', required=False,
                                help="The UUID of a contact group if the action is add or remove")]
-        return spec
-
-
-class FlowResultsEndpoint(BaseAPIView):
-    """
-    This endpoint allows you to get aggregate results for a flow ruleset, optionally segmenting the results by another
-    ruleset in the process.
-
-    ## Retrieving Flow Results
-
-    By making a ```GET``` request you can retrieve a dictionary representing the results for the rulesets in a flow.
-
-    Example:
-
-       GET /api/v1/results.json
-
-        {
-            "count": 1,
-            "next": null,
-            "previous": null,
-            "results": [
-                {
-                    "flow": 1056,
-                    "id": 4237,
-                    "label": "Gender",
-                    "node": "5acfa6d5-be4a-4bcc-8011-d1bd9dfasffa",
-                    "results": [
-                        {
-                            "categories": [
-                                {
-                                    "count": 501,
-                                    "label": "Male"
-                                },
-                                {
-                                    "count": 409,
-                                    "label": "Female"
-                                }
-                            ],
-                            "label": "All"
-                        }
-                    ]
-                }
-           ...
-    """
-    permission = 'flows.flow_api'
-
-    def get(self, request, *args, **kwargs):
-        user = request.user
-        org = user.get_org()
-
-        ruleset, contact_field = None, None
-
-        ruleset_id_or_uuid = self.request.query_params.get('ruleset', None)
-        if ruleset_id_or_uuid:
-            try:
-                ruleset = RuleSet.objects.filter(flow__org=org, pk=int(ruleset_id_or_uuid)).first()
-            except ValueError:
-                ruleset = RuleSet.objects.filter(flow__org=org, uuid=ruleset_id_or_uuid).first()
-
-            if not ruleset:
-                return Response(dict(ruleset=["No ruleset found with that UUID or id"]), status=status.HTTP_400_BAD_REQUEST)
-
-        field = self.request.query_params.get('contact_field', None)
-        if field:
-            contact_field = ContactField.get_by_label(org, field)
-            if not contact_field:
-                return Response(dict(contact_field=["No contact field found with that label"]), status=status.HTTP_400_BAD_REQUEST)
-
-        if (not ruleset and not contact_field) or (ruleset and contact_field):
-            return Response(dict(non_field_errors=["You must specify either a ruleset or contact field"]), status=status.HTTP_400_BAD_REQUEST)
-
-        segment = self.request.query_params.get('segment', None)
-        if segment:
-            try:
-                segment = json.loads(segment)
-            except ValueError:
-                return Response(dict(segment=["Invalid segment format, must be in JSON format"]), status=status.HTTP_400_BAD_REQUEST)
-
-        if ruleset:
-            data = Value.get_value_summary(ruleset=ruleset, segment=segment)
-        else:
-            data = Value.get_value_summary(contact_field=contact_field, segment=segment)
-
-        return Response(dict(results=data), status=status.HTTP_200_OK)
-
-    @classmethod
-    def get_read_explorer(cls):
-        spec = dict(method="GET",
-                    title="Get summarized results for a RuleSet or Contact Field",
-                    url=reverse('api.v1.results'),
-                    slug='flow-results',
-                    request="")
-        spec['fields'] = [dict(name='flow', required=False,
-                               help="One or more flow ids to filter by.  ex: 234235,230420"),
-                          dict(name='ruleset', required=False,
-                               help="One or more rulesets to filter by.  ex: 12412,12451")]
         return spec
 
 

@@ -8,6 +8,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils import timezone
+from django_redis import get_redis_connection
 from mock import patch
 from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
@@ -22,7 +23,6 @@ from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct, datetime_to_str
 from temba.utils.expressions import get_function_listing
 from temba.values.models import Value
-from redis_cache import get_redis_connection
 from .management.commands.msg_console import MessageConsole
 from .tasks import squash_systemlabels, clear_old_msg_external_ids
 
@@ -644,6 +644,9 @@ class MsgTest(TembaTest):
         self.clear_storage()
         self.login(self.admin)
 
+        self.joe.name = "Jo\02e Blow"
+        self.joe.save()
+
         # create some messages...
         joe_urn = self.joe.get_urn(TEL_SCHEME).urn
         msg1 = Msg.create_incoming(self.channel, joe_urn, "hello 1")
@@ -680,7 +683,7 @@ class MsgTest(TembaTest):
         self.assertEqual('http://rapidpro.io/audio/sound.mp3', msg5.get_media_path())
 
         # label first message
-        label = Label.get_or_create(self.org, self.user, "label1")
+        label = Label.get_or_create(self.org, self.user, "la\02bel1")
         label.toggle_label([msg1], add=True)
 
         # archive last message

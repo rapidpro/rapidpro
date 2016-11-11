@@ -1,0 +1,147 @@
+{% extends base_template %}
+
+{% load smartmin %}
+
+{% block pre-content %}
+<div class="page-header"><h2>{{ title }}</h2></div>
+{% endblock %}
+
+{% block extra-script %}
+
+{# placeholder form for posterizer href's.. href's with a posterize class will be converted to POSTs #}
+<form id="posterizer" method="post">
+  {% csrf_token %}
+</form>
+
+<script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
+
+<script>
+  $("td.clickable").hover(function(){
+    this.style.cursor='pointer'
+  },
+  function(){});
+
+
+
+  $("td.clickable").click(function(){
+    document.location = $(this).children("a").attr("href");
+  });
+
+  $("a.posterize").click(function(event){
+    event.preventDefault();
+    event.stopPropagation();
+
+    var href = $(this).attr("href");
+    var url = $.url(href);
+
+    $("#posterizer").attr("action", url.attr("path"));
+
+    for (var key in url.param()){
+      $("#posterizer").append("<input type='hidden' name='" + key + "' value='" + url.param(key) + "'></input>");
+    }
+
+    $("#posterizer").submit();
+  });
+
+  function fetchPJAXContent(url, container, options) {
+
+      var type = 'GET';
+      var data = undefined;
+      if (options) {
+          if ('postData' in options) {
+              type = 'POST';
+              data = options['postData'];
+          }
+      }
+
+      var headers = { 'X-PJAX': true };
+      if (options && 'headers' in options) {
+          for (key in options['headers']) {
+              headers[key] = options['headers'][key];
+          }
+      }
+
+      $.ajax({
+          headers: headers,
+          type: type,
+          url: url,
+          data: data,
+          success: function(data, status, jqXHR) {
+
+            var toast = jqXHR.getResponseHeader('Temba-Toast');
+            if (toast) {
+              toastr.info(toast, '', {"positionClass": "toast-bottom-full-width"});
+            }
+
+            if ('followRedirects' in options && options['followRedirects'] == true) {
+                var redirect = jqXHR.getResponseHeader('REDIRECT');
+                if (redirect) {
+                    window.document.location.href = redirect;
+                    return;
+                }
+            }
+
+            var noPJAX = $(container).data('no-pjax');
+            if (options) {
+                if(!('forceReload' in options) || ('forceReload' in options && !options['forceReload'])) {
+
+                    if (noPJAX || ('shouldIgnore' in options && options['shouldIgnore'](data))) {
+                        if ('onIgnore' in options) {
+                           options['onIgnore'](jqXHR);
+                        }
+                        return;
+                    }
+                }
+            }
+            $(container).html(data);
+
+            if (options) {
+                if ('onSuccess' in options && options['onSuccess']) {
+                    options['onSuccess']();
+                }
+            }
+          }
+      });
+  }
+
+
+</script>
+
+<script>
+function refresh(onSuccess, forceReload){
+
+  var url = "{{url_params|safe}}"
+  {% if page_obj %}
+    url += "page={{page_obj.number}}";
+  {% endif %}
+
+  if (url == '') {
+      url = '?';
+  }
+
+  url += '&ts=' + new Date().getTime();
+
+  fetchPJAXContent(url, '#pjax', {
+      forceReload: forceReload,
+      onSuccess: onSuccess,
+      onIgnore: function() {
+          scheduleRefresh();
+      }
+  });
+}
+
+{% if refresh %}
+function scheduleRefresh() {
+    window.setTimeout(refresh, {{ refresh }});
+}
+
+$(document).ready(function(){
+    scheduleRefresh();
+});
+{% endif %}
+</script>
+
+{% endblock %}
+
+
+

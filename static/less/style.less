@@ -9,6 +9,16 @@
 // to extra-less or the master style.less file with care.
 @import "legacy";
 
+
+// tweak toastr
+.toast-bottom-full-width {
+  margin-bottom:20px;
+}
+
+.toast-info {
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
 // style all placeholder text
 
 .force-wrap {
@@ -1713,6 +1723,7 @@ form.smartmin-form ul.errorlist li {
 
     overflow-x: hidden;
     padding: 20px;
+    max-height: 430px;
 
     .details {
       color: #ccc;
@@ -2667,5 +2678,12 @@ span.label a {
 
 .select2-hidden-accessible {
   display:none;
+}
+
+.wrapped {
+  /* forces wrapping of messages with no spaces, see http://stackoverflow.com/questions/26292408/ */
+  max-width: 0;
+  word-wrap: break-word;  /* IE 10 */
+  overflow-wrap: break-word;
 }
 

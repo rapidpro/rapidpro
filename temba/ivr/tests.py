@@ -123,8 +123,7 @@ class IVRTests(FlowFileTest):
         media_msg = messages[2]
         self.assertTrue(media_msg.media.startswith('audio/x-wav:https://'))
         self.assertTrue(media_msg.media.endswith('.wav'))
-        self.assertTrue(media_msg.text.startswith('https://'))
-        self.assertTrue(media_msg.text.endswith('.wav'))
+        self.assertEqual('Played contact recording', media_msg.text)
 
         (host, directory, filename) = media_msg.media.rsplit('/', 2)
         recording = '%s/%s/%s/media/%s/%s' % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR,
