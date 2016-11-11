@@ -350,7 +350,7 @@ app.directive "selectStatic", ['$timeout', ($timeout) ->
               data.results.push({ id:d.id, text: d.text });
 
         # TODO: This should be configurable via the directive, for now only variable selection using this
-        if query.term and data.results.length == 0 and query.term.strip().length > 0 and /^[a-zA-Z0-9-][a-zA-Z0-9- ]*$/.test(query.term.strip())
+        if query.term and data.results.length == 0 and query.term.strip().length > 0 and query.term.strip().length <= 36 and /^[a-zA-Z0-9-][a-zA-Z0-9- ]*$/.test(query.term.strip())
           data.results.push({id:'[_NEW_]' + query.term, text: gettext('Add new variable') + ': ' + query.term});
         query.callback(data)
 

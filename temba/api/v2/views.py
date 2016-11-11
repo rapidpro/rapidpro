@@ -9,10 +9,9 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework import generics, mixins, status
+from rest_framework import generics, mixins, status, views
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -21,7 +20,7 @@ from temba.api.models import APIToken, Resthook, ResthookSubscriber, WebHookEven
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactURN, ContactGroup, ContactField, URN
-from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart
+from temba.flows.models import Flow, FlowRun, FlowStep, FlowStart, RuleSet
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Msg, Label, SystemLabel
 from temba.utils import str_to_bool, json_date_to_datetime, splitting_getlist
@@ -38,14 +37,13 @@ from ..models import APIPermission, SSLPermission
 from ..support import InvalidQueryError
 
 
-@api_view(['GET'])
-@permission_classes((SSLPermission, IsAuthenticated))
-def api(request, format=None):
+class RootView(views.APIView):
     """
-    This is the **under-development** API v2. Everything in this version of the API is subject to change. We strongly
-    recommend that most users stick with the existing [API v1](/api/v1) for now.
+    **This is the under-development API v2. Everything in this version of the API is subject to change. We strongly
+    recommend that most users stick with the existing [API v1](/api/v1) for now.**
 
-    The following endpoints are provided:
+    We provide a RESTful JSON API for you to interact with your data from outside applications. The following  endpoints
+    are available:
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
      * [/api/v2/broadcasts](/api/v2/broadcasts) - to list and send message broadcasts
@@ -69,41 +67,99 @@ def api(request, format=None):
      * [/api/v2/resthook_events](/api/v2/resthook_events) - to list resthook events
      * [/api/v2/resthook_subscribers](/api/v2/resthook_subscribers) - to list, create or delete subscribers on your resthooks
 
+    To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
+    documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
+    flow resources.
+
     You may wish to use the [API Explorer](/api/v2/explorer) to interactively experiment with the API.
+
+    ## Verbs
+
+    All endpoints follow standard REST conventions. You can list a set of resources by making a `GET` request to the
+    endpoint, create or update resources by making a `POST` request, or delete a resource with a `DELETE` request.
+
+    ## Status Codes
+
+    The success or failure of requests is represented by status codes as well as a message in the response body:
+
+     * **200**: A list or update request was successful
+     * **201**: A resource was successfully created (only returned for `POST` requests)
+     * **204**: An empty response - used for both successful `DELETE` requests and `POST` requests that update multiple
+                resources.
+     * **400**: The request failed due to invalid parameters. Do not retry with the same values, and the body of the
+                response will contain details.
+     * **403**: You do not have permission to access this resource
+     * **404**: The resource was not found (returned by `POST` and `DELETE` methods)
+
+    ## Date Values
+
+    Many endpoints either return datetime values or can take datatime parameters. The values returned will always be in
+    UTC, in the following format: `YYYY-MM-DDThh:mm:ss.ssssssZ`, where `ssssss` is the number of microseconds and
+    `Z` denotes the UTC timezone.
+
+    When passing datetime values as parameters, you should use this same format, e.g. `2016-10-13T11:54:32.525277Z`.
+
+    ## URN Values
+
+    We use URNs (Uniform Resource Names) to describe the different ways of communicating with a contact. These can be
+    phone numbers, Twitter handles etc. For example a contact might have URNs like:
+
+     * **tel:+250788123123**
+     * **twitter:jack**
+     * **mailto:jack@example.com**
+
+    Phone numbers should always be given in full [E164 format](http://en.wikipedia.org/wiki/E.164).
+
+    ## Authentication
+
+    You must authenticate all calls by including an `Authorization` header with your API token. If you are logged in,
+    your token will be visible at the top of this page. The Authorization header should look like:
+
+        Authorization: Token YOUR_API_TOKEN
+
+    For security reasons, all calls must be made using HTTPS.
+
+    ## Clients
+
+    There is an official [Python client library](https://github.com/rapidpro/rapidpro-python) which we recommend for all
+    Python users of the API.
     """
-    return Response({
-        'boundaries': reverse('api.v2.boundaries', request=request),
-        'broadcasts': reverse('api.v2.broadcasts', request=request),
-        'campaigns': reverse('api.v2.campaigns', request=request),
-        'campaign_events': reverse('api.v2.campaign_events', request=request),
-        'channels': reverse('api.v2.channels', request=request),
-        'channel_events': reverse('api.v2.channel_events', request=request),
-        'contacts': reverse('api.v2.contacts', request=request),
-        'contact_actions': reverse('api.v2.contact_actions', request=request),
-        'definitions': reverse('api.v2.definitions', request=request),
-        'fields': reverse('api.v2.fields', request=request),
-        'flow_starts': reverse('api.v2.flow_starts', request=request),
-        'flows': reverse('api.v2.flows', request=request),
-        'groups': reverse('api.v2.groups', request=request),
-        'labels': reverse('api.v2.labels', request=request),
-        'messages': reverse('api.v2.messages', request=request),
-        'message_actions': reverse('api.v2.message_actions', request=request),
-        'org': reverse('api.v2.org', request=request),
-        'resthooks': reverse('api.v2.resthooks', request=request),
-        'resthook_events': reverse('api.v2.resthook_events', request=request),
-        'resthook_subscribers': reverse('api.v2.resthook_subscribers', request=request),
-        'runs': reverse('api.v2.runs', request=request),
-    })
+    permission_classes = (SSLPermission, IsAuthenticated)
+
+    def get(self, request, *args, **kwargs):
+        return Response({
+            'boundaries': reverse('api.v2.boundaries', request=request),
+            'broadcasts': reverse('api.v2.broadcasts', request=request),
+            'campaigns': reverse('api.v2.campaigns', request=request),
+            'campaign_events': reverse('api.v2.campaign_events', request=request),
+            'channels': reverse('api.v2.channels', request=request),
+            'channel_events': reverse('api.v2.channel_events', request=request),
+            'contacts': reverse('api.v2.contacts', request=request),
+            'contact_actions': reverse('api.v2.contact_actions', request=request),
+            'definitions': reverse('api.v2.definitions', request=request),
+            'fields': reverse('api.v2.fields', request=request),
+            'flow_starts': reverse('api.v2.flow_starts', request=request),
+            'flows': reverse('api.v2.flows', request=request),
+            'groups': reverse('api.v2.groups', request=request),
+            'labels': reverse('api.v2.labels', request=request),
+            'messages': reverse('api.v2.messages', request=request),
+            'message_actions': reverse('api.v2.message_actions', request=request),
+            'org': reverse('api.v2.org', request=request),
+            'resthooks': reverse('api.v2.resthooks', request=request),
+            'resthook_events': reverse('api.v2.resthook_events', request=request),
+            'resthook_subscribers': reverse('api.v2.resthook_subscribers', request=request),
+            'runs': reverse('api.v2.runs', request=request),
+        })
 
 
-class ApiExplorerView(SmartTemplateView):
+class ExplorerView(SmartTemplateView):
     """
     Explorer view which lets users experiment with endpoints against their own data
     """
     template_name = "api/v2/api_explorer.html"
 
     def get_context_data(self, **kwargs):
-        context = super(ApiExplorerView, self).get_context_data(**kwargs)
+        context = super(ExplorerView, self).get_context_data(**kwargs)
         context['endpoints'] = [
             BoundariesEndpoint.get_read_explorer(),
             BroadcastsEndpoint.get_read_explorer(),
@@ -210,6 +266,13 @@ class BaseAPIView(generics.GenericAPIView):
     @transaction.non_atomic_requests
     def dispatch(self, request, *args, **kwargs):
         return super(BaseAPIView, self).dispatch(request, *args, **kwargs)
+
+    def options(self, request, *args, **kwargs):
+        """
+        Disable the default behaviour of OPTIONS returning serializer fields since we typically have two serializers
+        per endpoint.
+        """
+        return self.http_method_not_allowed(request, *args, **kwargs)
 
     def get_queryset(self):
         org = self.request.user.get_org()
@@ -533,9 +596,9 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     A `POST` allows you to create and send new broadcasts, with the following JSON data:
 
       * **text** - the text of the message to send (string, limited to 480 characters)
-      * **urns** - the URNs of contacts to send to (array of strings, optional)
-      * **contacts** - the UUIDs of contacts to send to (array of strings, optional)
-      * **groups** - the UUIDs of contact groups to send to (array of strings, optional)
+      * **urns** - the URNs of contacts to send to (array of up to 100 strings, optional)
+      * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
+      * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
       * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
 
     Example:
@@ -1150,9 +1213,9 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
 
     * **name** - the full name of the contact (string, optional)
     * **language** - the preferred language for the contact (3 letter iso code, optional)
-    * **urns** - a list of URNs you want associated with the contact (string array)
-    * **groups** - a list of the UUIDs of any groups this contact is part of (string array, optional)
-    * **fields** - the contact fields you want to set or update on this contact (dictionary, optional)
+    * **urns** - a list of URNs you want associated with the contact (array of up to 100 strings, optional)
+    * **groups** - a list of the UUIDs of any groups this contact is part of (array of up to 100 strings, optional)
+    * **fields** - the contact fields you want to set or update on this contact (dictionary of up to 100 items, optional)
 
     Example:
 
@@ -1348,7 +1411,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     A **POST** can be used to perform an action on a set of contacts in bulk.
 
-    * **contacts** - a JSON array of up to 100 contact UUIDs or URNs (array of strings)
+    * **contacts** - the contact UUIDs or URNs (array of up to 100 strings)
     * **action** - the action to perform, a string one of:
 
         * _add_ - Add the contacts to the given group
@@ -1745,7 +1808,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **GET** returns the list of contact groups for your organization, in the order of last created.
 
      * **uuid** - the UUID of the group (string), filterable as `uuid`
-     * **name** - the name of the group (string)
+     * **name** - the name of the group (string), filterable as `name`
      * **count** - the number of contacts in the group (int)
 
     Example:
@@ -1826,6 +1889,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = ContactGroupReadSerializer
     write_serializer_class = ContactGroupWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1834,6 +1898,11 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by name (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 
@@ -1845,7 +1914,8 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'url': reverse('api.v2.groups'),
             'slug': 'group-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"}
+                {'name': "uuid", 'required': False, 'help': "A contact group UUID to filter by"},
+                {'name': "name", 'required': False, 'help': "A contact group name to filter by"}
             ]
         }
 
@@ -1886,7 +1956,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     A **GET** returns the list of message labels for your organization, in the order of last created.
 
      * **uuid** - the UUID of the label (string), filterable as `uuid`
-     * **name** - the name of the label (string)
+     * **name** - the name of the label (string), filterable as `name`
      * **count** - the number of messages with this label (int)
 
     Example:
@@ -1964,6 +2034,7 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     serializer_class = LabelReadSerializer
     write_serializer_class = LabelWriteSerializer
     pagination_class = CreatedOnCursorPagination
+    exclusive_params = ('uuid', 'name')
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -1972,6 +2043,11 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         uuid = params.get('uuid')
         if uuid:
             queryset = queryset.filter(uuid=uuid)
+
+        # filter by name (optional)
+        name = params.get('name')
+        if name:
+            queryset = queryset.filter(name__iexact=name)
 
         return queryset.filter(is_active=True)
 
@@ -1983,7 +2059,8 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
             'url': reverse('api.v2.labels'),
             'slug': 'label-list',
             'params': [
-                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"}
+                {'name': "uuid", 'required': False, 'help': "A message label UUID to filter by"},
+                {'name': "name", 'required': False, 'help': "A message label name to filter by"}
             ]
         }
 
@@ -2056,6 +2133,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
      * **type** - the type of the message (one of "inbox", "flow", "ivr").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
+     * **media** - the media if set for a message (ie, the recording played for IVR messages, audio-xwav:http://domain.com/recording.wav)
      * **visibility** - the visibility of the message (one of "visible", "archived" or "deleted")
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple physical messages.
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
@@ -2090,6 +2168,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "status": "wired",
                 "visibility": "visible",
                 "text": "How are you?",
+                "media": "wav:http://domain.com/recording.wav"
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
                 "sent_on": "2016-01-06T15:35:03.675716Z",
@@ -2215,7 +2294,7 @@ class MessageActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
     A **POST** can be used to perform an action on a set of messages in bulk.
 
-    * **messages** - a JSON array of up to 100 message ids (array of ints)
+    * **messages** - the message ids (array of up to 100 integers)
     * **action** - the action to perform, a string one of:
 
         * _label_ - Apply the given label to the messages
@@ -2605,7 +2684,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
      * **flow** - the UUID and name of the flow (object), filterable as `flow` with UUID.
      * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
-     * **steps** - steps visited by the contact on the flow (array of objects).
+     * **path** - the contact's path through the flow nodes (array of objects)
+     * **values** - values generated by rulesets in the flow (array of objects).
      * **created_on** - the datetime when this run was started (datetime).
      * **modified_on** - when this run was last modified (datetime), filterable as `before` and `after`.
      * **exited_on** - the datetime when this run exited or null if it is still active (datetime).
@@ -2625,29 +2705,29 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
             "results": [
             {
                 "id": 12345678,
-                "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Specials"},
+                "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Favorite Color"},
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "responded": true,
-                "steps": [
-                    {
-                        "node": "22bd934e-953b-460d-aaf5-42a84ec8f8af",
-                        "category": null,
-                        "left_on": "2013-08-19T19:11:21.082Z",
-                        "text": "Hi from the Thrift Shop! We are having specials this week. What are you interested in?",
-                        "value": null,
-                        "arrived_on": "2013-08-19T19:11:21.044Z",
-                        "type": "actionset"
-                    },
-                    {
-                        "node": "9a31495d-1c4c-41d5-9018-06f93baa5b98",
-                        "category": "Foxes",
-                        "left_on": null,
-                        "text": "I want to buy a fox skin",
-                        "value": "fox skin",
-                        "arrived_on": "2013-08-19T19:11:21.088Z",
-                        "type": "ruleset"
-                    }
+                "path": [
+                    {"node": "27a86a1b-6cc4-4ae3-b73d-89650966a82f", "time": "2015-11-11T13:05:50.457742Z"},
+                    {"node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1", "time": "2015-11-11T13:03:51.635662Z"},
+                    {"node": "93a624ad-5440-415e-b49f-17bf42754acb", "time": "2015-11-11T13:03:52.532151Z"},
+                    {"node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466", "time": "2015-11-11T13:05:57.576056Z"}
                 ],
+                "values": {
+                    "color": {
+                        "value": "blue",
+                        "category": "Blue",
+                        "node": "fc32aeb0-ac3e-42a8-9ea7-10248fdf52a1",
+                        "time": "2015-11-11T13:03:51.635662Z"
+                    },
+                    "reason": {
+                        "value": "Because it's the color of sky",
+                        "category": "All Responses",
+                        "node": "4c9cb68d-474f-4b9a-b65e-c2aa593a3466",
+                        "time": "2015-11-11T13:05:57.576056Z"
+                    }
+                },
                 "created_on": "2015-11-11T13:05:57.457742Z",
                 "modified_on": "2015-11-11T13:05:57.576056Z",
                 "exited_on": "2015-11-11T13:05:57.576056Z",
@@ -2702,9 +2782,9 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.prefetch_related(
             Prefetch('flow', queryset=Flow.objects.only('uuid', 'name', 'base_language')),
             Prefetch('contact', queryset=Contact.objects.only('uuid', 'name', 'language')),
-            Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
-            Prefetch('steps__messages', queryset=Msg.objects.only('broadcast', 'text')),
-            Prefetch('steps__broadcasts', queryset=Broadcast.objects.all()),
+            Prefetch('values'),
+            Prefetch('values__ruleset', queryset=RuleSet.objects.only('uuid', 'label')),
+            Prefetch('steps', queryset=FlowStep.objects.only('run', 'step_uuid', 'arrived_on').order_by('arrived_on'))
         )
 
         return self.filter_before_after(queryset, 'modified_on')
@@ -2786,9 +2866,9 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     runs created by this start.
 
      * **flow** - the UUID of the flow to start contacts in (required)
-     * **groups** - a list of the UUIDs of the groups you want to start in this flow (optional)
-     * **contacts** - a list of the UUIDs of the contacts you want to start in this flow (optional)
-     * **urns** - a list of URNs you want to start in this flow (optional)
+     * **groups** - the UUIDs of the groups you want to start in this flow (array of up to 100 strings, optional)
+     * **contacts** - the UUIDs of the contacts you want to start in this flow (array of up to 100 strings, optional)
+     * **urns** - the URNs you want to start in this flow (array of up to 100 strings, optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
      * **extra** - a dictionary of extra parameters to pass to the flow start (accessible via @extra in your flow)
 

@@ -1,37 +1,32 @@
 from __future__ import unicode_literals
 
+import logging
+
 from django.db import transaction
 from django.utils import timezone
+from django_redis import get_redis_connection
 from djcelery_transactions import task
-from redis_cache import get_redis_connection
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.msgs.models import HANDLER_QUEUE, HANDLE_EVENT_TASK, FIRE_EVENT
-from temba.utils.queues import push_task
+from temba.utils.queues import push_task, nonoverlapping_task
 
 
-@task(track_started=True, name='check_campaigns_task')  # pragma: no cover
-def check_campaigns_task(sched_id=None):
+logger = logging.getLogger(__name__)
+
+
+@nonoverlapping_task(track_started=True, name='check_campaigns_task', lock_key='check_campaigns')
+def check_campaigns_task():
     """
     See if any event fires need to be triggered
     """
-    logger = check_campaigns_task.get_logger()
+    # for each that needs to be fired
+    for fire in EventFire.objects.filter(fired=None,
+                                         scheduled__lte=timezone.now()).select_related('contact', 'contact__org'):
+        try:
+            push_task(fire.contact.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, id=fire.id))
 
-    # get a lock
-    r = get_redis_connection()
-
-    key = 'check_campaigns'
-
-    # only do this if we aren't already checking campaigns
-    if not r.get(key):
-        with r.lock(key, timeout=3600):
-            # for each that needs to be fired
-            for fire in EventFire.objects.filter(fired=None,
-                                                 scheduled__lte=timezone.now()).select_related('contact', 'contact__org'):
-                try:
-                    push_task(fire.contact.org, HANDLER_QUEUE, HANDLE_EVENT_TASK, dict(type=FIRE_EVENT, id=fire.id))
-
-                except Exception:  # pragma: no cover
-                    logger.error("Error running campaign event: %s" % fire.pk, exc_info=True)
+        except Exception:  # pragma: no cover
+            logger.error("Error running campaign event: %s" % fire.pk, exc_info=True)
 
 
 @task(track_started=True, name='update_event_fires_task')  # pragma: no cover

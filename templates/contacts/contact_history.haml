@@ -40,7 +40,7 @@
             -else
               {{item|activity_icon}}
 
-      %td.details
+      %td.details.wrapped
         -if item.event_type
           -with item as call
             -if call.event_type == 'mt_miss'
@@ -147,14 +147,17 @@
               .activity-body
                 .text
                   -if item.media and media_type == 'audio'
-                    .left-recording
-                      -if message.direction == 'O'
-                        -trans "Listened to a recording"
-                      -else
-                        -trans "Audio recording"
-
-                      (<a href="{{media_url}}" download>download</a>)
-
+                    .recording-text
+                      %span.text
+                        -if message.direction == 'O'
+                          -if item.text not in item.media
+                            {{item.text}}
+                          -else
+                            -trans "Listened to a recording"
+                        -else
+                          -trans "Audio recording"
+                      %span.link
+                        (<a href="{{media_url}}" download>{%if item.text not in item.media%}recording{%else%}download{%endif%}</a>)
                   -else
                     {{message.text}}
 

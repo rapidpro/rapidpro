@@ -117,10 +117,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, query)
         self.assertResponseError(response, None, "You do not have permission to perform this action.", status_code=403)
 
-        # 200 for administrator
+        # 200 for administrator assuming this endpoint supports fetches
         self.login(self.admin)
         response = self.fetchHTML(url, query)
         self.assertEqual(response.status_code, fetch_returns)
+
+        # 405 for OPTIONS requests
+        response = self.client.options(url, HTTP_X_FORWARDED_HTTPS='https')
+        self.assertEqual(response.status_code, 405)
 
     def assertResultsById(self, response, expected):
         self.assertEqual(response.status_code, 200)
@@ -264,7 +268,7 @@ class APITest(TembaTest):
 
         # browse as HTML anonymously (should still show docs)
         response = self.fetchHTML(url)
-        self.assertContains(response, "This is the <strong>under-development</strong> API v2", status_code=403)
+        self.assertContains(response, "This is the under-development API v2", status_code=403)
 
         # try to browse as JSON anonymously
         response = self.fetchJSON(url)
@@ -1147,7 +1151,16 @@ class APITest(TembaTest):
 
         # try to give a contact more than 100 URNs
         response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(101)]})
-        self.assertResponseError(response, 'urns', "Exceeds maximum list size of 100")
+        self.assertResponseError(response, 'urns', "This field can only contain up to 100 items.")
+
+        # try to give a contact more than 100 contact fields
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'fields': {'field_%d' % f: f for f in range(101)}})
+        self.assertResponseError(response, 'fields', "This field can only contain up to 100 items.")
+
+        # ok to give them 100 URNs
+        response = self.postJSON(url, 'uuid=%s' % jean.uuid, {'urns': ['twitter:bob%d' % u for u in range(100)]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(jean.urns.count(), 100)
 
         # try to move a blocked contact into a group
         jean.block(self.user)
@@ -1232,7 +1245,7 @@ class APITest(TembaTest):
 
         # try adding more contacts to group than this endpoint is allowed to operate on at one time
         response = self.postJSON(url, None, {'contacts': [unicode(x) for x in range(101)], 'action': 'add', 'group': "Testers"})
-        self.assertResponseError(response, 'contacts', "Exceeds maximum list size of 100")
+        self.assertResponseError(response, 'contacts', "This field can only contain up to 100 items.")
 
         # try adding all contacts to a group by its name
         response = self.postJSON(url, None, {
@@ -1288,8 +1301,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {'contacts': [contact3.uuid], 'action': 'add', 'group': "nope"})
         self.assertResponseError(response, 'group', "No such object: nope")
 
-        # remove contact 2 from group by its name
-        response = self.postJSON(url, None, {'contacts': [contact2.uuid], 'action': 'remove', 'group': "Testers"})
+        # remove contact 2 from group by its name (which is case-insensitive)
+        response = self.postJSON(url, None, {'contacts': [contact2.uuid], 'action': 'remove', 'group': "testers"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(group.contacts.all()), {contact1, contact3})
 
@@ -1369,14 +1382,11 @@ class APITest(TembaTest):
 
         # all flow dependencies and we should get the child flow
         response = self.fetchJSON(url, 'flow=%s' % flow.uuid)
-        self.assertEqual(len(response.json['flows']), 2)
-        self.assertEqual(response.json['flows'][0]['metadata']['name'], "Parent Flow")
-        self.assertEqual(response.json['flows'][1]['metadata']['name'], "Child Flow")
+        self.assertEqual({f['metadata']['name'] for f in response.json['flows']}, {"Parent Flow", "Child Flow"})
 
         # export just the parent flow
         response = self.fetchJSON(url, 'flow=%s&dependencies=false' % flow.uuid)
-        self.assertEqual(len(response.json['flows']), 1)
-        self.assertEqual(response.json['flows'][0]['metadata']['name'], "Parent Flow")
+        self.assertEqual({f['metadata']['name'] for f in response.json['flows']}, {"Parent Flow"})
 
         # import the clinic app which has campaigns
         self.import_file('the_clinic')
@@ -1470,7 +1480,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, 'label', "Generated key \"created_by\" is invalid or a reserved name.")
 
         # try again with a label that's already taken
-        response = self.postJSON(url, None, {'label': "Nick Name", 'value_type': "text"})
+        response = self.postJSON(url, None, {'label': "nick name", 'value_type': "text"})
         self.assertResponseError(response, 'label', "This field must be unique.")
 
         # create a new field
@@ -1567,6 +1577,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % customers.uuid)
         self.assertResultsByUUID(response, [customers])
 
+        # filter by name
+        response = self.fetchJSON(url, 'name=developers')
+        self.assertResultsByUUID(response, [developers])
+
+        # try to filter by both
+        response = self.fetchJSON(url, 'uuid=%s&name=developers' % developers.uuid)
+        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
+
         # try to create empty group
         response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
@@ -1579,7 +1597,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json, {'uuid': reporters.uuid, 'name': "Reporters", 'query': None, 'count': 0})
 
         # try to create another group with same name
-        response = self.postJSON(url, None, {'name': "Reporters"})
+        response = self.postJSON(url, None, {'name': "reporters"})
         self.assertResponseError(response, 'name', "This field must be unique.")
 
         # it's fine if a group in another org has that name
@@ -1647,6 +1665,14 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, 'uuid=%s' % feedback.uuid)
         self.assertEqual(response.json['results'], [{'uuid': feedback.uuid, 'name': "Feedback", 'count': 0}])
 
+        # filter by name
+        response = self.fetchJSON(url, 'name=important')
+        self.assertResultsByUUID(response, [important])
+
+        # try to filter by both
+        response = self.fetchJSON(url, 'uuid=%s&name=important' % important.uuid)
+        self.assertResponseError(response, None, "You may only specify one of the uuid, name parameters")
+
         # try to create empty label
         response = self.postJSON(url, None, {})
         self.assertResponseError(response, 'name', "This field is required.")
@@ -1659,7 +1685,7 @@ class APITest(TembaTest):
         self.assertEqual(response.json, {'uuid': interesting.uuid, 'name': "Interesting", 'count': 0})
 
         # try to create another label with same name
-        response = self.postJSON(url, None, {'name': "Interesting"})
+        response = self.postJSON(url, None, {'name': "interesting"})
         self.assertResponseError(response, 'name', "This field must be unique.")
 
         # it's fine if a label in another org has that name
@@ -1713,6 +1739,7 @@ class APITest(TembaTest):
             'visibility': msg_visibility,
             'text': msg.text,
             'labels': [dict(name=l.name, uuid=l.uuid) for l in msg.labels.all()],
+            'media': msg.media,
             'created_on': format_datetime(msg.created_on),
             'sent_on': format_datetime(msg.sent_on),
             'modified_on': format_datetime(msg.modified_on)
@@ -1958,42 +1985,16 @@ class APITest(TembaTest):
         joe_run1_steps = list(joe_run1.steps.order_by('pk'))
         frank_run2_steps = list(frank_run2.steps.order_by('pk'))
 
-        joe_msgs = list(Msg.objects.filter(contact=self.joe).order_by('pk'))
-        frank_msgs = list(Msg.objects.filter(contact=self.frank).order_by('pk'))
-
         self.assertEqual(response.json['results'][2], {
             'id': frank_run2.pk,
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'responded': False,
-            'steps': [
-                {
-                    'node': "00000000-00000000-00000000-00000001",
-                    'arrived_on': format_datetime(frank_run2_steps[0].arrived_on),
-                    'left_on': format_datetime(frank_run2_steps[0].left_on),
-                    'messages': [
-                        {
-                            'id': frank_msgs[3].id,
-                            'broadcast': frank_msgs[3].broadcast_id,
-                            'text': "Quelle est votre couleur préférée?"
-                        }
-                    ],
-                    'text': "Quelle est votre couleur préférée?",
-                    'value': None,
-                    'category': None,
-                    'type': 'actionset'
-                },
-                {
-                    'node': "00000000-00000000-00000000-00000005",
-                    'arrived_on': format_datetime(frank_run2_steps[1].arrived_on),
-                    'left_on': None,
-                    'messages': [],
-                    'text': None,
-                    'value': None,
-                    'category': None,
-                    'type': 'ruleset'
-                }
+            'path': [
+                {'node': "00000000-00000000-00000000-00000001", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
+                {'node': "00000000-00000000-00000000-00000005", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
             ],
+            'values': {},
             'created_on': format_datetime(frank_run2.created_on),
             'modified_on': format_datetime(frank_run2.modified_on),
             'exited_on': None,
@@ -2004,56 +2005,19 @@ class APITest(TembaTest):
             'flow': {'uuid': flow1.uuid, 'name': "Color Flow"},
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'responded': True,
-            'steps': [
-                {
-                    'node': "00000000-00000000-00000000-00000001",
-                    'arrived_on': format_datetime(joe_run1_steps[0].arrived_on),
-                    'left_on': format_datetime(joe_run1_steps[0].left_on),
-                    'messages': [
-                        {
-                            'id': joe_msgs[0].id,
-                            'broadcast': joe_msgs[0].broadcast_id,
-                            'text': "What is your favorite color?"
-                        }
-                    ],
-                    'text': "What is your favorite color?",
-                    'value': None,
-                    'category': None,
-                    'type': 'actionset'
-                },
-                {
-                    'node': "00000000-00000000-00000000-00000005",
-                    'arrived_on': format_datetime(joe_run1_steps[1].arrived_on),
-                    'left_on': format_datetime(joe_run1_steps[1].left_on),
-                    'messages': [
-                        {
-                            'id': joe_msgs[1].id,
-                            'broadcast': joe_msgs[1].broadcast_id,
-                            'text': "it is blue"
-                        }
-                    ],
-                    'text': "it is blue",
-                    'value': 'blue',
-                    'category': "Blue",
-                    'type': 'ruleset'
-                },
-                {
-                    'node': "00000000-00000000-00000000-00000003",
-                    'arrived_on': format_datetime(joe_run1_steps[2].arrived_on),
-                    'left_on': format_datetime(joe_run1_steps[2].left_on),
-                    'messages': [
-                        {
-                            'id': joe_msgs[2].id,
-                            'broadcast': joe_msgs[2].broadcast_id,
-                            'text': "Blue is sad. :("
-                        }
-                    ],
-                    'text': "Blue is sad. :(",
-                    'value': None,
-                    'category': None,
-                    'type': 'actionset'
-                }
+            'path': [
+                {'node': "00000000-00000000-00000000-00000001", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
+                {'node': "00000000-00000000-00000000-00000005", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
+                {'node': "00000000-00000000-00000000-00000003", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
             ],
+            'values': {
+                'color': {
+                    'value': "blue",
+                    'category': "Blue",
+                    'node': "00000000-00000000-00000000-00000005",
+                    'time': format_datetime(self.joe.values.get(ruleset__uuid="00000000-00000000-00000000-00000005").modified_on)
+                }
+            },
             'created_on': format_datetime(joe_run1.created_on),
             'modified_on': format_datetime(joe_run1.modified_on),
             'exited_on': format_datetime(joe_run1.exited_on),
@@ -2063,18 +2027,6 @@ class APITest(TembaTest):
         # check when all broadcasts have been purged
         Broadcast.objects.all().update(purged=True)
         Msg.objects.filter(direction='O').delete()
-
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 9):
-            response = self.fetchJSON(url)
-
-        self.assertEqual(response.json['results'][2]['steps'][0]['messages'], [
-            {
-                'id': None,
-                'broadcast': frank_msgs[3].broadcast_id,
-                'text': "Quelle est votre couleur préférée?"
-            }
-        ])
-        self.assertEqual(response.json['results'][2]['steps'][0]['text'], "Quelle est votre couleur préférée?")
 
         # filter by id
         response = self.fetchJSON(url, 'id=%d' % frank_run2.pk)
@@ -2160,8 +2112,8 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {'messages': [msg1.id], 'action': 'label', 'label': "nope"})
         self.assertResponseError(response, 'label', "No such object: nope")
 
-        # remove label from message 2 by name
-        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'unlabel', 'label': "Test"})
+        # remove label from message 2 by name (which is case-insensitive)
+        response = self.postJSON(url, None, {'messages': [msg2.id], 'action': 'unlabel', 'label': "test"})
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(label.get_messages()), {msg1, msg3})
 
@@ -2469,7 +2421,7 @@ class APITest(TembaTest):
             group_uuids.append(self.create_group("Group %d" % g).uuid)
 
         response = self.postJSON(url, None, dict(flow=flow.uuid, restart_participants=True, groups=group_uuids))
-        self.assertResponseError(response, 'groups', "Exceeds maximum list size of 100")
+        self.assertResponseError(response, 'groups', "This field can only contain up to 100 items.")
 
         # check our list
         anon_contact = Contact.objects.get(urns__path="+12067791212")

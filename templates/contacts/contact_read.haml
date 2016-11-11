@@ -72,6 +72,13 @@
 
 -block content
 
+  // Needed for table wrapping on IE 9
+  <!--[if IE]>
+  <style>
+    table.activity { table-layout: fixed; }
+  </style>
+  <![endif]-->
+
   -if contact_fields
     .contact-fields{class:'{% if fields %}clickable{%endif%}'}
       -for field in contact_fields
@@ -160,7 +167,7 @@
 -block extra-less
   -compress css
 
-    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/videojs.less', media:'all'}
+    %link{type:'text/css', rel:'stylesheet', href:'{{STATIC_URL}}bower/video.js/dist/video-js.css', media:'all'}
 
     {% lessblock %}
       :plain
@@ -314,10 +321,6 @@
 
               .activity-body {
 
-                .text {
-                  display: inline-block;
-                }
-
                 .channel {
                   display:inline-block;
                   font-size:11px;
@@ -385,9 +388,10 @@
           }
         }
 
-        .left-recording {
-          font-style: italic;
-          font-size:90%;
+        .recording-text {
+          .text {
+            font-style: italic;
+          }
         }
 
         .recording {

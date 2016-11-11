@@ -738,7 +738,10 @@ class APITest(TembaTest):
 
         # add a new action set
         definition['action_sets'].append(dict(uuid=new_node_uuid, x=100, y=4, destination=None,
-                                              actions=[dict(type='save', field='tel_e164', value='+12065551212')]))
+                                              actions=[
+                                                  dict(type='save', field='tel_e164', value='+12065551212'),
+                                                  dict(type='del_group', group=dict(name='Remove Me'))
+                                              ]))
 
         # point one of our nodes to it
         definition['action_sets'][1]['destination'] = new_node_uuid
@@ -816,7 +819,8 @@ class APITest(TembaTest):
                         dict(node=new_node_uuid,
                              arrived_on='2015-08-25T11:15:30.088Z',
                              actions=[
-                                 dict(type="save", field="tel_e164", value="+12065551212")
+                                 dict(type="save", field="tel_e164", value="+12065551212"),
+                                 dict(type="del_group", group=dict(name="Remove Me"))
                              ]),
                     ],
                     completed=True)
@@ -946,69 +950,6 @@ class APITest(TembaTest):
             response = self.postJSON(url, data)
             self.assertEquals(201, response.status_code)
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
-
-    def test_api_results(self):
-        url = reverse('api.v1.results')
-
-        # can't access, get 403
-        self.assert403(url)
-
-        # login as plain user
-        self.login(self.user)
-        self.assert403(url)
-
-        # login as administrator
-        self.login(self.admin)
-
-        # all requests must be against a ruleset or field
-        response = self.fetchJSON(url)
-        self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'non_field_errors', "You must specify either a ruleset or contact field")
-
-        # create our test flow and a contact field
-        self.create_flow()
-        contact_field = ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
-        ruleset = RuleSet.objects.get()
-
-        # invalid ruleset id
-        response = self.fetchJSON(url, 'ruleset=12345678')
-        self.assertResponseError(response, 'ruleset', "No ruleset found with that UUID or id")
-
-        # invalid ruleset UUID
-        response = self.fetchJSON(url, 'ruleset=invalid-uuid')
-        self.assertResponseError(response, 'ruleset', "No ruleset found with that UUID or id")
-
-        # invalid field label
-        response = self.fetchJSON(url, 'contact_field=born')
-        self.assertResponseError(response, 'contact_field', "No contact field found with that label")
-
-        # can't specify both ruleset and field
-        response = self.fetchJSON(url, 'ruleset=%s&contact_field=Gender' % ruleset.uuid)
-        self.assertResponseError(response, 'non_field_errors', "You must specify either a ruleset or contact field")
-
-        # invalid segment JSON
-        response = self.fetchJSON(url, 'contact_field=Gender&segment=%7B\"location\"%7D')
-        self.assertResponseError(response, 'segment', "Invalid segment format, must be in JSON format")
-
-        with patch('temba.values.models.Value.get_value_summary') as mock_value_summary:
-            mock_value_summary.return_value = []
-
-            response = self.fetchJSON(url, 'ruleset=%d' % ruleset.id)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json, dict(results=[]))
-            mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
-
-            response = self.fetchJSON(url, 'ruleset=%s' % ruleset.uuid)
-            self.assertEqual(response.status_code, 200)
-            mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
-
-            response = self.fetchJSON(url, 'contact_field=Gender')
-            self.assertEqual(200, response.status_code)
-            mock_value_summary.assert_called_with(contact_field=contact_field, segment=None)
-
-            response = self.fetchJSON(url, 'contact_field=Gender&segment=%7B\"location\"%3A\"State\"%7D')
-            self.assertEqual(200, response.status_code)
-            mock_value_summary.assert_called_with(contact_field=contact_field, segment=dict(location="State"))
 
     def test_api_runs(self):
         url = reverse('api.v1.runs')

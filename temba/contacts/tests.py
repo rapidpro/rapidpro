@@ -182,9 +182,9 @@ class ContactGroupTest(TembaTest):
         self.mary.set_field(self.admin, 'gender', "female")
 
         group = ContactGroup.create_dynamic(self.org, self.admin, "Group two",
-                                            '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+                                            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")')
 
-        self.assertEqual(group.query, '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+        self.assertEqual(group.query, '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")')
         self.assertEqual(set(group.query_fields.all()), {age, gender})
         self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
 
@@ -3394,8 +3394,15 @@ class ContactFieldTest(TembaTest):
         Contact.objects.filter(org=self.org).update(is_blocked=True)
 
         # start one of our contacts down it
-        contact = self.create_contact("Ben Haggerty", '+12067799294')
-        contact.set_field(self.user, 'First', 'One')
+        contact = self.create_contact("Be\02n Haggerty", '+12067799294')
+        contact.set_field(self.user, 'First', 'On\02e')
+
+        # make third a datetime
+        self.contactfield_3.value_type = Value.TYPE_DATETIME
+        self.contactfield_3.save()
+
+        contact.set_field(self.user, 'Third', "20/12/2015 08:30")
+
         flow.start([], [contact])
 
         # create another contact, this should sort before Ben
@@ -3433,7 +3440,7 @@ class ContactFieldTest(TembaTest):
             self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "1234", "adam", "", "", ""])
 
             # second should be Ben
-            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", ""])
+            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "", "+12067799294", "", "", "One", "", "20-12-2015 08:30"])
 
             self.assertEqual(len(list(sheet.rows)), 3)  # no other contacts
 
@@ -3454,7 +3461,7 @@ class ContactFieldTest(TembaTest):
             self.assertExcelRow(sheet, 0, ["UUID", "Name", "Email", "Phone", "Phone", "Telegram", "Twitter", "First", "Second", "Third"])
 
             self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "adam@sumner.com", "+12067799191", "", "1234", "adam", "", "", ""])
-            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", ""])
+            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "", "+12067799294", "+12062233445", "", "", "One", "", "20-12-2015 08:30"])
             self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "", "+12078776655", "", "", "deng", "", "", ""])
             self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "+12078778899", "", "", "stephen", "", "", ""])
 
@@ -3485,7 +3492,7 @@ class ContactFieldTest(TembaTest):
             self.assertExcelRow(sheet, 0, ["UUID", "Name", "First", "Second", "Third"])
 
             self.assertExcelRow(sheet, 1, [contact2.uuid, "Adam Sumner", "", "", ""])
-            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "One", "", ""])
+            self.assertExcelRow(sheet, 2, [contact.uuid, "Ben Haggerty", "One", "", "20-12-2015 08:30"])
             self.assertExcelRow(sheet, 3, [contact3.uuid, "Luol Deng", "", "", ""])
             self.assertExcelRow(sheet, 4, [contact4.uuid, "Stephen", "", "", ""])
 
