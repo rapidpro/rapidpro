@@ -66,6 +66,14 @@
                                   %a{'href':'{% url "flows.flow_filter" sub_label.pk %}'}
                                     {{ sub_label.name }} ({{ sub_label.get_flows_count }})
 
+                -if campaigns
+                  %li.nav-header
+                    -trans "Campaigns"
+                  -for campaign in campaigns
+                    %li{'class': '{% if current_campaign.id == campaign.campaign__id %}active{% endif %}'}
+                      %a{'href':'{% url "flows.flow_campaign" campaign.campaign__id %}'}
+                        {{ campaign.campaign__name }} ({{campaign.count}})
+
           -block flow-list
             .span9
               - block buttons
@@ -200,7 +208,6 @@
     function postLabelChanges(flowsIds, labelId, addLabel, number, onError) {
 
          fetchPJAXContent("", "#pjax", { postData: { objects: flowsIds, label: labelId, add: addLabel, action: 'label', pjax: 'true', number:number },
-
 
          forceReload: true, onSuccess: function(data, textStatus) {
 

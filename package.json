@@ -1,6 +1,13 @@
 {
-  "devDependencies": {
+  "name": "rapidpro",
+  "repository": "git@github.com:rapidpro/rapidpro.git",
+  "license": "AGPL-3.0",
+  "dependencies": {
+    "bower": "^1.7.9",
     "coffee-script": "^1.9.3",
+    "less": "2.7.1"
+  },
+  "devDependencies": {
     "jasmine-core": "^2.5.0",
     "karma": "^0.12.37",
     "karma-chrome-launcher": "^0.1.7",
