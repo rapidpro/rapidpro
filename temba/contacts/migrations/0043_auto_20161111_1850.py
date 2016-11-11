@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('contacts', '0041_indexes_update'),
+        ('contacts', '0042_remove_exportcontactstask_host'),
     ]
 
     operations = [
