@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('ivr', '0010_auto_20160818_2150'),
-        ('flows', '0072_auto_20160905_1537'),
+        ('flows', '0073_auto_20161111_1534'),
     ]
 
     database_operations = [
