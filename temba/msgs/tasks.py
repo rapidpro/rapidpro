@@ -248,14 +248,18 @@ def purge_broadcasts_task():
     """
     Looks for broadcasts older than 90 days and marks their messages as purged
     """
-    from temba.orgs.models import Debit
+    from temba.orgs.models import Debit, Org
 
     purge_before = timezone.now() - timedelta(days=90)  # 90 days ago
 
     print("[PURGE] Starting purge broadcasts task...")
 
+    # determine which orgs are purgeable
+    purgeable_orgs = list(Org.objects.filter(is_purgeable=True))
+
     # determine which broadcasts are old
-    purge_ids = list(Broadcast.objects.filter(created_on__lt=purge_before, purged=False).values_list('pk', flat=True))
+    purge_ids = list(Broadcast.objects.filter(org__in=purgeable_orgs, created_on__lt=purge_before,
+                                              purged=False).values_list('pk', flat=True))
     bcasts_purged = 0
     msgs_deleted = 0
 

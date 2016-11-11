@@ -17,7 +17,7 @@ from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING,
 from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
-from temba.orgs.models import Language, Debit
+from temba.orgs.models import Language, Debit, Org
 from temba.schedules.models import Schedule
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import dict_to_struct, datetime_to_str
@@ -1313,6 +1313,15 @@ class BroadcastTest(TembaTest):
         today = timezone.now().date()
         long_ago = timezone.now() - timedelta(days=100)
 
+        # we have two purgeable orgs
+        self.create_secondary_org(topup_size=1)
+        Org.objects.update(is_purgeable=True)
+
+        # and one non-purgeable
+        admin3 = self.create_user("Administrator3")
+        org3 = Org.objects.create(name="Hoarders", timezone="Africa/Kampala", brand='rapidpro.io',
+                                  created_by=admin3, modified_by=admin3)
+
         # create an old broadcast which is a response to an incoming message
         incoming = self.create_msg(contact=self.joe, direction='I', text="Hello")
         broadcast1 = Broadcast.create(self.org, self.user, "Noted", [self.joe])
@@ -1332,14 +1341,21 @@ class BroadcastTest(TembaTest):
                                       [self.joe_and_frank, self.kevin, self.lucy])
         broadcast3.send(trigger_send=False)
 
-        # create an old broadcast for another org
-        self.create_secondary_org(topup_size=1)
+        # create an old broadcast for the other purgeable org
         Channel.create(self.org2, self.admin2, 'RW', 'A', name="Test Channel 2", address="+250785551313")
         hans = self.create_contact("Hans", "1234567")
-        broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for other org", [hans])
+        broadcast4 = Broadcast.create(self.org2, self.admin2, "Old for org 2", [hans])
         broadcast4.send(trigger_send=False)
         broadcast4.created_on = long_ago
         broadcast4.save()
+
+        # and one for the non-purgeable org
+        Channel.create(org3, admin3, 'HU', 'A', name="Test Channel 3", address="+250785551314")
+        george = self.create_contact("George", "1234568")
+        broadcast5 = Broadcast.create(org3, admin3, "Old for org 3", [george])
+        broadcast5.send(trigger_send=False)
+        broadcast5.created_on = long_ago
+        broadcast5.save()
 
         self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 9)
         self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 7)
@@ -1375,6 +1391,10 @@ class BroadcastTest(TembaTest):
         # but daily channel counts should be unchanged
         self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 7)
         self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 2)
+
+        # messages for non-purgeable org should be unaffected
+        self.assertEqual(Msg.objects.filter(org=org3).count(), 1)
+        self.assertEqual(Broadcast.objects.filter(org=org3, purged=True).count(), 0)
 
         # create another old broadcast
         broadcast5 = Broadcast.create(self.org, self.admin, "Another old broadcast",

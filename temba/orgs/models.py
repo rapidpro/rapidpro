@@ -203,6 +203,9 @@ class Org(SmartModel):
     is_anon = models.BooleanField(default=False,
                                   help_text=_("Whether this organization anonymizes the phone numbers of contacts within it"))
 
+    is_purgeable = models.BooleanField(default=False,
+                                       help_text=_("Whether this org's outgoing messages can be purged"))
+
     primary_language = models.ForeignKey('orgs.Language', null=True, blank=True, related_name='orgs',
                                          help_text=_('The primary language will be used for contacts with no language preference.'),
                                          on_delete=models.SET_NULL)
