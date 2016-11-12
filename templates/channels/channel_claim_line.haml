@@ -20,7 +20,7 @@
       %ol.line-steps
         %li
           -blocktrans
-            Access the <a href="https://developers.line.me/channels/" target="_blank">LINE Channels</a> page e add a new Channel.</li>
+            Access the <a href="https://developers.line.me/channels/" target="_blank">LINE Channels</a> page and add a new Channel.</li>
 
         %li
           -blocktrans
@@ -62,7 +62,7 @@
 
             %li
               -blocktrans
-                In the next step, click the "LINE @ Manager" and it will direct you to the API activation page.
+                In the next step, click the "LINE @ Manager" and it will redirect you to the API activation page.
 
             %li
               -blocktrans
@@ -85,18 +85,9 @@
               -blocktrans
                 In the communication channel of your choice, click on the "LINE Developers" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel Secret and Channel Access Token).
 
-              .important
-                %p
-                  -blocktrans
-                    Note: To generate the Channel Access Token click on "Issue" button
-
-        %li
-          -blocktrans
-            After filling out the information in the form below, will be generated a "Callback URL" in the next step, you need to configure it on the same page which rescued the information Channel Secret and Channel Access Token by clicking on the "Edit" button, filling the field "webhook URL" and pressing on the "Save" button.
-
-        %li
-          -blocktrans
-            Enter also the IP addresses in the "Server IP Whitelist" menu with the list of addresses that will be displayed after the correct filling out the form below.
+              %p
+                -blocktrans
+                  Note: To generate the Channel Access Token click on "Issue" button
 
 -block extra-style
   {{ block.super }}

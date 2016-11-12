@@ -630,7 +630,20 @@
   -elif object.channel_type == 'LN'
     %h4
       -blocktrans
-        To finish configuring Line channel you'll need to set the following callback URL in the Line Bot settings page.
+        To finish the configuration of Line channel you'll need to set the following callback URL in the Line Bot settings page, following the steps below:
+
+    .info
+
+      %p
+
+        %ol.line-steps
+          %li
+            -blocktrans
+              Configure "Callback URL" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the "Edit" button, filling the field "webhook URL" and pressing on the "Save" button.
+
+          %li
+            -blocktrans
+              Enter also the IP addresses in the "Server IP Whitelist" menu with the list of addresses that will be displayed after the correct filling out the form below.
 
     %h4
       -trans "Callback URL"
@@ -868,3 +881,11 @@
       font-size:20px;
     }
 
+    ol.line-steps li {
+      margin-top: 10px;
+      list-style: decimal;
+    }
+
+    .info {
+      margin-bottom: 20px;
+    }
