@@ -7808,7 +7808,7 @@ class LineTest(TembaTest):
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="line:uabcdefghijkl")
-        msg = joe.send("Hello, world", self.admin, trigger_send=False)
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
 
