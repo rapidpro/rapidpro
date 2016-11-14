@@ -1235,26 +1235,22 @@ class Channel(TembaModel):
         start = time.time()
         headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
         headers.update(TEMBA_HEADERS)
-        response = requests.post('https://api.line.me/v2/bot/message/push',
+        send_url = 'https://api.line.me/v2/bot/message/push'
+
+        response = requests.post(send_url,
                                  data=data,
                                  headers=headers)
         content = json.loads(response.content)
 
         if response.status_code == 200:
-            Msg.mark_sent(channel.config['r'], channel, msg, WIRED, time.time() - start, external_id=None)
-
-            ChannelLog.log_success(msg=msg,
-                                   description="Successfully delivered",
-                                   method='POST',
-                                   url=response.request.url,
-                                   response=response.content,
-                                   response_status=response.status_code)
+            Channel.success(channel, msg, WIRED, start, 'POST', response.request.url, data, response)
         else:
-            ChannelLog.log_success(msg=msg,
-                                   description=content.get('message'),
-                                   url=response.request.url,
-                                   response=response.content,
-                                   response_status=response.status_code)
+            raise SendException(content.get('message'),
+                                send_url,
+                                'POST',
+                                data,
+                                response.content,
+                                response.status_code)
 
     @classmethod
     def send_mblox_message(cls, channel, msg, text):
