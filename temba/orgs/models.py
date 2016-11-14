@@ -628,7 +628,7 @@ class Org(SmartModel):
         from temba.channels.models import Channel
 
         # if we have msgs, then send just those
-        if msgs:
+        if msgs is not None:
             ids = [m.id for m in msgs]
 
             # trigger syncs for our android channels
