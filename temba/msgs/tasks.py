@@ -9,7 +9,7 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 from djcelery_transactions import task
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
-from temba.utils.queues import pop_task, nonoverlapping_task
+from temba.utils.queues import start_task, complete_task, nonoverlapping_task
 from temba.utils import json_date_to_datetime, chunk_list
 from .models import Msg, Broadcast, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
 from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel
@@ -209,34 +209,37 @@ def handle_event_task():
     r = get_redis_connection()
 
     # pop off the next task
-    event_task = pop_task(HANDLE_EVENT_TASK)
+    org_id, event_task = start_task(HANDLE_EVENT_TASK)
 
     # it is possible we have no message to send, if so, just return
     if not event_task:
         return
 
-    if event_task['type'] == MSG_EVENT:
-        process_message_task(event_task['id'], event_task.get('from_mage', False), event_task.get('new_contact', False))
+    try:
+        if event_task['type'] == MSG_EVENT:
+            process_message_task(event_task['id'], event_task.get('from_mage', False), event_task.get('new_contact', False))
 
-    elif event_task['type'] == FIRE_EVENT:
-        # use a lock to make sure we don't do two at once somehow
-        key = 'fire_campaign_%s' % event_task['id']
-        if not r.get(key):
-            with r.lock(key, timeout=120):
-                event = EventFire.objects.filter(pk=event_task['id'], fired=None)\
-                                         .select_related('event', 'event__campaign', 'event__campaign__org').first()
-                if event:
-                    print "E[%09d] Firing for org: %s" % (event.id, event.event.campaign.org.name)
-                    start = time.time()
-                    event.fire()
-                    print "E[%09d] %08.3f s" % (event.id, time.time() - start)
+        elif event_task['type'] == FIRE_EVENT:
+            # use a lock to make sure we don't do two at once somehow
+            key = 'fire_campaign_%s' % event_task['id']
+            if not r.get(key):
+                with r.lock(key, timeout=120):
+                    event = EventFire.objects.filter(pk=event_task['id'], fired=None)\
+                                             .select_related('event', 'event__campaign', 'event__campaign__org').first()
+                    if event:
+                        print "E[%09d] Firing for org: %s" % (event.id, event.event.campaign.org.name)
+                        start = time.time()
+                        event.fire()
+                        print "E[%09d] %08.3f s" % (event.id, time.time() - start)
 
-    elif event_task['type'] == TIMEOUT_EVENT:
-        timeout_on = json_date_to_datetime(event_task['timeout_on'])
-        process_run_timeout(event_task['run'], timeout_on)
+        elif event_task['type'] == TIMEOUT_EVENT:
+            timeout_on = json_date_to_datetime(event_task['timeout_on'])
+            process_run_timeout(event_task['run'], timeout_on)
 
-    else:
-        raise Exception("Unexpected event type: %s" % event_task)
+        else:
+            raise Exception("Unexpected event type: %s" % event_task)
+    finally:
+        complete_task(HANDLE_EVENT_TASK, org_id)
 
 
 @nonoverlapping_task(track_started=True, name='purge_broadcasts_task', time_limit=900)

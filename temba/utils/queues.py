@@ -34,11 +34,11 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
 
     # push our task onto the right queue and make sure it is in the active list (atomically)
     with r.pipeline() as pipe:
-        key = "%s:%d" % (task_name, org if isinstance(org, int) else org.id)
-        pipe.zadd(key, score, dict_to_json(args))
+        org_id = org if isinstance(org, int) else org.id
+        pipe.zadd("%s:%d" % (task_name, org_id), score, dict_to_json(args))
 
         # and make sure this key is in our list of queues so this job will get worked on
-        pipe.zincrby("%s:active" % task_name, key, 0)
+        pipe.zincrby("%s:active" % task_name, org_id, 0)
         pipe.execute()
 
     # if we were given a queue to schedule on, then add this task to celery.
@@ -53,7 +53,7 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
             current_app.send_task(task_name, args=[], kwargs={}, queue=queue)
 
 
-def pop_task(task_name):
+def start_task(task_name):
     """
     Pops the next 'random' task off our queue, returning the arguments that were saved
 
@@ -66,16 +66,16 @@ def pop_task(task_name):
     active_set = "%s:active" % task_name
 
     # get what queue we will work against, always the one with the lowest number of workers
-    queue = r.zrange(active_set, 0, 0)
+    org_queue = r.zrange(active_set, 0, 0)
 
-    while queue:
+    while org_queue:
         # this lua script does both a "zpop" (popping the next highest thing off our sorted set) and
         # a clearing of our active set if there is no value in it as an atomic action
         lua = "local val = redis.call('zrange', ARGV[2], 0, 0) \n" \
-              "if next(val) == nil then redis.call('zrem', ARGV[1], ARGV[2]) return nil \n"\
-              "else redis.call('zincrby', ARGV[1], 1); redis.call('zremrangebyrank', ARGV[2], 0, 0) return val[1] end\n"
+              "if not next(val) then redis.call('zrem', ARGV[1], ARGV[3]) return nil \n"\
+              "else redis.call('zincrby', ARGV[1], 1, ARGV[3]); redis.call('zremrangebyrank', ARGV[2], 0, 0) return val[1] end\n"
 
-        task = r.eval(lua, 2, 'active_set', 'queue', active_set, queue[0])
+        task = r.eval(lua, 3, 'active_set', 'queue', 'org', active_set, '%s:%d' % (task_name, int(org_queue[0])), org_queue[0])
 
         # found a task? then break out
         if task is not None:
@@ -83,22 +83,23 @@ def pop_task(task_name):
             break
 
         # if we didn't get a task, then run again against a new queue until there is nothing left in our task queue
-        queue = r.zrange(active_set, 0, 0)
+        org_queue = r.zrange(active_set, 0, 0)
 
-    return task
+    return int(org_queue[0]) if org_queue else None, task
 
 
-def mark_task_complete(task_name, org_id):
+def complete_task(task_name, org):
     """
     Marks the passed in task type as complete for the passed in organization.
     """
     r = get_redis_connection('default')
     active_set = "%s:active" % task_name
+    key = "%d" % (org if isinstance(org, int) else org.id)
 
     lua = "local val = redis.call('zscore', ARGV[1], ARGV[2]) \n" \
-          "if next(val) != nil then redis.call('zincrby', ARGV[1], ARGV[2], -1) end \n"
+          "if val then redis.call('zadd', ARGV[1], math.max(0, val-1), ARGV[2]) end \n"
 
-    r.eval(lua, 2, 'active_set', 'queue', active_set, org_id)
+    r.eval(lua, 2, 'active_set', 'queue', active_set, key)
 
 
 def lookup_task_function(task_name):
