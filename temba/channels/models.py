@@ -1226,7 +1226,7 @@ class Channel(TembaModel):
 
     @classmethod
     def send_line_message(cls, channel, msg, text):
-        from temba.msgs.models import Msg, WIRED
+        from temba.msgs.models import WIRED
 
         channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
 
