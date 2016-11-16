@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
     ]
 
     database_operations = [
-        migrations.AlterModelTable('IVRCall', 'channels_channelsession')
+        migrations.AlterModelTable('IVRCall', 'channels_ivrcall')
     ]
 
     state_operations = [

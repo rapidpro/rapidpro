@@ -3241,17 +3241,17 @@ class IVRCall(SmartModel):
                                help_text=_("The call that triggered this one"))
 
     @classmethod
-    def create_outgoing(cls, channel, contact, contact_urn, flow, user, session_type=FLOW):
+    def create_outgoing(cls, channel, contact, contact_urn, flow, user, call_type=FLOW):
         session = cls.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
                                      direction=cls.OUTGOING, org=channel.org,
-                                     created_by=user, modified_by=user, session_type=session_type)
+                                     created_by=user, modified_by=user, call_type=call_type)
         return session
 
     @classmethod
-    def create_incoming(cls, channel, contact, contact_urn, flow, user, session_type=FLOW):
+    def create_incoming(cls, channel, contact, contact_urn, flow, user, call_type=FLOW):
         session = cls.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
                                      direction=cls.INCOMING, org=channel.org, created_by=user, modified_by=user,
-                                     session_type=session_type)
+                                     call_type=call_type)
         return session
 
     @classmethod
@@ -3363,7 +3363,3 @@ class IVRCall(SmartModel):
             duration = 0
 
         return duration
-    #
-    # def start_call(self):
-    #     from ivr.tasks import start_call_task
-    #     start_call_task.delay(self.pk)
