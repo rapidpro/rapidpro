@@ -210,9 +210,14 @@ class Campaign(TembaModel):
 
     def get_sorted_events(self):
         """
-        Returns campaign events sorted by their actual offset
+        Returns campaign events sorted by their actual offset with event flow definitions on the current export version
         """
         events = list(self.events.filter(is_active=True))
+
+        for evt in events:
+            if evt.flow.flow_type == Flow.MESSAGE:
+                evt.flow.ensure_current_version()
+
         return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
 
     def __unicode__(self):
