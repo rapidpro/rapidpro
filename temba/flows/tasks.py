@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import time
 from django.utils import timezone
 from django_redis import get_redis_connection
 from djcelery_transactions import task
@@ -81,6 +82,8 @@ def start_msg_flow_batch_task():
     if task_obj is None:
         return
 
+    start = time.time()
+
     try:
         # instantiate all the objects we need that were serialized as JSON
         flow = Flow.objects.filter(pk=task_obj['flow'], is_active=True).first()
@@ -92,13 +95,16 @@ def start_msg_flow_batch_task():
         start_msg = None if not task_obj['start_msg'] else Msg.objects.filter(pk=task_obj['start_msg']).first()
         extra = task_obj['extra']
         flow_start = None if not task_obj['flow_start'] else FlowStart.objects.filter(pk=task_obj['flow_start']).first()
+        contacts = task_obj['contacts']
 
         # and go do our work
-        flow.start_msg_flow_batch(task_obj['contacts'], broadcasts=broadcasts,
+        flow.start_msg_flow_batch(contacts, broadcasts=broadcasts,
                                   started_flows=started_flows, start_msg=start_msg,
                                   extra=extra, flow_start=flow_start)
     finally:
         complete_task(Flow.START_MSG_FLOW_BATCH, org_id)
+
+    print "Started batch of %d contacts in flow %d [%d] in %0.3fs" % (len(contacts), flow.id, flow.org_id, time.time() - start)
 
 
 @task(track_started=True, name="check_flow_stats_accuracy_task")
