@@ -673,6 +673,10 @@ class InfobipHandler(View):
         return HttpResponse("SMS Accepted: %d" % sms.id)
 
 
+class InfobipUssdHandler(View):
+    pass
+
+
 class Hub9Handler(View):
 
     @disable_middleware
