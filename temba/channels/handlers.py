@@ -755,6 +755,10 @@ class InfobipHandler(BaseChannelHandler):
         return HttpResponse("SMS Accepted: %d" % sms.id)
 
 
+class InfobipUssdHandler(View):
+    pass
+
+
 class Hub9Handler(BaseChannelHandler):
 
     url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
