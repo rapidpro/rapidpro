@@ -1,0 +1,18 @@
+{
+  "name": "videojs-vjsdownload",
+  "version": "1.0.0",
+  "author": "7Ds7",
+  "license": "Apache-2.0",
+  "main": [
+    "dist/videojs-vjsdownload.css",
+    "dist/videojs-vjsdownload.min.js"
+  ],
+  "keywords": [
+    "videojs",
+    "videojs-plugin",
+    "videojs-vjsdownload",
+    "videojs-download",
+    "download"
+  ]
+}
+
