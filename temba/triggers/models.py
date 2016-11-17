@@ -9,7 +9,7 @@ from smartmin.models import SmartModel
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup
 from temba.flows.models import Flow, FlowRun
-from temba.channels.models import IVRCall
+from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 

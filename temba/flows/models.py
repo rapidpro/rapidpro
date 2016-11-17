@@ -2446,7 +2446,7 @@ class FlowRun(models.Model):
 
     contact = models.ForeignKey(Contact, related_name='runs')
 
-    call = models.ForeignKey('channels.IVRCall', related_name='runs', null=True, blank=True,
+    call = models.ForeignKey('channels.ChannelSession', related_name='runs', null=True, blank=True,
                              help_text=_("The call that handled this flow run, only for voice flows"))
 
     is_active = models.BooleanField(default=True,

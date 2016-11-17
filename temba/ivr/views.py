@@ -43,7 +43,7 @@ class CallHandler(View):
             call.update_status(status, duration)
 
             # update any calls we have spawned with the same
-            for child in call.child_calls.all():
+            for child in call.child_sessions.all():
                 child.update_status(status, duration)
                 child.save()
 

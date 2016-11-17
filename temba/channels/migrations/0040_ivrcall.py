@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
 
     state_operations = [
         migrations.CreateModel(
-            name='IVRCall',
+            name='ChannelSession',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('is_active', models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting')),
@@ -29,7 +29,7 @@ class Migration(migrations.Migration):
                 ('direction', models.CharField(help_text='The direction of this call, either incoming or outgoing', max_length=1, choices=[('I', 'Incoming'), ('O', 'Outgoing')])),
                 ('started_on', models.DateTimeField(help_text='When this call was connected and started', null=True, blank=True)),
                 ('ended_on', models.DateTimeField(help_text='When this call ended', null=True, blank=True)),
-                ('call_type', models.CharField(default='F', help_text='What sort of call is this', max_length=1, choices=[('F', 'Flow')])),
+                ('call_type', models.CharField(default='F', help_text='What sort of call this is', max_length=1, choices=[('F', 'Flow')])),
                 ('duration', models.IntegerField(default=0, help_text='The length of this call in seconds', null=True)),
                 ('channel', models.ForeignKey(help_text='The channel that made this call', to='channels.Channel')),
                 ('contact', models.ForeignKey(related_name='calls', to='contacts.Contact', help_text='Who this call is with')),
@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
                 ('flow', models.ForeignKey(to='flows.Flow', help_text='The flow this call was part of', null=True)),
                 ('modified_by', models.ForeignKey(related_name='channels_ivrcall_modifications', to=settings.AUTH_USER_MODEL, help_text='The user which last modified this item')),
                 ('org', models.ForeignKey(help_text='The organization this call belongs to', to='orgs.Org')),
-                ('parent', models.ForeignKey(related_name='child_calls', verbose_name='Parent Call', to='channels.IVRCall', help_text='The call that triggered this one', null=True)),
+                ('parent', models.ForeignKey(related_name='child_calls', verbose_name='Parent Call', to='channels.ChannelSession', help_text='The session that triggered this one', null=True)),
             ],
             options={
                 'abstract': False,
