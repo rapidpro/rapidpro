@@ -827,8 +827,7 @@ class ChannelTest(TembaTest):
             "country": "ZA",
             "number": "+273454325324",
             "account_key": "account1",
-            "conversation_key": "conversation1",
-            "transport_name": ""
+            "conversation_key": "conversation1"
         }
 
         response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
@@ -2656,7 +2655,6 @@ class ChannelClaimTest(TembaTest):
             "number": "+273454325324",
             "account_key": "account1",
             "conversation_key": "conversation1",
-            "transport_name": ""
         }
 
         response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
