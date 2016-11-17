@@ -1115,6 +1115,10 @@ COMPRESS_PRECOMPILERS = (
     ('text/coffeescript', 'coffee --compile --stdio'))
 COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html')
 
+# if only testing, disable CSS filtering which is used regardless of whether compression is enabled
+if TESTING:
+    COMPRESS_CSS_FILTERS = []
+
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
 COMPRESS_URL = '/sitestatic/'
