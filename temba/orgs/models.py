@@ -30,10 +30,11 @@ from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
-from temba.utils import timezone_to_country_code, languages
+from temba.utils import languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.email import send_template_email
 from temba.utils.currencies import currency_for_country
+from temba.utils.timezones import timezone_to_country_code
 from timezone_field import TimeZoneField
 from twilio.rest import TwilioRestClient
 from urlparse import urlparse
