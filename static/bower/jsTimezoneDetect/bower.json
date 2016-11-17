@@ -1,0 +1,13 @@
+{
+  "name": "jsTimezoneDetect",
+  "version": "1.0.5",
+  "main": "jstz.min.js",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "components",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
