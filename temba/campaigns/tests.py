@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import json
 import six
 
 from datetime import timedelta
@@ -7,7 +8,8 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField
-from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet
+from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision
+from temba.orgs.models import CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest
 from .models import Campaign, CampaignEvent, EventFire
 
@@ -63,6 +65,24 @@ class CampaignTest(TembaTest):
                                                  offset=2, unit='W', flow=flow, delivery_hour='1')
 
         self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3])
+
+        flow_json = self.get_flow_json('call_me_maybe')['definition']
+        flow = Flow.create_instance(dict(name='Call Me Maybe', org=self.org, flow_type=Flow.MESSAGE,
+                                         created_by=self.admin, modified_by=self.admin,
+                                         saved_by=self.admin, version_number=3))
+
+        FlowRevision.create_instance(dict(flow=flow, definition=json.dumps(flow_json),
+                                          spec_version=3, revision=1,
+                                          created_by=self.admin, modified_by=self.admin))
+
+        event4 = CampaignEvent.create_flow_event(self.org, self.admin, campaign, self.planting_date,
+                                                 offset=2, unit='W', flow=flow, delivery_hour='5')
+
+        self.assertEquals(flow.version_number, 3)
+        self.assertEqual(campaign.get_sorted_events(), [event2, event1, event3, event4])
+        flow.refresh_from_db()
+        self.assertNotEquals(flow.version_number, 3)
+        self.assertEquals(flow.version_number, CURRENT_EXPORT_VERSION)
 
     def test_message_event(self):
         # update the planting date for our contacts

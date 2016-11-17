@@ -891,7 +891,6 @@ GROUP_PERMISSIONS = {
         'flows.flow_simulate',
         'flows.ruleset_analytics',
         'flows.ruleset_results',
-        'flows.ruleset_map',
         'flows.ruleset_choropleth',
 
         'msgs.broadcast_schedule_list',

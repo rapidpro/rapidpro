@@ -114,11 +114,6 @@
 
 -block modal-script
   {{block.super}}
-  -load compress
-  -compress js
-    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.caret.coffee" />
-    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.atwho.coffee" />
-
   %script{src:"{{ STATIC_URL }}js/schedules-ui.js"}
 
   :javascript

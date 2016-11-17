@@ -183,9 +183,9 @@ class ContactGroupTest(TembaTest):
         self.mary.set_field(self.admin, 'gender', "female")
 
         group = ContactGroup.create_dynamic(self.org, self.admin, "Group two",
-                                            '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+                                            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")')
 
-        self.assertEqual(group.query, '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+        self.assertEqual(group.query, '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")')
         self.assertEqual(set(group.query_fields.all()), {age, gender})
         self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
 
