@@ -1110,14 +1110,15 @@ HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
 # Django Compressor configuration
 # -----------------------------------------------------------------------------------
 
-COMPRESS_PRECOMPILERS = (
-    ('text/less', 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, '../static', 'less')),
-    ('text/coffeescript', 'coffee --compile --stdio'))
-COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html')
-
-# if only testing, disable CSS filtering which is used regardless of whether compression is enabled
 if TESTING:
-    COMPRESS_CSS_FILTERS = []
+    # if only testing, disable coffeescript and less compilation
+    COMPRESS_PRECOMPILERS = ()
+else:
+    COMPRESS_PRECOMPILERS = (
+        ('text/less', 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, '../static', 'less')),
+        ('text/coffeescript', 'coffee --compile --stdio')
+    )
+    COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html')
 
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False
