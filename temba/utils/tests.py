@@ -24,6 +24,7 @@ from .expressions import migrate_template, evaluate_template, evaluate_template_
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
 from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
+from .timezones import TimeZoneFormField
 from .currencies import currency_for_country
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
     clean_string
@@ -186,6 +187,14 @@ class InitTest(TembaTest):
         self.assertIsNone(clean_string(None))
         self.assertEqual(clean_string("ngert\x07in."), "ngertin.")
         self.assertEqual(clean_string("Norbért"), "Norbért")
+
+
+class TimezonesTest(TembaTest):
+    def test_field(self):
+        field = TimeZoneFormField(help_text="Test field")
+
+        self.assertEqual(field.choices[0], ('Pacific/Midway', u'(GMT-1100) Pacific/Midway'))
+        self.assertEqual(field.coerce("Africa/Kigali"), pytz.timezone("Africa/Kigali"))
 
 
 class TemplateTagTest(TembaTest):

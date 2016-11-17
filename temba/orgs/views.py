@@ -35,7 +35,7 @@ from temba.formax import FormaxMixin
 from temba.nexmo import NexmoClient, NexmoValidationError
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
-from timezone_field import TimeZoneFormField
+from temba.utils.timezones import TimeZoneFormField
 from twilio.rest import TwilioRestClient
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
