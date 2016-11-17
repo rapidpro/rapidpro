@@ -17,6 +17,9 @@ def migrate_active_queues(apps, schema_editor):
 
         # and recreate our active set for each queue that has elements in it
         for queue in existing:
+            if queue == active_name:
+                continue
+
             org_id = int(queue[len(queue_type)+1:])
             r.zincrby(active_name, org_id, 0)
 
