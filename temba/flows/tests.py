@@ -271,6 +271,29 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, self.flow.name)
         response = self.client.get(reverse('flows.flow_list'), post_data)
         self.assertContains(response, self.flow.name)
+        self.assertEquals(1, response.context['folders'][0]['count'])
+
+        # voice flows should be included in the count
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.VOICE)
+
+        response = self.client.get(reverse('flows.flow_list'))
+        self.assertContains(response, self.flow.name)
+        self.assertEquals(1, response.context['folders'][0]['count'])
+
+        # single message flow (flom campaign) should not be included in counts and not even on this list
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.MESSAGE)
+
+        response = self.client.get(reverse('flows.flow_list'))
+
+        self.assertNotContains(response, self.flow.name)
+        self.assertEquals(0, response.context['folders'][0]['count'])
+
+        # single message flow should not be even in the archived list
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.MESSAGE, is_archived=True)
+
+        response = self.client.get(reverse('flows.flow_archived'))
+        self.assertNotContains(response, self.flow.name)
+        self.assertEquals(1, response.context['folders'][1]['count'])  # only flow2
 
     def test_campaign_filter(self):
         self.login(self.admin)

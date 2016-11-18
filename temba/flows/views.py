@@ -660,6 +660,9 @@ class FlowCRUDL(SmartCRUDL):
             context['actions'] = self.actions
             return context
 
+        def derive_queryset(self, *args, **kwargs):
+            return super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs).exclude(flow_type=Flow.MESSAGE)
+
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent
             org = self.request.user.get_org()
@@ -677,8 +680,8 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             return [
-                dict(label="Active", url=reverse('flows.flow_list'), count=Flow.objects.filter(is_active=True, is_archived=False, flow_type=Flow.FLOW, org=org).count()),
-                dict(label="Archived", url=reverse('flows.flow_archived'), count=Flow.objects.filter(is_active=True, is_archived=True, org=org).count())
+                dict(label="Active", url=reverse('flows.flow_list'), count=self.derive_queryset().filter(is_active=True, is_archived=False, org=org).count()),
+                dict(label="Archived", url=reverse('flows.flow_archived'), count=self.derive_queryset().filter(is_active=True, is_archived=True, org=org).count())
             ]
 
     class Archived(BaseList):
@@ -694,7 +697,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_queryset(self, *args, **kwargs):
             queryset = super(FlowCRUDL.List, self).derive_queryset(*args, **kwargs)
-            queryset = queryset.filter(is_active=True, is_archived=False).exclude(flow_type=Flow.MESSAGE)
+            queryset = queryset.filter(is_active=True, is_archived=False)
             types = self.request.REQUEST.getlist('flow_type')
             if types:
                 queryset = queryset.filter(flow_type__in=types)
