@@ -1540,7 +1540,7 @@ class ChannelCRUDL(SmartCRUDL):
             conversation_key = forms.CharField(label=_("Conversation Key"),
                                                help_text=_("The key for your Vumi conversation, can be found in the URL"))
             api_url = forms.URLField(label=_("API URL"), required=False,
-                                     help_text=_("Customise VUMI API URL. Defaults to: 'https://go.vumi.org/api/v1/go/http_api_nostream'. Use the URL without trailing slash. '/<conversation_key>/messages.json' will be automatically attached to the end of the specified URL."))
+                                     help_text=_("Custom VUMI API Endpoint. Leave blank to use default of: https://go.vumi.org/api/v1/go/http_api_nostream"))
 
         title = _("Connect Vumi")
         channel_type = Channel.TYPE_VUMI
@@ -1557,7 +1557,8 @@ class ChannelCRUDL(SmartCRUDL):
             if not data.get('api_url'):
                 api_url = 'https://go.vumi.org/api/v1/go/http_api_nostream'
             else:
-                api_url = data['api_url']
+                api_url = data.get('api_url')
+
             self.object = Channel.add_config_external_channel(org, self.request.user,
                                                               data['country'], data['number'], self.channel_type,
                                                               dict(account_key=data['account_key'],

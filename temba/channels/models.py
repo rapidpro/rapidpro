@@ -1718,13 +1718,10 @@ class Channel(TembaModel):
         headers = dict(TEMBA_HEADERS)
         headers['content-type'] = 'application/json'
 
-        # for backwards compatibility
-        if not channel.config.get('api_url'):
-            api_url_base = 'https://go.vumi.org/api/v1/go/http_api_nostream'
-        else:
-            api_url_base = channel.config['api_url']
+        api_url_base = channel.config.get('api_url', 'https://go.vumi.org/api/v1/go/http_api_nostream')
 
-        url = '%s/%s/messages.json' % (api_url_base, channel.config['conversation_key'])
+        url = urlparse.urljoin(api_url_base, "/%s/messages.json" % channel.config['conversation_key'])
+
         start = time.time()
 
         try:
