@@ -23,12 +23,14 @@ from .exporter import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
+
+from .timezones import TimeZoneFormField, timezone_to_country_code
 from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .currencies import currency_for_country
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
     clean_string
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
+from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets
 from . import datetime_to_str, chunk_list, get_country_code_by_name
 
 
@@ -158,16 +160,6 @@ class InitTest(TembaTest):
         # check that function calls correctly
         self.assertEqual(dispatch_func(1, arg2=2), 3)
 
-    def test_timezone_country_code(self):
-        self.assertEqual('RW', timezone_to_country_code('Africa/Kigali'))
-        self.assertEqual('US', timezone_to_country_code('America/Chicago'))
-        self.assertEqual('US', timezone_to_country_code('US/Pacific'))
-        # GMT and UTC give empty
-        self.assertEqual('', timezone_to_country_code('GMT'))
-
-        # any invalid timezones should return ""
-        self.assertEqual('', timezone_to_country_code('Nyamirambo'))
-
     def test_percentage(self):
         self.assertEquals(0, percentage(0, 100))
         self.assertEquals(0, percentage(0, 0))
@@ -187,6 +179,23 @@ class InitTest(TembaTest):
         self.assertIsNone(clean_string(None))
         self.assertEqual(clean_string("ngert\x07in."), "ngertin.")
         self.assertEqual(clean_string("Norbért"), "Norbért")
+
+
+class TimezonesTest(TembaTest):
+    def test_field(self):
+        field = TimeZoneFormField(help_text="Test field")
+
+        self.assertEqual(field.choices[0], ('Pacific/Midway', u'(GMT-1100) Pacific/Midway'))
+        self.assertEqual(field.coerce("Africa/Kigali"), pytz.timezone("Africa/Kigali"))
+
+    def test_timezone_country_code(self):
+        self.assertEqual('RW', timezone_to_country_code(pytz.timezone('Africa/Kigali')))
+        self.assertEqual('US', timezone_to_country_code(pytz.timezone('America/Chicago')))
+        self.assertEqual('US', timezone_to_country_code(pytz.timezone('US/Pacific')))
+
+        # GMT and UTC give empty
+        self.assertEqual('', timezone_to_country_code(pytz.timezone('GMT')))
+        self.assertEqual('', timezone_to_country_code(pytz.timezone('UTC')))
 
 
 class TemplateTagTest(TembaTest):
