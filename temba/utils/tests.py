@@ -23,7 +23,7 @@ from .exporter import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
-from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
+from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .currencies import currency_for_country
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
     clean_string
@@ -335,13 +335,34 @@ class JsonTest(TembaTest):
 class QueueTest(TembaTest):
 
     def test_queueing(self):
+        r = get_redis_connection()
+
         args1 = dict(task=1)
 
         # basic push and pop
         push_task(self.org, None, 'test', args1)
-        self.assertEquals(args1, pop_task('test'))
+        org_id, task = start_task('test')
+        self.assertEqual(args1, task)
+        self.assertEqual(org_id, self.org.id)
 
-        self.assertFalse(pop_task('test'))
+        # should show as having one worker on that worker
+        self.assertEqual(r.zscore('test:active', self.org.id), 1)
+
+        # there aren't any more tasks so this will actually clear our active worker count
+        self.assertFalse(start_task('test')[1])
+        self.assertIsNone(r.zscore('test:active', self.org.id))
+
+        # marking the task as complete should also be a no-op
+        complete_task('test', self.org.id)
+        self.assertIsNone(r.zscore('test:active', self.org.id))
+
+        # pop on another task and start it and complete it
+        push_task(self.org, None, 'test', args1)
+        self.assertEquals(args1, start_task('test')[1])
+        complete_task('test', self.org.id)
+
+        # should have no active workers
+        self.assertEqual(r.zscore('test:active', self.org.id), 0)
 
         # ok, try pushing and popping multiple on now
         args2 = dict(task=2)
@@ -350,10 +371,22 @@ class QueueTest(TembaTest):
         push_task(self.org, None, 'test', args2)
 
         # should come back in order of insertion
-        self.assertEquals(args1, pop_task('test'))
-        self.assertEquals(args2, pop_task('test'))
+        self.assertEquals(args1, start_task('test')[1])
+        self.assertEquals(args2, start_task('test')[1])
 
-        self.assertFalse(pop_task('test'))
+        # two active workers
+        self.assertEqual(r.zscore('test:active', self.org.id), 2)
+
+        # mark one as complete
+        complete_task('test', self.org.id)
+        self.assertEqual(r.zscore('test:active', self.org.id), 1)
+
+        # start another, this will clear our counts
+        self.assertFalse(start_task('test')[1])
+        self.assertIsNone(r.zscore('test:active', self.org.id))
+
+        complete_task('test', self.org.id)
+        self.assertIsNone(r.zscore('test:active', self.org.id))
 
         # ok, same set up
         push_task(self.org, None, 'test', args1)
@@ -368,40 +401,45 @@ class QueueTest(TembaTest):
         push_task(self.org, None, 'test', args4, LOW_PRIORITY)
 
         # high priority should be first out, then defaults, then low
-        self.assertEquals(args3, pop_task('test'))
-        self.assertEquals(args1, pop_task('test'))
-        self.assertEquals(args2, pop_task('test'))
-        self.assertEquals(args4, pop_task('test'))
+        self.assertEquals(args3, start_task('test')[1])
+        self.assertEquals(args1, start_task('test')[1])
+        self.assertEquals(args2, start_task('test')[1])
+        self.assertEquals(args4, start_task('test')[1])
 
-        self.assertFalse(pop_task('test'))
+        self.assertEqual(r.zscore('test:active', self.org.id), 4)
+
+        self.assertFalse(start_task('test')[1])
+        self.assertIsNone(r.zscore('test:active', self.org.id))
 
     def test_org_queuing(self):
+        r = get_redis_connection()
+
         self.create_secondary_org()
 
         args = [dict(task=i) for i in range(6)]
 
-        push_task(self.org, None, 'test', args[2], LOW_PRIORITY)
-        push_task(self.org, None, 'test', args[1])
+        push_task(self.org, None, 'test', args[4], LOW_PRIORITY)
+        push_task(self.org, None, 'test', args[2])
         push_task(self.org, None, 'test', args[0], HIGH_PRIORITY)
 
-        push_task(self.org2, None, 'test', args[4])
-        push_task(self.org2, None, 'test', args[3], HIGH_PRIORITY)
+        push_task(self.org2, None, 'test', args[3])
+        push_task(self.org2, None, 'test', args[1], HIGH_PRIORITY)
         push_task(self.org2, None, 'test', args[5], LOW_PRIORITY)
 
-        # order isn't guaranteed except per org when popping these off
-        curr1, curr2 = 0, 3
-
+        # order should alternate between the two orgs (based on # of active workers)
         for i in range(6):
-            task = pop_task('test')['task']
+            task = start_task('test')[1]['task']
+            self.assertEqual(i, task)
 
-            if task < 3:
-                self.assertEquals(curr1, task)
-                curr1 += 1
-            else:
-                self.assertEquals(curr2, task)
-                curr2 += 1
+        # each org should show 3 active works
+        self.assertEqual(r.zscore('test:active', self.org.id), 3)
+        self.assertEqual(r.zscore('test:active', self.org2.id), 3)
 
-        self.assertFalse(pop_task('test'))
+        self.assertFalse(start_task('test')[1])
+
+        # no more tasks to do, both should now be empty
+        self.assertIsNone(r.zscore('test:active', self.org.id))
+        self.assertIsNone(r.zscore('test:active', self.org2.id))
 
     @patch('redis.client.StrictRedis.lock')
     @patch('redis.client.StrictRedis.get')
