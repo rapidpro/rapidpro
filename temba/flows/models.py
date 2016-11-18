@@ -184,6 +184,8 @@ class Flow(TembaModel):
     ENTRY_TYPES = ((RULES_ENTRY, "Rules"),
                    (ACTIONS_ENTRY, "Actions"))
 
+    START_MSG_FLOW_BATCH = 'start_msg_flow_batch'
+
     name = models.CharField(max_length=64,
                             help_text=_("The name for this flow"))
 
@@ -1601,13 +1603,13 @@ class Flow(TembaModel):
 
                 if len(batch_contacts) >= START_FLOW_BATCH_SIZE:
                     print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
-                    push_task(self.org, 'flows', 'start_msg_flow_batch', task_context)
+                    push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
                     batch_contacts = []
                     task_context['contacts'] = batch_contacts
 
             if batch_contacts:
                 print "Starting flow '%s' for batch of %d contacts" % (self.name, len(task_context['contacts']))
-                push_task(self.org, 'flows', 'start_msg_flow_batch', task_context)
+                push_task(self.org, 'flows', Flow.START_MSG_FLOW_BATCH, task_context)
 
             return []
 
