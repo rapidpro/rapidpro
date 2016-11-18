@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('flows', '0073_auto_20161111_1534'),
         ('orgs', '0024_remove_invitation_host'),
-        ('channels', '0039_channellog_request_time'),
+        ('channels', '0041_auto_20161117_2027'),
         ('ivr', '0011_auto_20161111_1151')
     ]
 

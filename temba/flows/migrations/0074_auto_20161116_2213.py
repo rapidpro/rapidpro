@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('flows', '0073_auto_20161111_1534'),
-        ('channels', '0040_ivrcall')
+        ('channels', '0042_ivrcall')
     ]
 
     operations = [

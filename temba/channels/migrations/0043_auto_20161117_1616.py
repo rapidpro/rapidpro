@@ -8,7 +8,7 @@ from django.conf import settings
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0040_ivrcall'),
+        ('channels', '0042_ivrcall'),
     ]
 
     operations = [
