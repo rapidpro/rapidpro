@@ -2,8 +2,6 @@ from __future__ import unicode_literals
 
 import json
 import logging
-
-import pytz
 import regex
 import traceback
 
@@ -351,7 +349,6 @@ class FlowCRUDL(SmartCRUDL):
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
         def get(self, request, *args, **kwargs):
             org = self.get_object_org()
-            tz = pytz.timezone(org.timezone)
 
             step_uuid = request.REQUEST.get('step', None)
             next_uuid = request.REQUEST.get('destination', None)
@@ -383,7 +380,7 @@ class FlowCRUDL(SmartCRUDL):
                 if not step.contact.is_test:
                     for msg in step.messages.all():
                         if msg.visibility == Msg.VISIBILITY_VISIBLE and msg.direction == msg_direction_filter:
-                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=tz),
+                            recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone),
                                                         text=msg.text))
 
             return build_json_response(recent_messages[:5])
@@ -663,6 +660,9 @@ class FlowCRUDL(SmartCRUDL):
             context['actions'] = self.actions
             return context
 
+        def derive_queryset(self, *args, **kwargs):
+            return super(FlowCRUDL.BaseList, self).derive_queryset(*args, **kwargs).exclude(flow_type=Flow.MESSAGE)
+
         def get_campaigns(self):
             from temba.campaigns.models import CampaignEvent
             org = self.request.user.get_org()
@@ -680,8 +680,8 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             return [
-                dict(label="Active", url=reverse('flows.flow_list'), count=Flow.objects.filter(is_active=True, is_archived=False, flow_type=Flow.FLOW, org=org).count()),
-                dict(label="Archived", url=reverse('flows.flow_archived'), count=Flow.objects.filter(is_active=True, is_archived=True, org=org).count())
+                dict(label="Active", url=reverse('flows.flow_list'), count=self.derive_queryset().filter(is_active=True, is_archived=False, org=org).count()),
+                dict(label="Archived", url=reverse('flows.flow_archived'), count=self.derive_queryset().filter(is_active=True, is_archived=True, org=org).count())
             ]
 
     class Archived(BaseList):
@@ -697,7 +697,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_queryset(self, *args, **kwargs):
             queryset = super(FlowCRUDL.List, self).derive_queryset(*args, **kwargs)
-            queryset = queryset.filter(is_active=True, is_archived=False).exclude(flow_type=Flow.MESSAGE)
+            queryset = queryset.filter(is_active=True, is_archived=False)
             types = self.request.REQUEST.getlist('flow_type')
             if types:
                 queryset = queryset.filter(flow_type__in=types)

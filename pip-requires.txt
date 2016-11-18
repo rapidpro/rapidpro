@@ -36,7 +36,7 @@ unidecode
 stripe
 dj-database-url
 psycopg2
-django-timezones
+django-timezone-field
 django-hstore
 colorama
 isoweek

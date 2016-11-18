@@ -58,6 +58,7 @@ class Channel(TembaModel):
     TYPE_BLACKMYNA = 'BM'
     TYPE_CHIKKA = 'CK'
     TYPE_CLICKATELL = 'CT'
+    TYPE_DUMMY = 'DM'
     TYPE_EXTERNAL = 'EX'
     TYPE_FACEBOOK = 'FB'
     TYPE_GLOBE = 'GL'
@@ -137,6 +138,7 @@ class Channel(TembaModel):
         TYPE_BLACKMYNA: dict(scheme='tel', max_length=1600),
         TYPE_CHIKKA: dict(scheme='tel', max_length=160),
         TYPE_CLICKATELL: dict(scheme='tel', max_length=420),
+        TYPE_DUMMY: dict(scheme='tel', max_length=160),
         TYPE_EXTERNAL: dict(max_length=160),
         TYPE_FACEBOOK: dict(scheme='facebook', max_length=320),
         TYPE_GLOBE: dict(scheme='tel', max_length=160),
@@ -169,6 +171,7 @@ class Channel(TembaModel):
                     (TYPE_ANDROID, "Android"),
                     (TYPE_BLACKMYNA, "Blackmyna"),
                     (TYPE_CLICKATELL, "Clickatell"),
+                    (TYPE_DUMMY, "Dummy"),
                     (TYPE_EXTERNAL, "External"),
                     (TYPE_FACEBOOK, "Facebook"),
                     (TYPE_GLOBE, "Globe Labs"),
@@ -1397,6 +1400,19 @@ class Channel(TembaModel):
                                 start=start)
 
         Channel.success(channel, msg, WIRED, start, 'GET', url, log_payload, response)
+
+    @classmethod
+    def send_dummy_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        delay = channel.config.get('delay', 1000)
+        start = time.time()
+
+        # sleep that amount
+        time.sleep(delay / float(1000))
+
+        # record the message as sent
+        Channel.success(channel, msg, WIRED, start, 'GET', 'http://fake', "", "")
 
     @classmethod
     def send_external_message(cls, channel, msg, text):
@@ -2679,6 +2695,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_BLACKMYNA: Channel.send_blackmyna_message,
                   Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
+                  Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
                   Channel.TYPE_FACEBOOK: Channel.send_facebook_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,

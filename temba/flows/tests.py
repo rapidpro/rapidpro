@@ -271,6 +271,29 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, self.flow.name)
         response = self.client.get(reverse('flows.flow_list'), post_data)
         self.assertContains(response, self.flow.name)
+        self.assertEquals(1, response.context['folders'][0]['count'])
+
+        # voice flows should be included in the count
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.VOICE)
+
+        response = self.client.get(reverse('flows.flow_list'))
+        self.assertContains(response, self.flow.name)
+        self.assertEquals(1, response.context['folders'][0]['count'])
+
+        # single message flow (flom campaign) should not be included in counts and not even on this list
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.MESSAGE)
+
+        response = self.client.get(reverse('flows.flow_list'))
+
+        self.assertNotContains(response, self.flow.name)
+        self.assertEquals(0, response.context['folders'][0]['count'])
+
+        # single message flow should not be even in the archived list
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.MESSAGE, is_archived=True)
+
+        response = self.client.get(reverse('flows.flow_archived'))
+        self.assertNotContains(response, self.flow.name)
+        self.assertEquals(1, response.context['folders'][1]['count'])  # only flow2
 
     def test_campaign_filter(self):
         self.login(self.admin)
@@ -488,7 +511,7 @@ class FlowTest(TembaTest):
         self.assertEqual("orange", context['flow']['color']['text'])
 
         # value time should be in org format and timezone
-        val_time = datetime_to_str(step.left_on, '%d-%m-%Y %H:%M', tz=pytz.timezone(self.org.timezone))
+        val_time = datetime_to_str(step.left_on, '%d-%m-%Y %H:%M', tz=self.org.timezone)
         self.assertEqual(val_time, context['flow']['color']['time'])
 
         self.assertEquals(self.channel.get_address_display(e164=True), context['channel']['tel_e164'])
@@ -609,7 +632,7 @@ class FlowTest(TembaTest):
         with self.assertNumQueries(49):
             workbook = self.export_flow_results(self.flow)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -702,7 +725,7 @@ class FlowTest(TembaTest):
         with self.assertNumQueries(48):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
         sheet_contacts = workbook.worksheets[0]
 
         self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
@@ -736,7 +759,7 @@ class FlowTest(TembaTest):
         # only one present now
         self.assertEqual(Value.objects.filter(contact=self.contact, contact_field=age).count(), 1)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
         sheet_runs, sheet_contacts = workbook.worksheets
 
         self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
@@ -782,7 +805,7 @@ class FlowTest(TembaTest):
 
         workbook = self.export_flow_results(self.flow)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -811,7 +834,7 @@ class FlowTest(TembaTest):
         in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact)
 
         workbook = self.export_flow_results(self.flow)
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -836,7 +859,7 @@ class FlowTest(TembaTest):
         run.save()
 
         workbook = self.export_flow_results(self.flow)
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -1086,7 +1109,7 @@ class FlowTest(TembaTest):
 
     def assertDateTest(self, expected_test, expected_value, test):
         run = FlowRun.objects.filter(contact=self.contact).first()
-        tz = run.flow.org.get_tzinfo()
+        tz = run.flow.org.timezone
         context = run.flow.build_message_context(run.contact, None)
 
         tuple = test.evaluate(run, self.sms, context, self.sms.text)
@@ -3816,7 +3839,7 @@ class FlowsTest(FlowFileTest):
 
         self.send_message(flow, 'mauve')
         msg = Msg.objects.filter(text='mauve').first()
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         response = self.client.get(recent_messages_url + get_params_entry)
         response_json = json.loads(response.content)

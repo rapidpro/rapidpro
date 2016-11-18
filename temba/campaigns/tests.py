@@ -1,16 +1,17 @@
 from __future__ import unicode_literals
 
 import json
+import six
 
+from datetime import timedelta
 from django.core.urlresolvers import reverse
+from django.utils import timezone
+from temba.campaigns.tasks import check_campaigns_task
 from temba.contacts.models import ContactField
 from temba.flows.models import FlowRun, Flow, RuleSet, ActionSet, FlowRevision
 from temba.orgs.models import CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest
-from temba.campaigns.tasks import check_campaigns_task
 from .models import Campaign, CampaignEvent, EventFire
-from django.utils import timezone
-from datetime import timedelta
 
 
 class CampaignTest(TembaTest):
@@ -460,7 +461,7 @@ class CampaignTest(TembaTest):
         # now import the group again
         filename = 'farmers.csv'
         extra_fields = [dict(key='planting_date', header='planting_date', label='Planting Date', type='D')]
-        import_params = dict(org_id=self.org.id, timezone=self.org.timezone, extra_fields=extra_fields, original_filename=filename)
+        import_params = dict(org_id=self.org.id, timezone=six.text_type(self.org.timezone), extra_fields=extra_fields, original_filename=filename)
 
         from temba.contacts.models import ImportTask, Contact
         import json
