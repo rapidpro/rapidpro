@@ -2666,6 +2666,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.address, post_data['number'])
         self.assertEquals(channel.config_json()['account_key'], post_data['account_key'])
         self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
+        self.assertEquals(channel.config_json()['api_url'], "https://go.vumi.org/api/v1/go/http_api_nostream")
         self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
@@ -2676,6 +2677,33 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.vumi_handler', args=['receive', channel.uuid]))
         self.assertContains(response, reverse('handlers.vumi_handler', args=['event', channel.uuid]))
+
+    def test_claim_vumi_ussd_custom_api(self):
+        Channel.objects.all().delete()
+        self.login(self.admin)
+
+        response = self.client.get(reverse('channels.channel_claim_vumi_ussd'))
+        self.assertEquals(200, response.status_code)
+
+        post_data = {
+            "country": "ZA",
+            "number": "+273454325324",
+            "account_key": "account1",
+            "conversation_key": "conversation1",
+            "api_url": "http://custom.api.url"
+        }
+
+        response = self.client.post(reverse('channels.channel_claim_vumi_ussd'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertTrue(uuid.UUID(channel.config_json()['access_token'], version=4))
+        self.assertEquals(channel.country, post_data['country'])
+        self.assertEquals(channel.address, post_data['number'])
+        self.assertEquals(channel.config_json()['account_key'], post_data['account_key'])
+        self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
+        self.assertEquals(channel.config_json()['api_url'], "http://custom.api.url")
+        self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
 
     @override_settings(SEND_EMAILS=True)
     def test_disconnected_alert(self):
