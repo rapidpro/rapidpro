@@ -131,6 +131,8 @@ class Channel(TembaModel):
     YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
     YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
+    VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream'
+
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_AFRICAS_TALKING: dict(scheme='tel', max_length=160),
@@ -1718,7 +1720,7 @@ class Channel(TembaModel):
         headers = dict(TEMBA_HEADERS)
         headers['content-type'] = 'application/json'
 
-        api_url_base = channel.config.get('api_url', 'https://go.vumi.org/api/v1/go/http_api_nostream')
+        api_url_base = channel.config.get('api_url', cls.VUMI_GO_API_URL)
 
         url = urlparse.urljoin(api_url_base, "/%s/messages.json" % channel.config['conversation_key'])
 

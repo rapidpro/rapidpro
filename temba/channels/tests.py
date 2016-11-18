@@ -2666,7 +2666,7 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(channel.address, post_data['number'])
         self.assertEquals(channel.config_json()['account_key'], post_data['account_key'])
         self.assertEquals(channel.config_json()['conversation_key'], post_data['conversation_key'])
-        self.assertEquals(channel.config_json()['api_url'], "https://go.vumi.org/api/v1/go/http_api_nostream")
+        self.assertEquals(channel.config_json()['api_url'], Channel.VUMI_GO_API_URL)
         self.assertEquals(channel.channel_type, Channel.TYPE_VUMI_USSD)
 
         config_url = reverse('channels.channel_configuration', args=[channel.pk])
