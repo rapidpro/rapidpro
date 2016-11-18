@@ -454,6 +454,57 @@ class IVRTests(FlowFileTest):
 
         self.assertContains(response, '"eventUrl": ["https://%s%s"]}]' % (settings.TEMBA_HOST, callback_url))
 
+    @patch('nexmo.Client.create_application')
+    @patch('nexmo.Client.create_call')
+    def test_ivr_subflows(self, mock_create_call, mock_create_application):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+        mock_create_call.return_value = dict(conversation_uuid='12345')
+
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.save()
+
+        # import an ivr flow
+        self.import_file('ivr_subflows')
+
+        parent_flow = Flow.objects.filter(name='Parent Flow').first()
+        # child_flow = Flow.objects.filter(name='Child Flow').first()
+
+        eric = self.create_contact('Eric Newcomer', number='+13603621737')
+        parent_flow.start([], [eric])
+        call = IVRCall.objects.filter(direction=OUTGOING).first()
+
+        callback_url = reverse('ivr.ivrcall_handle', args=[call.pk])
+
+        # after a call is picked up, nexmo will send a get call back to our server
+        response = self.client.post(callback_url, content_type='application/json',
+                                    data=json.dumps(dict(status='ringing', duration=0)))
+
+        self.assertTrue(dict(action='talk', text="Hi there! This is the parent flow.")
+                        in json.loads(response.content))
+
+        response = self.client.post(callback_url + "?input_redirect=1", content_type='application/json',
+                                    data=json.dumps(dict()))
+
+        self.assertTrue(dict(action='talk', text="What is your favorite color? 1 for Red, 2 for green or 3 for blue.")
+                        in json.loads(response.content))
+
+        # press 1
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=1))
+
+        self.assertTrue(dict(action='talk', text="Thanks, returning to the parent flow now.")
+                        in json.loads(response.content))
+
+        response = self.client.post(callback_url + "?input_redirect=1", content_type='application/json',
+                                    data=json.dumps(dict()))
+
+        self.assertTrue(dict(action='talk',
+                             text="In the child flow you picked @child.color.category. "
+                                  "I think that is a fine choice.\n\nGoodbye.")
+                        in json.loads(response.content))
+
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)

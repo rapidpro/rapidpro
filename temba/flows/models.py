@@ -682,8 +682,19 @@ class Flow(TembaModel):
                         run.update_expiration(timezone.now())
 
                     if flow:
-                        child_runs = flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                                                extra=extra, parent_run=run, interrupt=False)
+                        # if they are both flow runs, just redirect the call
+                        if run.flow.flow_type == Flow.VOICE and flow.flow_type == Flow.VOICE:
+                            new_run = flow.start([], [run.contact], started_flows=started_flows,
+                                                 restart_participants=True, extra=extra, parent_run=run)[0]
+                            url = "https://%s%s" % (settings.TEMBA_HOST,
+                                                    reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
+                            run.voice_response.redirect(url)
+                            child_runs = [new_run]
+
+                        else:
+                            child_runs = flow.start([], [run.contact], started_flows=started_flows,
+                                                    restart_participants=True, extra=extra,
+                                                    parent_run=run, interrupt=False)
 
                         msgs = []
                         for run in child_runs:
