@@ -2497,7 +2497,7 @@ class ChannelClaimTest(TembaTest):
         self.assertNotContains(response, "Zenvia")
 
         # but if we are in the proper time zone
-        self.org.timezone = 'America/Sao_Paulo'
+        self.org.timezone = pytz.timezone('America/Sao_Paulo')
         self.org.save()
 
         response = self.client.get(reverse('channels.channel_claim'))

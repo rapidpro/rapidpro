@@ -8,6 +8,7 @@ import phonenumbers
 import plivo
 import pycountry
 import pytz
+import six
 import time
 import requests
 
@@ -31,8 +32,9 @@ from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRE
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
+from temba.utils import analytics, non_atomic_when_eager
 from temba.utils.middleware import disable_middleware
-from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_code
+from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
@@ -899,6 +901,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             org = self.request.user.get_org()
             context['recommended_channel'] = org.get_recommended_channel()
+            context['org_timezone'] = six.text_type(org.timezone)
 
             return context
 

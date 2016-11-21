@@ -1,12 +1,13 @@
 from __future__ import unicode_literals
 
+import time
 from django.utils import timezone
 from django_redis import get_redis_connection
 from djcelery_transactions import task
 from temba.flows.models import FlowStatsCache
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.utils.email import send_simple_email
-from temba.utils.queues import pop_task
+from temba.utils.queues import start_task, complete_task
 from temba.utils.queues import push_task, nonoverlapping_task
 from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount
 
@@ -75,27 +76,35 @@ def start_flow_task(start_id):
 @task(track_started=True, name='start_msg_flow_batch')
 def start_msg_flow_batch_task():
     # pop off the next task
-    task_obj = pop_task('start_msg_flow_batch')
+    org_id, task_obj = start_task(Flow.START_MSG_FLOW_BATCH)
 
     # it is possible that somehow we might get None back if more workers were started than tasks got added, bail if so
     if task_obj is None:
         return
 
-    # instantiate all the objects we need that were serialized as JSON
-    flow = Flow.objects.filter(pk=task_obj['flow'], is_active=True).first()
-    if not flow:
-        return
+    start = time.time()
 
-    broadcasts = [] if not task_obj['broadcasts'] else Broadcast.objects.filter(pk__in=task_obj['broadcasts'])
-    started_flows = [] if not task_obj['started_flows'] else task_obj['started_flows']
-    start_msg = None if not task_obj['start_msg'] else Msg.objects.filter(pk=task_obj['start_msg']).first()
-    extra = task_obj['extra']
-    flow_start = None if not task_obj['flow_start'] else FlowStart.objects.filter(pk=task_obj['flow_start']).first()
+    try:
+        # instantiate all the objects we need that were serialized as JSON
+        flow = Flow.objects.filter(pk=task_obj['flow'], is_active=True).first()
+        if not flow:
+            return
 
-    # and go do our work
-    flow.start_msg_flow_batch(task_obj['contacts'], broadcasts=broadcasts,
-                              started_flows=started_flows, start_msg=start_msg,
-                              extra=extra, flow_start=flow_start)
+        broadcasts = [] if not task_obj['broadcasts'] else Broadcast.objects.filter(pk__in=task_obj['broadcasts'])
+        started_flows = [] if not task_obj['started_flows'] else task_obj['started_flows']
+        start_msg = None if not task_obj['start_msg'] else Msg.objects.filter(pk=task_obj['start_msg']).first()
+        extra = task_obj['extra']
+        flow_start = None if not task_obj['flow_start'] else FlowStart.objects.filter(pk=task_obj['flow_start']).first()
+        contacts = task_obj['contacts']
+
+        # and go do our work
+        flow.start_msg_flow_batch(contacts, broadcasts=broadcasts,
+                                  started_flows=started_flows, start_msg=start_msg,
+                                  extra=extra, flow_start=flow_start)
+    finally:
+        complete_task(Flow.START_MSG_FLOW_BATCH, org_id)
+
+    print "Started batch of %d contacts in flow %d [%d] in %0.3fs" % (len(contacts), flow.id, flow.org_id, time.time() - start)
 
 
 @task(track_started=True, name="check_flow_stats_accuracy_task")

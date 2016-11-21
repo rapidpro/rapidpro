@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>videojs-vjsdownload Demo</title>
+  <link href="/node_modules/video.js/dist/video-js.css" rel="stylesheet">
+  <link href="/dist/videojs-vjsdownload.css" rel="stylesheet">
+</head>
+<body>
+  <video id="videojs-vjsdownload-player" class="video-js vjs-default-skin" controls>
+    <source src="//vjs.zencdn.net/v/oceans.mp4" type='video/mp4'>
+    <source src="//vjs.zencdn.net/v/oceans.webm" type='video/webm'>
+  </video>
+  <ul>
+    <li><a href="/test/">Run unit tests in browser.</a></li>
+    
+  </ul>
+  <script src="/node_modules/video.js/dist/video.js"></script>
+  <script src="/dist/videojs-vjsdownload.js"></script>
+  <script>
+    (function(window, videojs) {
+      var player = window.player = videojs('videojs-vjsdownload-player');
+      player.vjsdownload();
+    }(window, window.videojs));
+  </script>
+</body>
+</html>
