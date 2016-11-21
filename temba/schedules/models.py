@@ -60,7 +60,7 @@ class Schedule(SmartModel):
             org = self.get_broadcast().org
 
         if org and org.timezone:
-            return org.get_tzinfo()
+            return org.timezone
         else:
             return timezone.pytz.utc
 

@@ -1065,13 +1065,12 @@ class Msg(models.Model):
 
     def build_message_context(self):
         date_format = get_datetime_format(self.org.get_dayfirst())[1]
-        tz = pytz.timezone(self.org.timezone)
 
         return {
             '__default__': self.text,
             'value': self.text,
             'contact': self.contact.build_message_context(),
-            'time': datetime_to_str(self.created_on, format=date_format, tz=tz)
+            'time': datetime_to_str(self.created_on, format=date_format, tz=self.org.timezone)
         }
 
     def resend(self):
@@ -1247,7 +1246,7 @@ class Msg(models.Model):
             tz = timezone.get_current_timezone()
         else:
             dayfirst = org.get_dayfirst()
-            tz = org.get_tzinfo()
+            tz = org.timezone
 
         (format_date, format_time) = get_datetime_format(dayfirst)
 
@@ -1947,7 +1946,7 @@ class ExportMessagesTask(SmartModel):
 
         all_messages = Msg.get_messages(self.org).order_by('-created_on')
 
-        tz = self.org.get_tzinfo()
+        tz = self.org.timezone
 
         if self.start_date:
             start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
