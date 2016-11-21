@@ -88,6 +88,15 @@ class InitTest(TembaTest):
             self.assertEqual(tz.localize(datetime(2013, 2, 1, 0, 0, 0, 0)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True, fill_time=False))  # no time filling
 
+        # localizing while in DST to something outside DST
+        tz = pytz.timezone('US/Eastern')
+        with patch.object(timezone, 'now', return_value=tz.localize(datetime(2029, 11, 1, 12, 30, 0, 0))):
+            self.assertEqual(tz.localize(datetime(2029, 11, 6, 12, 30, 0, 0)),
+                             str_to_datetime('06-11-2029', tz, dayfirst=True))
+
+            self.assertEqual(tz.localize(datetime(2029, 11, 6, 13, 45, 0, 0)),
+                             str_to_datetime('06-11-2029 13:45', tz, dayfirst=True))
+
     def test_str_to_time(self):
         tz = pytz.timezone('Asia/Kabul')
         with patch.object(timezone, 'now', return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):

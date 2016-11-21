@@ -352,6 +352,7 @@ class CampaignEvent(TembaModel):
     def calculate_scheduled_fire_for_value(self, date_value, now):
 
         date_value = self.campaign.org.parse_date(date_value)
+        tz = self.campaign.org.timezone
 
         # if we got a date, floor to the minute
         if date_value:
@@ -363,20 +364,28 @@ class CampaignEvent(TembaModel):
         # try to parse it to a datetime
         try:
             if date_value:
-                if self.unit == self.UNIT_MINUTES:
+                if self.unit == CampaignEvent.UNIT_MINUTES:
                     delta = timedelta(minutes=self.offset)
-                elif self.unit == self.UNIT_HOURS:
+                elif self.unit == CampaignEvent.UNIT_HOURS:
                     delta = timedelta(hours=self.offset)
-                elif self.unit == self.UNIT_DAYS:
+                elif self.unit == CampaignEvent.UNIT_DAYS:
                     delta = timedelta(days=self.offset)
-                elif self.unit == self.UNIT_WEEKS:
+                elif self.unit == CampaignEvent.UNIT_WEEKS:
                     delta = timedelta(weeks=self.offset)
 
                 scheduled = date_value + delta
 
+                # normalize according to our timezone (puts us in the right DST timezone if our date changed)
+                scheduled = tz.normalize(scheduled)
+
                 if self.delivery_hour != -1:
                     scheduled = scheduled.replace(hour=self.delivery_hour)
 
+                # if we've changed utcoffset (DST shift), tweak accordingly (this keeps us at the same hour of the day)
+                elif date_value.utcoffset() != scheduled.utcoffset():
+                    scheduled = tz.normalize(date_value.utcoffset() - scheduled.utcoffset() + scheduled)
+
+                # ignore anything in the past
                 if scheduled > now:
                     return scheduled
 

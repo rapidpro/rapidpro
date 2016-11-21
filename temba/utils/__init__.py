@@ -77,11 +77,16 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     try:
-        output_date = None
         if fill_time:
             date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=DEFAULT_DATE)
+
+            # get the local time and hour
+            default = timezone.now().astimezone(tz)
+            default = datetime.datetime(1, 1, 1, default.hour, default.minute, default.second, default.microsecond, None)
+
             if date != DEFAULT_DATE:
-                output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=timezone.now().astimezone(tz))
+                output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
+                output_date = tz.localize(output_date)  # localize in timezone
             else:
                 output_date = None
         else:
@@ -92,6 +97,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
             # only return date if it actually got parsed
             if output_date.year == 1:
                 output_date = None
+
     except Exception:
         output_date = None
 
