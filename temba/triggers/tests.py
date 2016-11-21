@@ -205,6 +205,7 @@ class TriggerTest(TembaTest):
     def test_trigger_schedule(self):
         self.login(self.admin)
         flow = self.create_flow()
+
         chester = self.create_contact("Chester", "+250788987654")
         shinoda = self.create_contact("Shinoda", "+250234213455")
         linkin_park = self.create_group("Linkin Park", [chester, shinoda])
@@ -226,6 +227,17 @@ class TriggerTest(TembaTest):
         self.assertEquals(response.context['form'].errors.keys(), ['flow'])
         self.assertFalse(Trigger.objects.all())
         self.assertFalse(Schedule.objects.all())
+
+        # survey flows should not be an option
+        flow.flow_type = Flow.SURVEY
+        flow.save()
+        response = self.client.get(reverse("triggers.trigger_schedule"))
+        self.assertEqual(0, response.context['form'].fields['flow'].queryset.all().count())
+
+        # back to normal flow type
+        flow.flow_type = Flow.FLOW
+        flow.save()
+        self.assertEqual(1, response.context['form'].fields['flow'].queryset.all().count())
 
         post_data = dict()
         post_data['flow'] = flow.pk

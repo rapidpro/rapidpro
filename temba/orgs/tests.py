@@ -26,7 +26,7 @@ from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Label, Msg, INCOMING
 from temba.nexmo import NexmoValidationError
-from temba.orgs.models import UserSettings
+from temba.orgs.models import UserSettings, NEXMO_SECRET, NEXMO_KEY
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator, FlowFileTest
 from temba.triggers.models import Trigger
 from temba.utils.email import link_components
@@ -437,6 +437,18 @@ class OrgTest(TembaTest):
         response = self.client.post(url, dict(surveyor_password='unique password'))
         self.org.refresh_from_db()
         self.assertEqual('unique password', self.org.surveyor_password)
+
+        # add an extra editor
+        editor = self.create_user('EditorTwo')
+        self.org.editors.add(editor)
+        self.surveyor.delete()
+
+        # fetch it as a formax so we can inspect the summary
+        response = self.client.get(url, HTTP_X_FORMAX=1, HTTP_X_PJAX=1)
+        self.assertContains(response, '1 Administrator')
+        self.assertContains(response, '2 Editors')
+        self.assertContains(response, '1 Viewer')
+        self.assertContains(response, '0 Surveyors')
 
     def test_refresh_tokens(self):
         self.login(self.admin)
@@ -1401,6 +1413,41 @@ class OrgTest(TembaTest):
                 self.assertEquals(self.org.config_json()['NEXMO_KEY'], 'key')
                 self.assertEquals(self.org.config_json()['NEXMO_SECRET'], 'secret')
 
+                nexmo_account_url = reverse('orgs.org_nexmo_account')
+                response = self.client.get(nexmo_account_url)
+                self.assertEquals("key", response.context['api_key'])
+
+                self.org.refresh_from_db()
+                config = self.org.config_json()
+                self.assertEquals('key', config[NEXMO_KEY])
+                self.assertEquals('secret', config[NEXMO_SECRET])
+
+                # post without api token, should get validation error
+                response = self.client.post(nexmo_account_url, dict(disconnect='false'), follow=True)
+                self.assertEquals('[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
+                                  response.context['form'].errors['__all__'].as_json())
+
+                # nexmo config should remain the same
+                self.org.refresh_from_db()
+                config = self.org.config_json()
+                self.assertEquals('key', config[NEXMO_KEY])
+                self.assertEquals('secret', config[NEXMO_SECRET])
+
+                # now try with all required fields, and a bonus field we shouldn't change
+                self.client.post(nexmo_account_url, dict(api_key='other_key',
+                                                         api_secret='secret-too',
+                                                         disconnect='false',
+                                                         name='DO NOT CHNAGE ME'), follow=True)
+                # name shouldn't change
+                self.org.refresh_from_db()
+                self.assertEquals(self.org.name, "Temba")
+
+                self.assertTrue(self.org.is_connected_to_nexmo())
+                self.client.post(nexmo_account_url, dict(disconnect='true'), follow=True)
+
+                self.org.refresh_from_db()
+                self.assertFalse(self.org.is_connected_to_nexmo())
+
         # and disconnect
         self.org.remove_nexmo_account(self.admin)
         self.assertFalse(self.org.is_connected_to_nexmo())
@@ -2353,6 +2400,26 @@ class BulkExportTest(TembaTest):
 
             # trigger import failed, new flows that were added should get rolled back
             self.assertIsNone(Flow.objects.filter(org=self.org, name='New Mother').first())
+
+    def test_import_campaign_with_translations(self):
+
+        # import all our bits
+        self.import_file('campaign_import_with_translations')
+
+        campaign = Campaign.objects.all().first()
+        event = campaign.events.all().first()
+
+        action_set = event.flow.action_sets.order_by('-y').first()
+        actions = action_set.get_actions_dict()
+        action_msg = actions[0]['msg']
+
+        event_msg = json.loads(event.message)
+
+        self.assertEquals(event_msg['swa'], 'hello')
+        self.assertEquals(event_msg['eng'], 'Hey')
+
+        self.assertEquals(action_msg['swa'], 'hello')
+        self.assertEquals(action_msg['eng'], 'Hey')
 
     def test_export_import(self):
 

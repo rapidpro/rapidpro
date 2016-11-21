@@ -220,7 +220,11 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         super(ScheduleTriggerForm, self).__init__(*args, **kwargs)
         self.user = user
         self.fields['omnibox'].set_user(user)
-        self.fields['flow'].queryset = Flow.objects.filter(org=self.user.get_org(), is_active=True, is_archived=False).exclude(flow_type=Flow.MESSAGE)
+
+        flows = Flow.objects.filter(org=self.user.get_org(), is_active=True, is_archived=False,
+                                    flow_type__in=[Flow.FLOW, Flow.VOICE])
+
+        self.fields['flow'].queryset = flows
 
     def clean(self):
         data = super(ScheduleTriggerForm, self).clean()

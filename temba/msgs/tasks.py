@@ -4,10 +4,10 @@ import logging
 import time
 
 from datetime import timedelta
-from django.utils import timezone
 from django.core.cache import cache
+from django.utils import timezone
+from django_redis import get_redis_connection
 from djcelery_transactions import task
-from redis_cache import get_redis_connection
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import pop_task, nonoverlapping_task
 from temba.utils import json_date_to_datetime, chunk_list
@@ -169,11 +169,9 @@ def check_messages_task():
 
     # fire a few send msg tasks in case we dropped one somewhere during a restart
     # (these will be no-ops if there is nothing to do)
-    send_msg_task.delay()
-    send_msg_task.delay()
-
-    handle_event_task.delay()
-    handle_event_task.delay()
+    for i in range(250):
+        send_msg_task.delay()
+        handle_event_task.delay()
 
     # also check any incoming messages that are still pending somehow, reschedule them to be handled
     unhandled_messages = Msg.objects.filter(direction=INCOMING, status=PENDING, created_on__lte=five_minutes_ago)
@@ -266,7 +264,7 @@ def squash_systemlabels():
     SystemLabel.squash_counts()
 
 
-@nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids')
+@nonoverlapping_task(track_started=True, name='clear_old_msg_external_ids', time_limit=60 * 60 * 36)
 def clear_old_msg_external_ids():
     """
     Clears external_id on older messages to reduce the size of the index on that column. External ids aren't surfaced

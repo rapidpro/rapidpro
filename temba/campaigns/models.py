@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import json
 from datetime import timedelta
 from django.db import models
 from django.db.models import Model
@@ -117,10 +118,19 @@ class Campaign(TembaModel):
 
                     # create our message flow for message events
                     if event_spec['event_type'] == CampaignEvent.TYPE_MESSAGE:
+
+                        message = event_spec['message']
+                        if not isinstance(message, dict):
+                            try:
+                                message = json.loads(message)
+                            except:
+                                # if it's not a language dict, turn it into one
+                                message = dict(base=message)
+
                         event = CampaignEvent.create_message_event(org, user, campaign, relative_to,
                                                                    event_spec['offset'],
                                                                    event_spec['unit'],
-                                                                   event_spec['message'],
+                                                                   message,
                                                                    event_spec['delivery_hour'])
                         event.update_flow_name()
                     else:
@@ -167,13 +177,22 @@ class Campaign(TembaModel):
         events = []
 
         for event in self.events.all().order_by('flow__uuid'):
+
+            message = event.message
+            if message:
+                try:
+                    message = json.loads(message)
+                except:
+                    message = dict(base=message)
+
             events.append(dict(uuid=event.uuid, offset=event.offset,
                                unit=event.unit,
                                event_type=event.event_type,
                                delivery_hour=event.delivery_hour,
-                               message=event.message,
+                               message=message,
                                flow=dict(uuid=event.flow.uuid, name=event.flow.name),
                                relative_to=dict(label=event.relative_to.label, key=event.relative_to.key)))
+
         definition['events'] = events
         return definition
 
@@ -251,6 +270,9 @@ class CampaignEvent(TembaModel):
 
         flow = Flow.create_single_message(org, user, message)
 
+        if isinstance(message, dict):
+            message = json.dumps(message)
+
         return cls.objects.create(campaign=campaign, relative_to=relative_to, offset=offset, unit=unit,
                                   event_type=cls.TYPE_MESSAGE, message=message, flow=flow, delivery_hour=delivery_hour,
                                   created_by=user, modified_by=user)
@@ -276,6 +298,15 @@ class CampaignEvent(TembaModel):
                     hour -= 12
             hours.append((i, 'at %s:00 %s' % (hour, period)))
         return hours
+
+    def get_message(self):
+        message = self.message
+        try:
+            message = json.loads(message).get(self.flow.base_language, '')
+        except:
+            pass
+
+        return message
 
     def update_flow_name(self):
         """
