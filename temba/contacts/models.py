@@ -498,7 +498,7 @@ class Contact(TembaModel):
             event_fire.created_on = event_fire.fired
 
         # and the contact's failed IVR calls
-        error_calls = self.sessions.filter(created_on__gte=after, created_on__lt=before, status__in=[
+        error_calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
             IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED
         ])
         error_calls = error_calls.select_related('channel')

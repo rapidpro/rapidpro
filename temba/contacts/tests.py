@@ -19,7 +19,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
 from temba.flows.models import FlowRun
-from temba.channels.models import ChannelSession
+from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast
 from temba.orgs.models import Org
@@ -1238,9 +1238,9 @@ class ContactTest(TembaTest):
                             timezone.now(), 5)
 
         # try adding some failed calls
-        ChannelSession.objects.create(contact=self.joe, status=ChannelSession.NO_ANSWER, created_by=self.admin,
-                                      modified_by=self.admin, channel=self.channel, org=self.org,
-                                      contact_urn=self.joe.urns.all().first())
+        IVRCall.objects.create(contact=self.joe, status=IVRCall.NO_ANSWER, created_by=self.admin,
+                               modified_by=self.admin, channel=self.channel, org=self.org,
+                               contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
         with self.assertNumQueries(70):
@@ -1251,7 +1251,7 @@ class ContactTest(TembaTest):
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
         activity = response.context['activity']
         self.assertEqual(len(activity), 94)
-        self.assertIsInstance(activity[0], ChannelSession)
+        self.assertIsInstance(activity[0], IVRCall)
         self.assertIsInstance(activity[1], ChannelEvent)
         self.assertIsInstance(activity[2], Msg)
         self.assertEqual(activity[2].direction, 'O')
@@ -1294,7 +1294,7 @@ class ContactTest(TembaTest):
         activity = response.context['activity']
         self.assertIsInstance(activity[0], Msg)
         self.assertEqual(activity[0].text, "Newer message")
-        self.assertIsInstance(activity[1], ChannelSession)
+        self.assertIsInstance(activity[1], IVRCall)
 
         recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?r=true&rs=%s" % recent_start, self.admin)

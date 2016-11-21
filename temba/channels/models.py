@@ -3210,12 +3210,13 @@ class ChannelSession(SmartModel):
     INCOMING = 'I'
     OUTGOING = 'O'
 
-    FLOW = 'F'
+    IVR = 'F'
+    USSD = 'U'
 
     DIRECTION_CHOICES = ((INCOMING, "Incoming"),
                          (OUTGOING, "Outgoing"))
 
-    TYPE_CHOICES = ((FLOW, "Flow"),)
+    TYPE_CHOICES = ((IVR, "IVR"), (USSD, "USSD"),)
 
     STATUS_CHOICES = ((QUEUED, "Queued"),
                       (RINGING, "Ringing"),
@@ -3249,7 +3250,7 @@ class ChannelSession(SmartModel):
                                     help_text="When this session ended")
     org = models.ForeignKey(Org,
                             help_text="The organization this session belongs to")
-    session_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=FLOW,
+    session_type = models.CharField(max_length=1, choices=TYPE_CHOICES,
                                     help_text="What sort of session this is")
     duration = models.IntegerField(default=0, null=True,
                                    help_text="The length of this session in seconds")
@@ -3258,21 +3259,18 @@ class ChannelSession(SmartModel):
                                help_text=_("The session that triggered this one"))
 
     @classmethod
-    def create_outgoing(cls, channel, contact, contact_urn, flow, user, session_type=FLOW):
+    def create_outgoing(cls, channel, contact, contact_urn, flow, user, session_type):
         session = cls.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
                                      direction=cls.OUTGOING, org=channel.org,
                                      created_by=user, modified_by=user, session_type=session_type)
         return session
 
     @classmethod
-    def create_incoming(cls, channel, contact, contact_urn, flow, user, session_type=FLOW):
+    def create_incoming(cls, channel, contact, contact_urn, flow, user, session_type):
         session = cls.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
                                      direction=cls.INCOMING, org=channel.org, created_by=user, modified_by=user,
                                      session_type=session_type)
         return session
-
-    def is_flow(self):
-        return self.session_type == self.FLOW
 
     def is_done(self):
         return self.status in self.DONE

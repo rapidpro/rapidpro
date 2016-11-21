@@ -60,9 +60,8 @@ class CallHandler(View):
             hangup = 'hangup' == user_response.get('Digits', None)
 
             if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
-                if call.is_flow():
-                    response = Flow.handle_call(call, user_response, hangup=hangup)
-                    return HttpResponse(unicode(response))
+                response = Flow.handle_call(call, user_response, hangup=hangup)
+                return HttpResponse(unicode(response))
             else:
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup

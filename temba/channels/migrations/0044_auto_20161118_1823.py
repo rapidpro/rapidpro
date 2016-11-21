@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='channelsession',
             name='session_type',
-            field=models.CharField(default='F', help_text='What sort of session this is', max_length=1, choices=[('F', 'Flow')]),
+            field=models.CharField(help_text='What sort of session this is', max_length=1, choices=[('F', 'IVR'), ('U', 'USSD')])
         ),
     ]
