@@ -73,7 +73,47 @@ class CampaignTest(TembaTest):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
         # go create an event that based on a message
-        post_data = dict(relative_to=self.planting_date.pk, event_type='M', message="This is my message",
+        url = '%s?campaign=%d' % (reverse('campaigns.campaignevent_create'), campaign.id)
+        response = self.client.get(url)
+        self.assertTrue('base' in response.context['form'].fields)
+
+        # should be no language list
+        self.assertNotContains(response, 'show_language')
+
+        # set our primary language to Achinese
+        from temba.orgs.models import Language
+        ace = Language.objects.create(org=self.org, name='Achinese', iso_code='ace',
+                                      created_by=self.admin, modified_by=self.admin)
+
+        self.org.primary_language = ace
+        self.org.save()
+
+        # now we should have ace as our primary
+        response = self.client.get(url)
+        self.assertFalse('base' in response.context['form'].fields)
+        self.assertTrue('ace' in response.context['form'].fields)
+
+        # add second language
+        spa = Language.objects.create(org=self.org, name='Spanish', iso_code='spa',
+                                      created_by=self.admin, modified_by=self.admin)
+
+        response = self.client.get(url)
+        self.assertFalse('base' in response.context['form'].fields)
+        self.assertTrue('ace' in response.context['form'].fields)
+        self.assertTrue('spa' in response.context['form'].fields)
+
+        # and our language list should be there
+        self.assertContains(response, 'show_language')
+
+        self.org.primary_language = None
+        self.org.save()
+
+        response = self.client.get(url)
+        self.assertTrue('base' in response.context['form'].fields)
+        self.assertTrue('spa' in response.context['form'].fields)
+        self.assertTrue('ace' in response.context['form'].fields)
+
+        post_data = dict(relative_to=self.planting_date.pk, event_type='M', base="This is my message", spa="hola",
                          direction='B', offset=1, unit='W', flow_to_start='', delivery_hour=13)
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
@@ -86,13 +126,54 @@ class CampaignTest(TembaTest):
         self.assertEquals(Flow.MESSAGE, flow.flow_type)
 
         entry = ActionSet.objects.filter(uuid=flow.entry_uuid)[0]
-        self.assertEquals("This is my message", entry.get_actions()[0].msg['base'])
+        msg = entry.get_actions()[0].msg
+        self.assertEqual('base', flow.base_language)
+        self.assertEqual("This is my message", msg['base'])
+        self.assertEqual("hola", msg['spa'])
+        self.assertEqual("", msg['ace'])
         self.assertFalse(RuleSet.objects.filter(flow=flow))
 
-        self.assertEquals(-1, event.offset)
-        self.assertEquals(13, event.delivery_hour)
-        self.assertEquals('W', event.unit)
-        self.assertEquals('M', event.event_type)
+        self.assertEqual(-1, event.offset)
+        self.assertEqual(13, event.delivery_hour)
+        self.assertEqual('W', event.unit)
+        self.assertEqual('M', event.event_type)
+
+        url = reverse('campaigns.campaignevent_update', args=[event.id])
+        response = self.client.get(url)
+        self.assertEqual('This is my message', response.context['form'].fields['base'].initial)
+        self.assertEqual('hola', response.context['form'].fields['spa'].initial)
+        self.assertEqual('', response.context['form'].fields['ace'].initial)
+
+        # promote spanish to our primary language
+        self.org.primary_language = spa
+        self.org.save()
+
+        # the base language needs to stay present since it's the true backdown
+        response = self.client.get(url)
+        self.assertTrue('base' in response.context['form'].fields)
+        self.assertEqual('This is my message', response.context['form'].fields['base'].initial)
+        self.assertEqual('hola', response.context['form'].fields['spa'].initial)
+        self.assertEqual('', response.context['form'].fields['ace'].initial)
+
+        # now we save our new settings
+        post_data = dict(relative_to=self.planting_date.pk, event_type='M', base='Required', spa="This is my message", ace='',
+                         direction='B', offset=1, unit='W', flow_to_start='', delivery_hour=13)
+        response = self.client.post(url, post_data)
+        self.assertEqual(302, response.status_code)
+        flow.refresh_from_db()
+
+        # we should retain 'base' as our base language
+        self.assertEqual('base', flow.base_language)
+
+        # now we can remove our primary language
+        self.org.primary_language = None
+        self.org.save()
+
+        # and still get the same settings, (it should use the base of the flow instead of just base here)
+        response = self.client.get(url)
+        self.assertTrue('base' in response.context['form'].fields)
+        self.assertEqual('This is my message', response.context['form'].fields['spa'].initial)
+        self.assertEqual('', response.context['form'].fields['ace'].initial)
 
     def test_views(self):
         # update the planting date for our contacts
@@ -175,19 +256,19 @@ class CampaignTest(TembaTest):
         self.assertContains(response, self.voice_flow.name)
         self.assertEquals(200, response.status_code)
 
-        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=2, unit='D', event_type='M', flow_to_start=self.reminder_flow.pk)
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
-        self.assertTrue('Please enter a message' in response.context['form'].errors['message'])
+        self.assertTrue('A message is required' in unicode(response.context['form'].errors['__all__']))
 
-        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=2, unit='D', event_type='F')
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=2, unit='D', event_type='F')
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         self.assertTrue(response.context['form'].errors)
         self.assertTrue('Please select a flow' in response.context['form'].errors['flow_to_start'])
 
-        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=2, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=2, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
         response = self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
 
         # should be redirected back to our campaign read page
@@ -212,7 +293,7 @@ class CampaignTest(TembaTest):
         self.assertEquals(2020, fire.scheduled.year)
         self.assertEquals(event, fire.event)
 
-        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, message='', direction='A', offset=1, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=1, unit='D', event_type='F', flow_to_start=self.reminder_flow.pk)
         response = self.client.post(reverse('campaigns.campaignevent_update', args=[event.pk]), post_data)
 
         # should be redirected back to our campaign event read page
@@ -231,6 +312,13 @@ class CampaignTest(TembaTest):
         self.assertEquals(10, fire.scheduled.month)
         self.assertEquals(2020, fire.scheduled.year)
         self.assertEquals(event, fire.event)
+
+        # trying to archive our flow should fail since it belongs to a campaign
+        post_data = dict(action='archive', objects=self.reminder_flow.pk)
+        response = self.client.post(reverse('flows.flow_list'), post_data)
+        self.reminder_flow.refresh_from_db()
+        self.assertFalse(self.reminder_flow.is_archived)
+        self.assertEqual('Color Flow is used inside a campaign. To archive it, first remove it from your campaigns.', response.get('Temba-Toast'))
 
         # archive the campaign
         post_data = dict(action='archive', objects=campaign.pk)

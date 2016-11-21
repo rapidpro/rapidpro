@@ -15,26 +15,30 @@ module.exports = (config) ->
     # list of files / patterns to load in the browser
     files: [
 
-      # our javascript dependencies
-      'static/js/jquery-2.1.0.min.js',
-      'static/angular-1.3.15/angular.js',
-      'static/angular-1.3.15/angular-animate.js'
-      'static/angular-1.3.15/angular-mocks.js',
-      'static/angular/ui-bootstrap-tpls-0.11.0.js',
-      'static/scripts/angular-file-upload-1.6.12/angular-file-upload.js',
-      'static/scripts/angular-elastic-2.4.0/angular-elastic.js',
-      'static/js/dom.jsPlumb-1.7.5.js',
-      'static/angular/sortable.js',
-      'static/js/jasmine-jquery.js',
-      'static/js/omnibox.js',
-      'static/js/uuid.js',
-      'static/js/excellent.js',
-      'static/scripts/bootstrap/js/bootstrap.js',
-      'static/js/select2.js',
+      # our bower dependencies
+      'static/bower/jquery/jquery.js',
+      'static/bower/angular/angular.js',
+      'static/bower/angular-animate/angular-animate.js',
+      'static/bower/angular-mocks/angular-mocks.js',
+      'static/bower/angular-bootstrap/ui-bootstrap-tpls.js',
+      'static/bower/angular-elastic/elastic.js',
+      'static/bower/jsPlumb/dist/js/dom.jsPlumb-1.7.5.js'
+      'static/bower/angular-ui-sortable/sortable.js',
+      'static/bower/bootstrap/js/bootstrap-modal.js',
+      'static/bower/select2/select2.js',
+
+      # non-bower dependencies
+      'static/lib/angular-file-upload-1.6.12/angular-file-upload.js',
+      'static/lib/jasmine-jquery.js',
+      'static/lib/uuid.js',
+
+      # karma helpers
       'karma/helpers.coffee',
       'karma/flows/helpers.coffee',
 
-      # the code we are testing
+      # our code
+      'static/js/excellent.js',
+      'static/js/omnibox.js',
       'static/coffee/flows/*.coffee',
       'static/coffee/completions.coffee',
       'static/coffee/temba.coffee',

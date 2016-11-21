@@ -6,7 +6,7 @@ import importlib
 
 from celery import current_app, shared_task
 from django.conf import settings
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 from temba.utils import dict_to_json
 
 
@@ -35,7 +35,7 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
     # push our task onto the right queue and make sure it is in the active list (atomically)
     with r.pipeline() as pipe:
         key = "%s:%d" % (task_name, org if isinstance(org, int) else org.id)
-        pipe.zadd(key, dict_to_json(args), score)
+        pipe.zadd(key, score, dict_to_json(args))
 
         # and make sure this key is in our list of queues so this job will get worked on
         pipe.sadd("%s:active" % task_name, key)

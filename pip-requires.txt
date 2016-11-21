@@ -1,47 +1,46 @@
--e git+https://github.com/nyaruka/smartmin.git#egg=smartmin
-Django==1.8.5
-coverage==4.0.3
-django-celery==3.1.17
-django-compressor==1.5
-django-debug-toolbar==1.2.2
-django-digest==1.13
+smartmin
+Django<1.9
+coverage
+django-celery
+django-compressor
+django-debug-toolbar
+django-digest
 django-extensions
 django-guardian
 -e git+http://github.com/nyaruka/django-modeltranslation.git#egg=django_modeltranslation-dev
--e git+http://github.com/nyaruka/django-quickblocks.git#egg=django-quickblocks-dev
-django-rosetta==0.6.2
+django-rosetta
 flake8
-gunicorn==19.3.0
-pisa==3.0.33
-raven==4.0.4
-celery[redis]==3.1.23
+gunicorn
+pisa
+raven
+celery[redis]
 python-gcm
-pytz==2014.7
+pytz
 hamlpy
 django_select2
-django-redis==3.1.5
-redis==2.10.1
+django-redis
+redis
 BeautifulSoup
 xlutils
 phonenumbers
-django-countries==3.0.1
+django-countries
 djangorestframework
 djangorestframework-xml
 -e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django-ttag-dev
 iptools
-requests==1.2.3
+requests
 mock
-selenium==2.31.0
+selenium
 unidecode
 -e git+http://github.com/nyaruka/django-celery-transactions.git#egg=django-celery-transactions
-stripe==1.11.0
-dj-database-url==0.2.1
-psycopg2==2.5.2
+stripe
+dj-database-url
+psycopg2
 django-timezones
--e git+http://github.com/nyaruka/django-hstore.git#egg=django-hstore
+django-hstore
 colorama
-isoweek==1.2.0
-iso639==0.1.1
+isoweek
+iso639
 twilio
 pycrypto
 numpy
@@ -52,16 +51,16 @@ google
 ply
 uservoice
 nose-perfdump
-geojson==1.0.7
-pycountry==1.18
+geojson
+pycountry
 stop-words
 twython
 enum34
 plivo
 rapidpro-expressions
 python-telegram-bot
--e git+http://github.com/nyaruka/python-librato-bg.git#egg=librato_bg
-django-mptt==0.7.4
+librato_bg
+django-mptt
 openpyxl
 django-excel
 pyexcel-xls

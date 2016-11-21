@@ -18,14 +18,14 @@ from django.db.models import Q, Count, Prefetch, Sum
 from django.utils import timezone
 from django.utils.html import escape
 from django.utils.translation import ugettext, ugettext_lazy as _
-from temba_expressions.evaluator import EvaluationContext, DateStyle
-from redis_cache import get_redis_connection
+from django_redis import get_redis_connection
 from smartmin.models import SmartModel
+from temba_expressions.evaluator import EvaluationContext, DateStyle
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelEvent
 from temba.orgs.models import Org, TopUp, Language, UNREAD_INBOX_MSGS
 from temba.schedules.models import Schedule
-from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, remove_control_characters
+from temba.utils import get_datetime_format, datetime_to_str, analytics, chunk_list, clean_string
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.email import send_template_email
 from temba.utils.expressions import evaluate_template
@@ -649,7 +649,7 @@ class Msg(models.Model):
     next_attempt = models.DateTimeField(auto_now_add=True, verbose_name=_("Next Attempt"),
                                         help_text=_("When we should next attempt to deliver this message"))
 
-    external_id = models.CharField(max_length=255, null=True, blank=True, db_index=True, verbose_name=_("External ID"),
+    external_id = models.CharField(max_length=255, null=True, blank=True, verbose_name=_("External ID"),
                                    help_text=_("External id used for integrating with callbacks from other APIs"))
 
     topup = models.ForeignKey(TopUp, null=True, blank=True, related_name='msgs', on_delete=models.SET_NULL,
@@ -872,7 +872,7 @@ class Msg(models.Model):
                 analytics.gauge('temba.msg_errored_%s' % channel.channel_type.lower())
 
     @classmethod
-    def mark_sent(cls, r, channel, msg, status, latency, external_id=None):
+    def mark_sent(cls, r, msg, status, external_id=None):
         """
         Marks an outgoing message as WIRED or SENT
         :param msg: a JSON representation of the message
@@ -893,19 +893,6 @@ class Msg(models.Model):
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on, external_id=external_id)
         else:
             Msg.objects.filter(id=msg.id).update(status=status, sent_on=msg.sent_on)
-
-        # record our latency between the message being created and it being sent
-        # (this will have some db latency but will still be a good measure in the second-range)
-
-        # hasattr needed here as queued_on being included is new, so some messages may not have the attribute after push
-        if getattr(msg, 'queued_on', None):
-            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.queued_on).total_seconds())
-        else:
-            analytics.gauge('temba.sending_latency', (msg.sent_on - msg.created_on).total_seconds())
-
-        # logs that a message was sent for this channel type if our latency is known
-        if latency > 0:
-            analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), latency)
 
     def as_json(self):
         return dict(direction=self.direction,
@@ -2014,10 +2001,10 @@ class ExportMessagesTask(SmartModel):
                 current_messages_sheet.append(sheet_row)
                 row = 2
 
-            contact_name = msg.contact.name if msg.contact.name else ''
+            contact_name = clean_string(msg.contact.name) if msg.contact.name else ''
             contact_uuid = msg.contact.uuid
             created_on = msg.created_on.astimezone(pytz.utc).replace(microsecond=0, tzinfo=None)
-            msg_labels = ", ".join(msg_label.name for msg_label in msg.labels.all())
+            msg_labels = ", ".join(clean_string(msg_label.name) for msg_label in msg.labels.all())
 
             # only show URN path if org isn't anon and there is a URN
             if self.org.is_anon:
@@ -2031,7 +2018,7 @@ class ExportMessagesTask(SmartModel):
 
             sheet_row = []
 
-            text = remove_control_characters(msg.text)
+            text = clean_string(msg.text)
 
             cell = WriteOnlyCell(current_messages_sheet, value=created_on)
             sheet_row.append(cell)
