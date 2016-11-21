@@ -482,28 +482,37 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
 
-        self.assertTrue(dict(action='talk', text="Hi there! This is the parent flow.")
-                        in json.loads(response.content))
+        response_dict = json.loads(response.content)
+        callback_url = response_dict[1]['eventUrl'][0]
 
-        response = self.client.post(callback_url + "?input_redirect=1", content_type='application/json',
-                                    data=json.dumps(dict()))
+        self.assertTrue(dict(action='talk', text="Hi there! This is the parent flow.") in response_dict)
+
+        response = self.client.post(callback_url, content_type='application/json',
+                                    data=json.dumps(dict(status='ringing', duration=0)))
+
+        response_dict = json.loads(response.content)
+        callback_url = response_dict[1]['eventUrl'][0]
 
         self.assertTrue(dict(action='talk', text="What is your favorite color? 1 for Red, 2 for green or 3 for blue.")
-                        in json.loads(response.content))
+                        in response_dict)
 
         # press 1
-        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(Digits=1))
+        response = self.client.post(callback_url, content_type='application/json', data=json.dumps(dict(dtmf='1')))
+        response_dict = json.loads(response.content)
+        callback_url = response_dict[1]['eventUrl'][0]
 
         self.assertTrue(dict(action='talk', text="Thanks, returning to the parent flow now.")
-                        in json.loads(response.content))
+                        in response_dict)
 
-        response = self.client.post(callback_url + "?input_redirect=1", content_type='application/json',
-                                    data=json.dumps(dict()))
+        response = self.client.post(callback_url, content_type='application/json',
+                                    data=json.dumps(dict(dtmf='')))
+
+        response_dict = json.loads(response.content)
 
         self.assertTrue(dict(action='talk',
-                             text="In the child flow you picked @child.color.category. "
+                             text="In the child flow you picked Red. "
                                   "I think that is a fine choice.\n\nGoodbye.")
-                        in json.loads(response.content))
+                        in response_dict)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
