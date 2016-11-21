@@ -451,7 +451,7 @@ class Flow(TembaModel):
             if msg.id:
                 Msg.mark_handled(msg)
 
-        if run.parent is not None:
+        if run.parent is not None and run.parent.call is not None:
             url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.parent.call.pk]))
             run.voice_response.redirect(url)
             run.set_completed(final_step=step)
