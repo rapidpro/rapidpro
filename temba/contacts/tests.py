@@ -2282,6 +2282,17 @@ class ContactTest(TembaTest):
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
 
+        records = self.do_import(user, 'sample_contacts_UPPER.XLS')
+        self.assertEquals(3, len(records))
+
+        self.assertEquals(1, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals(group.name, "Sample Contacts Upper")
+        self.assertEquals(3, group.contacts.count())
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
         records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
         self.assertEquals(2, len(records))
 

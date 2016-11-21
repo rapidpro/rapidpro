@@ -680,8 +680,14 @@ class FlowCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
 
             return [
-                dict(label="Active", url=reverse('flows.flow_list'), count=self.derive_queryset().filter(is_active=True, is_archived=False, org=org).count()),
-                dict(label="Archived", url=reverse('flows.flow_archived'), count=self.derive_queryset().filter(is_active=True, is_archived=True, org=org).count())
+                dict(label="Active", url=reverse('flows.flow_list'),
+                     count=Flow.objects.exclude(flow_type=Flow.MESSAGE).filter(is_active=True,
+                                                                               is_archived=False,
+                                                                               org=org).count()),
+                dict(label="Archived", url=reverse('flows.flow_archived'),
+                     count=Flow.objects.exclude(flow_type=Flow.MESSAGE).filter(is_active=True,
+                                                                               is_archived=True,
+                                                                               org=org).count())
             ]
 
     class Archived(BaseList):
