@@ -4,6 +4,7 @@ from __future__ import absolute_import, unicode_literals
 import inspect
 import json
 import os
+import pytz
 import re
 import redis
 import shutil
@@ -90,8 +91,8 @@ class TembaTest(SmartminTest):
         self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
         self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
 
-        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand=settings.DEFAULT_BRAND,
-                                      created_by=self.user, modified_by=self.user)
+        self.org = Org.objects.create(name="Temba", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
+                                      brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
 
         self.org.initialize(topup_size=1000)
 

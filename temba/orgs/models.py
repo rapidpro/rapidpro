@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import pycountry
-import pytz
 import random
 import regex
 import stripe
@@ -31,10 +30,12 @@ from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.nexmo import NexmoClient
 from temba.utils import analytics, str_to_datetime, get_datetime_format, datetime_to_str, random_string
-from temba.utils import timezone_to_country_code, languages
+from temba.utils import languages
 from temba.utils.cache import get_cacheable_result, get_cacheable_attr, incrby_existing
 from temba.utils.email import send_template_email
 from temba.utils.currencies import currency_for_country
+from temba.utils.timezones import timezone_to_country_code
+from timezone_field import TimeZoneField
 from twilio.rest import TwilioRestClient
 from urlparse import urlparse
 from uuid import uuid4
@@ -174,7 +175,7 @@ class Org(SmartModel):
     language = models.CharField(verbose_name=_("Language"), max_length=64, null=True, blank=True,
                                 choices=settings.LANGUAGES, help_text=_("The main language used by this organization"))
 
-    timezone = models.CharField(verbose_name=_("Timezone"), max_length=64)
+    timezone = TimeZoneField(verbose_name=_("Timezone"))
 
     date_format = models.CharField(verbose_name=_("Date Format"), max_length=1, choices=DATE_PARSING, default=DAYFIRST,
                                    help_text=_("Whether day comes first or month comes first in dates"))
@@ -628,7 +629,7 @@ class Org(SmartModel):
         from temba.channels.models import Channel
 
         # if we have msgs, then send just those
-        if msgs:
+        if msgs is not None:
             ids = [m.id for m in msgs]
 
             # trigger syncs for our android channels
@@ -888,22 +889,19 @@ class Org(SmartModel):
     def get_dayfirst(self):
         return self.date_format == DAYFIRST
 
-    def get_tzinfo(self):
-        return pytz.timezone(self.timezone)
-
     def format_date(self, datetime, show_time=True):
         """
         Formats a datetime with or without time using this org's date format
         """
         formats = get_datetime_format(self.get_dayfirst())
         format = formats[1] if show_time else formats[0]
-        return datetime_to_str(datetime, format, False, self.get_tzinfo())
+        return datetime_to_str(datetime, format, False, self.timezone)
 
     def parse_date(self, date_string):
         if isinstance(date_string, datetime):
             return date_string
 
-        return str_to_datetime(date_string, self.get_tzinfo(), self.get_dayfirst())
+        return str_to_datetime(date_string, self.timezone, self.get_dayfirst())
 
     def parse_decimal(self, decimal_string):
         parsed = None

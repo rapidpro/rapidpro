@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>URI.js - URLs in Javascript</title>
+    <meta name="description" content="URI.js is a Javascript library for working with URLs." />
+    
+    <script src="jquery-1.9.1.min.js" type="text/javascript"></script>
+    <script src="prettify/prettify.js" type="text/javascript"></script>
+    <script src="screen.js" type="text/javascript"></script>
+    <link href="screen.css" rel="stylesheet" type="text/css" />
+    <link href="prettify/prettify.sunburst.css" rel="stylesheet" type="text/css" />
+    <script src="src/URI.min.js" type="text/javascript"></script>
+    <script type="text/javascript">
+
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-8922143-3']);
+      _gaq.push(['_trackPageview']);
+
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+
+    </script>
+</head>
+<body>
+    <a id="github-forkme" href="https://github.com/medialize/URI.js"><img src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+    <div id="github-watch"><a href="https://github.com/medialize/URI.js" class="gitwatch">URI.js Github Repository</a></div>
+    
+    <div id="container">
+    <h1><a href="https://github.com/medialize/URI.js">URI.js</a></h1>
+    
+    <ul class="menu">
+        <li class="active"><a href="/URI.js/">Intro</a></li>
+        <li><a href="about-uris.html">Understanding URIs</a></li>
+        <li><a href="docs.html">API-Documentation</a></li>
+        <li><a href="jquery-uri-plugin.html">jQuery Plugin</a></li>
+        <li><a href="uri-template.html">URI Template</a></li>
+        <li><a href="build.html">Build</a></li>
+        <li><a href="http://rodneyrehm.de/en/">Author</a></li>
+    </ul>
+    
+    <p>URI.js is a javascript library for working with URLs. It offers a "jQuery-style" API (<a href="http://en.wikipedia.org/wiki/Fluent_interface">Fluent Interface</a>, Method Chaining) to read and write all regular components and a number of convenience methods like 
+        .<a href="docs.html#accessors-directory">directory</a>() and .<a href="docs.html#accessors-authority">authority</a>().</p>
+    <p>URI.js offers simple, yet powerful ways of working with query string, has a number of URI-normalization functions and converts relative/absolute paths.</p>
+    <p>While URI.js provides a <a href="jquery-uri-plugin.html">jQuery plugin</a>. URI.js itself does not rely on jQuery. You <em>don't need jQuery</em> to use URI.js</p>
+
+    <h2>Examples</h2>
+    <p>How do you like manipulating URLs the "jQuery-style"?</p>
+    <pre class="prettyprint lang-js">// mutating URLs
+URI("http://example.org/foo.html?hello=world")
+    .<a href="docs.html#accessors-username">username</a>("rodneyrehm") 
+        // -> http://rodneyrehm@example.org/foo.html?hello=world
+    .<a href="docs.html#accessors-username">username</a>("") 
+        // -> http://example.org/foo.html?hello=world
+    .<a href="docs.html#accessors-directory">directory</a>("bar")
+        // -> http://example.org/bar/foo.html?hello=world
+    .<a href="docs.html#accessors-suffix">suffix</a>("xml")    
+        // -> http://example.org/bar/foo.xml?hello=world
+    .<a href="docs.html#accessors-hash">hash</a>("hackernews")
+        // -> http://example.org/bar/foo.xml?hello=world#hackernews
+    .<a href="docs.html#accessors-fragment">fragment</a>("")
+        // -> http://example.org/bar/foo.xml?hello=world
+    .<a href="docs.html#accessors-search">search</a>("") // alias of .query()
+        // -> http://example.org/bar/foo.xml
+    .<a href="docs.html#accessors-tld">tld</a>("com")
+        // -> http://example.com/bar/foo.xml
+    .<a href="docs.html#accessors-search">search</a>({ foo: "bar", hello: ["world", "mars"] });
+        // -> http://example.com/bar/foo.xml?foo=bar&amp;hello=world&amp;hello=mars</pre>
+
+    <p>How do you like working query strings?</p>
+    <pre class="prettyprint lang-js">URI("?hello=world")
+    .<a href="docs.html#search-add">addSearch</a>("hello", "mars")
+        // -> ?hello=world&amp;hello=mars
+    .<a href="docs.html#search-add">addSearch</a>({ foo: ["bar", "baz"] })
+        // -> ?hello=world&amp;hello=mars&amp;foo=bar&amp;foo=baz
+    .<a href="docs.html#search-remove">removeSearch</a>("hello", "mars")
+        // -> ?hello=world&amp;foo=bar&amp;foo=baz
+    .<a href="docs.html#search-remove">removeSearch</a>("foo")
+        // -> ?hello=world
+    </pre>
+    
+    <p>How do you like relative paths?</p>
+    <pre class="prettyprint lang-js">URI("/relative/path")
+    .<a href="docs.html#relativeto">relativeTo</a>("/relative/sub/foo/sub/file")
+        // -> ../../../path 
+    .<a href="docs.html#absolute">absoluteTo</a>("/relative/sub/foo/sub/file");
+        // -> /relative/path </pre>
+    
+    <p>How do you like cleaning things up?</p>
+    <pre class="prettyprint lang-js">URI("?&amp;foo=bar&amp;&amp;foo=bar&amp;foo=baz&amp;&quot;)
+    .<a href="docs.html#normalize-search">normalizeSearch</a>();
+        // -&gt; ?foo=bar&amp;foo=baz
+
+URI("/hello/foo/woo/.././../world.html")
+    .<a href="docs.html#normalize-path">normalizePathname</a>();
+        // -> /hello/world.html </pre>
+    
+    <p>How do you like detecting URIs within random text?</p>
+    <pre class="prettyprint lang-js">var source = "Hello www.example.com,\n"
+    + "http://google.com is a search engine, like http://www.bing.com\n"
+    + "http://exämple.org/foo.html?baz=la#bumm is an IDN URL,\n"
+    + "http://123.123.123.123/foo.html is IPv4 and "
+    + "http://fe80:0000:0000:0000:0204:61ff:fe9d:f156/foobar.html is IPv6.\n"
+    + "links can also be in parens (http://example.org) "
+    + "or quotes »http://example.org«.";
+
+var result = <a href="docs.html#static-withinString">URI.withinString</a>(source, function(url) {
+    return "&lt;a&gt;" + url + "&lt;/a&gt;";
+});
+
+/* result is:
+Hello <strong>&lt;a&gt;www.example.com&lt;/a&gt;</strong>,
+<strong>&lt;a&gt;http://google.com&lt;/a&gt;</strong> is a search engine, like <strong>&lt;a&gt;http://www.bing.com&lt;/a&gt;</strong>
+<strong>&lt;a&gt;http://ex&auml;mple.org/foo.html?baz=la#bumm&lt;/a&gt;</strong> is an IDN URL,
+<strong>&lt;a&gt;http://123.123.123.123/foo.html&lt;/a&gt;</strong> is IPv4 and <strong>&lt;a&gt;http://fe80:0000:0000:0000:0204:61ff:fe9d:f156/foobar.html&lt;/a&gt;</strong> is IPv6.
+links can also be in parens (<strong>&lt;a&gt;http://example.org&lt;/a&gt;</strong>) or quotes &raquo;<strong>&lt;a&gt;http://example.org&lt;/a&gt;</strong>&laquo;.
+*/
+</pre>
+
+    <p>How do you like comparing URLs?</p>
+    <pre class="prettyprint lang-js">var a = "http://example.org/foo/bar.html"
+        + "?foo=bar&amp;hello=world&amp;hello=mars#fragment",
+    b = "http://exAMPle.org:80/foo/../foo/bar.html"
+        + "?hello=mars&amp;foo=bar&amp;hello=world&amp;#fragment";
+
+a !== b;
+URI(a).<a href="docs.html#equals">equals</a>(b) === true;</pre>
+    
+    <p>How do you like fiddling with the fragment?</p>
+    <pre class="prettyprint lang-js">// <strong>storing values in the fragment (hash):</strong>
+var uri = URI("#hello-world");
+uri.fragment({foo: "bar", bar: ["hello", "world"]});
+uri.fragment() === "foo=bar&amp;bar=hello&amp;bar=world";
+// required src/URI.fragmentQuery.js to be loaded
+
+// <strong>storing URLs in the fragment (hash):</strong>
+var uri = URI("http://example.org/#!/foo/bar/baz.html"),
+    furi = uri.fragment(true);
+furi.pathname() === "/foo/bar/baz.html";
+furi.pathname("/hello.html");
+uri.toString() === "http://example.org/#!/hello.html"
+// required src/URI.fragmentURI.js to be loaded</pre>
+
+    <p>How do you like parsing URNs?</p>
+    <pre class="prettyprint lang-js">var uri = URI("mailto:hello@example.org?subject=hello");
+uri.protocol() == "mailto";
+uri.path() == "hello@example.org";
+uri.query() == "subject=hello";</pre>
+    
+    <p>How do you like URI Templating?</p>
+    <pre class="prettyprint lang-js">URI.expand("/foo/{dir}/{file}", {
+  dir: "bar",
+  file: "world.html"
+});
+// -> /foo/bar/world.html</pre>
+    
+    <h2 id="authors">Authors</h2>
+	<ul>
+		<li><a href="http://rodneyrehm.de/en/">Rodney Rehm</a></li>
+	</ul>
+	
+    <h2 id="license">License</h2>
+	<p>URI.js is published under the <a href="http://www.opensource.org/licenses/mit-license">MIT license</a> and <a href="http://opensource.org/licenses/GPL-3.0">GPL v3</a>.</p>
+	
+    </div>
+    
+    <script type="text/javascript" src="https://raw.github.com/addyosmani/github-watchers-button/master/github-watchers.min.js"></script>
+</body>
+</html>
