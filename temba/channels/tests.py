@@ -6233,6 +6233,39 @@ class TelegramTest(TembaTest):
         self.assertTrue(msgs[0].media.startswith('geo:'))
         self.assertTrue('Fogo Mar' in msgs[0].text)
 
+        no_message = """
+        {
+          "channel_post": {
+            "caption": "@A_caption",
+            "chat": {
+              "id": -1001091928432,
+              "title": "a title",
+              "type": "channel",
+              "username": "a_username"
+            },
+            "date": 1479722450,
+            "forward_date": 1479712599,
+            "forward_from": {},
+            "forward_from_chat": {},
+            "forward_from_message_id": 532,
+            "from": {
+              "first_name": "a_first_name",
+              "id": 294674412
+            },
+            "message_id": 1310,
+            "voice": {
+              "duration": 191,
+              "file_id": "AwADBAAD2AYAAoN65QtM8XVBVS7P5Ao",
+              "file_size": 1655713,
+              "mime_type": "audio/ogg"
+            }
+          },
+          "update_id": 677142491
+        }
+        """
+        response = self.client.post(receive_url, no_message, content_type='application/json', post_data=location_data)
+        self.assertEquals(400, response.status_code)
+
     def test_send(self):
         joe = self.create_contact("Ernie", urn='telegram:1234')
         msg = joe.send("Test message", self.admin, trigger_send=False)
