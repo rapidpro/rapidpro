@@ -217,8 +217,8 @@ INSTALLED_APPS = (
     'smartmin.users',
     'modeltranslation',
 
-    # django-timezones
-    'timezones',
+    # django-timezone-field
+    'timezone_field',
 
     # temba apps
     'temba.assets',
@@ -887,7 +887,6 @@ GROUP_PERMISSIONS = {
         'flows.flow_simulate',
         'flows.ruleset_analytics',
         'flows.ruleset_results',
-        'flows.ruleset_map',
         'flows.ruleset_choropleth',
 
         'msgs.broadcast_schedule_list',
@@ -1105,10 +1104,15 @@ HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
 # Django Compressor configuration
 # -----------------------------------------------------------------------------------
 
-COMPRESS_PRECOMPILERS = (
-    ('text/less', 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, '../static', 'less')),
-    ('text/coffeescript', 'coffee --compile --stdio'))
-COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html')
+if TESTING:
+    # if only testing, disable coffeescript and less compilation
+    COMPRESS_PRECOMPILERS = ()
+else:
+    COMPRESS_PRECOMPILERS = (
+        ('text/less', 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, '../static', 'less')),
+        ('text/coffeescript', 'coffee --compile --stdio')
+    )
+    COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html')
 
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False

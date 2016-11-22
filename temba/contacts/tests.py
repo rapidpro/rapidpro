@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import json
 import pytz
+import six
 
 from datetime import datetime, date, timedelta
 from django.core.files.base import ContentFile
@@ -182,9 +183,9 @@ class ContactGroupTest(TembaTest):
         self.mary.set_field(self.admin, 'gender', "female")
 
         group = ContactGroup.create_dynamic(self.org, self.admin, "Group two",
-                                            '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+                                            '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")')
 
-        self.assertEqual(group.query, '(age < 18 and gender = "male") or (age > 18 and gender = "female")')
+        self.assertEqual(group.query, '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")')
         self.assertEqual(set(group.query_fields.all()), {age, gender})
         self.assertEqual(set(group.contacts.all()), {self.joe, self.mary})
 
@@ -491,7 +492,6 @@ class ContactTest(TembaTest):
         super(ContactTest, self).setUp()
 
         self.user1 = self.create_user("nash")
-        self.manager1 = self.create_user("mike")
 
         self.joe = self.create_contact(name="Joe Blow", number="+250781111111", twitter="blow80")
         self.frank = self.create_contact(name="Frank Smith", number="+250782222222")
@@ -1482,7 +1482,7 @@ class ContactTest(TembaTest):
         self.assertEquals(302, response.status_code)
 
         # visit a contact detail page as a manager but not belonging to this organisation
-        self.login(self.manager1)
+        self.login(self.non_org_user)
         response = self.client.get(read_url)
         self.assertEquals(302, response.status_code)
 
@@ -1548,7 +1548,7 @@ class ContactTest(TembaTest):
         self.client.logout()
 
         # login as a manager from out of this organization
-        self.login(self.manager1)
+        self.login(self.non_org_user)
 
         # create kLab group, and add joe to the group
         klab = self.create_group("kLab", [self.joe])
@@ -2164,7 +2164,7 @@ class ContactTest(TembaTest):
 
     def do_import(self, user, filename):
 
-        import_params = dict(org_id=self.org.id, timezone=self.org.timezone, extra_fields=[],
+        import_params = dict(org_id=self.org.id, timezone=six.text_type(self.org.timezone), extra_fields=[],
                              original_filename=filename)
 
         task = ImportTask.objects.create(
@@ -2278,6 +2278,29 @@ class ContactTest(TembaTest):
         self.assertTrue(response.context['show_form'])
         self.assertFalse(response.context['task'])
         self.assertEquals(response.context['group'], None)
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        self.assertEquals(2, len(records))
+
+        self.assertEquals(1, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals(group.name, "Sample Contacts With Filename Very Long That It Will N")
+        self.assertEquals(2, group.contacts.count())
+
+        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        self.assertEquals(2, len(records))
+
+        self.assertEquals(2, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals(2, group.contacts.count())
+        group = ContactGroup.user_groups.all()[1]
+        self.assertEquals(2, group.contacts.count())
+        self.assertEquals(set(["Sample Contacts With Filename Very Long That It Will N",
+                               "Sample Contacts With Filename Very Long That It Will N 2"]),
+                          set(ContactGroup.user_groups.all().values_list('name', flat=True)))
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
@@ -3262,18 +3285,7 @@ class ContactURNTest(TembaTest):
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
-        self.user = self.create_user("tito")
-        self.manager1 = self.create_user("mike")
-        self.admin = self.create_user("ben")
-        self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.admin, modified_by=self.admin)
-        self.org.administrators.add(self.admin)
-        self.org.initialize()
-
-        self.user.set_org(self.org)
-        self.admin.set_org(self.org)
-
-        self.channel = Channel.create(self.org, self.admin, None, 'A', "Test Channel", "0785551212",
-                                      secret="12345", gcm_id="123")
+        super(ContactFieldTest, self).setUp()
 
         self.joe = self.create_contact(name="Joe Blow", number="123")
         self.frank = self.create_contact(name="Frank Smith", number="1234")
@@ -3501,7 +3513,7 @@ class ContactFieldTest(TembaTest):
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
 
-        self.login(self.manager1)
+        self.login(self.non_org_user)
         response = self.client.get(manage_fields_url)
 
         # redirect to login because of no access to org
@@ -3611,7 +3623,7 @@ class ContactFieldTest(TembaTest):
 
         ContactField.objects.filter(org=self.org, key='key1').update(is_active=False)
 
-        self.login(self.manager1)
+        self.login(self.non_org_user)
         response = self.client.get(contact_field_json_url)
 
         # redirect to login because of no access to org

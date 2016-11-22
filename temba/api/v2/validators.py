@@ -9,9 +9,9 @@ class UniqueForOrgValidator(UniqueValidator):
     request time. So this subclass reads org from the field's context and applies it to the queryset at runtime.
     """
     def __init__(self, queryset, ignore_case=True, message=None):
-        super(UniqueForOrgValidator, self).__init__(queryset, message=message)
+        lookup = 'iexact' if ignore_case else 'exact'
 
-        self.ignore_case = ignore_case
+        super(UniqueForOrgValidator, self).__init__(queryset, message=message, lookup=lookup)
 
     def set_context(self, serializer_field):
         super(UniqueForOrgValidator, self).set_context(serializer_field)
@@ -19,6 +19,5 @@ class UniqueForOrgValidator(UniqueValidator):
         self.org = serializer_field.context['org']
 
     def filter_queryset(self, value, queryset):
-        field_lookup = 'iexact' if self.ignore_case else 'exact'
-        filter_kwargs = {'org': self.org, '%s__%s' % (self.field_name, field_lookup): value}
-        return qs_filter(queryset, **filter_kwargs)
+        queryset = super(UniqueForOrgValidator, self).filter_queryset(value, queryset)
+        return qs_filter(queryset, **{'org': self.org})
