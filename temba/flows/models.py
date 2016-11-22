@@ -423,6 +423,11 @@ class Flow(TembaModel):
         # find out where we last left off
         step = run.steps.all().order_by('-arrived_on').first()
 
+        # a seen step then hangup to prevent loops
+        if step and step.left_on is not None:
+            voice_response.hangup()
+            return voice_response
+
         # if we are just starting the flow, create our first step
         if not step:
             # lookup our entry node
@@ -436,7 +441,8 @@ class Flow(TembaModel):
 
         # go and actually handle wherever we are in the flow
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
-        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None)
+        (handled, msgs) = Flow.handle_destination(destination, step, run, msg, user_input=text is not None,
+                                                  resume_parent_run=True)
 
         # if we stopped needing user input (likely), then wrap our response accordingly
         voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
@@ -449,6 +455,11 @@ class Flow(TembaModel):
 
             if msg.id:
                 Msg.mark_handled(msg)
+
+        if run.parent is not None and run.parent.call is not None:
+            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.parent.call.pk]))
+            run.voice_response.redirect(url)
+            run.set_completed(final_step=step)
 
         # if we didn't handle it, this is a good time to hangup
         if not handled or hangup:
@@ -683,8 +694,9 @@ class Flow(TembaModel):
                         run.update_expiration(timezone.now())
 
                     if flow:
-                        child_runs = flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
-                                                extra=extra, parent_run=run, interrupt=False)
+                        child_runs = flow.start([], [run.contact], started_flows=started_flows,
+                                                restart_participants=True, extra=extra,
+                                                parent_run=run, interrupt=False)
 
                         msgs = []
                         for run in child_runs:
@@ -1531,6 +1543,8 @@ class Flow(TembaModel):
             if parent_run and parent_run.call:
                 call.parent = parent_run.call
                 call.save()
+                url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.call.pk]))
+                parent_run.voice_response.redirect(url)
             else:
                 # trigger the call to start (in the background)
                 call.start_call()
@@ -3204,7 +3218,7 @@ class RuleSet(models.Model):
     def get_voice_input(self, voice_response, action=None):
 
         # recordings aren't wrapped input they get tacked on at the end
-        if self.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
+        if self.ruleset_type in [RuleSet.TYPE_WAIT_RECORDING, RuleSet.TYPE_SUBFLOW]:
             return voice_response
         elif self.ruleset_type == RuleSet.TYPE_WAIT_DIGITS:
             return voice_response.gather(finishOnKey=self.finished_key, timeout=60, action=action)
