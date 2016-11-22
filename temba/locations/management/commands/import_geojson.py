@@ -121,13 +121,11 @@ class Command(BaseCommand):  # pragma: no cover
             seen_osm_ids.append(osm_id)
 
         # now remove any unseen boundaries
-        # TODO: how do we deal with values already assigned to a location? we should probably retry to do some
-        # matching based on the new names? (though unlikely to match if the
-        # name didn't match when trying to find the boundary)
-        current_boundary = AdminBoundary.objects.filter(osm_id=osm_id).first()
-        if current_boundary:
-            country = current_boundary.get_root()
-            country.get_descendants().filter(level=level).exclude(osm_id__in=seen_osm_ids).delete()
+        if osm_id:
+            current_boundary = AdminBoundary.objects.filter(osm_id=osm_id).first()
+            if current_boundary:
+                country = current_boundary.get_root()
+                country.get_descendants().filter(level=level).exclude(osm_id__in=seen_osm_ids).delete()
 
     def handle(self, *args, **options):
         filenames = []
