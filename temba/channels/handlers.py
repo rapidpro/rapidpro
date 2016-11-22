@@ -507,6 +507,9 @@ class TelegramHandler(View):
 
         body = json.loads(request.body)
 
+        if 'message' not in body:
+            return HttpResponse("No 'message' found in payload", status=400)
+
         # look up the contact
         telegram_id = str(body['message']['from']['id'])
         urn = URN.from_telegram(telegram_id)
