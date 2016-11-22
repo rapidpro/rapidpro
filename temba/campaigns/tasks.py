@@ -61,7 +61,6 @@ def update_event_fires_for_campaign(campaign_id):
     key = 'event_fires_campaign_%d' % campaign_id
 
     with r.lock(key, timeout=300):
-
         try:
             with transaction.atomic():
                 campaign = Campaign.objects.filter(pk=campaign_id).first()
@@ -69,6 +68,8 @@ def update_event_fires_for_campaign(campaign_id):
                     EventFire.do_update_campaign_events(campaign)
 
         except Exception as e:  # pragma: no cover
+            import traceback
+            traceback.print_exc(e)
 
             # requeue our task to try again in five minutes
             update_event_fires_for_campaign(campaign_id).delay(countdown=60 * 5)
