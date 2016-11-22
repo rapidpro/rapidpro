@@ -81,9 +81,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
             date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=DEFAULT_DATE)
 
             # get the local time and hour
-            default = timezone.now().astimezone(tz)
-            default = datetime.datetime(default.year, default.month, default.day,
-                                        default.hour, default.minute, default.second, default.microsecond, None)
+            default = timezone.now().astimezone(tz).replace(tzinfo=None)
 
             # we parsed successfully
             if date.tzinfo or date != DEFAULT_DATE:
