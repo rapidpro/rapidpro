@@ -16,6 +16,11 @@ class Migration(migrations.Migration):
             model_name='flowrun',
             name='call',
             field=models.ForeignKey(related_name='runs', blank=True, to='channels.ChannelSession',
-                                    help_text='The call that handled this flow run, only for voice flows', null=True),
+                                    help_text='The session that handled this flow run, only for voice flows', null=True),
+        ),
+        migrations.RenameField(
+            model_name='flowrun',
+            old_name='call',
+            new_name='session',
         ),
     ]

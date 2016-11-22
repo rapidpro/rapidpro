@@ -94,7 +94,7 @@ class TwimlAPIHandler(View):
                                        request.POST.get('CallDuration', None))
                     call.save()
 
-                    FlowRun.create(flow, contact.pk, call=call)
+                    FlowRun.create(flow, contact.pk, session=call)
                     response = Flow.handle_call(call, {})
                     return HttpResponse(unicode(response))
                 else:
