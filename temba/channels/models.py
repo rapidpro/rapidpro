@@ -3,7 +3,6 @@ from __future__ import absolute_import, unicode_literals
 import json
 import time
 import urlparse
-import os
 import phonenumbers
 import plivo
 import regex
@@ -395,7 +394,6 @@ class Channel(TembaModel):
             parsed = phonenumbers.parse(phone_number, None)
             shortcode = str(parsed.national_number)
             nexmo_phones = client.get_numbers(shortcode)
-
             if nexmo_phones:
                 is_shortcode = True
                 phone_number = shortcode
@@ -404,7 +402,7 @@ class Channel(TembaModel):
         if not nexmo_phones:
             try:
                 client.buy_number(country, phone_number)
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
                 raise Exception(_("There was a problem claiming that number, "
                                   "please check the balance on your account. " +
                                   "Note that you can only claim numbers after "
@@ -417,7 +415,7 @@ class Channel(TembaModel):
         try:
             client.update_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path))
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             # shortcodes don't seem to claim right on nexmo, move forward anyways
             if not is_shortcode:
                 raise Exception(_("There was a problem claiming that number, please check the balance on your account.") +
@@ -709,15 +707,6 @@ class Channel(TembaModel):
 
     def get_caller(self):
         return self.get_delegate(Channel.ROLE_CALL)
-
-    def get_parent_channel(self):
-        """
-        If we are a delegate channel, this will get us the parent channel.
-        Otherwise, it will just return ourselves if we are the parent channel
-        """
-        if self.parent:
-            return self.parent
-        return self
 
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role
@@ -1209,7 +1198,7 @@ class Channel(TembaModel):
         external_id = None
         try:
             external_id = response.json()['message_id']
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             # if we can't pull out our message id, that's ok, we still sent
             pass
 
@@ -1272,7 +1261,7 @@ class Channel(TembaModel):
         try:
             response_json = response.json()
             external_id = response_json['id']
-        except:
+        except:  # pragma: no cover
             raise SendException("Unable to parse response body from MBlox",
                                 method='POST',
                                 url=url,
@@ -1328,7 +1317,7 @@ class Channel(TembaModel):
         log_payload['password'] = 'x' * len(log_payload['password'])
 
         log_url = channel.config[Channel.CONFIG_SEND_URL]
-        if log_url.find("?") >= 0:
+        if log_url.find("?") >= 0:  # pragma: no cover
             log_url += "&" + urlencode(log_payload)
         else:
             log_url += "?" + urlencode(log_payload)
@@ -1402,7 +1391,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, 'GET', url, log_payload, response)
 
     @classmethod
-    def send_dummy_message(cls, channel, msg, text):
+    def send_dummy_message(cls, channel, msg, text):  # pragma: no cover
         from temba.msgs.models import WIRED
 
         delay = channel.config.get('delay', 1000)
@@ -2787,7 +2776,7 @@ class ChannelCount(models.Model):
 
         print "Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
 
     class Meta:
@@ -3007,7 +2996,7 @@ class SyncEvent(SmartModel):
 
 @receiver(pre_save, sender=SyncEvent)
 def pre_save(sender, instance, **kwargs):
-    if kwargs['raw']:
+    if kwargs['raw']:  # pragma: no cover
         return
 
     if not instance.pk:
@@ -3115,7 +3104,7 @@ class Alert(SmartModel):
                 channel = Channel.objects.get(pk=channel_id)
 
                 # never alert on channels that have no org
-                if channel.org is None:
+                if channel.org is None:  # pragma: no cover
                     continue
 
                 # if we haven't sent an alert in the past six ours
@@ -3183,17 +3172,6 @@ def get_alert_user():
         return user
 
 
-def get_twilio_application_sid():
-    return os.environ.get('TWILIO_APPLICATION_SID', settings.TWILIO_APPLICATION_SID)
-
-
-def get_twilio_client():
-    account_sid = os.environ.get('TWILIO_ACCOUNT_SID', settings.TWILIO_ACCOUNT_SID)
-    auth_token = os.environ.get('TWILIO_AUTH_TOKEN', settings.TWILIO_AUTH_TOKEN)
-    from temba.ivr.clients import TwilioClient
-    return TwilioClient(account_sid, auth_token)
-
-
 class ChannelSession(SmartModel):
     PENDING = 'P'
     QUEUED = 'Q'
@@ -3257,20 +3235,6 @@ class ChannelSession(SmartModel):
 
     parent = models.ForeignKey('ChannelSession', verbose_name=_("Parent Session"), related_name='child_sessions', null=True,
                                help_text=_("The session that triggered this one"))
-
-    @classmethod
-    def create_outgoing(cls, channel, contact, contact_urn, flow, user, session_type):
-        session = cls.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
-                                     direction=cls.OUTGOING, org=channel.org,
-                                     created_by=user, modified_by=user, session_type=session_type)
-        return session
-
-    @classmethod
-    def create_incoming(cls, channel, contact, contact_urn, flow, user, session_type):
-        session = cls.objects.create(channel=channel, contact=contact, contact_urn=contact_urn, flow=flow,
-                                     direction=cls.INCOMING, org=channel.org, created_by=user, modified_by=user,
-                                     session_type=session_type)
-        return session
 
     def is_done(self):
         return self.status in self.DONE
