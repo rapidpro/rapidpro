@@ -35,7 +35,7 @@ from temba.channels.models import Channel
 from temba.formax import FormaxMixin
 from temba.utils import analytics, build_json_response, languages
 from temba.utils.middleware import disable_middleware
-from timezones.forms import TimeZoneField
+from temba.utils.timezones import TimeZoneFormField
 from twilio.rest import TwilioRestClient
 from .models import Org, OrgCache, OrgEvent, TopUp, Invitation, UserSettings, get_stripe_credentials
 from .models import MT_SMS_EVENTS, MO_SMS_EVENTS, MT_CALL_EVENTS, MO_CALL_EVENTS, ALARM_EVENTS
@@ -190,7 +190,7 @@ class OrgSignupForm(forms.ModelForm):
     first_name = forms.CharField(help_text=_("Your first name"))
     last_name = forms.CharField(help_text=_("Your last name"))
     email = forms.EmailField(help_text=_("Your email address"))
-    timezone = TimeZoneField(help_text=_("The timezone your organization is in"))
+    timezone = TimeZoneFormField(help_text=_("The timezone your organization is in"))
     password = forms.CharField(widget=forms.PasswordInput,
                                help_text=_("Your password, at least eight letters please"))
     name = forms.CharField(label=_("Organization"),
@@ -226,7 +226,7 @@ class OrgGrantForm(forms.ModelForm):
     first_name = forms.CharField(help_text=_("The first name of the organization administrator"))
     last_name = forms.CharField(help_text=_("Your last name of the organization administrator"))
     email = forms.EmailField(help_text=_("Their email address"))
-    timezone = TimeZoneField(help_text=_("The timezone the organization is in"))
+    timezone = TimeZoneFormField(help_text=_("The timezone the organization is in"))
     password = forms.CharField(widget=forms.PasswordInput, required=False,
                                help_text=_("Their password, at least eight letters please. (leave blank for existing users)"))
     name = forms.CharField(label=_("Organization"),
@@ -1219,7 +1219,7 @@ class OrgCRUDL(SmartCRUDL):
             name = forms.CharField(label=_("Organization"),
                                    help_text=_("The name of your organization"))
 
-            timezone = TimeZoneField(help_text=_("The timezone your organization is in"))
+            timezone = TimeZoneFormField(help_text=_("The timezone your organization is in"))
 
             class Meta:
                 model = Org
@@ -2047,7 +2047,7 @@ class OrgCRUDL(SmartCRUDL):
 
         class OrgForm(forms.ModelForm):
             name = forms.CharField(max_length=128, label=_("The name of your organization"), help_text="")
-            timezone = TimeZoneField(label=_("Your organization's timezone"), help_text="")
+            timezone = TimeZoneFormField(label=_("Your organization's timezone"), help_text="")
             slug = forms.SlugField(max_length=255, label=_("The slug, or short name for your organization"), help_text="")
 
             class Meta:

@@ -2375,7 +2375,7 @@ class OrgEndpoint(BaseAPIView):
             'country': org.get_country_code(),
             'languages': [l.iso_code for l in org.languages.order_by('iso_code')],
             'primary_language': org.primary_language.iso_code if org.primary_language else None,
-            'timezone': org.timezone,
+            'timezone': six.text_type(org.timezone),
             'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
             'anon': org.is_anon
         }
