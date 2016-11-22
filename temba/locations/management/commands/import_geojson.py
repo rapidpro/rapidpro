@@ -24,9 +24,7 @@ class Command(BaseCommand):  # pragma: no cover
         # we keep track of all the osm ids we've seen because we remove all admin levels at this level
         # which weren't seen. (they have been removed)
         seen_osm_ids = []
-
-        # track currently processed admin boundar
-        current_boundary = None
+        osm_id = None
 
         # parse our filename.. they are in the format:
         # 192787admin2_simplified.json
@@ -122,9 +120,9 @@ class Command(BaseCommand):  # pragma: no cover
 
         # now remove any unseen boundaries
         if osm_id:
-            current_boundary = AdminBoundary.objects.filter(osm_id=osm_id).first()
-            if current_boundary:
-                country = current_boundary.get_root()
+            last_boundary = AdminBoundary.objects.filter(osm_id=osm_id).first()
+            if last_boundary:
+                country = last_boundary.get_root()
                 country.get_descendants().filter(level=level).exclude(osm_id__in=seen_osm_ids).delete()
 
     def handle(self, *args, **options):
