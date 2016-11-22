@@ -350,9 +350,11 @@ class CampaignEvent(TembaModel):
         return offset
 
     def calculate_scheduled_fire_for_value(self, date_value, now):
-
         date_value = self.campaign.org.parse_date(date_value)
         tz = self.campaign.org.timezone
+
+        # convert to our timezone
+        date_value = date_value.astimezone(tz)
 
         # if we got a date, floor to the minute
         if date_value:
@@ -376,13 +378,14 @@ class CampaignEvent(TembaModel):
                 scheduled = date_value + delta
 
                 # normalize according to our timezone (puts us in the right DST timezone if our date changed)
-                scheduled = tz.normalize(scheduled)
+                if str(tz) != 'UTC':
+                    scheduled = tz.normalize(scheduled)
 
                 if self.delivery_hour != -1:
                     scheduled = scheduled.replace(hour=self.delivery_hour)
 
                 # if we've changed utcoffset (DST shift), tweak accordingly (this keeps us at the same hour of the day)
-                elif date_value.utcoffset() != scheduled.utcoffset():
+                elif str(tz) != 'UTC' and date_value.utcoffset() != scheduled.utcoffset():
                     scheduled = tz.normalize(date_value.utcoffset() - scheduled.utcoffset() + scheduled)
 
                 # ignore anything in the past
