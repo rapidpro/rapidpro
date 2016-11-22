@@ -3000,6 +3000,9 @@ class FlowStep(models.Model):
         if msg.broadcast:
             self.broadcasts.add(msg.broadcast)
 
+            msg.broadcast.flow = self.run.flow
+            msg.broadcast.save(update_fields=('flow',))
+
         # incoming non-IVR messages won't have a type yet so update that
         if not msg.msg_type or msg.msg_type == INBOX:
             msg.msg_type = FLOW

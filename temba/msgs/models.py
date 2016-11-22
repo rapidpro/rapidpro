@@ -188,6 +188,8 @@ class Broadcast(models.Model):
     language_dict = models.TextField(verbose_name=_("Translations"),
                                      help_text=_("The localized versions of the broadcast"), null=True)
 
+    flow = models.ForeignKey('flows.Flow', help_text=_("The flow that created this broadcast"), null=True)
+
     is_active = models.BooleanField(default=True, help_text="Whether this broadcast is active")
 
     created_by = models.ForeignKey(User, related_name="%(app_label)s_%(class)s_creations",
