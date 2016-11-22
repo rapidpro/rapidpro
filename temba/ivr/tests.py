@@ -64,6 +64,31 @@ class IVRTests(FlowFileTest):
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_bogus_call(self):
+        # create our ivr setup
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+        self.import_file('capture_recording')
+
+        # post to a bogus call id
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[999999999]), post_data)
+        self.assertEqual(404, response.status_code)
+
+        # start a real call
+        flow = Flow.objects.filter(name='Capture Recording').first()
+        contact = self.create_contact('Chuck D', number='+13603621737')
+        flow.start([], [contact])
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+
+        # now trigger a hangup
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20, hangup=1)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+        self.assertEqual(200, response.status_code)
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_recording(self):
 
         # create our ivr setup
