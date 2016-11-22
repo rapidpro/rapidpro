@@ -1159,7 +1159,7 @@ class Channel(TembaModel):
                 result = json.loads(response.content)
                 if response.status_code == 200 and 'success' in result and result['success'] == 1:
                     external_id = result.get('multicast_id')
-                    Channel.success(channel, msg, WIRED, start, 'POST', url, payload, result, external_id)
+                    Channel.success(channel, msg, WIRED, start, 'POST', url, payload, response, external_id)
                 else:
                     raise SendException("Got non-200 response [%d] from Firebase Cloud Messaging" % response.status_code,
                                 method='POST',
