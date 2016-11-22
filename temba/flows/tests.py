@@ -405,9 +405,9 @@ class FlowTest(TembaTest):
 
         # each contact should have received a single message
         contact1_msg = broadcast.msgs.get(contact=self.contact)
-        self.assertEquals("What is your favorite color?", contact1_msg.text)
-        self.assertEquals(PENDING, contact1_msg.status)
-        self.assertEquals(Msg.PRIORITY_NORMAL, contact1_msg.priority)
+        self.assertEqual(contact1_msg.text, "What is your favorite color?")
+        self.assertEqual(contact1_msg.status, PENDING)
+        self.assertEqual(contact1_msg.priority, Msg.PRIORITY_NORMAL)
 
         # should have a flow run for each contact
         contact1_run = FlowRun.objects.get(contact=self.contact)
