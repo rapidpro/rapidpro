@@ -65,7 +65,7 @@ class IVRCall(ChannelSession):
                     user_settings = self.created_by.get_settings()
                     if user_settings.tel:
                         tel = user_settings.tel
-                        run = FlowRun.objects.filter(call=self)
+                        run = FlowRun.objects.filter(session=self)
                         if run:
                             ActionLog.create(run[0], "Placing test call to %s" % user_settings.get_tel_formatted())
                 if not tel:
@@ -80,7 +80,7 @@ class IVRCall(ChannelSession):
                 self.status = self.FAILED
                 self.save()
                 if self.contact.is_test:
-                    run = FlowRun.objects.filter(call=self)
+                    run = FlowRun.objects.filter(session=self)
                     ActionLog.create(run[0], "Call ended. %s" % e.message)
 
             except Exception as e:  # pragma: no cover
@@ -90,7 +90,7 @@ class IVRCall(ChannelSession):
                 self.save()
 
                 if self.contact.is_test:
-                    run = FlowRun.objects.filter(call=self)
+                    run = FlowRun.objects.filter(session=self)
                     ActionLog.create(run[0], "Call ended.")
 
     def start_call(self):

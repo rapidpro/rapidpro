@@ -476,7 +476,7 @@ class IVRTests(FlowFileTest):
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(IVRCall.COMPLETED, call.status)
-        self.assertFalse(FlowRun.objects.filter(call=call).first().is_active)
+        self.assertFalse(FlowRun.objects.filter(session=call).first().is_active)
 
         # simulation gets flipped off by middleware, and this unhandled message doesn't flip it back on
         self.assertFalse(Contact.get_simulation())

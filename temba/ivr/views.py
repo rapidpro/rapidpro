@@ -65,7 +65,7 @@ class CallHandler(View):
             else:
                 if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
-                    run = FlowRun.objects.filter(call=call).first()
+                    run = FlowRun.objects.filter(session=call).first()
                     if run:
                         run.set_completed()
                 return build_json_response(dict(message="Updated call status"))

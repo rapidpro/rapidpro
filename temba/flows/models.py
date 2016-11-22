@@ -398,7 +398,7 @@ class Flow(TembaModel):
             user_response = {}
 
         flow = call.flow
-        run = FlowRun.objects.filter(call=call).first()
+        run = FlowRun.objects.filter(session=call).first()
 
         # make sure we have the latest version
         flow.ensure_current_version()
@@ -444,7 +444,7 @@ class Flow(TembaModel):
 
             # and add our first step for our run
             if destination:
-                step = flow.add_step(run, destination, [], call=call)
+                step = flow.add_step(run, destination, [])
 
         # go and actually handle wherever we are in the flow
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
@@ -1764,7 +1764,7 @@ class Flow(TembaModel):
         return runs
 
     def add_step(self, run, node,
-                 msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
+                 msgs=None, rule=None, category=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 

@@ -3256,7 +3256,7 @@ class ChannelSession(SmartModel):
             self.status = self.IN_PROGRESS
         elif status == 'completed':
             if self.contact.is_test:
-                run = FlowRun.objects.filter(call=self)
+                run = FlowRun.objects.filter(session=self)
                 if run:
                     ActionLog.create(run[0], _("Call ended."))
             self.status = self.COMPLETED
