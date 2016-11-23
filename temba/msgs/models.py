@@ -188,7 +188,8 @@ class Broadcast(models.Model):
     language_dict = models.TextField(verbose_name=_("Translations"),
                                      help_text=_("The localized versions of the broadcast"), null=True)
 
-    flow = models.ForeignKey('flows.Flow', help_text=_("The flow that created this broadcast"), null=True)
+    base_language = models.CharField(max_length=4, null=True, blank=True,
+                                     help_text=_('The language used to send this to contacts without a language'))
 
     is_active = models.BooleanField(default=True, help_text="Whether this broadcast is active")
 

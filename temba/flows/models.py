@@ -3000,8 +3000,9 @@ class FlowStep(models.Model):
         if msg.broadcast:
             self.broadcasts.add(msg.broadcast)
 
-            msg.broadcast.flow = self.run.flow
-            msg.broadcast.save(update_fields=('flow',))
+            # save base language on the broadcast to help us reconstruct messages once they are purged
+            msg.broadcast.base_language = self.run.flow.base_language
+            msg.broadcast.save(update_fields=('base_language',))
 
         # incoming non-IVR messages won't have a type yet so update that
         if not msg.msg_type or msg.msg_type == INBOX:

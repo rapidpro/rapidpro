@@ -12,31 +12,33 @@ def do_populate(Broadcast, FlowStep):
     num_processed = 0
 
     if broadcast_ids:
-        print("Starting population of Broadcast.flow for %d total broadcasts..." % len(broadcast_ids))
+        print("Starting population of Broadcast.base_language for %d total broadcasts..." % len(broadcast_ids))
 
     for id_batch in chunk_list(broadcast_ids, 1000):
         broadcast_steps = BroadcastSteps.objects.filter(broadcast_id__in=id_batch).distinct('broadcast_id')
-        broadcast_steps = broadcast_steps.prefetch_related('flowstep__run')
+        broadcast_steps = broadcast_steps.prefetch_related('flowstep__run__flow')
 
-        # dict of flow ids to lists of broadcast ids
-        broadcasts_by_flow = defaultdict(list)
+        # dict of language codes to lists of broadcast ids
+        broadcasts_by_lang = defaultdict(list)
 
         for broadcast_step in broadcast_steps:
-            flow_id = broadcast_step.flowstep.run.flow_id
-            broadcasts_by_flow[flow_id].append(broadcast_step.broadcast_id)
+            flow = broadcast_step.flowstep.run.flow
+
+            if flow.base_language:
+                broadcasts_by_lang[flow.base_language].append(broadcast_step.broadcast_id)
 
         # update each set of broadcasts associated with a particular flow
         num_updated = 0
-        for flow_id, bcast_ids in broadcasts_by_flow.items():
-            Broadcast.objects.filter(id__in=bcast_ids).update(flow_id=flow_id)
+        for lang, bcast_ids in broadcasts_by_lang.items():
+            Broadcast.objects.filter(id__in=bcast_ids).update(base_language=lang)
             num_updated += len(bcast_ids)
 
         num_processed += len(id_batch)
-        print(" > Processed %d of %d broadcasts (updated %d in %d flows)"
-              % (num_processed, len(broadcast_ids), num_updated, len(broadcasts_by_flow)))
+        print(" > Processed %d of %d broadcasts (updated %d with %d different languages)"
+              % (num_processed, len(broadcast_ids), num_updated, len(broadcasts_by_lang)))
 
     if broadcast_ids:
-        print("Finished population of Broadcast.flow for %d total broadcasts" % len(broadcast_ids))
+        print("Finished population of Broadcast.base_language for %d total broadcasts" % len(broadcast_ids))
 
 
 def run_as_migration(apps, schema_editor):
@@ -56,7 +58,7 @@ def run_offline():
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0068_broadcast_flow'),
+        ('msgs', '0068_broadcast_base_language'),
     ]
 
     operations = [

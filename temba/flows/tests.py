@@ -401,7 +401,7 @@ class FlowTest(TembaTest):
         broadcast = Broadcast.objects.get()
         self.assertEqual(broadcast.text, "What is your favorite color?")
         self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
-        self.assertEqual(broadcast.flow, self.flow)
+        self.assertEqual(broadcast.base_language, 'base')
 
         # each contact should have received a single message
         contact1_msg = broadcast.msgs.get(contact=self.contact)
