@@ -142,7 +142,8 @@ class AuthenticateEndpoint(SmartFormView):
 @permission_classes((SSLPermission, IsAuthenticated))
 def api(request, format=None):
     """
-    We provide a simple REST API for you to interact with your data from outside applications.
+    **This is the now deprecated API v1, which will be removed on March 1st 2017. We strongly encourage all users
+    to start migrating their code to the newer [API v2](/api/v2).**
 
     All endpoints should be accessed using HTTPS. The following endpoints are provided:
 

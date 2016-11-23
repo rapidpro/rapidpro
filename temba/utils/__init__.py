@@ -20,7 +20,7 @@ from django.http import HttpResponse
 from django_countries import countries
 from itertools import islice
 
-DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
+DEFAULT_DATE = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
 MAX_UTC_OFFSET = 14 * 60 * 60  # max offset postgres supports for a timezone
 
 
@@ -77,21 +77,35 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     try:
-        output_date = None
         if fill_time:
             date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=DEFAULT_DATE)
-            if date != DEFAULT_DATE:
-                output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=timezone.now().astimezone(tz))
+
+            # get the local time and hour
+            default = timezone.now().astimezone(tz).replace(tzinfo=None)
+
+            # we parsed successfully
+            if date.tzinfo or date != DEFAULT_DATE:
+                output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
+
+                # localize it if we don't have a timezone
+                if not output_date.tzinfo:
+                    output_date = tz.localize(output_date)
+
+                # if we aren't UTC, normalize to take care of any DST weirdnesses
+                elif output_date.tzinfo.tzname(output_date) != 'UTC':
+                    output_date = tz.normalize(output_date)
+
             else:
                 output_date = None
         else:
-            default = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
+            default = DEFAULT_DATE
             output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
-            output_date = tz.localize(output_date)  # localize in timezone
+            output_date = tz.localize(output_date)
 
             # only return date if it actually got parsed
             if output_date.year == 1:
                 output_date = None
+
     except Exception:
         output_date = None
 
