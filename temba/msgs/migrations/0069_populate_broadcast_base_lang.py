@@ -41,14 +41,14 @@ def do_populate(Broadcast, FlowStep):
         print("Finished population of Broadcast.base_language for %d total broadcasts" % len(broadcast_ids))
 
 
-def run_as_migration(apps, schema_editor):
+def apply_as_migration(apps, schema_editor):
     Broadcast = apps.get_model('msgs', 'Broadcast')
     FlowStep = apps.get_model('flows', 'FlowStep')
 
     do_populate(Broadcast, FlowStep)
 
 
-def run_offline():
+def apply_offline():
     from temba.flows.models import FlowStep
     from temba.msgs.models import Broadcast
 
@@ -62,5 +62,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(run_as_migration)
+        migrations.RunPython(apply_as_migration)
     ]
