@@ -1085,7 +1085,7 @@ class NCCOTest(TembaTest):
         response = ncco.Response()
         response.say('Hello')
 
-        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='Hello')])
+        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='Hello', bargeIn=True)])
 
     def test_play(self):
         response = ncco.Response()
@@ -1094,7 +1094,7 @@ class NCCOTest(TembaTest):
             response.play()
 
         response.play(digits='123')
-        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='123')])
+        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='123', bargeIn=True)])
 
         response = ncco.Response()
         response.play(url='http://example.com/audio.wav')

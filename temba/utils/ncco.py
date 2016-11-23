@@ -24,7 +24,7 @@ class Response(object):
         return self
 
     def say(self, text, **kwargs):
-        self.document.append(dict(action='talk', text=str(text)))
+        self.document.append(dict(action='talk', text=str(text), bargeIn=True))
         return self
 
     def play(self, url=None, digits=None, **kwargs):
@@ -37,6 +37,7 @@ class Response(object):
             result['streamUrl'] = [url]
 
         elif digits:
+            result['bargeIn'] = True
             result['action'] = 'talk'
             result['text'] = digits
         self.document.append(result)
