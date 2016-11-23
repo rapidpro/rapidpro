@@ -12,7 +12,7 @@ from djcelery_transactions import task
 from enum import Enum
 from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
-from temba.utils.queues import pop_task, push_task, nonoverlapping_task
+from temba.utils.queues import start_task, push_task, nonoverlapping_task, complete_task
 from temba.utils.mage import MageClient
 from .models import Channel, Alert, ChannelLog, ChannelCount
 
@@ -38,7 +38,7 @@ def send_msg_task():
     Pops the next message off of our msg queue to send.
     """
     # pop off the next task
-    msg_tasks = pop_task(SEND_MSG_TASK)
+    org_id, msg_tasks = start_task(SEND_MSG_TASK)
 
     # it is possible we have no message to send, if so, just return
     if not msg_tasks:
@@ -64,10 +64,13 @@ def send_msg_task():
                     time.sleep(1)
 
     finally:  # pragma: no cover
+        # mark this worker as done
+        complete_task(SEND_MSG_TASK, org_id)
+
         # if some msgs weren't sent for some reason, then requeue them for later sending
         if msg_tasks:
             # requeue any unsent msgs
-            push_task(msg_tasks[0]['org'], MSG_QUEUE, SEND_MSG_TASK, msg_tasks)
+            push_task(org_id, MSG_QUEUE, SEND_MSG_TASK, msg_tasks)
 
 
 @nonoverlapping_task(track_started=True, name='check_channels_task', lock_key='check_channels')

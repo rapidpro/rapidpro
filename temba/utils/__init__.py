@@ -2,13 +2,13 @@ from __future__ import unicode_literals
 
 import calendar
 import json
-import pytz
-import random
 import datetime
 import locale
+import pytz
+import random
+import regex
 import resource
 
-import regex
 from dateutil.parser import parse
 from decimal import Decimal
 from django.conf import settings
@@ -20,28 +20,8 @@ from django.http import HttpResponse
 from django_countries import countries
 from itertools import islice
 
-DEFAULT_DATE = timezone.now().replace(day=1, month=1, year=1)
+DEFAULT_DATE = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
 MAX_UTC_OFFSET = 14 * 60 * 60  # max offset postgres supports for a timezone
-
-# these are not mapped by pytz.country_timezones
-INITIAL_TIMEZONE_COUNTRY = {
-    'US/Hawaii': 'US',
-    'US/Alaska': 'US',
-    'Canada/Pacific': 'CA',
-    'US/Pacific': 'US',
-    'Canada/Mountain': 'CA',
-    'US/Arizona': 'US',
-    'US/Mountain': 'US',
-    'Canada/Central': 'CA',
-    'US/Central': 'US',
-    'America/Montreal': 'CA',
-    'Canada/Eastern': 'CA',
-    'US/Eastern': 'US',
-    'Canada/Atlantic': 'CA',
-    'Canada/Newfoundland': 'CA',
-    'GMT': '',
-    'UTC': ''
-}
 
 
 TRANSFERTO_COUNTRY_NAMES = {
@@ -97,21 +77,35 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
         return None
 
     try:
-        output_date = None
         if fill_time:
             date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=DEFAULT_DATE)
-            if date != DEFAULT_DATE:
-                output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=timezone.now().astimezone(tz))
+
+            # get the local time and hour
+            default = timezone.now().astimezone(tz).replace(tzinfo=None)
+
+            # we parsed successfully
+            if date.tzinfo or date != DEFAULT_DATE:
+                output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
+
+                # localize it if we don't have a timezone
+                if not output_date.tzinfo:
+                    output_date = tz.localize(output_date)
+
+                # if we aren't UTC, normalize to take care of any DST weirdnesses
+                elif output_date.tzinfo.tzname(output_date) != 'UTC':
+                    output_date = tz.normalize(output_date)
+
             else:
                 output_date = None
         else:
-            default = datetime.datetime(1, 1, 1, 0, 0, 0, 0, None)
+            default = DEFAULT_DATE
             output_date = parse(date_str, dayfirst=dayfirst, fuzzy=True, default=default)
-            output_date = tz.localize(output_date)  # localize in timezone
+            output_date = tz.localize(output_date)
 
             # only return date if it actually got parsed
             if output_date.year == 1:
                 output_date = None
+
     except Exception:
         output_date = None
 
@@ -440,18 +434,6 @@ def non_atomic_gets(view_func):
     """
     view_func._non_atomic_gets = True
     return view_func
-
-
-def timezone_to_country_code(tz):
-    country_timezones = pytz.country_timezones
-
-    timezone_country = INITIAL_TIMEZONE_COUNTRY
-    for countrycode in country_timezones:
-        timezones = country_timezones[countrycode]
-        for zone in timezones:
-            timezone_country[zone] = countrycode
-
-    return timezone_country.get(tz, '')
 
 
 def splitting_getlist(request, name, default=None):

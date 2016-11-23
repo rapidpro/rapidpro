@@ -1,0 +1,27 @@
+{
+  "name": "videojs-vjsdownload",
+  "version": "1.0.2",
+  "author": "7Ds7",
+  "license": "Apache-2.0",
+  "main": [
+    "dist/videojs-vjsdownload.css",
+    "dist/videojs-vjsdownload.min.js"
+  ],
+  "keywords": [
+    "videojs",
+    "videojs-plugin",
+    "videojs-vjsdownload",
+    "videojs-download",
+    "download"
+  ],
+  "homepage": "https://github.com/7Ds7/videojs-vjsdownload",
+  "_release": "1.0.2",
+  "_resolution": {
+    "type": "version",
+    "tag": "1.0.2",
+    "commit": "4dd025d156aeaeb0b7b37b2af5d333aa4ebe2c26"
+  },
+  "_source": "https://github.com/7Ds7/videojs-vjsdownload.git",
+  "_target": "1.0.2",
+  "_originalSource": "videojs-vjsdownload"
+}
