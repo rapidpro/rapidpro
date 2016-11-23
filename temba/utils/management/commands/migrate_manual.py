@@ -68,9 +68,11 @@ class Command(BaseCommand):  # pragma: no cover
 
         emit_pre_migrate_signal([], self.verbosity, interactive, connection.alias)
 
-        self.stdout.write(self.style.MIGRATE_HEADING("Operation to perform:"))
-        self.stdout.write("  Fake and then apply migration %s offline" % migration)
-        self.stdout.write(self.style.MIGRATE_HEADING("Offline migration:"))
+        self.stdout.write(self.style.MIGRATE_HEADING("Operations to perform:"))
+        self.stdout.write("  Manually apply migration %s" % migration)
+        if record:
+            self.stdout.write("  Record migration %s as applied" % migration)
+        self.stdout.write(self.style.MIGRATE_HEADING("Manual migration:"))
 
         self.apply_migration(migration, apply_function)
 
