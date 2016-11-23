@@ -66,15 +66,23 @@ class Command(BaseCommand):  # pragma: no cover
         emit_pre_migrate_signal([], self.verbosity, self.interactive, connection.alias)
 
         self.stdout.write(self.style.MIGRATE_HEADING("Operation to perform:"))
-        self.stdout.write("  Apply migration %s offline and fake" % migration)
+        self.stdout.write("  Fake and then apply migration %s offline" % migration)
         self.stdout.write(self.style.MIGRATE_HEADING("Offline migration:"))
-
-        self.apply_migration(migration, apply_function)
 
         self.fake_migration(migration, executor)
 
+        self.apply_migration(migration, apply_function)
+
         # send the post_migrate signal, so individual apps can do whatever they need to do at this point.
         emit_post_migrate_signal([], self.verbosity, self.interactive, connection.alias)
+
+    def fake_migration(self, migration, executor):
+        self.stdout.write("  Faking %s... " % migration, ending="")
+        self.stdout.flush()
+
+        executor.recorder.record_applied(migration.app_label, migration.name)
+
+        self.stdout.write(self.style.MIGRATE_SUCCESS("DONE"))
 
     def apply_migration(self, migration, apply_function):
         compute_time = self.verbosity > 1
@@ -90,11 +98,3 @@ class Command(BaseCommand):  # pragma: no cover
         elapsed = " (%.3fs)" % (time.time() - self.start) if compute_time else ""
 
         self.stdout.write(self.style.MIGRATE_SUCCESS("OK" + elapsed))
-
-    def fake_migration(self, migration, executor):
-        self.stdout.write("  Faking %s... " % migration, ending="")
-        self.stdout.flush()
-
-        executor.recorder.record_applied(migration.app_label, migration.name)
-
-        self.stdout.write(self.style.MIGRATE_SUCCESS("DONE"))
