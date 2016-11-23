@@ -35,15 +35,32 @@ class BaseChannelHandler(View):
     """
     Base class for all channel handlers
     """
+    url = None
+    url_name = None
+
     @disable_middleware
     def dispatch(self, *args, **kwargs):
         return super(BaseChannelHandler, self).dispatch(*args, **kwargs)
 
-    def __new__(cls, *args, **kwargs):
-        return object.__new__(cls, *args, **kwargs)
+    @classmethod
+    def get_url(cls):
+        return cls.url, cls.url_name
+
+
+def get_channel_handlers():
+    """
+    Gets all known channel handler classes, i.e. subclasses of BaseChannelHandler
+    """
+    def all_subclasses(cls):
+        return cls.__subclasses__() + [g for s in cls.__subclasses__() for g in all_subclasses(s)]
+
+    return all_subclasses(BaseChannelHandler)
 
 
 class TwimlAPIHandler(BaseChannelHandler):
+
+    url = r'^/twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.twiml_api_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return HttpResponse("ILLEGAL METHOD")
@@ -215,6 +232,9 @@ class TwimlAPIHandler(BaseChannelHandler):
 
 class TwilioHandler(TwimlAPIHandler):
 
+    url = r'^/twilio/$'
+    url_name = 'handlers.twilio_handler'
+
     def get_receive_channel(self, channel_uuid=None, to_number=None):
         return Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
 
@@ -223,6 +243,9 @@ class TwilioHandler(TwimlAPIHandler):
 
 
 class TwilioMessagingServiceHandler(BaseChannelHandler):
+
+    url = r'^/twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.twilio_messaging_service_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return self.post(request, *args, **kwargs)
@@ -263,6 +286,9 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
 
 
 class AfricasTalkingHandler(BaseChannelHandler):
+
+    url = r'^/africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.africas_talking_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("ILLEGAL METHOD", status=400)
@@ -313,6 +339,9 @@ class AfricasTalkingHandler(BaseChannelHandler):
 
 
 class ZenviaHandler(BaseChannelHandler):
+
+    url = r'^/zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.zenvia_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -373,6 +402,9 @@ class ZenviaHandler(BaseChannelHandler):
 
 
 class ExternalHandler(BaseChannelHandler):
+
+    url = r'^/external/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.external_handler'
 
     def get_channel_type(self):
         return Channel.TYPE_EXTERNAL
@@ -445,6 +477,9 @@ class ShaqodoonHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Shaqodoon messages
     """
+    url = r'^/shaqodoon/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.shaqodoon_handler'
+
     def get_channel_type(self):
         return Channel.TYPE_SHAQODOON
 
@@ -453,11 +488,17 @@ class YoHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Yo! Messages.
     """
+    url = r'^/yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.yo_handler'
+
     def get_channel_type(self):
         return Channel.TYPE_YO
 
 
 class TelegramHandler(BaseChannelHandler):
+
+    url = r'^/telegram/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.telegram_handler'
 
     @classmethod
     def download_file(cls, channel, file_id):
@@ -590,6 +631,9 @@ class TelegramHandler(BaseChannelHandler):
 
 class InfobipHandler(BaseChannelHandler):
 
+    url = r'^/infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.infobip_handler'
+
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
@@ -659,6 +703,9 @@ class InfobipHandler(BaseChannelHandler):
 
 class Hub9Handler(BaseChannelHandler):
 
+    url = r'^/hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.hub9_handler'
+
     def get(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
@@ -707,6 +754,9 @@ class Hub9Handler(BaseChannelHandler):
 
 
 class HighConnectionHandler(BaseChannelHandler):
+
+    url = r'^/hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.hcnx_handler'
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -765,6 +815,9 @@ class HighConnectionHandler(BaseChannelHandler):
 
 class BlackmynaHandler(BaseChannelHandler):
 
+    url = r'^/blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.blackmyna_handler'
+
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
 
@@ -818,6 +871,9 @@ class BlackmynaHandler(BaseChannelHandler):
 
 class SMSCentralHandler(BaseChannelHandler):
 
+    url = r'^/smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.smscentral_handler'
+
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
 
@@ -849,11 +905,17 @@ class M3TechHandler(ExternalHandler):
     """
     Exposes our API for handling and receiving messages, same as external handlers.
     """
+    url = r'^/m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.m3tech_handler'
+
     def get_channel_type(self):
         return Channel.TYPE_M3TECH
 
 
 class NexmoHandler(BaseChannelHandler):
+
+    url = r'^/nexmo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.nexmo_handler'
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -918,6 +980,9 @@ class NexmoHandler(BaseChannelHandler):
 
 class VerboiceHandler(BaseChannelHandler):
 
+    url = r'^/verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.verboice_handler'
+
     def post(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be GET", status=405)
 
@@ -950,6 +1015,9 @@ class VerboiceHandler(BaseChannelHandler):
 
 
 class VumiHandler(BaseChannelHandler):
+
+    url = r'^/vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.vumi_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be POST", status=405)
@@ -1049,6 +1117,9 @@ class VumiHandler(BaseChannelHandler):
 
 class KannelHandler(BaseChannelHandler):
 
+    url = r'^/kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.kannel_handler'
+
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
 
@@ -1123,6 +1194,9 @@ class KannelHandler(BaseChannelHandler):
 
 
 class ClickatellHandler(BaseChannelHandler):
+
+    url = r'^/clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.clickatell_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1238,6 +1312,9 @@ class ClickatellHandler(BaseChannelHandler):
 
 class PlivoHandler(BaseChannelHandler):
 
+    url = r'^/plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.plivo_handler'
+
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
 
@@ -1340,6 +1417,9 @@ class PlivoHandler(BaseChannelHandler):
 
 class MageHandler(BaseChannelHandler):
 
+    url = r'^/mage/(?P<action>handle_message|follow_notification)$'
+    url_name = 'handlers.mage_handler'
+
     def get(self, request, *args, **kwargs):
         return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
 
@@ -1380,6 +1460,9 @@ class MageHandler(BaseChannelHandler):
 
 
 class StartHandler(BaseChannelHandler):
+
+    url = r'^/start/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.start_handler'
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1423,6 +1506,9 @@ class StartHandler(BaseChannelHandler):
 
 
 class ChikkaHandler(BaseChannelHandler):
+
+    url = r'^/chikka/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.chikka_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1494,6 +1580,9 @@ class ChikkaHandler(BaseChannelHandler):
 
 class JasminHandler(BaseChannelHandler):
 
+    url = r'^/jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.jasmin_handler'
+
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
 
@@ -1553,6 +1642,9 @@ class JasminHandler(BaseChannelHandler):
 
 
 class MbloxHandler(BaseChannelHandler):
+
+    url = r'^/mblox/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.mblox_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
@@ -1619,6 +1711,9 @@ class MbloxHandler(BaseChannelHandler):
 
 
 class FacebookHandler(BaseChannelHandler):
+
+    url = r'^/facebook/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.facebook_handler'
 
     def lookup_channel(self, kwargs):
         # look up the channel
@@ -1761,6 +1856,9 @@ class FacebookHandler(BaseChannelHandler):
 
 class GlobeHandler(BaseChannelHandler):
 
+    url = r'^/globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.globe_handler'
+
     def get(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be POST", status=405)
 
@@ -1841,6 +1939,9 @@ class GlobeHandler(BaseChannelHandler):
 
 
 class ViberHandler(BaseChannelHandler):
+
+    url = r'^/viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.viber_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)
