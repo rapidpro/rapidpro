@@ -8,9 +8,9 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from temba.channels.models import Channel
+from temba.ivr.models import IVRCall
 from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
-from .models import IVRCall, IN_PROGRESS, COMPLETED, RINGING
 
 
 class CallHandler(View):
@@ -38,7 +38,7 @@ class CallHandler(View):
                 if user_org and user_org.pk == call.org.pk:
                     client.calls.hangup(call.external_id)
                     return HttpResponse(json.dumps(dict(status='Canceled')), content_type="application/json")
-                else:
+                else:  # pragma: no cover
                     return HttpResponse("Not found", status=404)
 
         input_redirect = '1' == request.GET.get('input_redirect', '0')
@@ -118,7 +118,7 @@ class CallHandler(View):
                     else:
                         return HttpResponse(unicode('media URL saved'))
 
-            if call.status in [IN_PROGRESS, RINGING] or hangup:
+            if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
                 if call.is_flow():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
                     if channel_type in Channel.NCCO_CHANNELS:
@@ -126,9 +126,9 @@ class CallHandler(View):
 
                     return HttpResponse(unicode(response))
             else:
-                if call.status == COMPLETED:
+                if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
-                    run = FlowRun.objects.filter(call=call).first()
+                    run = FlowRun.objects.filter(session=call).first()
                     if run:
                         run.set_completed()
                 return build_json_response(dict(message="Updated call status"))
@@ -137,4 +137,4 @@ class CallHandler(View):
             # raise an exception that things weren't properly signed
             raise ValidationError("Invalid request signature")
 
-        return build_json_response(dict(message="Unhandled"))
+        return build_json_response(dict(message="Unhandled"))  # pragma: no cover

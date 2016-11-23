@@ -91,6 +91,30 @@ class InitTest(TembaTest):
             self.assertEqual(tz.localize(datetime(2013, 2, 1, 0, 0, 0, 0)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True, fill_time=False))  # no time filling
 
+            # just year
+            self.assertEqual(datetime(123, 1, 2, 3, 4, 5, 6, tz),
+                             str_to_datetime('123', tz))
+
+        # localizing while in DST to something outside DST
+        tz = pytz.timezone('US/Eastern')
+        with patch.object(timezone, 'now', return_value=tz.localize(datetime(2029, 11, 1, 12, 30, 0, 0))):
+            parsed = str_to_datetime('06-11-2029', tz, dayfirst=True)
+            self.assertEqual(tz.localize(datetime(2029, 11, 6, 12, 30, 0, 0)),
+                             parsed)
+
+            # assert there is no DST offset
+            self.assertFalse(parsed.tzinfo.dst(parsed))
+
+            self.assertEqual(tz.localize(datetime(2029, 11, 6, 13, 45, 0, 0)),
+                             str_to_datetime('06-11-2029 13:45', tz, dayfirst=True))
+
+        # deal with datetimes that have timezone info
+        self.assertEqual(pytz.utc.localize(datetime(2016, 11, 21, 20, 36, 51, 215681)).astimezone(tz),
+                         str_to_datetime('2016-11-21T20:36:51.215681Z', tz))
+
+        self.assertEqual(datetime(123, 1, 2, 5, 4, 5, 6, pytz.utc),
+                         str_to_datetime('123-1-2T5:4:5.000006Z', tz))
+
     def test_str_to_time(self):
         tz = pytz.timezone('Asia/Kabul')
         with patch.object(timezone, 'now', return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):
