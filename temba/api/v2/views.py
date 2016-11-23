@@ -39,10 +39,7 @@ from ..support import InvalidQueryError
 
 class RootView(views.APIView):
     """
-    **This is the under-development API v2. Everything in this version of the API is subject to change. We strongly
-    recommend that most users stick with the existing [API v1](/api/v1) for now.**
-
-    We provide a RESTful JSON API for you to interact with your data from outside applications. The following  endpoints
+    We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
