@@ -155,7 +155,7 @@ class GenerateCoupon(View):
 class OrderStatus(View):
 
     def post(self, request, *args, **kwargs):
-        text = request.POST.get('text', '')
+        text = request.GET.get('text', '')
 
         if text.lower() == 'cu001':
             response = dict(status="Shipped",

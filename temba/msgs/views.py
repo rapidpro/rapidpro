@@ -272,7 +272,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return success_url
 
         def form_invalid(self, form):
-            if '_format' in self.request.POST and self.request.POST['_format'] == 'json':
+            if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 return HttpResponse(json.dumps(dict(status="error", errors=form.errors)), content_type='application/json', status=400)
             else:
                 return super(BroadcastCRUDL.Send, self).form_invalid(form)
@@ -314,7 +314,7 @@ class BroadcastCRUDL(SmartCRUDL):
             analytics.track(self.request.user.username, 'temba.broadcast_created',
                             dict(contacts=len(contacts), groups=len(groups), urns=len(urns)))
 
-            if '_format' in self.request.POST and self.request.POST['_format'] == 'json':
+            if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 data = dict(status="success", redirect=reverse('msgs.broadcast_schedule_read', args=[broadcast.pk]))
                 return HttpResponse(json.dumps(data), content_type='application/json')
             else:
