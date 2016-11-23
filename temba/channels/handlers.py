@@ -31,11 +31,19 @@ from .tasks import fb_channel_subscribe
 from twilio import twiml
 
 
-class TwimlAPIHandler(View):
-
+class BaseChannelHandler(View):
+    """
+    Base class for all channel handlers
+    """
     @disable_middleware
     def dispatch(self, *args, **kwargs):
-        return super(TwimlAPIHandler, self).dispatch(*args, **kwargs)
+        return super(BaseChannelHandler, self).dispatch(*args, **kwargs)
+
+    def __new__(cls, *args, **kwargs):
+        return object.__new__(cls, *args, **kwargs)
+
+
+class TwimlAPIHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return HttpResponse("ILLEGAL METHOD")
@@ -207,10 +215,6 @@ class TwimlAPIHandler(View):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(TwilioHandler, self).dispatch(*args, **kwargs)
-
     def get_receive_channel(self, channel_uuid=None, to_number=None):
         return Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
 
@@ -218,10 +222,7 @@ class TwilioHandler(TwimlAPIHandler):
         return Channel.TYPE_TWILIO
 
 
-class TwilioMessagingServiceHandler(View):
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(TwilioMessagingServiceHandler, self).dispatch(*args, **kwargs)
+class TwilioMessagingServiceHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return self.post(request, *args, **kwargs)
@@ -261,11 +262,7 @@ class TwilioMessagingServiceHandler(View):
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
 
-class AfricasTalkingHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(AfricasTalkingHandler, self).dispatch(*args, **kwargs)
+class AfricasTalkingHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("ILLEGAL METHOD", status=400)
@@ -315,11 +312,7 @@ class AfricasTalkingHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class ZenviaHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ZenviaHandler, self).dispatch(*args, **kwargs)
+class ZenviaHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -379,11 +372,7 @@ class ZenviaHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class ExternalHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ExternalHandler, self).dispatch(*args, **kwargs)
+class ExternalHandler(BaseChannelHandler):
 
     def get_channel_type(self):
         return Channel.TYPE_EXTERNAL
@@ -468,11 +457,7 @@ class YoHandler(ExternalHandler):
         return Channel.TYPE_YO
 
 
-class TelegramHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(TelegramHandler, self).dispatch(*args, **kwargs)
+class TelegramHandler(BaseChannelHandler):
 
     @classmethod
     def download_file(cls, channel, file_id):
@@ -603,11 +588,7 @@ class TelegramHandler(View):
         return HttpResponse("No message, ignored.")
 
 
-class InfobipHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(InfobipHandler, self).dispatch(*args, **kwargs)
+class InfobipHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -676,11 +657,7 @@ class InfobipHandler(View):
         return HttpResponse("SMS Accepted: %d" % sms.id)
 
 
-class Hub9Handler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(Hub9Handler, self).dispatch(*args, **kwargs)
+class Hub9Handler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -729,11 +706,7 @@ class Hub9Handler(View):
         return HttpResponse("Unreconized action: %s" % action, status=404)
 
 
-class HighConnectionHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(HighConnectionHandler, self).dispatch(*args, **kwargs)
+class HighConnectionHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -790,11 +763,7 @@ class HighConnectionHandler(View):
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
 
-class BlackmynaHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(BlackmynaHandler, self).dispatch(*args, **kwargs)
+class BlackmynaHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -847,11 +816,7 @@ class BlackmynaHandler(View):
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
 
-class SMSCentralHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(SMSCentralHandler, self).dispatch(*args, **kwargs)
+class SMSCentralHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -888,11 +853,7 @@ class M3TechHandler(ExternalHandler):
         return Channel.TYPE_M3TECH
 
 
-class NexmoHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(NexmoHandler, self).dispatch(*args, **kwargs)
+class NexmoHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -955,11 +916,7 @@ class NexmoHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class VerboiceHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(VerboiceHandler, self).dispatch(*args, **kwargs)
+class VerboiceHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be GET", status=405)
@@ -992,11 +949,7 @@ class VerboiceHandler(View):
         return HttpResponse("Not handled", status=400)
 
 
-class VumiHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(VumiHandler, self).dispatch(*args, **kwargs)
+class VumiHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be POST", status=405)
@@ -1094,11 +1047,7 @@ class VumiHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class KannelHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(KannelHandler, self).dispatch(*args, **kwargs)
+class KannelHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1173,11 +1122,7 @@ class KannelHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class ClickatellHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ClickatellHandler, self).dispatch(*args, **kwargs)
+class ClickatellHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1291,11 +1236,7 @@ class ClickatellHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class PlivoHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(PlivoHandler, self).dispatch(*args, **kwargs)
+class PlivoHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1397,11 +1338,7 @@ class PlivoHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class MageHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(MageHandler, self).dispatch(*args, **kwargs)
+class MageHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
@@ -1442,11 +1379,7 @@ class MageHandler(View):
         return JsonResponse(dict(error=None))
 
 
-class StartHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(StartHandler, self).dispatch(*args, **kwargs)
+class StartHandler(BaseChannelHandler):
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1489,11 +1422,7 @@ class StartHandler(View):
         return HttpResponse(xml_response)
 
 
-class ChikkaHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ChikkaHandler, self).dispatch(*args, **kwargs)
+class ChikkaHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1563,11 +1492,7 @@ class ChikkaHandler(View):
             return HttpResponse("Error, unknown message type", status=400)
 
 
-class JasminHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(JasminHandler, self).dispatch(*args, **kwargs)
+class JasminHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
@@ -1627,11 +1552,7 @@ class JasminHandler(View):
             return HttpResponse("Not handled, unknown action", status=400)
 
 
-class MbloxHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(MbloxHandler, self).dispatch(*args, **kwargs)
+class MbloxHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
@@ -1697,11 +1618,7 @@ class MbloxHandler(View):
             return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
 
 
-class FacebookHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(FacebookHandler, self).dispatch(*args, **kwargs)
+class FacebookHandler(BaseChannelHandler):
 
     def lookup_channel(self, kwargs):
         # look up the channel
@@ -1842,11 +1759,7 @@ class FacebookHandler(View):
         return JsonResponse(dict(status=["Ignored, unknown msg"]))
 
 
-class GlobeHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(GlobeHandler, self).dispatch(*args, **kwargs)
+class GlobeHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be POST", status=405)
@@ -1927,11 +1840,7 @@ class GlobeHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class ViberHandler(View):
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ViberHandler, self).dispatch(*args, **kwargs)
+class ViberHandler(BaseChannelHandler):
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)
