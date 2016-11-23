@@ -9,11 +9,11 @@ from django.db.migrations.executor import MigrationExecutor
 from django.db.migrations.loader import AmbiguityError
 from importlib import import_module
 
-APPLY_OFFLINE_FUNCTION = 'apply_offline'
+APPLY_FUNCTION = 'apply_manual'
 
 
 class Command(BaseCommand):  # pragma: no cover
-    help = "Applies a previously faked migration"
+    help = "Applies a migration manually which may have been previously applied or faked"
 
     def add_arguments(self, parser):
         parser.add_argument('app_label',
@@ -58,9 +58,9 @@ class Command(BaseCommand):  # pragma: no cover
         migration_module = import_module(migration.__module__)
 
         # check migration can be run offline
-        apply_function = getattr(migration_module, APPLY_OFFLINE_FUNCTION, None)
+        apply_function = getattr(migration_module, APPLY_FUNCTION, None)
         if not apply_function or not callable(apply_function):
-            raise CommandError("Migration %s does not contain function named '%s'" % (migration, APPLY_OFFLINE_FUNCTION))
+            raise CommandError("Migration %s does not contain function named '%s'" % (migration, APPLY_FUNCTION))
 
         plan = executor.migration_plan([(app_label, migration.name)])
         if record and not plan:
