@@ -13,17 +13,20 @@ APPLY_OFFLINE_FUNCTION = 'apply_offline'
 
 
 class Command(BaseCommand):  # pragma: no cover
-    help = "Runs an expensive migration offline"
+    help = "Applies a previously faked migration"
 
     def add_arguments(self, parser):
         parser.add_argument('app_label',
                             help='App label of an application to synchronize the state.')
         parser.add_argument('migration_name',
                             help='Database state will be brought to the state after that migration.')
+        parser.add_argument('--record', action='store_true', dest='record', default=False,
+                            help='Record migration as applied.')
 
     def handle(self, app_label, migration_name, *args, **options):
         self.verbosity = options.get('verbosity')
-        self.interactive = options.get('interactive')
+        interactive = options.get('interactive')
+        record = options.get('record')
 
         connection = connections[DEFAULT_DB_ALIAS]
         connection.prepare_database()
@@ -60,29 +63,22 @@ class Command(BaseCommand):  # pragma: no cover
             raise CommandError("Migration %s does not contain function named '%s'" % (migration, APPLY_OFFLINE_FUNCTION))
 
         plan = executor.migration_plan([(app_label, migration.name)])
-        if not plan:
+        if record and not plan:
             raise CommandError("Migration %s has already been applied" % migration)
 
-        emit_pre_migrate_signal([], self.verbosity, self.interactive, connection.alias)
+        emit_pre_migrate_signal([], self.verbosity, interactive, connection.alias)
 
         self.stdout.write(self.style.MIGRATE_HEADING("Operation to perform:"))
         self.stdout.write("  Fake and then apply migration %s offline" % migration)
         self.stdout.write(self.style.MIGRATE_HEADING("Offline migration:"))
 
-        self.fake_migration(migration, executor)
-
         self.apply_migration(migration, apply_function)
 
+        if record:
+            self.record_migration(migration, executor)
+
         # send the post_migrate signal, so individual apps can do whatever they need to do at this point.
-        emit_post_migrate_signal([], self.verbosity, self.interactive, connection.alias)
-
-    def fake_migration(self, migration, executor):
-        self.stdout.write("  Faking %s... " % migration, ending="")
-        self.stdout.flush()
-
-        executor.recorder.record_applied(migration.app_label, migration.name)
-
-        self.stdout.write(self.style.MIGRATE_SUCCESS("DONE"))
+        emit_post_migrate_signal([], self.verbosity, interactive, connection.alias)
 
     def apply_migration(self, migration, apply_function):
         compute_time = self.verbosity > 1
@@ -90,11 +86,18 @@ class Command(BaseCommand):  # pragma: no cover
         self.stdout.write("  Applying %s... " % migration, ending="")
         self.stdout.flush()
 
-        if compute_time:
-            self.start = time.time()
+        start = time.time()
 
         apply_function()
 
-        elapsed = " (%.3fs)" % (time.time() - self.start) if compute_time else ""
+        elapsed = " (%.3fs)" % (time.time() - start) if compute_time else ""
 
         self.stdout.write(self.style.MIGRATE_SUCCESS("OK" + elapsed))
+
+    def record_migration(self, migration, executor):
+        self.stdout.write("  Recording %s... " % migration, ending="")
+        self.stdout.flush()
+
+        executor.recorder.record_applied(migration.app_label, migration.name)
+
+        self.stdout.write(self.style.MIGRATE_SUCCESS("DONE"))
