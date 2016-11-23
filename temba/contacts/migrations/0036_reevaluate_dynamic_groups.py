@@ -40,7 +40,7 @@ class Migration(migrations.Migration):
         ('contacts', '0035_auto_20160414_0642'),
         ('orgs', '0019_org_surveyor_password'),
         ('orgs', '0022_auto_20160815_1726'),
-        ('orgs', '0027_org_is_purgeable')
+        ('orgs', '0028_org_is_purgeable')
     ]
 
     operations = [

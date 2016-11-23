@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0026_update_triggers'),
+        ('orgs', '0027_update_triggers'),
     ]
 
     operations = [

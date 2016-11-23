@@ -9,7 +9,7 @@ from django.conf import settings
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0024_remove_invitation_host'),
+        ('orgs', '0025_auto_20161026_1502'),
     ]
 
     operations = [
