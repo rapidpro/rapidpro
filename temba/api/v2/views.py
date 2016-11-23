@@ -1463,7 +1463,7 @@ class DefinitionsEndpoint(BaseAPIView):
 
       * **flow** - the UUIDs of flows to include (string, repeatable)
       * **campaign** - the UUIDs of campaigns to include (string, repeatable)
-      * **dependencies** - whether to include dependencies (string, all, flows, none, default: all)
+      * **dependencies** - whether to include dependencies (all, flows, none, default: all)
 
     Example:
 
