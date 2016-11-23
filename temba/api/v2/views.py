@@ -1573,7 +1573,7 @@ class DefinitionsEndpoint(BaseAPIView):
         dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
         for flow in flows:
             if depends:
-                include_campaigns = dependency_type in ('all', 'campaigns')
+                include_campaigns = dependency_type == 'all'
                 dependencies = flow.get_dependencies(dependencies=dependencies, include_campaigns=include_campaigns)
 
         # make sure our requested items are included flows we requested are included
