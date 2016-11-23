@@ -3,14 +3,12 @@ from __future__ import absolute_import, unicode_literals
 import json
 import time
 import urlparse
-import os
 import phonenumbers
 import plivo
 import regex
 import requests
 import telegram
 import re
-
 from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -396,7 +394,6 @@ class Channel(TembaModel):
             parsed = phonenumbers.parse(phone_number, None)
             shortcode = str(parsed.national_number)
             nexmo_phones = client.get_numbers(shortcode)
-
             if nexmo_phones:
                 is_shortcode = True
                 phone_number = shortcode
@@ -405,7 +402,7 @@ class Channel(TembaModel):
         if not nexmo_phones:
             try:
                 client.buy_number(country, phone_number)
-            except Exception as e:
+            except Exception as e:  # pragma: no cover
                 raise Exception(_("There was a problem claiming that number, "
                                   "please check the balance on your account. " +
                                   "Note that you can only claim numbers after "
@@ -418,7 +415,7 @@ class Channel(TembaModel):
         try:
             client.update_number(country, phone_number, 'http://%s%s' % (TEMBA_HOST, mo_path))
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             # shortcodes don't seem to claim right on nexmo, move forward anyways
             if not is_shortcode:
                 raise Exception(_("There was a problem claiming that number, please check the balance on your account.") +
@@ -710,15 +707,6 @@ class Channel(TembaModel):
 
     def get_caller(self):
         return self.get_delegate(Channel.ROLE_CALL)
-
-    def get_parent_channel(self):
-        """
-        If we are a delegate channel, this will get us the parent channel.
-        Otherwise, it will just return ourselves if we are the parent channel
-        """
-        if self.parent:
-            return self.parent
-        return self
 
     def is_delegate_sender(self):
         return self.parent and Channel.ROLE_SEND in self.role
@@ -1210,7 +1198,7 @@ class Channel(TembaModel):
         external_id = None
         try:
             external_id = response.json()['message_id']
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             # if we can't pull out our message id, that's ok, we still sent
             pass
 
@@ -1273,7 +1261,7 @@ class Channel(TembaModel):
         try:
             response_json = response.json()
             external_id = response_json['id']
-        except:
+        except:  # pragma: no cover
             raise SendException("Unable to parse response body from MBlox",
                                 method='POST',
                                 url=url,
@@ -1329,7 +1317,7 @@ class Channel(TembaModel):
         log_payload['password'] = 'x' * len(log_payload['password'])
 
         log_url = channel.config[Channel.CONFIG_SEND_URL]
-        if log_url.find("?") >= 0:
+        if log_url.find("?") >= 0:  # pragma: no cover
             log_url += "&" + urlencode(log_payload)
         else:
             log_url += "?" + urlencode(log_payload)
@@ -1403,7 +1391,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, 'GET', url, log_payload, response)
 
     @classmethod
-    def send_dummy_message(cls, channel, msg, text):
+    def send_dummy_message(cls, channel, msg, text):  # pragma: no cover
         from temba.msgs.models import WIRED
 
         delay = channel.config.get('delay', 1000)
@@ -2788,7 +2776,7 @@ class ChannelCount(models.Model):
 
         print "Squashed channel counts for %d pairs in %0.3fs" % (squash_count, time.time() - start)
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: no cover
         return "ChannelCount(%d) %s %s count: %d" % (self.channel_id, self.count_type, self.day, self.count)
 
     class Meta:
@@ -3008,7 +2996,7 @@ class SyncEvent(SmartModel):
 
 @receiver(pre_save, sender=SyncEvent)
 def pre_save(sender, instance, **kwargs):
-    if kwargs['raw']:
+    if kwargs['raw']:  # pragma: no cover
         return
 
     if not instance.pk:
@@ -3116,7 +3104,7 @@ class Alert(SmartModel):
                 channel = Channel.objects.get(pk=channel_id)
 
                 # never alert on channels that have no org
-                if channel.org is None:
+                if channel.org is None:  # pragma: no cover
                     continue
 
                 # if we haven't sent an alert in the past six ours
@@ -3184,12 +3172,113 @@ def get_alert_user():
         return user
 
 
-def get_twilio_application_sid():
-    return os.environ.get('TWILIO_APPLICATION_SID', settings.TWILIO_APPLICATION_SID)
+class ChannelSession(SmartModel):
+    PENDING = 'P'
+    QUEUED = 'Q'
+    RINGING = 'R'
+    IN_PROGRESS = 'I'
+    COMPLETED = 'D'
+    BUSY = 'B'
+    FAILED = 'F'
+    NO_ANSWER = 'N'
+    CANCELED = 'C'
 
+    DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED]
 
-def get_twilio_client():
-    account_sid = os.environ.get('TWILIO_ACCOUNT_SID', settings.TWILIO_ACCOUNT_SID)
-    auth_token = os.environ.get('TWILIO_AUTH_TOKEN', settings.TWILIO_AUTH_TOKEN)
-    from temba.ivr.clients import TwilioClient
-    return TwilioClient(account_sid, auth_token)
+    INCOMING = 'I'
+    OUTGOING = 'O'
+
+    IVR = 'F'
+    USSD = 'U'
+
+    DIRECTION_CHOICES = ((INCOMING, "Incoming"),
+                         (OUTGOING, "Outgoing"))
+
+    TYPE_CHOICES = ((IVR, "IVR"), (USSD, "USSD"),)
+
+    STATUS_CHOICES = ((QUEUED, "Queued"),
+                      (RINGING, "Ringing"),
+                      (IN_PROGRESS, "In Progress"),
+                      (COMPLETED, "Complete"),
+                      (BUSY, "Busy"),
+                      (FAILED, "Failed"),
+                      (NO_ANSWER, "No Answer"),
+                      (CANCELED, "Canceled"))
+
+    external_id = models.CharField(max_length=255,
+                                   help_text="The external id for this session, our twilio id usually")
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=PENDING,
+                              help_text="The status of this session")
+
+    channel = models.ForeignKey('Channel',
+                                help_text="The channel that created this session")
+    contact = models.ForeignKey('contacts.Contact', related_name='sessions',
+                                help_text="Who this session is with")
+
+    contact_urn = models.ForeignKey('contacts.ContactURN', verbose_name=_("Contact URN"),
+                                    help_text=_("The URN this session is communicating with"))
+
+    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES,
+                                 help_text="The direction of this session, either incoming or outgoing")
+    flow = models.ForeignKey('flows.Flow', null=True,
+                             help_text="The flow this session was part of")
+    started_on = models.DateTimeField(null=True, blank=True,
+                                      help_text="When this session was connected and started")
+    ended_on = models.DateTimeField(null=True, blank=True,
+                                    help_text="When this session ended")
+    org = models.ForeignKey(Org,
+                            help_text="The organization this session belongs to")
+    session_type = models.CharField(max_length=1, choices=TYPE_CHOICES,
+                                    help_text="What sort of session this is")
+    duration = models.IntegerField(default=0, null=True,
+                                   help_text="The length of this session in seconds")
+
+    parent = models.ForeignKey('ChannelSession', verbose_name=_("Parent Session"), related_name='child_sessions', null=True,
+                               help_text=_("The session that triggered this one"))
+
+    def is_done(self):
+        return self.status in self.DONE
+
+    def update_status(self, status, duration):
+        """
+        Updates our status from a twilio status string
+        """
+        from temba.flows.models import ActionLog, FlowRun
+        if status == 'queued':
+            self.status = self.QUEUED
+        elif status == 'ringing':
+            self.status = self.RINGING
+        elif status == 'no-answer':
+            self.status = self.NO_ANSWER
+        elif status == 'in-progress':
+            if self.status != self.IN_PROGRESS:
+                self.started_on = timezone.now()
+            self.status = self.IN_PROGRESS
+        elif status == 'completed':
+            if self.contact.is_test:
+                run = FlowRun.objects.filter(session=self)
+                if run:
+                    ActionLog.create(run[0], _("Call ended."))
+            self.status = self.COMPLETED
+        elif status == 'busy':
+            self.status = self.BUSY
+        elif status == 'failed':
+            self.status = self.FAILED
+        elif status == 'canceled':
+            self.status = self.CANCELED
+
+        self.duration = duration
+
+    def get_duration(self):
+        """
+        Either gets the set duration as reported by twilio, or tries to calculate
+        it from the aproximate time it was started
+        """
+        duration = self.duration
+        if not duration and self.status == 'I' and self.started_on:
+            duration = (timezone.now() - self.started_on).seconds
+
+        if not duration:
+            duration = 0
+
+        return duration
