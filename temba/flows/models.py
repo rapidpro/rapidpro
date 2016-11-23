@@ -1878,7 +1878,7 @@ class Flow(TembaModel):
 
         return send_actions
 
-    def get_dependencies(self, dependencies=None):
+    def get_dependencies(self, dependencies=None, include_campaigns=True):
 
         # need to make sure we have the latest version to inspect dependencies
         self.ensure_current_version()
@@ -1906,10 +1906,12 @@ class Flow(TembaModel):
                     flows.add(flow)
 
         # add any campaigns that use our groups
-        from temba.campaigns.models import Campaign
-        campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
-        for campaign in campaigns:
-            flows.update(list(campaign.get_flows()))
+        campaigns = ()
+        if include_campaigns:
+            from temba.campaigns.models import Campaign
+            campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
+            for campaign in campaigns:
+                flows.update(list(campaign.get_flows()))
 
         # and any of our triggers that reference us
         from temba.triggers.models import Trigger
@@ -1924,7 +1926,7 @@ class Flow(TembaModel):
             return dependencies
 
         for flow in flows:
-            dependencies = flow.get_dependencies(dependencies)
+            dependencies = flow.get_dependencies(dependencies, include_campaigns=include_campaigns)
 
         return dependencies
 
