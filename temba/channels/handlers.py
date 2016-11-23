@@ -64,7 +64,10 @@ class TwimlAPIHandler(View):
             # find a channel that knows how to answer twilio calls
             channel = self.get_ringing_channel(to_number=to_number)
             if not channel:
-                return HttpResponse("No channel to answer call for %s" % to_number, status=400)
+                response = twiml.Response()
+                response.say('Sorry, there is no channel configured to take this call. Goodbye.')
+                response.hangup()
+                return HttpResponse(unicode(response))
 
             org = channel.org
 
