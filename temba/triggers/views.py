@@ -374,7 +374,7 @@ class TriggerCRUDL(SmartCRUDL):
             return context
 
         def form_invalid(self, form):
-            if '_format' in self.request.REQUEST and self.request.REQUEST['_format'] == 'json':
+            if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 return HttpResponse(json.dumps(dict(status="error", errors=form.errors)), content_type='application/json', status=400)
             else:
                 return super(TriggerCRUDL.Update, self).form_invalid(form)
@@ -572,7 +572,7 @@ class TriggerCRUDL(SmartCRUDL):
             return context
 
         def form_invalid(self, form):
-            if '_format' in self.request.REQUEST and self.request.REQUEST['_format'] == 'json':
+            if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 return HttpResponse(json.dumps(dict(status="error", errors=form.errors)), content_type='application/json', status=400)
             else:
                 return super(TriggerCRUDL.Schedule, self).form_invalid(form)

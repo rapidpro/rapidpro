@@ -105,7 +105,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
         org = self.request.user.get_org()
 
         # contact list views don't use regular field searching but use more complex contact searching
-        query = self.request.REQUEST.get('search', None)
+        query = self.request.GET.get('search', None)
         if query:
             qs, self.request.compiled_query = Contact.search(org, query, qs)
 
@@ -123,7 +123,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'system_group') and 'search' not in self.request.REQUEST:
+        if hasattr(self, 'system_group') and 'search' not in self.request.GET:
             self.object_list.count = lambda: counts[self.system_group]
 
         context = super(ContactListView, self).get_context_data(**kwargs)
@@ -338,7 +338,7 @@ class ContactCRUDL(SmartCRUDL):
             org = user.get_org()
 
             group = None
-            group_id = self.request.REQUEST.get('g', None)
+            group_id = self.request.GET.get('g', None)
             if group_id:
                 groups = ContactGroup.user_groups.filter(pk=group_id, org=org)
 
@@ -602,7 +602,7 @@ class ContactCRUDL(SmartCRUDL):
 
             analytics.track(self.request.user.username, 'temba.contact_imported')
 
-            task_id = self.request.REQUEST.get('task', None)
+            task_id = self.request.GET.get('task', None)
             if task_id:
                 tasks = ImportTask.objects.filter(pk=task_id, created_by=self.request.user)
 
@@ -623,7 +623,7 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
         def derive_refresh(self):
-            task_id = self.request.REQUEST.get('task', None)
+            task_id = self.request.GET.get('task', None)
             if task_id:
                 tasks = ImportTask.objects.filter(pk=task_id, created_by=self.request.user)
                 if tasks and tasks[0].status() in ['PENDING', 'RUNNING', 'STARTED']:  # pragma: no cover
@@ -644,10 +644,11 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             org = self.derive_org()
-            return omnibox_query(org, **self.request.REQUEST)
+
+            return omnibox_query(org, **{k: v for k, v in self.request.GET.items()})
 
         def get_paginate_by(self, queryset):
-            if not self.request.REQUEST.get('search', None):
+            if not self.request.GET.get('search', None):
                 return 200
 
             return super(ContactCRUDL.Omnibox, self).get_paginate_by(queryset)
@@ -797,7 +798,7 @@ class ContactCRUDL(SmartCRUDL):
             # message has a timestamp slightly earlier than the contact itself.
             contact_creation = contact.created_on - timedelta(hours=1)
 
-            refresh_recent = self.request.REQUEST.get('r', False)
+            refresh_recent = self.request.GET.get('r', False)
             recent_start = ms_to_datetime(int(self.request.GET.get('rs', 0)))
 
             if 'before' in self.request.GET:
@@ -847,7 +848,7 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm('contacts.contactgroup_create') and self.request.REQUEST.get('search', None):
+            if self.has_org_perm('contacts.contactgroup_create') and self.request.GET.get('search', None):
                 links.append(dict(title=_('Save as Group'), js_class='add-dynamic-group', href="#"))
 
             if self.has_org_perm('contacts.contactfield_managefields'):
