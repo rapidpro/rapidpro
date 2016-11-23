@@ -39,10 +39,7 @@ from ..support import InvalidQueryError
 
 class RootView(views.APIView):
     """
-    **This is the under-development API v2. Everything in this version of the API is subject to change. We strongly
-    recommend that most users stick with the existing [API v1](/api/v1) for now.**
-
-    We provide a RESTful JSON API for you to interact with your data from outside applications. The following  endpoints
+    We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
@@ -2375,7 +2372,7 @@ class OrgEndpoint(BaseAPIView):
             'country': org.get_country_code(),
             'languages': [l.iso_code for l in org.languages.order_by('iso_code')],
             'primary_language': org.primary_language.iso_code if org.primary_language else None,
-            'timezone': org.timezone,
+            'timezone': six.text_type(org.timezone),
             'date_style': ('day_first' if org.get_dayfirst() else 'month_first'),
             'anon': org.is_anon
         }

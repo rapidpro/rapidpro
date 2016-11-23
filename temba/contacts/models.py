@@ -1187,7 +1187,6 @@ class Contact(TembaModel):
         # this file isn't good enough, lets write it to local disk
         from django.conf import settings
         from uuid import uuid4
-
         # make sure our tmp directory is present (throws if already present)
         try:
             os.makedirs(os.path.join(settings.MEDIA_ROOT, 'tmp'))
@@ -1196,7 +1195,7 @@ class Contact(TembaModel):
 
         # rewrite our file to local disk
         extension = filename.name.rpartition('.')[2]
-        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension))
+        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension.lower()))
         filename.open()
 
         out_file = open(tmp_file, 'w')
@@ -1226,6 +1225,9 @@ class Contact(TembaModel):
         # we always create a group after a successful import (strip off 8 character uniquifier by django)
         group_name = os.path.splitext(os.path.split(import_params.get('original_filename'))[-1])[0]
         group_name = group_name.replace('_', ' ').replace('-', ' ').title()
+
+        if len(group_name) >= ContactGroup.MAX_NAME_LEN - 10:
+            group_name = group_name[:ContactGroup.MAX_NAME_LEN - 10]
 
         # group org is same as org of any contact in that group
         group_org = contacts[0].org

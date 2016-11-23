@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+import six
 import urllib
 
 from django import forms
@@ -141,7 +142,8 @@ class AuthenticateEndpoint(SmartFormView):
 @permission_classes((SSLPermission, IsAuthenticated))
 def api(request, format=None):
     """
-    We provide a simple REST API for you to interact with your data from outside applications.
+    **This is the now deprecated API v1, which will be removed on March 1st 2017. We strongly encourage all users
+    to start migrating their code to the newer [API v2](/api/v2).**
 
     All endpoints should be accessed using HTTPS. The following endpoints are provided:
 
@@ -2785,7 +2787,7 @@ class OrgEndpoint(BaseAPIView):
                     country=org.get_country_code(),
                     languages=[l.iso_code for l in org.languages.order_by('iso_code')],
                     primary_language=org.primary_language.iso_code if org.primary_language else None,
-                    timezone=org.timezone,
+                    timezone=six.text_type(org.timezone),
                     date_style=('day_first' if org.get_dayfirst() else 'month_first'),
                     anon=org.is_anon)
 

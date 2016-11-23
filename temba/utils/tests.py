@@ -23,12 +23,14 @@ from .exporter import TableExporter
 from .expressions import migrate_template, evaluate_template, evaluate_template_compat, get_function_listing
 from .expressions import _build_function_signature
 from .gsm7 import is_gsm7, replace_non_gsm7_accents
-from .queues import pop_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
+
+from .timezones import TimeZoneFormField, timezone_to_country_code
+from .queues import start_task, complete_task, push_task, HIGH_PRIORITY, LOW_PRIORITY, nonoverlapping_task
 from .currencies import currency_for_country
 from . import format_decimal, slugify_with, str_to_datetime, str_to_time, truncate, random_string, non_atomic_when_eager, \
     clean_string
 from . import PageableQuery, json_to_dict, dict_to_struct, datetime_to_ms, ms_to_datetime, dict_to_json, str_to_bool
-from . import percentage, datetime_to_json_date, json_date_to_datetime, timezone_to_country_code, non_atomic_gets
+from . import percentage, datetime_to_json_date, json_date_to_datetime, non_atomic_gets
 from . import datetime_to_str, chunk_list, get_country_code_by_name
 
 
@@ -85,6 +87,30 @@ class InitTest(TembaTest):
                              str_to_datetime('01-02-2013 07:08:09.100000', tz, dayfirst=True))  # complete time provided
             self.assertEqual(tz.localize(datetime(2013, 2, 1, 0, 0, 0, 0)),
                              str_to_datetime('01-02-2013', tz, dayfirst=True, fill_time=False))  # no time filling
+
+            # just year
+            self.assertEqual(datetime(123, 1, 2, 3, 4, 5, 6, tz),
+                             str_to_datetime('123', tz))
+
+        # localizing while in DST to something outside DST
+        tz = pytz.timezone('US/Eastern')
+        with patch.object(timezone, 'now', return_value=tz.localize(datetime(2029, 11, 1, 12, 30, 0, 0))):
+            parsed = str_to_datetime('06-11-2029', tz, dayfirst=True)
+            self.assertEqual(tz.localize(datetime(2029, 11, 6, 12, 30, 0, 0)),
+                             parsed)
+
+            # assert there is no DST offset
+            self.assertFalse(parsed.tzinfo.dst(parsed))
+
+            self.assertEqual(tz.localize(datetime(2029, 11, 6, 13, 45, 0, 0)),
+                             str_to_datetime('06-11-2029 13:45', tz, dayfirst=True))
+
+        # deal with datetimes that have timezone info
+        self.assertEqual(pytz.utc.localize(datetime(2016, 11, 21, 20, 36, 51, 215681)).astimezone(tz),
+                         str_to_datetime('2016-11-21T20:36:51.215681Z', tz))
+
+        self.assertEqual(datetime(123, 1, 2, 5, 4, 5, 6, pytz.utc),
+                         str_to_datetime('123-1-2T5:4:5.000006Z', tz))
 
     def test_str_to_time(self):
         tz = pytz.timezone('Asia/Kabul')
@@ -158,16 +184,6 @@ class InitTest(TembaTest):
         # check that function calls correctly
         self.assertEqual(dispatch_func(1, arg2=2), 3)
 
-    def test_timezone_country_code(self):
-        self.assertEqual('RW', timezone_to_country_code('Africa/Kigali'))
-        self.assertEqual('US', timezone_to_country_code('America/Chicago'))
-        self.assertEqual('US', timezone_to_country_code('US/Pacific'))
-        # GMT and UTC give empty
-        self.assertEqual('', timezone_to_country_code('GMT'))
-
-        # any invalid timezones should return ""
-        self.assertEqual('', timezone_to_country_code('Nyamirambo'))
-
     def test_percentage(self):
         self.assertEquals(0, percentage(0, 100))
         self.assertEquals(0, percentage(0, 0))
@@ -187,6 +203,23 @@ class InitTest(TembaTest):
         self.assertIsNone(clean_string(None))
         self.assertEqual(clean_string("ngert\x07in."), "ngertin.")
         self.assertEqual(clean_string("Norbért"), "Norbért")
+
+
+class TimezonesTest(TembaTest):
+    def test_field(self):
+        field = TimeZoneFormField(help_text="Test field")
+
+        self.assertEqual(field.choices[0], ('Pacific/Midway', u'(GMT-1100) Pacific/Midway'))
+        self.assertEqual(field.coerce("Africa/Kigali"), pytz.timezone("Africa/Kigali"))
+
+    def test_timezone_country_code(self):
+        self.assertEqual('RW', timezone_to_country_code(pytz.timezone('Africa/Kigali')))
+        self.assertEqual('US', timezone_to_country_code(pytz.timezone('America/Chicago')))
+        self.assertEqual('US', timezone_to_country_code(pytz.timezone('US/Pacific')))
+
+        # GMT and UTC give empty
+        self.assertEqual('', timezone_to_country_code(pytz.timezone('GMT')))
+        self.assertEqual('', timezone_to_country_code(pytz.timezone('UTC')))
 
 
 class TemplateTagTest(TembaTest):
@@ -335,13 +368,34 @@ class JsonTest(TembaTest):
 class QueueTest(TembaTest):
 
     def test_queueing(self):
+        r = get_redis_connection()
+
         args1 = dict(task=1)
 
         # basic push and pop
         push_task(self.org, None, 'test', args1)
-        self.assertEquals(args1, pop_task('test'))
+        org_id, task = start_task('test')
+        self.assertEqual(args1, task)
+        self.assertEqual(org_id, self.org.id)
 
-        self.assertFalse(pop_task('test'))
+        # should show as having one worker on that worker
+        self.assertEqual(r.zscore('test:active', self.org.id), 1)
+
+        # there aren't any more tasks so this will actually clear our active worker count
+        self.assertFalse(start_task('test')[1])
+        self.assertIsNone(r.zscore('test:active', self.org.id))
+
+        # marking the task as complete should also be a no-op
+        complete_task('test', self.org.id)
+        self.assertIsNone(r.zscore('test:active', self.org.id))
+
+        # pop on another task and start it and complete it
+        push_task(self.org, None, 'test', args1)
+        self.assertEquals(args1, start_task('test')[1])
+        complete_task('test', self.org.id)
+
+        # should have no active workers
+        self.assertEqual(r.zscore('test:active', self.org.id), 0)
 
         # ok, try pushing and popping multiple on now
         args2 = dict(task=2)
@@ -350,10 +404,22 @@ class QueueTest(TembaTest):
         push_task(self.org, None, 'test', args2)
 
         # should come back in order of insertion
-        self.assertEquals(args1, pop_task('test'))
-        self.assertEquals(args2, pop_task('test'))
+        self.assertEquals(args1, start_task('test')[1])
+        self.assertEquals(args2, start_task('test')[1])
 
-        self.assertFalse(pop_task('test'))
+        # two active workers
+        self.assertEqual(r.zscore('test:active', self.org.id), 2)
+
+        # mark one as complete
+        complete_task('test', self.org.id)
+        self.assertEqual(r.zscore('test:active', self.org.id), 1)
+
+        # start another, this will clear our counts
+        self.assertFalse(start_task('test')[1])
+        self.assertIsNone(r.zscore('test:active', self.org.id))
+
+        complete_task('test', self.org.id)
+        self.assertIsNone(r.zscore('test:active', self.org.id))
 
         # ok, same set up
         push_task(self.org, None, 'test', args1)
@@ -368,40 +434,45 @@ class QueueTest(TembaTest):
         push_task(self.org, None, 'test', args4, LOW_PRIORITY)
 
         # high priority should be first out, then defaults, then low
-        self.assertEquals(args3, pop_task('test'))
-        self.assertEquals(args1, pop_task('test'))
-        self.assertEquals(args2, pop_task('test'))
-        self.assertEquals(args4, pop_task('test'))
+        self.assertEquals(args3, start_task('test')[1])
+        self.assertEquals(args1, start_task('test')[1])
+        self.assertEquals(args2, start_task('test')[1])
+        self.assertEquals(args4, start_task('test')[1])
 
-        self.assertFalse(pop_task('test'))
+        self.assertEqual(r.zscore('test:active', self.org.id), 4)
+
+        self.assertFalse(start_task('test')[1])
+        self.assertIsNone(r.zscore('test:active', self.org.id))
 
     def test_org_queuing(self):
+        r = get_redis_connection()
+
         self.create_secondary_org()
 
         args = [dict(task=i) for i in range(6)]
 
-        push_task(self.org, None, 'test', args[2], LOW_PRIORITY)
-        push_task(self.org, None, 'test', args[1])
+        push_task(self.org, None, 'test', args[4], LOW_PRIORITY)
+        push_task(self.org, None, 'test', args[2])
         push_task(self.org, None, 'test', args[0], HIGH_PRIORITY)
 
-        push_task(self.org2, None, 'test', args[4])
-        push_task(self.org2, None, 'test', args[3], HIGH_PRIORITY)
+        push_task(self.org2, None, 'test', args[3])
+        push_task(self.org2, None, 'test', args[1], HIGH_PRIORITY)
         push_task(self.org2, None, 'test', args[5], LOW_PRIORITY)
 
-        # order isn't guaranteed except per org when popping these off
-        curr1, curr2 = 0, 3
-
+        # order should alternate between the two orgs (based on # of active workers)
         for i in range(6):
-            task = pop_task('test')['task']
+            task = start_task('test')[1]['task']
+            self.assertEqual(i, task)
 
-            if task < 3:
-                self.assertEquals(curr1, task)
-                curr1 += 1
-            else:
-                self.assertEquals(curr2, task)
-                curr2 += 1
+        # each org should show 3 active works
+        self.assertEqual(r.zscore('test:active', self.org.id), 3)
+        self.assertEqual(r.zscore('test:active', self.org2.id), 3)
 
-        self.assertFalse(pop_task('test'))
+        self.assertFalse(start_task('test')[1])
+
+        # no more tasks to do, both should now be empty
+        self.assertIsNone(r.zscore('test:active', self.org.id))
+        self.assertIsNone(r.zscore('test:active', self.org2.id))
 
     @patch('redis.client.StrictRedis.lock')
     @patch('redis.client.StrictRedis.get')

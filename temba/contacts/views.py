@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import json
 import regex
+import six
 
 from collections import OrderedDict
 from datetime import timedelta
@@ -583,7 +584,7 @@ class ContactCRUDL(SmartCRUDL):
         def post_save(self, task):
             # configure import params with current org and timezone
             org = self.derive_org()
-            params = dict(org_id=org.id, timezone=org.timezone, extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
+            params = dict(org_id=org.id, timezone=six.text_type(org.timezone), extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
             params_dump = json.dumps(params)
             ImportTask.objects.filter(pk=task.pk).update(import_params=params_dump)
             return task

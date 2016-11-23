@@ -1272,7 +1272,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(context['contact']['superhero_name'], "batman")
 
         # time should be in org format and timezone
-        msg_time = datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=pytz.timezone(self.org.timezone))
+        msg_time = datetime_to_str(msg.created_on, '%d-%m-%Y %H:%M', tz=self.org.timezone)
         self.assertEqual(msg_time, context['time'])
 
     def test_variables_substitution(self):
