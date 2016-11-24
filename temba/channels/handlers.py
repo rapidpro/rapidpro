@@ -2003,6 +2003,7 @@ class FCMHandler(View):
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
+        from temba.contacts.models import FCM_SCHEME
 
         channel_uuid = kwargs['uuid']
 
@@ -2010,18 +2011,38 @@ class FCMHandler(View):
         if not channel:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
-        if 'from' not in request.REQUEST or 'msg' not in request.REQUEST:
-            return HttpResponse("Missing parameters, requires 'from' and 'msg'", status=400)
+        action = kwargs['action']
 
         try:
-            date = request.REQUEST.get('date', request.REQUEST.get('time', None))
-            if date:
-                date = json_date_to_datetime(date)
+            if action == 'receive':
+                if 'from' not in request.REQUEST or 'msg' not in request.REQUEST:
+                    return HttpResponse("Missing parameters, requires 'from' and 'msg'", status=400)
 
-            fcm_urn = URN.from_fcm(request.REQUEST['from'])
-            contact = Contact.get_or_create(channel.org, channel.created_by, name=request.REQUEST.get('name', None), urns=[fcm_urn], channel=channel)
+                date = request.REQUEST.get('date', request.REQUEST.get('time', None))
+                if date:
+                    date = json_date_to_datetime(date)
 
-            sms = Msg.create_incoming(channel, fcm_urn, request.REQUEST['msg'], date=date, contact=contact)
-            return HttpResponse("Msg Accepted: %d" % sms.id)
+                fcm_urn = URN.from_fcm(request.REQUEST['from'])
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=request.REQUEST.get('name', None),
+                                                urns=[fcm_urn], channel=channel)
+
+                sms = Msg.create_incoming(channel, fcm_urn, request.REQUEST['msg'], date=date, contact=contact)
+                return HttpResponse("Msg Accepted: %d" % sms.id)
+
+            else:
+
+                if 'urn' not in request.REQUEST or 'fcm_token' not in request.REQUEST:
+                    return HttpResponse("Missing parameters, requires 'from' and 'fcm_token'", status=400)
+
+                fcm_urn = URN.from_fcm(request.REQUEST['urn'])
+                fcm_token = request.REQUEST['fcm_token']
+                contact = Contact.get_or_create(channel.org, channel.created_by, name=request.REQUEST.get('name', None),
+                                                urns=[fcm_urn], channel=channel, extra_path=fcm_token)
+                current_paths = [urn.path for urn in contact.get_urns_for_scheme(FCM_SCHEME)]
+                if fcm_token not in current_paths:
+                    contact.update_path_urn(fcm_urn, fcm_token)
+
+                return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
+
         except Exception as e:
             return HttpResponse(e.args, status=400)

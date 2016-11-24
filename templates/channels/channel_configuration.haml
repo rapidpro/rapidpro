@@ -434,7 +434,7 @@
 
   -elif object.channel_type == 'FCM'
     %h4
-      -trans "To finish configuring your Firebase Cloud Messaging connection you'll need to send the data to URL with parameters `from` and `msg`."
+      -trans "To finish configuring your Firebase Cloud Messaging connection you'll need to send the data to URL with parameters `from` and `msg` to receive messages and to register contacts use `urn`, `fcm_token` and `name` (optional)."
 
     .clearfix
       .config-value
@@ -458,13 +458,22 @@
     %hr
 
     %h4
+      -trans "Contact Register"
+
+    %p
+      -trans "To register contacts, is recommended that you send the data to URL below on your App."
+
+    %code
+      https://{{ domain }}{% url 'handlers.fcm_handler' 'register' object.uuid %}
+
+    %h4
       -trans "Receive URL"
 
     %p
       -trans "To receive incoming messages, you need to send the data to URL below on your App."
 
     %code
-      https://{{ domain }}{% url 'handlers.fcm_handler' object.uuid %}
+      https://{{ domain }}{% url 'handlers.fcm_handler' 'receive' object.uuid %}
 
     %hr
 

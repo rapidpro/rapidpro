@@ -697,7 +697,7 @@ class Contact(TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False):
+    def get_or_create(cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, is_test=False, force_urn_update=False, extra_path=None):
         """
         Gets or creates a contact with the given URNs
         """
@@ -831,7 +831,7 @@ class Contact(TembaModel):
 
             # add all new URNs
             for raw, normalized in urns_to_create.iteritems():
-                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel)
+                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel, extra_path=extra_path)
                 urn_objects[raw] = urn
 
             # save which urns were updated
@@ -1556,6 +1556,14 @@ class Contact(TembaModel):
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
 
+    def update_path_urn(self, urn_as_string, path):
+        country = self.org.get_country_code()
+        normalized = URN.normalize(urn_as_string, country)
+        urn = ContactURN.objects.filter(org=self.org, urn=normalized).first()
+        if urn:
+            urn.path = path
+            urn.save()
+
     def update_urns(self, user, urns):
         """
         Updates the URNs on this contact to match the provided list, i.e. detaches any existing not included.
@@ -1757,21 +1765,23 @@ class ContactURN(models.Model):
                                 help_text="The preferred channel for this URN")
 
     @classmethod
-    def get_or_create(cls, org, contact, urn_as_string, channel=None):
+    def get_or_create(cls, org, contact, urn_as_string, channel=None, extra_path=None):
         urn = cls.lookup(org, urn_as_string)
 
         # not found? create it
         if not urn:
-            urn = cls.create(org, contact, urn_as_string, channel=channel)
+            urn = cls.create(org, contact, urn_as_string, channel=channel, extra_path=extra_path)
 
         return urn
 
     @classmethod
-    def create(cls, org, contact, urn_as_string, channel=None, priority=None):
+    def create(cls, org, contact, urn_as_string, channel=None, priority=None, extra_path=None):
         scheme, path = URN.to_parts(urn_as_string)
 
         if not priority:
             priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
+
+        path = extra_path if extra_path else path
 
         return cls.objects.create(org=org, contact=contact, priority=priority, channel=channel,
                                   scheme=scheme, path=path, urn=urn_as_string)
