@@ -27,6 +27,7 @@ from temba.triggers.models import Trigger
 from temba.utils import json_date_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
+from twilio import twiml
 from .tasks import fb_channel_subscribe
 
 
