@@ -61,7 +61,7 @@ class CallHandler(View):
             call.update_status(status, duration, channel_type)
 
             # update any calls we have spawned with the same
-            for child in call.child_calls.all():
+            for child in call.child_sessions.all():
                 child.update_status(status, duration, channel_type)
                 child.save()
 
@@ -119,7 +119,7 @@ class CallHandler(View):
                         return HttpResponse(unicode('media URL saved'))
 
             if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
-                if call.is_flow():
+                if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
                     if channel_type in Channel.NCCO_CHANNELS:
                         return build_json_response(json.loads(unicode(response)))

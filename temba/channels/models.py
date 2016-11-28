@@ -3262,6 +3262,9 @@ class ChannelSession(SmartModel):
     def is_done(self):
         return self.status in self.DONE
 
+    def is_ivr(self):
+        return self.session_type == self.IVR
+
     def update_status(self, status, duration, channel_type):
         """
         Updates our status from a twilio status string
@@ -3281,7 +3284,7 @@ class ChannelSession(SmartModel):
                 self.status = self.IN_PROGRESS
             elif status == 'completed':
                 if self.contact.is_test:
-                    run = FlowRun.objects.filter(call=self)
+                    run = FlowRun.objects.filter(session=self)
                     if run:
                         ActionLog.create(run[0], _("Call ended."))
                 self.status = self.COMPLETED

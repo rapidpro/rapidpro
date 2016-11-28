@@ -456,8 +456,8 @@ class Flow(TembaModel):
             if msg.id:
                 Msg.mark_handled(msg)
 
-        if run.parent is not None and run.parent.call is not None:
-            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.parent.call.pk]))
+        if run.parent is not None and run.parent.session is not None:
+            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.parent.session.pk]))
             run.voice_response.redirect(url)
             run.set_completed(final_step=step)
 
@@ -1543,7 +1543,7 @@ class Flow(TembaModel):
             if parent_run and parent_run.session:
                 call.parent = parent_run.session
                 call.save()
-                url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.call.pk]))
+                url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.session.pk]))
                 parent_run.voice_response.redirect(url)
             else:
                 # trigger the call to start (in the background)

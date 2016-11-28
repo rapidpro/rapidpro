@@ -928,7 +928,7 @@ class NexmoCallHandler(View):
                 call.external_id = external_id
                 call.save()
 
-                FlowRun.create(flow, contact.pk, call=call)
+                FlowRun.create(flow, contact.pk, session=call)
                 response = Flow.handle_call(call)
                 return HttpResponse(unicode(response))
             else:
