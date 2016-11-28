@@ -551,7 +551,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api')
+               'claim_twiml_api', 'claim_viber_public')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1071,6 +1071,23 @@ class ChannelCRUDL(SmartCRUDL):
             self.object.save()
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
+
+    class ClaimViberPublic(OrgPermsMixin, SmartUpdateView):
+        class ViberClaimForm(forms.ModelForm):
+            auth_token = forms.IntegerField(help_text=_("The authentication token provided by Viber"))
+
+            class Meta:
+                model = Channel
+                fields = ('auth_token',)
+
+        title = _("Connect Public Viber Channel")
+        form_class = ViberClaimForm
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+            data = form.cleaned_data
+            self.object = Channel.add_viber_public_channel(self.request.user.get_org(), self.request.user, data['auth_token'])
+            return super(ChannelCRUDL.ClaimViberPublic, self).form_valid(form)
 
     class ClaimKannel(OrgPermsMixin, SmartFormView):
         class KannelClaimForm(forms.Form):

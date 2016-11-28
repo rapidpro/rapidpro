@@ -82,6 +82,7 @@ class Channel(TembaModel):
     TYPE_TWITTER = 'TT'
     TYPE_VERBOICE = 'VB'
     TYPE_VIBER = 'VI'
+    TYPE_VIBER_PUBLIC = 'VP'
     TYPE_VUMI = 'VM'
     TYPE_VUMI_USSD = 'VMU'
     TYPE_YO = 'YO'
@@ -162,6 +163,7 @@ class Channel(TembaModel):
         TYPE_TWITTER: dict(scheme='twitter', max_length=10000),
         TYPE_VERBOICE: dict(scheme='tel', max_length=1600),
         TYPE_VIBER: dict(scheme='tel', max_length=1000),
+        TYPE_VIBER_PUBLIC: dict(scheme='viber', max_length=7000),
         TYPE_VUMI: dict(scheme='tel', max_length=1600),
         TYPE_VUMI_USSD: dict(scheme='tel', max_length=182),
         TYPE_YO: dict(scheme='tel', max_length=1600),
@@ -195,6 +197,7 @@ class Channel(TembaModel):
                     (TYPE_TWITTER, "Twitter"),
                     (TYPE_VERBOICE, "Verboice"),
                     (TYPE_VIBER, "Viber"),
+                    (TYPE_VIBER_PUBLIC, "Viber Public Channels"),
                     (TYPE_VUMI, "Vumi"),
                     (TYPE_VUMI_USSD, "Vumi USSD"),
                     (TYPE_YO, "Yo!"),
@@ -315,6 +318,21 @@ class Channel(TembaModel):
     @classmethod
     def add_viber_channel(cls, org, user, name):
         return Channel.create(org, user, None, Channel.TYPE_VIBER, name=name, address=Channel.VIBER_NO_SERVICE_ID)
+
+    @classmethod
+    def add_viber_public_channel(cls, org, user, auth_token):
+        from temba.contacts.models import VIBER_SCHEME
+        try:
+            response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
+            if response.status_code != 200:
+                raise Exception(_("Invalid authentication token, please check."))
+
+            response_json = response.json()
+            return Channel.create(org, user, None, Channel.TYPE_VIBER_PUBLIC,
+                                  name=response_json['uri'], address=response_json['id'],
+                                  config={Channel.CONFIG_AUTH_TOKEN: auth_token}, scheme=VIBER_SCHEME)
+        except Exception as e:
+            raise e
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
