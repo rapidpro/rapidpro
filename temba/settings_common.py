@@ -519,6 +519,7 @@ PERMISSIONS = {
                          'new_conversation',
                          'register',
                          'schedule',
+                         'ussd',
                          ),
 }
 
