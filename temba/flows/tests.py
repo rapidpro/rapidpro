@@ -462,7 +462,6 @@ class FlowTest(TembaTest):
         self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
         self.assertEquals(2, activity['activity'][uuid(5)])
         self.assertEquals(activity['call']['pk'], call.pk)
-        self.assertEquals(activity['call']['session_type'], call.session_type)
 
         # if we try to get contacts at this step for our compose we should have two contacts
         self.login(self.admin)
