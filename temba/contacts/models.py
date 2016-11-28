@@ -471,7 +471,8 @@ class Contact(TembaModel):
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
         from temba.flows.models import Flow
-        from temba.ivr.models import BUSY, FAILED, NO_ANSWER, CANCELED
+        from temba.ivr.models import IVRCall
+        # BUSY, FAILED, NO_ANSWER, CANCELED
         from temba.msgs.models import Msg
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
@@ -503,7 +504,9 @@ class Contact(TembaModel):
             event_fire.created_on = event_fire.fired
 
         # and the contact's failed IVR calls
-        error_calls = self.calls.filter(created_on__gte=after, created_on__lt=before, status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+        error_calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
+            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED
+        ])
         error_calls = error_calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
@@ -1193,7 +1196,6 @@ class Contact(TembaModel):
         # this file isn't good enough, lets write it to local disk
         from django.conf import settings
         from uuid import uuid4
-
         # make sure our tmp directory is present (throws if already present)
         try:
             os.makedirs(os.path.join(settings.MEDIA_ROOT, 'tmp'))
@@ -1202,7 +1204,7 @@ class Contact(TembaModel):
 
         # rewrite our file to local disk
         extension = filename.name.rpartition('.')[2]
-        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension))
+        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension.lower()))
         filename.open()
 
         out_file = open(tmp_file, 'w')

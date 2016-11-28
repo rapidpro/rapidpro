@@ -64,7 +64,10 @@ class TwimlAPIHandler(View):
             # find a channel that knows how to answer twilio calls
             channel = self.get_ringing_channel(to_number=to_number)
             if not channel:
-                return HttpResponse("No channel to answer call for %s" % to_number, status=400)
+                response = twiml.Response()
+                response.say('Sorry, there is no channel configured to take this call. Goodbye.')
+                response.hangup()
+                return HttpResponse(unicode(response))
 
             org = channel.org
 
@@ -94,7 +97,7 @@ class TwimlAPIHandler(View):
                                        request.POST.get('CallDuration', None))
                     call.save()
 
-                    FlowRun.create(flow, contact.pk, call=call)
+                    FlowRun.create(flow, contact.pk, session=call)
                     response = Flow.handle_call(call, {})
                     return HttpResponse(unicode(response))
                 else:
@@ -506,6 +509,9 @@ class TelegramHandler(View):
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
         body = json.loads(request.body)
+
+        if 'message' not in body:
+            return HttpResponse("No 'message' found in payload", status=400)
 
         # look up the contact
         telegram_id = str(body['message']['from']['id'])

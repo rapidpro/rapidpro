@@ -14,7 +14,7 @@ from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow
-from temba.ivr.models import IN_PROGRESS
+from temba.ivr.models import IVRCall
 from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from twilio.util import RequestValidator
@@ -127,5 +127,5 @@ class VerboiceClient:
 
         # store the verboice call id in our IVRCall
         call.external_id = response['call_id']
-        call.status = IN_PROGRESS
+        call.status = IVRCall.IN_PROGRESS
         call.save()

@@ -19,7 +19,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
 from temba.flows.models import FlowRun
-from temba.ivr.models import NO_ANSWER, IVRCall
+from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast
 from temba.orgs.models import Org
@@ -1238,7 +1238,7 @@ class ContactTest(TembaTest):
                             timezone.now(), 5)
 
         # try adding some failed calls
-        IVRCall.objects.create(contact=self.joe, status=NO_ANSWER, created_by=self.admin,
+        IVRCall.objects.create(contact=self.joe, status=IVRCall.NO_ANSWER, created_by=self.admin,
                                modified_by=self.admin, channel=self.channel, org=self.org,
                                contact_urn=self.joe.urns.all().first())
 
@@ -2278,6 +2278,17 @@ class ContactTest(TembaTest):
         self.assertTrue(response.context['show_form'])
         self.assertFalse(response.context['task'])
         self.assertEquals(response.context['group'], None)
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        records = self.do_import(user, 'sample_contacts_UPPER.XLS')
+        self.assertEquals(3, len(records))
+
+        self.assertEquals(1, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals(group.name, "Sample Contacts Upper")
+        self.assertEquals(3, group.contacts.count())
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()

@@ -158,6 +158,7 @@ class WebHookTest(TembaTest):
             self.assertEquals('+250788123123', data['phone'][0])
             self.assertEquals(unicode(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
             self.assertEquals(self.joe.uuid, data['contact'][0])
+            self.assertEquals(self.joe.name, data['contact_name'][0])
             self.assertEquals(call.pk, int(data['call'][0]))
             self.assertEquals(0, int(data['duration'][0]))
             self.assertEquals(call.event_type, data['event'][0])
@@ -267,6 +268,7 @@ class WebHookTest(TembaTest):
             self.assertEquals(actionset.uuid, data['step'][0])
             self.assertEquals(flow.pk, int(data['flow'][0]))
             self.assertEquals(self.joe.uuid, data['contact'][0])
+            self.assertEquals(self.joe.name, data['contact_name'][0])
             self.assertEquals(unicode(self.joe.get_urn('tel')), data['urn'][0])
 
             values = json.loads(data['values'][0])
@@ -407,6 +409,7 @@ class WebHookTest(TembaTest):
             self.assertEquals(self.joe.get_urn(TEL_SCHEME).path, data['phone'][0])
             self.assertEquals(unicode(self.joe.get_urn(TEL_SCHEME)), data['urn'][0])
             self.assertEquals(self.joe.uuid, data['contact'][0])
+            self.assertEquals(self.joe.name, data['contact_name'][0])
             self.assertEquals(sms.pk, int(data['sms'][0]))
             self.assertEquals(self.channel.pk, int(data['channel'][0]))
             self.assertEquals(SMS_RECEIVED, data['event'][0])
