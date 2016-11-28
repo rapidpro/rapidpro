@@ -1245,12 +1245,6 @@ class FlowCRUDL(SmartCRUDL):
             messages = []
             call = IVRCall.objects.filter(contact__is_test=True, flow=flow).first()
             if call:
-                call = dict(pk=call.pk,
-                            call_type=call.call_type,
-                            status=call.status,
-                            duration=call.get_duration(),
-                            number=call.contact.raw_tel())
-
                 messages = Msg.objects.filter(contact=Contact.get_test_contact(self.request.user)).order_by('created_on')
                 action_logs = list(ActionLog.objects.filter(run__flow=flow, run__contact__is_test=True).order_by('created_on'))
 
@@ -1265,7 +1259,7 @@ class FlowCRUDL(SmartCRUDL):
 
             (active, visited) = flow.get_activity()
 
-            return build_json_response(dict(call=call, messages=messages,
+            return build_json_response(dict(messages=messages,
                                             activity=active,
                                             visited=visited,
                                             flow=flow_json, pending=pending))
