@@ -20,6 +20,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookEvent, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
+from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, INTERRUPTED
 from temba.msgs.models import OUTGOING
@@ -452,6 +453,16 @@ class FlowTest(TembaTest):
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
         self.assertEquals(2, activity['activity'][uuid(5)])
+        self.assertIsNone(activity['call'])
+
+        # check activity with IVR test call
+        test_contact = Contact.get_test_contact(self.admin)
+        call = IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.flow, self.admin)
+        activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
+        self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
+        self.assertEquals(2, activity['activity'][uuid(5)])
+        self.assertEquals(activity['call']['pk'], call.pk)
+        self.assertEquals(activity['call']['session_type'], call.session_type)
 
         # if we try to get contacts at this step for our compose we should have two contacts
         self.login(self.admin)

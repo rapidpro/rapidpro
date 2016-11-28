@@ -1246,7 +1246,7 @@ class FlowCRUDL(SmartCRUDL):
             call = IVRCall.objects.filter(contact__is_test=True, flow=flow).first()
             if call:
                 call = dict(pk=call.pk,
-                            call_type=call.call_type,
+                            session_type=call.session_type,
                             status=call.status,
                             duration=call.get_duration(),
                             number=call.contact.raw_tel())
