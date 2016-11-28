@@ -450,19 +450,21 @@ class FlowTest(TembaTest):
 
         # check flow activity endpoint response
         self.login(self.admin)
+
+        test_contact = Contact.get_test_contact(self.admin)
+        test_message = self.create_msg(contact=test_contact, text='Hi')
+
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
         self.assertEquals(2, activity['activity'][uuid(5)])
-        self.assertIsNone(activity['call'])
+        self.assertEquals(activity['messages'], [])
 
         # check activity with IVR test call
-        test_contact = Contact.get_test_contact(self.admin)
-        call = IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.flow, self.admin)
+        IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.flow, self.admin)
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
         self.assertEquals(2, activity['activity'][uuid(5)])
-        self.assertEquals(activity['call']['pk'], call.pk)
-        self.assertEquals(activity['call']['session_type'], call.session_type)
+        self.assertTrue(activity['messages'], [test_message.as_json()])
 
         # if we try to get contacts at this step for our compose we should have two contacts
         self.login(self.admin)
