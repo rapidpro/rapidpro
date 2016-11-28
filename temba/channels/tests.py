@@ -7833,8 +7833,8 @@ class LineTest(TembaTest):
         self.assertEquals(400, response.status_code)
 
     def test_send(self):
-        joe = self.create_contact("Joe", urn="line:uabcdefghij")
-        msg = joe.send("Hello, world", self.admin, trigger_send=False)
+        joe = self.create_contact("Joe", urn="line:uabcdefghijkl")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
 
