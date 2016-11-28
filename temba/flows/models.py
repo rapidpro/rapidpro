@@ -1575,7 +1575,7 @@ class Flow(TembaModel):
 
             if message_text:
                 broadcast = Broadcast.create(self.org, self.created_by, message_text, [],
-                                             language_dict=language_dict)
+                                             language_dict=language_dict, base_language=self.base_language)
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -1671,8 +1671,7 @@ class Flow(TembaModel):
                 created_on = timezone.now()
                 broadcast.send(message_context=message_context, trigger_send=False,
                                response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
-                               created_on=created_on, base_language=self.base_language,
-                               partial_recipients=partial_recipients, run_map=run_map)
+                               created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
@@ -3001,10 +3000,6 @@ class FlowStep(models.Model):
         # if this msg is part of a broadcast, save that on our flowstep so we can later purge the msg
         if msg.broadcast:
             self.broadcasts.add(msg.broadcast)
-
-            # save base language on the broadcast to help us reconstruct messages once they are purged
-            msg.broadcast.base_language = self.run.flow.base_language
-            msg.broadcast.save(update_fields=('base_language',))
 
         # incoming non-IVR messages won't have a type yet so update that
         if not msg.msg_type or msg.msg_type == INBOX:
@@ -5541,8 +5536,8 @@ class SendAction(VariableContactAction):
                 recipients = groups + contacts
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             language_dict=language_dict)
-                broadcast.send(trigger_send=False, message_context=message_context, base_language=flow.base_language)
+                                             language_dict=language_dict, base_language=flow.base_language)
+                broadcast.send(trigger_send=False, message_context=message_context)
                 return list(broadcast.get_messages())
 
             else:
