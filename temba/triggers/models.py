@@ -9,7 +9,7 @@ from smartmin.models import SmartModel
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup
 from temba.flows.models import Flow, FlowRun
-from temba.ivr.models import IVRCall
+from temba.channels.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
 
@@ -26,6 +26,7 @@ class Trigger(SmartModel):
     TYPE_CATCH_ALL = 'C'
     TYPE_FOLLOW = 'F'
     TYPE_NEW_CONVERSATION = 'N'
+    TYPE_USSD_PULL = 'U'
 
     TRIGGER_TYPES = ((TYPE_KEYWORD, _("Keyword Trigger")),
                      (TYPE_SCHEDULE, _("Schedule Trigger")),
@@ -33,7 +34,8 @@ class Trigger(SmartModel):
                      (TYPE_MISSED_CALL, _("Missed Call Trigger")),
                      (TYPE_CATCH_ALL, _("Catch All Trigger")),
                      (TYPE_FOLLOW, _("Follow Account Trigger")),
-                     (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")))
+                     (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")),
+                     (TYPE_USSD_PULL, _("USSD Pull Session Trigger")))
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to"))
 
@@ -65,7 +67,10 @@ class Trigger(SmartModel):
     trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=TYPE_KEYWORD,
                                     verbose_name=_("Trigger Type"), help_text=_('The type of this trigger'))
 
-    channel = models.OneToOneField(Channel, verbose_name=_("Channel"), null=True, help_text=_("The associated channel"))
+    channel = models.ForeignKey(Channel, verbose_name=_("Channel"), null=True, help_text=_("The associated channel"))
+
+    class Meta:
+        unique_together = ('keyword', 'channel',)
 
     def __unicode__(self):
         if self.trigger_type == Trigger.TYPE_KEYWORD:
@@ -239,16 +244,24 @@ class Trigger(SmartModel):
 
     @classmethod
     def find_and_handle(cls, msg):
-        # get the first word out of our message
-        words = regex.split(r"[\W]+", msg.text.strip(), flags=regex.UNICODE | regex.V0)
+        from temba.msgs.models import INTERRUPTED, TRIGGERED
 
-        while words and not words[0]:
-            words = words[1:]
-
-        if not words:
+        if msg.status == INTERRUPTED:
             return False
+        elif msg.status == TRIGGERED:
+            matched_object = regex.match('^[\d\*\#]+$', msg.text.strip(), flags=regex.UNICODE)
+            keyword = matched_object.string if matched_object else None
+        else:
+            # get the first word out of our message
+            words = regex.split(r"[\W]+", msg.text.strip(), flags=regex.UNICODE | regex.V0)
 
-        keyword = words[0].lower()
+            while words and not words[0]:
+                words = words[1:]
+
+            if not words:
+                return False
+
+            keyword = words[0].lower()
 
         if not keyword:
             return False
@@ -281,6 +294,10 @@ class Trigger(SmartModel):
             trigger.last_triggered = msg.created_on
             trigger.trigger_count += 1
             trigger.save()
+
+        # There is no actual message, it was only used for triggering the flow
+        if msg.status == TRIGGERED:
+            msg = None
 
         # if we have an associated flow, start this contact in it
         trigger.flow.start([], [contact], start_msg=msg, restart_participants=True)

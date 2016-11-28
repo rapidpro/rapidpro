@@ -360,7 +360,7 @@ PERMISSIONS = {
 
     'contacts.contactgroup': ('api',),
 
-    'ivr.ivrcall': ('start',),
+    # 'ivr.ivrcall': ('start',),
 
     'locations.adminboundary': ('alias',
                                 'api',
@@ -519,6 +519,7 @@ PERMISSIONS = {
                          'new_conversation',
                          'register',
                          'schedule',
+                         'ussd',
                          ),
 }
 
@@ -598,7 +599,7 @@ GROUP_PERMISSIONS = {
 
         'csv_imports.importtask.*',
 
-        'ivr.ivrcall.*',
+        # 'ivr.ivrcall.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',
@@ -752,7 +753,7 @@ GROUP_PERMISSIONS = {
 
         'csv_imports.importtask.*',
 
-        'ivr.ivrcall.*',
+        # 'ivr.ivrcall.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',

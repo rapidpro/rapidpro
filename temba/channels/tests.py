@@ -29,8 +29,9 @@ from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
-from temba.ivr.models import IVRCall, PENDING, RINGING
-from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED
+from temba.ivr.models import IVRCall
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED, \
+    TRIGGERED
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
@@ -3410,13 +3411,13 @@ class VerboiceTest(TembaTest):
         call.external_id = "12345"
         call.save()
 
-        self.assertEqual(call.status, PENDING)
+        self.assertEqual(call.status, IVRCall.PENDING)
 
         response = self.client.get(callback_url + "?From=250788456456&CallStatus=ringing&CallSid=12345")
 
         self.assertEqual(response.status_code, 200)
         call = IVRCall.objects.get(pk=call.pk)
-        self.assertEqual(call.status, RINGING)
+        self.assertEqual(call.status, IVRCall.RINGING)
 
 
 class YoTest(TembaTest):
@@ -4474,6 +4475,29 @@ class VumiUssdTest(TembaTest):
 
         args, kwargs = create_incoming.call_args
         self.assertEqual(kwargs['status'], INTERRUPTED)
+
+    @patch('temba.msgs.models.Msg.create_incoming')
+    def test_triggered_ussd_pull(self, create_incoming):
+        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
+
+        ussd_code = "*111#"
+
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+                    content="None", transport_type='ussd', session_event="new", to_addr=ussd_code)
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        # no real messages stored
+        self.assertEquals(Msg.objects.count(), 0)
+
+        self.assertTrue(create_incoming.called)
+        self.assertEqual(create_incoming.call_count, 1)
+
+        args, kwargs = create_incoming.call_args
+        self.assertEqual(kwargs['status'], TRIGGERED)
+        self.assertTrue(ussd_code in args)
 
 
 class ZenviaTest(TembaTest):
