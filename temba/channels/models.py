@@ -357,7 +357,7 @@ class Channel(TembaModel):
 
         if plivo_response_status in [201, 200, 202]:
             plivo_app_id = plivo_response['app_id']
-        else:
+        else:  # pragma: no cover
             plivo_app_id = None
 
         plivo_config = {Channel.CONFIG_PLIVO_AUTH_ID: auth_id,
@@ -371,7 +371,7 @@ class Channel(TembaModel):
         if plivo_response_status != 200:
             plivo_response_status, plivo_response = client.buy_phone_number(params=dict(number=plivo_number))
 
-            if plivo_response_status != 201:
+            if plivo_response_status != 201:  # pragma: no cover
                 raise Exception(_("There was a problem claiming that number, please check the balance on your account."))
 
             plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
@@ -379,7 +379,7 @@ class Channel(TembaModel):
         if plivo_response_status == 200:
             plivo_response_status, plivo_response = client.modify_number(params=dict(number=plivo_number,
                                                                                      app_id=plivo_app_id))
-            if plivo_response_status != 202:
+            if plivo_response_status != 202:  # pragma: no cover
                 raise Exception(_("There was a problem updating that number, please try again."))
 
         phone_number = '+' + plivo_number
@@ -456,7 +456,7 @@ class Channel(TembaModel):
                 exists = True
                 break
 
-        if not exists:
+        if not exists:  # pragma: no cover
             raise Exception(_("Your Twilio account is no longer connected. "
                               "First remove your Twilio account, reconnect it and try again."))
 
@@ -474,7 +474,7 @@ class Channel(TembaModel):
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
                 phone = phone_number
 
-            else:
+            else:  # pragma: no cover
                 raise Exception(_("Short code not found on your Twilio Account. "
                                   "Please check you own the short code and Try again"))
         else:
@@ -603,7 +603,7 @@ class Channel(TembaModel):
         country = status.get('cc')
         device = status.get('dev')
 
-        if not gcm_id or not uuid:
+        if not gcm_id or not uuid:  # pragma: no cover
             raise ValueError("Can't create Android channel without UUID and GCM ID")
 
         # look for existing active channel with this UUID
@@ -680,7 +680,8 @@ class Channel(TembaModel):
         return self.channel_type not in (Channel.TYPE_TWILIO, Channel.TYPE_ANDROID, Channel.TYPE_TWITTER, Channel.TYPE_TELEGRAM)
 
     def get_delegate_channels(self):
-        if not self.org:  # detached channels can't have delegates
+        # detached channels can't have delegates
+        if not self.org:  # pragma: no cover
             return Channel.objects.none()
 
         return self.org.channels.filter(parent=self, is_active=True, org=self.org).order_by('-role')
@@ -700,7 +701,7 @@ class Channel(TembaModel):
                                  params=dict(access_token=access_token),
                                  headers={'Content-Type': 'application/json'})
 
-        if response.status_code != 200:
+        if response.status_code != 200:  # pragma: no cover
             raise Exception(_("Unable to update call to action: %s" % response.content))
 
     def get_delegate(self, role):
@@ -736,9 +737,9 @@ class Channel(TembaModel):
             return self.org.get_twilio_client()
         if self.channel_type == Channel.TYPE_TWIML:
             return self.get_twiml_client()
-        if self.channel_type == Channel.TYPE_VERBOICE:
+        if self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
             return self.org.get_verboice_client()
-        return None
+        return None  # pragma: no cover
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
@@ -820,7 +821,7 @@ class Channel(TembaModel):
     def config_json(self):
         if self.config:
             return json.loads(self.config)
-        else:
+        else:  # pragma: no cover
             return dict()
 
     @classmethod
@@ -835,7 +836,7 @@ class Channel(TembaModel):
             channel = Channel.objects.filter(pk=channel_id).exclude(org=None).first()
 
             # channel has been disconnected, ignore
-            if not channel:
+            if not channel:  # pragma: no cover
                 return None
             else:
                 cached = channel.as_cached_json()
@@ -1256,7 +1257,7 @@ class Channel(TembaModel):
 
         try:
             response = requests.post(url, request_body, headers=headers, timeout=15)
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             raise SendException(unicode(e),
                                 method='POST',
                                 url=url,

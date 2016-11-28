@@ -268,6 +268,27 @@ class ChannelTest(TembaTest):
         self.assertEquals(norm_c2.get_urn(TEL_SCHEME).path, "+250788333444")
         self.assertEquals(norm_c3.get_urn(TEL_SCHEME).path, "+18006927753")
 
+    def test_channel_create(self):
+
+        # can't use an invalid scheme for a fixed-scheme channel type
+        with self.assertRaises(ValueError):
+            Channel.create(self.org, self.user, 'KE', 'AT', None, '+250788123123',
+                           config=dict(username='at-user', api_key='africa-key'),
+                           uuid='00000000-0000-0000-0000-000000001234',
+                           scheme='fb')
+
+        # a scheme is required
+        with self.assertRaises(ValueError):
+            Channel.create(self.org, self.user, 'US', 'EX', None, '+12065551212',
+                           uuid='00000000-0000-0000-0000-000000001234',
+                           scheme=None)
+
+        # country channels can't have scheme
+        with self.assertRaises(ValueError):
+            Channel.create(self.org, self.user, 'US', 'EX', None, '+12065551212',
+                           uuid='00000000-0000-0000-0000-000000001234',
+                           scheme='fb')
+
     def test_delete(self):
         self.org.administrators.add(self.user)
         self.user.set_org(self.org)
