@@ -8,6 +8,7 @@ import phonenumbers
 import plivo
 import pycountry
 import pytz
+import six
 import time
 import requests
 
@@ -31,8 +32,9 @@ from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRE
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
+from temba.utils import analytics, non_atomic_when_eager
 from temba.utils.middleware import disable_middleware
-from temba.utils import analytics, non_atomic_when_eager, timezone_to_country_code
+from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
 from twython import Twython
 from uuid import uuid4
@@ -899,6 +901,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             org = self.request.user.get_org()
             context['recommended_channel'] = org.get_recommended_channel()
+            context['org_timezone'] = six.text_type(org.timezone)
 
             return context
 
@@ -1539,13 +1542,13 @@ class ChannelCRUDL(SmartCRUDL):
                                           help_text=_("Your Vumi account key as found under Account -> Details"))
             conversation_key = forms.CharField(label=_("Conversation Key"),
                                                help_text=_("The key for your Vumi conversation, can be found in the URL"))
-            transport_name = forms.CharField(label=_("Transport Name"), required=False,
-                                             help_text=_("The name of the Vumi transport you will use to send and receive messages"))
+            api_url = forms.URLField(label=_("API URL"), required=False,
+                                     help_text=_("Custom VUMI API Endpoint. Leave blank to use default of: '%s'" % Channel.VUMI_GO_API_URL))
 
         title = _("Connect Vumi")
         channel_type = Channel.TYPE_VUMI
         form_class = VumiClaimForm
-        fields = ('country', 'number', 'account_key', 'conversation_key', 'transport_name')
+        fields = ('country', 'number', 'account_key', 'conversation_key', 'api_url')
 
         def form_valid(self, form):
             org = self.request.user.get_org()
@@ -1554,12 +1557,17 @@ class ChannelCRUDL(SmartCRUDL):
                 raise Exception(_("No org for this user, cannot claim"))
 
             data = form.cleaned_data
+            if not data.get('api_url'):
+                api_url = Channel.VUMI_GO_API_URL
+            else:
+                api_url = data.get('api_url')
+
             self.object = Channel.add_config_external_channel(org, self.request.user,
                                                               data['country'], data['number'], self.channel_type,
                                                               dict(account_key=data['account_key'],
                                                                    access_token=str(uuid4()),
-                                                                   transport_name=data['transport_name'],
-                                                                   conversation_key=data['conversation_key']))
+                                                                   conversation_key=data['conversation_key'],
+                                                                   api_url=api_url))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
