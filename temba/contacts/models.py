@@ -466,7 +466,6 @@ class Contact(TembaModel):
         """
         from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
-        # BUSY, FAILED, NO_ANSWER, CANCELED
         from temba.msgs.models import Msg
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
@@ -474,14 +473,8 @@ class Contact(TembaModel):
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gte=after, created_on__lt=before)
-        broadcasts = broadcasts.prefetch_related('steps__run__flow')
         for broadcast in broadcasts:
-            steps = list(broadcast.steps.all())
-            flow = steps[0].run.flow if steps else None
-            flow_language = flow.base_language if flow else None
-            broadcast.translated_text = broadcast.get_translated_text(contact=self,
-                                                                      base_language=flow_language,
-                                                                      org=self.org)
+            broadcast.translated_text = broadcast.get_translated_text(contact=self, org=self.org)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
