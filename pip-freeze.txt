@@ -34,7 +34,7 @@ django-reversion==1.8.0
 django-rosetta==0.6.2
 Django-Select2==4.2.2
 django-storages==1.1.8
-django-timezones==0.2
+django-timezone-field==2.0
 -e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django_ttag
 djangorestframework==3.5.1
 djangorestframework-xml==1.2.0

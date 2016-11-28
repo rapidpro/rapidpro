@@ -1233,6 +1233,9 @@ class Contact(TembaModel):
         group_name = os.path.splitext(os.path.split(import_params.get('original_filename'))[-1])[0]
         group_name = group_name.replace('_', ' ').replace('-', ' ').title()
 
+        if len(group_name) >= ContactGroup.MAX_NAME_LEN - 10:
+            group_name = group_name[:ContactGroup.MAX_NAME_LEN - 10]
+
         # group org is same as org of any contact in that group
         group_org = contacts[0].org
         group = ContactGroup.create_static(group_org, user, group_name, task)

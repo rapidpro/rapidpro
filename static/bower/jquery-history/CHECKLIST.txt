@@ -1,0 +1,14 @@
+Benjamin "balupton" Lupton's Project Checklist v0.1.1 (July 09, 2010)
+
+All Projects:
+- Have you run all the unit tests for the project?
+- Have you remembered to remake the project? [make all]
+- Have you tested in all major browsers?
+- Have you ensured all documentation dates are correct?
+- Have you ensured all documentation project links are current?
+- Have you ensured version changelog entries have been added to appropriate file?
+- If yes; then you are good to tag this release if you like [git tag -s "v..."]
+- To push; use [git push --all] then [git push --tags]
+
+Project Specific:
+- Have you remembered to set it back to the minified version in the demo?

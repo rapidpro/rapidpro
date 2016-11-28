@@ -59,6 +59,7 @@ class Channel(TembaModel):
     TYPE_BLACKMYNA = 'BM'
     TYPE_CHIKKA = 'CK'
     TYPE_CLICKATELL = 'CT'
+    TYPE_DUMMY = 'DM'
     TYPE_EXTERNAL = 'EX'
     TYPE_FACEBOOK = 'FB'
     TYPE_GLOBE = 'GL'
@@ -135,6 +136,8 @@ class Channel(TembaModel):
     YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
     YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
+    VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream'
+
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_AFRICAS_TALKING: dict(scheme='tel', max_length=160),
@@ -142,6 +145,7 @@ class Channel(TembaModel):
         TYPE_BLACKMYNA: dict(scheme='tel', max_length=1600),
         TYPE_CHIKKA: dict(scheme='tel', max_length=160),
         TYPE_CLICKATELL: dict(scheme='tel', max_length=420),
+        TYPE_DUMMY: dict(scheme='tel', max_length=160),
         TYPE_EXTERNAL: dict(max_length=160),
         TYPE_FACEBOOK: dict(scheme='facebook', max_length=320),
         TYPE_GLOBE: dict(scheme='tel', max_length=160),
@@ -175,6 +179,7 @@ class Channel(TembaModel):
                     (TYPE_ANDROID, "Android"),
                     (TYPE_BLACKMYNA, "Blackmyna"),
                     (TYPE_CLICKATELL, "Clickatell"),
+                    (TYPE_DUMMY, "Dummy"),
                     (TYPE_EXTERNAL, "External"),
                     (TYPE_FACEBOOK, "Facebook"),
                     (TYPE_GLOBE, "Globe Labs"),
@@ -1098,7 +1103,7 @@ class Channel(TembaModel):
             response_text = response.text
 
         # write to our log file
-        print(u"[%d] %s SENT - %s %s \"%s\" %s \"%s\"" %
+        print(u"[%d] %0.3fs SENT - %s %s \"%s\" %s \"%s\"" %
               (msg.id, request_time, request_method, request_url, request_payload, response_status, response_text))
 
         from temba.msgs.models import Msg
@@ -1161,7 +1166,8 @@ class Channel(TembaModel):
                                 url=log_url,
                                 request="",
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from Jasmin" % response.status_code,
@@ -1169,7 +1175,8 @@ class Channel(TembaModel):
                                 url=log_url,
                                 request="",
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         # save the external id, response should be in format:
         # Success "07033084-5cfd-4812-90a4-e4d24ffb6e3d"
@@ -1203,7 +1210,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=payload,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200:
             raise SendException("Got non-200 response [%d] from Facebook" % response.status_code,
@@ -1211,7 +1219,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         # grab our external id out, Facebook response is in format:
         # "{"recipient_id":"997011467086879","message_id":"mid.1459532331848:2534ddacc3993a4b78"}"
@@ -1283,7 +1292,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=request_body,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from MBlox" % response.status_code,
@@ -1291,7 +1301,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=request_body,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         # response in format:
         # {
@@ -1317,7 +1328,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=request_body,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, 'POST', url, request_body, response, external_id)
 
@@ -1385,7 +1397,8 @@ class Channel(TembaModel):
                                 url=log_url,
                                 request="",
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from Kannel" % response.status_code,
@@ -1393,7 +1406,8 @@ class Channel(TembaModel):
                                 url=log_url,
                                 request="",
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, 'GET', log_url, response=response)
 
@@ -1423,7 +1437,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -1431,9 +1446,23 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, 'GET', url, log_payload, response)
+
+    @classmethod
+    def send_dummy_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        delay = channel.config.get('delay', 1000)
+        start = time.time()
+
+        # sleep that amount
+        time.sleep(delay / float(1000))
+
+        # record the message as sent
+        Channel.success(channel, msg, WIRED, start, 'GET', 'http://fake', "", "")
 
     @classmethod
     def send_external_message(cls, channel, msg, text):
@@ -1477,7 +1506,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -1485,7 +1515,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, method, url, log_payload, response)
 
@@ -1527,7 +1558,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         # if they reject our request_id, send it as a normal send
         if response.status_code == 400 and 'request_id' in payload:
@@ -1551,7 +1583,8 @@ class Channel(TembaModel):
                                         url=url,
                                         request=log_payload,
                                         response="",
-                                        response_status=503)
+                                        response_status=503,
+                                        start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -1559,7 +1592,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, 'POST', url, log_payload, response)
 
@@ -1592,7 +1626,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -1600,7 +1635,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, 'GET', url, log_payload, response)
 
@@ -1640,7 +1676,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text if response else '',
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -1648,7 +1685,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, 'POST', url, log_payload, response, external_id)
 
@@ -1686,7 +1724,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=post_body.decode('utf8'),
                                 response='',
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if (response.status_code != 200 and response.status_code != 201) or response.text.find("error") >= 0:
             raise SendException("Error Sending Message",
@@ -1694,14 +1733,15 @@ class Channel(TembaModel):
                                 url=url,
                                 request=post_body.decode('utf8'),
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         # parse out our id, this is XML but we only care about the id
         external_id = None
-        start = response.text.find("<id>")
-        end = response.text.find("</id>")
-        if end > start > 0:
-            external_id = response.text[start + 4:end]
+        start_idx = response.text.find("<id>")
+        end_idx = response.text.find("</id>")
+        if end_idx > start_idx > 0:
+            external_id = response.text[start_idx + 4:end_idx]
 
         Channel.success(channel, msg, WIRED, start, 'POST', url, post_body.decode('utf8'), response, external_id)
 
@@ -1729,7 +1769,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response='',
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -1737,7 +1778,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, 'POST', url, log_payload, response)
 
@@ -1765,7 +1807,10 @@ class Channel(TembaModel):
         headers = dict(TEMBA_HEADERS)
         headers['content-type'] = 'application/json'
 
-        url = 'https://go.vumi.org/api/v1/go/http_api_nostream/%s/messages.json' % channel.config['conversation_key']
+        api_url_base = channel.config.get('api_url', cls.VUMI_GO_API_URL)
+
+        url = urlparse.urljoin(api_url_base, "/%s/messages.json" % channel.config['conversation_key'])
+
         start = time.time()
 
         try:
@@ -1781,7 +1826,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=payload,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code not in (200, 201):
             # this is a fatal failure, don't retry
@@ -1799,7 +1845,8 @@ class Channel(TembaModel):
                                 request=payload,
                                 response=response.text,
                                 response_status=response.status_code,
-                                fatal=fatal)
+                                fatal=fatal,
+                                start=start)
 
         # parse our response
         body = response.json()
@@ -1834,7 +1881,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=payload,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -1842,7 +1890,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         # parse our response
         response.json()
@@ -1928,7 +1977,8 @@ class Channel(TembaModel):
                                 request='',
                                 response=response.text,
                                 response_status=response.status_code,
-                                fatal=fatal)
+                                fatal=fatal,
+                                start=start)
 
         Channel.success(channel, msg, SENT, start, 'GET', log_url, response=response)
 
@@ -1971,7 +2021,8 @@ class Channel(TembaModel):
                                     method='POST',
                                     request=json.dumps(payload),
                                     response=response.text,
-                                    response_status=response.status_code)
+                                    response_status=response.status_code,
+                                    start=start)
 
         if response.status_code != 200 and response.status_code != 201:
             payload['authentication']['password'] = 'x' * len(payload['authentication']['password'])
@@ -1980,7 +2031,8 @@ class Channel(TembaModel):
                                 method='POST',
                                 request=json.dumps(payload),
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         response_json = response.json()
         messages = response_json['results']
@@ -1992,7 +2044,8 @@ class Channel(TembaModel):
                                 method='POST',
                                 request=json.dumps(payload),
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         external_id = messages[0]['messageid']
         Channel.success(channel, msg, SENT, start, 'POST', url, json.dumps(payload), response, external_id)
@@ -2030,7 +2083,8 @@ class Channel(TembaModel):
                                     url=masked_url,
                                     method='GET',
                                     response="Empty response",
-                                    response_status=503)
+                                    response_status=503,
+                                    start=start)
 
             if response.status_code != 200 and response.status_code != 201:
                 raise SendException("Received non 200 status: %d" % response.status_code,
@@ -2038,7 +2092,8 @@ class Channel(TembaModel):
                                     method='GET',
                                     request=None,
                                     response=response.text,
-                                    response_status=response.status_code)
+                                    response_status=response.status_code,
+                                    start=start)
 
             # if it wasn't successfully delivered, throw
             if response.text != "000":
@@ -2053,7 +2108,8 @@ class Channel(TembaModel):
                                     method='GET',
                                     request=None,
                                     response=response.text,
-                                    response_status=response.status_code)
+                                    response_status=response.status_code,
+                                    start=start)
 
             Channel.success(channel, msg, SENT, start, 'GET', masked_url, response=response)
 
@@ -2071,7 +2127,8 @@ class Channel(TembaModel):
                                 method='GET',
                                 request=None,
                                 response=reason,
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
     @classmethod
     def send_zenvia_message(cls, channel, msg, text):
@@ -2102,7 +2159,8 @@ class Channel(TembaModel):
                                 method='POST',
                                 request=json.dumps(payload),
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201:
             raise SendException("Got non-200 response from API: %d" % response.status_code,
@@ -2110,7 +2168,8 @@ class Channel(TembaModel):
                                 method='POST',
                                 request=json.dumps(payload),
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         response_code = int(response.text[:3])
 
@@ -2146,7 +2205,8 @@ class Channel(TembaModel):
                                 method='POST',
                                 request=json.dumps(payload),
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201:
             raise SendException("Got non-200 response from API: %d" % response.status_code,
@@ -2154,7 +2214,8 @@ class Channel(TembaModel):
                                 method='POST',
                                 request=json.dumps(payload),
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         response_data = response.json()
 
@@ -2166,7 +2227,8 @@ class Channel(TembaModel):
                                 method='POST',
                                 request=json.dumps(payload),
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         # set our external id so we know when it is actually sent, this is missing in cases where
         # it wasn't sent, in which case we'll become an errored message
@@ -2221,7 +2283,8 @@ class Channel(TembaModel):
                                 'POST',
                                 urlencode(post_body),
                                 response.content,
-                                505)
+                                505,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, 'POST', send_url, json.dumps(post_body), response, external_id)
 
@@ -2263,7 +2326,8 @@ class Channel(TembaModel):
                                 urlencode(dict(screen_name=msg.urn_path, text=text)),  # not complete, but useful in the log
                                 str(e),
                                 error_code,
-                                fatal=fatal)
+                                fatal=fatal,
+                                start=start)
 
         external_id = dm['id']
         Channel.success(channel, msg, WIRED, start, external_id=external_id)
@@ -2308,7 +2372,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -2316,7 +2381,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         # parse out the external id for the message, comes in the format: "ID: id12312312312"
         external_id = None
@@ -2352,7 +2418,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=json.dumps(payload),
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if plivo_response_status != 200 and plivo_response_status != 201 and plivo_response_status != 202:
             raise SendException("Got non-200 response [%d] from API" % plivo_response_status,
@@ -2360,7 +2427,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=json.dumps(payload),
                                 response=plivo_response,
-                                response_status=plivo_response_status)
+                                response_status=plivo_response_status,
+                                start=start)
 
         external_id = plivo_response['message_uuid'][0]
         Channel.success(channel, msg, WIRED, start, 'POST', url, json.dumps(payload), external_id=external_id,
@@ -2405,7 +2473,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -2413,7 +2482,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         # our response is JSON and should contain a 0 as a status code:
         # [{"Response":"0"}]
@@ -2430,7 +2500,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=log_payload,
                                 response=response.text,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         Channel.success(channel, msg, WIRED, start, 'GET', url, log_payload, response)
 
@@ -2460,7 +2531,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=json.dumps(payload),
                                 response="",
-                                response_status=503)
+                                response_status=503,
+                                start=start)
 
         if response.status_code not in [200, 201, 202]:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
@@ -2468,7 +2540,8 @@ class Channel(TembaModel):
                                 url=url,
                                 request=json.dumps(payload),
                                 response=response.content,
-                                response_status=response.status_code)
+                                response_status=response.status_code,
+                                start=start)
 
         # success is 0, everything else is a failure
         if response_json['status'] != 0:
@@ -2479,7 +2552,8 @@ class Channel(TembaModel):
                                 request=json.dumps(payload),
                                 response=response.content,
                                 response_status=response.status_code,
-                                fatal=True)
+                                fatal=True,
+                                start=start)
 
         external_id = response.json().get('message_token', None)
         Channel.success(channel, msg, WIRED, start, 'POST', url, json.dumps(payload), response, external_id)
@@ -2586,7 +2660,7 @@ class Channel(TembaModel):
                     sent_count -= 1
                     raise Exception(_("Unknown channel type: %(channel)s") % {'channel': channel.channel_type})
             except SendException as e:
-                ChannelLog.log_exception(msg, e)
+                ChannelLog.log_exception(channel, msg, e)
 
                 import traceback
                 traceback.print_exc(e)
@@ -2674,6 +2748,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_BLACKMYNA: Channel.send_blackmyna_message,
                   Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
+                  Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
                   Channel.TYPE_FACEBOOK: Channel.send_facebook_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
@@ -2849,7 +2924,7 @@ class ChannelEvent(models.Model):
 
 class SendException(Exception):
 
-    def __init__(self, description, url, method, request, response, response_status, fatal=False):
+    def __init__(self, description, url, method, request, response, response_status, fatal=False, start=None):
         super(SendException, self).__init__(description)
 
         self.description = description
@@ -2859,6 +2934,7 @@ class SendException(Exception):
         self.response = response
         self.response_status = response_status
         self.fatal = fatal
+        self.start = start
 
 
 class ChannelLog(models.Model):
@@ -2885,10 +2961,12 @@ class ChannelLog(models.Model):
     request_time = models.IntegerField(null=True, help_text=_('Time it took to process this request'))
 
     @classmethod
-    def log_exception(cls, msg, e):
+    def log_exception(cls, channel, msg, e):
+        # calculate our request time if possible
+        request_time = 0 if not e.start else time.time() - e.start
 
-        print(u"[%d] ERROR - %s %s \"%s\" %s \"%s\"" %
-              (msg.id, e.method, e.url, e.request, e.response_status, e.response))
+        print(u"[%d] %0.3fs ERROR - %s %s \"%s\" %s \"%s\"" %
+              (msg.id, request_time, e.method, e.url, e.request, e.response_status, e.response))
 
         ChannelLog.objects.create(channel_id=msg.channel,
                                   msg_id=msg.id,
@@ -2899,6 +2977,10 @@ class ChannelLog(models.Model):
                                   request=e.request,
                                   response=e.response,
                                   response_status=e.response_status)
+
+        # log our request type if possible
+        if request_time > 0:
+            analytics.gauge('temba.msg_sent_%s' % channel.channel_type.lower(), request_time)
 
     @classmethod
     def log_error(cls, msg, description):
