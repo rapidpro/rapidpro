@@ -329,7 +329,7 @@ def msg_log_cmp(a, b):
             return 1
 
 
-class PartialTemplate(SmartTemplateView):
+class PartialTemplate(SmartTemplateView):  # pragma: no cover
 
     def pre_process(self, request, *args, **kwargs):
         self.template = kwargs['template']
@@ -1500,7 +1500,7 @@ class FlowCRUDL(SmartCRUDL):
 
 
 # this is just for adhoc testing of the preprocess url
-class PreprocessTest(FormView):
+class PreprocessTest(FormView):  # pragma: no cover
 
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
