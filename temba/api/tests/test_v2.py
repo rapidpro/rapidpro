@@ -1389,7 +1389,7 @@ class APITest(TembaTest):
         self.assertEqual({f['metadata']['name'] for f in response.json['flows']}, {"Parent Flow", "Child Flow"})
 
         # export just the parent flow
-        response = self.fetchJSON(url, 'flow=%s&dependencies=false' % flow.uuid)
+        response = self.fetchJSON(url, 'flow=%s&dependencies=none' % flow.uuid)
         self.assertEqual({f['metadata']['name'] for f in response.json['flows']}, {"Parent Flow"})
 
         # import the clinic app which has campaigns
@@ -1397,7 +1397,7 @@ class APITest(TembaTest):
 
         # our catchall flow, all alone
         flow = Flow.objects.filter(name='Catch All').first()
-        response = self.fetchJSON(url, 'flow=%s&dependencies=false' % flow.uuid)
+        response = self.fetchJSON(url, 'flow=%s&dependencies=none' % flow.uuid)
         self.assertEqual(len(response.json['flows']), 1)
         self.assertEqual(len(response.json['campaigns']), 0)
         self.assertEqual(len(response.json['triggers']), 0)
@@ -1410,7 +1410,7 @@ class APITest(TembaTest):
 
         # our registration flow, all alone
         flow = Flow.objects.filter(name='Register Patient').first()
-        response = self.fetchJSON(url, 'flow=%s&dependencies=false' % flow.uuid)
+        response = self.fetchJSON(url, 'flow=%s&dependencies=none' % flow.uuid)
         self.assertEqual(len(response.json['flows']), 1)
         self.assertEqual(len(response.json['campaigns']), 0)
         self.assertEqual(len(response.json['triggers']), 0)
@@ -1421,15 +1421,21 @@ class APITest(TembaTest):
         self.assertEqual(len(response.json['campaigns']), 1)
         self.assertEqual(len(response.json['triggers']), 2)
 
+        # ignore campaign dependendencies
+        response = self.fetchJSON(url, 'flow=%s&dependencies=flows' % flow.uuid)
+        self.assertEqual(len(response.json['flows']), 2)
+        self.assertEqual(len(response.json['campaigns']), 0)
+        self.assertEqual(len(response.json['triggers']), 1)
+
         # add our missed call flow
         missed_call = Flow.objects.filter(name='Missed Call').first()
-        response = self.fetchJSON(url, 'flow=%s&flow=%s&dependencies=true' % (flow.uuid, missed_call.uuid))
+        response = self.fetchJSON(url, 'flow=%s&flow=%s&dependencies=all' % (flow.uuid, missed_call.uuid))
         self.assertEqual(len(response.json['flows']), 7)
         self.assertEqual(len(response.json['campaigns']), 1)
         self.assertEqual(len(response.json['triggers']), 3)
 
         campaign = Campaign.objects.filter(name='Appointment Schedule').first()
-        response = self.fetchJSON(url, 'campaign=%s&dependencies=false' % campaign.uuid)
+        response = self.fetchJSON(url, 'campaign=%s&dependencies=none' % campaign.uuid)
         self.assertEqual(len(response.json['flows']), 0)
         self.assertEqual(len(response.json['campaigns']), 1)
         self.assertEqual(len(response.json['triggers']), 0)
@@ -1440,7 +1446,7 @@ class APITest(TembaTest):
         self.assertEqual(len(response.json['triggers']), 1)
 
         # test deprecated param names
-        response = self.fetchJSON(url, 'flow_uuid=%s&campaign_uuid=%s&dependencies=false' % (flow.uuid, campaign.uuid))
+        response = self.fetchJSON(url, 'flow_uuid=%s&campaign_uuid=%s&dependencies=none' % (flow.uuid, campaign.uuid))
         self.assertEqual(len(response.json['flows']), 1)
         self.assertEqual(len(response.json['campaigns']), 1)
         self.assertEqual(len(response.json['triggers']), 0)

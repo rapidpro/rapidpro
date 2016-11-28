@@ -1463,7 +1463,7 @@ class DefinitionsEndpoint(BaseAPIView):
 
       * **flow** - the UUIDs of flows to include (string, repeatable)
       * **campaign** - the UUIDs of campaigns to include (string, repeatable)
-      * **dependencies** - whether to include dependencies (boolean, default: true)
+      * **dependencies** - whether to include dependencies (all, flows, none, default: all)
 
     Example:
 
@@ -1551,7 +1551,8 @@ class DefinitionsEndpoint(BaseAPIView):
             flow_uuids = params.getlist('flow')
             campaign_uuids = params.getlist('campaign')
 
-        depends = str_to_bool(params.get('dependencies', 'true'))
+        dependency_type = params.get('dependencies', 'all')
+        depends = dependency_type != 'none'
 
         if flow_uuids:
             flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
@@ -1572,7 +1573,8 @@ class DefinitionsEndpoint(BaseAPIView):
         dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
         for flow in flows:
             if depends:
-                dependencies = flow.get_dependencies(dependencies=dependencies)
+                include_campaigns = dependency_type == 'all'
+                dependencies = flow.get_dependencies(dependencies=dependencies, include_campaigns=include_campaigns)
 
         # make sure our requested items are included flows we requested are included
         to_export = dict(flows=dependencies['flows'],
