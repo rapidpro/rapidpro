@@ -465,7 +465,8 @@ class Contact(TembaModel):
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
         from temba.flows.models import Flow
-        from temba.ivr.models import BUSY, FAILED, NO_ANSWER, CANCELED
+        from temba.ivr.models import IVRCall
+        # BUSY, FAILED, NO_ANSWER, CANCELED
         from temba.msgs.models import Msg
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
@@ -497,7 +498,9 @@ class Contact(TembaModel):
             event_fire.created_on = event_fire.fired
 
         # and the contact's failed IVR calls
-        error_calls = self.calls.filter(created_on__gte=after, created_on__lt=before, status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+        error_calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
+            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED
+        ])
         error_calls = error_calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
