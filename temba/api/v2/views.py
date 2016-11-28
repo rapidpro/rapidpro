@@ -39,10 +39,7 @@ from ..support import InvalidQueryError
 
 class RootView(views.APIView):
     """
-    **This is the under-development API v2. Everything in this version of the API is subject to change. We strongly
-    recommend that most users stick with the existing [API v1](/api/v1) for now.**
-
-    We provide a RESTful JSON API for you to interact with your data from outside applications. The following  endpoints
+    We provide a RESTful JSON API for you to interact with your data from outside applications. The following endpoints
     are available:
 
      * [/api/v2/boundaries](/api/v2/boundaries) - to list administrative boundaries
@@ -1466,7 +1463,7 @@ class DefinitionsEndpoint(BaseAPIView):
 
       * **flow** - the UUIDs of flows to include (string, repeatable)
       * **campaign** - the UUIDs of campaigns to include (string, repeatable)
-      * **dependencies** - whether to include dependencies (boolean, default: true)
+      * **dependencies** - whether to include dependencies (all, flows, none, default: all)
 
     Example:
 
@@ -1554,7 +1551,8 @@ class DefinitionsEndpoint(BaseAPIView):
             flow_uuids = params.getlist('flow')
             campaign_uuids = params.getlist('campaign')
 
-        depends = str_to_bool(params.get('dependencies', 'true'))
+        dependency_type = params.get('dependencies', 'all')
+        depends = dependency_type != 'none'
 
         if flow_uuids:
             flows = set(Flow.objects.filter(uuid__in=flow_uuids, org=org))
@@ -1575,7 +1573,8 @@ class DefinitionsEndpoint(BaseAPIView):
         dependencies = dict(flows=set(), campaigns=set(campaigns), triggers=set(), groups=set())
         for flow in flows:
             if depends:
-                dependencies = flow.get_dependencies(dependencies=dependencies)
+                include_campaigns = dependency_type == 'all'
+                dependencies = flow.get_dependencies(dependencies=dependencies, include_campaigns=include_campaigns)
 
         # make sure our requested items are included flows we requested are included
         to_export = dict(flows=dependencies['flows'],

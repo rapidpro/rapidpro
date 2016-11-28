@@ -394,7 +394,7 @@ class Flow(TembaModel):
     @classmethod
     def handle_call(cls, call, text=None, saved_media_url=None, hangup=False):
         flow = call.flow
-        run = FlowRun.objects.filter(call=call).first()
+        run = FlowRun.objects.filter(session=call).first()
 
         # make sure we have the latest version
         flow.ensure_current_version()
@@ -437,7 +437,7 @@ class Flow(TembaModel):
 
             # and add our first step for our run
             if destination:
-                step = flow.add_step(run, destination, [], call=call)
+                step = flow.add_step(run, destination, [])
 
         # go and actually handle wherever we are in the flow
         destination = Flow.get_node(run.flow, step.step_uuid, step.step_type)
@@ -456,8 +456,8 @@ class Flow(TembaModel):
             if msg.id:
                 Msg.mark_handled(msg)
 
-        if run.parent is not None and run.parent.call is not None:
-            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.parent.call.pk]))
+        if run.parent is not None and run.parent.session is not None:
+            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.parent.session.pk]))
             run.voice_response.redirect(url)
             run.set_completed(final_step=step)
 
@@ -1536,14 +1536,14 @@ class Flow(TembaModel):
             call = IVRCall.create_outgoing(channel, contact, contact_urn, self, self.created_by)
 
             # save away our created call
-            run.call = call
-            run.save(update_fields=['call'])
+            run.session = call
+            run.save(update_fields=['session'])
 
             # if we were started by other call, save that off
-            if parent_run and parent_run.call:
-                call.parent = parent_run.call
+            if parent_run and parent_run.session:
+                call.parent = parent_run.session
                 call.save()
-                url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.call.pk]))
+                url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[run.session.pk]))
                 parent_run.voice_response.redirect(url)
             else:
                 # trigger the call to start (in the background)
@@ -1772,7 +1772,7 @@ class Flow(TembaModel):
         return runs
 
     def add_step(self, run, node,
-                 msgs=None, rule=None, category=None, call=None, is_start=False, previous_step=None, arrived_on=None):
+                 msgs=None, rule=None, category=None, is_start=False, previous_step=None, arrived_on=None):
         if msgs is None:
             msgs = []
 
@@ -1886,7 +1886,7 @@ class Flow(TembaModel):
 
         return send_actions
 
-    def get_dependencies(self, dependencies=None):
+    def get_dependencies(self, dependencies=None, include_campaigns=True):
 
         # need to make sure we have the latest version to inspect dependencies
         self.ensure_current_version()
@@ -1914,10 +1914,12 @@ class Flow(TembaModel):
                     flows.add(flow)
 
         # add any campaigns that use our groups
-        from temba.campaigns.models import Campaign
-        campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
-        for campaign in campaigns:
-            flows.update(list(campaign.get_flows()))
+        campaigns = ()
+        if include_campaigns:
+            from temba.campaigns.models import Campaign
+            campaigns = set(Campaign.objects.filter(org=self.org, group__in=groups, is_archived=False, is_active=True))
+            for campaign in campaigns:
+                flows.update(list(campaign.get_flows()))
 
         # and any of our triggers that reference us
         from temba.triggers.models import Trigger
@@ -1932,7 +1934,7 @@ class Flow(TembaModel):
             return dependencies
 
         for flow in flows:
-            dependencies = flow.get_dependencies(dependencies)
+            dependencies = flow.get_dependencies(dependencies, include_campaigns=include_campaigns)
 
         return dependencies
 
@@ -2454,8 +2456,8 @@ class FlowRun(models.Model):
 
     contact = models.ForeignKey(Contact, related_name='runs')
 
-    call = models.ForeignKey('ivr.IVRCall', related_name='runs', null=True, blank=True,
-                             help_text=_("The call that handled this flow run, only for voice flows"))
+    session = models.ForeignKey('channels.ChannelSession', related_name='runs', null=True, blank=True,
+                                help_text=_("The session that handled this flow run, only for voice flows"))
 
     is_active = models.BooleanField(default=True,
                                     help_text=_("Whether this flow run is currently active"))
@@ -2492,11 +2494,11 @@ class FlowRun(models.Model):
     parent = models.ForeignKey('flows.FlowRun', null=True, help_text=_("The parent run that triggered us"))
 
     @classmethod
-    def create(cls, flow, contact_id, start=None, call=None, fields=None,
+    def create(cls, flow, contact_id, start=None, session=None, fields=None,
                created_on=None, db_insert=True, submitted_by=None, parent=None):
 
         args = dict(org=flow.org, flow=flow, contact_id=contact_id, start=start,
-                    call=call, fields=fields, submitted_by=submitted_by, parent=parent)
+                    session=session, fields=fields, submitted_by=submitted_by, parent=parent)
 
         if created_on:
             args['created_on'] = created_on
@@ -2796,7 +2798,7 @@ class FlowRun(models.Model):
         if recording_url:
             media = '%s/x-wav:%s' % (Msg.MEDIA_AUDIO, recording_url)
 
-        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.call.channel,
+        msg = Msg.create_outgoing(self.flow.org, self.flow.created_by, self.contact, text, channel=self.session.channel,
                                   response_to=response_to, media=media,
                                   status=DELIVERED, msg_type=IVR)
 
@@ -5287,7 +5289,7 @@ class StartFlowAction(Action):
         if run.flow.flow_type == Flow.VOICE and self.flow.flow_type == Flow.VOICE:
             new_run = self.flow.start([], [run.contact], started_flows=started_flows,
                                       restart_participants=True, extra=extra, parent_run=run)[0]
-            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.call.pk]))
+            url = "https://%s%s" % (settings.TEMBA_HOST, reverse('ivr.ivrcall_handle', args=[new_run.session.pk]))
             run.voice_response.redirect(url)
         else:
             child_runs = self.flow.start([], [run.contact], started_flows=started_flows, restart_participants=True,
