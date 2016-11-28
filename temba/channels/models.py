@@ -66,6 +66,7 @@ class Channel(TembaModel):
     TYPE_INFOBIP = 'IB'
     TYPE_JASMIN = 'JS'
     TYPE_KANNEL = 'KN'
+    TYPE_LINE = 'LN'
     TYPE_M3TECH = 'M3'
     TYPE_MBLOX = 'MB'
     TYPE_NEXMO = 'NX'
@@ -102,6 +103,9 @@ class Channel(TembaModel):
     CONFIG_PLIVO_AUTH_TOKEN = 'PLIVO_AUTH_TOKEN'
     CONFIG_PLIVO_APP_ID = 'PLIVO_APP_ID'
     CONFIG_AUTH_TOKEN = 'auth_token'
+    CONFIG_CHANNEL_ID = 'channel_id'
+    CONFIG_CHANNEL_SECRET = 'channel_secret'
+    CONFIG_CHANNEL_MID = 'channel_mid'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -130,6 +134,8 @@ class Channel(TembaModel):
     YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
     YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
+    VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream'
+
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
         TYPE_AFRICAS_TALKING: dict(scheme='tel', max_length=160),
@@ -146,6 +152,7 @@ class Channel(TembaModel):
         TYPE_INFOBIP: dict(scheme='tel', max_length=1600),
         TYPE_JASMIN: dict(scheme='tel', max_length=1600),
         TYPE_KANNEL: dict(scheme='tel', max_length=1600),
+        TYPE_LINE: dict(scheme='line', max_length=1600),
         TYPE_M3TECH: dict(scheme='tel', max_length=160),
         TYPE_NEXMO: dict(scheme='tel', max_length=1600, max_tps=1),
         TYPE_MBLOX: dict(scheme='tel', max_length=459),
@@ -179,6 +186,7 @@ class Channel(TembaModel):
                     (TYPE_INFOBIP, "Infobip"),
                     (TYPE_JASMIN, "Jasmin"),
                     (TYPE_KANNEL, "Kannel"),
+                    (TYPE_LINE, "Line"),
                     (TYPE_M3TECH, "M3 Tech"),
                     (TYPE_MBLOX, "Mblox"),
                     (TYPE_NEXMO, "Nexmo"),
@@ -210,7 +218,7 @@ class Channel(TembaModel):
     name = models.CharField(verbose_name=_("Name"), max_length=64, blank=True, null=True,
                             help_text=_("Descriptive label for this channel"))
 
-    address = models.CharField(verbose_name=_("Address"), max_length=16, blank=True, null=True,
+    address = models.CharField(verbose_name=_("Address"), max_length=64, blank=True, null=True,
                                help_text=_("Address with which this channel communicates"))
 
     country = CountryField(verbose_name=_("Country"), null=True, blank=True,
@@ -349,7 +357,7 @@ class Channel(TembaModel):
 
         if plivo_response_status in [201, 200, 202]:
             plivo_app_id = plivo_response['app_id']
-        else:
+        else:  # pragma: no cover
             plivo_app_id = None
 
         plivo_config = {Channel.CONFIG_PLIVO_AUTH_ID: auth_id,
@@ -363,7 +371,7 @@ class Channel(TembaModel):
         if plivo_response_status != 200:
             plivo_response_status, plivo_response = client.buy_phone_number(params=dict(number=plivo_number))
 
-            if plivo_response_status != 201:
+            if plivo_response_status != 201:  # pragma: no cover
                 raise Exception(_("There was a problem claiming that number, please check the balance on your account."))
 
             plivo_response_status, plivo_response = client.get_number(params=dict(number=plivo_number))
@@ -371,7 +379,7 @@ class Channel(TembaModel):
         if plivo_response_status == 200:
             plivo_response_status, plivo_response = client.modify_number(params=dict(number=plivo_number,
                                                                                      app_id=plivo_app_id))
-            if plivo_response_status != 202:
+            if plivo_response_status != 202:  # pragma: no cover
                 raise Exception(_("There was a problem updating that number, please try again."))
 
         phone_number = '+' + plivo_number
@@ -448,7 +456,7 @@ class Channel(TembaModel):
                 exists = True
                 break
 
-        if not exists:
+        if not exists:  # pragma: no cover
             raise Exception(_("Your Twilio account is no longer connected. "
                               "First remove your Twilio account, reconnect it and try again."))
 
@@ -466,7 +474,7 @@ class Channel(TembaModel):
                 role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
                 phone = phone_number
 
-            else:
+            else:  # pragma: no cover
                 raise Exception(_("Short code not found on your Twilio Account. "
                                   "Please check you own the short code and Try again"))
         else:
@@ -555,6 +563,15 @@ class Channel(TembaModel):
         return channel
 
     @classmethod
+    def add_line_channel(cls, org, user, credentials, name):
+        channel_id = credentials.get('channel_id')
+        channel_secret = credentials.get('channel_secret')
+        channel_mid = credentials.get('channel_mid')
+        channel_access_token = credentials.get('channel_access_token')
+
+        return Channel.create(org, user, None, Channel.TYPE_LINE, name=name, address=channel_mid, config={Channel.CONFIG_AUTH_TOKEN: channel_access_token, Channel.CONFIG_CHANNEL_ID: channel_id, Channel.CONFIG_CHANNEL_SECRET: channel_secret, Channel.CONFIG_CHANNEL_MID: channel_mid})
+
+    @classmethod
     def add_twitter_channel(cls, org, user, screen_name, handle_id, oauth_token, oauth_token_secret):
         config = dict(handle_id=long(handle_id),
                       oauth_token=oauth_token,
@@ -586,7 +603,7 @@ class Channel(TembaModel):
         country = status.get('cc')
         device = status.get('dev')
 
-        if not gcm_id or not uuid:
+        if not gcm_id or not uuid:  # pragma: no cover
             raise ValueError("Can't create Android channel without UUID and GCM ID")
 
         # look for existing active channel with this UUID
@@ -663,7 +680,8 @@ class Channel(TembaModel):
         return self.channel_type not in (Channel.TYPE_TWILIO, Channel.TYPE_ANDROID, Channel.TYPE_TWITTER, Channel.TYPE_TELEGRAM)
 
     def get_delegate_channels(self):
-        if not self.org:  # detached channels can't have delegates
+        # detached channels can't have delegates
+        if not self.org:  # pragma: no cover
             return Channel.objects.none()
 
         return self.org.channels.filter(parent=self, is_active=True, org=self.org).order_by('-role')
@@ -683,7 +701,7 @@ class Channel(TembaModel):
                                  params=dict(access_token=access_token),
                                  headers={'Content-Type': 'application/json'})
 
-        if response.status_code != 200:
+        if response.status_code != 200:  # pragma: no cover
             raise Exception(_("Unable to update call to action: %s" % response.content))
 
     def get_delegate(self, role):
@@ -719,9 +737,9 @@ class Channel(TembaModel):
             return self.org.get_twilio_client()
         if self.channel_type == Channel.TYPE_TWIML:
             return self.get_twiml_client()
-        if self.channel_type == Channel.TYPE_VERBOICE:
+        if self.channel_type == Channel.TYPE_VERBOICE:  # pragma: no cover
             return self.org.get_verboice_client()
-        return None
+        return None  # pragma: no cover
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
@@ -803,7 +821,7 @@ class Channel(TembaModel):
     def config_json(self):
         if self.config:
             return json.loads(self.config)
-        else:
+        else:  # pragma: no cover
             return dict()
 
     @classmethod
@@ -818,7 +836,7 @@ class Channel(TembaModel):
             channel = Channel.objects.filter(pk=channel_id).exclude(org=None).first()
 
             # channel has been disconnected, ignore
-            if not channel:
+            if not channel:  # pragma: no cover
                 return None
             else:
                 cached = channel.as_cached_json()
@@ -1191,6 +1209,34 @@ class Channel(TembaModel):
         Channel.success(channel, msg, WIRED, start, 'POST', url, payload, response, external_id)
 
     @classmethod
+    def send_line_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        channel_access_token = channel.config.get(Channel.CONFIG_AUTH_TOKEN)
+
+        data = json.dumps({'to': msg.urn_path, 'messages': [{'type': 'text', 'text': text}]})
+
+        start = time.time()
+        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
+        headers.update(TEMBA_HEADERS)
+        send_url = 'https://api.line.me/v2/bot/message/push'
+
+        response = requests.post(send_url,
+                                 data=data,
+                                 headers=headers)
+        content = json.loads(response.content)
+
+        if response.status_code == 200:
+            Channel.success(channel, msg, WIRED, start, 'POST', response.request.url, data, response)
+        else:
+            raise SendException(content.get('message'),
+                                send_url,
+                                'POST',
+                                data,
+                                response.content,
+                                response.status_code)
+
+    @classmethod
     def send_mblox_message(cls, channel, msg, text):
         from temba.msgs.models import WIRED
 
@@ -1211,7 +1257,7 @@ class Channel(TembaModel):
 
         try:
             response = requests.post(url, request_body, headers=headers, timeout=15)
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             raise SendException(unicode(e),
                                 method='POST',
                                 url=url,
@@ -1732,7 +1778,10 @@ class Channel(TembaModel):
         headers = dict(TEMBA_HEADERS)
         headers['content-type'] = 'application/json'
 
-        url = 'https://go.vumi.org/api/v1/go/http_api_nostream/%s/messages.json' % channel.config['conversation_key']
+        api_url_base = channel.config.get('api_url', cls.VUMI_GO_API_URL)
+
+        url = urlparse.urljoin(api_url_base, "/%s/messages.json" % channel.config['conversation_key'])
+
         start = time.time()
 
         try:
@@ -2679,6 +2728,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,
+                  Channel.TYPE_LINE: Channel.send_line_message,
                   Channel.TYPE_M3TECH: Channel.send_m3tech_message,
                   Channel.TYPE_MBLOX: Channel.send_mblox_message,
                   Channel.TYPE_NEXMO: Channel.send_nexmo_message,
