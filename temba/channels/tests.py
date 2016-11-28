@@ -27,7 +27,7 @@ from django_redis import get_redis_connection
 from mock import patch
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
-from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME
+from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
 from temba.ivr.models import IVRCall, PENDING, RINGING
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED
@@ -1776,6 +1776,43 @@ class ChannelTest(TembaTest):
                 self.assertEqual(config['handle_id'], 123)
                 self.assertEqual(config['oauth_token'], 'defgh')
                 self.assertEqual(config['oauth_token_secret'], '45678')
+
+    def test_claim_line(self):
+
+        # disassociate all of our channels
+        self.org.channels.all().update(org=None, is_active=False)
+
+        self.login(self.admin)
+        claim_url = reverse('channels.channel_claim')
+        response = self.client.get(claim_url)
+        self.assertContains(response, 'LINE')
+
+        claim_line_url = reverse('channels.channel_claim_line')
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(200, json.dumps(dict(channelId=123456789, mid='u1234567890')))
+
+            payload = dict(channel_access_token='abcdef123456', channel_secret='123456')
+
+            response = self.client.post(claim_line_url, payload, follow=True)
+            channel = Channel.objects.get(channel_type=Channel.TYPE_LINE)
+            self.assertRedirects(response, reverse('channels.channel_configuration', args=[channel.pk]))
+            self.assertEqual(channel.channel_type, "LN")
+            self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], 'abcdef123456')
+            self.assertEqual(channel.config_json()[Channel.CONFIG_CHANNEL_SECRET], '123456')
+            self.assertEqual(channel.address, 'u1234567890')
+
+            response = self.client.post(claim_line_url, payload, follow=True)
+            self.assertContains(response, "A channel with this configuration already exists.")
+
+        self.org.channels.update(is_active=False, org=None)
+
+        with patch('requests.get') as mock:
+            mock.return_value = MockResponse(401, json.dumps(dict(error_desciption="invalid token")))
+            payload = dict(channel_auth_token='abcdef123456', channel_secret='123456')
+
+            response = self.client.post(claim_line_url, payload, follow=True)
+            self.assertContains(response, "invalid token")
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -7718,3 +7755,109 @@ class ViberTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
             self.clear_cache()
+
+
+class LineTest(TembaTest):
+
+    def setUp(self):
+        super(LineTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_LINE, '123456789', '123456789',
+                                      config=dict(channel_id='1234', channel_secret='1234', channel_mid='1234', auth_token='abcdefgij'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_receive(self):
+
+        data = {
+            "events": [{
+                "replyToken": "abcdefghij",
+                "type": "message",
+                "timestamp": 1451617200000,
+                "source": {
+                    "type": "user",
+                    "userId": "uabcdefghij"
+                },
+                "message": {
+                    "id": "100001",
+                    "type": "text",
+                    "text": "Hello, world"
+                }
+            }, {
+                "replyToken": "abcdefghijklm",
+                "type": "message",
+                "timestamp": 1451617210000,
+                "source": {
+                    "type": "user",
+                    "userId": "uabcdefghij"
+                },
+                "message": {
+                    "id": "100002",
+                    "type": "sticker",
+                    "packageId": "1",
+                    "stickerId": "1"
+                }
+            }]
+        }
+
+        callback_url = reverse('handlers.line_handler', args=[self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        msg = Msg.objects.get()
+        self.assertEquals("uabcdefghij", msg.contact.get_urn(LINE_SCHEME).path)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello, world", msg.text)
+
+        response = self.client.get(callback_url)
+        self.assertEquals(400, response.status_code)
+
+        data = {
+            "events": [{
+                "replyToken": "abcdefghij",
+                "type": "message",
+                "timestamp": 1451617200000,
+                "source": {
+                    "type": "user",
+                    "userId": "uabcdefghij"
+                }
+            }]
+        }
+
+        callback_url = reverse('handlers.line_handler', args=[self.channel.uuid])
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEquals(400, response.status_code)
+
+    def test_send(self):
+        joe = self.create_contact("Joe", urn="line:uabcdefghijkl")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False)
+
+        with self.settings(SEND_MESSAGES=True):
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(200, '{}')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEqual(msg.status, WIRED)
+                self.assertTrue(msg.sent_on)
+                self.clear_cache()
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as an error
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
