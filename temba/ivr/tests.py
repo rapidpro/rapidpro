@@ -837,8 +837,8 @@ class IVRTests(FlowFileTest):
         self.channel.is_active = False
         self.channel.save()
         response = self.client.post(reverse('handlers.twilio_handler'), post_data)
-        self.assertEqual('No channel to answer call for +250785551212', response.content)
-        self.assertEqual(400, response.status_code)
+        self.assertContains(response, 'no channel configured to take this call')
+        self.assertEqual(200, response.status_code)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -1005,8 +1005,8 @@ class IVRTests(FlowFileTest):
                          From='+250788382382', To=self.channel.address)
         response = self.client.post(reverse('handlers.twilio_handler'), post_data)
 
-        self.assertEqual(400, response.status_code)
-        self.assertEqual('No channel to answer call for %s' % self.channel.address, response.content)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, 'no channel configured to take this call')
 
         # no call object created
         self.assertFalse(IVRCall.objects.all())

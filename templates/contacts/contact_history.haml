@@ -48,7 +48,7 @@
             -else
               Phone call ({{call.duration|format_seconds}})
 
-        -elif item.call_type
+        -elif item.session_type
           -with item as call
             {{call.get_status_display}}
 
