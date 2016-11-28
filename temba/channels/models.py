@@ -1011,20 +1011,6 @@ class Channel(TembaModel):
             from .tasks import MageStreamAction, notify_mage_task
             notify_mage_task.delay(self.uuid, MageStreamAction.deactivate)
 
-        # if we just lost calling capabilities archive our voice flows
-        if Channel.ROLE_CALL in self.role:
-            if not org.get_schemes(Channel.ROLE_CALL):
-                # archive any IVR flows
-                from temba.flows.models import Flow
-                for flow in Flow.objects.filter(org=org, is_active=True, flow_type=Flow.VOICE):
-                    flow.archive()
-
-        # if we just lost answering capabilities, archive our inbound call trigger
-        if Channel.ROLE_ANSWER in self.role:
-            if not org.get_schemes(Channel.ROLE_ANSWER):
-                from temba.triggers.models import Trigger
-                Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, org=org, is_archived=False).update(is_archived=True)
-
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
 

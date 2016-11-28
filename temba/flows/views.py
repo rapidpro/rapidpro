@@ -893,10 +893,11 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
+            flow = self.get_object()
 
-            if self.get_object().flow_type != 'S' \
+            if flow.flow_type not in [Flow.SURVEY, Flow.USSD] \
                     and self.has_org_perm('flows.flow_broadcast') \
-                    and not self.get_object().is_archived:
+                    and not flow.is_archived:
 
                 links.append(dict(title=_("Start Flow"),
                                   style='btn-primary',
@@ -906,7 +907,7 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm('flows.flow_results'):
                 links.append(dict(title=_("Results"),
                                   style='btn-primary',
-                                  href=reverse('flows.flow_results', args=[self.get_object().id])))
+                                  href=reverse('flows.flow_results', args=[flow.id])))
             if len(links) > 1:
                 links.append(dict(divider=True)),
 
@@ -918,11 +919,11 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm('flows.flow_copy'):
                 links.append(dict(title=_("Copy"),
                                   posterize=True,
-                                  href=reverse('flows.flow_copy', args=[self.get_object().id])))
+                                  href=reverse('flows.flow_copy', args=[flow.id])))
 
             if self.has_org_perm('orgs.org_export'):
                 links.append(dict(title=_("Export"),
-                                  href='%s?flow=%s' % (reverse('orgs.org_export'), self.get_object().id)))
+                                  href='%s?flow=%s' % (reverse('orgs.org_export'), flow.id)))
 
             if self.has_org_perm('flows.flow_revisions'):
                 links.append(dict(divider=True)),
@@ -935,7 +936,7 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Delete"),
                                   delete=True,
                                   success_url=reverse('flows.flow_list'),
-                                  href=reverse('flows.flow_delete', args=[self.get_object().id])))
+                                  href=reverse('flows.flow_delete', args=[flow.id])))
 
             return links
 
@@ -957,6 +958,11 @@ class FlowCRUDL(SmartCRUDL):
 
             context['has_airtime_service'] = bool(self.object.org.is_connected_to_transferto())
 
+            flow = self.get_object()
+            can_start = True
+            if flow.flow_type == Flow.VOICE and not flow.org.supports_ivr():
+                can_start = False
+            context['can_start'] = can_start
             return context
 
         def get_template_names(self):
