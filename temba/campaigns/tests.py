@@ -28,6 +28,8 @@ class CampaignTest(TembaTest):
 
         self.reminder_flow = self.create_flow()
         self.reminder2_flow = self.create_flow()
+        self.reminder2_flow.name = 'Planting Reminder'
+        self.reminder2_flow.save()
 
         # create a voice flow to make sure they work too, not a proper voice flow but
         # sufficient for assuring these flow types show up where they should
@@ -336,12 +338,21 @@ class CampaignTest(TembaTest):
         self.assertEquals(2020, fire.scheduled.year)
         self.assertEquals(event, fire.event)
 
+        post_data = dict(relative_to=self.planting_date.pk, delivery_hour=15, base='', direction='A', offset=2,
+                         unit='D', event_type='F', flow_to_start=self.reminder2_flow.pk)
+        self.client.post(reverse('campaigns.campaignevent_create') + "?campaign=%d" % campaign.pk, post_data)
+
         # trying to archive our flow should fail since it belongs to a campaign
-        post_data = dict(action='archive', objects=self.reminder_flow.pk)
+        post_data = dict(action='archive', objects=[self.reminder_flow.pk])
         response = self.client.post(reverse('flows.flow_list'), post_data)
         self.reminder_flow.refresh_from_db()
         self.assertFalse(self.reminder_flow.is_archived)
         self.assertEqual('Color Flow is used inside a campaign. To archive it, first remove it from your campaigns.', response.get('Temba-Toast'))
+
+        post_data = dict(action='archive', objects=[self.reminder_flow.pk, self.reminder2_flow.pk])
+        response = self.client.post(reverse('flows.flow_list'), post_data)
+        self.assertEqual('Planting Reminder and Color Flow are used inside a campaign. To archive them, first remove them from your campaigns.', response.get('Temba-Toast'))
+        CampaignEvent.objects.filter(flow=self.reminder2_flow.pk).delete()
 
         # archive the campaign
         post_data = dict(action='archive', objects=campaign.pk)

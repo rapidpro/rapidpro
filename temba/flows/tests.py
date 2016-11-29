@@ -3385,8 +3385,15 @@ class FlowLabelTest(FlowFileTest):
 
         # view the parent label, should see the child
         self.login(self.admin)
+        favorites = self.get_flow('favorites')
+        label.toggle_label([favorites], True)
         response = self.client.get(reverse('flows.flow_filter', args=[label.pk]))
+
+        # our child label
         self.assertContains(response, "child")
+
+        # and the edit gear link
+        self.assertContains(response, "Edit")
 
     def test_toggle_label(self):
         label = FlowLabel.create_unique('toggle me', self.org)
