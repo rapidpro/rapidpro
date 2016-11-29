@@ -12,7 +12,7 @@ class Response(object):
 
     def __str__(self):
 
-        # make sure the last text reading has bargeIn=False
+        #  make sure the last text reading has bargeIn=False
         if self.document and self.document[-1]['action'] == 'talk':
             self.document[-1]['bargeIn'] = False
 
