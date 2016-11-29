@@ -467,7 +467,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
 
-        self.assertTrue(dict(action='talk', bargeIn=True, text="Enter your phone number followed by the pound sign.")
+        self.assertTrue(dict(action='talk', bargeIn=False, text="Enter your phone number followed by the pound sign.")
                         in json.loads(response.content))
 
         # we have an input to collect the digits
@@ -509,7 +509,7 @@ class IVRTests(FlowFileTest):
         response_json = json.loads(response.content)
         callback_url = response_json[1]['eventUrl'][0]
 
-        self.assertTrue(dict(action='talk', bargeIn=True, text="Hi there! This is the parent flow.") in response_json)
+        self.assertTrue(dict(action='talk', bargeIn=False, text="Hi there! This is the parent flow.") in response_json)
 
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
@@ -517,7 +517,7 @@ class IVRTests(FlowFileTest):
         response_json = json.loads(response.content)
         callback_url = response_json[1]['eventUrl'][0]
 
-        self.assertTrue(dict(action='talk', bargeIn=True,
+        self.assertTrue(dict(action='talk', bargeIn=False,
                              text="What is your favorite color? 1 for Red, 2 for green or 3 for blue.")
                         in response_json)
 
@@ -526,7 +526,7 @@ class IVRTests(FlowFileTest):
         response_json = json.loads(response.content)
         callback_url = response_json[1]['eventUrl'][0]
 
-        self.assertTrue(dict(action='talk', bargeIn=True, text="Thanks, returning to the parent flow now.")
+        self.assertTrue(dict(action='talk', bargeIn=False, text="Thanks, returning to the parent flow now.")
                         in response_json)
 
         response = self.client.post(callback_url, content_type='application/json',
@@ -534,7 +534,7 @@ class IVRTests(FlowFileTest):
 
         response_json = json.loads(response.content)
 
-        self.assertTrue(dict(action='talk', bargeIn=True,
+        self.assertTrue(dict(action='talk', bargeIn=False,
                              text="In the child flow you picked Red. "
                                   "I think that is a fine choice.\n\nGoodbye.")
                         in response_json)
@@ -552,8 +552,7 @@ class IVRTests(FlowFileTest):
     def test_ivr_flow(self):
         from temba.orgs.models import ACCOUNT_TOKEN, ACCOUNT_SID
 
-        # should be able to create an ivr flow
-        self.assertTrue(self.org.supports_ivr())
+        # should be able to create an ivr flow        self.assertTrue(self.org.supports_ivr())
         self.assertTrue(self.admin.groups.filter(name="Beta"))
         self.assertContains(self.client.get(reverse('flows.flow_create')), 'Phone Call')
 
@@ -921,7 +920,7 @@ class IVRTests(FlowFileTest):
                                     post_data)
 
         self.assertTrue(dict(action='talk',
-                             bargeIn=True,
+                             bargeIn=False,
                              text='Would you like me to call you? Press one for yes, two for no, or three for maybe.')
                         in json.loads(response.content))
 
@@ -983,7 +982,7 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('handlers.nexmo_call_handler', args=['answer', self.channel.uuid]),
                                     post_data)
 
-        self.assertEqual(json.loads(response.content), [dict(action='talk', bargeIn=True, text='')])
+        self.assertEqual(json.loads(response.content), [dict(action='talk', bargeIn=False, text='')])
         # no call object created
         self.assertFalse(IVRCall.objects.all())
 
