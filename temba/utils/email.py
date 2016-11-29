@@ -7,7 +7,7 @@ from django.template import loader, Context
 from django.conf import settings
 
 
-ADDRESS_REGEX = regex.compile(r'\S+@\S+\.\S+')
+ADDRESS_REGEX = regex.compile(r'\w\S*@\S+\.\S+')
 
 
 def is_valid_address(address):
