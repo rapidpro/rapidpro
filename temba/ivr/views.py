@@ -122,6 +122,10 @@ class CallHandler(View):
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
                     if channel_type in Channel.NCCO_CHANNELS:
+                        print "=" * 80
+                        print response.document
+                        print "=" * 80
+
                         return build_json_response(json.loads(unicode(response)))
 
                     return HttpResponse(unicode(response))
