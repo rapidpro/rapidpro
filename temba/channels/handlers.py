@@ -2048,14 +2048,10 @@ class ViberHandler(BaseChannelHandler):
             return HttpResponse("Not handled, unknown action", status=400)
 
 
-class LineHandler(View):
+class LineHandler(BaseChannelHandler):
 
     url = r'^/line/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.line_handler'
-
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(LineHandler, self).dispatch(*args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
