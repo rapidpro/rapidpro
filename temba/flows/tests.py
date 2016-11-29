@@ -21,6 +21,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookEvent, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
+from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, INTERRUPTED
 from temba.msgs.models import OUTGOING
@@ -451,9 +452,21 @@ class FlowTest(TembaTest):
 
         # check flow activity endpoint response
         self.login(self.admin)
+
+        test_contact = Contact.get_test_contact(self.admin)
+        test_message = self.create_msg(contact=test_contact, text='Hi')
+
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
         self.assertEquals(2, activity['activity'][uuid(5)])
+        self.assertEquals(activity['messages'], [])
+
+        # check activity with IVR test call
+        IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.flow, self.admin)
+        activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
+        self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
+        self.assertEquals(2, activity['activity'][uuid(5)])
+        self.assertTrue(activity['messages'], [test_message.as_json()])
 
         # if we try to get contacts at this step for our compose we should have two contacts
         self.login(self.admin)
@@ -3187,6 +3200,7 @@ class ActionTest(TembaTest):
                                                    data={'run': run.pk,
                                                          'phone': u'+250788382382',
                                                          'contact': self.contact.uuid,
+                                                         'contact_name': self.contact.name,
                                                          'urn': u'tel:+250788382382',
                                                          'text': None,
                                                          'flow': self.flow.pk,
@@ -3214,6 +3228,7 @@ class ActionTest(TembaTest):
                                                    data={'run': run.pk,
                                                          'phone': u'+250788382382',
                                                          'contact': self.contact.uuid,
+                                                         'contact_name': self.contact.name,
                                                          'urn': u'tel:+250788382382',
                                                          'text': "Green is my favorite",
                                                          'flow': self.flow.pk,
@@ -3372,8 +3387,15 @@ class FlowLabelTest(FlowFileTest):
 
         # view the parent label, should see the child
         self.login(self.admin)
+        favorites = self.get_flow('favorites')
+        label.toggle_label([favorites], True)
         response = self.client.get(reverse('flows.flow_filter', args=[label.pk]))
+
+        # our child label
         self.assertContains(response, "child")
+
+        # and the edit gear link
+        self.assertContains(response, "Edit")
 
     def test_toggle_label(self):
         label = FlowLabel.create_unique('toggle me', self.org)
