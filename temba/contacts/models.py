@@ -50,6 +50,7 @@ FACEBOOK_SCHEME = 'facebook'
 TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
+LINE_SCHEME = 'line'
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
@@ -57,7 +58,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
-                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
+                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME))
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
@@ -219,6 +221,10 @@ class URN(object):
     @classmethod
     def from_facebook(cls, path):
         return cls.from_parts(FACEBOOK_SCHEME, path)
+
+    @classmethod
+    def from_line(cls, path):
+        return cls.from_parts(LINE_SCHEME, path)
 
     @classmethod
     def from_telegram(cls, path):
@@ -465,7 +471,7 @@ class Contact(TembaModel):
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
         from temba.flows.models import Flow
-        from temba.ivr.models import BUSY, FAILED, NO_ANSWER, CANCELED
+        from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
@@ -473,14 +479,8 @@ class Contact(TembaModel):
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gte=after, created_on__lt=before)
-        broadcasts = broadcasts.prefetch_related('steps__run__flow')
         for broadcast in broadcasts:
-            steps = list(broadcast.steps.all())
-            flow = steps[0].run.flow if steps else None
-            flow_language = flow.base_language if flow else None
-            broadcast.translated_text = broadcast.get_translated_text(contact=self,
-                                                                      base_language=flow_language,
-                                                                      org=self.org)
+            broadcast.translated_text = broadcast.get_translated_text(contact=self, org=self.org)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
@@ -497,7 +497,9 @@ class Contact(TembaModel):
             event_fire.created_on = event_fire.fired
 
         # and the contact's failed IVR calls
-        error_calls = self.calls.filter(created_on__gte=after, created_on__lt=before, status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+        error_calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
+            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED
+        ])
         error_calls = error_calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
