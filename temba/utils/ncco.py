@@ -11,6 +11,11 @@ class Response(object):
         self.document = []
 
     def __str__(self):
+
+        # make sure the last text reading has bargeIn=False
+        if self.document and self.document[-1]['action'] == 'talk':
+            self.document[-1]['bargeIn'] = False
+
         return json.dumps(self.document)
 
     def __enter__(self):
@@ -24,7 +29,7 @@ class Response(object):
         return self
 
     def say(self, text, **kwargs):
-        self.document.append(dict(action='talk', text=str(text), bargeIn=False))
+        self.document.append(dict(action='talk', text=str(text), bargeIn=True))
         return self
 
     def play(self, url=None, digits=None, **kwargs):
@@ -37,7 +42,7 @@ class Response(object):
             result['streamUrl'] = [url]
 
         elif digits:
-            result['bargeIn'] = False
+            result['bargeIn'] = True
             result['action'] = 'talk'
             result['text'] = digits
         self.document.append(result)

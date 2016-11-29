@@ -1132,6 +1132,16 @@ class NCCOTest(TembaTest):
         self.assertEqual(json.loads(unicode(response)), [dict(action='stream',
                                                               streamUrl=['http://example.com/audio.wav'])])
 
+    def test_bargeIn(self):
+        response = ncco.Response()
+        response.say('Hello')
+        response.redirect('http://example.com/')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='Hello', bargeIn=True),
+                                                         dict(action='input', maxDigits=1, timeOut=1,
+                                                              eventUrl=[
+                                                                  "%s?input_redirect=1" % 'http://example.com/'])])
+
     def test_pause(self):
         response = ncco.Response()
         response.pause()
