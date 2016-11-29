@@ -48,7 +48,7 @@ def apply_as_migration(apps, schema_editor):
     do_populate(Broadcast, FlowStep)
 
 
-def apply_offline():
+def apply_manual():
     from temba.flows.models import FlowStep
     from temba.msgs.models import Broadcast
 
