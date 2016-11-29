@@ -5,8 +5,8 @@
 
 -block extra-less
   {{block.super}}
-  -compress css
     {% lessblock %}
+    {% compress css%}
       :plain
 
         form.smartmin-form.form-horizontal ul.errorlist {
@@ -120,7 +120,7 @@
           padding:10px;
           .rounded-corners(5px);
         }
-
+      {% endcompress %}
     {% endlessblock %}
 
 -block extra-script

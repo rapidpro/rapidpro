@@ -11,8 +11,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='broadcast',
-            name='recipients',
-        ),
+        #migrations.RemoveField(
+        #    model_name='broadcast',
+        #    name='recipients',
+        #),
     ]

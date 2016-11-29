@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
             model_name='call',
             name='org',
         ),
-        migrations.DeleteModel(
-            name='Call',
-        ),
+        #migrations.DeleteModel(
+        #    name='Call',
+        #),
     ]

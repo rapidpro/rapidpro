@@ -4,7 +4,7 @@
 
 
 -block extra-less
-  -compress css inline
+  {% compress css inline%}
     {% lessblock %}
       :plain
 
@@ -64,6 +64,7 @@
         #plan-form ul.errorlist li {
           color: #fff;
         }
+      {% endcompress %}
     {% endlessblock %}
 
 -block extra-style

@@ -62,8 +62,8 @@
     });
 
 -block extra-less
-  -compress css inline
     {% lessblock %}
+    {% compress css inline%}
       :plain
 
         #id-channel {
@@ -122,6 +122,8 @@
         #plan-form ul.errorlist li {
           color: #fff;
         }
+      {% endcompress %}
+
     {% endlessblock %}
 
 -block extra-style

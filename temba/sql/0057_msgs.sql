@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------
 -- Deprecated functions
 ----------------------------------------------------------------------
-DROP FUNCTION IF EXISTS temba_call_on_change();
+DROP FUNCTION IF EXISTS temba_call_on_change() CASCADE;
 
 ----------------------------------------------------------------------
 -- Utility function to lookup whether a contact is a simulator contact

@@ -12,8 +12,8 @@
     Start building SMS applications by watching these short two minutes videos on various {{ brand }} features.
 
 -block extra-less
-  -compress css
     {% lessblock %}
+    {%compress css%}
       :plain
 
         .manage {
@@ -85,7 +85,7 @@
           text-align: center;
 
         }
-
+      {% endcompress %}
     {% endlessblock %}
 
 -block title

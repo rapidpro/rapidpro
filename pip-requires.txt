@@ -1,7 +1,7 @@
 smartmin
 Django<1.9
 coverage
-django-celery
+django-celery==3.1.16
 django-compressor
 django-debug-toolbar
 django-digest

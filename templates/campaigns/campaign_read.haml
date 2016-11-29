@@ -71,8 +71,8 @@
             %td{colspan:2}
 
 -block extra-less
-  -compress css
     {% lessblock %}
+    {%compress css%}
       :plain
 
         @row-color: @flat-white;
@@ -183,6 +183,7 @@
           }
 
         }
+      {%endcompress%}
     {% endlessblock %}
 
 -block extra-script

@@ -11,6 +11,7 @@ RUN apt-get update && \
   python-dev \
   build-essential \
   git \
+  vim\
   libpq-dev \
   lib32ncurses5-dev \
   libgeos-dev && \

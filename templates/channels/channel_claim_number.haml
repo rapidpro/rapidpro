@@ -136,8 +136,9 @@
     });
 
 -block extra-less
-  -compress css inline
     {% lessblock %}
+    {%compress css inline%}
+
       :plain
         .numbers-title {
           font-weight: 600;
@@ -234,5 +235,5 @@
           margin: 10px 0px;
           background-color: @color-alert-warning;
         }
-
+      {%endcompress%}
     {% endlessblock %}

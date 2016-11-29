@@ -4,10 +4,11 @@
 
 
 -block extra-less
-  -compress css inline
+  {% compress css inline%}
     {% lessblock %}
       :plain
     {% endlessblock %}
+  {% endcompress %}
 
 -block extra-style
   {{ block.super }}

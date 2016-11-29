@@ -263,8 +263,8 @@
 -block extra-less
   <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}bower/DataTables/media/css/jquery.dataTables.css">
 
-  -compress css inline
     {% lessblock %}
+    {%compress css inline%}
       :plain
 
         #top-charts {
@@ -347,7 +347,7 @@
             color: @flat-grey;
           }
         }
-
+      {%endcompress%}
     {% endlessblock %}
 
 -block extra-style

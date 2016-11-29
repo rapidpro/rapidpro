@@ -36,11 +36,13 @@
 -block extra-less
   <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}bower/DataTables/media/css/jquery.dataTables.css">
   -load compress
-  -compress css
-    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/simulator.less', media:'all'}
 
-  -compress css inline
     {% lessblock %}
+    {%compress css%}
+    %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/simulator.less', media:'all'}
+    {%endcompress%}
+
+    {%compress css inline%}
       :plain
         .gear-menu {
           .dropdown-menu {
@@ -221,7 +223,7 @@
         }
 
 
-
+      {%endcompress%}
     {% endlessblock %}
 
 -block extra-script

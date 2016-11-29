@@ -4,7 +4,7 @@
 -block title-icon
   .title-icon
     %span.glyph.icon-instant
-    
+
 
 -block title-text
   .title-text
@@ -131,8 +131,8 @@
       {% endif %}
 
 -block extra-less
-  -compress css
     {% lessblock %}
+    {%compress css%}
       :plain
 
         h2 a {
@@ -204,6 +204,8 @@
         .no-messages {
           color: #bbb;
         }
+      {% endcompress %}
+
     {% endlessblock %}
 
 -block extra-style
@@ -211,7 +213,7 @@
     span.strong {
       font-weight:400;
     }
-    
+
     tr.event-fire td {
       margin-bottom: 5px;
     }
@@ -219,9 +221,9 @@
     tr.empty_list td {
       border-bottom: 0px solid #ccc;
       padding:10px;
-    }    
+    }
 
     table .event_date {
       text-align: right;
-    
+
     }

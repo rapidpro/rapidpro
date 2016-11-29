@@ -386,8 +386,8 @@
 
 
 -block extra-less
-  -compress css inline
     {% lessblock %}
+    {% compress css inline %}
       :plain
         a.errored:hover {
           color:@flat-darkred;
@@ -401,6 +401,7 @@
             line-height:14px;
           }
         }
+      {%endcompress%}
     {% endlessblock %}
 
 -block extra-style

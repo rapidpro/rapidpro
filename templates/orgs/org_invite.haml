@@ -34,8 +34,8 @@
     });
 
 -block extra-less
-  -compress css inline
     {% lessblock %}
+    {%compress css inline%}
       :plain
         .select2-temba-user-group-field {
           width: 365px !important;
@@ -46,6 +46,6 @@
           -webkit-border-radius: 0px;
           margin-bottom: 9px;
         }
+    {% endcompress %}
+
     {% endlessblock %}
-
-

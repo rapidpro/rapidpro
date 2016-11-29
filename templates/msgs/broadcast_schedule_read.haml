@@ -49,8 +49,8 @@
   {{block.super}}
 
 -block extra-less
-  -compress css inline
     {% lessblock %}
+    {%compress css inline%}
       :plain
         h2 {
           margin-bottom:30px;
@@ -83,4 +83,5 @@
         .value-icon {
           display:none;
         }
+      {% endcompress %}
     {% endlessblock %}

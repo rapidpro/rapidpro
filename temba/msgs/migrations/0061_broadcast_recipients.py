@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
+        migrations.AlterField(
             model_name='broadcast',
             name='recipients',
             field=models.ManyToManyField(help_text='The contacts which received this message', related_name='broadcasts', verbose_name='Recipients', to='contacts.Contact'),

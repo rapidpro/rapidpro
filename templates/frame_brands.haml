@@ -4,7 +4,8 @@
 # of our styles for all the brands that will share a site.
 
 -with brand=brands.brand1
-  -compress css
+
+  {%compress css%}
     %link{type:'text/css', rel:'stylesheet', href:"{{STATIC_URL}}fonts/temba/style.css", media:'all'}
     %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/style.less', media:'all'}
     %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/formax.less', media:'all'}
@@ -16,10 +17,11 @@
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}{{style}}', media:'all'}
       -else
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
+  {% endcompress %}
 
 
 -with brand=brands.brand2
-  -compress css
+  {%compress css%}
     %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
     %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/style.less', media:'all'}
     %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/formax.less', media:'all'}
@@ -31,3 +33,4 @@
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}{{style}}', media:'all'}
       -else
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}{{style}}", media:'all'}
+  {% endcompress %}
