@@ -71,8 +71,7 @@
                     %tr.trigger.object-row{ data-object-id: "{{ obj.id }}" }
                       - if org_perms.triggers.trigger_update
                         %td.trigger.checkbox.object-row-checkbox
-                          -if obj.flow.flow_type != 'V' or obj.org.supports_ivr
-                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
+                          .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
                       %td
                         -if obj.trigger_type == 'R' or obj.trigger_type == 'K'
                           -trans "The keyword"
