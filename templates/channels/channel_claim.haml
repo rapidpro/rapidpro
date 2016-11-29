@@ -642,11 +642,11 @@
                     for free. Your users will need an Android, Windows or iOS device and a Telegram account to send
                     and receive messages.
 
-      -if org_perms.channels.channel_claim_viber
+      -if org_perms.channels.channel_claim_viber_public
         .claim-row.viber-channel
           .row
             .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_create_viber' %}"}
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_viber_public' %}"}
                 .btn-container
                   .claim-glyph.icon-viber
                   %p.claim-text
@@ -656,9 +656,8 @@
               .claim-description
                 %div
                   -blocktrans
-                    Add a <a href="http://viber.com/en/">Viber</a> bot to send and receive messages to Viber users
-                    for free. Your users will need an Android, Windows or iOS device and a Viber account to send
-                    and receive messages.
+                    Connect a <a href="http://viber.com/en/">Viber</a> public channel to send and receive messages to Viber users
+                    for free. Your users will need an Android, Windows or iOS device and a Viber account to send and receive messages.
 
 
 -block form-buttons

@@ -1072,9 +1072,9 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
 
-    class ClaimViberPublic(OrgPermsMixin, SmartUpdateView):
+    class ClaimViberPublic(OrgPermsMixin, SmartFormView):
         class ViberClaimForm(forms.ModelForm):
-            auth_token = forms.IntegerField(help_text=_("The authentication token provided by Viber"))
+            auth_token = forms.CharField(help_text=_("The authentication token provided by Viber"))
 
             class Meta:
                 model = Channel
