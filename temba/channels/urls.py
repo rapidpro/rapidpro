@@ -5,15 +5,20 @@ from .handlers import TwilioHandler, VerboiceHandler, AfricasTalkingHandler, Zen
 from .handlers import ExternalHandler, ShaqodoonHandler, NexmoHandler, InfobipHandler, Hub9Handler, VumiHandler
 from .handlers import KannelHandler, ClickatellHandler, PlivoHandler, HighConnectionHandler, BlackmynaHandler
 from .handlers import SMSCentralHandler, MageHandler, YoHandler, StartHandler, TelegramHandler, ChikkaHandler
-from .handlers import TwilioMessagingServiceHandler, JasminHandler, MbloxHandler, FacebookHandler
-from .views import ChannelCRUDL, ChannelLogCRUDL
+from .handlers import TwilioMessagingServiceHandler, JasminHandler, MbloxHandler, FacebookHandler, GlobeHandler
+from .handlers import ViberHandler, TwimlAPIHandler, LineHandler
+from .views import ChannelCRUDL, ChannelEventCRUDL, ChannelLogCRUDL
+
 
 urlpatterns = [
+    url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),
+
     url(r'^channels/', include(ChannelCRUDL().as_urlpatterns() + ChannelLogCRUDL().as_urlpatterns())),
 
     url(r'^handlers', include([
         url(r'^/twilio/$', TwilioHandler.as_view(), name='handlers.twilio_handler'),
         url(r'^/twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$', TwilioMessagingServiceHandler.as_view(), name='handlers.twilio_messaging_service_handler'),
+        url(r'^/twiml_api/(?P<uuid>[a-z0-9\-]+)/?$', TwimlAPIHandler.as_view(), name='handlers.twiml_api_handler'),
         url(r'^/verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', VerboiceHandler.as_view(), name='handlers.verboice_handler'),
         url(r'^/africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$', AfricasTalkingHandler.as_view(), name='handlers.africas_talking_handler'),
         url(r'^/zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$', ZenviaHandler.as_view(), name='handlers.zenvia_handler'),
@@ -38,6 +43,9 @@ urlpatterns = [
         url(r'^/jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', JasminHandler.as_view(), name='handlers.jasmin_handler'),
         url(r'^/mblox/(?P<uuid>[a-z0-9\-]+)/?$', MbloxHandler.as_view(), name='handlers.mblox_handler'),
         url(r'^/facebook/(?P<uuid>[a-z0-9\-]+)/?$', FacebookHandler.as_view(), name='handlers.facebook_handler'),
+        url(r'^/globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$', GlobeHandler.as_view(), name='handlers.globe_handler'),
+        url(r'^/viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$', ViberHandler.as_view(), name='handlers.viber_handler'),
+        url(r'^/line/(?P<uuid>[a-z0-9\-]+)/?$', LineHandler.as_view(), name='handlers.line_handler'),
     ])),
 
     # for backwards compatibility these channel handlers are exposed at /api/v1 as well

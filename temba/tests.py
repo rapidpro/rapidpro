@@ -1,15 +1,17 @@
+# coding=utf-8
 from __future__ import absolute_import, unicode_literals
 
 import inspect
 import json
 import os
+import pytz
 import re
 import redis
 import shutil
 import string
 import time
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
@@ -20,17 +22,15 @@ from django.utils import timezone
 from HTMLParser import HTMLParser
 from selenium.webdriver.firefox.webdriver import WebDriver
 from smartmin.tests import SmartminTest
-from temba.contacts.models import Contact, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.contacts.models import Contact, ContactGroup, URN
 from temba.orgs.models import Org
 from temba.channels.models import Channel
 from temba.locations.models import AdminBoundary
-from temba.flows.models import Flow, ActionSet, RuleSet, RULE_SET, ACTION_SET
+from temba.flows.models import Flow, ActionSet, RuleSet, FlowStep
 from temba.ivr.clients import TwilioClient
 from temba.msgs.models import Msg, INCOMING
 from temba.utils import dict_to_struct
 from twilio.util import RequestValidator
-from xlrd import xldate_as_tuple
-from xlrd.sheet import XL_CELL_DATE
 
 
 class ExcludeTestRunner(DiscoverRunner):
@@ -84,16 +84,17 @@ class TembaTest(SmartminTest):
         self.state1 = AdminBoundary.objects.create(osm_id='1708283', name='Kigali City', level=1, parent=self.country)
         self.state2 = AdminBoundary.objects.create(osm_id='171591', name='Eastern Province', level=1, parent=self.country)
         self.district1 = AdminBoundary.objects.create(osm_id='1711131', name='Gatsibo', level=2, parent=self.state2)
-        self.district2 = AdminBoundary.objects.create(osm_id='1711163', name='Kayonza', level=2, parent=self.state2)
-        self.district3 = AdminBoundary.objects.create(osm_id='60485579', name='Kigali', level=2, parent=self.state1)
+        self.district2 = AdminBoundary.objects.create(osm_id='1711163', name='Kayônza', level=2, parent=self.state2)
+        self.district3 = AdminBoundary.objects.create(osm_id='3963734', name='Nyarugenge', level=2, parent=self.state1)
         self.district4 = AdminBoundary.objects.create(osm_id='1711142', name='Rwamagana', level=2, parent=self.state2)
         self.ward1 = AdminBoundary.objects.create(osm_id='171113181', name='Kageyo', level=3, parent=self.district1)
         self.ward2 = AdminBoundary.objects.create(osm_id='171116381', name='Kabare', level=3, parent=self.district2)
         self.ward3 = AdminBoundary.objects.create(osm_id='171114281', name='Bukure', level=3, parent=self.district4)
 
-        self.org = Org.objects.create(name="Temba", timezone="Africa/Kigali", country=self.country, brand='rapidpro.io',
-                                      created_by=self.user, modified_by=self.user)
-        self.org.initialize()
+        self.org = Org.objects.create(name="Temba", timezone=pytz.timezone("Africa/Kigali"), country=self.country,
+                                      brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user)
+
+        self.org.initialize(topup_size=1000)
 
         # add users to the org
         self.user.set_org(self.org)
@@ -219,9 +220,9 @@ class TembaTest(SmartminTest):
         """
         urns = []
         if number:
-            urns.append((TEL_SCHEME, number))
+            urns.append(URN.from_tel(number))
         if twitter:
-            urns.append((TWITTER_SCHEME, twitter))
+            urns.append(URN.from_twitter(twitter))
         if urn:
             urns.append(urn)
 
@@ -239,10 +240,17 @@ class TembaTest(SmartminTest):
 
         return Contact.get_or_create(**kwargs)
 
-    def create_group(self, name, contacts):
-        group = ContactGroup.create(self.org, self.user, name)
-        group.contacts.add(*contacts)
-        return group
+    def create_group(self, name, contacts=(), query=None):
+        if contacts and query:
+            raise ValueError("Can't provide contact list for a dynamic group")
+
+        if query:
+            return ContactGroup.create_dynamic(self.org, self.user, name, query=query)
+        else:
+            group = ContactGroup.create_static(self.org, self.user, name)
+            if contacts:
+                group.contacts.add(*contacts)
+            return group
 
     def create_msg(self, **kwargs):
         if 'org' not in kwargs:
@@ -255,9 +263,9 @@ class TembaTest(SmartminTest):
             kwargs['created_on'] = timezone.now()
 
         if not kwargs['contact'].is_test:
-            kwargs['topup_id'] = kwargs['org'].decrement_credit()
+            (kwargs['topup_id'], amount) = kwargs['org'].decrement_credit()
 
-        return Msg.all_messages.create(**kwargs)
+        return Msg.objects.create(**kwargs)
 
     def create_flow(self, uuid_start=None, **kwargs):
         if 'org' not in kwargs:
@@ -280,7 +288,7 @@ class TembaTest(SmartminTest):
 
         return dict(version=8,
                     action_sets=[dict(uuid=uuid(uuid_start + 1), x=1, y=1, destination=uuid(uuid_start + 5),
-                                      actions=[dict(type='reply', msg=dict(base='What is your favorite color?'))]),
+                                      actions=[dict(type='reply', msg=dict(base="What is your favorite color?", fre="Quelle est votre couleur préférée?"))]),
                                  dict(uuid=uuid(uuid_start + 2), x=2, y=2, destination=None,
                                       actions=[dict(type='reply', msg=dict(base='I love orange too! You said: @step.value which is category: @flow.color.category You are: @step.contact.tel SMS: @step Flow: @flow'))]),
                                  dict(uuid=uuid(uuid_start + 3), x=3, y=3, destination=None,
@@ -291,8 +299,6 @@ class TembaTest(SmartminTest):
                                     label='color',
                                     finished_key=None,
                                     operand=None,
-                                    webhook=None,
-                                    webhook_action=None,
                                     response_type='',
                                     ruleset_type='wait_message',
                                     config={},
@@ -323,10 +329,10 @@ class TembaTest(SmartminTest):
     def update_destination_no_check(self, flow, node, destination, rule=None):  # pragma: no cover
         """ Update the destination without doing a cycle check """
         # look up our destination, we need this in order to set the correct destination_type
-        destination_type = ACTION_SET
+        destination_type = FlowStep.TYPE_ACTION_SET
         action_destination = Flow.get_node(flow, destination, destination_type)
         if not action_destination:
-            destination_type = RULE_SET
+            destination_type = FlowStep.TYPE_RULE_SET
             ruleset_destination = Flow.get_node(flow, destination, destination_type)
             self.assertTrue(ruleset_destination, "Unable to find new destination with uuid: %s" % destination)
 
@@ -352,26 +358,35 @@ class TembaTest(SmartminTest):
         """
         Asserts the cell values in the given worksheet row. Date values are converted using the provided timezone.
         """
-        self.assertEqual(len(values), sheet.ncols, msg="Expecting %d columns, found %d" % (len(values), sheet.ncols))
-
-        actual_values = []
         expected_values = []
-        for c in range(0, len(values)):
-            cell = sheet.cell(row_num, c)
-            actual = cell.value
-            expected = values[c]
-
-            if cell.ctype == XL_CELL_DATE:
-                actual = datetime(*xldate_as_tuple(actual, sheet.book.datemode))
-
+        for expected in values:
             # if expected value is datetime, localize and remove microseconds
             if isinstance(expected, datetime):
                 expected = expected.astimezone(tz).replace(microsecond=0, tzinfo=None)
 
-            actual_values.append(actual)
             expected_values.append(expected)
 
-        self.assertEqual(actual_values, expected_values)
+        rows = tuple(sheet.rows)
+
+        actual_values = []
+        for cell in rows[row_num]:
+            actual = cell.value
+
+            if actual is None:
+                actual = ''
+
+            if isinstance(actual, datetime):
+                actual = actual
+
+            actual_values.append(actual)
+
+        for index, expected in enumerate(expected_values):
+            actual = actual_values[index]
+
+            if isinstance(expected, datetime):
+                self.assertTrue(abs(expected - actual) < timedelta(seconds=1))
+            else:
+                self.assertEqual(expected, actual)
 
 
 class FlowFileTest(TembaTest):
@@ -381,10 +396,23 @@ class FlowFileTest(TembaTest):
         self.contact = self.create_contact('Ben Haggerty', '+12065552020')
 
     def assertLastResponse(self, message):
-        response = Msg.all_messages.filter(contact=self.contact).order_by('-created_on', '-pk').first()
+        response = Msg.objects.filter(contact=self.contact).order_by('-created_on', '-pk').first()
 
         self.assertTrue("Missing response from contact.", response)
         self.assertEquals(message, response.text)
+
+    def send(self, message, contact=None):
+        if not contact:
+            contact = self.contact
+        if contact.is_test:
+            Contact.set_simulation(True)
+        incoming = self.create_msg(direction=INCOMING, contact=contact, text=message)
+
+        # evaluate the inbound message against our triggers first
+        from temba.triggers.models import Trigger
+        if not Trigger.find_and_handle(incoming):
+            Flow.find_and_handle(incoming)
+        return Msg.objects.filter(response_to=incoming).order_by('pk').first()
 
     def send_message(self, flow, message, restart_participants=False, contact=None, initiate_flow=False,
                      assert_reply=True, assert_handle=True):
@@ -407,6 +435,8 @@ class FlowFileTest(TembaTest):
                 flow.start(groups=[], contacts=[contact], restart_participants=restart_participants)
                 handled = Flow.find_and_handle(incoming)
 
+                Msg.mark_handled(incoming)
+
                 if assert_handle:
                     self.assertTrue(handled, "'%s' did not handle message as expected" % flow.name)
                 else:
@@ -414,7 +444,7 @@ class FlowFileTest(TembaTest):
 
             # our message should have gotten a reply
             if assert_reply:
-                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
+                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
                 self.assertGreaterEqual(len(replies), 1)
 
                 if len(replies) == 1:
@@ -426,7 +456,7 @@ class FlowFileTest(TembaTest):
 
             else:
                 # assert we got no reply
-                replies = Msg.all_messages.filter(response_to=incoming).order_by('pk')
+                replies = Msg.objects.filter(response_to=incoming).order_by('pk')
                 self.assertFalse(replies)
 
             return None
@@ -549,7 +579,7 @@ class BrowserTest(LiveServerTestCase):  # pragma: no cover
         self.click('#form-two-submit')
 
         # set up our channel for claiming
-        anon = User.objects.get(pk=settings.ANONYMOUS_USER_ID)
+        anon = User.objects.get(username=settings.ANONYMOUS_USER_NAME)
         channel = Channel.create(None, anon, 'RW', 'A', name="Test Channel", address="0785551212",
                                  claim_code='AAABBBCCC', secret="12345", gcm_id="123")
 
@@ -627,8 +657,9 @@ class MockRequestValidator(RequestValidator):
 
 class MockTwilioClient(TwilioClient):
 
-    def __init__(self, sid, token, org=None):
+    def __init__(self, sid, token, org=None, base=None):
         self.org = org
+        self.base = base
         self.applications = MockTwilioClient.MockApplications()
         self.calls = MockTwilioClient.MockCalls()
         self.accounts = MockTwilioClient.MockAccounts()

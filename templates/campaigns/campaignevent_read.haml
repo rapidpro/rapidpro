@@ -26,11 +26,11 @@
       .message
         .icon-left-quote
         .text
-          {{object.message}}
+          {{object.get_message}}
     -else
       .start-flow
         Start the
-        %a.href{ href: "{% url 'flows.flow_editor' object.flow.pk %}" }= object.flow.name
+        %a.href{ href: "{% url 'flows.flow_editor' object.flow.uuid %}" }= object.flow.name
         Flow
 
 -block content

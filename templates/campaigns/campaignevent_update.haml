@@ -9,10 +9,6 @@
 
 -block modal-script
   {{ block.super }}
-  -load compress
-  -compress js
-    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.caret.coffee" />
-    <script type="text/coffeescript" charset="utf-8" src="{{ STATIC_URL }}scripts/at/jquery.atwho.coffee" />
 
   :javascript
     $(document).ready(function() {
@@ -24,14 +20,37 @@
       select2div("#id_event_type", "515px");
       select2div("#id_delivery_hour", "440px");
 
+      $('.show_language').live('click', function() {
+        lang = $(this).data('iso');
+
+        console.log("clicked on " + lang);
+        // first hide all our languages
+        $('.language').hide();
+
+        $('.' + lang).show()
+      });
+
       $('#id_unit').on('change', toggleDeliveryHour);
 
-      $("#id_message").attr('placeholder', 'Hi @contact.name! This is just a friendly reminder to apply your fertilizer.');
-      new AutoComplete({{completions|safe}}, {{function_completions|safe}}).bind($('#id_message'));
+      var completions = {{completions|safe}};
+      var function_completions = {{function_completions|safe}};
 
-      // Add the message length counter and initialize it
-      $("#id_message").parent().append('<div id="counter">0</div>');
-      initMessageLengthCounter($("#id_message"), $("#id_message").parent().find("#counter"));
+      $('#message-section textarea').each(function() {
+
+        var ele = $(this);
+
+        // give it a place holder
+        ele.attr('placeholder', 'Hi @contact.name! This is just a friendly reminder to apply your fertilizer.');
+
+        // make it autocomplete
+        new AutoComplete(completions, function_completions).bind(ele);
+
+        // add an sms counter
+        parent = ele.parent().append('<div class="counter">0</div>');
+        counter = parent.find('.counter');
+        initMessageLengthCounter(this, counter);
+
+      });
 
       $("#id_event_type").on('change', function() {
         if ($("#id_event_type").data('select2').val() == 'F') {
@@ -66,6 +85,7 @@
         $("#send-at").hide();
       }
     }
+
 
 -block modal-extra-style
   {{ block.super }}
@@ -112,14 +132,14 @@
       border: 1px solid #b94a48;
     }
 
-    #id_message {
+    #input {
       height:100px;
       width:500px;
       margin-top: 5px;
       margin-bottom:10px;
     }
 
-    #counter {
+    .counter {
       font-size: 12px;
       float: right;
       margin-right: 5px;
@@ -149,13 +169,28 @@
       font-size:16px;
     }
 
+    #languages {
+      float:right;
+    }
+
 -block fields
-  //{{ block.super }}
 
   -render_field 'event_type'
 
   #message-section
-    -render_field 'message'
+
+    #languages
+
+      -if form.languages|length > 1
+        -for field in form.languages
+          {%if forloop.counter0 > 0%} | {% endif %}
+          -if field.language.name
+            %a.show_language{data-iso:"{{field.language.iso_code}}", href:"javascript:void(0);"}><
+              {{field.language.name}}
+
+    -for field in form.languages
+      .language{class:'{{field.language.iso_code}} {%if forloop.counter0 > 0%}hide{%endif%}'}
+        -render_field field.language.iso_code
 
   #flow-section
     -render_field 'flow_to_start'

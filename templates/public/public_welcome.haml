@@ -15,14 +15,13 @@
     .span12
       -if 'success' in request.REQUEST.keys
         %h1
-          -trans "Your phone number is now connected."
+          -trans "Your channel is now connected."
         %p.medium-title
           -blocktrans with name=brand.name
-            You can send and receive messages through {{name}}.
+            You can now start flows through {{name}}.
       -else
         %h1
           -trans "Getting Started"
-
 
       .row
         .span12
@@ -42,13 +41,13 @@
           see how things are going.
       %p
         -trans "To learn more about flows, visit the"
-        <a href="{% non_ssl_url 'public.video_list'%}">{% trans "learning center" %}</a>.
+        <a href="{% non_ssl_brand_url 'public.video_list'%}">{% trans "learning center" %}</a>.
       %div
         %a.btn.workflow-btn{href:"{% url 'flows.flow_list' %}" }
           -trans "View Sample Flows"
         %a.create_flow.btn.workflow-btn{href:"#"}
           -trans "Create Flow"
-        %a.btn.workflow-btn{href:"{% non_ssl_url 'public.video_list'%}"}
+        %a.btn.workflow-btn{href:"{% non_ssl_brand_url 'public.video_list'%}"}
           -trans "How to Build Flows"
 
   .row

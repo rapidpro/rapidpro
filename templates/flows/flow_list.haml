@@ -66,6 +66,14 @@
                                   %a{'href':'{% url "flows.flow_filter" sub_label.pk %}'}
                                     {{ sub_label.name }} ({{ sub_label.get_flows_count }})
 
+                -if campaigns
+                  %li.nav-header
+                    -trans "Campaigns"
+                  -for campaign in campaigns
+                    %li{'class': '{% if current_campaign.id == campaign.campaign__id %}active{% endif %}'}
+                      %a{'href':'{% url "flows.flow_campaign" campaign.campaign__id %}'}
+                        {{ campaign.campaign__name }} ({{campaign.count}})
+
           -block flow-list
             .span9
               - block buttons
@@ -124,10 +132,9 @@
                 %tbody
                   -for object in object_list
                     -with object.get_and_clear_unread_responses as new_responses
-                      %tr.flow.object-row.select-row{ data-object-id: "{{ object.id }}" }
+                      %tr.flow.object-row.select-row{ data-object-uuid: "{{object.uuid}}", data-object-id: "{{ object.id }}" }
                         %td.flow.checkbox.object-row-checkbox
-                          -if object.flow_type != 'V' or object.org.supports_ivr
-                            .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox
+                          .glyph.icon-checkbox-unchecked.flow-checkbox.object-row-checkbox
 
                         %td.value-name
                           -if object.flow_type == 'V'
@@ -201,7 +208,6 @@
 
          fetchPJAXContent("", "#pjax", { postData: { objects: flowsIds, label: labelId, add: addLabel, action: 'label', pjax: 'true', number:number },
 
-
          forceReload: true, onSuccess: function(data, textStatus) {
 
            // if there is a live modal, hide it
@@ -220,7 +226,7 @@
     $(document).ready( function() {
 
       $(document).on('click', 'tr.flow td:nth-child(n+2)', function(e){
-         document.location = '/flow/editor/' + $(this).parent().data("object-id");
+         document.location = '/flow/editor/' + $(this).parent().data("object-uuid");
       });
 
       {% if org_perms.flows.flow_create %}

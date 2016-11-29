@@ -117,9 +117,9 @@ class ResultTest(FlowFileTest):
         ContactField.get_or_create(self.org, self.admin, 'district', label="District", value_type=Value.TYPE_DISTRICT)
 
         self.c1.set_field(self.user, 'state', "Kigali City")
-        self.c1.set_field(self.user, 'district', "Kigali")
+        self.c1.set_field(self.user, 'district', "Nyarugenge")
         self.c2.set_field(self.user, 'state', "Kigali City")
-        self.c2.set_field(self.user, 'district', "Kigali")
+        self.c2.set_field(self.user, 'district', "Nyarugenge")
 
         self.run_color_gender_flow(self.c1, "red", "male", "16")
         self.run_color_gender_flow(self.c2, "blue", "female", "19")
@@ -312,8 +312,8 @@ class ResultTest(FlowFileTest):
         # only on district in kigali
         self.assertEquals(1, len(result))
         kigali_result = result[0]
-        self.assertEquals('60485579', kigali_result['boundary'])
-        self.assertEquals('Kigali', kigali_result['label'])
+        self.assertEquals('3963734', kigali_result['boundary'])
+        self.assertEquals('Nyarugenge', kigali_result['label'])
         self.assertResult(kigali_result, 0, "Red", 0)
         self.assertResult(kigali_result, 1, "Blue", 2)
         self.assertResult(kigali_result, 2, "Green", 0)

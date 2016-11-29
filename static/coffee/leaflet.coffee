@@ -55,18 +55,19 @@ app.directive "uniqueAlias", ->
 
       # this is pretty inefficient, should cache some of this info for quicker comparisons
       if scope.currentBoundary
+        scopeLevel = scope.currentBoundary.level
 
         for boundary in scope.boundaries
           if not valid
             break
 
           if boundary.osm_id != scope.currentBoundary.osm_id
-            if boundary.name.toLowerCase() in values
+            if boundary.name.toLowerCase() in values and boundary.level == scopeLevel
               valid = false
 
             if valid and boundary.aliases
                 for alias in boundary.aliases.trim().split('\n')
-                  if alias.toLowerCase() in values
+                  if alias.toLowerCase() in values and boundary.level == scopeLevel
                     valid = false
 
             if not valid
@@ -75,11 +76,11 @@ app.directive "uniqueAlias", ->
           if boundary.children?
             for child in boundary.children
               if child.osm_id != scope.currentBoundary.osm_id
-                if child.name.toLowerCase() in values
+                if child.name.toLowerCase() in values and child.level == scopeLevel
                   valid = false
                 if valid and child.aliases
                   for alias in child.aliases.split('\n')
-                    if alias.toLowerCase() in values
+                    if alias.toLowerCase() in values and child.level == scopeLevel
                       valid = false
 
                 if not valid

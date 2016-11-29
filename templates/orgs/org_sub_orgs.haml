@@ -1,0 +1,160 @@
+-extends "smartmin/list.html"
+
+-load compress temba smartmin humanize
+-load i18n
+
+-block extra-less
+  {{block.super}}
+  -compress css
+    {% lessblock %}
+      :plain
+
+        form.smartmin-form.form-horizontal ul.errorlist {
+          margin-left: 0;
+        }
+
+        tr {
+
+          th {
+            &.header-created_on {
+              text-align: right;
+              width: 160px;
+            }
+
+            &.header-manage {
+              visibility: hidden;
+            }
+          }
+
+          td {
+
+            .child-org-name {
+              cursor: pointer;
+              text-decoration: underline;
+              color: @color-links;
+            }
+
+            &.field_created_on {
+              text-align: right;
+            }
+
+            &.field_manage{
+              text-align: right;
+            }
+          }
+
+        }
+
+        .service {
+          margin-top:5px;
+        }
+
+        .num-credits {
+          text-align:right;
+
+          color: #333;
+          font-size:22px;
+          font-weight:100;
+        }
+
+        .header-used {
+          text-align: center;
+        }
+
+        .used-pct {
+          text-align:right;
+          font-size:18px;
+          color: #aaa;
+          &.used-warning {
+            color: @flat-mutedorange;
+          }
+
+          &.used-alert {
+            color: @flat-mutedred;
+          }
+        }
+
+        .suspended {
+          color: @flat-mutedred;
+        }
+
+        .table td {
+          vertical-align:middle
+        }
+
+        .value-owner {
+          width:280px;
+        }
+
+        .owner {
+          display:inline;
+        }
+
+        .service {
+          float:right;
+          width: 50px;
+          margin-right:20px;
+        }
+
+        .owner-email {
+          font-size:11px;
+          line-height:11px;
+
+        }
+
+        .owner-name {
+        }
+
+        .org-timezone {
+          font-size: 11px;
+          line-height:11px;
+        }
+
+        .quick {
+          padding: 5px;
+        }
+
+        .quick-searches {
+          margin-bottom: 20px;
+          background: @flat-white + #090909;
+          padding:10px;
+          .rounded-corners(5px);
+        }
+
+    {% endlessblock %}
+
+-block extra-script
+  {{block.super}}
+
+  :javascript
+    {% if org_perms.orgs.org_create_sub_org %}
+    $(document).ready(function() {
+
+      $("td .child-org-name").live('click', function(event) {
+        var parent = $(this).parents('tr')
+        console.log($(parent));
+        $(parent).find('.edit-org').each(function() {
+          var url = $(this).attr('data-url');
+          var modal = new Modax('Update', url);
+          modal.setIcon('icon-office');
+          modal.setRedirectOnSuccess(true);
+          modal.show();
+        });
+      });
+
+      $(".add-sub-org").live('click', function(){
+        var modal = new Modax('Add Organization','{% url "orgs.org_create_sub_org" %}');
+        modal.setIcon('icon-office');
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+
+      $(".transfer-credits").live('click', function(){
+        var modal = new Modax('Transfer Credits','{% url "orgs.org_transfer_credits" %}');
+        modal.setIcon('icon-coins');
+        modal.setRedirectOnSuccess(true);
+        modal.show();
+      });
+
+     });
+    {% endif %}

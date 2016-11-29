@@ -11,6 +11,10 @@
           text-align: center;
           background-color: #0c6596;
           padding-top: 15px;
+          input[type=text] {
+            margin-bottom: 0;
+            height: 27px;
+          }
         }
 
         .text-error {
@@ -33,46 +37,29 @@
             position: relative;
           }
         }
+
     {% endlessblock %}
 
 -block post-header
-  #marketing
-    .container
+    .row
       #splash
-        .row
-          .span12
-            %h1.description
-              {{ brand.description }}
+        %h1.description
+          {{ brand.description }}
 
-      .row
-        .span12
-          #lead-form
-            %form{action:'{% ssl_url "public.lead_create" %}', method:'POST'}
-              -csrf_token
+    .row
+      #lead-form
+        %form{action:'{% ssl_brand_url "public.lead_create" %}', method:'POST'}
+          -csrf_token
 
-              %fieldset
-                .control-group
-                  .controls
-                    %nobr
-                      %input.controls{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
-                      %button.btn.btn-success{type:"submit"}
-                        -trans "Create Account"
-            -if errors
-              %p.text-error {{error_msg}}
+          %fieldset
+            .control-group
+              .controls
+                %nobr
+                  %input.controls{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
+                  %button.btn.btn-success{type:"submit"}
+                    -trans "Create Account"
+        -if errors
+          %p.text-error {{error_msg}}
 
     -if not thanks
       %br{clear:"both"}.clearfix
-      #bottom.bottom-call
-        #jumbotron
-          %form{action:'{% ssl_url "public.lead_create" %}#bottom', method:'POST'}
-            -csrf_token
-
-            %fieldset
-              .control-group
-                .controls
-                  %nobr
-                    %input.controls{'type':"text", 'name':"email", 'placeholder':"Enter your email.."}
-                    %button.btn.btn-success{type:"submit"}
-                      -trans "Try it for Free"
-              -if errors
-                %p.text-error {{error_msg}}

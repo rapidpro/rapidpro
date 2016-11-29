@@ -23,14 +23,6 @@
       border-bottom: 1px solid #ccc;
     }
 
-    .topup.expired {
-      border-bottom: 1px solid rgb(178, 23, 26);
-    }
-
-    .topup.expiring {
-      border-bottom: 1px solid #e68628;
-    }
-
     .topup-price {
       float: right;
       font-size: 20px;
@@ -108,10 +100,7 @@
   -for topup in object_list
     .topup{ class:"{% if topup.expires_on < now %}expired{% elif topup.expires_on < expiration_period %}expiring{% endif %}" }
       .topup-price
-        -if not topup.price
-          -trans "FREE"
-        -else
-          ${{ topup.dollars }}
+        {{ topup.get_price_display }}
 
       .topup-credits
         {{ topup.get_used|intcomma }} {% trans "of" %} {{ topup.credits|intcomma }} {% trans "Credits Used" %}
@@ -129,7 +118,11 @@
           {{ topup.comment }}
 
         -else
-          -if not topup.price
+          -if topup.price|default_if_none:-1 == -1
+            -blocktrans with brand.name as brand
+              Thank you for supporting {{ brand }}.
+
+          -elif topup.price == 0
             -blocktrans with brand.name as brand
               Complementary credits, thanks for trying {{ brand }}.
 

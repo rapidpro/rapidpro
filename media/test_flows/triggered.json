@@ -1,0 +1,106 @@
+{
+  "campaigns": [],
+  "version": 8,
+  "site": "http://rapidpro.io",
+  "flows": [
+    {
+      "base_language": "eng",
+      "action_sets": [
+        {
+          "y": 0,
+          "x": 100,
+          "destination": null,
+          "uuid": "7b99bb2e-054f-4a60-a986-367ecf114879",
+          "actions": [
+            {
+              "msg": {
+                "eng": "Honey, I triggered the flow! @extra.text"
+              },
+              "type": "reply"
+            }
+          ]
+        }
+      ],
+      "version": 8,
+      "flow_type": "F",
+      "entry": "7b99bb2e-054f-4a60-a986-367ecf114879",
+      "rule_sets": [],
+      "metadata": {
+        "expires": 10080,
+        "saved_on": "2016-07-21T16:34:32.457154Z",
+        "id": 25994,
+        "name": "Triggeree",
+        "revision": 1
+      }
+    },
+    {
+      "base_language": "eng",
+      "action_sets": [
+        {
+          "y": 0,
+          "x": 100,
+          "destination": null,
+          "uuid": "06a3be8b-36f9-4f73-b31a-95a1e8ee920d",
+          "actions": [
+            {
+              "name": "Triggeree",
+              "contacts": [
+                {
+                  "name": "Marshawn",
+                  "id": contact_id
+                }
+              ],
+              "variables": [],
+              "groups": [],
+              "type": "trigger-flow",
+              "id": 25994
+            },
+            {
+              "name": "Triggeree",
+              "type": "flow",
+              "id": 25994
+            }
+          ]
+        }
+      ],
+      "version": 8,
+      "flow_type": "F",
+      "entry": "98d0948b-c50d-4033-b07c-403d324aa147",
+      "rule_sets": [{
+          "uuid": "98d0948b-c50d-4033-b07c-403d324aa147",
+          "webhook_action": "GET",
+          "rules": [
+            {
+              "test": {
+                "test": "true",
+                "type": "true"
+              },
+              "category": {
+                "eng": "All Responses"
+              },
+              "destination": "06a3be8b-36f9-4f73-b31a-95a1e8ee920d",
+              "uuid": "1e89ff33-80fe-4d34-9ced-3b96f5aacd50",
+              "destination_type": "A"
+            }
+          ],
+          "webhook": "http://catfacts-api.appspot.com/api/facts?number=1",
+          "ruleset_type": "webhook",
+          "label": "Response 1",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 0,
+          "x": 328,
+          "config": {}
+        }],
+      "metadata": {
+        "expires": 10080,
+        "revision": 1,
+        "id": 25995,
+        "name": "Triggerer",
+        "saved_on": "2016-07-21T16:35:05.717556Z"
+      }
+    }
+  ],
+  "triggers": []
+}

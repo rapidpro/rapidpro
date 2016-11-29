@@ -4,6 +4,7 @@ import ttag
 
 from django import template
 from django.utils.safestring import mark_safe
+from temba.channels.models import ChannelEvent
 from ttag.helpers import AsTag
 
 
@@ -23,8 +24,8 @@ def as_icon(contact_event):
 
     if hasattr(contact_event, 'status'):
         status = contact_event.status
-    elif hasattr(contact_event, 'call_type'):
-        status = contact_event.call_type
+    elif isinstance(contact_event, ChannelEvent):
+        status = contact_event.event_type
     else:
         status = None
 
@@ -42,14 +43,15 @@ def as_icon(contact_event):
         icon = 'icon-bubble-right green'
     elif status in ['E', 'F']:
         icon = 'icon-bubble-notification red'
-    elif status == 'mo_call':
+    elif status == ChannelEvent.TYPE_CALL_IN:
         icon = 'icon-call-incoming green'
-    elif status == 'mo_miss':
+    elif status == ChannelEvent.TYPE_CALL_IN_MISSED:
         icon = 'icon-call-incoming red'
-    elif status == 'mt_call':
+    elif status == ChannelEvent.TYPE_CALL_OUT:
         icon = 'icon-call-outgoing green'
-    elif status == 'mt_miss':
+    elif status == ChannelEvent.TYPE_CALL_OUT_MISSED:
         icon = 'icon-call-outgoing red'
+
     return mark_safe('<span class="glyph %s"></span>' % icon)
 
 

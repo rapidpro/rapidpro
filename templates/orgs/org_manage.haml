@@ -14,8 +14,12 @@
 
         .num-credits {
           text-align:right;
-          font-size:22px;
-          font-weight:100;
+
+          a {
+            color: #333;
+            font-size:22px;
+            font-weight:100;
+          }
         }
 
         .used-pct {
@@ -82,14 +86,6 @@
 
 -block extra-script
   {{block.super}}
-
-  :javascript
-    $(document).ready(function() {
-      $('.num-credits').each(function() {
-        $(this).text(parseInt($(this).text().strip()).toLocaleString());
-      });
-    });
-
 
 -block pre-table
   .quick-searches

@@ -1,0 +1,117 @@
+{
+  "campaigns": [], 
+  "version": 9, 
+  "site": "http://textit.staging.nyaruka.com", 
+  "flows": [
+    {
+      "base_language": "base", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": "5bf39591-60f4-4195-a702-3945de0d5c94", 
+          "uuid": "7ca60533-726c-4317-9214-04c0c3936bb5", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Hey there, what's your name?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 240, 
+          "x": 471, 
+          "destination": "5bf39591-60f4-4195-a702-3945de0d5c94", 
+          "uuid": "395659fc-7834-4a2a-85f9-b761296a0880", 
+          "actions": [
+            {
+              "msg": {
+                "base": "No seriously, what's your name?"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 405, 
+          "x": 161, 
+          "destination": null, 
+          "uuid": "93417e1d-b557-4ee7-8255-60e80b4e76ce", 
+          "actions": [
+            {
+              "msg": {
+                "base": "Cool, got it.."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 9, 
+      "flow_type": "F", 
+      "entry": "7ca60533-726c-4317-9214-04c0c3936bb5", 
+      "rule_sets": [
+        {
+          "uuid": "5bf39591-60f4-4195-a702-3945de0d5c94", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "base": "All Responses"
+              }, 
+              "destination": "93417e1d-b557-4ee7-8255-60e80b4e76ce", 
+              "uuid": "09337597-1aa1-454a-b8da-3ed9aad91982", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "type": "timeout", 
+                "minutes": 1
+              }, 
+              "category": {
+                "base": "No Response"
+              }, 
+              "destination": "395659fc-7834-4a2a-85f9-b761296a0880", 
+              "uuid": "94fe2cf9-96f9-4c17-a517-edf2b5422bc1", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "wait_message", 
+          "label": "Name", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 189, 
+          "x": 139, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 11, 
+        "uuid": "ad72dc54-0aa8-4054-b98a-58e952eb7b93", 
+        "name": "Timeout Flow", 
+        "saved_on": "2016-08-01T20:48:21.833513Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "K", 
+      "flow": {
+        "name": "Timeout Flow", 
+        "uuid": "ad72dc54-0aa8-4054-b98a-58e952eb7b93"
+      }, 
+      "groups": [], 
+      "keyword": "timeout", 
+      "channel": null
+    }
+  ]
+}

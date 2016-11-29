@@ -45,7 +45,7 @@ class BaseActionForm(forms.Form):
         delete_allowed = user_permissions.filter(codename="msg_update")
         resend_allowed = user_permissions.filter(codename="broadcast_send")
 
-        if action in ('label', 'unlabel', 'archive', 'restore', 'block', 'unblock') and not update_allowed:
+        if action in ('label', 'unlabel', 'archive', 'restore', 'block', 'unblock', 'unstop') and not update_allowed:
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
 
         if action == 'delete' and not delete_allowed:
@@ -105,6 +105,10 @@ class BaseActionForm(forms.Form):
 
         elif action == 'delete':
             changed = self.model.apply_action_delete(self.user, objects)
+            return dict(changed=changed)
+
+        elif action == 'unstop':
+            changed = self.model.apply_action_unstop(self.user, objects)
             return dict(changed=changed)
 
         elif action == 'resend':

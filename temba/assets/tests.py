@@ -14,8 +14,7 @@ class AssetTest(TembaTest):
 
     def test_download(self):
         # create a message export
-        message_export_task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                created_by=self.admin, modified_by=self.admin)
+        message_export_task = ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
 
         response = self.client.get(reverse('assets.download',
                                            kwargs=dict(type='message_export', pk=message_export_task.pk)))
@@ -46,8 +45,7 @@ class AssetTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         # create contact export and check that we can access it
-        contact_export_task = ExportContactsTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                created_by=self.admin, modified_by=self.admin)
+        contact_export_task = ExportContactsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
         contact_export_task.do_export()
 
         response = self.client.get(reverse('assets.download',
@@ -56,8 +54,7 @@ class AssetTest(TembaTest):
 
         # create flow results export and check that we can access it
         flow = self.create_flow()
-        results_export_task = ExportFlowResultsTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                   created_by=self.admin, modified_by=self.admin)
+        results_export_task = ExportFlowResultsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
         results_export_task.flows.add(flow)
         results_export_task.do_export()
 
@@ -84,8 +81,7 @@ class AssetTest(TembaTest):
 
     def test_stream(self):
         # create a message export
-        message_export_task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
-                                                                created_by=self.admin, modified_by=self.admin)
+        message_export_task = ExportMessagesTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
 
         # try as anon
         response = self.client.get(reverse('assets.stream',

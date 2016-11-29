@@ -1,0 +1,90 @@
+-extends 'smartmin/form.html'
+-load smartmin
+-load i18n
+
+-block form-span
+  span8
+
+-block pre-form
+
+  -blocktrans
+    You can create flow events which external services can subscribe to. For example, Zapier can subscribe
+    to flow events you create and trigger any number of Zapier integrations when they occur in your flows.
+
+-block fields
+    -if current_resthooks
+      %table#table-resthooks.table.table-condensed
+        %thead
+          %tr
+            %th Flow Event
+            %th.permission Remove
+
+        %tbody
+          -if current_resthooks
+            -for resthook in current_resthooks
+              %tr
+                %td= resthook.resthook.slug
+                %td.resthook-check.permission
+                  .hidden-input.hide
+                    {{form|field:resthook.field}}
+                  .glyph.level-checkbox
+
+    -else
+      %hr
+
+    .field.formax-vertical
+      {% render_field 'resthook' %}
+
+-block summary
+  -with org.get_resthooks as resthooks
+    -trans "You have"
+
+    %span.attn
+      -if resthooks|length == 0
+        -trans "no flow events"
+      -elif resthooks|length == 1
+        -trans "one flow event"
+      -else
+        {{ resthooks|length }}
+        -trans "flow events"
+
+    -trans "configured."
+
+-block extra-script
+  {{block.super}}
+  :javascript
+    $(function() {
+      $("td.resthook-check .glyph").on('click', function(){
+        console.log("clicked");
+        var cell = $(this).parent("td.resthook-check");
+        var ipt = cell.find("input[type='checkbox']");
+
+        if (!cell.hasClass("checked")) {
+          cell.addClass('checked');
+          ipt.prop('checked', true);
+        } else {
+          cell.removeClass('checked');
+          ipt.prop('checked', false);
+        }
+      })
+    });
+
+-block extra-style
+  :css
+    .formax-vertical form.smartmin-form.form-horizontal ul.errorlist {
+      margin-left: 0px;
+    }
+
+    #table-resthooks {
+      margin: 10px 0px 10px 0px;
+      /* border-top: 1px solid #eee; */
+      /* border-bottom: 1px solid #eee; */
+    }
+
+    #table-resthooks th {
+      border-bottom: 1px solid #eee;
+    }
+
+    td.resthook-check.checked .glyph.level-checkbox:before {
+      content: "\e05a";
+    }

@@ -120,12 +120,12 @@ class ScheduleTest(TembaTest):
         self.assertIn("At least one recipient is required", response.content)
 
         # missing message
-        post_data = dict(text="", omnibox="c-%d" % joe.pk, sender=self.channel.pk, _format="json", schedule=True)
+        post_data = dict(text="", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, _format="json", schedule=True)
         response = self.client.post(reverse('msgs.broadcast_send'), post_data, follow=True)
         self.assertIn("This field is required", response.content)
 
         # finally create our message
-        post_data = dict(text="A scheduled message to Joe", omnibox="c-%d" % joe.pk, sender=self.channel.pk, _format="json", schedule=True)
+        post_data = dict(text="A scheduled message to Joe", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, _format="json", schedule=True)
         response = json.loads(self.client.post(reverse('msgs.broadcast_send'), post_data, follow=True).content)
         self.assertIn("/broadcast/schedule_read", response['redirect'])
 
@@ -135,7 +135,7 @@ class ScheduleTest(TembaTest):
         broadcast = response.context['object']
 
         # update our message
-        post_data = dict(message="An updated scheduled message", omnibox="c-%d" % joe.pk)
+        post_data = dict(message="An updated scheduled message", omnibox="c-%s" % joe.uuid)
         self.client.post(reverse('msgs.broadcast_update', args=[broadcast.pk]), post_data)
         self.assertEquals("An updated scheduled message", Broadcast.objects.get(pk=broadcast.pk).text)
 
@@ -221,10 +221,10 @@ class ScheduleTest(TembaTest):
 
     def test_calculating_next_fire(self):
 
-        self.org.timezone = 'US/Eastern'
+        self.org.timezone = pytz.timezone('US/Eastern')
         self.org.save()
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
         eleven_fifteen_est = tz.localize(datetime(2013, 1, 3, hour=23, minute=15, second=0, microsecond=0))
 
         # Test date is 10:15am on a Thursday, Jan 3rd
@@ -242,9 +242,9 @@ class ScheduleTest(TembaTest):
 
     def test_update_near_day_boundary(self):
 
-        self.org.timezone = 'US/Eastern'
+        self.org.timezone = pytz.timezone('US/Eastern')
         self.org.save()
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sched = self.create_schedule('D')
         Broadcast.create(self.org, self.admin, 'Message', [], schedule=sched)

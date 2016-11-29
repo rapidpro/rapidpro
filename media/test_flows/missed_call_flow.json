@@ -1,0 +1,49 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "e0ba0b48-9a7c-45ff-9f54-35bb12015a92", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "We saw a missed call from you. We'll contact you tomorrow on @contact.tel_e164"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "e0ba0b48-9a7c-45ff-9f54-35bb12015a92", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "uuid": "b4aa8add-6060-4ff2-a307-2a06f7dbbc1c", 
+        "name": "Missed Call", 
+        "saved_on": "2016-09-09T10:22:09.554167Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "M", 
+      "flow": {
+        "name": "Missed Call", 
+        "uuid": "b4aa8add-6060-4ff2-a307-2a06f7dbbc1c"
+      }, 
+      "groups": [], 
+      "keyword": null, 
+      "channel": null
+    }
+  ]
+}

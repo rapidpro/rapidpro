@@ -4,7 +4,7 @@ import regex
 
 from temba_expressions.evaluator import Evaluator, EvaluationStrategy, DEFAULT_FUNCTION_MANAGER
 
-ALLOWED_TOP_LEVELS = ('channel', 'contact', 'date', 'extra', 'flow', 'step')
+ALLOWED_TOP_LEVELS = ('channel', 'contact', 'date', 'extra', 'flow', 'step', 'parent', 'child')
 
 evaluator = Evaluator(allowed_top_levels=ALLOWED_TOP_LEVELS)
 

@@ -6,9 +6,10 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
+
+from temba.ivr.models import IVRCall
 from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
-from .models import IVRCall, IN_PROGRESS, COMPLETED
 
 
 class CallHandler(View):
@@ -17,7 +18,7 @@ class CallHandler(View):
     def dispatch(self, *args, **kwargs):
         return super(CallHandler, self).dispatch(*args, **kwargs)
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):  # pragma: no cover
         return HttpResponse("ILLEGAL METHOD")
 
     def post(self, request, *args, **kwargs):
@@ -33,7 +34,7 @@ class CallHandler(View):
                 if user_org and user_org.pk == call.org.pk:
                     client.calls.hangup(call.external_id)
                     return HttpResponse(json.dumps(dict(status='Canceled')), content_type="application/json")
-                else:
+                else:  # pragma: no cover
                     return HttpResponse("Not found", status=404)
 
         if client.validate(request):
@@ -42,23 +43,29 @@ class CallHandler(View):
             call.update_status(status, duration)
 
             # update any calls we have spawned with the same
-            for child in call.child_calls.all():
+            for child in call.child_sessions.all():
                 child.update_status(status, duration)
                 child.save()
 
             call.save()
 
-            hangup = 'hangup' == request.POST.get('Digits', None)
+            # figure out if this is a callback due to an empty gather
+            is_empty = '1' == request.GET.get('empty', '0')
+            user_response = request.POST.copy()
 
-            if call.status == IN_PROGRESS or hangup:
-                if call.is_flow():
-                    response = Flow.handle_call(call, request.POST, hangup=hangup)
-                    return HttpResponse(unicode(response))
+            # if the user pressed pound, then record no digits as the input
+            if is_empty:
+                user_response['Digits'] = ''
+
+            hangup = 'hangup' == user_response.get('Digits', None)
+
+            if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
+                response = Flow.handle_call(call, user_response, hangup=hangup)
+                return HttpResponse(unicode(response))
             else:
-
-                if call.status == COMPLETED:
+                if call.status == IVRCall.COMPLETED:
                     # if our call is completed, hangup
-                    run = FlowRun.objects.filter(call=call).first()
+                    run = FlowRun.objects.filter(session=call).first()
                     if run:
                         run.set_completed()
                 return build_json_response(dict(message="Updated call status"))
@@ -67,4 +74,4 @@ class CallHandler(View):
             # raise an exception that things weren't properly signed
             raise ValidationError("Invalid request signature")
 
-        return build_json_response(dict(message="Unhandled"))
+        return build_json_response(dict(message="Unhandled"))  # pragma: no cover

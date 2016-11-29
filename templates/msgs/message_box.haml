@@ -20,6 +20,13 @@
 
 -block content
 
+  // Needed for table wrapping on IE 9
+  <!--[if IE]>
+  <style>
+    table.sms_list { table-layout: fixed; }
+  </style>
+  <![endif]-->
+
   #numeric-form.hide
     %form
       %label
@@ -170,22 +177,23 @@
                       %td.value-phone.field_phone
                         %nobr
                           {{ object.contact|short_name:user_org }}
-                      %td.value-text.field_text
+                      %td.value-text.field_text.wrapped
                         {% get_value object 'text' %}
-                        .value-labels
-                          - for label in object.labels.all
-                            %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                              %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
-                                ={label.name}
+                        - if 'label' in actions
+                          .value-labels
+                            - for label in object.labels.all
+                              %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                                %a{href:"{% url 'msgs.msg_filter' label.pk%}"}
+                                  ={label.name}
 
                           - if object.get_flow_id
                             %span.label.label-success
-                              %a{href:"{% url 'flows.flow_editor' object.get_flow_id %}"}
-                                ={object.get_flow_name}
+                              %a{href:"{% url 'flows.flow_editor' object.get_flow.uuid %}"}
+                                ={object.get_flow.name}
 
                       %td.value-icon.field_icon
-                        -with object.channellog_set.all.first as log
-                          -if log
+                        -with object.get_last_log as log
+                          -if log and not user_org.is_anon
                             %a{href:"{% url 'channels.channellog_read' log.pk%}"}
                               {{ object|as_icon }}
                           -else

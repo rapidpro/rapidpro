@@ -1,0 +1,100 @@
+{
+  "version": 8, 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 191, 
+          "x": 291, 
+          "destination": null, 
+          "uuid": "ab30f3ba-de6b-48a8-88e5-1c9b939acbf0", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Message failed"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 194, 
+          "x": 54, 
+          "destination": null, 
+          "uuid": "a04dc593-7df3-4816-ad55-7b3b7c8ea137", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Message complete"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "F", 
+      "entry": "6b221d79-eb5b-4466-a669-0afa9ee2aba5", 
+      "rule_sets": [
+        {
+          "uuid": "6b221d79-eb5b-4466-a669-0afa9ee2aba5", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "category": {
+                "eng": "Success"
+              },
+              "uuid": "573b605f-c08b-4fbc-a9a7-4e3cb9d24c77",
+              "destination": "a04dc593-7df3-4816-ad55-7b3b7c8ea137",
+              "destination_type": "A",
+              "test": {
+                "type": "airtime_status",
+                "exit_status": "success"
+              },
+              "type": "airtime_status"
+            },
+            {
+              "category": {
+                "eng": "Failed"
+              }, 
+              "uuid": "e9995a99-87fd-4ccb-808f-209a428dbc2d", 
+              "destination": "ab30f3ba-de6b-48a8-88e5-1c9b939acbf0", 
+              "destination_type": "A", 
+              "test": {
+                "type": "airtime_status", 
+                "exit_status": "failed"
+              }, 
+              "type": "airtime_status"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "airtime", 
+          "label": "Response 1", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 100, 
+          "config": {
+            "US": {
+              "currency_name": "US Dollar", 
+              "amount": 10, 
+              "code": "US", 
+              "name": "United States", 
+              "currency_code": "USD"
+            }
+          }
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 7, 
+        "id": 52989, 
+        "name": "Airtime", 
+        "saved_on": "2016-07-12T11:44:33.124120Z"
+      }
+    }
+  ], 
+  "triggers": []
+}

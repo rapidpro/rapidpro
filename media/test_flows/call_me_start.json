@@ -1,0 +1,167 @@
+{
+  "campaigns": [], 
+  "version": 8, 
+  "site": "https://app.rapidpro.io", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 146, 
+          "x": 38, 
+          "destination": null, 
+          "uuid": "f51206bf-4a7b-4fc2-ac55-44b69c21addf", 
+          "actions": [
+            {
+              "type": "flow", 
+              "name": "Incoming IVR Yes", 
+              "id": 52633
+            }
+          ]
+        }, 
+        {
+          "y": 139, 
+          "x": 289, 
+          "destination": null, 
+          "uuid": "766229a8-6356-498b-8115-9b35d2878a44", 
+          "actions": [
+            {
+              "type": "flow", 
+              "name": "Incoming IVR No", 
+              "id": 52634
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "V", 
+      "entry": "e8a3a438-cc51-40fc-9343-36595fadd4e7", 
+      "rule_sets": [
+        {
+          "uuid": "e8a3a438-cc51-40fc-9343-36595fadd4e7", 
+          "webhook_action": null, 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "Mothers"
+                }, 
+                "type": "contains_any"
+              }, 
+              "category": {
+                "eng": "Mothers"
+              }, 
+              "destination": "f51206bf-4a7b-4fc2-ac55-44b69c21addf", 
+              "uuid": "35e42d39-7a55-46a0-8a0b-c82ed3def104", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "766229a8-6356-498b-8115-9b35d2878a44", 
+              "uuid": "14a9cbb8-d556-41d2-bd43-80b6dcbf484c", 
+              "destination_type": "A"
+            }
+          ], 
+          "webhook": null, 
+          "ruleset_type": "contact_field", 
+          "label": "Group", 
+          "operand": "@contact.groups", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 0, 
+          "x": 100, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 9, 
+        "id": 52632, 
+        "name": "New Incoming IVR", 
+        "saved_on": "2016-07-08T14:31:14.697484Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "6adc5032-2c1f-4157-8a90-e8addb6c3e7b", 
+          "actions": [
+            {
+              "recording": null, 
+              "msg": {
+                "eng": "You are part of group."
+              }, 
+              "type": "say", 
+              "uuid": "4b30a972-4a1b-47d9-84d3-0a6af7e945e1"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "V", 
+      "entry": "6adc5032-2c1f-4157-8a90-e8addb6c3e7b", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 2, 
+        "id": 52633, 
+        "name": "Incoming IVR Yes", 
+        "saved_on": "2016-07-08T14:30:02.905075Z"
+      }
+    }, 
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 100, 
+          "destination": null, 
+          "uuid": "a3cb9841-ef08-4d3a-98d2-9f42cab98a7e", 
+          "actions": [
+            {
+              "recording": null, 
+              "msg": {
+                "eng": "You are not part of group."
+              }, 
+              "type": "say", 
+              "uuid": "8575f8d9-d1e7-4dd5-a043-eedb65abb80d"
+            }
+          ]
+        }
+      ], 
+      "version": 8, 
+      "flow_type": "V", 
+      "entry": "a3cb9841-ef08-4d3a-98d2-9f42cab98a7e", 
+      "rule_sets": [], 
+      "metadata": {
+        "expires": 10080, 
+        "revision": 1, 
+        "id": 52634, 
+        "name": "Incoming IVR No", 
+        "saved_on": "2016-07-08T14:29:46.253820Z"
+      }
+    }
+  ], 
+  "triggers": [
+    {
+      "trigger_type": "V", 
+      "flow": {
+        "name": "New Incoming IVR", 
+        "id": 52632
+      }, 
+      "groups": [], 
+      "keyword": null, 
+      "channel": null
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 
 from datetime import datetime, timedelta
 from django.contrib.auth.models import Group
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.urlresolvers import reverse
 from django.db import connection
 from django.test.utils import override_settings
@@ -17,10 +18,11 @@ from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, SyncEvent
-from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME, EMAIL_SCHEME
-from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, RULE_SET
-from temba.msgs.models import Broadcast, Call, Msg, Label, FAILED, ERRORED
+from temba.channels.models import Channel, ChannelEvent, SyncEvent
+from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME, TWITTER_SCHEME
+from temba.flows.models import Flow, FlowLabel, FlowRun, RuleSet, ActionSet, FlowStep
+from temba.locations.models import BoundaryAlias
+from temba.msgs.models import Broadcast, Msg, Label, FAILED, ERRORED
 from temba.orgs.models import Org, Language
 from temba.tests import TembaTest, AnonymousOrg
 from temba.utils import datetime_to_json_date
@@ -39,13 +41,11 @@ class APITest(TembaTest):
         self.channel2 = Channel.create(None, self.admin, 'RW', 'A', "Unclaimed Channel",
                                        claim_code="123123123", secret="123456", gcm_id="1234")
 
-        self.call1 = Call.objects.create(contact=self.joe,
-                                         channel=self.channel,
-                                         org=self.org,
-                                         call_type='mt_miss',
-                                         time=timezone.now(),
-                                         created_by=self.admin,
-                                         modified_by=self.admin)
+        self.call1 = ChannelEvent.objects.create(contact=self.joe,
+                                                 channel=self.channel,
+                                                 org=self.org,
+                                                 event_type=ChannelEvent.TYPE_CALL_OUT_MISSED,
+                                                 time=timezone.now())
 
         # this is needed to prevent REST framework from rolling back transaction created around each unit test
         connection.settings_dict['ATOMIC_REQUESTS'] = False
@@ -171,7 +171,7 @@ class APITest(TembaTest):
 
         # browse as HTML anonymously
         response = self.fetchHTML(url)
-        self.assertContains(response, "We provide a simple REST API", status_code=403)  # still shows docs
+        self.assertContains(response, "This is the now deprecated API v1", status_code=403)  # still shows docs
 
         # try to browse as JSON anonymously
         response = self.fetchJSON(url)
@@ -221,8 +221,8 @@ class APITest(TembaTest):
 
         phones_field = PhoneArrayField(source='test')
 
-        self.assertEqual(phones_field.to_internal_value(['123', '234']), [('tel', '123'), ('tel', '234')])
-        self.assertEqual(phones_field.to_internal_value('123'), [('tel', '123')])  # convert single string to array
+        self.assertEqual(phones_field.to_internal_value(['123', '234']), ['tel:123', 'tel:234'])
+        self.assertEqual(phones_field.to_internal_value('123'), ['tel:123'])  # convert single string to array
         self.assertRaises(ValidationError, phones_field.to_internal_value, {})  # must be a list
         self.assertRaises(ValidationError, phones_field.to_internal_value, ['123'] * 101)  # 100 items max
 
@@ -313,6 +313,72 @@ class APITest(TembaTest):
                                              timezone="Africa/Kigali",
                                              date_style="day_first",
                                              anon=False))
+
+    def test_api_boundaries(self):
+        url = reverse('api.v1.boundaries')
+
+        # 403 if not logged in
+        self.assert403(url)
+
+        # login as plain user
+        self.login(self.user)
+        self.assert403(url)
+
+        # login as administrator
+        self.login(self.admin)
+
+        # browse endpoint as HTML docs
+        response = self.fetchHTML(url)
+        self.assertEqual(response.status_code, 200)
+
+        self.create_secondary_org()
+
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigali")
+        BoundaryAlias.create(self.org, self.admin, self.state1, "Kigari")
+        BoundaryAlias.create(self.org, self.admin, self.state2, "East Prov")
+        BoundaryAlias.create(self.org2, self.admin2, self.state1, "Other Org")  # shouldn't be returned
+
+        self.state1.simplified_geometry = GEOSGeometry('MULTIPOLYGON(((1 1, 1 -1, -1 -1, -1 1, 1 1)))')
+        self.state1.save()
+
+        # test with no params
+        response = self.fetchJSON(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json['results']), 10)
+        self.assertEqual(response.json['results'][2], {
+            'boundary': "1708283",
+            'name': "Kigali City",
+            'parent': "171496",
+            'level': 1,
+            'geometry': {
+                'type': "MultiPolygon",
+                'coordinates': [
+                    [
+                        [
+                            [1.0, 1.0],
+                            [1.0, -1.0],
+                            [-1.0, -1.0],
+                            [-1.0, 1.0],
+                            [1.0, 1.0]
+                        ]
+                    ]
+                ],
+            },
+        })
+
+        # test with aliases instead of geometry
+        response = self.fetchJSON(url, 'aliases=true')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json['results']), 10)
+        self.assertEqual(response.json['results'][2], {
+            'boundary': "1708283",
+            'name': "Kigali City",
+            'parent': "171496",
+            'level': 1,
+            'aliases': ["Kigali", "Kigari"],
+        })
 
     def test_api_flows(self):
         url = reverse('api.v1.flows')
@@ -427,6 +493,7 @@ class APITest(TembaTest):
         # load flow definition from test data
         flow = self.get_flow('pick_a_number')
         definition = self.get_flow_json('pick_a_number')['definition']
+
         response = self.fetchJSON(url, "uuid=%s" % flow.uuid)
         self.assertEquals(1, response.json['metadata']['revision'])
         self.assertEquals("Pick a Number", response.json['metadata']['name'])
@@ -505,7 +572,7 @@ class APITest(TembaTest):
         ActionSet.objects.get(uuid=flow.entry_uuid).delete()
 
         # and set our entry to be our ruleset
-        flow.entry_type = RULE_SET
+        flow.entry_type = FlowStep.TYPE_RULE_SET
         flow.entry_uuid = RuleSet.objects.get().uuid
         flow.save()
 
@@ -558,7 +625,7 @@ class APITest(TembaTest):
         # login as surveyor
         self.login(self.surveyor)
 
-        flow = self.get_flow('media-survey')
+        flow = self.get_flow('media_survey')
 
         rulesets = RuleSet.objects.filter(flow=flow).order_by('y')
         ruleset_name = rulesets[0]
@@ -671,7 +738,10 @@ class APITest(TembaTest):
 
         # add a new action set
         definition['action_sets'].append(dict(uuid=new_node_uuid, x=100, y=4, destination=None,
-                                              actions=[dict(type='save', field='tel_e164', value='+12065551212')]))
+                                              actions=[
+                                                  dict(type='save', field='tel_e164', value='+12065551212'),
+                                                  dict(type='del_group', group=dict(name='Remove Me'))
+                                              ]))
 
         # point one of our nodes to it
         definition['action_sets'][1]['destination'] = new_node_uuid
@@ -715,7 +785,7 @@ class APITest(TembaTest):
         self.assertEqual(steps[0].next_uuid, None)
 
         # outgoing message for reply
-        out_msgs = list(Msg.all_messages.filter(direction='O').order_by('pk'))
+        out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
         self.assertEqual(len(out_msgs), 1)
         self.assertEqual(out_msgs[0].contact, self.joe)
         self.assertEqual(out_msgs[0].contact_urn, None)
@@ -749,7 +819,8 @@ class APITest(TembaTest):
                         dict(node=new_node_uuid,
                              arrived_on='2015-08-25T11:15:30.088Z',
                              actions=[
-                                 dict(type="save", field="tel_e164", value="+12065551212")
+                                 dict(type="save", field="tel_e164", value="+12065551212"),
+                                 dict(type="del_group", group=dict(name="Remove Me"))
                              ]),
                     ],
                     completed=True)
@@ -813,7 +884,7 @@ class APITest(TembaTest):
         self.assertEqual(steps[2].next_uuid, new_node_uuid)
 
         # new outgoing message for reply
-        out_msgs = list(Msg.all_messages.filter(direction='O').order_by('pk'))
+        out_msgs = list(Msg.objects.filter(direction='O').order_by('pk'))
         self.assertEqual(len(out_msgs), 2)
         self.assertEqual(out_msgs[1].contact, self.joe)
         self.assertEqual(out_msgs[1].contact_urn, None)
@@ -879,69 +950,6 @@ class APITest(TembaTest):
             response = self.postJSON(url, data)
             self.assertEquals(201, response.status_code)
             self.assertIsNotNone(self.joe.urns.filter(path='+13605551212').first())
-
-    def test_api_results(self):
-        url = reverse('api.v1.results')
-
-        # can't access, get 403
-        self.assert403(url)
-
-        # login as plain user
-        self.login(self.user)
-        self.assert403(url)
-
-        # login as administrator
-        self.login(self.admin)
-
-        # all requests must be against a ruleset or field
-        response = self.fetchJSON(url)
-        self.assertEquals(400, response.status_code)
-        self.assertResponseError(response, 'non_field_errors', "You must specify either a ruleset or contact field")
-
-        # create our test flow and a contact field
-        self.create_flow()
-        contact_field = ContactField.get_or_create(self.org, self.admin, 'gender', "Gender")
-        ruleset = RuleSet.objects.get()
-
-        # invalid ruleset id
-        response = self.fetchJSON(url, 'ruleset=12345678')
-        self.assertResponseError(response, 'ruleset', "No ruleset found with that UUID or id")
-
-        # invalid ruleset UUID
-        response = self.fetchJSON(url, 'ruleset=invalid-uuid')
-        self.assertResponseError(response, 'ruleset', "No ruleset found with that UUID or id")
-
-        # invalid field label
-        response = self.fetchJSON(url, 'contact_field=born')
-        self.assertResponseError(response, 'contact_field', "No contact field found with that label")
-
-        # can't specify both ruleset and field
-        response = self.fetchJSON(url, 'ruleset=%s&contact_field=Gender' % ruleset.uuid)
-        self.assertResponseError(response, 'non_field_errors', "You must specify either a ruleset or contact field")
-
-        # invalid segment JSON
-        response = self.fetchJSON(url, 'contact_field=Gender&segment=%7B\"location\"%7D')
-        self.assertResponseError(response, 'segment', "Invalid segment format, must be in JSON format")
-
-        with patch('temba.values.models.Value.get_value_summary') as mock_value_summary:
-            mock_value_summary.return_value = []
-
-            response = self.fetchJSON(url, 'ruleset=%d' % ruleset.id)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.json, dict(results=[]))
-            mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
-
-            response = self.fetchJSON(url, 'ruleset=%s' % ruleset.uuid)
-            self.assertEqual(response.status_code, 200)
-            mock_value_summary.assert_called_with(ruleset=ruleset, segment=None)
-
-            response = self.fetchJSON(url, 'contact_field=Gender')
-            self.assertEqual(200, response.status_code)
-            mock_value_summary.assert_called_with(contact_field=contact_field, segment=None)
-
-            response = self.fetchJSON(url, 'contact_field=Gender&segment=%7B\"location\"%3A\"State\"%7D')
-            self.assertEqual(200, response.status_code)
-            mock_value_summary.assert_called_with(contact_field=contact_field, segment=dict(location="State"))
 
     def test_api_runs(self):
         url = reverse('api.v1.runs')
@@ -1479,7 +1487,7 @@ class APITest(TembaTest):
 
         # try to update the contact with and un-parseable urn
         response = self.postJSON(url, dict(name='Dr Dre', urns=['tel250788123456']))
-        self.assertResponseError(response, 'urns', "Unable to parse URN: 'tel250788123456'")
+        self.assertResponseError(response, 'urns', "Invalid URN: 'tel250788123456'")
 
         # try to post a new group with a blank name
         response = self.postJSON(url, dict(phone='+250788123456', groups=["  "]))
@@ -1529,6 +1537,11 @@ class APITest(TembaTest):
         contact.unblock(self.user)
         artists.contacts.add(contact)
 
+        # try updating with a reserved word field
+        response = self.postJSON(url, dict(phone='+250788123456', fields={"email": "andy@example.com"}))
+        self.assertEquals(400, response.status_code)
+        self.assertResponseError(response, 'fields', "Invalid contact field key: 'email' is a reserved word")
+
         # try updating a non-existent field
         response = self.postJSON(url, dict(phone='+250788123456', fields={"real_name": "Andy"}))
         self.assertEquals(400, response.status_code)
@@ -1565,21 +1578,21 @@ class APITest(TembaTest):
         drdre = Contact.objects.get()
 
         # add another contact
-        jay_z = self.create_contact("Jay-Z", number="123444")
+        jay_z = self.create_contact("Jay-Z", number="+250784444444")
         ContactField.get_or_create(self.org, self.admin, 'registration_date', "Registration Date", None, Value.TYPE_DATETIME)
         jay_z.set_field(self.user, 'registration_date', "2014-12-31 03:04:00")
 
         # try to update using URNs from two different contacts
-        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:123444']))
+        response = self.postJSON(url, dict(name="Iggy", urns=['tel:+250788123456', 'tel:+250784444444']))
         self.assertEqual(response.status_code, 400)
         self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
-        # update URN using UUID
-        response = self.postJSON(url, dict(uuid=jay_z.uuid, name="Jay-Z", urns=['tel:123555']))
+        # update URN using UUID - note this endpoint still allows numbers without country codes
+        response = self.postJSON(url, dict(uuid=jay_z.uuid, name="Jay-Z", urns=['tel:0785555555']))
         self.assertEqual(response.status_code, 201)
 
         jay_z = Contact.objects.get(pk=jay_z.pk)
-        self.assertEqual([u.urn for u in jay_z.urns.all()], ['tel:123555'])
+        self.assertEqual([u.urn for u in jay_z.urns.all()], ['tel:+250785555555'])
 
         # fetch all with blank query
         self.clear_cache()
@@ -1614,7 +1627,7 @@ class APITest(TembaTest):
         self.assertContains(response, "Dr Dre")
 
         # search using urns list
-        response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:123555")))
+        response = self.fetchJSON(url, 'urns=%s&urns=%s' % (urlquote_plus("tel:+250788123456"), urlquote_plus("tel:+250785555555")))
         self.assertResultCount(response, 2)
 
         # search deleted contacts
@@ -1665,7 +1678,7 @@ class APITest(TembaTest):
             self.assertContains(response, 'Andre')
             self.assertNotContains(response, '0788123456')
             self.assertContains(response, "Jay-Z")
-            self.assertNotContains(response, '123555')
+            self.assertNotContains(response, '0785555555')
 
             # try to create a contact with an external URN
             response = self.postJSON(url, dict(urns=['ext:external-id'], name="Test Name"))
@@ -1701,7 +1714,7 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
         # check deleting a contact by URN
-        response = self.deleteJSON(url, 'urns=tel:123555')
+        response = self.deleteJSON(url, 'urns=%s' % urlquote_plus('tel:+250785555555'))
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Contact.objects.get(pk=jay_z.pk).is_active)
 
@@ -1747,7 +1760,7 @@ class APITest(TembaTest):
         self.assertEquals(201, response.status_code)
 
         # lookup that contact from an urn
-        contact = Contact.from_urn(self.org, EMAIL_SCHEME, 'snoop@foshizzle.com')
+        contact = Contact.from_urn(self.org, "mailto:snoop@foshizzle.com")
         self.assertEquals('Snoop', contact.first_name(self.org))
 
         # find it via the api
@@ -1755,6 +1768,14 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
         results = json.loads(response.content)['results']
         self.assertEquals('Snoop Dogg', results[0]['name'])
+
+        # add two existing contacts
+        self.create_contact("Zinedine", number="+250788111222")
+        self.create_contact("Rusell", number="+250788333444")
+
+        # return error when trying to to create a new contact with many urns from different existing contacts
+        response = self.postJSON(url, dict(name="Hart", urns=['tel:0788111222', 'tel:+250788333444']))
+        self.assertResponseError(response, 'non_field_errors', "URNs are used by multiple contacts")
 
     def test_api_contacts_with_multiple_pages(self):
         url = reverse('api.v1.contacts')
@@ -1906,7 +1927,8 @@ class APITest(TembaTest):
         contact5.release(self.user)
         test_contact = Contact.get_test_contact(self.user)
 
-        group = ContactGroup.get_or_create(self.org, self.admin, "Testers")
+        group = self.create_group("Testers")
+        self.create_group("Developers", query="isdeveloper = YES")
 
         # start contacts in a flow
         flow = self.create_flow()
@@ -1947,6 +1969,10 @@ class APITest(TembaTest):
         # try to add to a non-existent group
         response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='Spammers'))
         self.assertResponseError(response, 'group', "No such group: Spammers")
+
+        # try to add to a dynamic group
+        response = self.postJSON(url, dict(contacts=[contact1.uuid], action='add', group='Developers'))
+        self.assertResponseError(response, 'group', "Can't add or remove contacts from a dynamic group")
 
         # add contact 3 to a group by its UUID
         response = self.postJSON(url, dict(contacts=[contact3.uuid], action='add', group_uuid=group.uuid))
@@ -2003,16 +2029,16 @@ class APITest(TembaTest):
         # archive all messages for contacts 1 and 2
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='archive'))
         self.assertEqual(response.status_code, 204)
-        self.assertFalse(Msg.all_messages.filter(contact__in=[contact1, contact2], direction='I', visibility='V').exists())
-        self.assertTrue(Msg.all_messages.filter(contact=contact3, direction='I', visibility='V').exists())
+        self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2], direction='I', visibility='V').exists())
+        self.assertTrue(Msg.objects.filter(contact=contact3, direction='I', visibility='V').exists())
 
         # delete contacts 1 and 2
         response = self.postJSON(url, dict(contacts=[contact1.uuid, contact2.uuid], action='delete'))
         self.assertEqual(response.status_code, 204)
         self.assertEqual(set(Contact.objects.filter(is_active=False)), {contact1, contact2, contact5})
         self.assertEqual(set(Contact.objects.filter(is_active=True)), {contact3, contact4, test_contact})
-        self.assertFalse(Msg.all_messages.filter(contact__in=[contact1, contact2]).exclude(visibility='D').exists())
-        self.assertTrue(Msg.all_messages.filter(contact=contact3).exclude(visibility='D').exists())
+        self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2]).exclude(visibility='D').exists())
+        self.assertTrue(Msg.objects.filter(contact=contact3).exclude(visibility='D').exists())
 
         # try to provide a group for a non-group action
         response = self.postJSON(url, dict(contacts=[contact3.uuid], action='block', group='Testers'))
@@ -2049,20 +2075,20 @@ class APITest(TembaTest):
 
         # should be one broadcast and one SMS
         self.assertEquals(1, Broadcast.objects.all().count())
-        self.assertEquals(1, Msg.all_messages.all().count())
+        self.assertEquals(1, Msg.objects.all().count())
 
         broadcast = Broadcast.objects.get()
         self.assertEquals("test1", broadcast.text)
         self.assertEquals(self.admin.get_org(), broadcast.org)
 
-        sms = Msg.all_messages.get()
+        sms = Msg.objects.get()
         self.assertEquals("test1", sms.text)
         self.assertEquals("+250788123123", sms.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(self.admin.get_org(), sms.org)
         self.assertEquals(self.channel, sms.channel)
         self.assertEquals(broadcast, sms.broadcast)
 
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
         Broadcast.objects.all().delete()
 
         # add a broadcast with urns field
@@ -2071,13 +2097,13 @@ class APITest(TembaTest):
 
         # should be one broadcast and one SMS
         self.assertEquals(1, Broadcast.objects.all().count())
-        self.assertEquals(1, Msg.all_messages.all().count())
+        self.assertEquals(1, Msg.objects.all().count())
 
         broadcast = Broadcast.objects.get()
         self.assertEquals("test1", broadcast.text)
         self.assertEquals(self.admin.get_org(), broadcast.org)
 
-        Msg.all_messages.all().delete()
+        Msg.objects.all().delete()
         Broadcast.objects.all().delete()
 
         # add a broadcast using a contact uuid
@@ -2087,13 +2113,13 @@ class APITest(TembaTest):
 
         # should be one broadcast and one SMS
         self.assertEquals(1, Broadcast.objects.all().count())
-        self.assertEquals(1, Msg.all_messages.all().count())
+        self.assertEquals(1, Msg.objects.all().count())
 
         broadcast = Broadcast.objects.get()
         self.assertEquals("test1", broadcast.text)
         self.assertEquals(self.admin.get_org(), broadcast.org)
 
-        msg1 = Msg.all_messages.get()
+        msg1 = Msg.objects.get()
         self.assertEquals("test1", msg1.text)
         self.assertEquals("+250788123123", msg1.contact.get_urn(TEL_SCHEME).path)
         self.assertEquals(self.admin.get_org(), msg1.org)
@@ -2192,13 +2218,13 @@ class APITest(TembaTest):
         self.assertResultCount(response, 1)
 
         # add some incoming messages and a flow message
-        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test2")
+        msg2 = Msg.create_incoming(self.channel, 'tel:0788123123', "test2")
         msg3 = Msg.create_incoming(self.channel, None, "test3", contact=self.joe)  # no URN
-        msg4 = Msg.create_incoming(self.channel, (TEL_SCHEME, '0788123123'), "test4 (سلم)")
+        msg4 = Msg.create_incoming(self.channel, 'tel:0788123123', "test4 (سلم)")
 
         flow = self.create_flow()
         flow.start([], [contact])
-        msg5 = Msg.all_messages.get(contact__is_test=False, msg_type='F')
+        msg5 = Msg.objects.get(contact__is_test=False, msg_type='F')
 
         # check encoding
         response = self.fetchJSON(url, "id=%d" % msg4.pk)
@@ -2282,13 +2308,13 @@ class APITest(TembaTest):
 
         # should be one broadcast and one SMS
         self.assertEquals(1, Broadcast.objects.all().count())
-        self.assertEquals(2, Msg.all_messages.all().count())
+        self.assertEquals(2, Msg.objects.all().count())
 
         broadcast = Broadcast.objects.get()
         self.assertEquals("test1", broadcast.text)
         self.assertEquals(self.admin.get_org(), broadcast.org)
 
-        msgs = Msg.all_messages.all().order_by('contact__urns__path')
+        msgs = Msg.objects.all().order_by('contact__urns__path')
         self.assertEquals(2, msgs.count())
         self.assertEquals("test1", msgs[0].text)
         self.assertEquals("+250788123123", msgs[0].contact.get_urn(TEL_SCHEME).path)
@@ -2335,7 +2361,7 @@ class APITest(TembaTest):
         response = self.postJSON(url, dict(channel=self.channel.pk, phone=['250788123123'], text='test1'))
         self.assertEquals(201, response.status_code)
 
-        sms = Msg.all_messages.get()
+        sms = Msg.objects.get()
         self.assertEquals(self.channel.pk, sms.channel.pk)
 
         # remove our channel
@@ -2365,9 +2391,9 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 405)  # because endpoint doesn't support GET
 
         # create some messages to act on
-        msg1 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #1')
-        msg2 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #2')
-        msg3 = Msg.create_incoming(self.channel, (TEL_SCHEME, '+250788123123'), 'Msg #3')
+        msg1 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #1')
+        msg2 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #2')
+        msg3 = Msg.create_incoming(self.channel, 'tel:+250788123123', 'Msg #3')
         msg4 = Msg.create_outgoing(self.org, self.user, self.joe, "Hi Joe")
 
         # add label by name to messages 1, 2 and 4
@@ -2410,26 +2436,26 @@ class APITest(TembaTest):
         # archive all messages
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk, msg3.pk, msg4.pk], action='archive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg4})  # ignored as is outgoing
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg1, msg2, msg3})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg4})  # ignored as is outgoing
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg1, msg2, msg3})
 
         # un-archive message 1
         response = self.postJSON(url, dict(messages=[msg1.pk], action='unarchive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg2, msg3})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg2, msg3})
 
         # delete messages 2 and 4
         response = self.postJSON(url, dict(messages=[msg2.pk], action='delete'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})  # 4 ignored as is outgoing
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_VISIBLE)), {msg1, msg4})  # 4 ignored as is outgoing
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_ARCHIVED)), {msg3})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
 
         # can't un-archive a deleted message
         response = self.postJSON(url, dict(messages=[msg2.pk], action='unarchive'))
         self.assertEquals(204, response.status_code)
-        self.assertEqual(set(Msg.all_messages.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
+        self.assertEqual(set(Msg.objects.filter(visibility=Msg.VISIBILITY_DELETED)), {msg2})
 
         # try to provide a label for a non-labelling action
         response = self.postJSON(url, dict(messages=[msg1.pk, msg2.pk], action='archive', label='Test2'))
@@ -2668,6 +2694,11 @@ class APITest(TembaTest):
         # fetch by status
         response = self.fetchJSON(url, 'status=E,F')
         self.assertEqual([b['text'] for b in response.json['results']], ["Hello 3", "Hello 1"])
+
+        with AnonymousOrg(self.org):
+            # URNs shouldn't be included
+            response = self.fetchJSON(url, 'id=%d' % broadcast4.pk)
+            self.assertEqual(response.json['results'][0]['urns'], None)
 
     def test_api_campaigns(self):
         url = reverse('api.v1.campaigns')

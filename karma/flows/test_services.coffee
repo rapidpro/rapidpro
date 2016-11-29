@@ -11,9 +11,10 @@ describe 'Services:', ->
 
     # wire up our mock flows
     flows = {
-      'favorites': { id: 1, languages:[] },
+      'favorites': { id: 1, languages:[] }
       'rules_first': { id: 2, languages:[] }
       'loop_detection': { id: 3, languages:[] }
+      'ussd_example': { id: 4, languages:[] }
     }
 
     $http.whenGET('/contactfield/json/').respond([])
@@ -69,6 +70,75 @@ describe 'Services:', ->
       expect(flowService.completions).toEqual([{name:'contact.name', display:'Contact Name'}])
       expect(flowService.function_completions).toEqual([{name:'SUM', display:'Returns the sum of all arguments'}])
       expect(flowService.variables_and_functions).toEqual([flowService.completions..., flowService.function_completions...])
+
+    it 'should restrict rules according to exclusivity', ->
+
+      expect(flowService.isRuleAllowed('subflow', 'subflow')).toBe(true)
+      expect(flowService.isRuleAllowed('subflow', 'contains_any')).toBe(false)
+      expect(flowService.isRuleAllowed('subflow', 'timeout')).toBe(false)
+
+      expect(flowService.isRuleAllowed('wait_message', 'contains_any')).toBe(true)
+      expect(flowService.isRuleAllowed('wait_message', 'timeout')).toBe(true)
+      expect(flowService.isRuleAllowed('wait_message', 'true')).toBe(true)
+      expect(flowService.isRuleAllowed('wait_message', 'timeout')).toBe(true)
+      expect(flowService.isRuleAllowed('wait_message', 'subflow')).toBe(false)
+      expect(flowService.isRuleAllowed('wait_message', 'webhook_status')).toBe(false)
+      expect(flowService.isRuleAllowed('wait_message', 'webhook_status')).toBe(false)
+
+      expect(flowService.isRuleAllowed('webhook', 'webhook_status')).toBe(true)
+      expect(flowService.isRuleAllowed('webhook', 'timeout')).toBe(false)
+      expect(flowService.isRuleAllowed('webhook', 'contains_any')).toBe(false)
+
+      expect(flowService.isRuleAllowed('resthook', 'webhook_status')).toBe(true)
+      expect(flowService.isRuleAllowed('resthook', 'contains_any')).toBe(false)
+      expect(flowService.isRuleAllowed('resthook', 'timeout')).toBe(false)
+      expect(flowService.isRuleAllowed('resthook', 'subflow')).toBe(false)
+
+      expect(flowService.isRuleAllowed('airtime', 'airtime_status')).toBe(true)
+      expect(flowService.isRuleAllowed('airtime', 'contains_any')).toBe(false)
+
+    it 'should remove bogus reply actions', ->
+      flowService.fetch(flows.favorites.id)
+      $http.flush()
+
+      flow = flowService.flow
+
+      # starting with 6 actionsets
+      expect(flow.action_sets.length).toBe(6)
+
+      disallowed = angular.copy(flow.action_sets[0])
+      disallowed['uuid'] = uuid()
+      disallowed.actions = [
+        {"msg":{"base":""}, "type":"reply"},
+        {"msg":{"eng":""}, "type":"reply"},
+        {"msg":{"base":"", "eng":"flow base language is require"}, "type":"reply"},
+      ]
+
+      # add our actionset in
+      flow.action_sets.splice(0, 0, disallowed)
+      expect(flow.action_sets.length).toBe(7)
+
+      # mark as dirty
+      $http.whenPOST('/flow/json/' + flows.favorites.id + '/').respond(200, '')
+      flowService.dirty = true
+      $rootScope.$apply()
+      expect(flow.action_sets.length).toBe(6)
+
+      # reply actions that are permitted
+      allowed = angular.copy(flow.action_sets[0])
+      allowed['uuid'] = uuid()
+      allowed.actions = [
+         {"msg":{"base":"a base message", "eng":"", }, "type":"reply"}
+      ]
+
+      # add our allowed actionset
+      flow.action_sets.splice(0, 0, allowed)
+      expect(flow.action_sets.length).toBe(7)
+      flowService.dirty = true
+      $rootScope.$apply()
+
+      # should still be there
+      expect(flow.action_sets.length).toBe(7)
 
     it 'should determine the flow entry', ->
       flowService.fetch(flows.favorites.id).then ->
@@ -260,6 +330,28 @@ describe 'Services:', ->
         allowed = flowService.isConnectionAllowed(endOfFlow, messageSplitA)
         expect(allowed).toBe(true, 'Failed to find expression step value')
 
+
+    describe 'isConnectionAllowed() with USSD rulesets', ->
+      flow = null
+      beforeEach ->
+        flowService.fetch(flows.ussd_example.id).then ->
+          flow = flowService.flow
+        $http.flush()
+
+      ussdMenu = '5e0fe53f-1caa-434d-97e7-189f33353372'
+      ussdResponse = '66aa0bb5-d1e5-4026-a056-fd22c353539e'
+
+      it 'should have the appropriate flow type', ->
+        expect(flow.flow_type).toBe('U')
+
+      it 'should allow two rulesets connected', ->
+        ruleConnection = flowService.isConnectionAllowed(ussdMenu, ussdResponse)
+        expect(ruleConnection).toBeTruthy()
+
+      it 'should allow self loops', ->
+        ruleLoop = flowService.isConnectionAllowed(ussdMenu, ussdMenu)
+        expect(ruleLoop).toBeTruthy()
+
     describe 'getFieldSelection()', ->
 
       flow = null
@@ -400,5 +492,5 @@ describe 'Services:', ->
         # green should have moved there too automatically
         red = getRule(flow, colorRulesId, redRuleId)
         green = getRule(flow, colorRulesId, greenRuleId)
-        expect(green.destination).toBe(nameActionsId, 'green rule didnt update')
-        expect(red.destination).toBe(nameActionsId, 'red rule didnt update')
+        expect(green.destination).toBe(nameActionsId, "green rule didn't update")
+        expect(red.destination).toBe(nameActionsId, "red rule didn't update")

@@ -90,7 +90,15 @@
                         %span.btn-group
                           %a.object-btn-unblock{'href':'#'}
                             %button.btn
+                              .glyph.icon-user
                               -trans "Unblock"
+
+                      - if 'unstop' in actions
+                        %span.btn-group
+                          %a.object-btn-unstop{'href':'#'}
+                            %button.btn
+                              .glyph.icon-user
+                              -trans "Unstop"
 
                       - if 'delete' in actions
                         %span.btn-group
@@ -172,7 +180,7 @@
                       %td.hide
                         .value-labels
                           %nobr
-                            - for group in object.groups.all
+                            - for group in object.user_groups.all
                               %span.label.label-info.lbl{ data-id: '{{group.id}}'}
                                 %a{'href':'{% url "contacts.contact_filter" group.pk %}'}
                                   ={group.name}
@@ -321,9 +329,9 @@
 
     {% if org_perms.msgs.broadcast_send %}
     $(".send-button").click(function(){
-      var contactsIds = getCheckedIds();
-      if (contactsIds.length > 0) {
-        showComposeInitialized("c=" + contactsIds);
+      var contactsUuids = getCheckedUuids();
+      if (contactsUuids.length > 0) {
+        showComposeInitialized("c=" + contactsUuids);
       } else {
         showCompose();
       }
@@ -353,6 +361,12 @@
       });
       $(".page-content").on('click', ".object-btn-block", function() {
 	    runActionOnObjectRows("block");
+      });
+    {% endif %}
+
+    {% if org_perms.contacts.contact_unstop %}
+      $(".page-content").on('click', ".object-btn-unstop", function() {
+	    runActionOnObjectRows("unstop");
       });
     {% endif %}
 

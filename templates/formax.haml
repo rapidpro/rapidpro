@@ -1,6 +1,6 @@
 %ul.formax
   -for section in formax.sections
-    %li{id:'id-{{section.name}}', data-button:'{{section.button}}', data-fetched:'true', data-href:'{{section.url}}', data-action:'{{section.action}}', class:'action-{{section.action}}'}
+    %li{id:'id-{{section.name}}', data-dependents:'{{section.dependents}}', data-button:'{{section.button}}', data-nobutton:'{% if section.nobutton %}true{% else %}false{% endif %}', data-fetched:'true', data-href:'{{section.url}}', data-action:'{{section.action}}', class:'action-{{section.action}}'}
       .formax-icon{class:'{{section.icon}}'}
       .formax-container
         {{ section.response|safe }}

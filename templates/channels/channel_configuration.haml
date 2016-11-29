@@ -262,6 +262,35 @@
 
     %hr
 
+  -elif object.channel_type == 'TW'
+    %h4
+      -blocktrans
+        To finish configuring your TwiML REST API channel you'll need to add the following URL in your TwiML REST API instance.
+
+    %hr
+
+    %h4
+      -trans "TwiML REST API Host"
+
+    %p
+      -blocktrans
+        The endpoint which will receive Twilio API requests for this channel
+
+    %code
+      {{ object.config_json.send_url }}
+
+    %h4
+      -trans "Request URL"
+
+    %p
+      -blocktrans
+        Incoming messages for this channel will be sent to this endpoint.
+
+    %code
+      https://{{ domain }}{% url 'handlers.twiml_api_handler' object.uuid %}
+
+    %hr
+
   -elif object.channel_type == 'SC'
     %h4
       -blocktrans
@@ -403,7 +432,7 @@
     %code
       https://{{ domain }}{% url 'handlers.hub9_handler' 'delivered' object.uuid %}
 
-  -elif object.channel_type == 'VM'
+  -elif object.channel_type == 'VM' or object.channel_type == 'VMU'
     %h4
       -blocktrans
         To finish configuring your Vumi connection you'll need to set the following parameters on your Vumi conversation:
@@ -545,24 +574,18 @@
       https://{{ domain }}{% url 'handlers.verboice_handler' 'status' object.uuid %}
 
   -elif object.channel_type == 'FB'
-    :javascript
-      function setFBWelcome(){
-        var modal = new Modax('{% trans "Welcome Message" %}', '{% url "channels.channel_facebook_welcome" object.id %}');
-        modal.setIcon('icon-facebook-official');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      }
-
     %h4
       -blocktrans
-        To finish configuring your Facebook connection you'll need to set the following webhook URL on your application
-        page, use the verify token below when updating it. Make sure to check all boxes to subscribe to all incoming
-        Facebook events.
+        To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's
+        Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to all incoming Facebook events
+        and, within the same section, select the page whose events you'd like the webhook to subscribe to. 
 
     .important
       %p
         -blocktrans
-          It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application.
+          It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application. Remember,
+          until your Facebook application is approved by Facebook you will only be able to send and receive messages
+          with administrators of your application.
 
     %hr
 
@@ -578,16 +601,77 @@
     %code
       {{ channel.secret }}
 
+  -elif object.channel_type == 'VI'
+    %h4
+      -blocktrans
+        Your Viber channel is connected, if need the IP addresses, status and receive endpoints are listed below.
+
     %hr
 
-    .span2
-      %button.btn.btn-primary{ href: "#", onClick:"setFBWelcome()" }
-        -trans "Set Welcome Message"
+    %h4
+      -trans "IP Addresses"
 
-    .span9
+    -for ip_address in ip_addresses
+      %code= ip_address
+
+    %h4
+      -trans "Status URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_handler' 'status' object.uuid %}
+
+    %h4
+      -trans "Receive URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_handler' 'receive' object.uuid %}
+
+
+  -elif object.channel_type == 'LN'
+    %h4
       -blocktrans
-        You can set a message to be displayed when a Facebook user opens a chat with your page. This will appear automatically
-        and gives you an opportunity to welcome the user and give them instructions on how to interact with your page.
+        To finish the configuration of Line channel you'll need to set the following callback URL in the Line Bot settings page, following the steps below:
+
+    .info
+
+      %p
+
+        %ol.line-steps
+          %li
+            -blocktrans
+              Configure "Callback URL" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the "Edit" button, filling the field "webhook URL" and pressing on the "Save" button.
+
+          %li
+            -blocktrans
+              Fill the IP addresses in the "Server IP Whitelist" with the list of addresses displayed below.
+
+    %h4
+      -trans "Callback URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.line_handler' object.uuid %}
+
+    %hr
+
+    %h4
+      -trans "IP Addresses"
+
+    -for ip_address in ip_addresses
+      %code= ip_address
+
+  -elif object.channel_type == 'GL'
+    %h4
+      -blocktrans
+        To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your
+        application configuration page.
+
+    %hr
+
+    %h4
+      -trans "Notify URI"
+
+    %code
+      https://{{ domain }}{% url 'handlers.globe_handler' 'receive' object.uuid %}
 
   -elif object.channel_type == 'HX'
     %h4
@@ -797,3 +881,11 @@
       font-size:20px;
     }
 
+    ol.line-steps li {
+      margin-top: 10px;
+      list-style: decimal;
+    }
+
+    .info {
+      margin-bottom: 20px;
+    }

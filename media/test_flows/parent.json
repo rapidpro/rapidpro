@@ -33,7 +33,9 @@
                 "type": "add_group",
                 "uuid": "4ea70294-ca92-478c-b0f4-ffc4fd858412",
                 "groups": [
-                  "Campaign"
+                  {
+                    "name": "Campaign" 
+                  }
                 ]
               },
               {

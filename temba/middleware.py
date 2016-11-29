@@ -2,6 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 import pstats
 import traceback
+import copy
 
 from cStringIO import StringIO
 from django.conf import settings
@@ -9,7 +10,6 @@ from django.db import transaction
 from django.utils import timezone, translation
 from temba.orgs.models import Org
 from temba.contacts.models import Contact
-from temba.settings import BRANDING, DEFAULT_BRAND, HOSTNAME
 
 try:
     import cProfile as profile
@@ -39,16 +39,15 @@ class BrandingMiddleware(object):
             host = host[0:host.rindex(':')]
 
         # our default branding
-        branding = BRANDING.get(HOSTNAME, BRANDING.get(DEFAULT_BRAND))
+        branding = settings.BRANDING.get(settings.DEFAULT_BRAND)
+        branding['host'] = settings.DEFAULT_BRAND
 
         # override with site specific branding if we have that
-        site_branding = BRANDING.get(host, None)
+        site_branding = settings.BRANDING.get(host, None)
         if site_branding:
-            branding = branding.copy()
+            branding = copy.deepcopy(branding)
             branding.update(site_branding)
-
-        # stuff in the incoming host
-        branding['host'] = host
+            branding['host'] = host
 
         return branding
 

@@ -1,0 +1,65 @@
+-extends "smartmin/form.html"
+
+-load compress temba smartmin i18n
+
+-block form-span
+
+-block title-text
+  .title-text
+    %h1
+      -trans "TransferTo Account"
+
+-block summary
+  -if object.is_connected_to_transferto
+    -trans "Connected to TransferTo Account"
+    {{transferto_account_login}}.
+  -else
+    -trans "No TransferTo account connected."
+
+-block pre-form
+  -if not object.is_connected_to_transferto
+    -blocktrans
+      Adding a TransferTo account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected
+      you can transfer airtime credit within your Flows. To signup for an account, visit
+    <a target='_new' href='https://www.transfer-to.com/about#contact_us'>TransferTo</a>.
+    %hr
+
+-block fields
+  -if not object.is_connected_to_transferto
+    {{ block.super }}
+
+-block form-buttons
+
+-block post-form
+  -if object.is_connected_to_transferto and request.META.HTTP_X_FORMAX
+    %a.btn.pull-right{style: 'margin-left: 30px', href:'{% url "airtime.airtimetransfer_list" %}'}
+      -trans "Transfer Log"
+
+    %p
+      -trans "Your account is connected to the TransferTo account"
+      {{transferto_account_login}}.
+
+    %p
+      -trans "If you no longer want it connected, you can"
+      %a{href:'javascript:confirmTransferToDisconnect();'}
+        -trans "disconnect"
+      -trans "your TransferTo account. Doing so will cause the payment actions in your flows to no longer be processed."
+
+    .disconnect-transferto.hide
+      .title
+        -trans "Disconnect TransferTo"
+      .body
+        -blocktrans
+          This will disconnect your TransferTo account. Payment actions will no longer be processed. Are you sure you want to proceed?
+    %a#disconnect-transferto-form.posterize{href:'{% url "orgs.org_transfer_to_account" %}?disconnect=true'}
+  -else
+    -trans "You can find your API Token by clicking on "
+    %a{href:'https://shop.transferto.com/cgi-bin/developer_page', target:'_new'}><
+      Developer
+    -trans " on the TransferTo site."
+
+-block extra-script
+  :javascript
+    function confirmTransferToDisconnect() {
+      removalConfirmation("disconnect-transferto", "Disconnect");
+    }

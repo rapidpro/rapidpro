@@ -243,7 +243,7 @@
         "metadata": {
           "notes": [
             {
-              "body": "You can use actions and clever routing in your flows to build complex applications.\n\nThis advanced flow creates an SMS \"chat room\". After joining, any message sent will be forwarded to the others in the room. They can change their name by sending \"nick [name]\" and they can exit the room by sending \"exit\".\n\nTo start using this flow, <a href='/trigger'>create a trigger</a> with the keyword \"join\" to start the flow.",
+              "body": "You can use actions and clever routing in your flows to build complex applications.\n\nThis advanced flow creates an SMS \"chat room\". After joining, any message sent will be forwarded to the others in the room. They can change their name by sending \"nick [name]\" and they can exit the room by sending \"exit\".\n\nTo start using this flow, <a href='/trigger'>create a trigger</a> with the keyword \"join\" to start the flow.\n\nNote that when a contact starts another flow they will be removed from this chat flow.",
               "x": 59,
               "y": 0,
               "title": "Using Actions"

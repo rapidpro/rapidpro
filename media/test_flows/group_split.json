@@ -1,0 +1,296 @@
+{
+  "campaigns": [], 
+  "version": 10, 
+  "site": "https://textit.in", 
+  "flows": [
+    {
+      "base_language": "eng", 
+      "action_sets": [
+        {
+          "y": 0, 
+          "x": 83, 
+          "destination": "fa26edf9-e78f-4131-b5df-3bd84a1390f5", 
+          "uuid": "1bf3f286-be43-45c3-8146-020a8f224591", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Group management! Toggle group membership with:\n(Add|Remove) <group name>\n\n@contact.groups"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 376, 
+          "x": 545, 
+          "destination": "403ded9b-edcc-4392-adf1-3de81088cdc1", 
+          "uuid": "21b3cd69-e67c-402a-b977-566f94e8e7ec", 
+          "actions": [
+            {
+              "type": "add_group", 
+              "groups": [
+                "@flow.group_name"
+              ]
+            }
+          ]
+        }, 
+        {
+          "y": 375, 
+          "x": 786, 
+          "destination": "403ded9b-edcc-4392-adf1-3de81088cdc1", 
+          "uuid": "60d74019-f9c2-4665-bcab-0a4ba659b6af", 
+          "actions": [
+            {
+              "type": "del_group", 
+              "groups": [
+                "@flow.group_name"
+              ]
+            }
+          ]
+        }, 
+        {
+          "y": 24, 
+          "x": 733, 
+          "destination": "1bf3f286-be43-45c3-8146-020a8f224591", 
+          "uuid": "514fc3f0-fd04-4c27-92fb-bc348121c8ef", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Sorry, don't get that command."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 493, 
+          "x": 177, 
+          "destination": "403ded9b-edcc-4392-adf1-3de81088cdc1", 
+          "uuid": "a9cd6587-61a7-4ab6-9a20-edf1f9cff033", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "You are in @flow.member.category"
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 466, 
+          "x": 397, 
+          "destination": "403ded9b-edcc-4392-adf1-3de81088cdc1", 
+          "uuid": "f0c02e2b-6f24-48a7-9c8b-d49165387014", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "You aren't in either group."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }, 
+        {
+          "y": 587, 
+          "x": 545, 
+          "destination": "fa26edf9-e78f-4131-b5df-3bd84a1390f5", 
+          "uuid": "403ded9b-edcc-4392-adf1-3de81088cdc1", 
+          "actions": [
+            {
+              "msg": {
+                "eng": "Awaiting command."
+              }, 
+              "type": "reply"
+            }
+          ]
+        }
+      ], 
+      "version": 10, 
+      "flow_type": "F", 
+      "entry": "1bf3f286-be43-45c3-8146-020a8f224591", 
+      "rule_sets": [
+        {
+          "uuid": "fa26edf9-e78f-4131-b5df-3bd84a1390f5", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "split"
+                }, 
+                "type": "starts"
+              }, 
+              "category": {
+                "eng": "Split"
+              }, 
+              "destination": "ec361b3c-7979-4cfb-b7ca-997d985aba40", 
+              "uuid": "ef6d80e8-775d-4872-8dfc-4f61ae09c814", 
+              "destination_type": "R"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "e7feaa40-b815-4619-b7b2-4a28c8fd4d10", 
+              "uuid": "bd9ee747-fb19-4752-8dd5-d4a3f666b278", 
+              "destination_type": "R"
+            }
+          ], 
+          "ruleset_type": "wait_message", 
+          "label": "Response", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 139, 
+          "x": 351, 
+          "config": {}
+        }, 
+        {
+          "uuid": "2e616cfc-217d-4782-9522-c2bb0ee38ff8", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "eng": "add"
+                }, 
+                "type": "starts"
+              }, 
+              "category": {
+                "eng": "Add"
+              }, 
+              "destination": "21b3cd69-e67c-402a-b977-566f94e8e7ec", 
+              "uuid": "51280d07-a741-4d2a-8b7c-199739e7f17e", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "eng": "remove"
+                }, 
+                "type": "starts"
+              }, 
+              "category": {
+                "eng": "Remove"
+              }, 
+              "destination": "60d74019-f9c2-4665-bcab-0a4ba659b6af", 
+              "uuid": "90d49357-be6f-4a26-a92c-35571b949bf0", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "514fc3f0-fd04-4c27-92fb-bc348121c8ef", 
+              "uuid": "1af92c00-e94f-4a49-97d2-1486083f2342", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Response 3", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 257, 
+          "x": 633, 
+          "config": {}
+        }, 
+        {
+          "uuid": "e7feaa40-b815-4619-b7b2-4a28c8fd4d10", 
+          "rules": [
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "All Responses"
+              }, 
+              "destination": "2e616cfc-217d-4782-9522-c2bb0ee38ff8", 
+              "uuid": "ba782061-da19-4f97-9a64-d8b22c78641d", 
+              "destination_type": "R"
+            }
+          ], 
+          "ruleset_type": "expression", 
+          "label": "Group Name", 
+          "operand": "@(REMOVE_FIRST_WORD(step.value))", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 140, 
+          "x": 671, 
+          "config": {}
+        }, 
+        {
+          "uuid": "ec361b3c-7979-4cfb-b7ca-997d985aba40", 
+          "rules": [
+            {
+              "test": {
+                "test": {
+                  "name": "Group A", 
+                  "uuid": "ebccb83d-f407-4e66-86ff-b174c952b7d3"
+                }, 
+                "type": "in_group"
+              }, 
+              "category": {
+                "eng": "Group A"
+              }, 
+              "destination": "a9cd6587-61a7-4ab6-9a20-edf1f9cff033", 
+              "uuid": "e7da6d33-8b82-4d42-8b20-454a4460f0f6", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": {
+                  "name": "Group B", 
+                  "uuid": "61d455f9-52e5-40c7-ae88-809644ffb028"
+                }, 
+                "type": "in_group"
+              }, 
+              "category": {
+                "eng": "Group B"
+              }, 
+              "destination": "a9cd6587-61a7-4ab6-9a20-edf1f9cff033", 
+              "uuid": "2b240091-2cc5-45e4-ad18-ade35d0bd320", 
+              "destination_type": "A"
+            }, 
+            {
+              "test": {
+                "test": "true", 
+                "type": "true"
+              }, 
+              "category": {
+                "eng": "Other"
+              }, 
+              "destination": "f0c02e2b-6f24-48a7-9c8b-d49165387014", 
+              "uuid": "66410d8d-a539-4e9a-b039-717da23bbdd2", 
+              "destination_type": "A"
+            }
+          ], 
+          "ruleset_type": "group", 
+          "label": "Member", 
+          "operand": "@step.value", 
+          "finished_key": null, 
+          "response_type": "", 
+          "y": 255, 
+          "x": 196, 
+          "config": {}
+        }
+      ], 
+      "metadata": {
+        "uuid": "2d60a782-5805-488b-bf4d-b8154614c170", 
+        "notes": [], 
+        "expires": 10080, 
+        "name": "Grouppo", 
+        "saved_on": "2016-09-14T22:51:59.257419Z", 
+        "revision": 304
+      }
+    }
+  ], 
+  "triggers": []
+}

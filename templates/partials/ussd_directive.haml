@@ -1,0 +1,30 @@
+-load i18n
+
+.split-header-inner
+  %p
+    -trans "Add text:"
+
+.split-margin
+  %textarea{ng-model:"ruleset.config.ussd_message[base_language]",name:"ussd",auto-complete:"",flow:"[[flowId]]",ng-change:"countCharacters()",class:"ussd-add-text"}
+
+.split-header-inner{ng-if:'USSD_MENU'}
+  %p
+    -trans "Add menu:"
+
+%form{name:'menuForm', ng-if:'USSD_MENU'}
+  %span
+    %div{ui-sortable:"sortableOptions",ng-model:"ruleset.rules"}
+      .rule{ng-repeat:"item in ruleset.rules"}
+        .ng-form{name:"menuItem", ng-if:'item._config.show'}
+          .icon.icon-menu
+          .ordinals
+            %input{ng-model:"item.test._base",type:"text",class:"number",placeholder:"#",number:"true",ng-change:"countCharacters()"}
+          .operation.wide
+            %input{ng-model:"item.label[base_language]",name:"operand",flow:"[[flowId]]",ng-required:"",ng-change:"updateMenu(item, $index)",type:"text",class:"operand",uuid:"[[ruleset.uuid]]"}
+
+          .categorize
+            -trans "categorize as"
+            %input{ng-model:"item.category._base",name:"category",ng-required:"item.label[base_language]",ng-change:"item.category._autoName = false",type:"text",class:"category"}
+          .icon.icon-close{ng-click:"remove(item, $index)"}
+#split-on{ng-if:'USSD_RESPONSE'}
+  -trans "If the message response..."

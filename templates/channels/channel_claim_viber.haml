@@ -1,0 +1,68 @@
+-extends "smartmin/form.html"
+-load i18n compress temba
+
+-block title
+  .medium-help.icon-viber.float-left
+
+  %h2.font_normalize.header-margin
+    -trans "Connect Viber"
+
+-block summary
+  .device
+    {{ object.get_channel_type_display }} - {{ object.name }} -
+    -trans "Pending Activation"
+
+  -trans "Added"
+    {{ object.created_on }}
+
+-block pre-form
+  %h4
+    -blocktrans
+      To finish configuring your Viber connection you'll need to provide them the following IP addresses to whitelist as
+      well as the URLs for status and receive endpoints. They will provide you with a service ID which you need to send messages,
+      enter that below when you receive it.
+
+  .important
+    %p
+      -blocktrans
+        Until Viber approves your bot and you enter the service id provided by them you will not be able
+        to send and receive messages.
+
+  %hr
+
+  %h4
+    -trans "IP Addresses"
+
+  -for ip_address in ip_addresses
+    %code= ip_address
+
+  %h4
+    -trans "Status URL"
+
+  %code
+    https://{{ domain }}{% url 'handlers.viber_handler' 'status' object.uuid %}
+
+  %h4
+    -trans "Receive URL"
+
+  %code
+    https://{{ domain }}{% url 'handlers.viber_handler' 'receive' object.uuid %}
+
+  %hr
+
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    .important {
+      background-color: #efefef;
+      border: 1px solid #ccc;
+      padding: 10px 10px 0px 10px;
+      margin-bottom: 10px;
+    }
+
+    .form-horizontal input + .help-block, .form-horizontal select + .help-block, .form-horizontal .uneditable-input + .help-block {
+      margin-left: 150px;
+    }
+

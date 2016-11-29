@@ -21,7 +21,7 @@ ENDPOINT_TESTS = [
     # API v2
     ('api.v2.broadcasts', '', 'msgs_broadcast'),
     ('api.v2.channels', '', 'channels_channel'),
-    ('api.v2.channel_events', '', 'msgs_call'),
+    ('api.v2.channel_events', '', 'channels_channelevent'),
     ('api.v2.contacts', '', 'contacts_contact'),
     ('api.v2.contacts', '?deleted=true', 'contacts_contact'),
     ('api.v2.fields', '', 'contacts_contactfield'),

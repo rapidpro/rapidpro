@@ -1,6 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
-import json
+import six
 import urllib
 
 from django import forms
@@ -15,20 +15,19 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from smartmin.views import SmartTemplateView, SmartFormView
-from temba.api.models import get_or_create_api_token, APIToken
+from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.assets.views import handle_asset_request
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactField, ContactGroup, TEL_SCHEME
 from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet
-from temba.locations.models import AdminBoundary
-from temba.msgs.models import Broadcast, Msg, Call, Label
+from temba.locations.models import AdminBoundary, BoundaryAlias
+from temba.msgs.models import Broadcast, Msg, Label
 from temba.utils import json_date_to_datetime, splitting_getlist, str_to_bool, non_atomic_gets
-from temba.values.models import Value
-from ..models import ApiPermission, SSLPermission
+from ..models import APIPermission, SSLPermission
 from .serializers import BoundarySerializer, AliasSerializer, BroadcastCreateSerializer, BroadcastReadSerializer
-from .serializers import CallSerializer, CampaignReadSerializer, CampaignWriteSerializer
+from .serializers import ChannelEventSerializer, CampaignReadSerializer, CampaignWriteSerializer
 from .serializers import CampaignEventReadSerializer, CampaignEventWriteSerializer
 from .serializers import ContactGroupReadSerializer, ContactReadSerializer, ContactWriteSerializer
 from .serializers import ContactFieldReadSerializer, ContactFieldWriteSerializer, ContactBulkActionSerializer
@@ -116,23 +115,21 @@ class AuthenticateEndpoint(SmartFormView):
     def form_valid(self, form, *args, **kwargs):
         username = form.cleaned_data.get('email')
         password = form.cleaned_data.get('password')
-        role = form.cleaned_data.get('role')
+        role_code = form.cleaned_data.get('role')
 
         user = authenticate(username=username, password=password)
         if user and user.is_active:
             login(self.request, user)
 
+            role = APIToken.get_role_from_code(role_code)
             orgs = []
 
-            valid_orgs, role = APIToken.get_orgs_for_role(user, role)
             if role:
-                for org in valid_orgs:
-                    user.set_org(org)
-                    user.set_role(role)
-                    token = get_or_create_api_token(user)
+                valid_orgs = APIToken.get_orgs_for_role(user, role)
 
-                    if token:
-                        orgs.append(dict(id=org.pk, name=org.name, token=token))
+                for org in valid_orgs:
+                    token = APIToken.get_or_create(org, user, role)
+                    orgs.append(dict(id=org.pk, name=org.name, token=token.key))
             else:
                 return HttpResponse(status=403)
 
@@ -145,7 +142,8 @@ class AuthenticateEndpoint(SmartFormView):
 @permission_classes((SSLPermission, IsAuthenticated))
 def api(request, format=None):
     """
-    We provide a simple REST API for you to interact with your data from outside applications.
+    **This is the now deprecated API v1, which will be removed on March 1st 2017. We strongly encourage all users
+    to start migrating their code to the newer [API v2](/api/v2).**
 
     All endpoints should be accessed using HTTPS. The following endpoints are provided:
 
@@ -249,7 +247,7 @@ class BaseAPIView(generics.GenericAPIView):
     """
     Base class of all our API endpoints
     """
-    permission_classes = (SSLPermission, ApiPermission)
+    permission_classes = (SSLPermission, APIPermission)
 
     @non_atomic_gets
     def dispatch(self, request, *args, **kwargs):
@@ -466,7 +464,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
-        return queryset.order_by('-created_on').prefetch_related('urns', 'contacts', 'groups')
+        return queryset.order_by('-created_on').select_related('org').prefetch_related('urns', 'contacts', 'groups')
 
     @classmethod
     def get_read_explorer(cls):
@@ -536,6 +534,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             D - Message was delivered to the recipient
             H - Incoming message was handled
             F - Message was not sent due to a failure
+            W - Message has been delivered to the channel
 
       * **type** - the type of the message, a string one of: (filterable: ```type``` repeatable)
 
@@ -584,7 +583,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        queryset = Msg.all_messages.filter(org=org, contact__is_test=False)
+        queryset = Msg.objects.filter(org=org, contact__is_test=False)
 
         ids = splitting_getlist(self.request, 'id')
         if ids:
@@ -968,9 +967,9 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
             ...
 
     """
-    permission = 'msgs.call_api'
-    model = Call
-    serializer_class = CallSerializer
+    permission = 'channels.channelevent_api'
+    model = ChannelEvent
+    serializer_class = ChannelEventSerializer
     cache_counts = True
 
     def get_queryset(self):
@@ -998,7 +997,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
 
         call_types = splitting_getlist(self.request, 'call_type')
         if call_types:
-            queryset = queryset.filter(call_type__in=call_types)
+            queryset = queryset.filter(event_type__in=call_types)
 
         phones = splitting_getlist(self.request, 'phone')
         if phones:
@@ -1747,102 +1746,6 @@ class ContactBulkActionEndpoint(BaseAPIView):
         return spec
 
 
-class FlowResultsEndpoint(BaseAPIView):
-    """
-    This endpoint allows you to get aggregate results for a flow ruleset, optionally segmenting the results by another
-    ruleset in the process.
-
-    ## Retrieving Flow Results
-
-    By making a ```GET``` request you can retrieve a dictionary representing the results for the rulesets in a flow.
-
-    Example:
-
-       GET /api/v1/results.json
-
-        {
-            "count": 1,
-            "next": null,
-            "previous": null,
-            "results": [
-                {
-                    "flow": 1056,
-                    "id": 4237,
-                    "label": "Gender",
-                    "node": "5acfa6d5-be4a-4bcc-8011-d1bd9dfasffa",
-                    "results": [
-                        {
-                            "categories": [
-                                {
-                                    "count": 501,
-                                    "label": "Male"
-                                },
-                                {
-                                    "count": 409,
-                                    "label": "Female"
-                                }
-                            ],
-                            "label": "All"
-                        }
-                    ]
-                }
-           ...
-    """
-    permission = 'flows.flow_api'
-
-    def get(self, request, *args, **kwargs):
-        user = request.user
-        org = user.get_org()
-
-        ruleset, contact_field = None, None
-
-        ruleset_id_or_uuid = self.request.query_params.get('ruleset', None)
-        if ruleset_id_or_uuid:
-            try:
-                ruleset = RuleSet.objects.filter(flow__org=org, pk=int(ruleset_id_or_uuid)).first()
-            except ValueError:
-                ruleset = RuleSet.objects.filter(flow__org=org, uuid=ruleset_id_or_uuid).first()
-
-            if not ruleset:
-                return Response(dict(ruleset=["No ruleset found with that UUID or id"]), status=status.HTTP_400_BAD_REQUEST)
-
-        field = self.request.query_params.get('contact_field', None)
-        if field:
-            contact_field = ContactField.get_by_label(org, field)
-            if not contact_field:
-                return Response(dict(contact_field=["No contact field found with that label"]), status=status.HTTP_400_BAD_REQUEST)
-
-        if (not ruleset and not contact_field) or (ruleset and contact_field):
-            return Response(dict(non_field_errors=["You must specify either a ruleset or contact field"]), status=status.HTTP_400_BAD_REQUEST)
-
-        segment = self.request.query_params.get('segment', None)
-        if segment:
-            try:
-                segment = json.loads(segment)
-            except ValueError:
-                return Response(dict(segment=["Invalid segment format, must be in JSON format"]), status=status.HTTP_400_BAD_REQUEST)
-
-        if ruleset:
-            data = Value.get_value_summary(ruleset=ruleset, segment=segment)
-        else:
-            data = Value.get_value_summary(contact_field=contact_field, segment=segment)
-
-        return Response(dict(results=data), status=status.HTTP_200_OK)
-
-    @classmethod
-    def get_read_explorer(cls):
-        spec = dict(method="GET",
-                    title="Get summarized results for a RuleSet or Contact Field",
-                    url=reverse('api.v1.results'),
-                    slug='flow-results',
-                    request="")
-        spec['fields'] = [dict(name='flow', required=False,
-                               help="One or more flow ids to filter by.  ex: 234235,230420"),
-                          dict(name='ruleset', required=False,
-                               help="One or more rulesets to filter by.  ex: 12412,12451")]
-        return spec
-
-
 class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list and start flow runs.  A run represents a single contact's path through a flow. A
@@ -1853,7 +1756,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
     By making a ```GET``` request you can list all the flow runs for your organization, filtering them as needed.  Each
     run has the following attributes:
 
-    * **uuid** - the UUID of the run (string) (filterable: ```uuid``` repeatable)
+    * **run** - the id of the run (integer) (filterable: ```run``` repeatable)
     * **flow_uuid** - the UUID of the flow (string) (filterable: ```flow_uuid``` repeatable)
     * **contact** - the UUID of the contact this run applies to (string) filterable: ```contact``` repeatable)
     * **group_uuids** - the UUIDs of any groups this contact is part of (string array, optional) (filterable: ```group_uuids``` repeatable)
@@ -1877,7 +1780,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             "previous": null,
             "results": [
             {
-                "uuid": "988e040c-33ff-4917-a36e-8cfa6a5ac731",
+                "run": 10150051,
                 "flow_uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7",
                 "contact": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
                 "created_on": "2013-03-02T17:28:12",
@@ -2034,7 +1937,6 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             queryset = queryset.filter(org=org)
 
         # other queries on the runs themselves...
-
         runs = splitting_getlist(self.request, 'run')
         if runs:
             queryset = queryset.filter(pk__in=runs)
@@ -2067,14 +1969,19 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             queryset = queryset.filter(contact__all_groups__uuid__in=group_uuids,
                                        contact__all_groups__group_type=ContactGroup.TYPE_USER_DEFINED)
 
-        steps_prefetch = Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on'))
-
         rulesets_prefetch = Prefetch('flow__rule_sets',
                                      queryset=RuleSet.objects.exclude(label=None).order_by('pk'),
                                      to_attr='ruleset_prefetch')
 
         # use prefetch rather than select_related for foreign keys flow/contact to avoid joins
-        queryset = queryset.prefetch_related('flow', rulesets_prefetch, steps_prefetch, 'steps__messages', 'contact')
+        queryset = queryset.prefetch_related(
+            'flow',
+            'contact',
+            rulesets_prefetch,
+            Prefetch('steps', queryset=FlowStep.objects.order_by('arrived_on')),
+            Prefetch('steps__messages', queryset=Msg.objects.only('broadcast', 'text').order_by('created_on')),
+            Prefetch('steps__broadcasts', queryset=Broadcast.objects.only('text').order_by('created_on')),
+        )
 
         return queryset.order_by('-modified_on')
 
@@ -2512,6 +2419,12 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
             return []
 
         queryset = org.country.get_descendants(include_self=True).order_by('level', 'name')
+
+        if self.request.GET.get('aliases'):
+            queryset = queryset.prefetch_related(
+                Prefetch('aliases', queryset=BoundaryAlias.objects.filter(org=org).order_by('name')),
+            )
+
         return queryset.select_related('parent')
 
     def get_serializer_class(self):
@@ -2874,7 +2787,7 @@ class OrgEndpoint(BaseAPIView):
                     country=org.get_country_code(),
                     languages=[l.iso_code for l in org.languages.order_by('iso_code')],
                     primary_language=org.primary_language.iso_code if org.primary_language else None,
-                    timezone=org.timezone,
+                    timezone=six.text_type(org.timezone),
                     date_style=('day_first' if org.get_dayfirst() else 'month_first'),
                     anon=org.is_anon)
 

@@ -9,6 +9,16 @@
 // to extra-less or the master style.less file with care.
 @import "legacy";
 
+
+// tweak toastr
+.toast-bottom-full-width {
+  margin-bottom:20px;
+}
+
+.toast-info {
+  background-color: rgba(0, 0, 0, 0.85);
+}
+
 // style all placeholder text
 
 .force-wrap {
@@ -107,6 +117,7 @@
 //.nav > li > a:hover {
 //  margin-right:-15px;
 //}
+
 
 .nav-list.level2 a {
   margin-right: -30px;
@@ -1067,16 +1078,20 @@ a.org-choose {
   margin-top: -0px;
   padding-top:6px;
   font-size: 11px;
-  min-width: 100px;
+  max-width: 180px;
   .rounded-corners(3px);
 
-  a {
-    color: #fff;
+  cursor: pointer;
+  color: #fff;
+  text-decoration: none;
+  &:hover {
     text-decoration: none;
-    &:hover {
-      text-decoration: none;
-      color: #f3f3f3;
-    }
+    color: #f3f3f3;
+  }
+
+  .toggle {
+    margin-top: 1px;
+    padding: 0px 5px;
   }
 
   .icon-warning {
@@ -1085,15 +1100,12 @@ a.org-choose {
 
   .org {
     line-height: 14px;
-    padding: 3px 10px;
-    padding-bottom:5px;
-    min-width:150px;
+    padding: 3px 10px 5px;
+    width:160px;
   }
 
   .other-orgs {
-    width: 100%;
-    margin: -10px;
-
+    width: 180px;
     .account-details {
       padding: 5px 0px;
       border-bottom: 1px solid #ccc;
@@ -1102,8 +1114,7 @@ a.org-choose {
         color: @color-navbar;
       }
 
-      margin: 0 10px;
-      margin-bottom:3px;
+      margin: 0 10px 3px;
 
       .org {
         padding: 0;
@@ -1120,13 +1131,10 @@ a.org-choose {
         }
       }
       max-width: 200px;
-      // min-width: 100px;
-      // width: 35%;
-
     }
 
     background: #fff;
-    margin-top: -2px;
+    margin: -2px -10px -10px;
     text-align: left;
     border: 1px solid @color-navbar - #111;
   }
@@ -1712,7 +1720,10 @@ form.smartmin-form ul.errorlist li {
   }
 
   .modal-body {
+
+    overflow-x: hidden;
     padding: 20px;
+    max-height: 430px;
 
     .details {
       color: #ccc;
@@ -1780,6 +1791,33 @@ form.smartmin-form ul.errorlist li {
       float:right;
       margin-left:10px;
     }
+
+    .ussd-counter {
+      float: left;
+      margin: 12px 0 0;
+      font-size: 13px;
+      line-height: 18px;
+    }
+  }
+
+  &.airtime-warning {
+    .modal-header {
+      background: @flat-grey + #333;
+      border-bottom-color: @flat-grey + #111;
+    }
+
+    #modal-title {
+      color:  @flat-white;
+      text-shadow: none;
+    }
+
+    .modal-footer {
+      .primary {
+        background: @flat-grey + #333;
+        border-bottom-color: @flat-grey + #111;
+      }
+    }
+
   }
 
   &.alert {
@@ -1791,19 +1829,19 @@ form.smartmin-form ul.errorlist li {
       border-bottom: 1px solid @color-alert-error - #111;
 
       #modal-title {
-	color:  @flat-white;
-	text-shadow: none;
+	    color:  @flat-white;
+        text-shadow: none;
       }
 
       .close {
-	margin-right: 20px;
+        margin-right: 20px;
       }
     }
 
     .modal-footer {
       .primary {
-	background: @color-alert-error;        
-	border: 1px solid @color-alert-error - #111;
+        background: @color-alert-error;
+        border: 1px solid @color-alert-error - #111;
       }
     }
 
@@ -2484,6 +2522,7 @@ span.label a {
   padding: 8px 20px;
   position: relative;
   word-wrap: break-word;
+  min-height: 15px;
 }
 
 .imsg.to {
@@ -2640,5 +2679,12 @@ span.label a {
 
 .select2-hidden-accessible {
   display:none;
+}
+
+.wrapped {
+  /* forces wrapping of messages with no spaces, see http://stackoverflow.com/questions/26292408/ */
+  max-width: 0;
+  word-wrap: break-word;  /* IE 10 */
+  overflow-wrap: break-word;
 }
 

@@ -71,8 +71,7 @@
                     %tr.trigger.object-row{ data-object-id: "{{ obj.id }}" }
                       - if org_perms.triggers.trigger_update
                         %td.trigger.checkbox.object-row-checkbox
-                          -if obj.flow.flow_type != 'V' or obj.org.supports_ivr
-                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
+                          .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
                       %td
                         -if obj.trigger_type == 'R' or obj.trigger_type == 'K'
                           -trans "The keyword"
@@ -106,7 +105,7 @@
                               %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
                                 -trans "inbound call"
                             - else
-                                -trans "inbound call"
+                              -trans "inbound call"
 
                         -if obj.trigger_type == 'F'
                           A new
@@ -121,12 +120,25 @@
                             %span.attn
                               %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
 
+                        -if obj.trigger_type == 'N'
+                          A new
+                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
+                            - if org_perms.triggers.trigger_update
+                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
+                                -trans "conversation"
+                            - else
+                              -trans "conversation"
+                          -if obj.channel
+                            on
+                            %span.attn
+                              %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
+
                         -if obj.schedule
                           -trans "The"
                         -else
                           -trans "starts the"
                         %span.attn
-                          %a{href:'{%url "flows.flow_editor" obj.flow.pk%}'}= obj.flow
+                          %a{href:'{%url "flows.flow_editor" obj.flow.uuid %}'}= obj.flow
                         -trans "flow"
 
                         -if obj.groups.all

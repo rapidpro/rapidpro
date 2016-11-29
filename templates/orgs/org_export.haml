@@ -10,6 +10,26 @@
   {{ block.super }}
 
   :javascript
+
+    function get_param(name){
+       if(name=(new RegExp('[?&]'+encodeURIComponent(name)+'=([^&]*)')).exec(location.search))
+          return decodeURIComponent(name[1]);
+    }
+
+    $(document).ready(function() {
+      var flow_id = get_param('flow');
+
+      // check the entire group if it's bucketed
+      $('#flows-' + flow_id).parents('.exportables.bucket').each(function(){
+        $(this).find('.select-section').each(function() {
+          $(this).click();
+        })
+      })
+
+      // check individually if for the other group
+      $('#flows_' + flow_id).each(function(){$(this).click()});
+    });
+
     $('.toggle-all').on('change', function() {
       var checked = 'checked' == $(this).attr('checked');
       var id = $(this).attr('id');
@@ -141,7 +161,7 @@
         -trans "Group"
         {{ forloop.counter|apnumber|capfirst }}
 
-      .exportables
+      .exportables.bucket
         .pull-right
           %a.btn.btn-tiny.select-section
             -trans "Select Group"

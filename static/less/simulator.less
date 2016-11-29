@@ -232,3 +232,37 @@
   font-size: 14px;
   display: none;
 }
+
+.imsg.ussd{
+  .rounded-corners(0px);
+
+  &.to {
+    .rounded-corners(5px);
+    margin-left: 20px;
+    background-color: #757479;
+  }
+
+  &.from {
+    margin-right: 20px;
+    background-color: #E5E4E9;
+  }
+
+  &.to:before {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    right: -10px;
+    border-color: #000;
+    border-radius: 0;
+    clip: auto !important;
+    width: 0;
+    height: 0;
+    border-width: 0;
+    border-bottom: 20px solid #757479 !important;
+    border-right: 20px solid transparent !important;
+  }
+
+  &.from:before {
+    display: none;
+  }
+}

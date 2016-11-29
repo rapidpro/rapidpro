@@ -7,9 +7,9 @@ from django.core.urlresolvers import reverse
 from django.utils import timezone
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, TEL_SCHEME, TWITTER_SCHEME
 from temba.orgs.models import Org
-from temba.channels.models import Channel, ChannelLog
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStep
-from temba.msgs.models import Broadcast, Call, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
+from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg, INCOMING, OUTGOING, PENDING
 from temba.utils import dict_to_struct
 from temba.values.models import Value
 from temba.utils.profiler import SegmentProfiler
@@ -74,7 +74,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         for c in range(0, count):
             name = '%s %d' % (base_names[c % len(base_names)], c + 1)
             scheme, path, channel = self.urn_generators[c % len(self.urn_generators)](c)
-            contacts.append(Contact.get_or_create(self.org, self.user, name, urns=[(scheme, path)]))
+            contacts.append(Contact.get_or_create(self.org, self.user, name, urns=[':'.join([scheme, path])]))
         return contacts
 
     def _create_groups(self, count, base_names, contacts):
@@ -85,7 +85,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         num_bases = len(base_names)
         for g in range(0, count):
             name = '%s %d' % (base_names[g % num_bases], g + 1)
-            group = ContactGroup.create(self.org, self.user, name)
+            group = ContactGroup.create_static(self.org, self.user, name)
             group.contacts.add(*contacts[(g % num_bases)::num_bases])
             groups.append(ContactGroup.user_groups.get(pk=group.pk))
         return groups
@@ -117,10 +117,10 @@ class PerformanceTest(TembaTest):  # pragma: no cover
             text = '%s %d' % (base_text, m + 1)
             contact = contacts[m % len(contacts)]
             contact_urn = contact.urn_objects.values()[0]
-            msg = Msg.all_messages.create(contact=contact, contact_urn=contact_urn,
-                                          org=self.org, channel=channel,
-                                          text=text, direction=INCOMING, status=PENDING,
-                                          created_on=date, queued_on=date)
+            msg = Msg.objects.create(contact=contact, contact_urn=contact_urn,
+                                     org=self.org, channel=channel,
+                                     text=text, direction=INCOMING, status=PENDING,
+                                     created_on=date, queued_on=date)
             messages.append(msg)
         return messages
 
@@ -138,21 +138,24 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
             assign_to = messages[(g % num_bases)::num_bases]
             for msg in assign_to:
-                Msg.all_messages.get(pk=msg.pk).labels.add(label)
+                Msg.objects.get(pk=msg.pk).labels.add(label)
         return labels
 
     def _create_calls(self, count, channel, contacts):
         """
-        Creates the given number of calls
+        Creates the given number of missed call events
         """
         calls = []
         date = timezone.now()
         for c in range(0, count):
             duration = random.randint(10, 30)
             contact = contacts[c % len(contacts)]
-            calls.append(Call(channel=channel, org=self.org, contact=contact, time=date, duration=duration,
-                              call_type='mo_call', created_by=self.user, modified_by=self.user))
-        Call.objects.bulk_create(calls)
+            contact_urn = contact.urn_objects.values()[0]
+            calls.append(ChannelEvent(channel=channel, org=self.org, event_type='mt_miss',
+                                      contact=contact, contact_urn=contact_urn,
+                                      time=date, duration=duration,
+                                      created_by=self.user, modified_by=self.user))
+        ChannelEvent.objects.bulk_create(calls)
         return calls
 
     def _create_runs(self, count, flow, contacts):
@@ -213,9 +216,9 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         # check messages for each channel
         incoming_total = 2 * num_contacts
-        self.assertEqual(incoming_total / 3, Msg.all_messages.filter(direction=INCOMING, channel=self.tel_mtn).count())
-        self.assertEqual(incoming_total / 3, Msg.all_messages.filter(direction=INCOMING, channel=self.tel_tigo).count())
-        self.assertEqual(incoming_total / 3, Msg.all_messages.filter(direction=INCOMING, channel=self.twitter).count())
+        self.assertEqual(incoming_total / 3, Msg.objects.filter(direction=INCOMING, channel=self.tel_mtn).count())
+        self.assertEqual(incoming_total / 3, Msg.objects.filter(direction=INCOMING, channel=self.tel_tigo).count())
+        self.assertEqual(incoming_total / 3, Msg.objects.filter(direction=INCOMING, channel=self.twitter).count())
 
     def test_message_outgoing(self):
         num_contacts = 3000
@@ -249,9 +252,9 @@ class PerformanceTest(TembaTest):  # pragma: no cover
 
         # check messages for each channel
         outgoing_total = 3 * num_contacts
-        self.assertEqual(outgoing_total / 3, Msg.all_messages.filter(direction=OUTGOING, channel=self.tel_mtn).count())
-        self.assertEqual(outgoing_total / 3, Msg.all_messages.filter(direction=OUTGOING, channel=self.tel_bulk).count())
-        self.assertEqual(outgoing_total / 3, Msg.all_messages.filter(direction=OUTGOING, channel=self.twitter).count())
+        self.assertEqual(outgoing_total / 3, Msg.objects.filter(direction=OUTGOING, channel=self.tel_mtn).count())
+        self.assertEqual(outgoing_total / 3, Msg.objects.filter(direction=OUTGOING, channel=self.tel_bulk).count())
+        self.assertEqual(outgoing_total / 3, Msg.objects.filter(direction=OUTGOING, channel=self.twitter).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_mtn).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.tel_tigo).count())
         self.assertEqual(len(contacts) / 3, ContactURN.objects.filter(channel=self.twitter).count())
@@ -264,8 +267,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         incoming = self._create_incoming(100, "Hello", self.tel_mtn, contacts)
         self._create_labels(10, ["My Label"], incoming)
 
-        task = ExportMessagesTask.objects.create(org=self.org, host='rapidpro.io',
-                                                 created_by=self.user, modified_by=self.user)
+        task = ExportMessagesTask.objects.create(org=self.org, created_by=self.user, modified_by=self.user)
 
         with SegmentProfiler("Export messages", self, True, force_profile=True):
             task.do_export()
@@ -278,7 +280,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
         with SegmentProfiler("Starting a flow", self, True, force_profile=True):
             flow.start(groups, [])
 
-        self.assertEqual(10000, Msg.all_messages.all().count())
+        self.assertEqual(10000, Msg.objects.all().count())
         self.assertEqual(10000, FlowRun.objects.all().count())
         self.assertEqual(20000, FlowStep.objects.all().count())
 

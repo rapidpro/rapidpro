@@ -1,6 +1,8 @@
 from django import template
 from django.template import TemplateSyntaxError
 from django.template.defaultfilters import register
+from django.conf import settings
+from django.core.urlresolvers import reverse
 from ...campaigns.models import Campaign
 from ...flows.models import Flow
 from ...triggers.models import Trigger
@@ -38,6 +40,31 @@ def format_seconds(seconds):
     if seconds >= 30:
         minutes += 1
     return '%s min' % minutes
+
+
+@register.simple_tag(takes_context=True)
+def ssl_brand_url(context, url_name, args=None):
+    hostname = settings.HOSTNAME
+    if 'brand' in context:
+        hostname = context['brand'].get('domain', settings.HOSTNAME)
+
+    path = reverse(url_name, args)
+    if getattr(settings, 'SESSION_COOKIE_SECURE', False):
+        return "https://%s%s" % (hostname, path)
+    else:
+        return path
+
+
+@register.simple_tag(takes_context=True)
+def non_ssl_brand_url(context, url_name, args=None):
+    hostname = settings.HOSTNAME
+    if 'brand' in context:
+        hostname = context['brand'].get('domain', settings.HOSTNAME)
+
+    path = reverse(url_name, args)
+    if settings.HOSTNAME != "localhost":
+        return "http://%s%s" % (hostname, path)
+    return path
 
 
 def lessblock(parser, token):

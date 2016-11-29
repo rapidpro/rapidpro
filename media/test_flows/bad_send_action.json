@@ -1,0 +1,57 @@
+{
+  "base_language": "base",
+  "action_sets": [
+    {
+      "y": 795,
+      "x": 705,
+      "destination": "610d3c9d-7d2c-4aa4-b0eb-a07c823f6964",
+      "uuid": "0406607c-e711-4cbb-9c69-cbe3ce785dbd",
+      "actions": [
+        {
+          "uuid": "c7e3dc19-dc4a-45a0-a4f7-7f57720c3ce5",
+          "contacts": [
+            {
+              "urns": [
+                {
+                  "priority": 50,
+                  "path": "+14255551212",
+                  "scheme": "tel"
+                }
+              ],
+              "id": "contact1_id",
+              "name": "Mark"
+            },
+            {
+              "urns": [
+                {
+                  "priority": 50,
+                  "path": "+12065551212",
+                  "scheme": "tel"
+                }
+              ],
+              "id": "contact2_id",
+              "name": "Gregg"
+            }
+          ],
+          "variables": [],
+          "groups": [],
+          "msg": {
+            "base": "Hey there, here's a message."
+          },
+          "type": "send"
+        }
+      ]
+    }],
+  "version": 8,
+  "flow_type": "F",
+  "entry": "d41f3f4d-1742-44a0-b5d5-3d814c804832",
+  "rule_sets": [],
+  "type": "F",
+  "metadata": {
+    "revision": 110,
+    "expires": 5,
+    "saved_on": "2015-12-08T17:55:01.020719Z",
+    "uuid": "9e73669a-e71b-4e2d-ba3e-336ff0e6447b",
+    "name": "Send Action Test"
+  }
+}
