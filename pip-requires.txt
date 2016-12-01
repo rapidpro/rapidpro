@@ -65,3 +65,5 @@ openpyxl
 django-excel
 pyexcel-xls
 pyexcel-xlsx
+validate_email
+pyDNS

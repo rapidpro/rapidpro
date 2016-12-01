@@ -322,8 +322,9 @@ class EmailTest(TembaTest):
         self.assertFalse(is_valid_address("a@b"))
         self.assertFalse(is_valid_address(" @ .c"))
         self.assertFalse(is_valid_address("a @b.c"))
-        self.assertTrue(is_valid_address("a@b.c"))
-        self.assertTrue(is_valid_address('"Abc@def"+label@example.com'))
+        self.assertFalse(is_valid_address("{@flow.email}"))
+        self.assertTrue(is_valid_address("a@nyaruka.com"))
+        self.assertTrue(is_valid_address('"Abdef"@nyaruka.com'))
 
 
 class JsonTest(TembaTest):

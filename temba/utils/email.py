@@ -1,20 +1,16 @@
 from __future__ import absolute_import, unicode_literals
 
-import regex
-
 from django.core.mail import EmailMultiAlternatives, send_mail
 from django.template import loader, Context
 from django.conf import settings
-
-
-ADDRESS_REGEX = regex.compile(r'\S+@\S+\.\S+')
+from validate_email import validate_email
 
 
 def is_valid_address(address):
     """
     Very loose email address check
     """
-    return address and ADDRESS_REGEX.match(address)
+    return address and validate_email(address, check_mx=True)
 
 
 def link_components(request=None, user=None):
