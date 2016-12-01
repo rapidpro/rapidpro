@@ -32,6 +32,13 @@ class CallHandler(View):
         channel_type = channel.channel_type
         client = channel.get_ivr_client()
 
+        print "\n\n\n"
+        print request.GET
+        print "\n\n"
+        print request.REQUEST
+        print "\n\n"
+        print request.body
+
         if channel_type in Channel.TWIML_CHANNELS and request.REQUEST.get('hangup', 0):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
@@ -122,6 +129,7 @@ class CallHandler(View):
                 if call.is_ivr():
                     response = Flow.handle_call(call, text=text, saved_media_url=saved_media_url, hangup=hangup)
                     if channel_type in Channel.NCCO_CHANNELS:
+                        print "\n\n\n"
                         print "=" * 80
                         print unicode(response)
                         print "=" * 80

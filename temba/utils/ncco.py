@@ -11,11 +11,6 @@ class Response(object):
         self.document = []
 
     def __str__(self):
-
-        #  make sure the last text reading has bargeIn=False
-        if self.document and self.document[-1]['action'] == 'talk':
-            self.document[-1]['bargeIn'] = False
-
         return json.dumps(self.document)
 
     def __enter__(self):
