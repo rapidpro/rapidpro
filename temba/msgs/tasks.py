@@ -15,8 +15,8 @@ from djcelery_transactions import task
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
 from temba.utils import json_date_to_datetime, chunk_list
-from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, HANDLE_EVENT_TASK, MSG_EVENT
-from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel, PENDING, SENT, DELIVERED
+from .models import Msg, Broadcast, BroadcastRecipient, ExportMessagesTask, PENDING, HANDLE_EVENT_TASK, MSG_EVENT
+from .models import FIRE_EVENT, TIMEOUT_EVENT, SystemLabel
 
 logger = logging.getLogger(__name__)
 
@@ -277,7 +277,7 @@ def purge_broadcasts_task():
     for batch_ids in chunk_list(purge_ids, 1000):
         batch_broadcasts = Broadcast.objects.filter(pk__in=batch_ids)
         batch_message_ids = []  # all the message ids in these broadcasts
-        batch_contact_ids_by_error = defaultdict(list)
+        batch_contact_ids_by_status = defaultdict(list)
         batch_topup_counts = defaultdict(int)  # message counts per topup in these broadcasts
 
         with transaction.atomic():
@@ -291,9 +291,7 @@ def purge_broadcasts_task():
 
                 for msg_id, msg_bcast, msg_status, contact_id in list(broadcast.msgs.values_list('id', 'broadcast', 'status', 'contact')):
                     batch_message_ids.append(msg_id)
-
-                    if msg_status not in (SENT, DELIVERED):
-                        batch_contact_ids_by_error[(msg_bcast, msg_status)].append(contact_id)
+                    batch_contact_ids_by_status[(msg_bcast, msg_status)].append(contact_id)
 
             print("[PURGE] Gathered topup counts and message list (%d topups, %d messages)" % (len(batch_topup_counts), len(batch_message_ids)))
 
@@ -303,9 +301,9 @@ def purge_broadcasts_task():
 
             print("[PURGE] Created debits for each topup (%d debits)" % len(batch_topup_counts))
 
-            # for messages which have non-SENT status, update the appropriate broadcast recipient record
+            # update the broadcast recipient records with the statuses of the messages we're about to delete
             non_sent_recipients = 0
-            for (msg_bcast, msg_status), contact_ids in six.iteritems(batch_contact_ids_by_error):
+            for (msg_bcast, msg_status), contact_ids in six.iteritems(batch_contact_ids_by_status):
                 for contact_ids_batch in chunk_list(contact_ids, 1000):
                     recipients = BroadcastRecipient.objects.filter(broadcast=msg_bcast, contact_id__in=contact_ids_batch)
                     recipients.update(purged_status=msg_status)

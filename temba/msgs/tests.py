@@ -1392,9 +1392,11 @@ class BroadcastTest(TembaTest):
         debit2 = Debit.objects.get(topup__org=self.org2)
         self.assertEqual(debit2.amount, 1)
 
-        # check there's a single recipient record for Joe showing that he failed to get broadcast #2
+        # check the recipient records for broadcast #2
         self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.joe).purged_status, FAILED)
-        self.assertEqual(BroadcastRecipient.objects.exclude(purged_status=None).count(), 1)
+        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.frank).purged_status, SENT)
+        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.kevin).purged_status, SENT)
+        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.lucy).purged_status, SENT)
 
         # check system label counts have been updated
         self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 4)
