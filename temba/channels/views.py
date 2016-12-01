@@ -44,7 +44,6 @@ RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
                       Channel.TYPE_CHIKKA: "icon-channel-external",
                       Channel.TYPE_EXTERNAL: "icon-channel-external",
                       Channel.TYPE_KANNEL: "icon-channel-kannel",
-                      Channel.TYPE_LINE: "icon-line",
                       Channel.TYPE_NEXMO: "icon-channel-nexmo",
                       Channel.TYPE_VERBOICE: "icon-channel-external",
                       Channel.TYPE_TWILIO: "icon-channel-twilio",
@@ -552,7 +551,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line')
+               'claim_twiml_api')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1910,67 +1909,6 @@ class ChannelCRUDL(SmartCRUDL):
                                                    page['name'], page['id'], form.cleaned_data['page_access_token'])
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
-
-    class ClaimLine(OrgPermsMixin, SmartFormView):
-        class LineForm(forms.Form):
-            channel_secret = forms.CharField(label=_("Secret"), required=True, help_text=_("The Secret of the LINE Bot"))
-            channel_access_token = forms.CharField(label=_("Access Token"), required=True, help_text=_("The Access Token of the LINE Bot"))
-
-            def clean(self):
-                from django.db.models.query import Q
-                from .models import TEMBA_HEADERS
-
-                channel_secret = self.cleaned_data.get('channel_secret')
-                channel_access_token = self.cleaned_data.get('channel_access_token')
-
-                headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
-                headers.update(TEMBA_HEADERS)
-
-                response = requests.get('https://api.line.me/v1/oauth/verify', headers=headers)
-                content = json.loads(response.content)
-
-                if response.status_code != 200:
-                    raise ValidationError(content.get('error_desciption'))
-                else:
-                    channel_id = content.get('channelId')
-                    channel_mid = content.get('mid')
-
-                    credentials = {
-                        'channel_id': channel_id,
-                        'channel_mid': channel_mid,
-                        'channel_secret': channel_secret,
-                        'channel_access_token': channel_access_token
-                    }
-
-                    existing = Channel.objects.filter(Q(config__contains=channel_id) | Q(config__contains=channel_secret) | Q(config__contains=channel_access_token), channel_type=Channel.TYPE_LINE, address=channel_mid, is_active=True).first()
-                    if existing:
-                        raise ValidationError(_("A channel with this configuration already exists."))
-
-                    headers.pop('Content-Type')
-                    response_profile = requests.get('https://api.line.me/v1/profile', headers=headers)
-                    content_profile = json.loads(response_profile.content)
-
-                    credentials['profile'] = {
-                        'picture_url': content_profile.get('pictureUrl'),
-                        'display_name': content_profile.get('displayName')
-                    }
-
-                    return credentials
-
-        form_class = LineForm
-        title = _("Line Channel")
-        fields = ('channel_secret', 'channel_access_token')
-        success_url = "id@channels.channel_configuration"
-
-        def form_valid(self, form):
-
-            profile = form.cleaned_data.get('profile')
-            credentials = form.cleaned_data
-            credentials.pop('profile')
-
-            self.object = Channel.add_line_channel(org=self.request.user.get_org(), user=self.request.user, credentials=credentials, name=profile.get('display_name'))
-
-            return super(ChannelCRUDL.ClaimLine, self).form_valid(form)
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")
