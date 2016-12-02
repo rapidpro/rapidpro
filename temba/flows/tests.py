@@ -5,6 +5,7 @@ import datetime
 import json
 import os
 import pytz
+import six
 import time
 
 from datetime import timedelta
@@ -399,15 +400,15 @@ class FlowTest(TembaTest):
 
         # should have created a single broadcast
         broadcast = Broadcast.objects.get()
-        self.assertEquals("What is your favorite color?", broadcast.text)
-        self.assertTrue(broadcast.contacts.filter(pk=self.contact.pk))
-        self.assertTrue(broadcast.contacts.filter(pk=self.contact2.pk))
+        self.assertEqual(broadcast.text, "What is your favorite color?")
+        self.assertEqual(set(broadcast.contacts.all()), {self.contact, self.contact2})
+        self.assertEqual(broadcast.base_language, 'base')
 
-        # should have received a single message
-        msg = Msg.objects.get(contact=self.contact)
-        self.assertEquals("What is your favorite color?", msg.text)
-        self.assertEquals(PENDING, msg.status)
-        self.assertEquals(Msg.PRIORITY_NORMAL, msg.priority)
+        # each contact should have received a single message
+        contact1_msg = broadcast.msgs.get(contact=self.contact)
+        self.assertEqual(contact1_msg.text, "What is your favorite color?")
+        self.assertEqual(contact1_msg.status, PENDING)
+        self.assertEqual(contact1_msg.priority, Msg.PRIORITY_NORMAL)
 
         # should have a flow run for each contact
         contact1_run = FlowRun.objects.get(contact=self.contact)
@@ -426,16 +427,17 @@ class FlowTest(TembaTest):
         self.assertEqual(len(contact2_steps), 2)
 
         # check our steps for contact #1
-        self.assertEqual(unicode(contact1_steps[0]), "Eric - A:00000000-00000000-00000000-00000001")
+        self.assertEqual(six.text_type(contact1_steps[0]), "Eric - A:00000000-00000000-00000000-00000001")
         self.assertEqual(contact1_steps[0].step_uuid, entry.uuid)
         self.assertEqual(contact1_steps[0].step_type, FlowStep.TYPE_ACTION_SET)
         self.assertEqual(contact1_steps[0].contact, self.contact)
         self.assertTrue(contact1_steps[0].arrived_on)
         self.assertTrue(contact1_steps[0].left_on)
-        self.assertEqual(set(contact1_steps[0].messages.all()), {msg})
+        self.assertEqual(set(contact1_steps[0].broadcasts.all()), {broadcast})
+        self.assertEqual(set(contact1_steps[0].messages.all()), {contact1_msg})
         self.assertEqual(contact1_steps[0].next_uuid, entry.destination)
 
-        self.assertEqual(unicode(contact1_steps[1]), "Eric - R:00000000-00000000-00000000-00000005")
+        self.assertEqual(six.text_type(contact1_steps[1]), "Eric - R:00000000-00000000-00000000-00000005")
         self.assertEqual(contact1_steps[1].step_uuid, entry.destination)
         self.assertEqual(contact1_steps[1].step_type, FlowStep.TYPE_RULE_SET)
         self.assertEqual(contact1_steps[1].contact, self.contact)
