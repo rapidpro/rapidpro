@@ -11,6 +11,19 @@ class Response(object):
         self.document = []
 
     def __str__(self):
+
+        object_len = len(self.document)
+        for idx in range(object_len):
+            action_dict = self.document[idx]
+
+            if action_dict['action'] == 'talk':
+                if idx == object_len - 1:
+                    self.document[idx]['bargeIn'] = False
+                elif idx <= object_len - 2:
+                    next_action_dict = self.document[idx + 1]
+                    if next_action_dict['action'] != 'input':
+                        self.document[idx]['bargeIn'] = False
+
         return json.dumps(self.document)
 
     def __enter__(self):

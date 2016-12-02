@@ -1109,7 +1109,7 @@ class NCCOTest(TembaTest):
         response = ncco.Response()
         response.say('Hello')
 
-        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='Hello', bargeIn=True)])
+        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='Hello', bargeIn=False)])
 
     def test_play(self):
         response = ncco.Response()
@@ -1118,7 +1118,7 @@ class NCCOTest(TembaTest):
             response.play()
 
         response.play(digits='123')
-        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='123', bargeIn=True)])
+        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='123', bargeIn=False)])
 
         response = ncco.Response()
         response.play(url='http://example.com/audio.wav')
@@ -1141,6 +1141,46 @@ class NCCOTest(TembaTest):
                                                          dict(action='input', maxDigits=1, timeOut=1,
                                                               eventUrl=[
                                                                   "%s?input_redirect=1" % 'http://example.com/'])])
+
+        response = ncco.Response()
+        response.say('Hello')
+        response.redirect('http://example.com/')
+        response.say('Goodbye')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='Hello', bargeIn=True),
+                                                         dict(action='input', maxDigits=1, timeOut=1,
+                                                              eventUrl=[
+                                                                  "%s?input_redirect=1" % 'http://example.com/']),
+                                                         dict(action='talk', text='Goodbye', bargeIn=False)])
+
+        response = ncco.Response()
+        response.say('Hello')
+        response.redirect('http://example.com/')
+        response.say('Please make a recording')
+        response.record(action="http://example.com", method="post", maxLength=60)
+        response.say('Thanks')
+        response.say('Allo')
+        response.say('Cool')
+        response.redirect('http://example.com/')
+        response.say('Bye')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(action='talk', text='Hello', bargeIn=True),
+                                                         dict(action='input', maxDigits=1, timeOut=1,
+                                                              eventUrl=["%s?input_redirect=1" % 'http://example.com/']),
+                                                         dict(action='talk', text='Please make a recording',
+                                                              bargeIn=False),
+                                                         dict(format='wav', eventMethod='post',
+                                                              eventUrl=['http://example.com'],
+                                                              endOnSilence='4', timeOut='60',
+                                                              action='record', beepStart=True),
+                                                         dict(action='input', maxDigits=1, timeOut=1,
+                                                              eventUrl=["%s?save_media=1" % "http://example.com"]),
+                                                         dict(action='talk', text='Thanks', bargeIn=False),
+                                                         dict(action='talk', text='Allo', bargeIn=False),
+                                                         dict(action='talk', text='Cool', bargeIn=True),
+                                                         dict(action='input', maxDigits=1, timeOut=1,
+                                                              eventUrl=["%s?input_redirect=1" % 'http://example.com/']),
+                                                         dict(action='talk', text='Bye', bargeIn=False)])
 
     def test_pause(self):
         response = ncco.Response()
