@@ -34,7 +34,7 @@ from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, \
     InterruptTest
-from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, get_flow_user
+from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, get_flow_user
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
@@ -4211,6 +4211,12 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
 
+        visited = flow.get_db_activity()
+        self.assertEquals(1, visited[msg_to_color_step])
+        self.assertEquals(1, visited[other_rule_to_msg])
+
+        # try the same thing after squashing
+        FlowPathCount.squash_counts()
         visited = flow.get_db_activity()
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])

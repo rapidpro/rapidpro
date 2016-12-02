@@ -3648,12 +3648,12 @@ class FlowPathCount(models.Model):
         start = time.time()
         squash_count = 0
 
-        for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'simulation', 'period')\
-                .distinct('flow_id', 'from_uuid', 'to_uuid', 'simulation', 'period'):
+        for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'period', 'simulation')\
+                .distinct('flow_id', 'from_uuid', 'to_uuid', 'period', 'simulation'):
 
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
-                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s, %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period, count.simulation,))
+                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s, %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period, count.simulation))
 
             squash_count += 1
 
@@ -3665,7 +3665,7 @@ class FlowPathCount(models.Model):
         print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
 
     def __unicode__(self):  # pragma: no cover
-        return "FlowPathCount(%d) %s:%s %s count: %d (sim: %s)" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.simulation, self.count)
+        return "FlowPathCount(%d) %s:%s %s count: %d (sim: %s)" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count, self.simulation)
 
     class Meta:
         index_together = ['flow', 'from_uuid', 'to_uuid', 'simulation', 'period']

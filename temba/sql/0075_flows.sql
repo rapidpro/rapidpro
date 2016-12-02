@@ -126,7 +126,7 @@ CREATE OR REPLACE FUNCTION temba_squash_flowpathcount(_flow_id INTEGER, _from_uu
   BEGIN
     WITH removed as (DELETE FROM flows_flowpathcount
       WHERE "flow_id" = _flow_id AND "from_uuid" = _from_uuid
-            AND "to_uuid" = _to_uuid AND "period" = date_trunc('hour', _period)
+            AND "to_uuid" = _to_uuid AND "period" = date_trunc('hour', _period) AND "simulation" = _simulation
       RETURNING "count")
       INSERT INTO flows_flowpathcount("flow_id", "from_uuid", "to_uuid", "period", "simulation", "count")
       VALUES (_flow_id, _from_uuid, _to_uuid, date_trunc('hour', _period), _simulation, GREATEST(0, (SELECT SUM("count") FROM removed)));
@@ -167,7 +167,7 @@ BEGIN
   -- FlowStep being added, increment if next is set
   IF TG_OP = 'INSERT' THEN
     IF NEW.next_uuid IS NOT NULL AND NEW.left_on IS NOT NULL THEN
-      PERFORM temba_insert_flowpathcount(temba_flow_for_run(NEW.run_id), temba_step_from_uuid(NEW), uuid(NEW.next_uuid), NEW.left_on, temba_flows_contact_is_test(OLD.contact_id), 1);
+      PERFORM temba_insert_flowpathcount(temba_flow_for_run(NEW.run_id), temba_step_from_uuid(NEW), uuid(NEW.next_uuid), NEW.left_on, temba_flows_contact_is_test(NEW.contact_id), 1);
     END IF;
 
   -- FlowStep being removed
