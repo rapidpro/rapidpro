@@ -4536,7 +4536,7 @@ class EmailAction(Action):
         valid_addresses = []
         invalid_addresses = []
         for email in self.emails:
-            if email[0] == '@':
+            if email.startswith('@'):
                 # a valid email will contain @ so this is very likely to generate evaluation errors
                 (address, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
             else:
@@ -4554,8 +4554,10 @@ class EmailAction(Action):
                 send_email_action_task.delay(valid_addresses, subject, message)
         else:
             if valid_addresses:
+                valid_addresses = ['"%s"' % elt for elt in valid_addresses]
                 ActionLog.info(run, _("\"%s\" would be sent to %s") % (message, ", ".join(valid_addresses)))
             if invalid_addresses:
+                invalid_addresses = ['"%s"' % elt for elt in invalid_addresses]
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
 
