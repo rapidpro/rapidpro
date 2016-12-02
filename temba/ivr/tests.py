@@ -15,7 +15,7 @@ from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.msgs.models import Msg, IVR
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
-from .models import IVRCall, OUTGOING, IN_PROGRESS, QUEUED, COMPLETED, BUSY, CANCELED, RINGING, NO_ANSWER, FAILED
+from temba.ivr.models import IVRCall
 
 
 class IVRTests(FlowFileTest):
@@ -64,6 +64,31 @@ class IVRTests(FlowFileTest):
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_bogus_call(self):
+        # create our ivr setup
+        self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+        self.org.save()
+        self.import_file('capture_recording')
+
+        # post to a bogus call id
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[999999999]), post_data)
+        self.assertEqual(404, response.status_code)
+
+        # start a real call
+        flow = Flow.objects.filter(name='Capture Recording').first()
+        contact = self.create_contact('Chuck D', number='+13603621737')
+        flow.start([], [contact])
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
+
+        # now trigger a hangup
+        post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20, hangup=1)
+        response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
+        self.assertEqual(200, response.status_code)
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
     def test_ivr_recording(self):
 
         # create our ivr setup
@@ -75,7 +100,7 @@ class IVRTests(FlowFileTest):
         # start our flow
         contact = self.create_contact('Chuck D', number='+13603621737')
         flow.start([], [contact])
-        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
@@ -99,14 +124,14 @@ class IVRTests(FlowFileTest):
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
-        self.assertEquals(COMPLETED, call.status)
+        self.assertEquals(IVRCall.COMPLETED, call.status)
 
         # twilio will also send us a final completion message with the call duration (status of completed again)
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
                          dict(CallStatus='completed', CallDuration='15'))
 
         call = IVRCall.objects.get(pk=call.pk)
-        self.assertEquals(COMPLETED, call.status)
+        self.assertEquals(IVRCall.COMPLETED, call.status)
         self.assertEquals(15, call.duration)
 
         messages = Msg.objects.filter(msg_type=IVR).order_by('pk')
@@ -155,7 +180,7 @@ class IVRTests(FlowFileTest):
         # start macklemore in the flow
         ben = self.create_contact('Ben', '+12345')
         ivr_flow.start(groups=[], contacts=[ben])
-        call = IVRCall.objects.get(direction=OUTGOING)
+        call = IVRCall.objects.get(direction=IVRCall.OUTGOING)
 
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
@@ -168,7 +193,7 @@ class IVRTests(FlowFileTest):
 
         # should have also started a new flow and received our text
         self.assertTrue(FlowRun.objects.filter(contact=ben, flow=msg_flow).first())
-        self.assertTrue(Msg.objects.filter(direction=OUTGOING, contact=ben, text="You said foo!").first())
+        self.assertTrue(Msg.objects.filter(direction=IVRCall.OUTGOING, contact=ben, text="You said foo!").first())
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -187,14 +212,14 @@ class IVRTests(FlowFileTest):
         flow_1.start(groups=[], contacts=[shawn])
 
         # we should have one call now
-        calls = IVRCall.objects.filter(direction=OUTGOING)
+        calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING)
         self.assertEqual(1, calls.count())
 
         # once the first set of actions are processed, we'll initiate a second call
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         self.client.post(reverse('ivr.ivrcall_handle', args=[calls[0].pk]), post_data)
 
-        calls = IVRCall.objects.filter(direction=OUTGOING).order_by('created_on')
+        calls = IVRCall.objects.filter(direction=IVRCall.OUTGOING).order_by('created_on')
         self.assertEqual(2, calls.count())
         (first_call, second_call) = calls
 
@@ -208,8 +233,8 @@ class IVRTests(FlowFileTest):
         first_call.refresh_from_db()
         second_call.refresh_from_db()
 
-        self.assertEquals(COMPLETED, first_call.status)
-        self.assertEquals(COMPLETED, second_call.status)
+        self.assertEquals(IVRCall.COMPLETED, first_call.status)
+        self.assertEquals(IVRCall.COMPLETED, second_call.status)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -229,19 +254,19 @@ class IVRTests(FlowFileTest):
 
         # our message flow triggers an ivr flow
         self.assertEqual(2, FlowRun.objects.all().count())
-        self.assertEqual(1, IVRCall.objects.filter(direction=OUTGOING).count())
+        self.assertEqual(1, IVRCall.objects.filter(direction=IVRCall.OUTGOING).count())
 
         # one text message
         self.assertEqual(1, Msg.objects.all().count())
 
         # now twilio calls back to initiate the triggered call
-        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
 
         # still same number of runs and calls, but one more (ivr) message
         self.assertEqual(2, FlowRun.objects.all().count())
-        self.assertEqual(1, IVRCall.objects.filter(direction=OUTGOING).count())
+        self.assertEqual(1, IVRCall.objects.filter(direction=IVRCall.OUTGOING).count())
         self.assertEqual(2, Msg.objects.all().count())
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
@@ -260,7 +285,7 @@ class IVRTests(FlowFileTest):
         # start marshall in the flow
         eminem = self.create_contact('Eminem', '+12345')
         flow.start(groups=[], contacts=[eminem])
-        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         self.assertNotEquals(call, None)
 
         # after a call is picked up, twilio will call back to our server
@@ -305,7 +330,7 @@ class IVRTests(FlowFileTest):
         # start our flow
         eric = self.create_contact('Eric Newcomer', number='+13603621737')
         flow.start([], [eric])
-        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
         # after a call is picked up, twilio will call back to our server
         post_data = dict(CallSid='CallSid', CallStatus='in-progress', CallDuration=20)
@@ -364,7 +389,7 @@ class IVRTests(FlowFileTest):
         test_contact = Contact.get_test_contact(self.admin)
         Contact.set_simulation(True)
         flow.start([], [test_contact])
-        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
         # should be using the usersettings number in test mode
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
@@ -395,7 +420,7 @@ class IVRTests(FlowFileTest):
         flow.start([], [eric], restart_participants=True)
 
         # we should have an outbound ivr call now
-        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
         self.assertEquals(0, call.get_duration())
         self.assertIsNotNone(call)
@@ -417,7 +442,7 @@ class IVRTests(FlowFileTest):
         # updated our status and duration accordingly
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(20, call.duration)
-        self.assertEquals(IN_PROGRESS, call.status)
+        self.assertEquals(IVRCall.IN_PROGRESS, call.status)
 
         # don't press any numbers, but # instead
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]) + "?empty=1", dict())
@@ -450,8 +475,8 @@ class IVRTests(FlowFileTest):
         # twilio would then disconnect the user and notify us of a completed call
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), dict(CallStatus='completed'))
         call = IVRCall.objects.get(pk=call.pk)
-        self.assertEquals(COMPLETED, call.status)
-        self.assertFalse(FlowRun.objects.filter(call=call).first().is_active)
+        self.assertEquals(IVRCall.COMPLETED, call.status)
+        self.assertFalse(FlowRun.objects.filter(session=call).first().is_active)
 
         # simulation gets flipped off by middleware, and this unhandled message doesn't flip it back on
         self.assertFalse(Contact.get_simulation())
@@ -473,12 +498,12 @@ class IVRTests(FlowFileTest):
             call_to_update.save()
             self.assertEquals(temba_status, IVRCall.objects.get(pk=call_to_update.pk).status)
 
-        test_status_update(call, 'queued', QUEUED)
-        test_status_update(call, 'ringing', RINGING)
-        test_status_update(call, 'canceled', CANCELED)
-        test_status_update(call, 'busy', BUSY)
-        test_status_update(call, 'failed', FAILED)
-        test_status_update(call, 'no-answer', NO_ANSWER)
+        test_status_update(call, 'queued', IVRCall.QUEUED)
+        test_status_update(call, 'ringing', IVRCall.RINGING)
+        test_status_update(call, 'canceled', IVRCall.CANCELED)
+        test_status_update(call, 'busy', IVRCall.BUSY)
+        test_status_update(call, 'failed', IVRCall.FAILED)
+        test_status_update(call, 'no-answer', IVRCall.NO_ANSWER)
 
         FlowStep.objects.all().delete()
         IVRCall.objects.all().delete()
@@ -491,7 +516,7 @@ class IVRTests(FlowFileTest):
         flow.start([], [eric], restart_participants=True, start_msg=msg)
 
         # we should have an outbound ivr call now, and no steps yet
-        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
         self.assertIsNotNone(call)
         self.assertEquals(0, FlowStep.objects.all().count())
 
@@ -504,7 +529,7 @@ class IVRTests(FlowFileTest):
 
         # the first step has exactly one message which is an outgoing IVR message
         self.assertEquals(1, steps.first().messages.all().count())
-        self.assertEquals(1, steps.first().messages.filter(direction=OUTGOING, msg_type=IVR).count())
+        self.assertEquals(1, steps.first().messages.filter(direction=IVRCall.OUTGOING, msg_type=IVR).count())
 
         # the next step shouldn't have any messages yet since they haven't pressed anything
         self.assertEquals(0, steps[1].messages.all().count())
@@ -512,7 +537,7 @@ class IVRTests(FlowFileTest):
         # try updating our status to completed for a test contact
         Contact.set_simulation(True)
         flow.start([], [test_contact])
-        call = IVRCall.objects.filter(direction=OUTGOING).order_by('-pk').first()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).order_by('-pk').first()
         call.update_status('completed', 30)
         call.save()
         call.refresh_from_db()
@@ -550,7 +575,7 @@ class IVRTests(FlowFileTest):
         self.assertEquals('Placing test call to +1 800-555-1212', ActionLog.objects.all().first().text)
 
         # we should have an outbound ivr call now
-        call = IVRCall.objects.filter(direction=OUTGOING).first()
+        call = IVRCall.objects.filter(direction=IVRCall.OUTGOING).first()
 
         self.assertEquals(0, call.get_duration())
         self.assertIsNotNone(call)
@@ -604,8 +629,8 @@ class IVRTests(FlowFileTest):
         self.channel.is_active = False
         self.channel.save()
         response = self.client.post(reverse('handlers.twilio_handler'), post_data)
-        self.assertEqual('No channel to answer call for +250785551212', response.content)
-        self.assertEqual(400, response.status_code)
+        self.assertContains(response, 'no channel configured to take this call')
+        self.assertEqual(200, response.status_code)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -643,8 +668,8 @@ class IVRTests(FlowFileTest):
                          From='+250788382382', To=self.channel.address)
         response = self.client.post(reverse('handlers.twilio_handler'), post_data)
 
-        self.assertEqual(400, response.status_code)
-        self.assertEqual('No channel to answer call for %s' % self.channel.address, response.content)
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, 'no channel configured to take this call')
 
         # no call object created
         self.assertFalse(IVRCall.objects.all())
