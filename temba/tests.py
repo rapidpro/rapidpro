@@ -421,7 +421,6 @@ class FlowFileTest(TembaTest):
         """
         if not contact:
             contact = self.contact
-
         try:
             if contact.is_test:
                 Contact.set_simulation(True)
