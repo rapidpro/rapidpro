@@ -33,10 +33,6 @@ class CallHandler(View):
         client = channel.get_ivr_client()
 
         print "\n\n\n"
-        print request.GET
-        print "\n\n"
-        print request.REQUEST
-        print "\n\n"
         print request.body
 
         if channel_type in Channel.TWIML_CHANNELS and request.REQUEST.get('hangup', 0):
