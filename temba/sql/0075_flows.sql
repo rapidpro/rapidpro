@@ -98,6 +98,18 @@ CREATE TRIGGER temba_flowrun_truncate_flowruncount
 ----------------------------------------------------------------------
 
 ----------------------------------------------------------------------
+-- Utility function to lookup whether a contact is a simulator contact
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_flows_contact_is_test(_contact_id INT) RETURNS BOOLEAN AS $$
+DECLARE
+  _is_test BOOLEAN;
+BEGIN
+  SELECT is_test INTO STRICT _is_test FROM contacts_contact WHERE id = _contact_id;
+  RETURN _is_test;
+END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
 -- Inserts a new flowpathcount
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_insert_flowpathcount(_flow_id INTEGER, _from_uuid UUID, _to_uuid UUID, _period TIMESTAMP WITH TIME ZONE, _count INTEGER) RETURNS VOID AS $$
@@ -152,23 +164,25 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION temba_update_flowpathcount() RETURNS TRIGGER AS $$
 BEGIN
 
+
+
   -- FlowStep being added, increment if next is set
   IF TG_OP = 'INSERT' THEN
-    IF NEW.next_uuid IS NOT NULL AND NEW.left_on IS NOT NULL THEN
+    IF NOT temba_flows_contact_is_test(NEW.contact_id) AND NEW.next_uuid IS NOT NULL AND NEW.left_on IS NOT NULL THEN
       PERFORM temba_insert_flowpathcount(temba_flow_for_run(NEW.run_id), temba_step_from_uuid(NEW), uuid(NEW.next_uuid), NEW.left_on, 1);
     END IF;
 
   -- FlowStep being removed
   ELSIF TG_OP = 'DELETE' THEN
-    IF OLD.next_uuid IS NOT NULL AND OLD.left_on IS NOT NULL THEN
+    IF NOT temba_flows_contact_is_test(OLD.contact_id) AND OLD.next_uuid IS NOT NULL AND OLD.left_on IS NOT NULL THEN
       PERFORM temba_insert_flowpathcount(temba_flow_for_run(OLD.run_id), temba_step_from_uuid(OLD), uuid(OLD.next_uuid), OLD.left_on, -1);
     END IF;
   -- FlowStep being updated
   ELSIF TG_OP = 'UPDATE' THEN
-    IF OLD.next_uuid IS NOT NULL THEN
+    IF NOT temba_flows_contact_is_test(OLD.contact_id) AND OLD.next_uuid IS NOT NULL THEN
       PERFORM temba_insert_flowpathcount(temba_flow_for_run(OLD.run_id), temba_step_from_uuid(OLD), uuid(OLD.next_uuid), OLD.left_on, -1);
     END IF;
-    IF NEW.next_uuid IS NOT NULL THEN
+    IF NOT temba_flows_contact_is_test(NEW.contact_id) AND NEW.next_uuid IS NOT NULL THEN
       PERFORM temba_insert_flowpathcount(temba_flow_for_run(NEW.run_id), temba_step_from_uuid(NEW), uuid(NEW.next_uuid), NEW.left_on, 1);
     END IF;
 

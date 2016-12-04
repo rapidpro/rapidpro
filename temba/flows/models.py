@@ -3656,7 +3656,7 @@ class FlowPathCount(models.Model):
 
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
-                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s, %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period))
+                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period))
 
             squash_count += 1
 
