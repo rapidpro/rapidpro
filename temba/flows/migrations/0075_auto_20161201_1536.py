@@ -19,14 +19,13 @@ class Migration(migrations.Migration):
                 ('from_uuid', models.UUIDField(help_text='Which flow node they came from')),
                 ('to_uuid', models.UUIDField(help_text='Which flow node they went to')),
                 ('period', models.DateTimeField(help_text='When the activity occured with hourly precision')),
-                ('simulation', models.BooleanField(default=False)),
                 ('count', models.IntegerField(default=0)),
                 ('flow', models.ForeignKey(related_name='activity', to='flows.Flow', help_text='The flow where the activity occurred')),
             ],
         ),
         migrations.AlterIndexTogether(
             name='flowpathcount',
-            index_together=set([('flow', 'from_uuid', 'to_uuid', 'simulation', 'period')]),
+            index_together=set([('flow', 'from_uuid', 'to_uuid', 'period')]),
         ),
-        InstallSQL('0075_flows')
+        InstallSQL('0075_flows'),
     ]

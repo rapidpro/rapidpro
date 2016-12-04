@@ -995,8 +995,12 @@ class Flow(TembaModel):
 
     def get_db_activity(self, simulation=False):
 
+        if simulation:
+            (active, visits) = self._calculate_activity(simulation=True)
+            return visits
+
         # all the flow path counts for our flow
-        paths = FlowPathCount.objects.filter(flow=self, simulation=simulation)
+        paths = FlowPathCount.objects.filter(flow=self)
 
         # group by our from and to and sum the counts
         paths = paths.values('from_uuid', 'to_uuid').order_by().annotate(Sum('count'))
@@ -3633,7 +3637,6 @@ class FlowPathCount(models.Model):
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
-    simulation = models.BooleanField(default=False)
     count = models.IntegerField(default=0)
 
     @classmethod
@@ -3648,12 +3651,12 @@ class FlowPathCount(models.Model):
         start = time.time()
         squash_count = 0
 
-        for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'period', 'simulation')\
-                .distinct('flow_id', 'from_uuid', 'to_uuid', 'period', 'simulation'):
+        for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
+                .distinct('flow_id', 'from_uuid', 'to_uuid', 'period'):
 
             # perform our atomic squash in SQL by calling our squash method
             with connection.cursor() as c:
-                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s, %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period, count.simulation))
+                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s, %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period))
 
             squash_count += 1
 
@@ -3665,10 +3668,10 @@ class FlowPathCount(models.Model):
         print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
 
     def __unicode__(self):  # pragma: no cover
-        return "FlowPathCount(%d) %s:%s %s count: %d (sim: %s)" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count, self.simulation)
+        return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
 
     class Meta:
-        index_together = ['flow', 'from_uuid', 'to_uuid', 'simulation', 'period']
+        index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
 
 
 class FlowRunCount(models.Model):
