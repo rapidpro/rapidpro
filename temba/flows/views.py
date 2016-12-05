@@ -303,7 +303,7 @@ class RuleCRUDL(SmartCRUDL):
                 reports_json.append(report.as_json())
 
             current_report = None
-            edit_report = self.request.REQUEST.get('edit_report', None)
+            edit_report = self.request.GET.get('edit_report', None)
             if edit_report and int(edit_report):
                 request_report = Report.objects.filter(pk=edit_report, org=org).first()
                 if request_report:
@@ -350,9 +350,9 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             org = self.get_object_org()
 
-            step_uuid = request.REQUEST.get('step', None)
-            next_uuid = request.REQUEST.get('destination', None)
-            rule_uuid = request.REQUEST.get('rule', None)
+            step_uuid = request.GET.get('step', None)
+            next_uuid = request.GET.get('destination', None)
+            rule_uuid = request.GET.get('rule', None)
 
             recent_messages = []
 
@@ -390,7 +390,7 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
-            revision_id = request.REQUEST.get('definition', None)
+            revision_id = request.GET.get('definition', None)
 
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
@@ -635,7 +635,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class UploadActionRecording(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):
-            path = self.save_recording_upload(self.request.FILES['file'], self.request.REQUEST.get('actionset'), self.request.REQUEST.get('action'))
+            path = self.save_recording_upload(self.request.FILES['file'], self.request.POST.get('actionset'), self.request.POST.get('action'))
             return build_json_response(dict(path=path))
 
         def save_recording_upload(self, file, actionset_id, action_uuid):
@@ -704,7 +704,7 @@ class FlowCRUDL(SmartCRUDL):
         def derive_queryset(self, *args, **kwargs):
             queryset = super(FlowCRUDL.List, self).derive_queryset(*args, **kwargs)
             queryset = queryset.filter(is_active=True, is_archived=False)
-            types = self.request.REQUEST.getlist('flow_type')
+            types = self.request.GET.getlist('flow_type')
             if types:
                 queryset = queryset.filter(flow_type__in=types)
             return queryset
@@ -826,7 +826,7 @@ class FlowCRUDL(SmartCRUDL):
             flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
             flow_variables.append(dict(name='flow', display=unicode(_('All flow variables'))))
 
-            flow_id = self.request.REQUEST.get('flow', None)
+            flow_id = self.request.GET.get('flow', None)
 
             if flow_id:
                 # TODO: restrict this to only the possible paths to the passed in actionset uuid
@@ -1083,7 +1083,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_formax_sections(self, formax, context):
             if self.has_org_perm('flows.flow_broadcast'):
-                if 'json' not in self.request.REQUEST:
+                if 'json' not in self.request.GET:
                     formax.add_section('broadcast', reverse('flows.flow_broadcast', args=[self.object.pk]),
                                        'icon-users', action='readonly')
 
@@ -1103,23 +1103,23 @@ class FlowCRUDL(SmartCRUDL):
         def render_to_response(self, context, **response_kwargs):
             org = self.request.user.get_org()
 
-            if 'json' in self.request.REQUEST:
-                start = int(self.request.REQUEST.get('iDisplayStart', 0))
-                show = int(self.request.REQUEST.get('iDisplayLength', 20))
+            if 'json' in self.request.GET:
+                start = int(self.request.GET.get('iDisplayStart', 0))
+                show = int(self.request.GET.get('iDisplayLength', 20))
 
-                sort_col = int(self.request.REQUEST.get('iSortCol_0', 0))
-                sort_direction = self.request.REQUEST.get('sSortDir_0', 'desc')
+                sort_col = int(self.request.GET.get('iSortCol_0', 0))
+                sort_direction = self.request.GET.get('sSortDir_0', 'desc')
 
                 # create mapping of uuid to column
                 col_map = dict()
                 idx = 0
-                for col in self.request.REQUEST.get('cols', '').split(','):
+                for col in self.request.GET.get('cols', '').split(','):
                     col_map[col] = idx
                     idx += 1
 
                 runs = FlowRun.objects.filter(flow=self.object).exclude(contact__is_test=True)
 
-                query = self.request.REQUEST.get('sSearch', None)
+                query = self.request.GET.get('sSearch', None)
                 if query:
                     if org.is_anon:
                         # try casting our query to an int if they are querying by contact id
@@ -1204,10 +1204,10 @@ class FlowCRUDL(SmartCRUDL):
                                  dict(category=name),
                                  dict(contact=run['contact__pk'], category=run['count'])] + cols)
 
-                return build_json_response(dict(iTotalRecords=total, iTotalDisplayRecords=total, sEcho=self.request.REQUEST.get('sEcho', 0), aaData=rows))
+                return build_json_response(dict(iTotalRecords=total, iTotalDisplayRecords=total, sEcho=self.request.GET.get('sEcho', 0), aaData=rows))
             else:
-                if 'c' in self.request.REQUEST:
-                    contact = Contact.objects.filter(pk=self.request.REQUEST['c'], org=self.object.org, is_active=True)
+                if 'c' in self.request.GET:
+                    contact = Contact.objects.filter(pk=self.request.GET['c'], org=self.object.org, is_active=True)
                     if contact:
                         contact = contact[0]
                         runs = list(contact.runs.filter(flow=self.object).order_by('-created_on'))
@@ -1220,7 +1220,7 @@ class FlowCRUDL(SmartCRUDL):
                 return super(FlowCRUDL.Results, self).render_to_response(context, **response_kwargs)
 
         def get_template_names(self):
-            if 'c' in self.request.REQUEST:
+            if 'c' in self.request.GET:
                 return ['flows/flow_results_contact.haml']
             else:
                 return super(FlowCRUDL.Results, self).get_template_names()
@@ -1236,7 +1236,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # if we are interested in the flow details add that
             flow_json = dict()
-            if request.REQUEST.get('flow', 0):
+            if request.GET.get('flow', 0):
                 flow_json = flow.as_json()
 
             # get our latest start, we might warn the user that one is in progress
@@ -1295,7 +1295,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if json_dict and json_dict.get('has_refresh', False):
 
-                lang = request.REQUEST.get('lang', None)
+                lang = request.GET.get('lang', None)
                 if lang:
                     test_contact.language = lang
                     test_contact.save()

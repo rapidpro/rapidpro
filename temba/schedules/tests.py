@@ -125,8 +125,8 @@ class ScheduleTest(TembaTest):
         self.assertIn("This field is required", response.content)
 
         # finally create our message
-        post_data = dict(text="A scheduled message to Joe", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, _format="json", schedule=True)
-        response = json.loads(self.client.post(reverse('msgs.broadcast_send'), post_data, follow=True).content)
+        post_data = dict(text="A scheduled message to Joe", omnibox="c-%s" % joe.uuid, sender=self.channel.pk, schedule=True)
+        response = json.loads(self.client.post(reverse('msgs.broadcast_send') + '?_format=json', post_data, follow=True).content)
         self.assertIn("/broadcast/schedule_read", response['redirect'])
 
         # fetch our formax page
