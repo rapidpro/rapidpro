@@ -129,5 +129,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(apply_as_migration)
+        migrations.RunPython(apply_as_migration),
+        InstallSQL('0076_flows')
     ]
