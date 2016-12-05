@@ -40,8 +40,17 @@
             -else
               {{item|activity_icon}}
 
-      %td.details.wrapped
-        -if item.event_type
+      %td.details
+        -if item.recipient_count
+          -with item as broadcast
+            .activity-broadcast
+              .sent-to
+                .summary
+                  Broadcast to {{broadcast.recipient_count|intcomma}} recipients
+
+              .activity-body
+                {{broadcast.text}}
+        -elif item.call_type
           -with item as call
             -if call.event_type == 'mt_miss'
               Missed call
