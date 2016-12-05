@@ -589,6 +589,8 @@ class ContactCRUDL(SmartCRUDL):
             if previous_import and previous_import.created_on < timezone.now() - timedelta(hours=24):
                 analytics.track(self.request.user.username, 'temba.contact_imported')
 
+            return task
+
         def post_save(self, task):
             # configure import params with current org and timezone
             org = self.derive_org()
