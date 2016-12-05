@@ -210,9 +210,14 @@ class Campaign(TembaModel):
 
     def get_sorted_events(self):
         """
-        Returns campaign events sorted by their actual offset
+        Returns campaign events sorted by their actual offset with event flow definitions on the current export version
         """
         events = list(self.events.filter(is_active=True))
+
+        for evt in events:
+            if evt.flow.flow_type == Flow.MESSAGE:
+                evt.flow.ensure_current_version()
+
         return sorted(events, key=lambda e: e.relative_to.pk * 100000 + e.minute_offset())
 
     def __unicode__(self):
@@ -345,35 +350,50 @@ class CampaignEvent(TembaModel):
         return offset
 
     def calculate_scheduled_fire_for_value(self, date_value, now):
-
         date_value = self.campaign.org.parse_date(date_value)
+        tz = self.campaign.org.timezone
 
-        # if we got a date, floor to the minute
-        if date_value:
-            date_value = date_value.replace(second=0, microsecond=0)
+        # nothing to base off of, nothing to fire
+        if not date_value:
+            return None
 
+        # field is no longer active? return
         if not self.relative_to.is_active:  # pragma: no cover
             return None
 
+        # convert to our timezone
+        date_value = date_value.astimezone(tz)
+
+        # if we got a date, floor to the minute
+        date_value = date_value.replace(second=0, microsecond=0)
+
         # try to parse it to a datetime
         try:
-            if date_value:
-                if self.unit == self.UNIT_MINUTES:
-                    delta = timedelta(minutes=self.offset)
-                elif self.unit == self.UNIT_HOURS:
-                    delta = timedelta(hours=self.offset)
-                elif self.unit == self.UNIT_DAYS:
-                    delta = timedelta(days=self.offset)
-                elif self.unit == self.UNIT_WEEKS:
-                    delta = timedelta(weeks=self.offset)
+            if self.unit == CampaignEvent.UNIT_MINUTES:
+                delta = timedelta(minutes=self.offset)
+            elif self.unit == CampaignEvent.UNIT_HOURS:
+                delta = timedelta(hours=self.offset)
+            elif self.unit == CampaignEvent.UNIT_DAYS:
+                delta = timedelta(days=self.offset)
+            elif self.unit == CampaignEvent.UNIT_WEEKS:
+                delta = timedelta(weeks=self.offset)
 
-                scheduled = date_value + delta
+            scheduled = date_value + delta
 
-                if self.delivery_hour != -1:
-                    scheduled = scheduled.replace(hour=self.delivery_hour)
+            # normalize according to our timezone (puts us in the right DST timezone if our date changed)
+            if str(tz) != 'UTC':
+                scheduled = tz.normalize(scheduled)
 
-                if scheduled > now:
-                    return scheduled
+            if self.delivery_hour != -1:
+                scheduled = scheduled.replace(hour=self.delivery_hour)
+
+            # if we've changed utcoffset (DST shift), tweak accordingly (this keeps us at the same hour of the day)
+            elif str(tz) != 'UTC' and date_value.utcoffset() != scheduled.utcoffset():
+                scheduled = tz.normalize(date_value.utcoffset() - scheduled.utcoffset() + scheduled)
+
+            # ignore anything in the past
+            if scheduled > now:
+                return scheduled
 
         except Exception:  # pragma: no cover
             pass

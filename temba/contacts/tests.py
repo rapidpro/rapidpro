@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import json
 import pytz
+import six
 
 from datetime import datetime, date, timedelta
 from django.core.files.base import ContentFile
@@ -18,7 +19,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.templatetags.contacts import contact_field, osm_link, location, media_url, media_type
 from temba.flows.models import FlowRun
-from temba.ivr.models import NO_ANSWER, IVRCall
+from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, Label, SystemLabel, Broadcast
 from temba.orgs.models import Org
@@ -491,7 +492,6 @@ class ContactTest(TembaTest):
         super(ContactTest, self).setUp()
 
         self.user1 = self.create_user("nash")
-        self.manager1 = self.create_user("mike")
 
         self.joe = self.create_contact(name="Joe Blow", number="+250781111111", twitter="blow80")
         self.frank = self.create_contact(name="Frank Smith", number="+250782222222")
@@ -1238,7 +1238,7 @@ class ContactTest(TembaTest):
                             timezone.now(), 5)
 
         # try adding some failed calls
-        IVRCall.objects.create(contact=self.joe, status=NO_ANSWER, created_by=self.admin,
+        IVRCall.objects.create(contact=self.joe, status=IVRCall.NO_ANSWER, created_by=self.admin,
                                modified_by=self.admin, channel=self.channel, org=self.org,
                                contact_urn=self.joe.urns.all().first())
 
@@ -1482,7 +1482,7 @@ class ContactTest(TembaTest):
         self.assertEquals(302, response.status_code)
 
         # visit a contact detail page as a manager but not belonging to this organisation
-        self.login(self.manager1)
+        self.login(self.non_org_user)
         response = self.client.get(read_url)
         self.assertEquals(302, response.status_code)
 
@@ -1548,7 +1548,7 @@ class ContactTest(TembaTest):
         self.client.logout()
 
         # login as a manager from out of this organization
-        self.login(self.manager1)
+        self.login(self.non_org_user)
 
         # create kLab group, and add joe to the group
         klab = self.create_group("kLab", [self.joe])
@@ -2164,7 +2164,7 @@ class ContactTest(TembaTest):
 
     def do_import(self, user, filename):
 
-        import_params = dict(org_id=self.org.id, timezone=self.org.timezone, extra_fields=[],
+        import_params = dict(org_id=self.org.id, timezone=six.text_type(self.org.timezone), extra_fields=[],
                              original_filename=filename)
 
         task = ImportTask.objects.create(
@@ -2281,6 +2281,40 @@ class ContactTest(TembaTest):
 
         Contact.objects.all().delete()
         ContactGroup.user_groups.all().delete()
+
+        records = self.do_import(user, 'sample_contacts_UPPER.XLS')
+        self.assertEquals(3, len(records))
+
+        self.assertEquals(1, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals(group.name, "Sample Contacts Upper")
+        self.assertEquals(3, group.contacts.count())
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        self.assertEquals(2, len(records))
+
+        self.assertEquals(1, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals(group.name, "Sample Contacts With Filename Very Long That It Will N")
+        self.assertEquals(2, group.contacts.count())
+
+        records = self.do_import(user, 'sample_contacts_with_filename_very_long_that_it_will_not_validate.xls')
+        self.assertEquals(2, len(records))
+
+        self.assertEquals(2, len(ContactGroup.user_groups.all()))
+        group = ContactGroup.user_groups.all()[0]
+        self.assertEquals(2, group.contacts.count())
+        group = ContactGroup.user_groups.all()[1]
+        self.assertEquals(2, group.contacts.count())
+        self.assertEquals(set(["Sample Contacts With Filename Very Long That It Will N",
+                               "Sample Contacts With Filename Very Long That It Will N 2"]),
+                          set(ContactGroup.user_groups.all().values_list('name', flat=True)))
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
         contact = self.create_contact(name="Bob", number='+250788111111')
         contact.uuid = 'uuid-1111'
         contact.save()
@@ -2392,7 +2426,7 @@ class ContactTest(TembaTest):
                                  dict(records=1, errors=2, creates=0, updates=1,
                                       error_messages=[dict(line=3,
                                                            error="Missing any valid URNs; at least one among phone, "
-                                                                 "twitter, telegram, email, facebook, external should be provided"),
+                                                                 "twitter, telegram, email, facebook, external, line should be provided"),
                                                       dict(line=4, error="Invalid Phone number 12345")]))
 
         # import a spreadsheet with a name and a twitter columns only
@@ -2448,7 +2482,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "twitter, telegram, email, facebook, external should be provided")]))
+                                                                "twitter, telegram, email, facebook, external, line should be provided")]))
 
             # lock for creates only
             self.assertEquals(mock_lock.call_count, 1)
@@ -2515,7 +2549,7 @@ class ContactTest(TembaTest):
                                      dict(records=3, errors=1, creates=1, updates=2,
                                           error_messages=[dict(line=3,
                                                           error="Missing any valid URNs; at least one among phone, "
-                                                                "twitter, telegram, email, facebook, external should be provided")]))
+                                                                "twitter, telegram, email, facebook, external, line should be provided")]))
 
             # only lock for create
             self.assertEquals(mock_lock.call_count, 1)
@@ -2645,14 +2679,14 @@ class ContactTest(TembaTest):
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
-                             '"Telegram", "Email", "Facebook", "External" should be included.')
+                             '"Telegram", "Email", "Facebook", "External", "Line" should be included.')
 
         csv_file = open('%s/test_imports/sample_contacts_missing_name_phone_headers.xls' % settings.MEDIA_ROOT, 'rb')
         post_data = dict(csv_file=csv_file)
         response = self.client.post(import_url, post_data)
         self.assertFormError(response, 'form', 'csv_file',
                              'The file you provided is missing a required header. At least one of "Phone", "Twitter", '
-                             '"Telegram", "Email", "Facebook", "External" should be included.')
+                             '"Telegram", "Email", "Facebook", "External", "Line" should be included.')
 
         # check that no contacts or groups were created by any of the previous invalid imports
         self.assertEquals(Contact.objects.all().count(), 0)
@@ -3262,18 +3296,7 @@ class ContactURNTest(TembaTest):
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
-        self.user = self.create_user("tito")
-        self.manager1 = self.create_user("mike")
-        self.admin = self.create_user("ben")
-        self.org = Org.objects.create(name="Nyaruka Ltd.", timezone="Africa/Kigali", created_by=self.admin, modified_by=self.admin)
-        self.org.administrators.add(self.admin)
-        self.org.initialize()
-
-        self.user.set_org(self.org)
-        self.admin.set_org(self.org)
-
-        self.channel = Channel.create(self.org, self.admin, None, 'A', "Test Channel", "0785551212",
-                                      secret="12345", gcm_id="123")
+        super(ContactFieldTest, self).setUp()
 
         self.joe = self.create_contact(name="Joe Blow", number="123")
         self.frank = self.create_contact(name="Frank Smith", number="1234")
@@ -3425,7 +3448,7 @@ class ContactFieldTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(35):
+        with self.assertNumQueries(36):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -3449,7 +3472,7 @@ class ContactFieldTest(TembaTest):
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
-        with self.assertNumQueries(35):
+        with self.assertNumQueries(36):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -3501,7 +3524,7 @@ class ContactFieldTest(TembaTest):
     def test_manage_fields(self):
         manage_fields_url = reverse('contacts.contactfield_managefields')
 
-        self.login(self.manager1)
+        self.login(self.non_org_user)
         response = self.client.get(manage_fields_url)
 
         # redirect to login because of no access to org
@@ -3611,7 +3634,7 @@ class ContactFieldTest(TembaTest):
 
         ContactField.objects.filter(org=self.org, key='key1').update(is_active=False)
 
-        self.login(self.manager1)
+        self.login(self.non_org_user)
         response = self.client.get(contact_field_json_url)
 
         # redirect to login because of no access to org
@@ -3622,54 +3645,58 @@ class ContactFieldTest(TembaTest):
 
         response_json = json.loads(response.content)
 
-        self.assertEquals(len(response_json), 40)
+        self.assertEquals(len(response_json), 41)
         self.assertEquals(response_json[0]['label'], 'Full name')
         self.assertEquals(response_json[0]['key'], 'name')
-        self.assertEquals(response_json[1]['label'], 'External identifier')
-        self.assertEquals(response_json[1]['key'], 'ext')
-        self.assertEquals(response_json[2]['label'], 'Facebook identifier')
-        self.assertEquals(response_json[2]['key'], 'facebook')
-        self.assertEquals(response_json[3]['label'], 'Email address')
-        self.assertEquals(response_json[3]['key'], 'mailto')
-        self.assertEquals(response_json[4]['label'], 'Telegram identifier')
-        self.assertEquals(response_json[4]['key'], 'telegram')
-        self.assertEquals(response_json[5]['label'], 'Twitter handle')
-        self.assertEquals(response_json[5]['key'], 'twitter')
-        self.assertEquals(response_json[6]['label'], 'Phone number')
-        self.assertEquals(response_json[6]['key'], 'tel_e164')
-        self.assertEquals(response_json[7]['label'], 'Groups')
-        self.assertEquals(response_json[7]['key'], 'groups')
-        self.assertEquals(response_json[8]['label'], 'First')
-        self.assertEquals(response_json[8]['key'], 'first')
-        self.assertEquals(response_json[9]['label'], 'label0')
-        self.assertEquals(response_json[9]['key'], 'key0')
+        self.assertEquals(response_json[1]['label'], 'LINE identifier')
+        self.assertEquals(response_json[1]['key'], 'line')
+        self.assertEquals(response_json[2]['label'], 'External identifier')
+        self.assertEquals(response_json[2]['key'], 'ext')
+        self.assertEquals(response_json[3]['label'], 'Facebook identifier')
+        self.assertEquals(response_json[3]['key'], 'facebook')
+        self.assertEquals(response_json[4]['label'], 'Email address')
+        self.assertEquals(response_json[4]['key'], 'mailto')
+        self.assertEquals(response_json[5]['label'], 'Telegram identifier')
+        self.assertEquals(response_json[5]['key'], 'telegram')
+        self.assertEquals(response_json[6]['label'], 'Twitter handle')
+        self.assertEquals(response_json[6]['key'], 'twitter')
+        self.assertEquals(response_json[7]['label'], 'Phone number')
+        self.assertEquals(response_json[7]['key'], 'tel_e164')
+        self.assertEquals(response_json[8]['label'], 'Groups')
+        self.assertEquals(response_json[8]['key'], 'groups')
+        self.assertEquals(response_json[9]['label'], 'First')
+        self.assertEquals(response_json[9]['key'], 'first')
+        self.assertEquals(response_json[10]['label'], 'label0')
+        self.assertEquals(response_json[10]['key'], 'key0')
 
         ContactField.objects.filter(org=self.org, key='key0').update(label='AAAA')
 
         response = self.client.get(contact_field_json_url)
         response_json = json.loads(response.content)
 
-        self.assertEquals(len(response_json), 40)
+        self.assertEquals(len(response_json), 41)
         self.assertEquals(response_json[0]['label'], 'Full name')
         self.assertEquals(response_json[0]['key'], 'name')
-        self.assertEquals(response_json[1]['label'], 'External identifier')
-        self.assertEquals(response_json[1]['key'], 'ext')
-        self.assertEquals(response_json[2]['label'], 'Facebook identifier')
-        self.assertEquals(response_json[2]['key'], 'facebook')
-        self.assertEquals(response_json[3]['label'], 'Email address')
-        self.assertEquals(response_json[3]['key'], 'mailto')
-        self.assertEquals(response_json[4]['label'], 'Telegram identifier')
-        self.assertEquals(response_json[4]['key'], 'telegram')
-        self.assertEquals(response_json[5]['label'], 'Twitter handle')
-        self.assertEquals(response_json[5]['key'], 'twitter')
-        self.assertEquals(response_json[6]['label'], 'Phone number')
-        self.assertEquals(response_json[6]['key'], 'tel_e164')
-        self.assertEquals(response_json[7]['label'], 'Groups')
-        self.assertEquals(response_json[7]['key'], 'groups')
-        self.assertEquals(response_json[8]['label'], 'AAAA')
-        self.assertEquals(response_json[8]['key'], 'key0')
-        self.assertEquals(response_json[9]['label'], 'First')
-        self.assertEquals(response_json[9]['key'], 'first')
+        self.assertEquals(response_json[1]['label'], 'LINE identifier')
+        self.assertEquals(response_json[1]['key'], 'line')
+        self.assertEquals(response_json[2]['label'], 'External identifier')
+        self.assertEquals(response_json[2]['key'], 'ext')
+        self.assertEquals(response_json[3]['label'], 'Facebook identifier')
+        self.assertEquals(response_json[3]['key'], 'facebook')
+        self.assertEquals(response_json[4]['label'], 'Email address')
+        self.assertEquals(response_json[4]['key'], 'mailto')
+        self.assertEquals(response_json[5]['label'], 'Telegram identifier')
+        self.assertEquals(response_json[5]['key'], 'telegram')
+        self.assertEquals(response_json[6]['label'], 'Twitter handle')
+        self.assertEquals(response_json[6]['key'], 'twitter')
+        self.assertEquals(response_json[7]['label'], 'Phone number')
+        self.assertEquals(response_json[7]['key'], 'tel_e164')
+        self.assertEquals(response_json[8]['label'], 'Groups')
+        self.assertEquals(response_json[8]['key'], 'groups')
+        self.assertEquals(response_json[9]['label'], 'AAAA')
+        self.assertEquals(response_json[9]['key'], 'key0')
+        self.assertEquals(response_json[10]['label'], 'First')
+        self.assertEquals(response_json[10]['key'], 'first')
 
 
 class URNTest(TembaTest):

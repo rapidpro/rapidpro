@@ -50,7 +50,7 @@
                 you already have. You just need an Android phone
                 to get started.
 
-    -if user_org.timezone == 'America/Sao_Paulo'
+    -if org_timezone == 'America/Sao_Paulo'
       .claim-row.zenvia-channel
         .row
           .span3
@@ -67,7 +67,7 @@
                   code from <a href="http://www.zenvia.com.br/">Zenvia</a> and connect it
                   in a few simple steps.
 
-    -if user_org.timezone == 'Africa/Nairobi' or user_org.timezone == 'Africa/Kampala'
+    -if org_timezone == 'Africa/Nairobi' or org_timezone == 'Africa/Kampala'
       .claim-row.africastalking-channel{class:"{% if recommended_channel == 'africastalking' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
@@ -91,7 +91,7 @@
                   code from {{link_start}}Africa's Talking{{link_end}} and connect it
                   in a few simple steps.
 
-    -if user_org.timezone == 'Africa/Kampala'
+    -if org_timezone == 'Africa/Kampala'
       .claim-row.yo-channel{class:"{% if recommended_channel == 'yo' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
@@ -114,7 +114,7 @@
                   If you are based in Uganda, you can integrate {{ brand }} with Yo! to send
                   and receive messages on your shortcode.
 
-    -if user_org.timezone == 'Africa/Mogadishu'
+    -if org_timezone == 'Africa/Mogadishu'
       .claim-row.shaqodoon-channel{class:"{% if recommended_channel == 'shaqodoon' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
@@ -137,7 +137,7 @@
                   If you are based in Somalia, you can integrate {{ brand }} with Shaqodoon to send
                   and receive messages on your shortcode.
 
-    -if user_org.timezone == 'Asia/Manila'
+    -if org_timezone == 'Asia/Manila'
       .claim-row.globe-channel{class:"{% if recommended_channel == 'globe' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
@@ -176,7 +176,7 @@
                   If you are based in the Phillipines, you can integrate {{ brand }} with Chikka to send
                   and receive messages on your shortcode.
 
-    -if user_org.timezone == 'Asia/Jakarta'
+    -if org_timezone == 'Asia/Jakarta'
       .claim-row.hub9-channel{class:"{% if recommended_channel == 'hub9' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
@@ -314,6 +314,24 @@
                 %a.nexmo-account{href:"#"}
                   -trans "Nexmo Account."
 
+    -if org_timezone == 'Europe/Paris'
+      .claim-row.highconnection-channel
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_high_connection' %}"}
+              .btn-container
+                .claim-glyph.icon-channel-external
+                %p.claim-text
+                  -trans "High Connexion Number"
+
+          .span9.no-margin
+            .claim-description
+              %div
+                -blocktrans
+                  If you are based in France, you can purchase a number from High Connexion
+                  <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.
+
+    
     .claim-row.plivo-channel{class:"{% if recommended_channel == 'plivo' %}recommended{% endif %}"}
       .recommendation.hide
         %h3
@@ -398,25 +416,7 @@
               -blocktrans
                 Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.
 
-    -if user_org.timezone == 'Europe/Paris'
-      .claim-row.highconnection-channel
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_high_connection' %}"}
-              .btn-container
-                .claim-glyph.icon-channel-external
-                %p.claim-text
-                  -trans "High Connection Number"
-
-          .span9.no-margin
-            .claim-description
-              %div
-                -blocktrans
-                  If you are based in France, you can purchase use a number you have been provided by
-                  <a href="http://www.highconnexion.com/en/">High Connection</a> and connect it in a few simple steps.
-
-
-    -if user_org.timezone == 'Asia/Kathmandu'
+    -if org_timezone == 'Asia/Kathmandu'
       .claim-row.blackmyna-channel{class:"{% if recommended_channel == 'blackmyna' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
@@ -452,7 +452,7 @@
                 -blocktrans
                   Easily add a two way number you have configured with <a href="http://smscentral.com.np/">SMSCentral</a> using their APIs.
 
-    -if user_org.timezone == 'Europe/Kiev'
+    -if org_timezone == 'Europe/Kiev'
       .claim-row.start-channel
         .row
           .span3
@@ -489,7 +489,7 @@
                 -blocktrans
                   Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs.
 
-    -if user_org.timezone == 'Asia/Karachi'
+    -if org_timezone == 'Asia/Karachi'
       .claim-row.m3tech-channel{class:"{% if recommended_channel == 'm3tech' %}recommended{% endif %}"}
         .recommendation.hide
           %h3
@@ -552,7 +552,7 @@
                 -blocktrans
                   Easily connect your <a href="http://vumi.com/">Vumi</a> account to take advantage of two way texting across different mediums.
 
-    -if user_org.timezone == 'Africa/Johannesburg'
+    -if org_timezone == 'Africa/Johannesburg'
       .claim-row.vumi-ussd-channel
         .recommendation.hide
           %h3
@@ -658,6 +658,24 @@
                   -blocktrans
                     Add a <a href="http://viber.com/en/">Viber</a> bot to send and receive messages to Viber users
                     for free. Your users will need an Android, Windows or iOS device and a Viber account to send
+                    and receive messages.
+
+      -if org_perms.channels.channel_claim_line
+        .claim-row.line-channel
+          .row
+            .span3
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_line' %}"}
+                .btn-container
+                  .claim-glyph.icon-line
+                  %p.claim-text
+                    -trans "LINE"
+
+            .span9
+              .claim-description
+                %div
+                  -blocktrans
+                    Add a <a href="https://line.me">LINE</a> bot to send and receive messages to LINE users
+                    for free. Your users will need an Android, Windows or iOS device and a LINE account to send
                     and receive messages.
 
     %h3

@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-
 from django.db import models, migrations
-from temba.ivr.models import IVRCall
-from temba.ivr.models import ContactURN
 
 def populate_unknown_urns(apps, schema_editor):
 
     IVRCall = apps.get_model('ivr', 'IVRCall')
+    ContactURN = apps.get_model('contacts', 'ContactURN')
 
     # fix any Calls that remain with no contact URN (because their contact doesn't have one)
     for call in IVRCall.objects.filter(contact_urn=None):
