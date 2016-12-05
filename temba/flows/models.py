@@ -1575,7 +1575,7 @@ class Flow(TembaModel):
 
             if message_text:
                 broadcast = Broadcast.create(self.org, self.created_by, message_text, [],
-                                             language_dict=language_dict)
+                                             language_dict=language_dict, base_language=self.base_language)
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -1671,8 +1671,7 @@ class Flow(TembaModel):
                 created_on = timezone.now()
                 broadcast.send(message_context=message_context, trigger_send=False,
                                response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
-                               created_on=created_on, base_language=self.base_language,
-                               partial_recipients=partial_recipients, run_map=run_map)
+                               created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
@@ -4536,7 +4535,7 @@ class EmailAction(Action):
         valid_addresses = []
         invalid_addresses = []
         for email in self.emails:
-            if email[0] == '@':
+            if email.startswith('@'):
                 # a valid email will contain @ so this is very likely to generate evaluation errors
                 (address, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
             else:
@@ -4554,8 +4553,10 @@ class EmailAction(Action):
                 send_email_action_task.delay(valid_addresses, subject, message)
         else:
             if valid_addresses:
+                valid_addresses = ['"%s"' % elt for elt in valid_addresses]
                 ActionLog.info(run, _("\"%s\" would be sent to %s") % (message, ", ".join(valid_addresses)))
             if invalid_addresses:
+                invalid_addresses = ['"%s"' % elt for elt in invalid_addresses]
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
 
@@ -5537,8 +5538,8 @@ class SendAction(VariableContactAction):
                 recipients = groups + contacts
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             language_dict=language_dict)
-                broadcast.send(trigger_send=False, message_context=message_context, base_language=flow.base_language)
+                                             language_dict=language_dict, base_language=flow.base_language)
+                broadcast.send(trigger_send=False, message_context=message_context)
                 return list(broadcast.get_messages())
 
             else:
