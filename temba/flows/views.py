@@ -1286,9 +1286,6 @@ class FlowCRUDL(SmartCRUDL):
             Contact.set_simulation(True)
             user = self.request.user
             test_contact = Contact.get_test_contact(user)
-
-            analytics.track(user.username, 'temba.flow_simulated')
-
             flow = self.get_object(self.get_queryset())
 
             if json_dict and json_dict.get('hangup', False):
@@ -1304,8 +1301,12 @@ class FlowCRUDL(SmartCRUDL):
                     test_contact.save()
 
                 # delete all our steps and messages to restart the simulation
-                runs = FlowRun.objects.filter(contact=test_contact)
+                runs = FlowRun.objects.filter(contact=test_contact).order_by('-modified_on')
                 steps = FlowStep.objects.filter(run__in=runs)
+
+                # if their last simulation was more than a day ago, log this simulation
+                if runs and runs.first().created_on < timezone.now() - timedelta(hours=24):
+                    analytics.track(user.username, 'temba.flow_simulated')
 
                 ActionLog.objects.filter(run__in=runs).delete()
                 Msg.objects.filter(contact=test_contact).delete()
@@ -1413,7 +1414,9 @@ class FlowCRUDL(SmartCRUDL):
             # try to parse our body
             json_string = request.body
 
-            analytics.track(self.request.user.username, 'temba.flow_updated')
+            # if the last modified on this flow is more than a day ago, log that this flow as updated
+            if self.get_object().last_modified < timezone.now() - timedelta(hours=24):
+                analytics.track(self.request.user.username, 'temba.flow_updated')
 
             # try to save the our flow, if this fails, let's let that bubble up to our logger
             json_dict = json.loads(json_string)
