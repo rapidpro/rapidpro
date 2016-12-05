@@ -921,7 +921,6 @@ class Contact(TembaModel):
         user = field_dict.pop('created_by')
         is_admin = org.administrators.filter(id=user.id).exists()
         uuid = field_dict.pop('uuid', None)
-
         country = org.get_country_code()
         urns = []
 
@@ -1032,10 +1031,12 @@ class Contact(TembaModel):
             label = field['label']
             if key not in Contact.RESERVED_FIELDS:
                 # column values are mapped to lower-cased column header names but we need them by contact field key
-                value = field_dict[field['header']]
-                del field_dict[field['header']]
-                field_dict[key] = value
-
+                if  field['header'] in field_dict:
+                    value = field_dict[field['header']]
+                    del field_dict[field['header']]
+                    field_dict[key] = value
+                else:
+                    field_dict[key] = ''
                 # create the contact field if it doesn't exist
                 ContactField.get_or_create(field_dict['org'], user, key, label, False, field['type'])
                 extra_fields.append(key)
