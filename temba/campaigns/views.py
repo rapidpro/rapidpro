@@ -507,6 +507,6 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             obj = super(CampaignEventCRUDL.Create, self).pre_save(obj)
-            obj.campaign = Campaign.objects.get(org=self.request.user.get_org(), pk=self.request.REQUEST.get('campaign'))
+            obj.campaign = Campaign.objects.get(org=self.request.user.get_org(), pk=self.request.GET.get('campaign'))
             self.form.pre_save(self.request, obj)
             return obj
