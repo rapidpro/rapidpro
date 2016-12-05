@@ -31,11 +31,50 @@ from .tasks import fb_channel_subscribe
 from twilio import twiml
 
 
-class TwimlAPIHandler(View):
+class BaseChannelHandler(View):
+    """
+    Base class for all channel handlers
+    """
+    url = None
+    url_name = None
 
     @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(TwimlAPIHandler, self).dispatch(*args, **kwargs)
+    def dispatch(self, request, *args, **kwargs):
+        # self.request = request
+
+        return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
+
+    @classmethod
+    def get_url(cls):
+        return cls.url, cls.url_name
+
+    def get_param(self, name, default=None):
+        """
+        Utility for handlers that were written to use request.REQUEST which was removed in Django 1.9
+        """
+        try:
+            return self.request.GET[name]
+        except KeyError:
+            try:
+                return self.request.POST[name]
+            except KeyError:
+                return default
+
+
+def get_channel_handlers():
+    """
+    Gets all known channel handler classes, i.e. subclasses of BaseChannelHandler
+    """
+    def all_subclasses(cls):
+        return cls.__subclasses__() + [g for s in cls.__subclasses__() for g in all_subclasses(s)]
+
+    return all_subclasses(BaseChannelHandler)
+
+
+class TwimlAPIHandler(BaseChannelHandler):
+
+    url = r'^/twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.twiml_api_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return HttpResponse("ILLEGAL METHOD")
@@ -47,12 +86,12 @@ class TwimlAPIHandler(View):
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
         url = "https://" + settings.TEMBA_HOST + "%s" % request.get_full_path()
 
-        call_sid = request.REQUEST.get('CallSid', None)
-        direction = request.REQUEST.get('Direction', None)
-        status = request.REQUEST.get('CallStatus', None)
-        to_number = request.REQUEST.get('To', None)
-        to_country = request.REQUEST.get('ToCountry', None)
-        from_number = request.REQUEST.get('From', None)
+        call_sid = self.get_param('CallSid')
+        direction = self.get_param('Direction')
+        status = self.get_param('CallStatus')
+        to_number = self.get_param('To')
+        to_country = self.get_param('ToCountry')
+        from_number = self.get_param('From')
 
         # Twilio sometimes sends un-normalized numbers
         if not to_number.startswith('+') and to_country:
@@ -210,9 +249,8 @@ class TwimlAPIHandler(View):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(TwilioHandler, self).dispatch(*args, **kwargs)
+    url = r'^/twilio/$'
+    url_name = 'handlers.twilio_handler'
 
     def get_receive_channel(self, channel_uuid=None, to_number=None):
         return Channel.objects.filter(address=to_number, is_active=True).exclude(org=None).first()
@@ -221,10 +259,10 @@ class TwilioHandler(TwimlAPIHandler):
         return Channel.TYPE_TWILIO
 
 
-class TwilioMessagingServiceHandler(View):
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(TwilioMessagingServiceHandler, self).dispatch(*args, **kwargs)
+class TwilioMessagingServiceHandler(BaseChannelHandler):
+
+    url = r'^/twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.twilio_messaging_service_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
         return self.post(request, *args, **kwargs)
@@ -264,11 +302,10 @@ class TwilioMessagingServiceHandler(View):
         return HttpResponse("Not Handled, unknown action", status=400)  # pragma: no cover
 
 
-class AfricasTalkingHandler(View):
+class AfricasTalkingHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(AfricasTalkingHandler, self).dispatch(*args, **kwargs)
+    url = r'^/africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.africas_talking_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("ILLEGAL METHOD", status=400)
@@ -318,11 +355,10 @@ class AfricasTalkingHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class ZenviaHandler(View):
+class ZenviaHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ZenviaHandler, self).dispatch(*args, **kwargs)
+    url = r'^/zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.zenvia_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -341,11 +377,13 @@ class ZenviaHandler(View):
 
         # this is a callback for a message we sent
         if action == 'status':
-            if 'status' not in request.REQUEST or 'id' not in request.REQUEST:
+            status = self.get_param('status')
+            sms_id = self.get_param('id')
+
+            if status is None or sms_id is None:
                 return HttpResponse("Missing parameters, requires 'status' and 'id'", status=400)
 
-            status = int(request.REQUEST['status'])
-            sms_id = request.REQUEST['id']
+            status = int(status)
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, pk=sms_id).select_related('channel').first()
@@ -364,17 +402,19 @@ class ZenviaHandler(View):
 
         # this is a new incoming message
         elif action == 'receive':
-            import pytz
+            sms_date = self.get_param('date')
+            from_tel = self.get_param('from')
+            msg = self.get_param('msg')
 
-            if 'date' not in request.REQUEST or 'from' not in request.REQUEST or 'msg' not in request.REQUEST:
+            if sms_date is None or from_tel is None or msg is None:
                 return HttpResponse("Missing parameters, requires 'from', 'date' and 'msg'", status=400)
 
             # dates come in the format 31/07/2013 14:45:00
-            sms_date = datetime.strptime(request.REQUEST['date'], "%d/%m/%Y %H:%M:%S")
+            sms_date = datetime.strptime(sms_date, "%d/%m/%Y %H:%M:%S")
             brazil_date = pytz.timezone('America/Sao_Paulo').localize(sms_date)
 
-            urn = URN.from_tel(request.REQUEST['from'])
-            sms = Msg.create_incoming(channel, urn, request.REQUEST['msg'], date=brazil_date)
+            urn = URN.from_tel(from_tel)
+            sms = Msg.create_incoming(channel, urn, msg, date=brazil_date)
 
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -382,11 +422,10 @@ class ZenviaHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class ExternalHandler(View):
+class ExternalHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ExternalHandler, self).dispatch(*args, **kwargs)
+    url = r'^/external/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.external_handler'
 
     def get_channel_type(self):
         return Channel.TYPE_EXTERNAL
@@ -412,10 +451,10 @@ class ExternalHandler(View):
 
         # this is a callback for a message we sent
         if action == 'delivered' or action == 'failed' or action == 'sent':
-            if 'id' not in request.REQUEST:
-                return HttpResponse("Missing 'id' parameter, invalid call.", status=400)
+            sms_pk = self.get_param('id')
 
-            sms_pk = request.REQUEST['id']
+            if sms_pk is None:
+                return HttpResponse("Missing 'id' parameter, invalid call.", status=400)
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, pk=sms_pk).select_related('channel').first()
@@ -433,16 +472,16 @@ class ExternalHandler(View):
 
         # this is a new incoming message
         elif action == 'received':
-            sender = request.REQUEST.get('from', request.REQUEST.get('sender', None))
+            sender = self.get_param('from', self.get_param('sender'))
             if not sender:
                 return HttpResponse("Missing 'from' or 'sender' parameter, invalid call.", status=400)
 
-            text = request.REQUEST.get('text', request.REQUEST.get('message', None))
+            text = self.get_param('text', self.get_param('message'))
             if text is None:
                 return HttpResponse("Missing 'text' or 'message' parameter, invalid call.", status=400)
 
             # handlers can optionally specify the date/time of the message (as 'date' or 'time') in ECMA format
-            date = request.REQUEST.get('date', request.REQUEST.get('time', None))
+            date = self.get_param('date', self.get_param('time'))
             if date:
                 date = json_date_to_datetime(date)
 
@@ -459,6 +498,9 @@ class ShaqodoonHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Shaqodoon messages
     """
+    url = r'^/shaqodoon/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.shaqodoon_handler'
+
     def get_channel_type(self):
         return Channel.TYPE_SHAQODOON
 
@@ -467,15 +509,17 @@ class YoHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Yo! Messages.
     """
+    url = r'^/yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.yo_handler'
+
     def get_channel_type(self):
         return Channel.TYPE_YO
 
 
-class TelegramHandler(View):
+class TelegramHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(TelegramHandler, self).dispatch(*args, **kwargs)
+    url = r'^/telegram/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.telegram_handler'
 
     @classmethod
     def download_file(cls, channel, file_id):
@@ -606,11 +650,10 @@ class TelegramHandler(View):
         return HttpResponse("No message, ignored.")
 
 
-class InfobipHandler(View):
+class InfobipHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(InfobipHandler, self).dispatch(*args, **kwargs)
+    url = r'^/infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.infobip_handler'
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -658,8 +701,12 @@ class InfobipHandler(View):
         action = kwargs['action'].lower()
         channel_uuid = kwargs['uuid']
 
+        sender = self.get_param('sender')
+        text = self.get_param('text')
+        receiver = self.get_param('receiver')
+
         # validate all the appropriate fields are there
-        if 'sender' not in request.REQUEST or 'text' not in request.REQUEST or 'receiver' not in request.REQUEST:
+        if sender is None or text is None or receiver is None:
             return HttpResponse("Missing parameters, must have 'sender', 'text' and 'receiver'", status=400)
 
         channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_INFOBIP).exclude(org=None).first()
@@ -671,19 +718,18 @@ class InfobipHandler(View):
             return HttpResponse("Illegal method, delivery reports must be POSTs", status=401)
 
         # make sure the channel number matches the receiver
-        if channel.address != '+' + request.REQUEST['receiver']:
+        if channel.address != '+' + receiver:
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
-        sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['sender']), request.REQUEST['text'])
+        sms = Msg.create_incoming(channel, URN.from_tel(sender), text)
 
         return HttpResponse("SMS Accepted: %d" % sms.id)
 
 
-class Hub9Handler(View):
+class Hub9Handler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(Hub9Handler, self).dispatch(*args, **kwargs)
+    url = r'^/hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.hub9_handler'
 
     def get(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -698,11 +744,11 @@ class Hub9Handler(View):
         # &messageid=99123635&message=Test+sending+sms
 
         action = kwargs['action'].lower()
-        message = request.REQUEST.get('message', None)
-        external_id = request.REQUEST.get('messageid', None)
-        status = int(request.REQUEST.get('status', -1))
-        from_number = request.REQUEST.get('original', None)
-        to_number = request.REQUEST.get('sendto', None)
+        message = self.get_param('message')
+        external_id = self.get_param('messageid')
+        status = int(self.get_param('status', -1))
+        from_number = self.get_param('original')
+        to_number = self.get_param('sendto')
 
         # delivery reports
         if action == 'delivered':
@@ -732,11 +778,10 @@ class Hub9Handler(View):
         return HttpResponse("Unreconized action: %s" % action, status=404)
 
 
-class HighConnectionHandler(View):
+class HighConnectionHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(HighConnectionHandler, self).dispatch(*args, **kwargs)
+    url = r'^/hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.hcnx_handler'
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -753,8 +798,8 @@ class HighConnectionHandler(View):
 
         # Update on the status of a sent message
         if action == 'status':
-            msg_id = request.REQUEST.get('ret_id', None)
-            status = int(request.REQUEST.get('status', 0))
+            msg_id = self.get_param('ret_id')
+            status = int(self.get_param('status', 0))
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, pk=msg_id).select_related('channel').first()
@@ -772,10 +817,10 @@ class HighConnectionHandler(View):
 
         # An MO message
         elif action == 'receive':
-            to_number = request.REQUEST.get('TO', None)
-            from_number = request.REQUEST.get('FROM', None)
-            message = request.REQUEST.get('MESSAGE', None)
-            received = request.REQUEST.get('RECEPTION_DATE', None)
+            to_number = self.get_param('TO')
+            from_number = self.get_param('FROM')
+            message = self.get_param('MESSAGE')
+            received = self.get_param('RECEPTION_DATE')
 
             # dateformat for reception date is 2015-04-02T14:26:06 in UTC
             if received is None:
@@ -793,11 +838,10 @@ class HighConnectionHandler(View):
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
 
-class BlackmynaHandler(View):
+class BlackmynaHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(BlackmynaHandler, self).dispatch(*args, **kwargs)
+    url = r'^/blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.blackmyna_handler'
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -814,8 +858,8 @@ class BlackmynaHandler(View):
 
         # Update on the status of a sent message
         if action == 'status':
-            msg_id = request.REQUEST.get('id', None)
-            status = int(request.REQUEST.get('status', 0))
+            msg_id = self.get_param('id')
+            status = int(self.get_param('status', 0))
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, external_id=msg_id).select_related('channel').first()
@@ -833,10 +877,10 @@ class BlackmynaHandler(View):
 
         # An MO message
         elif action == 'receive':
-            to_number = request.REQUEST.get('to', None)
-            from_number = request.REQUEST.get('from', None)
-            message = request.REQUEST.get('text', None)
-            # smsc = request.REQUEST.get('smsc', None)
+            to_number = self.get_param('to')
+            from_number = self.get_param('from')
+            message = self.get_param('text')
+            # smsc = self.get_param('smsc', None)
 
             if to_number is None or from_number is None or message is None:
                 return HttpResponse("Missing to, from or text parameters", status=400)
@@ -850,11 +894,10 @@ class BlackmynaHandler(View):
         return HttpResponse("Unrecognized action: %s" % action, status=400)
 
 
-class SMSCentralHandler(View):
+class SMSCentralHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(SMSCentralHandler, self).dispatch(*args, **kwargs)
+    url = r'^/smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.smscentral_handler'
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -871,8 +914,8 @@ class SMSCentralHandler(View):
 
         # An MO message
         if action == 'receive':
-            from_number = request.REQUEST.get('mobile', None)
-            message = request.REQUEST.get('message', None)
+            from_number = self.get_param('mobile')
+            message = self.get_param('message')
 
             if from_number is None or message is None:
                 return HttpResponse("Missing mobile or message parameters", status=400)
@@ -887,15 +930,17 @@ class M3TechHandler(ExternalHandler):
     """
     Exposes our API for handling and receiving messages, same as external handlers.
     """
+    url = r'^/m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.m3tech_handler'
+
     def get_channel_type(self):
         return Channel.TYPE_M3TECH
 
 
-class NexmoHandler(View):
+class NexmoHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(NexmoHandler, self).dispatch(*args, **kwargs)
+    url = r'^/nexmo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    url_name = 'handlers.nexmo_handler'
 
     def post(self, request, *args, **kwargs):
         return self.get(request, *args, **kwargs)
@@ -904,15 +949,15 @@ class NexmoHandler(View):
         from temba.msgs.models import Msg
 
         action = kwargs['action'].lower()
-
-        # nexmo fires a test request at our URL with no arguments, return 200 so they take our URL as valid
-        if (action == 'receive' and not request.REQUEST.get('to', None)) or (action == 'status' and not request.REQUEST.get('messageId', None)):
-            return HttpResponse("No to parameter, ignoring")
-
         request_uuid = kwargs['uuid']
 
         # crazy enough, for nexmo 'to' is the channel number for both delivery reports and new messages
-        channel_number = request.REQUEST['to']
+        channel_number = self.get_param('to')
+        external_id = self.get_param('messageId')
+
+        # nexmo fires a test request at our URL with no arguments, return 200 so they take our URL as valid
+        if (action == 'receive' and channel_number is None) or (action == 'status' and external_id is None):
+            return HttpResponse("No to parameter, ignoring")
 
         # look up the channel
         address_q = Q(address=channel_number) | Q(address=('+' + channel_number))
@@ -928,14 +973,13 @@ class NexmoHandler(View):
 
         # this is a callback for a message we sent
         if action == 'status':
-            external_id = request.REQUEST['messageId']
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, external_id=external_id).select_related('channel').first()
             if not sms:
                 return HttpResponse("No SMS message with external id: %s" % external_id, status=200)
 
-            status = request.REQUEST['status']
+            status = self.get_param('status')
 
             if status == 'delivered':
                 sms.status_delivered()
@@ -948,9 +992,9 @@ class NexmoHandler(View):
 
         # this is a new incoming message
         elif action == 'receive':
-            urn = URN.from_tel('+%s' % request.REQUEST['msisdn'])
-            sms = Msg.create_incoming(channel, urn, request.REQUEST['text'])
-            sms.external_id = request.REQUEST['messageId']
+            urn = URN.from_tel('+%s' % self.get_param('msisdn'))
+            sms = Msg.create_incoming(channel, urn, self.get_param('text'))
+            sms.external_id = external_id
             sms.save(update_fields=['external_id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
@@ -958,11 +1002,10 @@ class NexmoHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class VerboiceHandler(View):
+class VerboiceHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(VerboiceHandler, self).dispatch(*args, **kwargs)
+    url = r'^/verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.verboice_handler'
 
     def post(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be GET", status=405)
@@ -977,10 +1020,9 @@ class VerboiceHandler(View):
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=404)
 
         if action == 'status':
-
-            to = self.request.REQUEST.get('From', None)
-            call_sid = self.request.REQUEST.get('CallSid', None)
-            call_status = self.request.REQUEST.get('CallStatus', None)
+            to = self.get_param('From')
+            call_sid = self.get_param('CallSid')
+            call_status = self.get_param('CallStatus')
 
             if not to or not call_sid or not call_status:
                 return HttpResponse("Missing From or CallSid or CallStatus, ignoring message", status=400)
@@ -995,11 +1037,10 @@ class VerboiceHandler(View):
         return HttpResponse("Not handled", status=400)
 
 
-class VumiHandler(View):
+class VumiHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(VumiHandler, self).dispatch(*args, **kwargs)
+    url = r'^/vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.vumi_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be POST", status=405)
@@ -1097,11 +1138,10 @@ class VumiHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class KannelHandler(View):
+class KannelHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(KannelHandler, self).dispatch(*args, **kwargs)
+    url = r'^/kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.kannel_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1119,10 +1159,11 @@ class KannelHandler(View):
 
         # kannel is telling us this message got delivered
         if action == 'status':
-            if not all(k in request.REQUEST for k in ['id', 'status']):
-                return HttpResponse("Missing one of 'id' or 'status' in request parameters.", status=400)
+            sms_id = self.get_param('id')
+            status_code = self.get_param('status')
 
-            sms_id = self.request.REQUEST['id']
+            if not sms_id and not status_code:
+                return HttpResponse("Missing one of 'id' or 'status' in request parameters.", status=400)
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, id=sms_id).select_related('channel')
@@ -1137,7 +1178,6 @@ class KannelHandler(View):
                               '16': FAILED}
 
             # check our status
-            status_code = self.request.REQUEST['status']
             status = STATUS_CHOICES.get(status_code, None)
 
             # we don't recognize this status code
@@ -1159,28 +1199,32 @@ class KannelHandler(View):
 
         # this is a new incoming message
         elif action == 'receive':
-            if not all(k in request.REQUEST for k in ['message', 'sender', 'ts', 'id']):
+            sms_id = self.get_param('id')
+            sms_ts = self.get_param('ts')
+            sms_message = self.get_param('message')
+            sms_sender = self.get_param('sender')
+
+            if sms_id is None or sms_ts is None or sms_message is None or sms_sender is None:
                 return HttpResponse("Missing one of 'message', 'sender', 'id' or 'ts' in request parameters.", status=400)
 
             # dates come in the format of a timestamp
-            sms_date = datetime.utcfromtimestamp(int(request.REQUEST['ts']))
+            sms_date = datetime.utcfromtimestamp(int(sms_ts))
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
-            urn = URN.from_tel(request.REQUEST['sender'])
-            sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
+            urn = URN.from_tel(sms_sender)
+            sms = Msg.create_incoming(channel, urn, sms_message, date=gmt_date)
 
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=sms_id)
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
             return HttpResponse("Not handled", status=400)
 
 
-class ClickatellHandler(View):
+class ClickatellHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ClickatellHandler, self).dispatch(*args, **kwargs)
+    url = r'^/clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.clickatell_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1196,17 +1240,20 @@ class ClickatellHandler(View):
         if not channel:
             return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
 
+        api_id = self.get_param('api_id')
+
         # make sure the API id matches if it is included (pings from clickatell don't include them)
-        if 'api_id' in self.request.REQUEST and channel.config_json()[Channel.CONFIG_API_ID] != self.request.REQUEST['api_id']:
-            return HttpResponse("Invalid API id for message delivery: %s" % self.request.REQUEST['api_id'], status=400)
+        if api_id is not None and channel.config_json()[Channel.CONFIG_API_ID] != api_id:
+            return HttpResponse("Invalid API id for message delivery: %s" % api_id, status=400)
 
         # Clickatell is telling us a message status changed
         if action == 'status':
-            if not all(k in request.REQUEST for k in ['apiMsgId', 'status']):
+            sms_id = self.get_param('apiMsgId')
+            status_code = self.get_param('status')
+
+            if sms_id is None or status_code is None:
                 # return 200 as clickatell pings our endpoint during configuration
                 return HttpResponse("Missing one of 'apiMsgId' or 'status' in request parameters.", status=200)
-
-            sms_id = self.request.REQUEST['apiMsgId']
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
@@ -1229,7 +1276,6 @@ class ClickatellHandler(View):
                               '014': FAILED}      # too long
 
             # check our status
-            status_code = self.request.REQUEST['status']
             status = STATUS_CHOICES.get(status_code, None)
 
             # we don't recognize this status code
@@ -1260,45 +1306,48 @@ class ClickatellHandler(View):
 
         # this is a new incoming message
         elif action == 'receive':
-            if not all(k in request.REQUEST for k in ['from', 'text', 'moMsgId', 'timestamp']):
+            sms_from = self.get_param('from')
+            sms_text = self.get_param('text')
+            sms_id = self.get_param('moMsgId')
+            sms_timestamp = self.get_param('timestamp')
+
+            if sms_from is None or sms_text is None or sms_id is None or sms_timestamp is None:
                 # return 200 as clickatell pings our endpoint during configuration
                 return HttpResponse("Missing one of 'from', 'text', 'moMsgId' or 'timestamp' in request parameters.", status=200)
 
             # dates come in the format "2014-04-18 03:54:20" GMT+2
-            sms_date = parse_datetime(request.REQUEST['timestamp'])
+            sms_date = parse_datetime(sms_timestamp)
 
             # Posix makes this timezone name back-asswards:
             # http://stackoverflow.com/questions/4008960/pytz-and-etc-gmt-5
             gmt_date = pytz.timezone('Etc/GMT-2').localize(sms_date, is_dst=None)
-            text = request.REQUEST['text']
-            charset = request.REQUEST.get('charset', 'utf-8')
+            charset = self.get_param('charset', 'utf-8')
 
             # clickatell will sometimes send us UTF-16BE encoded data which is double encoded, we need to turn
             # this into utf-8 through the insane process below, Python is retarded about encodings
             if charset == 'UTF-16BE':
                 text_bytes = bytearray()
-                for text_byte in text:
+                for text_byte in sms_text:
                     text_bytes.append(ord(text_byte))
 
                 # now encode back into utf-8
-                text = text_bytes.decode('utf-16be').encode('utf-8')
+                sms_text = text_bytes.decode('utf-16be').encode('utf-8')
             elif charset == 'ISO-8859-1':
-                text = text.encode('iso-8859-1', 'ignore').decode('iso-8859-1').encode('utf-8')
+                sms_text = sms_text.encode('iso-8859-1', 'ignore').decode('iso-8859-1').encode('utf-8')
 
-            sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['from']), text, date=gmt_date)
+            sms = Msg.create_incoming(channel, URN.from_tel(sms_from), sms_text, date=gmt_date)
 
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['moMsgId'])
+            Msg.objects.filter(pk=sms.id).update(external_id=sms_id)
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:
             return HttpResponse("Not handled", status=400)
 
 
-class PlivoHandler(View):
+class PlivoHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(PlivoHandler, self).dispatch(*args, **kwargs)
+    url = r'^/plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.plivo_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1309,16 +1358,20 @@ class PlivoHandler(View):
         action = kwargs['action'].lower()
         request_uuid = kwargs['uuid']
 
-        if not all(k in request.REQUEST for k in ['From', 'To', 'MessageUUID']):
-                return HttpResponse("Missing one of 'From', 'To', or 'MessageUUID' in request parameters.",
-                                    status=400)
+        sms_from = self.get_param('From')
+        sms_to = self.get_param('To')
+        sms_id = self.get_param('MessageUUID')
+
+        if sms_from is None or sms_to is None or sms_id is None:
+            return HttpResponse("Missing one of 'From', 'To', or 'MessageUUID' in request parameters.", status=400)
 
         channel = Channel.objects.filter(is_active=True, uuid=request_uuid, channel_type=Channel.TYPE_PLIVO).first()
 
         if action == 'status':
-            plivo_channel_address = request.REQUEST['From']
+            plivo_channel_address = sms_from
+            plivo_status = self.get_param('Status')
 
-            if 'Status' not in request.REQUEST:
+            if plivo_status is None:
                 return HttpResponse("Missing 'Status' in request parameters.", status=400)
 
             if not channel:
@@ -1331,10 +1384,9 @@ class PlivoHandler(View):
             if channel.address != channel_address:
                 return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
 
-            sms_id = request.REQUEST['MessageUUID']
-
-            if 'ParentMessageUUID' in request.REQUEST:
-                sms_id = request.REQUEST['ParentMessageUUID']
+            parent_id = self.get_param('ParentMessageUUID')
+            if parent_id is not None:
+                sms_id = parent_id
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, external_id=sms_id).select_related('channel')
@@ -1347,8 +1399,7 @@ class PlivoHandler(View):
                               'undelivered': SENT,
                               'rejected': FAILED}
 
-            plivo_status = request.REQUEST['Status']
-            status = STATUS_CHOICES.get(plivo_status, None)
+            status = STATUS_CHOICES.get(plivo_status)
 
             if not status:
                 return HttpResponse("Unrecognized status: '%s', ignoring message." % plivo_status, status=401)
@@ -1376,10 +1427,11 @@ class PlivoHandler(View):
             return HttpResponse("Status Updated")
 
         elif action == 'receive':
-            if 'Text' not in request.REQUEST:
-                return HttpResponse("Missing 'Text' in request parameters.", status=400)
+            sms_text = self.get_param('Text')
+            plivo_channel_address = sms_to
 
-            plivo_channel_address = request.REQUEST['To']
+            if sms_text is None:
+                return HttpResponse("Missing 'Text' in request parameters.", status=400)
 
             if not channel:
                 return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
@@ -1391,20 +1443,19 @@ class PlivoHandler(View):
             if channel.address != channel_address:
                 return HttpResponse("Channel not found for number: %s" % plivo_channel_address, status=400)
 
-            sms = Msg.create_incoming(channel, URN.from_tel(request.REQUEST['From']), request.REQUEST['Text'])
+            sms = Msg.create_incoming(channel, URN.from_tel(sms_from), sms_text)
 
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['MessageUUID'])
+            Msg.objects.filter(pk=sms.id).update(external_id=sms_id)
 
             return HttpResponse("SMS accepted: %d" % sms.id)
         else:
             return HttpResponse("Not handled", status=400)
 
 
-class MageHandler(View):
+class MageHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(MageHandler, self).dispatch(*args, **kwargs)
+    url = r'^/mage/(?P<action>handle_message|follow_notification)$'
+    url_name = 'handlers.mage_handler'
 
     def get(self, request, *args, **kwargs):
         return JsonResponse(dict(error="Illegal method, must be POST"), status=405)
@@ -1445,11 +1496,10 @@ class MageHandler(View):
         return JsonResponse(dict(error=None))
 
 
-class StartHandler(View):
+class StartHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(StartHandler, self).dispatch(*args, **kwargs)
+    url = r'^/start/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.start_handler'
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
@@ -1492,11 +1542,10 @@ class StartHandler(View):
         return HttpResponse(xml_response)
 
 
-class ChikkaHandler(View):
+class ChikkaHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ChikkaHandler, self).dispatch(*args, **kwargs)
+    url = r'^/chikka/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.chikka_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
@@ -1505,7 +1554,7 @@ class ChikkaHandler(View):
         from temba.msgs.models import Msg, SENT, FAILED, WIRED, PENDING, QUEUED
 
         request_uuid = kwargs['uuid']
-        action = request.REQUEST['message_type'].lower()
+        action = self.get_param('message_type').lower()
 
         # look up the channel
         channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_CHIKKA).exclude(org=None).first()
@@ -1514,10 +1563,11 @@ class ChikkaHandler(View):
 
         # if this is the status of an outgoing message
         if action == 'outgoing':
-            if not all(k in request.REQUEST for k in ['message_id', 'status']):
-                return HttpResponse("Error, missing one of 'message_id' or 'status' in request parameters.", status=400)
+            sms_id = self.get_param('message_id')
+            status_code = self.get_param('status')
 
-            sms_id = self.request.REQUEST['message_id']
+            if sms_id is None or status_code is None:
+                return HttpResponse("Error, missing one of 'message_id' or 'status' in request parameters.", status=400)
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, id=sms_id).select_related('channel')
@@ -1528,7 +1578,6 @@ class ChikkaHandler(View):
             status_choices = {'SENT': SENT, 'FAILED': FAILED}
 
             # check our status
-            status_code = self.request.REQUEST['status']
             status = status_choices.get(status_code, None)
 
             # we don't recognize this status code
@@ -1547,30 +1596,34 @@ class ChikkaHandler(View):
 
         # this is a new incoming message
         elif action == 'incoming':
-            if not all(k in request.REQUEST for k in ['mobile_number', 'request_id', 'message', 'timestamp']):
+            sms_id = self.get_param('request_id')
+            sms_from = self.get_param('mobile_number')
+            sms_text = self.get_param('message')
+            sms_timestamp = self.get_param('timestamp')
+
+            if sms_id is None or sms_from is None or sms_text is None or sms_timestamp is None:
                 return HttpResponse("Error, missing one of 'mobile_number', 'request_id', "
                                     "'message' or 'timestamp' in request parameters.", status=400)
 
             # dates come as timestamps
-            sms_date = datetime.utcfromtimestamp(float(request.REQUEST['timestamp']))
+            sms_date = datetime.utcfromtimestamp(float(sms_timestamp))
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
-            urn = URN.from_tel(request.REQUEST['mobile_number'])
-            sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
+            urn = URN.from_tel(sms_from)
+            sms = Msg.create_incoming(channel, urn, sms_text, date=gmt_date)
 
             # save our request id in case of replies
-            Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['request_id'])
+            Msg.objects.filter(pk=sms.id).update(external_id=sms_id)
             return HttpResponse("Accepted: %d" % sms.id)
 
         else:
             return HttpResponse("Error, unknown message type", status=400)
 
 
-class JasminHandler(View):
+class JasminHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(JasminHandler, self).dispatch(*args, **kwargs)
+    url = r'^/jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.jasmin_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
@@ -1630,11 +1683,10 @@ class JasminHandler(View):
             return HttpResponse("Not handled, unknown action", status=400)
 
 
-class MbloxHandler(View):
+class MbloxHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(MbloxHandler, self).dispatch(*args, **kwargs)
+    url = r'^/mblox/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.mblox_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=400)
@@ -1700,11 +1752,10 @@ class MbloxHandler(View):
             return HttpResponse("Not handled, unknown type: %s" % body['type'], status=400)
 
 
-class FacebookHandler(View):
+class FacebookHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(FacebookHandler, self).dispatch(*args, **kwargs)
+    url = r'^/facebook/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.facebook_handler'
 
     def lookup_channel(self, kwargs):
         # look up the channel
@@ -1845,11 +1896,10 @@ class FacebookHandler(View):
         return JsonResponse(dict(status=["Ignored, unknown msg"]))
 
 
-class GlobeHandler(View):
+class GlobeHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(GlobeHandler, self).dispatch(*args, **kwargs)
+    url = r'^/globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.globe_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Illegal method, must be POST", status=405)
@@ -1930,11 +1980,10 @@ class GlobeHandler(View):
             return HttpResponse("Not handled", status=400)
 
 
-class ViberHandler(View):
+class ViberHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(ViberHandler, self).dispatch(*args, **kwargs)
+    url = r'^/viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.viber_handler'
 
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)
@@ -1999,11 +2048,10 @@ class ViberHandler(View):
             return HttpResponse("Not handled, unknown action", status=400)
 
 
-class LineHandler(View):
+class LineHandler(BaseChannelHandler):
 
-    @disable_middleware
-    def dispatch(self, *args, **kwargs):
-        return super(LineHandler, self).dispatch(*args, **kwargs)
+    url = r'^/line/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.line_handler'
 
     def get(self, request, *args, **kwargs):
         return self.post(request, *args, **kwargs)
