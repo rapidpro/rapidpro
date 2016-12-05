@@ -144,16 +144,13 @@ class TriggerTest(TembaTest):
     def test_inbound_call_trigger(self):
         self.login(self.admin)
 
-        # shouldn't see an option for inbound call triggers without a answer channel
+        # inbound call trigger can be made without a call channel
         response = self.client.get(reverse('triggers.trigger_create'))
-        self.assertNotContains(response, 'Start a flow after receiving a call')
+        self.assertContains(response, 'Start a flow after receiving a call')
 
         # make our channel support ivr
         self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
         self.channel.save()
-
-        response = self.client.get(reverse('triggers.trigger_create'))
-        self.assertContains(response, 'Start a flow after receiving a call')
 
         # flow is required
         response = self.client.post(reverse('triggers.trigger_inbound_call'), dict())
@@ -198,9 +195,9 @@ class TriggerTest(TembaTest):
         # release our channel
         self.channel.release()
 
-        # we no longer have voice flows or inbound call triggers that arent archived
-        self.assertEquals(0, Flow.objects.filter(flow_type=Flow.VOICE, is_archived=False).count())
-        self.assertEquals(0, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, is_archived=False).count())
+        # should still have two voice flows and triggers (they aren't archived)
+        self.assertEquals(2, Flow.objects.filter(flow_type=Flow.VOICE, is_archived=False).count())
+        self.assertEquals(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, is_archived=False).count())
 
     def test_trigger_schedule(self):
         self.login(self.admin)

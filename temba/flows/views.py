@@ -329,7 +329,7 @@ def msg_log_cmp(a, b):
             return 1
 
 
-class PartialTemplate(SmartTemplateView):
+class PartialTemplate(SmartTemplateView):  # pragma: no cover
 
     def pre_process(self, request, *args, **kwargs):
         self.template = kwargs['template']
@@ -893,10 +893,11 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
+            flow = self.get_object()
 
-            if self.get_object().flow_type != 'S' \
+            if flow.flow_type not in [Flow.SURVEY, Flow.USSD] \
                     and self.has_org_perm('flows.flow_broadcast') \
-                    and not self.get_object().is_archived:
+                    and not flow.is_archived:
 
                 links.append(dict(title=_("Start Flow"),
                                   style='btn-primary',
@@ -906,7 +907,7 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm('flows.flow_results'):
                 links.append(dict(title=_("Results"),
                                   style='btn-primary',
-                                  href=reverse('flows.flow_results', args=[self.get_object().id])))
+                                  href=reverse('flows.flow_results', args=[flow.id])))
             if len(links) > 1:
                 links.append(dict(divider=True)),
 
@@ -918,11 +919,11 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm('flows.flow_copy'):
                 links.append(dict(title=_("Copy"),
                                   posterize=True,
-                                  href=reverse('flows.flow_copy', args=[self.get_object().id])))
+                                  href=reverse('flows.flow_copy', args=[flow.id])))
 
             if self.has_org_perm('orgs.org_export'):
                 links.append(dict(title=_("Export"),
-                                  href='%s?flow=%s' % (reverse('orgs.org_export'), self.get_object().id)))
+                                  href='%s?flow=%s' % (reverse('orgs.org_export'), flow.id)))
 
             if self.has_org_perm('flows.flow_revisions'):
                 links.append(dict(divider=True)),
@@ -935,7 +936,7 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Delete"),
                                   delete=True,
                                   success_url=reverse('flows.flow_list'),
-                                  href=reverse('flows.flow_delete', args=[self.get_object().id])))
+                                  href=reverse('flows.flow_delete', args=[flow.id])))
 
             return links
 
@@ -957,6 +958,11 @@ class FlowCRUDL(SmartCRUDL):
 
             context['has_airtime_service'] = bool(self.object.org.is_connected_to_transferto())
 
+            flow = self.get_object()
+            can_start = True
+            if flow.flow_type == Flow.VOICE and not flow.org.supports_ivr():
+                can_start = False
+            context['can_start'] = can_start
             return context
 
         def get_template_names(self):
@@ -1245,12 +1251,6 @@ class FlowCRUDL(SmartCRUDL):
             messages = []
             call = IVRCall.objects.filter(contact__is_test=True, flow=flow).first()
             if call:
-                call = dict(pk=call.pk,
-                            call_type=call.call_type,
-                            status=call.status,
-                            duration=call.get_duration(),
-                            number=call.contact.raw_tel())
-
                 messages = Msg.objects.filter(contact=Contact.get_test_contact(self.request.user)).order_by('created_on')
                 action_logs = list(ActionLog.objects.filter(run__flow=flow, run__contact__is_test=True).order_by('created_on'))
 
@@ -1265,7 +1265,7 @@ class FlowCRUDL(SmartCRUDL):
 
             (active, visited) = flow.get_activity()
 
-            return build_json_response(dict(call=call, messages=messages,
+            return build_json_response(dict(messages=messages,
                                             activity=active,
                                             visited=visited,
                                             flow=flow_json, pending=pending))
@@ -1500,7 +1500,7 @@ class FlowCRUDL(SmartCRUDL):
 
 
 # this is just for adhoc testing of the preprocess url
-class PreprocessTest(FormView):
+class PreprocessTest(FormView):  # pragma: no cover
 
     @csrf_exempt
     def dispatch(self, *args, **kwargs):
