@@ -1,5 +1,5 @@
 from __future__ import absolute_import, unicode_literals
-
+# -*- coding: utf-8 -*-
 import json
 import time
 import urlparse
@@ -1078,8 +1078,8 @@ class Channel(TembaModel):
             response_text = response.text
 
         # write to our log file
-        print(u"[%d] %0.3fs SENT - %s %s \"%s\" %s \"%s\"" %
-              (msg.id, request_time, request_method, request_url, request_payload, response_status, response_text))
+        #print(u"[%d] %0.3fs SENT - %s %s \"%s\" %s \"%s\"" %
+        #      (msg.id, request_time, request_method, request_url, request_payload, response_status, response_text))
 
         from temba.msgs.models import Msg
         Msg.mark_sent(channel.config['r'], msg, msg_status, external_id)
@@ -1317,8 +1317,8 @@ class Channel(TembaModel):
         payload['from'] = channel.address
         payload['username'] = channel.config[Channel.CONFIG_USERNAME]
         payload['password'] = channel.config[Channel.CONFIG_PASSWORD]
-        payload['text'] = text
-        payload['to'] = msg.urn_path
+        payload['content'] = text
+        payload['msisdn'] = msg.urn_path[3:]
         payload['dlr-url'] = dlr_url
         payload['dlr-mask'] = dlr_mask
 
