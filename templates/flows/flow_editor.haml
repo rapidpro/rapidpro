@@ -82,14 +82,11 @@
           onFormLoaded: function() { }
         }
         // check if there is no channel, change the primary button behavior to redirect to channel creation
-        if('{{has_outgoing_channel}}' == 'None') {
+        {% if not can_start or not has_outgoing_channel %}
           modal.setPrimaryButton(gettext("Add Channel"));
           onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
-        }
-        if (window.ussd && !{{is_ussd_channel|yesno:"true,false"}}) {
-          modal.setPrimaryButton(gettext("Add USSD Channel"));
-          onActions['onPrimary'] = function() { document.location.href = '{% url "channels.channel_list" %}' };
-        }
+        {% endif %}
+
         modal.setListeners(onActions);
         modal.show();
       });

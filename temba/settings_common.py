@@ -221,8 +221,8 @@ INSTALLED_APPS = (
     # async tasks,
     'djcelery',
 
-    # django-timezones
-    'timezones',
+    # django-timezone-field
+    'timezone_field',
 
     # temba apps
     'temba.assets',
@@ -422,6 +422,7 @@ PERMISSIONS = {
                          'claim_infobip',
                          'claim_jasmin',
                          'claim_kannel',
+                         'claim_line',
                          'claim_m3tech',
                          'claim_mblox',
                          'claim_nexmo',
@@ -651,6 +652,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
         'channels.channel_claim_kannel',
+        'channels.channel_claim_line',
         'channels.channel_claim_mblox',
         'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
@@ -786,6 +788,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_infobip',
         'channels.channel_claim_jasmin',
         'channels.channel_claim_kannel',
+        'channels.channel_claim_line',
         'channels.channel_claim_mblox',
         'channels.channel_claim_m3tech',
         'channels.channel_claim_plivo',
@@ -1110,10 +1113,15 @@ HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
 # Django Compressor configuration
 # -----------------------------------------------------------------------------------
 
-COMPRESS_PRECOMPILERS = (
-    ('text/less', 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, '../static', 'less')),
-    ('text/coffeescript', 'coffee --compile --stdio'))
-COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html')
+if TESTING:
+    # if only testing, disable coffeescript and less compilation
+    COMPRESS_PRECOMPILERS = ()
+else:
+    COMPRESS_PRECOMPILERS = (
+        ('text/less', 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, '../static', 'less')),
+        ('text/coffeescript', 'coffee --compile --stdio')
+    )
+    COMPRESS_OFFLINE_CONTEXT = dict(STATIC_URL=STATIC_URL, base_template='frame.html')
 
 COMPRESS_ENABLED = False
 COMPRESS_OFFLINE = False

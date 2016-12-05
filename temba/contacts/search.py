@@ -197,8 +197,7 @@ def generate_datetime_field_comparison(field, comparator, value, org):
         raise SearchException("Unsupported comparator %s for datetime field" % comparator)
 
     # parse as localized date and then convert to UTC
-    tz = pytz.timezone(org.timezone)
-    local_date = str_to_datetime(value, tz, org.get_dayfirst(), fill_time=False)
+    local_date = str_to_datetime(value, org.timezone, org.get_dayfirst(), fill_time=False)
 
     # passed date wasn't parseable so don't match any contact
     if not local_date:

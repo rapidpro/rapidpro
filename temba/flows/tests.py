@@ -20,6 +20,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookEvent, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
+from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, INTERRUPTED
 from temba.msgs.models import OUTGOING
@@ -247,15 +248,23 @@ class FlowTest(TembaTest):
         flow2.is_archived = True
         flow2.save()
 
+        flow3 = Flow.create(self.org, self.admin, "Flow 3", base_language='base')
+
         # see our trigger on the list page
         response = self.client.get(reverse('flows.flow_list'))
         self.assertContains(response, self.flow.name)
+        self.assertContains(response, flow3.name)
+        self.assertEquals(2, response.context['folders'][0]['count'])
+        self.assertEquals(1, response.context['folders'][1]['count'])
 
         # archive it
         post_data = dict(action='archive', objects=self.flow.pk)
         self.client.post(reverse('flows.flow_list'), post_data)
         response = self.client.get(reverse('flows.flow_list'))
         self.assertNotContains(response, self.flow.name)
+        self.assertContains(response, flow3.name)
+        self.assertEquals(1, response.context['folders'][0]['count'])
+        self.assertEquals(2, response.context['folders'][1]['count'])
 
         response = self.client.get(reverse('flows.flow_archived'), post_data)
         self.assertContains(response, self.flow.name)
@@ -271,6 +280,34 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, self.flow.name)
         response = self.client.get(reverse('flows.flow_list'), post_data)
         self.assertContains(response, self.flow.name)
+        self.assertContains(response, flow3.name)
+        self.assertEquals(2, response.context['folders'][0]['count'])
+        self.assertEquals(1, response.context['folders'][1]['count'])
+
+        # voice flows should be included in the count
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.VOICE)
+
+        response = self.client.get(reverse('flows.flow_list'))
+        self.assertContains(response, self.flow.name)
+        self.assertEquals(2, response.context['folders'][0]['count'])
+        self.assertEquals(1, response.context['folders'][1]['count'])
+
+        # single message flow (flom campaign) should not be included in counts and not even on this list
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.MESSAGE)
+
+        response = self.client.get(reverse('flows.flow_list'))
+
+        self.assertNotContains(response, self.flow.name)
+        self.assertEquals(1, response.context['folders'][0]['count'])
+        self.assertEquals(1, response.context['folders'][1]['count'])
+
+        # single message flow should not be even in the archived list
+        Flow.objects.filter(pk=self.flow.pk).update(flow_type=Flow.MESSAGE, is_archived=True)
+
+        response = self.client.get(reverse('flows.flow_archived'))
+        self.assertNotContains(response, self.flow.name)
+        self.assertEquals(1, response.context['folders'][0]['count'])
+        self.assertEquals(1, response.context['folders'][1]['count'])  # only flow2
 
     def test_campaign_filter(self):
         self.login(self.admin)
@@ -413,9 +450,21 @@ class FlowTest(TembaTest):
 
         # check flow activity endpoint response
         self.login(self.admin)
+
+        test_contact = Contact.get_test_contact(self.admin)
+        test_message = self.create_msg(contact=test_contact, text='Hi')
+
         activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
         self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
         self.assertEquals(2, activity['activity'][uuid(5)])
+        self.assertEquals(activity['messages'], [])
+
+        # check activity with IVR test call
+        IVRCall.create_incoming(self.channel, test_contact, test_contact.get_urn(), self.flow, self.admin)
+        activity = json.loads(self.client.get(reverse('flows.flow_activity', args=[self.flow.pk])).content)
+        self.assertEquals(2, activity['visited']["%s:%s" % (uuid(1), uuid(5))])
+        self.assertEquals(2, activity['activity'][uuid(5)])
+        self.assertTrue(activity['messages'], [test_message.as_json()])
 
         # if we try to get contacts at this step for our compose we should have two contacts
         self.login(self.admin)
@@ -488,7 +537,7 @@ class FlowTest(TembaTest):
         self.assertEqual("orange", context['flow']['color']['text'])
 
         # value time should be in org format and timezone
-        val_time = datetime_to_str(step.left_on, '%d-%m-%Y %H:%M', tz=pytz.timezone(self.org.timezone))
+        val_time = datetime_to_str(step.left_on, '%d-%m-%Y %H:%M', tz=self.org.timezone)
         self.assertEqual(val_time, context['flow']['color']['time'])
 
         self.assertEquals(self.channel.get_address_display(e164=True), context['channel']['tel_e164'])
@@ -609,7 +658,7 @@ class FlowTest(TembaTest):
         with self.assertNumQueries(49):
             workbook = self.export_flow_results(self.flow)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -702,7 +751,7 @@ class FlowTest(TembaTest):
         with self.assertNumQueries(48):
             workbook = self.export_flow_results(self.flow, include_msgs=False, include_runs=False, responded_only=True)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
         sheet_contacts = workbook.worksheets[0]
 
         self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
@@ -736,7 +785,7 @@ class FlowTest(TembaTest):
         # only one present now
         self.assertEqual(Value.objects.filter(contact=self.contact, contact_field=age).count(), 1)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
         sheet_runs, sheet_contacts = workbook.worksheets
 
         self.assertEqual(len(list(sheet_contacts.rows)), 3)  # header + 2 contacts
@@ -782,7 +831,7 @@ class FlowTest(TembaTest):
 
         workbook = self.export_flow_results(self.flow)
 
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -811,7 +860,7 @@ class FlowTest(TembaTest):
         in1 = Msg.create_incoming(None, None, "blue", org=self.org, contact=self.contact)
 
         workbook = self.export_flow_results(self.flow)
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -836,7 +885,7 @@ class FlowTest(TembaTest):
         run.save()
 
         workbook = self.export_flow_results(self.flow)
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
 
@@ -1086,7 +1135,7 @@ class FlowTest(TembaTest):
 
     def assertDateTest(self, expected_test, expected_value, test):
         run = FlowRun.objects.filter(contact=self.contact).first()
-        tz = run.flow.org.get_tzinfo()
+        tz = run.flow.org.timezone
         context = run.flow.build_message_context(run.contact, None)
 
         tuple = test.evaluate(run, self.sms, context, self.sms.text)
@@ -3149,6 +3198,7 @@ class ActionTest(TembaTest):
                                                    data={'run': run.pk,
                                                          'phone': u'+250788382382',
                                                          'contact': self.contact.uuid,
+                                                         'contact_name': self.contact.name,
                                                          'urn': u'tel:+250788382382',
                                                          'text': None,
                                                          'flow': self.flow.pk,
@@ -3176,6 +3226,7 @@ class ActionTest(TembaTest):
                                                    data={'run': run.pk,
                                                          'phone': u'+250788382382',
                                                          'contact': self.contact.uuid,
+                                                         'contact_name': self.contact.name,
                                                          'urn': u'tel:+250788382382',
                                                          'text': "Green is my favorite",
                                                          'flow': self.flow.pk,
@@ -3334,8 +3385,15 @@ class FlowLabelTest(FlowFileTest):
 
         # view the parent label, should see the child
         self.login(self.admin)
+        favorites = self.get_flow('favorites')
+        label.toggle_label([favorites], True)
         response = self.client.get(reverse('flows.flow_filter', args=[label.pk]))
+
+        # our child label
         self.assertContains(response, "child")
+
+        # and the edit gear link
+        self.assertContains(response, "Edit")
 
     def test_toggle_label(self):
         label = FlowLabel.create_unique('toggle me', self.org)
@@ -3816,7 +3874,7 @@ class FlowsTest(FlowFileTest):
 
         self.send_message(flow, 'mauve')
         msg = Msg.objects.filter(text='mauve').first()
-        tz = pytz.timezone(self.org.timezone)
+        tz = self.org.timezone
 
         response = self.client.get(recent_messages_url + get_params_entry)
         response_json = json.loads(response.content)

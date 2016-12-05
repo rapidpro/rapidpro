@@ -50,6 +50,7 @@ FACEBOOK_SCHEME = 'facebook'
 TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
+LINE_SCHEME = 'line'
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
@@ -57,7 +58,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
-                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
+                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME))
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
@@ -219,6 +221,10 @@ class URN(object):
     @classmethod
     def from_facebook(cls, path):
         return cls.from_parts(FACEBOOK_SCHEME, path)
+
+    @classmethod
+    def from_line(cls, path):
+        return cls.from_parts(LINE_SCHEME, path)
 
     @classmethod
     def from_telegram(cls, path):
@@ -465,7 +471,8 @@ class Contact(TembaModel):
         Gets this contact's activity of messages, calls, runs etc in the given time window
         """
         from temba.flows.models import Flow
-        from temba.ivr.models import BUSY, FAILED, NO_ANSWER, CANCELED
+        from temba.ivr.models import IVRCall
+        # BUSY, FAILED, NO_ANSWER, CANCELED
         from temba.msgs.models import Msg
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
@@ -497,7 +504,9 @@ class Contact(TembaModel):
             event_fire.created_on = event_fire.fired
 
         # and the contact's failed IVR calls
-        error_calls = self.calls.filter(created_on__gte=after, created_on__lt=before, status__in=[BUSY, FAILED, NO_ANSWER, CANCELED])
+        error_calls = IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before, status__in=[
+            IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED
+        ])
         error_calls = error_calls.select_related('channel')
 
         # chain them all together in the same list and sort by time
@@ -1187,7 +1196,6 @@ class Contact(TembaModel):
         # this file isn't good enough, lets write it to local disk
         from django.conf import settings
         from uuid import uuid4
-
         # make sure our tmp directory is present (throws if already present)
         try:
             os.makedirs(os.path.join(settings.MEDIA_ROOT, 'tmp'))
@@ -1196,7 +1204,7 @@ class Contact(TembaModel):
 
         # rewrite our file to local disk
         extension = filename.name.rpartition('.')[2]
-        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension))
+        tmp_file = os.path.join(settings.MEDIA_ROOT, 'tmp/%s.%s' % (str(uuid4()), extension.lower()))
         filename.open()
 
         out_file = open(tmp_file, 'w')
@@ -1226,6 +1234,9 @@ class Contact(TembaModel):
         # we always create a group after a successful import (strip off 8 character uniquifier by django)
         group_name = os.path.splitext(os.path.split(import_params.get('original_filename'))[-1])[0]
         group_name = group_name.replace('_', ' ').replace('-', ' ').title()
+
+        if len(group_name) >= ContactGroup.MAX_NAME_LEN - 10:
+            group_name = group_name[:ContactGroup.MAX_NAME_LEN - 10]
 
         # group org is same as org of any contact in that group
         group_org = contacts[0].org
