@@ -2,11 +2,12 @@ from __future__ import unicode_literals
 
 import json
 
-from django.forms import forms
+from django import forms
+from django.forms import widgets
 from .models import Contact, ContactGroup, ContactURN, URN
 
 
-class OmniboxWidget(forms.TextInput):
+class OmniboxWidget(widgets.TextInput):
 
     @classmethod
     def get_objects_spec(cls, spec, user):
