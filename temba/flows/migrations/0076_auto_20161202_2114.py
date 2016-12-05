@@ -3,9 +3,10 @@ from __future__ import unicode_literals
 
 from django.db import migrations, models
 from django.db.models import Func, Value, Count
-from temba.utils import chunk_list
 from django_redis import get_redis_connection
 from django.db import connection
+from temba.utils import chunk_list
+from temba.sql import InstallSQL
 import time
 
 HIGHPOINT_KEY = 'flowpathcount_backfill_highpoint'
