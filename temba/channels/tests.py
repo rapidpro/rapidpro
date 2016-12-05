@@ -3311,8 +3311,8 @@ class ExternalTest(TembaTest):
 
         # load our message, make sure the date was saved properly
         msg = Msg.objects.get()
-        self.assertEquals(2012, msg.created_on.year)
-        self.assertEquals(18, msg.created_on.hour)
+        self.assertEquals(2012, msg.sent_on.year)
+        self.assertEquals(18, msg.sent_on.hour)
 
     def test_receive_external(self):
         self.channel.scheme = 'ext'
@@ -5203,7 +5203,7 @@ class HighConnectionTest(TembaTest):
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello World", msg.text)
-        self.assertEquals(14, msg.created_on.astimezone(pytz.utc).hour)
+        self.assertEquals(14, msg.sent_on.astimezone(pytz.utc).hour)
 
         # try it with an invalid receiver, should fail as UUID isn't known
         callback_url = reverse('handlers.hcnx_handler', args=['receive', uuid.uuid4()])
@@ -5792,7 +5792,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals(u"mexico k mis papas no ten\xeda dinero para comprarnos lo q quer\xedamos..", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
     def test_receive_iso_8859_1(self):
@@ -5820,7 +5820,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals(u'\x05\x034\x02\x02i mapfumbamwe vana 4 kuwacha handingapedze izvozvo ndozvikukonzera kt varoorwe varipwere ngapaonekwe ipapo ndatenda.', msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
         Msg.objects.all().delete()
@@ -5840,7 +5840,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Artwell Sìbbnda", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
         Msg.objects.all().delete()
@@ -5860,7 +5860,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("a? £irvine stinta?¥.  ", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
         Msg.objects.all().delete()
@@ -5881,7 +5881,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("when? or What? is this ", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
     def test_receive(self):
@@ -5908,10 +5908,10 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
 
         # times are sent as GMT+2
-        self.assertEquals(8, msg1.created_on.hour)
+        self.assertEquals(8, msg1.sent_on.hour)
         self.assertEquals('id1234', msg1.external_id)
 
     def test_status(self):
@@ -7028,7 +7028,7 @@ class ChikkaTest(TembaTest):
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello World!", msg.text)
         self.assertEquals('4004', msg.external_id)
-        self.assertEquals(msg.created_on.date(), date(day=11, month=3, year=2016))
+        self.assertEquals(msg.sent_on.date(), date(day=11, month=3, year=2016))
 
     def test_send(self):
         joe = self.create_contact("Joe", '+63911231234')
@@ -7365,7 +7365,7 @@ class MbloxTest(TembaTest):
         self.assertEqual(msg.org, self.org)
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "MO")
-        self.assertEqual(msg.created_on.date(), date(day=30, month=3, year=2016))
+        self.assertEqual(msg.sent_on.date(), date(day=30, month=3, year=2016))
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
@@ -7880,7 +7880,7 @@ class GlobeTest(TembaTest):
         self.assertEqual(msg.org, self.org)
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "Hello")
-        self.assertEqual(msg.created_on.date(), date(day=22, month=11, year=2013))
+        self.assertEqual(msg.sent_on.date(), date(day=22, month=11, year=2013))
 
     def test_send(self):
         joe = self.create_contact("Joe", "+639171234567")
@@ -8028,7 +8028,7 @@ class ViberTest(TembaTest):
         self.assertEqual(msg.org, self.org)
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "a message to the service")
-        self.assertEqual(msg.created_on.date(), date(day=22, month=8, year=2016))
+        self.assertEqual(msg.sent_on.date(), date(day=22, month=8, year=2016))
         self.assertEqual(msg.external_id, "44444444444444")
 
     def test_send(self):
