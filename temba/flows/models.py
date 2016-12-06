@@ -1439,13 +1439,13 @@ class Flow(TembaModel):
 
         # prevents infinite loops
         if self.pk in started_flows:
-            return
+            return []
 
         # add this flow to our list of started flows
         started_flows.append(self.pk)
 
         if not self.entry_uuid:
-            return
+            return []
 
         if start_msg and start_msg.id:
             start_msg.msg_type = FLOW
@@ -1489,7 +1489,7 @@ class Flow(TembaModel):
         if contact_count == 0:
             if flow_start:
                 flow_start.update_status()
-            return
+            return []
 
         # single contact starting from a trigger? increment our unread count
         if start_msg and contact_count == 1:
