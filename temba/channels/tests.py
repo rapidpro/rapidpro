@@ -5539,7 +5539,6 @@ class TwilioTest(TembaTest):
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
-
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.return_value = "Sent"
 
