@@ -993,7 +993,7 @@ class Flow(TembaModel):
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
 
-    def get_db_activity(self, simulation=False):
+    def get_visit_counts(self, simulation=False):
 
         if simulation:
             (active, visits) = self._calculate_activity(simulation=True)
@@ -1004,7 +1004,6 @@ class Flow(TembaModel):
 
         # group by our from and to and sum the counts
         paths = paths.values('from_uuid', 'to_uuid').order_by().annotate(Sum('count'))
-
         return {'%s:%s' % (p['from_uuid'], p['to_uuid']): p['count__sum'] for p in paths}
 
     def get_activity(self, simulation=False, check_cache=True):
@@ -1033,14 +1032,7 @@ class Flow(TembaModel):
             if count:
                 active[key[key.rfind(':') + 1:]] = count
 
-        # visited path
-        visited = r.hgetall(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
-
-        # make sure our counts are treated as ints for consistency
-        for k, v in visited.items():
-            visited[k] = int(v)
-
-        return (active, visited)
+        return (active, self.get_visit_counts())
 
     def get_total_runs(self):
         return FlowRunCount.run_count(self)

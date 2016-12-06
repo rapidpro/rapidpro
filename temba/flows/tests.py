@@ -4070,20 +4070,12 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, flow.get_completed_runs())
         self.assertEquals(0, flow.get_completed_percentage())
 
-        visited = flow.get_db_activity()
-        self.assertEquals(1, visited[other_rule_to_msg])
-        self.assertEquals(1, visited[msg_to_color_step])
-
         # another unknown color, that'll route us right back again
         # the active stats will look the same, but there should be one more journey on the path
         self.send_message(flow, 'mauve')
         (active, visited) = flow.get_activity()
         self.assertEquals(1, len(active))
         self.assertEquals(1, active[color.uuid])
-        self.assertEquals(2, visited[other_rule_to_msg])
-        self.assertEquals(2, visited[msg_to_color_step])
-
-        visited = flow.get_db_activity()
         self.assertEquals(2, visited[other_rule_to_msg])
         self.assertEquals(2, visited[msg_to_color_step])
 
@@ -4104,10 +4096,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(3, visited[other_rule_to_msg])
         self.assertEquals(3, visited[msg_to_color_step])
         self.assertEquals(2, flow.get_total_runs())
-
-        visited = flow.get_db_activity()
-        self.assertEquals(3, visited[other_rule_to_msg])
-        self.assertEquals(3, visited[msg_to_color_step])
 
         # now let's have them land in the same place
         self.send_message(flow, 'blue', contact=ryan)
@@ -4154,9 +4142,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, len(active))
         self.assertEquals(3, visited[other_rule_to_msg])
 
-        visited = flow.get_db_activity()
-        self.assertEquals(3, visited[other_rule_to_msg])
-
         # no completed runs but one expired run
         self.assertEquals(2, flow.get_total_runs())
         self.assertEquals(0, flow.get_completed_runs())
@@ -4175,10 +4160,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, flow.get_total_runs())
-
-        visited = flow.get_db_activity()
-        self.assertEquals(1, visited[msg_to_color_step])
-        self.assertEquals(1, visited[other_rule_to_msg])
 
         # he was also accounting for our completion rate, back to nothing
         self.assertEquals(0, flow.get_completed_runs())
@@ -4211,23 +4192,15 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
 
-        visited = flow.get_db_activity()
-        self.assertEquals(1, visited[msg_to_color_step])
-        self.assertEquals(1, visited[other_rule_to_msg])
-
         # try the same thing after squashing
         FlowPathCount.squash_counts()
-        visited = flow.get_db_activity()
+        visited = flow.get_activity()[1]
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, visited[other_rule_to_msg])
 
         # but hammer should have created some simulation activity
         (active, visited) = flow.get_activity(simulation=True)
         self.assertEquals(0, len(active))
-        self.assertEquals(2, visited[msg_to_color_step])
-        self.assertEquals(2, visited[other_rule_to_msg])
-
-        visited = flow.get_db_activity(simulation=True)
         self.assertEquals(2, visited[msg_to_color_step])
         self.assertEquals(2, visited[other_rule_to_msg])
 
@@ -4240,10 +4213,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(0, flow.get_total_runs())
         self.assertEquals(0, flow.get_completed_runs())
         self.assertEquals(0, flow.get_completed_percentage())
-
-        visited = flow.get_db_activity()
-        self.assertEquals(0, visited[msg_to_color_step])
-        self.assertEquals(0, visited[other_rule_to_msg])
 
         # runs and steps all gone too
         self.assertEquals(0, FlowStep.objects.filter(run__flow=flow, contact__is_test=False).count())
@@ -4258,10 +4227,6 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, visited[other_rule_to_msg])
         self.assertEquals(1, visited[msg_to_color_step])
         self.assertEquals(1, flow.get_total_runs())
-
-        visited = flow.get_db_activity()
-        self.assertEquals(1, visited[other_rule_to_msg])
-        self.assertEquals(1, visited[msg_to_color_step])
 
         # set the run to be ready for expiration
         run = tupac.runs.first()
