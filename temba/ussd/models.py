@@ -39,9 +39,7 @@ class USSDSession(ChannelSession):
     def handle_session_async(self, urn, content, date, message_id):
         from temba.msgs.models import Msg
 
-        channel = self.channel if not self.contact.is_test else None
-
-        message = Msg.create_incoming(channel=channel, urn=urn, text=content or '', date=date)
+        message = Msg.create_incoming(channel=self.channel, urn=urn, text=content or '', date=date)
         message.external_id = message_id
         message.save()
 
