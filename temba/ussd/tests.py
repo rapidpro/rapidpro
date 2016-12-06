@@ -6,7 +6,6 @@ from mock import patch
 
 from django.core.urlresolvers import reverse
 from django.conf import settings
-from django.test import TestCase
 from django.utils import timezone
 from django_redis import get_redis_connection
 
@@ -68,7 +67,6 @@ class USSDSessionTest(TembaTest):
     # def test_async_content_handling(self):
     #     args, kwargs = create_incoming.call_args
     #     self.assertEqual(kwargs['status'], INTERRUPTED)
-
 
     @patch('temba.msgs.models.Msg.create_incoming')
     def test_async_interrupt_handling(self, create_incoming):

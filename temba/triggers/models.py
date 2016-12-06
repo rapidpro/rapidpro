@@ -326,7 +326,7 @@ class Trigger(SmartModel):
             keyword = matched_object.group(1)
 
             # TODO: use answers for shortcut starcode feature
-            answers = filter(None, matched_object.group(2).split('#'))
+            # answers = filter(None, matched_object.group(2).split('#'))
         else:
             return None
 
