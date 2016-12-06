@@ -1157,6 +1157,11 @@ SEND_EMAILS = False
 #         could cause airtime transfers in test environment
 SEND_AIRTIME = False
 
+######
+# DANGER: only turn this on if you know what you are doing!
+#         could cause calls in test environments
+SEND_CALLS = False
+
 
 MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',
                     'temba.flows.handlers.FlowHandler',

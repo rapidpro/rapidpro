@@ -2606,6 +2606,12 @@ class ActionTest(TembaTest):
 
         self.assertTrue(FlowRun.objects.filter(contact=self.contact, flow=flow))
 
+        action = TriggerFlowAction(flow, [self.other_group], [], [])
+        run = FlowRun.create(self.flow, self.contact.pk)
+        msgs = action.execute(run, None, None)
+
+        self.assertFalse(msgs)
+
         self.other_group.update_contacts(self.user, [self.contact2], True)
 
         action = TriggerFlowAction(flow, [self.other_group], [self.contact], [])
