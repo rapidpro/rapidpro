@@ -43,13 +43,14 @@ END_TEST_CONTACT_PATH = 12065550199
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250
 
-TEL_SCHEME = 'tel'
-TWITTER_SCHEME = 'twitter'
-TWILIO_SCHEME = 'twilio'
-FACEBOOK_SCHEME = 'facebook'
-TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
+FACEBOOK_SCHEME = 'facebook'
+LINE_SCHEME = 'line'
+TEL_SCHEME = 'tel'
+TELEGRAM_SCHEME = 'telegram'
+TWILIO_SCHEME = 'twilio'
+TWITTER_SCHEME = 'twitter'
 VIBER_SCHEME = 'viber'
 
 # Scheme, Label, Export/Import Header, Context Key
@@ -59,7 +60,8 @@ URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
                      (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
                      (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
-                     (VIBER_SCHEME, _("Viber identifier"), 'viber', VIBER_SCHEME))
+                     (VIBER_SCHEME, _("Viber identifier"), 'viber', VIBER_SCHEME),
+                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME))
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
@@ -225,6 +227,10 @@ class URN(object):
     @classmethod
     def from_facebook(cls, path):
         return cls.from_parts(FACEBOOK_SCHEME, path)
+
+    @classmethod
+    def from_line(cls, path):
+        return cls.from_parts(LINE_SCHEME, path)
 
     @classmethod
     def from_telegram(cls, path):
@@ -476,7 +482,6 @@ class Contact(TembaModel):
         """
         from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
-        # BUSY, FAILED, NO_ANSWER, CANCELED
         from temba.msgs.models import Msg
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
@@ -484,14 +489,8 @@ class Contact(TembaModel):
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gte=after, created_on__lt=before)
-        broadcasts = broadcasts.prefetch_related('steps__run__flow')
         for broadcast in broadcasts:
-            steps = list(broadcast.steps.all())
-            flow = steps[0].run.flow if steps else None
-            flow_language = flow.base_language if flow else None
-            broadcast.translated_text = broadcast.get_translated_text(contact=self,
-                                                                      base_language=flow_language,
-                                                                      org=self.org)
+            broadcast.translated_text = broadcast.get_translated_text(contact=self, org=self.org)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)

@@ -336,11 +336,7 @@ class TriggerCRUDL(SmartCRUDL):
             add_section('trigger-keyword', 'triggers.trigger_keyword', 'icon-tree')
             add_section('trigger-register', 'triggers.trigger_register', 'icon-users-2')
             add_section('trigger-schedule', 'triggers.trigger_schedule', 'icon-clock')
-
-            # if we can answer calls, show the inbound trigger option
-            if self.org.get_schemes(Channel.ROLE_ANSWER):
-                add_section('trigger-inboundcall', 'triggers.trigger_inbound_call', 'icon-phone2')
-
+            add_section('trigger-inboundcall', 'triggers.trigger_inbound_call', 'icon-phone2')
             add_section('trigger-missedcall', 'triggers.trigger_missed_call', 'icon-phone')
 
             if ContactURN.SCHEMES_SUPPORTING_FOLLOW.intersection(org_schemes):
@@ -374,7 +370,7 @@ class TriggerCRUDL(SmartCRUDL):
             return context
 
         def form_invalid(self, form):
-            if '_format' in self.request.REQUEST and self.request.REQUEST['_format'] == 'json':
+            if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 return HttpResponse(json.dumps(dict(status="error", errors=form.errors)), content_type='application/json', status=400)
             else:
                 return super(TriggerCRUDL.Update, self).form_invalid(form)
@@ -572,7 +568,7 @@ class TriggerCRUDL(SmartCRUDL):
             return context
 
         def form_invalid(self, form):
-            if '_format' in self.request.REQUEST and self.request.REQUEST['_format'] == 'json':
+            if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 return HttpResponse(json.dumps(dict(status="error", errors=form.errors)), content_type='application/json', status=400)
             else:
                 return super(TriggerCRUDL.Schedule, self).form_invalid(form)

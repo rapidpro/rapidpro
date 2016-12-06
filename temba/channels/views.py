@@ -44,6 +44,7 @@ RELAYER_TYPE_ICONS = {Channel.TYPE_ANDROID: "icon-channel-android",
                       Channel.TYPE_CHIKKA: "icon-channel-external",
                       Channel.TYPE_EXTERNAL: "icon-channel-external",
                       Channel.TYPE_KANNEL: "icon-channel-kannel",
+                      Channel.TYPE_LINE: "icon-line",
                       Channel.TYPE_NEXMO: "icon-channel-nexmo",
                       Channel.TYPE_VERBOICE: "icon-channel-external",
                       Channel.TYPE_TWILIO: "icon-channel-twilio",
@@ -296,8 +297,8 @@ def sync(request, channel_id):
 
     channel = channel[0]
 
-    request_time = request.REQUEST.get('ts', '')
-    request_signature = request.REQUEST.get('signature', '')
+    request_time = request.GET.get('ts', '')
+    request_signature = request.GET.get('signature', '')
 
     if not channel.secret or not channel.org:
         return HttpResponse(json.dumps(dict(cmds=[channel.build_registration_command()])), content_type='application/javascript')
@@ -551,7 +552,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_viber_public')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -935,7 +936,7 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
 
             # make sure they own the channel
-            channel = self.request.REQUEST.get('channel', None)
+            channel = self.request.GET.get('channel', None)
             if channel:
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
             if not channel:
@@ -1187,7 +1188,7 @@ class ChannelCRUDL(SmartCRUDL):
             return dict(body=Channel.CONFIG_DEFAULT_SEND_BODY)
 
         def get_form_class(self):
-            if self.request.REQUEST.get('role', None) == 'S':
+            if self.request.GET.get('role', None) == 'S':
                 return ChannelCRUDL.ClaimExternal.EXSendClaimForm
             else:
                 return ChannelCRUDL.ClaimExternal.EXClaimForm
@@ -1200,7 +1201,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
 
-            if self.request.REQUEST.get('role', None) == 'S':
+            if self.request.GET.get('role', None) == 'S':
                 # get our existing channel
                 receive = org.get_receive_channel(TEL_SCHEME)
                 role = Channel.ROLE_SEND
@@ -1221,7 +1222,7 @@ class ChannelCRUDL(SmartCRUDL):
                     country = None
 
             # see if there is a parent channel we are adding a delegate for
-            channel = self.request.REQUEST.get('channel', None)
+            channel = self.request.GET.get('channel', None)
             if channel:
                 # make sure they own it
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
@@ -1559,13 +1560,13 @@ class ChannelCRUDL(SmartCRUDL):
                                           help_text=_("Your Vumi account key as found under Account -> Details"))
             conversation_key = forms.CharField(label=_("Conversation Key"),
                                                help_text=_("The key for your Vumi conversation, can be found in the URL"))
-            transport_name = forms.CharField(label=_("Transport Name"), required=False,
-                                             help_text=_("The name of the Vumi transport you will use to send and receive messages"))
+            api_url = forms.URLField(label=_("API URL"), required=False,
+                                     help_text=_("Custom VUMI API Endpoint. Leave blank to use default of: '%s'" % Channel.VUMI_GO_API_URL))
 
         title = _("Connect Vumi")
         channel_type = Channel.TYPE_VUMI
         form_class = VumiClaimForm
-        fields = ('country', 'number', 'account_key', 'conversation_key', 'transport_name')
+        fields = ('country', 'number', 'account_key', 'conversation_key', 'api_url')
 
         def form_valid(self, form):
             org = self.request.user.get_org()
@@ -1574,12 +1575,17 @@ class ChannelCRUDL(SmartCRUDL):
                 raise Exception(_("No org for this user, cannot claim"))
 
             data = form.cleaned_data
+            if not data.get('api_url'):
+                api_url = Channel.VUMI_GO_API_URL
+            else:
+                api_url = data.get('api_url')
+
             self.object = Channel.add_config_external_channel(org, self.request.user,
                                                               data['country'], data['number'], self.channel_type,
                                                               dict(account_key=data['account_key'],
                                                                    access_token=str(uuid4()),
-                                                                   transport_name=data['transport_name'],
-                                                                   conversation_key=data['conversation_key']))
+                                                                   conversation_key=data['conversation_key'],
+                                                                   api_url=api_url))
 
             return super(ChannelCRUDL.ClaimAuthenticatedExternal, self).form_valid(form)
 
@@ -1856,7 +1862,7 @@ class ChannelCRUDL(SmartCRUDL):
             api_secret = settings.TWITTER_API_SECRET
             oauth_token = self.request.session.get(SESSION_TWITTER_TOKEN, None)
             oauth_token_secret = self.request.session.get(SESSION_TWITTER_SECRET, None)
-            oauth_verifier = self.request.REQUEST.get('oauth_verifier', None)
+            oauth_verifier = self.request.GET.get('oauth_verifier', None)
 
             # if we have all oauth values, then we be returning from an authorization callback
             if oauth_token and oauth_token_secret and oauth_verifier:
@@ -1921,6 +1927,67 @@ class ChannelCRUDL(SmartCRUDL):
                                                    page['name'], page['id'], form.cleaned_data['page_access_token'])
 
             return HttpResponseRedirect(reverse('channels.channel_configuration', args=[channel.id]))
+
+    class ClaimLine(OrgPermsMixin, SmartFormView):
+        class LineForm(forms.Form):
+            channel_secret = forms.CharField(label=_("Secret"), required=True, help_text=_("The Secret of the LINE Bot"))
+            channel_access_token = forms.CharField(label=_("Access Token"), required=True, help_text=_("The Access Token of the LINE Bot"))
+
+            def clean(self):
+                from django.db.models.query import Q
+                from .models import TEMBA_HEADERS
+
+                channel_secret = self.cleaned_data.get('channel_secret')
+                channel_access_token = self.cleaned_data.get('channel_access_token')
+
+                headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer %s' % channel_access_token}
+                headers.update(TEMBA_HEADERS)
+
+                response = requests.get('https://api.line.me/v1/oauth/verify', headers=headers)
+                content = json.loads(response.content)
+
+                if response.status_code != 200:
+                    raise ValidationError(content.get('error_desciption'))
+                else:
+                    channel_id = content.get('channelId')
+                    channel_mid = content.get('mid')
+
+                    credentials = {
+                        'channel_id': channel_id,
+                        'channel_mid': channel_mid,
+                        'channel_secret': channel_secret,
+                        'channel_access_token': channel_access_token
+                    }
+
+                    existing = Channel.objects.filter(Q(config__contains=channel_id) | Q(config__contains=channel_secret) | Q(config__contains=channel_access_token), channel_type=Channel.TYPE_LINE, address=channel_mid, is_active=True).first()
+                    if existing:
+                        raise ValidationError(_("A channel with this configuration already exists."))
+
+                    headers.pop('Content-Type')
+                    response_profile = requests.get('https://api.line.me/v1/profile', headers=headers)
+                    content_profile = json.loads(response_profile.content)
+
+                    credentials['profile'] = {
+                        'picture_url': content_profile.get('pictureUrl'),
+                        'display_name': content_profile.get('displayName')
+                    }
+
+                    return credentials
+
+        form_class = LineForm
+        title = _("Line Channel")
+        fields = ('channel_secret', 'channel_access_token')
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+
+            profile = form.cleaned_data.get('profile')
+            credentials = form.cleaned_data
+            credentials.pop('profile')
+
+            self.object = Channel.add_line_channel(org=self.request.user.get_org(), user=self.request.user, credentials=credentials, name=profile.get('display_name'))
+
+            return super(ChannelCRUDL.ClaimLine, self).form_valid(form)
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Channels")
@@ -2512,7 +2579,7 @@ class ChannelLogCRUDL(SmartCRUDL):
         paginate_by = 50
 
         def derive_queryset(self, **kwargs):
-            channel = Channel.objects.get(pk=self.request.REQUEST['channel'])
+            channel = Channel.objects.get(pk=self.request.GET['channel'])
             events = ChannelLog.objects.filter(channel=channel).order_by('-created_on').select_related('msg__contact', 'msg')
 
             # monkey patch our queryset for the total count
@@ -2521,7 +2588,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ChannelLogCRUDL.List, self).get_context_data(**kwargs)
-            context['channel'] = Channel.objects.get(pk=self.request.REQUEST['channel'])
+            context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
 
     class Read(ChannelCRUDL.AnonMixin, SmartReadView):
