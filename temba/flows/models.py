@@ -580,7 +580,6 @@ class Flow(TembaModel):
 
                 if triggered_start and destination.is_ussd():
                     result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
-                    msgs += result['msgs']
 
                 if (user_input or resume_after_timeout) or not should_pause:
                     result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run,
