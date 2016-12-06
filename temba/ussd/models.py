@@ -48,7 +48,7 @@ class USSDSession(ChannelSession):
         pass
 
     @classmethod
-    def handle_incoming(cls, channel, urn, status, date, external_id, message_id=None,
+    def handle_incoming(cls, channel, urn, date, external_id, message_id=None, status=None,
                         flow=None, content=None, starcode=None, org=None, async=True):
 
         if not external_id:
@@ -80,12 +80,13 @@ class USSDSession(ChannelSession):
         else:
             defaults.update(dict(status=USSDSession.IN_PROGRESS))
 
-        # check if there's an initiated Push session
+        # check if there's an initiated PUSH session
         session = cls.objects.get_initiated_push_session(contact)
 
         if not session:
             session, created = cls.objects.update_or_create(external_id=external_id, defaults=defaults)
         else:
+            defaults.update(dict(external_id=external_id))
             for key, value in defaults.iteritems():
                 setattr(session, key, value)
             session.save()
