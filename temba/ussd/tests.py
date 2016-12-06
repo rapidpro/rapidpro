@@ -10,7 +10,7 @@ from django.utils import timezone
 from django_redis import get_redis_connection
 
 from temba.channels.models import Channel
-from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, ERRORED
+from temba.msgs.models import WIRED, MSG_SENT_KEY, SENT, Msg, INCOMING, OUTGOING
 from temba.tests import TembaTest, MockResponse
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct
@@ -19,22 +19,14 @@ from .models import USSDSession
 
 
 class USSDSessionTest(TembaTest):
-    # def setUp(self):
-    #     super(USSDSessionTest, self).setUp()
-    #
-    #     self.channel.delete()
-    #     self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_VUMI_USSD, None, '+250788123123',
-    #                                   config=dict(account_key='vumi-key', access_token='vumi-token',
-    #                                               conversation_key='key'),
-    #                                   uuid='00000000-0000-0000-0000-000000001234')
 
     @patch('temba.ussd.models.USSDSession.start_session_async')
     def test_pull_async_trigger_start(self, start_session_async):
         flow = self.get_flow('ussd_example')
 
-        startcode = "*113#"
+        starcode = "*113#"
 
-        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=startcode, flow=flow,
+        trigger, _ = Trigger.objects.get_or_create(channel=self.channel, keyword=starcode, flow=flow,
                                                    created_by=self.user, modified_by=self.user, org=self.org,
                                                    trigger_type=Trigger.TYPE_USSD_PULL)
 
@@ -49,7 +41,7 @@ class USSDSessionTest(TembaTest):
 
         session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
                                               status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1235",
-                                              message_id="1111131", starcode=startcode)
+                                              message_id="1111131", starcode=starcode)
 
         # session should have started now
         self.assertTrue(start_session_async.called)
@@ -57,27 +49,91 @@ class USSDSessionTest(TembaTest):
 
         # check session properties
         self.assertEqual(session.status, USSDSession.TRIGGERED)
+        self.assertIsInstance(session.started_on, datetime)
         self.assertEqual(session.external_id, "1235")
-        self.assertEqual(session.message_id, "1111131")
 
     def test_push_async_start(self):
-        pass
+        flow = self.get_flow('ussd_example')
 
-    # @patch('temba.msgs.models.Msg.create_incoming')
-    # def test_async_content_handling(self):
-    #     args, kwargs = create_incoming.call_args
-    #     self.assertEqual(kwargs['status'], INTERRUPTED)
+        contact = self.create_contact("Joe", "+250788383383")
 
-    @patch('temba.msgs.models.Msg.create_incoming')
-    def test_async_interrupt_handling(self, create_incoming):
-        self.assertTrue(create_incoming.called)
-        self.assertEqual(create_incoming.call_count, 1)
+        flow.start([], [contact])
 
-        args, kwargs = create_incoming.call_args
-        self.assertEqual(kwargs['status'], ERRORED)
+        session = USSDSession.objects.get()
+
+        # flow start created a session
+        self.assertTrue(session)
+
+        # session's status has to be INITIATED and direction is outgoing (aka USSD_PUSH)
+        self.assertEqual(session.direction, USSDSession.USSD_PUSH)
+        self.assertEqual(session.status, USSDSession.INITIATED)
+        self.assertIsInstance(session.started_on, datetime)
+
+        # message created and sent out
+        msg = Msg.objects.get()
+
+        self.assertEqual(flow.steps().get().messages.get().text, msg.text)
+
+        return flow
+
+    def test_async_content_handling(self):
+        # start off a PUSH session
+        flow = self.test_push_async_start()
+
+        # send an incoming message through the channel
+        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", content="1",
+                                              date=timezone.now(), external_id="21345", message_id="123")
+
+        # same session is modified
+        self.assertEqual(USSDSession.objects.count(), 1)
+
+        # new status
+        self.assertEqual(session.status, USSDSession.IN_PROGRESS)
+
+        # there should be 3 messages
+        self.assertEqual(Msg.objects.count(), 3)
+
+        # lets check the steps and incoming and outgoing messages
+        # first step has 1 outgoing and the answer
+        self.assertEqual(flow.steps().first().messages.count(), 2)
+        self.assertEqual(flow.steps().first().messages.last().direction, OUTGOING)
+        self.assertEqual(flow.steps().first().messages.last().text, u'What would you like to read about?')
+
+        self.assertEqual(flow.steps().first().messages.first().direction, INCOMING)
+        self.assertEqual(flow.steps().first().messages.first().text, u'1')
+
+        # second step sent out the next message and waits for response
+        self.assertEqual(flow.steps().last().messages.count(), 1)
+        self.assertEqual(flow.steps().last().messages.first().direction, OUTGOING)
+        self.assertEqual(flow.steps().last().messages.first().text, u'Thank you!')
+
+    def test_async_interrupt_handling(self):
+        # start a flow
+        flow = self.get_flow('ussd_example')
+        contact = self.create_contact("Joe", "+250788383383")
+        flow.start([], [contact])
+
+        session = USSDSession.objects.get()
+        # check if session was created
+        self.assertEqual(session.direction, USSDSession.USSD_PUSH)
+        self.assertEqual(session.status, USSDSession.INITIATED)
+        self.assertIsInstance(session.started_on, datetime)
+
+        # send an interrupt "signal"
+        session = USSDSession.handle_incoming(channel=self.channel, urn="+250788383383", status=USSDSession.INTERRUPTED,
+                                              date=timezone.now(), external_id="21345")
+
+        # same session is modified
+        self.assertEqual(USSDSession.objects.count(), 1)
+
+        # session is modified with proper status and end date
+        self.assertEqual(session.status, USSDSession.INTERRUPTED)
+        self.assertIsInstance(session.ended_on, datetime)
+        self.assertEqual(session.external_id, "21345")
 
 
 class VumiUssdTest(TembaTest):
+
     def setUp(self):
         super(VumiUssdTest, self).setUp()
 
@@ -312,9 +368,6 @@ class VumiUssdTest(TembaTest):
 
         self.assertTrue(create_incoming.called)
         self.assertEqual(create_incoming.call_count, 1)
-
-        args, kwargs = create_incoming.call_args
-        self.assertEqual(kwargs['status'], ERRORED)
 
         session = USSDSession.objects.get()
         self.assertIsInstance(session.ended_on, datetime)
