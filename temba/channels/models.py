@@ -1233,7 +1233,7 @@ class Channel(TembaModel):
                                 response_status=503,
                                 start=start)
 
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+        if response.status_code not in [200, 201, 202]:
             raise SendException("Got non-200 response [%d] from Line" % response.status_code,
                                 method='POST',
                                 url=send_url,
