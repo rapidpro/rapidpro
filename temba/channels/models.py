@@ -326,9 +326,24 @@ class Channel(TembaModel):
                 raise Exception(_("Invalid authentication token, please check."))
 
             response_json = response.json()
-            return Channel.create(org, user, None, Channel.TYPE_VIBER_PUBLIC,
-                                  name=response_json['uri'], address=response_json['id'],
-                                  config={Channel.CONFIG_AUTH_TOKEN: auth_token}, scheme=VIBER_SCHEME)
+            channel = Channel.create(org, user, None, Channel.TYPE_VIBER_PUBLIC,
+                                     name=response_json['uri'], address=response_json['id'],
+                                     config={Channel.CONFIG_AUTH_TOKEN: auth_token}, scheme=VIBER_SCHEME)
+
+            # set the webhook for the channel
+            # {
+            #   "auth_token": "4453b6ac1s345678-e02c5f12174805f9-daec9cbb5448c51r",
+            #   "url": "https://my.host.com",
+            #   "event_types": ["delivered", "seen", "failed", "conversation_started"]
+            # }
+            response = requests.post('https://chatapi.viber.com/pa/set_webhook',
+                                     json=dict(auth_token=auth_token,
+                                               url='asdf',
+                                               event_types=['delivered', 'failed', 'conversation_started']))
+            if response.status_code != 200:
+                channel.delete()
+                raise Exception(_("Unable to set webhook for channel: %s", response.text))
+
         except Exception as e:
             raise e
 
@@ -1000,6 +1015,11 @@ class Channel(TembaModel):
                 page_access_token = self.config_json()[Channel.CONFIG_AUTH_TOKEN]
                 requests.delete('https://graph.facebook.com/v2.5/me/subscribed_apps',
                                 params=dict(access_token=page_access_token))
+
+            # unsubscribe from Viber events
+            elif self.channel_type == Channel.TYPE_VIBER_PUBLIC:
+                auth_token = self.config_json()[Channel.AUTH_TOKEN]
+                requests.post('https://chatapi.viber.com/pa/set_webhook', json=dict(auth_token=auth_token, url=''))
 
         # save off our org and gcm id before nullifying
         org = self.org
@@ -2499,7 +2519,56 @@ class Channel(TembaModel):
 
         # success is 0, everything else is a failure
         if response_json['status'] != 0:
-            print "failing: %s" % response.content
+            raise SendException("Got non-0 status [%d] from API" % response_json['status'],
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response=response.content,
+                                response_status=response.status_code,
+                                fatal=True,
+                                start=start)
+
+        external_id = response.json().get('message_token', None)
+        Channel.success(channel, msg, WIRED, start, 'POST', url, json.dumps(payload), response, external_id)
+
+    @classmethod
+    def send_viber_public_message(cls, channel, msg, text):
+        from temba.msgs.models import WIRED
+
+        url = 'https://chatapi.viber.com/pa/send_message'
+        payload = dict(auth_token=channel.config[Channel.AUTH_TOKEN],
+                       receiver=msg.urn_path,
+                       text=text,
+                       type='text',
+                       tracking_data=msg.id)
+        start = time.time()
+
+        headers = dict(Accept='application/json')
+        headers.update(TEMBA_HEADERS)
+
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=5)
+            response_json = response.json()
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response="",
+                                response_status=503,
+                                start=start)
+
+        if response.status_code not in [200, 201, 202]:
+            raise SendException("Got non-200 response [%d] from API" % response.status_code,
+                                method='POST',
+                                url=url,
+                                request=json.dumps(payload),
+                                response=response.content,
+                                response_status=response.status_code,
+                                start=start)
+
+        # success is 0, everything else is a failure
+        if response_json['status'] != 0:
             raise SendException("Got non-0 status [%d] from API" % response_json['status'],
                                 method='POST',
                                 url=url,
@@ -2724,6 +2793,7 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_TWILIO_MESSAGING_SERVICE: Channel.send_twilio_message,
                   Channel.TYPE_TWITTER: Channel.send_twitter_message,
                   Channel.TYPE_VIBER: Channel.send_viber_message,
+                  Channel.TYPE_VIBER_PUBLIC: Channel.send_viber_public_message,
                   Channel.TYPE_VUMI: Channel.send_vumi_message,
                   Channel.TYPE_VUMI_USSD: Channel.send_vumi_message,
                   Channel.TYPE_YO: Channel.send_yo_message,
