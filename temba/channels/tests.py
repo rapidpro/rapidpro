@@ -4323,6 +4323,8 @@ class VumiTest(TembaTest):
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
+                self.assertEqual(mock.call_args[0][0], 'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
+
                 # check the status of the message is now sent
                 msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
