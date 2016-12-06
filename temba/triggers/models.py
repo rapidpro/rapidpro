@@ -318,6 +318,33 @@ class Trigger(SmartModel):
         return trigger.flow
 
     @classmethod
+    def find_trigger_for_ussd_session(cls, contact, starcode):
+        # Determine keyword from starcode
+        keyword = None
+        matched_object = regex.match('(^\*[\d\*]+\#)((?:\d+\#)*)$', starcode)
+        if matched_object:
+            keyword = matched_object.group(1)
+
+            # TODO: use answers for shortcut starcode feature
+            answers = filter(None, matched_object.group(2).split('#'))
+        else:
+            return None
+
+        matching = Trigger.objects.filter(is_archived=False, is_active=True, org=contact.org, keyword__iexact=keyword,
+                                          trigger_type=Trigger.TYPE_USSD_PULL, flow__is_archived=False,
+                                          flow__is_active=True, groups=None)
+
+        if not matching:
+            return None
+
+        trigger = matching.first()
+        trigger.last_triggered = timezone.now()
+        trigger.trigger_count += 1
+        trigger.save()
+
+        return trigger
+
+    @classmethod
     def apply_action_archive(cls, user, triggers):
         triggers.update(is_archived=True)
 
