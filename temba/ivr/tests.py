@@ -77,18 +77,13 @@ class IVRTests(FlowFileTest):
                 self.import_file('call_me_maybe')
                 flow = Flow.objects.filter(name='Call me maybe').first()
 
-                user_settings = self.admin.get_settings()
-                user_settings.tel = '+18005551212'
-                user_settings.save()
-
-                test_contact = Contact.get_test_contact(self.admin)
-                Contact.set_simulation(True)
-                flow.start([], [test_contact])
+                # start our flow
+                contact = self.create_contact('Chuck D', number='+13603621737')
+                flow.start([], [contact])
 
                 self.assertEqual(mock.call_count, 0)
-
-                log = ActionLog.objects.all().order_by('-pk').first()
-                self.assertEquals(log.text, "Call ended. SEND_CALLS set to False, skipping call start")
+                call = IVRCall.objects.get()
+                self.assertEquals(IVRCall.FAILED, call.status)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

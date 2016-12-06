@@ -1156,7 +1156,7 @@ SEND_AIRTIME = False
 
 ######
 # DANGER: only turn this on if you know what you are doing!
-#         could cause airtime transfers in test environment
+#         could cause calls in test environments
 SEND_CALLS = False
 
 
