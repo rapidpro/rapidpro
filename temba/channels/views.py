@@ -1887,7 +1887,8 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimFcm(OrgPermsMixin, SmartFormView):
         class ClaimFcmForm(forms.Form):
             title = forms.CharField(label=_('Notification title'))
-            key = forms.CharField(label=_('FCM Key'), help_text=_("The KEY generated on Firebase Console when a new app is created."))
+            key = forms.CharField(label=_('FCM Key'),
+                                  help_text=_("The KEY generated on Firebase Console when a new app is created."))
 
         form_class = ClaimFcmForm
         fields = ('title', 'key',)

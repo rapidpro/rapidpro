@@ -334,7 +334,8 @@ class Channel(TembaModel):
         """
         from temba.contacts.models import FCM_SCHEME
 
-        assert Channel.CONFIG_FCM_KEY in data and Channel.CONFIG_FCM_TITLE in data, "%s and %s are required" % (Channel.CONFIG_FCM_KEY, Channel.CONFIG_FCM_TITLE)
+        assert Channel.CONFIG_FCM_KEY in data and Channel.CONFIG_FCM_TITLE in data, "%s and %s are required" % (
+            Channel.CONFIG_FCM_KEY, Channel.CONFIG_FCM_TITLE)
 
         existing = Channel.objects.filter(is_active=True, org=org, channel_type=Channel.TYPE_FCM).first()
         if existing:
@@ -342,7 +343,8 @@ class Channel(TembaModel):
             existing.save(update_fields=('config',))
             return existing
         else:
-            return Channel.create(org, user, None, Channel.TYPE_FCM, name=org.name, address="fcm-%s" % org.slug, config=data, scheme=FCM_SCHEME)
+            return Channel.create(org, user, None, Channel.TYPE_FCM, name=org.name, address="fcm-%s" % org.slug,
+                                  config=data, scheme=FCM_SCHEME)
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
@@ -1156,15 +1158,16 @@ class Channel(TembaModel):
                     external_id = result.get('multicast_id')
                     Channel.success(channel, msg, WIRED, start, 'POST', url, payload, response, external_id)
                 else:
-                    raise SendException("Got non-200 response [%d] from Firebase Cloud Messaging" % response.status_code,
-                                method='POST',
-                                url=url,
-                                request=payload,
-                                response=result,
-                                response_status=response.status_code)
-            except Exception as e:
+                    raise SendException("Got non-200 response [%d] from Firebase Cloud Messaging" %
+                                        response.status_code,
+                                        method='POST',
+                                        url=url,
+                                        request=payload,
+                                        response=result,
+                                        response_status=response.status_code)
+            except Exception as e:  # pragma: no cover
                 ChannelLog.log_error(msg, e)
-        else:
+        else:  # pragma: no cover
             ChannelLog.log_error(msg, "FCM key not found.")
 
     @classmethod
