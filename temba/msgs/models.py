@@ -58,8 +58,6 @@ HANDLED = 'H'
 ERRORED = 'E'
 FAILED = 'F'
 RESENT = 'R'
-INTERRUPTED = 'X'
-TRIGGERED = 'T'
 
 INCOMING = 'I'
 OUTGOING = 'O'
@@ -89,9 +87,6 @@ STATUS_CONFIG = (
     (ERRORED, _("Error Sending"), 'errored'),  # there was an error during delivery
     (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
     (RESENT, _("Resent message"), 'resent'),   # we retried this message
-
-    (INTERRUPTED, _("Interrupt message"), 'interrupted'),   # we were interrupted, ie, ussd termination
-    (TRIGGERED, _("Custom trigger"), 'triggered'),   # special status used for custom triggers
 )
 
 
