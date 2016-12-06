@@ -297,8 +297,8 @@ def sync(request, channel_id):
 
     channel = channel[0]
 
-    request_time = request.REQUEST.get('ts', '')
-    request_signature = request.REQUEST.get('signature', '')
+    request_time = request.GET.get('ts', '')
+    request_signature = request.GET.get('signature', '')
 
     if not channel.secret or not channel.org:
         return HttpResponse(json.dumps(dict(cmds=[channel.build_registration_command()])), content_type='application/javascript')
@@ -936,7 +936,7 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
 
             # make sure they own the channel
-            channel = self.request.REQUEST.get('channel', None)
+            channel = self.request.GET.get('channel', None)
             if channel:
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
             if not channel:
@@ -1171,7 +1171,7 @@ class ChannelCRUDL(SmartCRUDL):
             return dict(body=Channel.CONFIG_DEFAULT_SEND_BODY)
 
         def get_form_class(self):
-            if self.request.REQUEST.get('role', None) == 'S':
+            if self.request.GET.get('role', None) == 'S':
                 return ChannelCRUDL.ClaimExternal.EXSendClaimForm
             else:
                 return ChannelCRUDL.ClaimExternal.EXClaimForm
@@ -1184,7 +1184,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
 
-            if self.request.REQUEST.get('role', None) == 'S':
+            if self.request.GET.get('role', None) == 'S':
                 # get our existing channel
                 receive = org.get_receive_channel(TEL_SCHEME)
                 role = Channel.ROLE_SEND
@@ -1205,7 +1205,7 @@ class ChannelCRUDL(SmartCRUDL):
                     country = None
 
             # see if there is a parent channel we are adding a delegate for
-            channel = self.request.REQUEST.get('channel', None)
+            channel = self.request.GET.get('channel', None)
             if channel:
                 # make sure they own it
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
@@ -1845,7 +1845,7 @@ class ChannelCRUDL(SmartCRUDL):
             api_secret = settings.TWITTER_API_SECRET
             oauth_token = self.request.session.get(SESSION_TWITTER_TOKEN, None)
             oauth_token_secret = self.request.session.get(SESSION_TWITTER_SECRET, None)
-            oauth_verifier = self.request.REQUEST.get('oauth_verifier', None)
+            oauth_verifier = self.request.GET.get('oauth_verifier', None)
 
             # if we have all oauth values, then we be returning from an authorization callback
             if oauth_token and oauth_token_secret and oauth_verifier:
@@ -2562,7 +2562,7 @@ class ChannelLogCRUDL(SmartCRUDL):
         paginate_by = 50
 
         def derive_queryset(self, **kwargs):
-            channel = Channel.objects.get(pk=self.request.REQUEST['channel'])
+            channel = Channel.objects.get(pk=self.request.GET['channel'])
             events = ChannelLog.objects.filter(channel=channel).order_by('-created_on').select_related('msg__contact', 'msg')
 
             # monkey patch our queryset for the total count
@@ -2571,7 +2571,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ChannelLogCRUDL.List, self).get_context_data(**kwargs)
-            context['channel'] = Channel.objects.get(pk=self.request.REQUEST['channel'])
+            context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
 
     class Read(ChannelCRUDL.AnonMixin, SmartReadView):

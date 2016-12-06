@@ -1186,7 +1186,7 @@ class Msg(models.Model):
         if contact_urn:
             contact_urn.update_affinity(channel)
 
-        existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
+        existing = Msg.objects.filter(text=text, sent_on=date, contact=contact, direction='I').first()
         if existing:
             return existing
 
@@ -1206,7 +1206,8 @@ class Msg(models.Model):
                         org=org,
                         channel=channel,
                         text=text,
-                        created_on=date,
+                        sent_on=date,
+                        created_on=timezone.now(),
                         modified_on=timezone.now(),
                         queued_on=timezone.now(),
                         direction=INCOMING,
