@@ -48,7 +48,7 @@ class USSDSession(ChannelSession):
         pass
 
     @classmethod
-    def handle_incoming(cls, channel, urn, status, date, message_id, external_id,
+    def handle_incoming(cls, channel, urn, status, date, external_id, message_id=None,
                         flow=None, content=None, starcode=None, org=None, async=True):
 
         if not external_id:
@@ -67,7 +67,7 @@ class USSDSession(ChannelSession):
         # setup session
         defaults = dict(channel=channel, contact=contact, contact_urn=contact_urn,
                         org=channel.org)
-        import ipdb; ipdb.set_trace()
+
         if status == cls.TRIGGERED:
             trigger = Trigger.find_trigger_for_ussd_session(contact, starcode)
             if not trigger:
@@ -95,7 +95,7 @@ class USSDSession(ChannelSession):
         if created and async and trigger:
             session.start_session_async()
 
-        # resume session, deal with incoming content
+        # resume session, deal with incoming content and all the other states
         else:
             session.handle_session_async(urn, content, date, message_id)
 
