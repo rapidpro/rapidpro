@@ -5176,6 +5176,9 @@ class TriggerFlowAction(VariableContactAction):
                 child_runs = self.flow.start(groups, contacts, restart_participants=True, started_flows=[run.flow.pk],
                                              extra=extra, parent_run=run)
 
+                # make sure child_runs are iterable
+                child_runs = child_runs or []
+
                 # build up all the msgs that where sent by our flow
                 msgs = []
                 for run in child_runs:
