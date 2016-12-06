@@ -88,9 +88,9 @@ class USSDSession(ChannelSession):
         if not session:
             session, created = cls.objects.update_or_create(external_id=external_id, defaults=defaults)
         else:
-            session.status = USSDSession.IN_PROGRESS
-            session.external_id = external_id
-            session.save(update_fields=['status', 'external_id'])
+            for key, value in defaults.iteritems():
+                setattr(session, key, value)
+            session.save()
             created = None
 
         # start session
