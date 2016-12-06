@@ -5184,17 +5184,15 @@ class FlowsTest(FlowFileTest):
         # check if the message was sent out
         self.assertEqual(len(flow.steps()), 1)
 
-        # make an incoming (fake) interrupt message
-        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=ERRORED,
-                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
-        Flow.find_and_handle(msg)
+        USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
+                                    external_id="12341231", status=USSDSession.INTERRUPTED)
 
         # the interrupt state leads back to the USSD ruleset itself
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
         # it should send out the same message again
         self.assertEqual(len(flow.steps()), 2)
-        self.assertEqual(flow.steps()[0].messages.first().text, flow.steps()[1].messages.first().text)
+        self.assertEqual(flow.steps()[0].messages.last().text, flow.steps()[1].messages.first().text)
 
     def test_airtime_flow(self):
         flow = self.get_flow('airtime')
