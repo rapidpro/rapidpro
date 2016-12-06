@@ -21,8 +21,8 @@ from temba.ivr.models import IVRCall
 class IVRTests(FlowFileTest):
 
     def setUp(self):
-
         super(IVRTests, self).setUp()
+        settings.SEND_CALLS = True
 
         # configure our account to be IVR enabled
         self.channel.channel_type = Channel.TYPE_TWILIO
@@ -30,6 +30,10 @@ class IVRTests(FlowFileTest):
         self.channel.save()
         self.admin.groups.add(Group.objects.get(name="Beta"))
         self.login(self.admin)
+
+    def tearDown(self):
+        super(IVRTests, self).tearDown()
+        settings.SEND_CALLS = False
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -60,6 +64,31 @@ class IVRTests(FlowFileTest):
         log = ActionLog.objects.all().order_by('-pk').first()
         self.assertEquals(log.text, 'Call ended. Could not authenticate with your Twilio account. '
                                     'Check your token and try again.')
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_disable_calls(self):
+        with self.settings(SEND_CALLS=False):
+            self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+            self.org.save()
+
+            with patch('twilio.rest.resources.calls.Calls.create') as mock:
+                self.import_file('call_me_maybe')
+                flow = Flow.objects.filter(name='Call me maybe').first()
+
+                user_settings = self.admin.get_settings()
+                user_settings.tel = '+18005551212'
+                user_settings.save()
+
+                test_contact = Contact.get_test_contact(self.admin)
+                Contact.set_simulation(True)
+                flow.start([], [test_contact])
+
+                self.assertEqual(mock.call_count, 0)
+
+                log = ActionLog.objects.all().order_by('-pk').first()
+                self.assertEquals(log.text, "Call ended. SEND_CALLS set to False, skipping call start")
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
