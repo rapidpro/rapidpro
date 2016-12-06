@@ -240,6 +240,7 @@ INSTALLED_APPS = (
     'temba.utils',
     'temba.campaigns',
     'temba.ivr',
+    'temba.ussd',
     'temba.locations',
     'temba.values',
     'temba.airtime',
