@@ -2092,7 +2092,7 @@ class FCMHandler(View):
                                                 urns=[fcm_urn], channel=channel, extra_path=fcm_token)
                 current_paths = [urn.path for urn in contact.get_urns_for_scheme(FCM_SCHEME)]
                 if fcm_token not in current_paths:
-                    contact.update_path_urn(fcm_urn, fcm_token)
+                    contact.update_urn_path(fcm_urn, fcm_token)
 
                 return HttpResponse(json.dumps({'contact_uuid': contact.uuid}), content_type='application/json')
 

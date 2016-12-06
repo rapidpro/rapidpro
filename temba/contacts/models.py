@@ -1567,7 +1567,7 @@ class Contact(TembaModel):
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
 
-    def update_path_urn(self, urn_as_string, path):
+    def update_urn_path(self, urn_as_string, path):
         country = self.org.get_country_code()
         normalized = URN.normalize(urn_as_string, country)
         urn = ContactURN.objects.filter(org=self.org, urn=normalized).first()
