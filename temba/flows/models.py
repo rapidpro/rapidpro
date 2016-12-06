@@ -28,10 +28,10 @@ from enum import Enum
 from smartmin.models import SmartModel
 from temba.airtime.models import AirtimeTransfer
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME, NEW_CONTACT_VARIABLE
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelSession
 from temba.locations.models import AdminBoundary, STATE_LEVEL, DISTRICT_LEVEL, WARD_LEVEL
 from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INITIALIZING, HANDLED, SENT, Label, PENDING
-from temba.msgs.models import INTERRUPTED, OUTGOING, UnreachableException
+from temba.msgs.models import OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
 from temba.utils import chunk_list, clean_string
@@ -667,7 +667,9 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
-        if msg.status == INTERRUPTED:  # check interrupt
+        from temba.ussd.models import USSDSession
+
+        if ruleset.is_ussd() and run.session and run.session.status == USSDSession.INTERRUPTED:
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
             if not rule:
                 run.set_interrupted(final_step=step)
@@ -711,20 +713,19 @@ class Flow(TembaModel):
             # store the media path as the value
             value = msg.media.split(':', 1)[1]
 
-        if not msg.status == INTERRUPTED:
-            step.save_rule_match(rule, value)
-            ruleset.save_run_value(run, rule, value)
+        step.save_rule_match(rule, value)
+        ruleset.save_run_value(run, rule, value)
 
         # output the new value if in the simulator
         if run.contact.is_test:
-            if msg.status == INTERRUPTED:
+            if run.session and run.session.status == USSDSession.INTERRUPTED:
                 ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
             else:
                 ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
-            if msg.status == INTERRUPTED:
+            if run.session and run.session.status == USSDSession.INTERRUPTED:
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
             else:
@@ -1415,7 +1416,7 @@ class Flow(TembaModel):
         start_flow_task.delay(flow_start.pk)
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
-              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True):
+              start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True, session=None):
         """
         Starts a flow for the passed in groups and contacts.
         """
@@ -6646,4 +6647,4 @@ class InterruptTest(Test):
         return dict(type=self.TYPE)
 
     def evaluate(self, run, msg, context, text):
-        return (True, self.TYPE) if msg.status == INTERRUPTED else (False, None)
+        return (True, self.TYPE) if run.session and run.session.status == ChannelSession.INTERRUPTED else (False, None)
