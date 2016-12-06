@@ -1500,10 +1500,78 @@ class Flow(TembaModel):
             return self.start_call_flow(all_contact_ids, start_msg=start_msg,
                                         extra=extra, flow_start=flow_start, parent_run=parent_run)
 
+        elif self.flow_type == Flow.USSD:
+            return self.start_ussd_flow(all_contact_ids, start_msg=start_msg,
+                                        extra=extra, flow_start=flow_start, parent_run=parent_run, session=session)
         else:
             return self.start_msg_flow(all_contact_ids,
                                        started_flows=started_flows, start_msg=start_msg,
                                        extra=extra, flow_start=flow_start, parent_run=parent_run)
+
+    def start_ussd_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None, session=None):
+        from temba.ussd.models import USSDSession
+
+        runs = []
+        msgs = []
+
+        for contact_id in all_contact_ids:
+
+            run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
+            if extra:
+                run.update_fields(extra)
+
+            if run.contact.is_test:
+                ActionLog.create(run, '%s has entered the "%s" flow' % (run.contact.get_display(self.org, short=True), run.flow.name))
+
+            # [USSD PUSH] we have to create an outgoing session for the recipient
+            if not session:
+                contact = Contact.objects.filter(pk=contact_id, org=self.org).first()
+                contact_urn = contact.get_urn(TEL_SCHEME)
+                channel = self.org.get_send_channel(contact_urn=contact_urn)
+
+                session = USSDSession.objects.create(channel=channel, contact=contact, contact_urn=contact_urn,
+                                                     org=self.org, direction=USSDSession.USSD_PUSH, flow=self,
+                                                     started_on=timezone.now(), status=USSDSession.INITIATED)
+
+            run.session = session
+            run.save(update_fields=['session'])
+
+            # if we were started by other session, save that off
+            if parent_run and parent_run.session:
+                session.parent = parent_run.session
+                session.save()
+            else:
+                entry_rule = RuleSet.objects.filter(uuid=self.entry_uuid).first()
+
+                step = self.add_step(run, entry_rule, is_start=True, arrived_on=timezone.now())
+
+                if entry_rule.is_ussd():
+                    # create an empty placeholder message
+                    msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
+                    handled, step_msgs = Flow.handle_destination(entry_rule, step, run, msg, trigger_send=False)
+
+                    # add these messages as ones that are ready to send
+                    for msg in step_msgs:
+                        msgs.append(msg)
+
+            # no start msgs in call flows but we want the variable there
+            run.start_msgs = []
+
+            runs.append(run)
+
+        # trigger our messages to be sent
+        if msgs and not parent_run:
+            # then send them off
+            msgs.sort(key=lambda message: (message.contact_id, message.created_on))
+            Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+
+            # trigger a sync
+            self.org.trigger_send(msgs)
+
+        if flow_start:
+            flow_start.update_status()
+
+        return runs
 
     def start_call_flow(self, all_contact_ids, start_msg=None, extra=None, flow_start=None, parent_run=None):
         from temba.ivr.models import IVRCall
