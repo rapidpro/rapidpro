@@ -146,7 +146,7 @@ class URN(object):
             except ValueError:
                 return False
 
-        # validate Viber URNS look right
+        # validate Viber URNS look right (this is a guess)
         elif scheme == VIBER_SCHEME:
             return regex.match(r'^[a-zA-Z0-9_=]{1,16}$', path, regex.V0)
 

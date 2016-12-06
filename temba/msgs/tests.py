@@ -1874,7 +1874,7 @@ class SystemLabelTest(TembaTest):
         msg1.archive()
         msg3.release()  # deleting an archived msg
         msg4.release()  # deleting a visible msg
-        msg5.fail()
+        msg5.status_fail()
         msg6.status_sent()
         call1.release()
 
@@ -1885,7 +1885,7 @@ class SystemLabelTest(TembaTest):
 
         msg1.restore()
         msg3.release()  # already released
-        msg5.fail()  # already failed
+        msg5.status_fail()  # already failed
         msg6.status_delivered()
 
         self.assertEqual(SystemLabel.get_counts(self.org), {SystemLabel.TYPE_INBOX: 2, SystemLabel.TYPE_FLOWS: 0,

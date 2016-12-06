@@ -346,11 +346,13 @@ class Channel(TembaModel):
             # }
             response = requests.post('https://chatapi.viber.com/pa/set_webhook',
                                      json=dict(auth_token=auth_token,
-                                               url='asdf',
+                                               url="https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.viber_public_handler', args=[channel.uuid]),
                                                event_types=['delivered', 'failed', 'conversation_started']))
             if response.status_code != 200:
                 channel.delete()
                 raise Exception(_("Unable to set webhook for channel: %s", response.text))
+
+            return channel
 
         except Exception as e:
             raise e

@@ -40,8 +40,6 @@ class BaseChannelHandler(View):
 
     @disable_middleware
     def dispatch(self, request, *args, **kwargs):
-        # self.request = request
-
         return super(BaseChannelHandler, self).dispatch(request, *args, **kwargs)
 
     @classmethod
@@ -194,7 +192,7 @@ class TwimlAPIHandler(BaseChannelHandler):
             elif status == 'delivered':
                 sms.status_delivered()
             elif status == 'failed':
-                sms.fail()
+                sms.status_fail()
 
             return HttpResponse("", status=200)
 
@@ -338,7 +336,7 @@ class AfricasTalkingHandler(BaseChannelHandler):
             elif status == 'Sent' or status == 'Buffered':
                 sms.status_sent()
             elif status == 'Rejected' or status == 'Failed':
-                sms.fail()
+                sms.status_fail()
 
             return HttpResponse("SMS Status Updated")
 
@@ -396,7 +394,7 @@ class ZenviaHandler(BaseChannelHandler):
             elif status == 111:
                 sms.status_sent()
             else:
-                sms.fail()
+                sms.status_fail()
 
             return HttpResponse("SMS Status Updated")
 
@@ -466,7 +464,7 @@ class ExternalHandler(BaseChannelHandler):
             elif action == 'sent':
                 sms.status_sent()
             elif action == 'failed':
-                sms.fail()
+                sms.status_fail()
 
             return HttpResponse("SMS Status Updated")
 
@@ -691,7 +689,7 @@ class InfobipHandler(BaseChannelHandler):
         elif status in ['NOT_SENT', 'NOT_ALLOWED', 'INVALID_DESTINATION_ADDRESS',
                         'INVALID_SOURCE_ADDRESS', 'ROUTE_NOT_AVAILABLE', 'NOT_ENOUGH_CREDITS',
                         'REJECTED', 'INVALID_MESSAGE_FORMAT']:
-            sms.fail()
+            sms.status_fail()
 
         return HttpResponse("SMS Status Updated")
 
@@ -760,7 +758,7 @@ class Hub9Handler(BaseChannelHandler):
             if 10 <= status <= 12:
                 sms.status_delivered()
             elif status > 20:
-                sms.fail()
+                sms.status_fail()
             elif status != -1:
                 sms.status_sent()
 
@@ -811,7 +809,7 @@ class HighConnectionHandler(BaseChannelHandler):
             elif status == 6:
                 sms.status_delivered()
             elif status in [2, 11, 12, 13, 14, 15, 16]:
-                sms.fail()
+                sms.status_fail()
 
             return HttpResponse(json.dumps(dict(msg="Status Updated")))
 
@@ -871,7 +869,7 @@ class BlackmynaHandler(BaseChannelHandler):
             elif status == 1:
                 sms.status_delivered()
             elif status in [2, 16]:
-                sms.fail()
+                sms.status_fail()
 
             return HttpResponse("")
 
@@ -986,7 +984,7 @@ class NexmoHandler(BaseChannelHandler):
             elif status == 'accepted' or status == 'buffered':
                 sms.status_sent()
             elif status == 'expired' or status == 'failed':
-                sms.fail()
+                sms.status_fail()
 
             return HttpResponse("SMS Status Updated")
 
@@ -1193,7 +1191,7 @@ class KannelHandler(BaseChannelHandler):
                     sms_obj.status_delivered()
             elif status == FAILED:
                 for sms_obj in sms:
-                    sms_obj.fail()
+                    sms_obj.status_fail()
 
             return HttpResponse("SMS Status Updated")
 
@@ -1291,7 +1289,7 @@ class ClickatellHandler(BaseChannelHandler):
                     sms_obj.status_delivered()
             elif status == FAILED:
                 for sms_obj in sms:
-                    sms_obj.fail()
+                    sms_obj.status_fail()
                     Channel.track_status(sms_obj.channel, "Failed")
             else:
                 # ignore wired, we are wired by default
@@ -1413,7 +1411,7 @@ class PlivoHandler(BaseChannelHandler):
                     sms_obj.status_delivered()
             elif status == FAILED:
                 for sms_obj in sms:
-                    sms_obj.fail()
+                    sms_obj.status_fail()
                     Channel.track_status(sms_obj.channel, "Failed")
             else:
                 # ignore wired, we are wired by default
@@ -1590,7 +1588,7 @@ class ChikkaHandler(BaseChannelHandler):
                     sms_obj.status_sent()
             elif status == FAILED:
                 for sms_obj in sms:
-                    sms_obj.fail()
+                    sms_obj.status_fail()
 
             return HttpResponse("Accepted. SMS Status Updated")
 
@@ -1659,7 +1657,7 @@ class JasminHandler(BaseChannelHandler):
                     sms_obj.status_delivered()
             elif err == '1':
                 for sms_obj in sms:
-                    sms_obj.fail()
+                    sms_obj.status_fail()
 
             # tell Jasmin we handled this
             return HttpResponse('ACK/Jasmin')
@@ -1732,7 +1730,7 @@ class MbloxHandler(BaseChannelHandler):
                     msg.status_sent()
             elif status in ['Aborted', 'Rejected', 'Failed', 'Expired']:
                 for msg in msgs:
-                    msg.fail()
+                    msg.status_fail()
 
             # tell Mblox we've handled this
             return HttpResponse('SMS Updated: %s' % ",".join([str(msg.id) for msg in msgs]))
@@ -2088,3 +2086,182 @@ class LineHandler(BaseChannelHandler):
 
         except Exception as e:
             return HttpResponse("Not handled. Error: %s" % e.args, status=400)
+
+
+class ViberPublicHandler(BaseChannelHandler):
+
+    url = r'^/viber_public/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.viber_public_handler'
+
+    def get(self, request, *args, **kwargs):
+        return HttpResponse("Must be called as a POST", status=405)
+
+    def post(self, request, *args, **kwargs):
+        from temba.msgs.models import Msg
+        request_uuid = kwargs['uuid']
+
+        # look up the channel
+        channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VIBER_PUBLIC).exclude(org=None).first()
+        if not channel:
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
+
+        # parse our response
+        try:
+            body = json.loads(request.body)
+        except Exception as e:
+            return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
+
+        event = body['event']
+
+        # callback from Viber checking this webhook is valid
+        if event == 'webhook':
+            # {
+            #    "event": "webhook",
+            #    "timestamp": 4987034606158369000,
+            #     "message_token": 1481059480858
+            # }
+            return HttpResponse("Webhook valid.")
+
+        # user subscribed to this user, create the contact and trigger any associated triggers
+        elif event == 'subscribed':
+            # {
+            #    "event": "subscribed",
+            #    "timestamp": 1457764197627,
+            #    "user": {
+            #        "id": "01234567890A=",
+            #        "name": "yarden",
+            #        "avatar": "http://avatar_url",
+            #        "country": "IL",
+            #        "language": "en",
+            #        "api_version": 1
+            #    },
+            #    "message_token": 4912661846655238145
+            # }
+            viber_id = body['user_id']
+            contact = Contact.from_urn(channel.org, URN.from_viber(viber_id))
+            Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
+            return HttpResponse("Subscription for contact: %s handled" % viber_id)
+
+        # we currently ignore conversation started events
+        elif event == 'conversation_started':
+            # {
+            #    "event": "conversation_started",
+            #    "timestamp": 1457764197627,
+            #    "message_token": 4912661846655238145,
+            #    "type": "open",
+            #    "context": "context information",
+            #    "user": {
+            #        "id": "01234567890A=",
+            #        "name": "yarden",
+            #        "avatar": "http://avatar_url",
+            #        "country": "IL",
+            #        "language": "en",
+            #        "api_version": 1
+            #    }
+            # }
+            return HttpResponse("Ignored conversation start")
+
+        # user unsubscribed, we can block them
+        elif event == 'unsubscribed':
+            # {
+            #    "event": "unsubscribed",
+            #    "timestamp": 1457764197627,
+            #    "user_id": "01234567890A=",
+            #    "message_token": 4912661846655238145
+            # }
+            viber_id = body['user_id']
+            contact = Contact.from_urn(channel.org, URN.from_viber(viber_id))
+            if not contact:
+                return HttpResponse("Unknown contact: %s, ignoring." % viber_id)
+            else:
+                contact.stop(channel.created_by)
+                return HttpResponse("Stopped contact: %s" % viber_id)
+
+        # msg was delivered to the user
+        elif event in ['delivered', 'failed']:
+            # {
+            #    "event": "delivered",
+            #    "timestamp": 1457764197627,
+            #    "message_token": 4912661846655238145,
+            #    "user_id": "01234567890A="
+            # }
+            msg = Msg.objects.filter(channel=channel, direction='O', id=body['message_token']).select_related('channel').first()
+            if not msg:
+                return HttpResponse("Message with external id of '%s' not found" % body['message_token'])
+
+            if event == 'delivered':
+                msg.status_delivered()
+            else:
+                msg.status_failed()
+
+            # tell Viber we handled this
+            return HttpResponse('Msg %d updated' % msg.id)
+
+        # this is a new incoming message
+        elif event == 'message':
+            # {
+            #    "event": "message",
+            #    "timestamp": 1457764197627,
+            #    "message_token": 4912661846655238145,
+            #    "sender": {
+            #        "id": "01234567890A=",
+            #        "name": "yarden",
+            #        "avatar": "http://avatar_url"
+            #    },
+            #    "message": {
+            #        "type": "text",
+            #        "text": "a message to the service",
+            #        "media": "http://download_url",
+            #        "location": {"lat": 50.76891, "lon": 6.11499},
+            #        "tracking_data": "tracking data"
+            #    }
+            # }
+            if not all(k in body for k in ['timestamp', 'message_token', 'sender', 'message']):
+                return HttpResponse("Missing one of 'timestamp', 'message_token', 'sender' or 'message' in request parameters.",
+                                    status=400)
+
+            message = body['message']
+            msg_date = datetime.utcfromtimestamp(body['timestamp'] / 1000).replace(tzinfo=pytz.utc)
+
+            # convert different messages types to the right thing
+            message_type = message['type']
+            if message_type == 'text':
+                # "text": "a message from pa"
+                text = message['text']
+
+            elif message_type == 'picture':
+                # "media": "http://www.images.com/img.jpg"
+                text = message['media']
+
+            elif message_type == 'video':
+                # "media": "http://www.images.com/video.mp4"
+                text = message['video']
+
+            elif message_type == 'contact':
+                # "contact": {
+                #     "name": "Alex",
+                #     "phone_number": "+972511123123"
+                # }
+                text = "%s:%s" % (message['contact']['name'], message['contact']['phone_number'])
+
+            elif message_type == 'url':
+                # "media": "http://www.website.com/go_here"
+                text = message['media']
+
+            elif message_type == 'location':
+                # "location": {"lat": "37.7898", "lon": "-122.3942"}
+                text = "GPS: %s, %s" % (message['location']['lat'], message['location']['lon'])
+
+            else:
+                return HttpResponse("Unknown message type: %s" % message_type, status=400)
+
+            # get or create our contact with any name sent in
+            urn = URN.from_viber(body['sender']['id'])
+            contact = Contact.get_or_create(channel.org, channel.created_by,
+                                            body['sender'].get('name'), urns=[urn])
+
+            msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date, external_id=body['message_token'])
+            return HttpResponse('Msg Accepted: %d' % msg.id)
+
+        else:  # pragma: no cover
+            return HttpResponse("Not handled, unknown event: %s" % event, status=400)

@@ -12,8 +12,7 @@ handler_urls = []
 for handler in get_channel_handlers():
     rel_url, url_name = handler.get_url()
     handler_urls.append(url(rel_url, handler.as_view(), name=url_name))
-
-    # print("Registered channel handler %s at %s" % (handler.__name__, rel_url))
+    print("Registered channel handler %s at %s" % (handler.__name__, rel_url))
 
 urlpatterns = [
     url(r'^', include(ChannelEventCRUDL().as_urlpatterns())),
