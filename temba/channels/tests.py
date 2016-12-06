@@ -13,7 +13,7 @@ import time
 import urllib2
 import uuid
 
-from datetime import timedelta, date, datetime
+from datetime import timedelta, date
 from django.conf import settings
 from django.contrib.auth.models import User, Group
 from django.core import mail
