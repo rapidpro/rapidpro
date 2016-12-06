@@ -2,10 +2,12 @@ from __future__ import unicode_literals
 
 import json
 import logging
+
 import regex
 import traceback
 
 from collections import Counter
+from random import randint
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib import messages
@@ -27,12 +29,13 @@ from temba.contacts.fields import OmniboxField
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
 from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
+from temba.ussd.models import USSDSession
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
 from temba.flows.models import Flow, FlowRun, FlowRevision
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING, INTERRUPTED
+from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
@@ -1310,6 +1313,7 @@ class FlowCRUDL(SmartCRUDL):
                 ActionLog.objects.filter(run__in=runs).delete()
                 Msg.objects.filter(contact=test_contact).delete()
                 IVRCall.objects.filter(contact=test_contact).delete()
+                USSDSession.objects.filter(contact=test_contact).delete()
 
                 runs.delete()
                 steps.delete()
@@ -1344,16 +1348,27 @@ class FlowCRUDL(SmartCRUDL):
                 media = '%s/mp4:%s/simulator_audio.m4a' % (Msg.MEDIA_AUDIO, media_url)
 
             if new_message or media:
-                status = PENDING
-                if new_message == "__interrupt__":
-                    status = INTERRUPTED
                 try:
-                    Msg.create_incoming(None,
-                                        test_contact.get_urn(TEL_SCHEME).urn,
-                                        new_message,
-                                        media=media,
-                                        org=user.get_org(),
-                                        status=status)
+                    if flow.flow_type == Flow.USSD:
+                        if new_message == "__interrupt__":
+                            status = USSDSession.INTERRUPTED
+                        else:
+                            status = None
+                        USSDSession.handle_incoming(test_contact.org.get_send_channel(contact_urn=test_contact.get_urn(TEL_SCHEME)),
+                                                    test_contact.get_urn(TEL_SCHEME).path,
+                                                    content=new_message,
+                                                    date=timezone.now(),
+                                                    message_id=str(randint(0, 1000)),
+                                                    external_id=str(randint(0, 1000)),
+                                                    org=user.get_org(),
+                                                    status=status)
+                    else:
+                        Msg.create_incoming(None,
+                                            test_contact.get_urn(TEL_SCHEME).urn,
+                                            new_message,
+                                            media=media,
+                                            org=user.get_org(),
+                                            status=PENDING)
                 except Exception as e:
                     traceback.print_exc(e)
                     return build_json_response(dict(status="error", description="Error creating message: %s" % str(e)), status=400)
