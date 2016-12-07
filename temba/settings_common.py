@@ -601,6 +601,7 @@ GROUP_PERMISSIONS = {
         'csv_imports.importtask.*',
 
         'ivr.ivrcall.*',
+        'ussd.ussdsession.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',
@@ -755,6 +756,7 @@ GROUP_PERMISSIONS = {
         'csv_imports.importtask.*',
 
         'ivr.ivrcall.*',
+        'ussd.ussdsession.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',
