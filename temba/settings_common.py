@@ -972,11 +972,11 @@ CELERYBEAT_SCHEDULE = {
     },
     "schedules": {
         'task': 'check_schedule_task',
-        'schedule': timedelta(seconds=60),
+        'schedule': timedelta(seconds=20),
     },
     "campaigns": {
         'task': 'check_campaigns_task',
-        'schedule': timedelta(seconds=60),
+        'schedule': timedelta(seconds=20),
     },
     "check-flows": {
         'task': 'check_flows_task',

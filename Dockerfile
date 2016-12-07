@@ -19,6 +19,7 @@ RUN apt-get update && \
   npm install -g less && \
   npm install -g coffee-script
 
+ENV C_FORCE_ROOT True
 RUN mkdir rapidpro
 
 ADD . rapidpro/
