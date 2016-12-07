@@ -1167,7 +1167,7 @@ class KannelHandler(View):
             gmt_date = pytz.timezone('GMT').localize(sms_date)
 
             urn = URN.from_tel(request.REQUEST['sender'])
-            sms = Msg.create_incoming(channel, urn, request.REQUEST['message'], date=gmt_date)
+            sms = Msg.create_incoming(channel, urn, request.REQUEST['message'])#, date=gmt_date)
 
             Msg.objects.filter(pk=sms.id).update(external_id=request.REQUEST['id'])
             return HttpResponse("SMS Accepted: %d" % sms.id)

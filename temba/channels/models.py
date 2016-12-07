@@ -1340,7 +1340,7 @@ class Channel(TembaModel):
         elif desired_encoding == Channel.ENCODING_SMART:
             # if this is smart encoding, figure out what encoding we will use
             encoding, text = Channel.determine_encoding(text, replace=True)
-            payload['text'] = text
+            payload['content'] = text
 
             if encoding == Encoding.UNICODE:
                 payload['coding'] = '2'

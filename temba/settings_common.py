@@ -62,7 +62,7 @@ STORAGE_ROOT_DIR = 'test_orgs' if TESTING else 'orgs'
 # -----------------------------------------------------------------------------------
 USE_TZ = True
 TIME_ZONE = 'GMT'
-USER_TIME_ZONE = 'Africa/Kigali'
+USER_TIME_ZONE = 'America/Mexico_City'
 
 MODELTRANSLATION_TRANSLATION_REGISTRY = "translation"
 
@@ -1056,6 +1056,7 @@ BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 
 CELERY_RESULT_BACKEND = BROKER_URL
+CELERY_TIMEZONE = 'America/Mexico_City'
 
 IS_PROD = False
 HOSTNAME = "localhost"
