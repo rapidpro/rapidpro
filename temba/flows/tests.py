@@ -426,7 +426,7 @@ class FlowTest(TembaTest):
         self.assertEqual(len(contact2_steps), 2)
 
         # check our steps for contact #1
-        self.assertEqual(unicode(contact1_steps[0]), "Eric - A:00000000-00000000-00000000-00000001")
+        self.assertEqual(unicode(contact1_steps[0]), "Eric - A:00000000-0000-0000-0000-000000000001")
         self.assertEqual(contact1_steps[0].step_uuid, entry.uuid)
         self.assertEqual(contact1_steps[0].step_type, FlowStep.TYPE_ACTION_SET)
         self.assertEqual(contact1_steps[0].contact, self.contact)
@@ -435,7 +435,7 @@ class FlowTest(TembaTest):
         self.assertEqual(set(contact1_steps[0].messages.all()), {msg})
         self.assertEqual(contact1_steps[0].next_uuid, entry.destination)
 
-        self.assertEqual(unicode(contact1_steps[1]), "Eric - R:00000000-00000000-00000000-00000005")
+        self.assertEqual(unicode(contact1_steps[1]), "Eric - R:00000000-0000-0000-0000-000000000005")
         self.assertEqual(contact1_steps[1].step_uuid, entry.destination)
         self.assertEqual(contact1_steps[1].step_type, FlowStep.TYPE_RULE_SET)
         self.assertEqual(contact1_steps[1].contact, self.contact)
