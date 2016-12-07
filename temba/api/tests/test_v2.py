@@ -2001,8 +2001,8 @@ class APITest(TembaTest):
             'contact': {'uuid': self.frank.uuid, 'name': self.frank.name},
             'responded': False,
             'path': [
-                {'node': "00000000-00000000-00000000-00000001", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
-                {'node': "00000000-00000000-00000000-00000005", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
+                {'node': "00000000-0000-0000-0000-000000000001", 'time': format_datetime(frank_run2_steps[0].arrived_on)},
+                {'node': "00000000-0000-0000-0000-000000000005", 'time': format_datetime(frank_run2_steps[1].arrived_on)}
             ],
             'values': {},
             'created_on': format_datetime(frank_run2.created_on),
@@ -2016,16 +2016,16 @@ class APITest(TembaTest):
             'contact': {'uuid': self.joe.uuid, 'name': self.joe.name},
             'responded': True,
             'path': [
-                {'node': "00000000-00000000-00000000-00000001", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
-                {'node': "00000000-00000000-00000000-00000005", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
-                {'node': "00000000-00000000-00000000-00000003", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
+                {'node': "00000000-0000-0000-0000-000000000001", 'time': format_datetime(joe_run1_steps[0].arrived_on)},
+                {'node': "00000000-0000-0000-0000-000000000005", 'time': format_datetime(joe_run1_steps[1].arrived_on)},
+                {'node': "00000000-0000-0000-0000-000000000003", 'time': format_datetime(joe_run1_steps[2].arrived_on)}
             ],
             'values': {
                 'color': {
                     'value': "blue",
                     'category': "Blue",
-                    'node': "00000000-00000000-00000000-00000005",
-                    'time': format_datetime(self.joe.values.get(ruleset__uuid="00000000-00000000-00000000-00000005").modified_on)
+                    'node': "00000000-0000-0000-0000-000000000005",
+                    'time': format_datetime(self.joe.values.get(ruleset__uuid="00000000-0000-0000-0000-000000000005").modified_on)
                 }
             },
             'created_on': format_datetime(joe_run1.created_on),
