@@ -8255,23 +8255,10 @@ class FcmTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
     def test_send(self):
-        joe = self.create_contact("Joe", urn="fcm:12345abcde", extra_path="1234567890qwertyuiop")
-        msg = joe.send("Test message", self.admin, trigger_send=False)
+        joe = self.create_contact("Joe", urn="fcm:12345abcde", extra_path="123456abcdef")
+        msg = joe.send("Hello, world!", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
-
-            with patch('requests.post') as mock:
-                mock.return_value = MockResponse(400, '{}')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
-
-                self.clear_cache()
 
             with patch('requests.post') as mock:
                 mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "error": 0 }')
@@ -8281,7 +8268,18 @@ class FcmTest(TembaTest):
 
                 # check the status of the message is now sent
                 msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
+                self.assertEqual(msg.status, WIRED)
                 self.assertTrue(msg.sent_on)
-
                 self.clear_cache()
+
+            with patch('requests.post') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as an error
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
