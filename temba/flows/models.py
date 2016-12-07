@@ -3940,6 +3940,8 @@ class ExportFlowResultsTask(SmartModel):
 
         urn_display_cache = {}
 
+        seen_msgs = []
+
         def get_contact_urn_display(contact):
             """
             Gets the possibly cached URN display (e.g. formatted phone number) for the given contact
@@ -4134,59 +4136,62 @@ class ExportFlowResultsTask(SmartModel):
                     msg_row += 1
                     msgs_row = []
 
-                    if msg_row > max_rows or not msgs:
-                        msg_row = 2
+                    if msg.pk not in seen_msgs:
+                        if msg_row > max_rows or not msgs:
+                            msg_row = 2
 
-                        name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
-                        msgs = book.create_sheet(name)
-                        msgs_row = []
-                        msg_sheet_index += 1
+                            name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
+                            msgs = book.create_sheet(name)
+                            msgs_row = []
+                            msg_sheet_index += 1
 
-                        cell = WriteOnlyCell(msgs, value="Contact UUID")
+                            cell = WriteOnlyCell(msgs, value="Contact UUID")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            cell = WriteOnlyCell(msgs, value="URN")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                            cell = WriteOnlyCell(msgs, value="Name")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            cell = WriteOnlyCell(msgs, value="Date")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            cell = WriteOnlyCell(msgs, value="Direction")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                            cell = WriteOnlyCell(msgs, value="Message")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
+                            cell = WriteOnlyCell(msgs, value="Channel")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+
+                            msgs.append(msgs_row)
+                            msgs_row = []
+
+                        msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
+                        channel_name = msg.channel.name if msg.channel else ''
+                        text = clean_string(msg.text)
+
+                        cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                        cell = WriteOnlyCell(msgs, value="URN")
+                        cell = WriteOnlyCell(msgs, value=msg_urn_display)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
-                        cell = WriteOnlyCell(msgs, value="Name")
+                        cell = WriteOnlyCell(msgs, value=contact_name)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                        cell = WriteOnlyCell(msgs, value="Date")
+                        cell = WriteOnlyCell(msgs, value=as_org_tz(msg.created_on))
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                        cell = WriteOnlyCell(msgs, value="Direction")
+                        cell = WriteOnlyCell(msgs, value="IN" if msg.direction == INCOMING else "OUT")
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
-                        cell = WriteOnlyCell(msgs, value="Message")
+                        cell = WriteOnlyCell(msgs, value=text)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
-                        cell = WriteOnlyCell(msgs, value="Channel")
+                        cell = WriteOnlyCell(msgs, value=channel_name)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
 
                         msgs.append(msgs_row)
-                        msgs_row = []
 
-                    msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
-                    channel_name = msg.channel.name if msg.channel else ''
-                    text = clean_string(msg.text)
-
-                    cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=msg_urn_display)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=contact_name)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=as_org_tz(msg.created_on))
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value="IN" if msg.direction == INCOMING else "OUT")
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=text)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=channel_name)
-                    msgs_row.append(cell)
-
-                    msgs.append(msgs_row)
+                        seen_msgs.append(msg.pk)
 
         if runs_sheet_row != [None] * sheet_columns_number:
             runs.append(runs_sheet_row)
