@@ -28,7 +28,7 @@ class CallHandler(View):
             return HttpResponse("Not found", status=404)
 
         client = call.channel.get_ivr_client()
-        if request.REQUEST.get('hangup', 0):
+        if request.POST.get('hangup', 0):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
