@@ -252,7 +252,7 @@ def handle_event_task():
         complete_task(HANDLE_EVENT_TASK, org_id)
 
 
-@nonoverlapping_task(track_started=True, name='purge_broadcasts_task', time_limit=60 * 60 * 36)
+@nonoverlapping_task(track_started=True, name='purge_broadcasts_task', time_limit=60 * 60 * 24 * 7)
 def purge_broadcasts_task():
     """
     Looks for broadcasts older than 90 days and marks their messages as purged
