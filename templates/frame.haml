@@ -24,13 +24,19 @@
         if (local != null && (window.location.hostname == "localhost" || remote == null)) {
           loadResource("{{ STATIC_URL }}" + local);
         } else if (remote != null) {
-          loadResource(remote);
+          loadResource(remote, true);
         }
       }
 
-      function loadResource(src) {
-        (function() { document.write(unescape('%3Cscript src="' + src + '"%3E%3C/script%3E')); })();
+      function loadResource(src, async=false) {
+        (function() {
+          if (async) {
+            document.write(unescape('%3Cscript async src="' + src + '"%3E%3C/script%3E'));
+          } else {
+            document.write(unescape('%3Cscript src="' + src + '"%3E%3C/script%3E'));
+          })();
       }
+
 
     // ==== JQUERY ====
     :javascript
