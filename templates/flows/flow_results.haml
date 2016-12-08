@@ -204,17 +204,16 @@
             Last Activity
         %td.header
           .details
-            Name
+            Contact
 
         -for ruleset in rulesets
           %td.header
             .details{ onclick: 'toggleValue({{forloop.counter0}});'}
               .icons
-                .icon-bars-2.category
-                .icon-bubbles-2.text
+                .icon-tree-2.category
+                .icon-bubble-2.text
               {{ruleset.label}}
             .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
-
 
       %tr.hide
         %td.subheader
@@ -224,8 +223,7 @@
             %a{href:'javascript:toggleValue({{forloop.counter0}});'}
               category
 
-
-      %tr{ic-append-from:"?", ic-trigger-on:"scrolled-into-view", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+      %tr{ic-append-from:"/flow/runs_partial/{{object.id}}", ic-trigger-on:"scrolled-into-view", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
   #indicator{style:"display:none"}
     .loader

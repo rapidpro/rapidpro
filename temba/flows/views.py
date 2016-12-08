@@ -35,7 +35,7 @@ from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING, INTERRUPTED
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.utils.views import BaseActionForm, IntercoolerMixin
+from temba.utils.views import BaseActionForm
 from temba.values.models import Value
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
 
@@ -340,7 +340,7 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
 
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
-               'upload_action_recording', 'read', 'editor', 'results', 'json', 'broadcast', 'activity', 'filter',
+               'upload_action_recording', 'read', 'editor', 'results', 'runs_partial', 'json', 'broadcast', 'activity', 'filter',
                'campaign', 'completion', 'revisions', 'recent_messages')
 
     model = Flow
@@ -1061,10 +1061,12 @@ class FlowCRUDL(SmartCRUDL):
                 response['REDIRECT'] = self.get_success_url()
                 return response
 
-    class Results(IntercoolerMixin, OrgObjPermsMixin, SmartReadView):
+    class RunsPartial(OrgObjPermsMixin, SmartReadView):
+
+        paginate_by = 100
 
         def get_context_data(self, *args, **kwargs):
-            context = super(FlowCRUDL.Results, self).get_context_data(*args, **kwargs)
+            context = super(FlowCRUDL.RunsPartial, self).get_context_data(*args, **kwargs)
             flow = self.get_object()
 
             context['rulesets'] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by('y'))
@@ -1072,21 +1074,39 @@ class FlowCRUDL(SmartCRUDL):
                 rules = len(ruleset.get_rules())
                 ruleset.category = 'true' if rules > 1 else 'false'
 
-            if self.get_ic_target() == 'results_run_table':
-                offset = int(self.request.GET.get('offset', 0))
-                runs = FlowRun.objects.filter(flow=flow, responded=True)
-                runs = list(runs.order_by('-modified_on')[offset:offset + self.get_page_size()])
+            runs = FlowRun.objects.filter(flow=flow, responded=True)
 
-                # populate ruleset values
-                for run in runs:
-                    values = {v.ruleset.uuid: v for v in Value.objects.filter(run=run, ruleset__in=context['rulesets']).select_related('ruleset')}
-                    run.value_list = []
-                    for ruleset in context['rulesets']:
-                        value = values.get(ruleset.uuid)
-                        run.value_list.append(value)
+            # paginate
+            modified_on = self.request.GET.get('modified_on', None)
+            if modified_on:
+                id = self.request.GET['id']
+                modified_on = datetime.fromtimestamp(int(modified_on), flow.org.timezone)
+                runs = runs.filter(modified_on__lt=modified_on).exclude(modified_on=modified_on, id__lt=id)
 
-                context['runs'] = runs
+            runs = list(runs.order_by('-modified_on'))[:FlowCRUDL.RunsPartial.paginate_by]
 
+            # populate ruleset values
+            for run in runs:
+                values = {v.ruleset.uuid: v for v in
+                          Value.objects.filter(run=run, ruleset__in=context['rulesets']).select_related('ruleset')}
+                run.value_list = []
+                for ruleset in context['rulesets']:
+                    value = values.get(ruleset.uuid)
+                    run.value_list.append(value)
+
+            context['runs'] = runs
+
+            return context
+
+    class Results(OrgObjPermsMixin, SmartReadView):
+
+        def get_context_data(self, *args, **kwargs):
+            context = super(FlowCRUDL.Results, self).get_context_data(*args, **kwargs)
+            flow = self.get_object()
+            context['rulesets'] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by('y'))
+            for ruleset in context['rulesets']:
+                rules = len(ruleset.get_rules())
+                ruleset.category = 'true' if rules > 1 else 'false'
             return context
 
     class Activity(OrgObjPermsMixin, SmartReadView):
