@@ -1947,12 +1947,6 @@ class FlowTest(TembaTest):
         flow = flow1
         flow.start([], [self.contact])
 
-        # remove one of the contacts
-        run = flow1.runs.get(contact=self.contact)
-        response = self.client.post(reverse('flows.flow_results', args=[flow.pk]), data=dict(run=run.pk))
-        self.assertEquals(200, response.status_code)
-        self.assertFalse(FlowStep.objects.filter(run__contact=self.contact))
-
         # test getting the json
         response = self.client.get(reverse('flows.flow_json', args=[flow.pk]))
         self.assertTrue('channels' in json.loads(response.content))
