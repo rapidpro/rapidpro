@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
-from django.db.models import Count, Q, Max
+from django.db.models import Count
 from django import forms
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
@@ -25,7 +25,6 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartReadView, SmartList
 from smartmin.views import SmartDeleteView, SmartTemplateView, SmartFormView
 from temba.contacts.fields import OmniboxField
 from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEME
-from temba.formax import FormaxMixin
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
@@ -36,7 +35,7 @@ from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING, INTERRUPTED
 from temba.triggers.models import Trigger
 from temba.utils import analytics, build_json_response, percentage, datetime_to_str
 from temba.utils.expressions import get_function_listing
-from temba.utils.views import BaseActionForm
+from temba.utils.views import BaseActionForm, IntercoolerMixin
 from temba.values.models import Value
 from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart
 
@@ -1062,171 +1061,33 @@ class FlowCRUDL(SmartCRUDL):
                 response['REDIRECT'] = self.get_success_url()
                 return response
 
-    class Results(FormaxMixin, OrgObjPermsMixin, SmartReadView):
-
-        class RemoveRunForm(forms.Form):
-            run = forms.ModelChoiceField(FlowRun.objects.filter(pk__lt=0))
-
-            def __init__(self, flow, *args, **kwargs):
-                self.flow = flow
-                super(FlowCRUDL.Results.RemoveRunForm, self).__init__(*args, **kwargs)
-
-                self.fields['run'].queryset = FlowRun.objects.filter(flow=flow)
-
-            def execute(self):
-                data = self.cleaned_data
-                run = data['run']
-
-                # remove this run and its steps in the process
-                run.delete()
-                return dict(status="success")
-
-        def derive_formax_sections(self, formax, context):
-            if self.has_org_perm('flows.flow_broadcast'):
-                if 'json' not in self.request.REQUEST:
-                    formax.add_section('broadcast', reverse('flows.flow_broadcast', args=[self.object.pk]),
-                                       'icon-users', action='readonly')
-
-        def post(self, request, *args, **kwargs):
-            form = FlowCRUDL.Results.RemoveRunForm(self.get_object(), self.request.POST)
-            if not self.has_org_perm('flows.flow_delete'):
-                return HttpResponse(json.dumps(dict(error=_("Sorry you have no permission for this action."))))
-
-            if form.is_valid():
-                result = form.execute()
-                return HttpResponse(json.dumps(result))
-
-            # can happen when there are double clicks, just ignore it
-            else:  # pragma: no cover
-                return HttpResponse(json.dumps(dict(status="success")))
-
-        def render_to_response(self, context, **response_kwargs):
-            org = self.request.user.get_org()
-
-            if 'json' in self.request.REQUEST:
-                start = int(self.request.REQUEST.get('iDisplayStart', 0))
-                show = int(self.request.REQUEST.get('iDisplayLength', 20))
-
-                sort_col = int(self.request.REQUEST.get('iSortCol_0', 0))
-                sort_direction = self.request.REQUEST.get('sSortDir_0', 'desc')
-
-                # create mapping of uuid to column
-                col_map = dict()
-                idx = 0
-                for col in self.request.REQUEST.get('cols', '').split(','):
-                    col_map[col] = idx
-                    idx += 1
-
-                runs = FlowRun.objects.filter(flow=self.object).exclude(contact__is_test=True)
-
-                query = self.request.REQUEST.get('sSearch', None)
-                if query:
-                    if org.is_anon:
-                        # try casting our query to an int if they are querying by contact id
-                        query_int = -1
-                        try:
-                            query_int = int(query)
-                        except Exception:
-                            pass
-
-                        runs = runs.filter(Q(contact__name__icontains=query) | Q(contact__id=query_int))
-                    else:
-                        runs = runs.filter(Q(contact__name__icontains=query) | Q(contact__urns__path__icontains=query))
-
-                if org.is_anon:
-                    runs = runs.values('contact__pk', 'contact__name')
-                else:
-                    runs = runs.values('contact__pk', 'contact__name', 'contact__urns__path')
-
-                runs = runs.annotate(count=Count('pk'), started=Max('created_on'))\
-
-                initial_sort = 'started'
-                if sort_col == 1:
-                    if org.is_anon:
-                        initial_sort = 'contact__id'
-                    else:
-                        initial_sort = 'contact__urns__path'
-                elif sort_col == 2:
-                    initial_sort = 'contact__name'
-                elif sort_col == 3:
-                    initial_sort = 'count'
-
-                if sort_direction == 'desc':
-                    initial_sort = "-%s" % initial_sort
-                runs = runs.order_by(initial_sort, '-count')
-
-                total = runs.count()
-
-                runs = runs[start:(start + show)]
-
-                # fetch the step data for our set of contacts
-                contacts = []
-                for run in runs:
-                    contacts.append(run['contact__pk'])
-
-                steps = FlowStep.objects.filter(run__flow=self.object, run__contact__in=contacts).exclude(rule_value=None)
-                steps = steps.order_by('run__contact__pk', 'step_uuid', '-arrived_on').distinct('run__contact__pk', 'step_uuid')
-                steps = steps.prefetch_related('messages', 'broadcasts')
-
-                # now create an nice table for them
-                contacts = dict()
-
-                for step in steps:
-                    contact_pk = step.run.contact.pk
-                    if contact_pk in contacts:
-                        contact_steps = contacts[contact_pk]
-                    else:
-                        contact_steps = ['' for i in range(len(col_map))]
-
-                    if step.step_uuid in col_map:
-                        contact_steps[col_map[step.step_uuid]] = dict(value=step.rule_value, category=step.rule_category, text=step.get_text())
-                    contacts[contact_pk] = contact_steps
-
-                rows = []
-                for run in runs:
-
-                    cols = [dict() for i in range(len(col_map))]
-                    if run['contact__pk'] in contacts:
-                        cols = contacts[run['contact__pk']]
-                    name = ""
-                    if run['contact__name']:
-                        name = run['contact__name']
-
-                    date = run['started']
-                    date = timezone.localtime(date).strftime('%b %d, %Y %I:%M %p').lstrip("0").replace(" 0", " ")
-
-                    phone = "%010d" % run['contact__pk']
-                    if not org.is_anon:
-                        phone = run['contact__urns__path']
-
-                    rows.append([date,
-                                 dict(category=phone, contact=run['contact__pk']),
-                                 dict(category=name),
-                                 dict(contact=run['contact__pk'], category=run['count'])] + cols)
-
-                return build_json_response(dict(iTotalRecords=total, iTotalDisplayRecords=total, sEcho=self.request.REQUEST.get('sEcho', 0), aaData=rows))
-            else:
-                if 'c' in self.request.REQUEST:
-                    contact = Contact.objects.filter(pk=self.request.REQUEST['c'], org=self.object.org, is_active=True)
-                    if contact:
-                        contact = contact[0]
-                        runs = list(contact.runs.filter(flow=self.object).order_by('-created_on'))
-                        for run in runs:
-                            # step_uuid__in=step_uuids
-                            run.__dict__['messages'] = list(Msg.objects.filter(steps__run=run).order_by('created_on'))
-                        context['runs'] = runs
-                        context['contact'] = contact
-
-                return super(FlowCRUDL.Results, self).render_to_response(context, **response_kwargs)
-
-        def get_template_names(self):
-            if 'c' in self.request.REQUEST:
-                return ['flows/flow_results_contact.haml']
-            else:
-                return super(FlowCRUDL.Results, self).get_template_names()
+    class Results(IntercoolerMixin, OrgObjPermsMixin, SmartReadView):
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Results, self).get_context_data(*args, **kwargs)
+
+            flow = self.get_object()
+
+            context['rulesets'] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by('y'))
+            for ruleset in context['rulesets']:
+                rules = len(ruleset.get_rules())
+                ruleset.category = 'true' if rules > 1 else 'false'
+
+            if self.get_ic_target() == 'results_run_table':
+                offset = int(self.request.GET.get('offset', 0))
+                runs = FlowRun.objects.filter(flow=flow, responded=True)
+                runs = list(runs.order_by('-modified_on')[offset:offset + self.get_page_size()])
+
+                # populate ruleset values
+                for run in runs:
+                    values = {v.ruleset.uuid: v for v in Value.objects.filter(run=run, ruleset__in=context['rulesets']).select_related('ruleset')}
+                    run.value_list = []
+                    for ruleset in context['rulesets']:
+                        value = values.get(ruleset.uuid)
+                        run.value_list.append(value)
+
+                context['runs'] = runs
+
             return context
 
     class Activity(OrgObjPermsMixin, SmartReadView):

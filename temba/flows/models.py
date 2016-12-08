@@ -2580,7 +2580,7 @@ class FlowRun(models.Model):
             # continue the parent flows to continue async
             continue_parent_flows.delay(ids)
 
-    def get_last_msg(self, direction):
+    def get_last_msg(self, direction='I'):
         """
         Returns the last incoming msg on this run
         """

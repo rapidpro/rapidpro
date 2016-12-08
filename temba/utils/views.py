@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
+from smartmin.views import SmartView
+import os
 
 
 class BaseActionForm(forms.Form):
@@ -117,3 +119,34 @@ class BaseActionForm(forms.Form):
 
         else:  # pragma: no cover
             return dict(error=_("Oops, so sorry. Something went wrong!"))
+
+
+class IntercoolerMixin(SmartView):
+
+    def get_page_size(self):
+        return 100
+
+    def is_intercooler(self):
+        return self.request.GET.get('ic-request')
+
+    def get_ic_target(self):
+        if self.is_intercooler():
+            return self.request.GET.get('ic-target-id').lower()
+
+    def get_context_data(self, *args, **kwargs):
+        context = super(IntercoolerMixin, self).get_context_data(*args, **kwargs)
+        offset = self.request.GET.get('offset', 0)
+        context['offset'] = int(offset) + self.get_page_size()
+        return context
+
+    def render_to_response(self, context, **response_kwargs):
+        return super(IntercoolerMixin, self).render_to_response(context, **response_kwargs)
+
+    def get_template_names(self):
+        # route us to a snippet template
+        if self.is_intercooler():
+            target_id = self.get_ic_target()
+            path = os.path.split(self.template_name)[0:-1]
+            path += ('%s_%s.html' % (self.model._meta.model_name, target_id),)
+            return [os.path.join(*path)]
+        return super(IntercoolerMixin, self).get_template_names()
