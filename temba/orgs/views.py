@@ -1527,7 +1527,7 @@ class OrgCRUDL(SmartCRUDL):
             if hasattr(self.form, 'cleaned_data'):
                 context['org'] = self.form.cleaned_data.get('org', None)
 
-            for key, field in self.form.fields.iteritems():
+            for key, field in six.iteritems(self.form.fields):
                 context[key] = field
 
             return context
@@ -1549,10 +1549,12 @@ class OrgCRUDL(SmartCRUDL):
 
                 org = self.form.cleaned_data.get('org', None)
 
-                self.form = OrgCRUDL.Surveyor.RegisterForm(initial=self.derive_initial())
                 context = self.get_context_data()
                 context['step'] = 2
                 context['org'] = org
+
+                self.form = OrgCRUDL.Surveyor.RegisterForm(initial=self.derive_initial())
+                context['form'] = self.form
 
                 return self.render_to_response(context)
             else:
