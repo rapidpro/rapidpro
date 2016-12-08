@@ -3940,7 +3940,7 @@ class ExportFlowResultsTask(SmartModel):
 
         urn_display_cache = {}
 
-        seen_msgs = []
+        seen_msgs = set()
 
         def get_contact_urn_display(contact):
             """
@@ -4191,7 +4191,7 @@ class ExportFlowResultsTask(SmartModel):
 
                         msgs.append(msgs_row)
 
-                        seen_msgs.append(msg.pk)
+                        seen_msgs.add(msg.pk)
 
         if runs_sheet_row != [None] * sheet_columns_number:
             runs.append(runs_sheet_row)
