@@ -4167,18 +4167,7 @@ class FlowsTest(FlowFileTest):
 
         # we are going to expire, but we want runs across two different flows
         # to make sure that our optimization for expiration is working properly
-        self.get_flow('color_gender_age')
-        print "=" * 80
-        print "=" * 80
-
-        for imp_flow in Flow.objects.all():
-            print imp_flow.__dict__
-            print "+" * 80
-
-        print "=" * 80
-        print "=" * 80
-
-        cga_flow = Flow.objects.get(name="Color Age Gender")
+        cga_flow = self.get_flow('color_gender_age')
         self.assertEquals("What is your gender?", self.send_message(cga_flow, "Red"))
         self.assertEquals(1, len(cga_flow.get_activity()[0]))
 
