@@ -31,6 +31,8 @@ class TwilioClient(TwilioRestClient):
         super(TwilioClient, self).__init__(account=account, token=token, **kwargs)
 
     def start_call(self, call, to, from_, status_callback):
+        if not settings.SEND_CALLS:
+            raise IVRException("SEND_CALLS set to False, skipping call start")
 
         try:
             twilio_call = self.calls.create(to=to,
@@ -111,6 +113,8 @@ class VerboiceClient:
         return True
 
     def start_call(self, call, to, from_, status_callback):
+        if not settings.SEND_CALLS:
+            raise IVRException("SEND_CALLS set to False, skipping call start")
 
         channel = call.channel
         Contact.get_or_create(channel.org, channel.created_by, urns=[URN.from_tel(to)])
