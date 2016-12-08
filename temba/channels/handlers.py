@@ -2096,6 +2096,11 @@ class ViberPublicHandler(BaseChannelHandler):
     url = r'^/viber_public/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.viber_public_handler'
 
+    @classmethod
+    def calculate_sig(cls, request_body, auth_token):
+        return hmac.new(bytes(auth_token.encode('ascii')),
+                        msg=request_body, digestmod=hashlib.sha256).hexdigest()
+
     def get(self, request, *args, **kwargs):
         return HttpResponse("Must be called as a POST", status=405)
 
@@ -2115,10 +2120,8 @@ class ViberPublicHandler(BaseChannelHandler):
             return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
 
         # calculate our signature
-        signature = hmac.new(bytes(channel.config_json()[Channel.CONFIG_AUTH_TOKEN].encode('ascii')),
-                             msg=request.body, digestmod=hashlib.sha256).hexdigest()
-
-        print "signature: %s" % signature
+        signature = ViberPublicHandler.calculate_sig(request.body,
+                                                     channel.config_json()[Channel.CONFIG_AUTH_TOKEN])
 
         # check it against the Viber header
         if signature != request.META.get('HTTP_X_VIBER_CONTENT_SIGNATURE'):

@@ -8326,7 +8326,9 @@ class ViberPublicTest(TembaTest):
         self.assertEqual(msg.sent_on.date(), date(day=7, month=12, year=2016))
         self.assertEqual(msg.external_id, "4987381189870374000")
 
-    def assertMessageReceived(self, msg_type, payload_name, payload_value, signature, assert_text, assert_media=None):
+    def assertMessageReceived(self, msg_type, payload_name, payload_value, assert_text, assert_media=None):
+        from temba.channels.handlers import ViberPublicHandler
+
         data = {
             "event": "message",
             "timestamp": 1481142112807,
@@ -8345,6 +8347,9 @@ class ViberPublicTest(TembaTest):
         data['message']['type'] = msg_type
         data['message'][payload_name] = payload_value
 
+        body = json.dumps(data)
+        signature = ViberPublicHandler.calculate_sig(body, "auth_token")
+
         response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
                                     HTTP_X_VIBER_CONTENT_SIGNATURE=signature)
 
@@ -8357,19 +8362,13 @@ class ViberPublicTest(TembaTest):
             self.assertEqual(msg.media, assert_media)
 
     def test_receive_contact(self):
-        self.assertMessageReceived('contact', 'contact', dict(name="Alex", phone_number="+12067799191"),
-                                   '4f35c05395eef406e797200edf8f831b696c6a0fe0a05284e772333074c9a73d',
-                                   'Alex: +12067799191')
+        self.assertMessageReceived('contact', 'contact', dict(name="Alex", phone_number="+12067799191"), 'Alex: +12067799191')
 
     def test_receive_url(self):
-        self.assertMessageReceived('url', 'media', 'http://foo.com/',
-                                   '77e8e85ebc221159b301c64b65351cc966cc9fee919487fa492cc91f7b5e4585',
-                                   'http://foo.com/')
+        self.assertMessageReceived('url', 'media', 'http://foo.com/', 'http://foo.com/')
 
     def test_receive_gps(self):
-        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'),
-                                   '296a3070b5be469f4695a1df8d501caf17cba16d117dc0183fb614fb9019657c',
-                                   'geo:1.2,-1.3')
+        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'), 'geo:1.2,-1.3')
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="viber:xy5/5y6O81+/kbWHpLhBoA==")
