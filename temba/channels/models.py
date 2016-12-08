@@ -1261,20 +1261,28 @@ class Channel(TembaModel):
         headers.update(TEMBA_HEADERS)
         send_url = 'https://api.line.me/v2/bot/message/push'
 
-        response = requests.post(send_url,
-                                 data=data,
-                                 headers=headers)
-        content = json.loads(response.content)
+        try:
+            response = requests.post(send_url, data=data, headers=headers)
+            content = json.loads(response.content)
+        except Exception as e:
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=send_url,
+                                request=data,
+                                response="",
+                                response_status=503,
+                                start=start)
 
-        if response.status_code == 200:
-            Channel.success(channel, msg, WIRED, start, 'POST', response.request.url, data, response)
-        else:
-            raise SendException(content.get('message'),
-                                send_url,
-                                'POST',
-                                data,
-                                response.content,
-                                response.status_code)
+        if response.status_code not in [200, 201, 202]:
+            raise SendException("Got non-200 response [%d] from Line" % response.status_code,
+                                method='POST',
+                                url=send_url,
+                                request=data,
+                                response=content.get('message'),
+                                response_status=response.status_code,
+                                start=start)
+
+        Channel.success(channel, msg, WIRED, start, 'POST', response.request.url, data, response)
 
     @classmethod
     def send_mblox_message(cls, channel, msg, text):
@@ -1713,7 +1721,7 @@ class Channel(TembaModel):
           </message>
         """
         post_body = post_body.replace("$$FROM$$", quoteattr(channel.address))
-        post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
+        post_body = post_body.replace("$$TO$$m", escape(msg.urn_path))
         post_body = post_body.replace("$$BODY$$", escape(msg.text))
         post_body = post_body.encode('utf8')
 
@@ -2031,8 +2039,8 @@ class Channel(TembaModel):
                                     url=url,
                                     method='POST',
                                     request=json.dumps(payload),
-                                    response=response.text,
-                                    response_status=response.status_code,
+                                    response="",
+                                    response_status=503,
                                     start=start)
 
         if response.status_code != 200 and response.status_code != 201:
@@ -2169,8 +2177,8 @@ class Channel(TembaModel):
                                 url=zenvia_url,
                                 method='POST',
                                 request=json.dumps(payload),
-                                response=response.text,
-                                response_status=response.status_code,
+                                response="",
+                                response_status=503,
                                 start=start)
 
         if response.status_code != 200 and response.status_code != 201:
@@ -2215,8 +2223,8 @@ class Channel(TembaModel):
                                 url=api_url,
                                 method='POST',
                                 request=json.dumps(payload),
-                                response=response.text,
-                                response_status=response.status_code,
+                                response="",
+                                response_status=503,
                                 start=start)
 
         if response.status_code != 200 and response.status_code != 201:
@@ -2378,6 +2386,7 @@ class Channel(TembaModel):
             log_payload = urlencode(payload)
 
         except Exception as e:
+            log_payload = urlencode(payload)
             raise SendException(unicode(e),
                                 method='GET',
                                 url=url,
