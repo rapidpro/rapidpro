@@ -407,7 +407,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         # try to create a contact group whose name is only whitespace
         response = self.client.post(url, dict(name="  "))
-        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+        self.assertFormError(response, 'form', 'name', "This field is required.")
 
         # try to create a contact group whose name begins with reserved character
         response = self.client.post(url, dict(name="+People"))
@@ -444,7 +444,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         # try to update name to only whitespace
         response = self.client.post(url, dict(name="   "))
-        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+        self.assertFormError(response, 'form', 'name', "This field is required.")
 
         # try to update name to start with reserved character
         response = self.client.post(url, dict(name="+People"))
