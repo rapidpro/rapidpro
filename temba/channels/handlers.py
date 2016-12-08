@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import hmac
+import hashlib
 import json
 import pytz
 import requests
@@ -17,6 +19,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.generic import View
 from guardian.utils import get_anonymous_user
+from requests import Request
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, URN
@@ -2111,6 +2114,20 @@ class ViberPublicHandler(BaseChannelHandler):
         except Exception as e:
             return HttpResponse("Invalid JSON in POST body: %s" % str(e), status=400)
 
+        # calculate our signature
+        signature = hmac.new(bytes(channel.config_json()[Channel.CONFIG_AUTH_TOKEN].encode('ascii')),
+                             msg=request.body, digestmod=hashlib.sha256).hexdigest()
+
+        print "signature: %s" % signature
+
+        # check it against the Viber header
+        if signature != request.META.get('HTTP_X_VIBER_CONTENT_SIGNATURE'):
+            return HttpResponse("Invalid signature, ignoring request.", status=400)
+
+        if 'event' not in body:
+            return HttpResponse("Missing 'event' in request body.",
+                                status=400)
+
         event = body['event']
 
         # callback from Viber checking this webhook is valid
@@ -2137,7 +2154,7 @@ class ViberPublicHandler(BaseChannelHandler):
             #    },
             #    "message_token": 4912661846655238145
             # }
-            viber_id = body['user_id']
+            viber_id = body['user']['id']
             contact = Contact.from_urn(channel.org, URN.from_viber(viber_id))
             Trigger.catch_triggers(contact, Trigger.TYPE_NEW_CONVERSATION, channel)
             return HttpResponse("Subscription for contact: %s handled" % viber_id)
@@ -2185,7 +2202,7 @@ class ViberPublicHandler(BaseChannelHandler):
             #    "message_token": 4912661846655238145,
             #    "user_id": "01234567890A="
             # }
-            msg = Msg.objects.filter(channel=channel, direction='O', id=body['message_token']).select_related('channel').first()
+            msg = Msg.objects.filter(channel=channel, direction='O', external_id=body['message_token']).select_related('channel').first()
             if not msg:
                 return HttpResponse("Message with external id of '%s' not found" % body['message_token'])
 
@@ -2217,11 +2234,13 @@ class ViberPublicHandler(BaseChannelHandler):
             #    }
             # }
             if not all(k in body for k in ['timestamp', 'message_token', 'sender', 'message']):
-                return HttpResponse("Missing one of 'timestamp', 'message_token', 'sender' or 'message' in request parameters.",
+                return HttpResponse("Missing one of 'timestamp', 'message_token', 'sender' or 'message' in request body.",
                                     status=400)
 
             message = body['message']
             msg_date = datetime.utcfromtimestamp(body['timestamp'] / 1000).replace(tzinfo=pytz.utc)
+            media = None
+            caption = None
 
             # convert different messages types to the right thing
             message_type = message['type']
@@ -2231,18 +2250,22 @@ class ViberPublicHandler(BaseChannelHandler):
 
             elif message_type == 'picture':
                 # "media": "http://www.images.com/img.jpg"
-                text = message['media']
+                caption = message.get('text')
+                media = '%s:%s' % (Msg.MEDIA_IMAGE, channel.org.download_and_save_media(Request('GET', message['media'])))
+                text = media
 
             elif message_type == 'video':
+                caption = message.get('text')
                 # "media": "http://www.images.com/video.mp4"
-                text = message['video']
+                media = '%s:%s' % (Msg.MEDIA_VIDEO, channel.org.download_and_save_media(Request('GET', message['media'])))
+                text = media
 
             elif message_type == 'contact':
                 # "contact": {
                 #     "name": "Alex",
                 #     "phone_number": "+972511123123"
                 # }
-                text = "%s:%s" % (message['contact']['name'], message['contact']['phone_number'])
+                text = "%s: %s" % (message['contact']['name'], message['contact']['phone_number'])
 
             elif message_type == 'url':
                 # "media": "http://www.website.com/go_here"
@@ -2250,7 +2273,8 @@ class ViberPublicHandler(BaseChannelHandler):
 
             elif message_type == 'location':
                 # "location": {"lat": "37.7898", "lon": "-122.3942"}
-                text = "GPS: %s, %s" % (message['location']['lat'], message['location']['lon'])
+                text = '%s:%s,%s' % (Msg.MEDIA_GPS, message['location']['lat'], message['location']['lon'])
+                media = text
 
             else:
                 return HttpResponse("Unknown message type: %s" % message_type, status=400)
@@ -2260,7 +2284,11 @@ class ViberPublicHandler(BaseChannelHandler):
             contact = Contact.get_or_create(channel.org, channel.created_by,
                                             body['sender'].get('name'), urns=[urn])
 
-            msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date, external_id=body['message_token'])
+            # add our caption first if it is present
+            if caption:
+                Msg.create_incoming(channel, urn, caption, contact=contact, date=msg_date)
+
+            msg = Msg.create_incoming(channel, urn, text, contact=contact, date=msg_date, external_id=body['message_token'], media=media)
             return HttpResponse('Msg Accepted: %d' % msg.id)
 
         else:  # pragma: no cover

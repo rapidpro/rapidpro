@@ -28,7 +28,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
@@ -212,6 +212,10 @@ def channel_status_processor(request):
         # and facebook
         if not send_channel:
             send_channel = org.get_send_channel(scheme=FACEBOOK_SCHEME)
+
+        # and facebook
+        if not send_channel:
+            send_channel = org.get_send_channel(scheme=VIBER_SCHEME)
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel

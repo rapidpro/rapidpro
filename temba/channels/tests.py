@@ -28,7 +28,7 @@ from mock import patch
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
-from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED, PENDING
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
@@ -8188,3 +8188,163 @@ class LineTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+
+class ViberPublicTest(TembaTest):
+
+    def setUp(self):
+        super(ViberPublicTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_VIBER_PUBLIC, None, '1001',
+                                      uuid='00000000-0000-0000-0000-000000001234',
+                                      config={Channel.CONFIG_AUTH_TOKEN: "auth_token"})
+
+        self.callback_url = reverse('handlers.viber_public_handler', args=[self.channel.uuid])
+
+    def test_receive(self):
+        # invalid UUID
+        response = self.client.post(reverse('handlers.viber_public_handler', args=['00000000-0000-0000-0000-000000000000']))
+        self.assertEqual(response.status_code, 400)
+
+        data = {
+            "event": "message",
+            "timestamp": 1481142112807,
+            "message_token": 4987381189870374000,
+            "sender": {
+                "id": "xy5/5y6O81+/kbWHpLhBoA==",
+                "name": "ET3",
+            },
+            "message": {
+                "text": "incoming msg",
+                "type": "text",
+                "tracking_data": "3055"
+            }
+        }
+
+        # try a GET
+        response = self.client.get(self.callback_url)
+        self.assertEqual(response.status_code, 405)
+
+        # POST invalid JSON data
+        response = self.client.post(self.callback_url, "not json", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # Invalid signature
+        response = self.client.post(self.callback_url, json.dumps({}), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='bad_sig')
+        self.assertEqual(response.status_code, 400)
+
+        # POST missing data
+        response = self.client.post(self.callback_url, json.dumps({}), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='a182e13e58cbe9bb893cc03c055a1218fba31e8efa6f3ab74a54d4f8542ae376')
+        self.assertEqual(response.status_code, 400)
+
+        # ok, valid post
+        response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEqual(response.content, "Msg Accepted: %d" % msg.id)
+
+        self.assertEqual(msg.contact.get_urn(VIBER_SCHEME).path, "xy5/5y6O81+/kbWHpLhBoA==")
+        self.assertEqual(msg.contact.name, "ET3")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "incoming msg")
+        self.assertEqual(msg.sent_on.date(), date(day=7, month=12, year=2016))
+        self.assertEqual(msg.external_id, "4987381189870374000")
+
+    def assertMessageReceived(self, msg_type, payload_name, payload_value, signature, assert_text, assert_media=None):
+        data = {
+            "event": "message",
+            "timestamp": 1481142112807,
+            "message_token": 4987381189870374000,
+            "sender": {
+                "id": "xy5/5y6O81+/kbWHpLhBoA==",
+                "name": "ET3",
+            },
+            "message": {
+                "text": "incoming msg",
+                "type": "undefined",
+                "tracking_data": "3055",
+            }
+        }
+
+        data['message']['type'] = msg_type
+        data['message'][payload_name] = payload_value
+
+        response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE=signature)
+
+        self.assertEqual(response.status_code, 200, response.content)
+
+        msg = Msg.objects.get()
+        self.assertEqual(msg.text, assert_text)
+
+        if assert_media:
+            self.assertEqual(msg.media, assert_media)
+
+    def test_receive_contact(self):
+        self.assertMessageReceived('contact', 'contact', dict(name="Alex", phone_number="+12067799191"),
+                                   '4f35c05395eef406e797200edf8f831b696c6a0fe0a05284e772333074c9a73d',
+                                   'Alex: +12067799191')
+
+    def test_receive_url(self):
+        self.assertMessageReceived('url', 'media', 'http://foo.com/',
+                                   '77e8e85ebc221159b301c64b65351cc966cc9fee919487fa492cc91f7b5e4585',
+                                   'http://foo.com/')
+
+    def test_receive_gps(self):
+        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'),
+                                   '296a3070b5be469f4695a1df8d501caf17cba16d117dc0183fb614fb9019657c',
+                                   'geo:1.2,-1.3')
+
+    def test_send(self):
+        joe = self.create_contact("Joe", urn="viber:xy5/5y6O81+/kbWHpLhBoA==")
+        msg = joe.send("MT", self.admin, trigger_send=False)
+
+        settings.SEND_MESSAGES = True
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"status":0,"status_message":"ok","message_token":4987381194038857789}')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
+                                    headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
+                                    json={'text': u'MT',
+                                          'auth_token': u'auth_token',
+                                          'tracking_data': msg.id,
+                                          'type': u'text',
+                                          'receiver': u'xy5/5y6O81+/kbWHpLhBoA=='},
+                                    timeout=5)
+
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, "4987381194038857789")
+            self.clear_cache()
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"status":3, "status_message":"invalidAuthToken"}')
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, FAILED)
+            self.clear_cache()
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(401, '{"status":"5"}')
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()
+
+        with patch('requests.post') as mock:
+            mock.side_effect = Exception("Unable to reach host")
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()

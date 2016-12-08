@@ -1038,7 +1038,7 @@ class Channel(TembaModel):
 
             # unsubscribe from Viber events
             elif self.channel_type == Channel.TYPE_VIBER_PUBLIC:
-                auth_token = self.config_json()[Channel.AUTH_TOKEN]
+                auth_token = self.config_json()[Channel.CONFIG_AUTH_TOKEN]
                 requests.post('https://chatapi.viber.com/pa/set_webhook', json=dict(auth_token=auth_token, url=''))
 
         # save off our org and gcm id before nullifying
@@ -2573,7 +2573,7 @@ class Channel(TembaModel):
         from temba.msgs.models import WIRED
 
         url = 'https://chatapi.viber.com/pa/send_message'
-        payload = dict(auth_token=channel.config[Channel.AUTH_TOKEN],
+        payload = dict(auth_token=channel.config[Channel.CONFIG_AUTH_TOKEN],
                        receiver=msg.urn_path,
                        text=text,
                        type='text',
