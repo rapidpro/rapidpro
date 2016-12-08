@@ -1,5 +1,5 @@
 smartmin
-Django<1.9
+Django<1.10
 coverage
 django-celery
 django-compressor
