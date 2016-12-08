@@ -302,7 +302,7 @@ class RuleCRUDL(SmartCRUDL):
                 reports_json.append(report.as_json())
 
             current_report = None
-            edit_report = self.request.REQUEST.get('edit_report', None)
+            edit_report = self.request.GET.get('edit_report', None)
             if edit_report and int(edit_report):
                 request_report = Report.objects.filter(pk=edit_report, org=org).first()
                 if request_report:
@@ -349,9 +349,9 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             org = self.get_object_org()
 
-            step_uuid = request.REQUEST.get('step', None)
-            next_uuid = request.REQUEST.get('destination', None)
-            rule_uuid = request.REQUEST.get('rule', None)
+            step_uuid = request.GET.get('step', None)
+            next_uuid = request.GET.get('destination', None)
+            rule_uuid = request.GET.get('rule', None)
 
             recent_messages = []
 
@@ -389,7 +389,7 @@ class FlowCRUDL(SmartCRUDL):
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
 
-            revision_id = request.REQUEST.get('definition', None)
+            revision_id = request.GET.get('definition', None)
 
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
@@ -634,7 +634,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class UploadActionRecording(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):
-            path = self.save_recording_upload(self.request.FILES['file'], self.request.REQUEST.get('actionset'), self.request.REQUEST.get('action'))
+            path = self.save_recording_upload(self.request.FILES['file'], self.request.POST.get('actionset'), self.request.POST.get('action'))
             return build_json_response(dict(path=path))
 
         def save_recording_upload(self, file, actionset_id, action_uuid):
@@ -703,7 +703,7 @@ class FlowCRUDL(SmartCRUDL):
         def derive_queryset(self, *args, **kwargs):
             queryset = super(FlowCRUDL.List, self).derive_queryset(*args, **kwargs)
             queryset = queryset.filter(is_active=True, is_archived=False)
-            types = self.request.REQUEST.getlist('flow_type')
+            types = self.request.GET.getlist('flow_type')
             if types:
                 queryset = queryset.filter(flow_type__in=types)
             return queryset
@@ -825,7 +825,7 @@ class FlowCRUDL(SmartCRUDL):
             flow_variables += [dict(name='step.%s' % v['name'], display=v['display']) for v in contact_variables]
             flow_variables.append(dict(name='flow', display=unicode(_('All flow variables'))))
 
-            flow_id = self.request.REQUEST.get('flow', None)
+            flow_id = self.request.GET.get('flow', None)
 
             if flow_id:
                 # TODO: restrict this to only the possible paths to the passed in actionset uuid
@@ -1065,7 +1065,6 @@ class FlowCRUDL(SmartCRUDL):
 
         def get_context_data(self, *args, **kwargs):
             context = super(FlowCRUDL.Results, self).get_context_data(*args, **kwargs)
-
             flow = self.get_object()
 
             context['rulesets'] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by('y'))
@@ -1097,7 +1096,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # if we are interested in the flow details add that
             flow_json = dict()
-            if request.REQUEST.get('flow', 0):
+            if request.GET.get('flow', 0):
                 flow_json = flow.as_json()
 
             # get our latest start, we might warn the user that one is in progress
@@ -1147,9 +1146,6 @@ class FlowCRUDL(SmartCRUDL):
             Contact.set_simulation(True)
             user = self.request.user
             test_contact = Contact.get_test_contact(user)
-
-            analytics.track(user.username, 'temba.flow_simulated')
-
             flow = self.get_object(self.get_queryset())
 
             if json_dict and json_dict.get('hangup', False):
@@ -1159,14 +1155,18 @@ class FlowCRUDL(SmartCRUDL):
 
             if json_dict and json_dict.get('has_refresh', False):
 
-                lang = request.REQUEST.get('lang', None)
+                lang = request.GET.get('lang', None)
                 if lang:
                     test_contact.language = lang
                     test_contact.save()
 
                 # delete all our steps and messages to restart the simulation
-                runs = FlowRun.objects.filter(contact=test_contact)
+                runs = FlowRun.objects.filter(contact=test_contact).order_by('-modified_on')
                 steps = FlowStep.objects.filter(run__in=runs)
+
+                # if their last simulation was more than a day ago, log this simulation
+                if runs and runs.first().created_on < timezone.now() - timedelta(hours=24):
+                    analytics.track(user.username, 'temba.flow_simulated')
 
                 ActionLog.objects.filter(run__in=runs).delete()
                 Msg.objects.filter(contact=test_contact).delete()
@@ -1274,7 +1274,9 @@ class FlowCRUDL(SmartCRUDL):
             # try to parse our body
             json_string = request.body
 
-            analytics.track(self.request.user.username, 'temba.flow_updated')
+            # if the last modified on this flow is more than a day ago, log that this flow as updated
+            if self.get_object().saved_on < timezone.now() - timedelta(hours=24):
+                analytics.track(self.request.user.username, 'temba.flow_updated')
 
             # try to save the our flow, if this fails, let's let that bubble up to our logger
             json_dict = json.loads(json_string)
