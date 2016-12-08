@@ -1199,17 +1199,18 @@ class KannelHandler(BaseChannelHandler):
 
         # this is a new incoming message
         elif action == 'receive':
+
             sms_id = self.get_param('id')
             sms_ts = self.get_param('ts')
-            sms_message = self.get_param('message')
-            sms_sender = self.get_param('sender')
+            sms_message = request.REQUEST['message']
+            sms_sender = request.REQUEST['sender']
 
             if sms_id is None or sms_ts is None or sms_message is None or sms_sender is None:
                 return HttpResponse("Missing one of 'message', 'sender', 'id' or 'ts' in request parameters.", status=400)
 
             # dates come in the format of a timestamp
-            sms_date = datetime.utcfromtimestamp(int(sms_ts))
-            gmt_date = pytz.timezone('GMT').localize(sms_date)
+            #sms_date = datetime.utcfromtimestamp(int(sms_ts))
+            #gmt_date = pytz.timezone('GMT').localize(sms_date)
 
             urn = URN.from_tel(sms_sender)
             sms = Msg.create_incoming(channel, urn, sms_message)#, date=gmt_date)
