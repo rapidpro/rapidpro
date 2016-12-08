@@ -1780,7 +1780,7 @@ class Channel(TembaModel):
 
         api_url_base = channel.config.get('api_url', cls.VUMI_GO_API_URL)
 
-        url = urlparse.urljoin(api_url_base, "/%s/messages.json" % channel.config['conversation_key'])
+        url = "%s/%s/messages.json" % (api_url_base, channel.config['conversation_key'])
 
         start = time.time()
 
