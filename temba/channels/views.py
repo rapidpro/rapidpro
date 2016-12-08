@@ -787,7 +787,7 @@ class ChannelCRUDL(SmartCRUDL):
         cancel_url = 'id@channels.channel_read'
         title = _("Remove Android")
         success_message = ''
-        form = []
+        fields = ('id',)
 
         def get_success_url(self):
             return reverse('orgs.org_home')
@@ -2579,4 +2579,4 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             queryset = super(ChannelLogCRUDL.Read, self).derive_queryset(**kwargs)
-            return queryset.filter(msg__channel__org=self.request.user.get_org).order_by('-created_on')
+            return queryset.filter(msg__channel__org=self.request.user.get_org()).order_by('-created_on')
