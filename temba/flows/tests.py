@@ -1236,6 +1236,15 @@ class FlowTest(TembaTest):
         sms.text = "this and that and this other thing is good and will match"
         self.assertTest(True, "this that this", test)
 
+        sms.text = "when we win we \U0001F64C @ "
+
+        test = ContainsTest(test=dict(base="\U0001F64C"))
+        self.assertTest(True, "\U0001F64C", test)
+
+        sms.text = "I am \U0001F44D"
+        test = ContainsAnyTest(test=dict(base=u"\U0001F64C \U0001F44D"))
+        self.assertTest(True, "\U0001F44D", test)
+
         sms.text = "text"
 
         test = AndTest([TrueTest(), TrueTest()])
