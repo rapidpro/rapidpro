@@ -2,7 +2,7 @@ from __future__ import absolute_import, unicode_literals
 
 import json
 from datetime import timedelta
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Model
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -459,7 +459,7 @@ class EventFire(Model):
         Should be called anytime a campaign changes.
         """
         from temba.campaigns.tasks import update_event_fires_for_campaign
-        update_event_fires_for_campaign.delay(campaign.pk)
+        transaction.on_commit(lambda: update_event_fires_for_campaign.delay(campaign.pk))
 
     @classmethod
     def do_update_campaign_events(cls, campaign):
@@ -469,7 +469,7 @@ class EventFire(Model):
     @classmethod
     def update_eventfires_for_event(cls, event):
         from temba.campaigns.tasks import update_event_fires
-        update_event_fires.delay(event.pk)
+        transaction.on_commit(lambda: update_event_fires.delay(event.pk))
 
     @classmethod
     def do_update_eventfires_for_event(cls, event):

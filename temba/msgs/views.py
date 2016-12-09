@@ -8,7 +8,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.contrib import messages
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
 from django.template import Context
@@ -325,7 +325,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def post_save(self, obj):
             # fire our send in celery
             from temba.msgs.tasks import send_broadcast_task
-            send_broadcast_task.delay(obj.pk)
+            transaction.on_commit(lambda: send_broadcast_task.delay(obj.pk))
             return obj
 
         def get_form_kwargs(self):
@@ -473,7 +473,7 @@ class MsgCRUDL(SmartCRUDL):
                 for group in groups:
                     export.groups.add(group)
 
-                export_sms_task.delay(export.pk)
+                transaction.on_commit(lambda: export_sms_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
                     messages.info(self.request, _("We are preparing your export. We will e-mail you at %s when "

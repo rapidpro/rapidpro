@@ -18,6 +18,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
@@ -884,7 +885,7 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.channel_type == Channel.TYPE_TWITTER:
                 # notify Mage so that it refreshes this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                notify_mage_task.delay(obj.uuid, MageStreamAction.refresh)
+                transaction.on_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh))
 
             return obj
 

@@ -3,6 +3,7 @@ from __future__ import absolute_import, unicode_literals
 import json
 import six
 
+from django.db import transaction
 from rest_framework import serializers
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.campaigns.models import Campaign, CampaignEvent
@@ -136,7 +137,8 @@ class BroadcastWriteSerializer(WriteSerializer):
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task
-        send_broadcast_task.delay(broadcast.id)
+        transaction.on_commit(lambda: send_broadcast_task.delay(broadcast.id))
+
         return broadcast
 
 

@@ -32,7 +32,6 @@ requests
 mock
 selenium
 unidecode
--e git+http://github.com/nyaruka/django-celery-transactions.git#egg=django-celery-transactions
 stripe
 dj-database-url
 psycopg2

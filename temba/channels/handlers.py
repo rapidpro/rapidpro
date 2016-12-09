@@ -11,6 +11,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
@@ -1491,7 +1492,8 @@ class MageHandler(BaseChannelHandler):
             except ValueError:
                 return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
 
-            fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact), queue='handler')
+            transaction.on_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
+                                                                           queue='handler'))
 
         return JsonResponse(dict(error=None))
 
@@ -1772,8 +1774,9 @@ class FacebookHandler(BaseChannelHandler):
         if request.GET.get('hub.mode') == 'subscribe':
             # verify the token against our secret, if the same return the challenge FB sent us
             if channel.secret == request.GET.get('hub.verify_token'):
-                # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to this webhook result
-                fb_channel_subscribe.apply_async([channel.id], delay=5)
+                # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to
+                # this webhook result
+                transaction.on_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))
 
                 return HttpResponse(request.GET.get('hub.challenge'))
 

@@ -23,8 +23,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, INTERRUPTED
-from temba.msgs.models import OUTGOING
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, INTERRUPTED, WIRED, OUTGOING
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
@@ -45,7 +44,7 @@ from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, S
 from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog, \
     VariableContactAction, UssdAction
 from .flow_migrations import map_actions
-from temba.msgs.models import WIRED
+from .tasks import update_run_expirations_task
 
 
 class FlowTest(TembaTest):
@@ -4729,7 +4728,7 @@ class FlowsTest(FlowFileTest):
         flow.save()
 
         # this normally gets run on FlowCRUDL.Update
-        flow.update_run_expirations()
+        update_run_expirations_task(flow.id)
 
         # check that our run is expired
         run = flow.runs.all()[0]

@@ -4,6 +4,7 @@ import json
 import phonenumbers
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
@@ -1566,7 +1567,8 @@ class BroadcastCreateSerializer(WriteSerializer):
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task
-        send_broadcast_task.delay(broadcast.id)
+        transaction.on_commit(lambda: send_broadcast_task.delay(broadcast.id))
+
         return broadcast
 
 

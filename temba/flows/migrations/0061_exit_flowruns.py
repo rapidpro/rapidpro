@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 from collections import defaultdict
 
-from django.db import migrations, models
+from django.db import migrations, transaction
 from temba.utils import chunk_list
 from django.utils import timezone
 from django.db.models import Count
@@ -42,7 +42,7 @@ def bulk_exit(runs, exit_type, exited_on=None):
         run_objs.update(is_active=False, exited_on=exited_on, exit_type=exit_type, modified_on=modified_on)
 
         # continue the parent flows to continue async
-        continue_parent_flows.delay(ids)
+        transaction.on_commit(lambda: continue_parent_flows.delay(ids))
 
 
 def exit_active_flowruns(Contact, log=False):

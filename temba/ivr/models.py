@@ -1,6 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
-from django.db import models
+from django.db import models, transaction
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from temba.channels.models import ChannelSession
@@ -95,4 +95,4 @@ class IVRCall(ChannelSession):
 
     def start_call(self):
         from temba.ivr.tasks import start_call_task
-        start_call_task.delay(self.pk)
+        transaction.on_commit(lambda: start_call_task.delay(self.pk))

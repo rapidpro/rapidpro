@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
+from django.db import transaction
 from django.db.models import Count, Q, Max
 from django import forms
 from django.http import HttpResponse, HttpResponseRedirect
@@ -629,7 +630,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # run async task to update all runs
             from .tasks import update_run_expirations_task
-            update_run_expirations_task.delay(obj.pk)
+            transaction.on_commit(lambda: update_run_expirations_task.delay(obj.pk))
 
             return obj
 
@@ -1037,7 +1038,7 @@ class FlowCRUDL(SmartCRUDL):
                                                       include_runs=form.cleaned_data['include_runs'],
                                                       include_msgs=form.cleaned_data['include_messages'],
                                                       responded_only=form.cleaned_data['responded_only'])
-                export_flow_results_task.delay(export.pk)
+                transaction.on_commit(lambda: export_flow_results_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):
                     messages.info(self.request,

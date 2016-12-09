@@ -3,11 +3,11 @@ from __future__ import unicode_literals
 import logging
 import time
 
+from celery.app import task
 from datetime import timedelta
 from django.core.cache import cache
 from django.utils import timezone
 from django_redis import get_redis_connection
-from djcelery_transactions import task
 from temba.utils.mage import mage_handle_new_message, mage_handle_new_contact
 from temba.utils.queues import start_task, complete_task, nonoverlapping_task
 from temba.utils import json_date_to_datetime, chunk_list

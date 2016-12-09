@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -360,7 +360,7 @@ class ContactCRUDL(SmartCRUDL):
                     analytics.track(self.request.user.username, 'temba.contact_exported')
 
                 export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
-                export_contacts_task.delay(export.pk)
+                transaction.on_commit(lambda: export_contacts_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
                     messages.info(self.request,
