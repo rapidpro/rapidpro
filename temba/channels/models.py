@@ -1728,7 +1728,7 @@ class Channel(TembaModel):
           </message>
         """
         post_body = post_body.replace("$$FROM$$", quoteattr(channel.address))
-        post_body = post_body.replace("$$TO$$m", escape(msg.urn_path))
+        post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
         post_body = post_body.replace("$$BODY$$", escape(msg.text))
         post_body = post_body.encode('utf8')
 

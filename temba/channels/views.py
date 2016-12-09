@@ -213,7 +213,7 @@ def channel_status_processor(request):
         if not send_channel:
             send_channel = org.get_send_channel(scheme=FACEBOOK_SCHEME)
 
-        # and facebook
+        # and viber
         if not send_channel:
             send_channel = org.get_send_channel(scheme=VIBER_SCHEME)
 
