@@ -6077,7 +6077,7 @@ class ClickatellTest(TembaTest):
 
             with patch('requests.get') as mock:
                 msg.text = "Test message ☺"
-                mock.return_value = MockResponse(200, "000")
+                mock.return_value = MockResponse(200, "ID: 15")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -6086,6 +6086,7 @@ class ClickatellTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
+                self.assertEqual(msg.external_id, "15")
                 params = {'api_id': 'api1',
                           'user': 'uname',
                           'password': 'pword',

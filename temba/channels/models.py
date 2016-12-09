@@ -2019,7 +2019,7 @@ class Channel(TembaModel):
                        recipients=[dict(gsm=msg.urn_path.lstrip('+'))])
 
         # infobip requires that long messages have a different type
-        if len(text) > 160:
+        if len(text) > 160:  # pragma: no cover
             message['type'] = 'longSMS'
 
         payload = {'authentication': dict(username=channel.config['username'], password=channel.config['password']),
@@ -2031,7 +2031,7 @@ class Channel(TembaModel):
 
         try:
             response = requests.post(url, data=json.dumps(payload), headers=headers, timeout=5)
-        except Exception:
+        except Exception:  # pragma: no cover
             try:
                 # we failed to connect, try our backup URL
                 url = BACKUP_API_URL
@@ -2060,7 +2060,7 @@ class Channel(TembaModel):
         messages = response_json['results']
 
         # if it wasn't successfully delivered, throw
-        if int(messages[0]['status']) != 0:
+        if int(messages[0]['status']) != 0:  # pragma: no cover
             raise SendException("Received non-zero status code [%s]" % messages[0]['status'],
                                 url=url,
                                 method='POST',
@@ -2100,7 +2100,7 @@ class Channel(TembaModel):
 
         try:
             response = requests.get(send_url, proxies=OUTGOING_PROXIES, headers=TEMBA_HEADERS, timeout=15)
-            if not response:
+            if not response:  # pragma: no cover
                 raise SendException("Unable to send message",
                                     url=masked_url,
                                     method='GET',
@@ -2118,7 +2118,7 @@ class Channel(TembaModel):
                                     start=start)
 
             # if it wasn't successfully delivered, throw
-            if response.text != "000":
+            if response.text != "000":  # pragma: no cover
                 error = "Unknown error"
                 if response.text == "001":
                     error = "Error 001: Authentication Error"
@@ -2137,7 +2137,7 @@ class Channel(TembaModel):
 
         except SendException as e:
             raise e
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             reason = "Unknown error"
             try:
                 if e.message and e.message.reason:
@@ -2266,7 +2266,7 @@ class Channel(TembaModel):
         callback_url = Channel.build_twilio_callback_url(msg.id)
         start = time.time()
 
-        if channel.channel_type == Channel.TYPE_TWIML:
+        if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
             config = channel.config
             client = TwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN), base=config.get(Channel.CONFIG_SEND_URL))
         else:
@@ -2435,7 +2435,7 @@ class Channel(TembaModel):
 
         try:
             plivo_response_status, plivo_response = client.send_message(params=payload)
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             raise SendException(unicode(e),
                                 method='POST',
                                 url=url,
@@ -3091,7 +3091,7 @@ class SyncEvent(SmartModel):
         os = cmd.get('os', None)
 
         # update our channel if anything is new
-        if channel.device != device or channel.os != os:
+        if channel.device != device or channel.os != os:  # pragma: no cover
             Channel.objects.filter(pk=channel.pk).update(device=device, os=os)
 
         args = dict()
