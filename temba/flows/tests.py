@@ -817,6 +817,42 @@ class FlowTest(TembaTest):
         self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "36",
                                             c1_run1_first, c1_run1_last, "Orange", "orange", "orange"], tz)
 
+    def test_export_results_list_messages_once(self):
+        self.flow.update(self.definition)
+        contact1_run1 = self.flow.start([], [self.contact])[0]
+
+        time.sleep(1)
+
+        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="Red")
+        Flow.find_and_handle(contact1_in1)
+
+        contact1_run1_rs = FlowStep.objects.filter(run=contact1_run1, step_type='R')
+        contact1_out1 = Msg.objects.get(steps__run=contact1_run1, text="What is your favorite color?")
+        contact1_out2 = Msg.objects.get(steps__run=contact1_run1, text="That is a funny color. Try again.")
+
+        # consider msg is also on the second step too to test it is not exported in two rows
+        contact1_run1_rs.last().messages.add(contact1_in1)
+
+        tz = self.org.timezone
+        workbook = self.export_flow_results(self.flow)
+
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+
+        self.assertEqual(len(list(sheet_msgs.rows)), 4)  # header + 2 msgs
+
+        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+
+        self.assertExcelRow(sheet_msgs, 1, [contact1_out1.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out1.created_on, "OUT",
+                                            "What is your favorite color?", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 2, [contact1_run1.contact.uuid, "+250788382382", "Eric",
+                                            contact1_in1.created_on, 'IN', "Red", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 3, [contact1_out2.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out2.created_on, "OUT",
+                                            "That is a funny color. Try again.", "Test Channel"], tz)
+
     def test_export_results_remove_control_characters(self):
         self.flow.update(self.definition)
         contact1_run1 = self.flow.start([], [self.contact])[0]
