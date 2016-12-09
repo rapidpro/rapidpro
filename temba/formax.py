@@ -38,7 +38,7 @@ class Formax(object):
 
         start = time.time()
 
-        open = self.request.REQUEST.get('open', None)
+        open = self.request.GET.get('open', None)
         if open == name:
             action = 'open'
 
