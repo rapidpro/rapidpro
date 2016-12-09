@@ -1487,6 +1487,60 @@ class ChannelTest(TembaTest):
                 mock_delete.assert_called_once_with('https://graph.facebook.com/v2.5/me/subscribed_apps',
                                                     params=dict(access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
 
+    def test_claim_viber_public(self):
+        self.login(self.admin)
+
+        # remove any existing channels
+        Channel.objects.all().delete()
+        url = reverse('channels.channel_claim_viber_public')
+        token = "auth"
+
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(400, json.dumps(dict(status=3, status_message="Invalid token")))]
+            response = self.client.post(url, dict(auth_token=token))
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Error validating authentication token")
+
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, json.dumps(dict(status=3, status_message="Invalid token")))]
+            response = self.client.post(url, dict(auth_token=token))
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Error validating authentication token")
+
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok"))),
+                                MockResponse(400, json.dumps(dict(status=3, status_message="Invalid token")))]
+            response = self.client.post(url, dict(auth_token=token))
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Invalid authentication token")
+
+        # ok this time claim with a success
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok"))),
+                                MockResponse(200, json.dumps(dict(status=0, status_message="ok", id="viberId", uri="viberName"))),
+                                MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
+
+            response = self.client.post(url, dict(auth_token=token), follow=True)
+
+            # assert our channel got created
+            channel = Channel.objects.get()
+            self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], token)
+            self.assertEqual(channel.address, 'viberId')
+            self.assertEqual(channel.name, 'viberName')
+
+            # should have been called with our webhook URL
+            self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
+
+        # remove the channel
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
+            channel.release()
+
+            self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
+
     def test_claim_nexmo(self):
         self.login(self.admin)
 
@@ -8326,9 +8380,16 @@ class ViberPublicTest(TembaTest):
         self.assertEqual(msg.sent_on.date(), date(day=7, month=12, year=2016))
         self.assertEqual(msg.external_id, "4987381189870374000")
 
-    def assertMessageReceived(self, msg_type, payload_name, payload_value, assert_text, assert_media=None):
+    def assertSignedRequest(self, payload):
         from temba.channels.handlers import ViberPublicHandler
 
+        signature = ViberPublicHandler.calculate_sig(payload, "auth_token")
+        response = self.client.post(self.callback_url, payload, content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE=signature)
+
+        self.assertEqual(response.status_code, 200, response.content)
+
+    def assertMessageReceived(self, msg_type, payload_name, payload_value, assert_text, assert_media=None):
         data = {
             "event": "message",
             "timestamp": 1481142112807,
@@ -8347,13 +8408,7 @@ class ViberPublicTest(TembaTest):
         data['message']['type'] = msg_type
         data['message'][payload_name] = payload_value
 
-        body = json.dumps(data)
-        signature = ViberPublicHandler.calculate_sig(body, "auth_token")
-
-        response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
-                                    HTTP_X_VIBER_CONTENT_SIGNATURE=signature)
-
-        self.assertEqual(response.status_code, 200, response.content)
+        self.assertSignedRequest(json.dumps(data))
 
         msg = Msg.objects.get()
         self.assertEqual(msg.text, assert_text)
@@ -8369,6 +8424,70 @@ class ViberPublicTest(TembaTest):
 
     def test_receive_gps(self):
         self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'), 'geo:1.2,-1.3')
+
+    def test_webhook_check(self):
+        data = {
+            "event": "webhook",
+            "timestamp": 4987034606158369000,
+            "message_token": 1481059480858
+        }
+        self.assertSignedRequest(json.dumps(data))
+
+    def test_subscribed(self):
+        data = {
+            "event": "subscribed",
+            "timestamp": 1457764197627,
+            "user": {
+                "id": "01234567890A=",
+                "name": "yarden",
+                "avatar": "http://avatar_url",
+                "country": "IL",
+                "language": "en",
+                "api_version": 1
+            },
+            "message_token": 4912661846655238145
+        }
+        self.assertSignedRequest(json.dumps(data))
+
+        # check that the contact was created
+        contact = Contact.objects.get(org=self.org, urns__path='01234567890A=', urns__scheme=VIBER_SCHEME)
+        self.assertEqual(contact.name, "yarden")
+
+        data = {
+            "event": "unsubscribed",
+            "timestamp": 1457764197627,
+            "user_id": "01234567890A=",
+            "message_token": 4912661846655238145
+        }
+        self.assertSignedRequest(json.dumps(data))
+        contact.refresh_from_db()
+        self.assertTrue(contact.is_stopped)
+
+        # use a user id we haven't seen before
+        data['user_id'] = "01234567890B="
+        self.assertSignedRequest(json.dumps(data))
+
+        # should not create contacts we don't already know about
+        self.assertIsNone(Contact.from_urn(self.org, URN.from_viber("01234567890B=")))
+
+    def test_conversation_started(self):
+        # this is a no-op
+        data = {
+            "event": "conversation_started",
+            "timestamp": 1457764197627,
+            "message_token": 4912661846655238145,
+            "type": "open",
+            "context": "context information",
+            "user": {
+                "id": "01234567890A=",
+                "name": "yarden",
+                "avatar": "http://avatar_url",
+                "country": "IL",
+                "language": "en",
+                "api_version": 1
+            }
+        }
+        self.assertSignedRequest(json.dumps(data))
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="viber:xy5/5y6O81+/kbWHpLhBoA==")

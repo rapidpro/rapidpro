@@ -1082,6 +1082,13 @@ class ChannelCRUDL(SmartCRUDL):
         class ViberClaimForm(forms.ModelForm):
             auth_token = forms.CharField(help_text=_("The authentication token provided by Viber"))
 
+            def clean_auth_token(self):
+                auth_token = self.data['auth_token']
+                response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
+                if response.status_code != 200 or response.json()['status'] != 0:
+                    raise ValidationError("Error validating authentication token: %s" % response.json()['status_message'])
+                return auth_token
+
             class Meta:
                 model = Channel
                 fields = ('auth_token',)
@@ -1092,7 +1099,12 @@ class ChannelCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             data = form.cleaned_data
-            self.object = Channel.add_viber_public_channel(self.request.user.get_org(), self.request.user, data['auth_token'])
+            try:
+                self.object = Channel.add_viber_public_channel(self.request.user.get_org(), self.request.user, data['auth_token'])
+            except Exception as e:
+                form._errors['auth_token'] = form.error_class([unicode(e.message)])
+                return self.form_invalid(form)
+
             return super(ChannelCRUDL.ClaimViberPublic, self).form_valid(form)
 
         @transaction.non_atomic_requests
