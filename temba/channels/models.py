@@ -328,41 +328,37 @@ class Channel(TembaModel):
     @classmethod
     def add_viber_public_channel(cls, org, user, auth_token):
         from temba.contacts.models import VIBER_SCHEME
-        try:
-            response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
-            if response.status_code != 200:  # pragma: no cover
-                raise Exception(_("Invalid authentication token, please check."))
+        response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
+        if response.status_code != 200:  # pragma: no cover
+            raise Exception(_("Invalid authentication token, please check."))
 
-            response_json = response.json()
-            if response_json['status'] != 0:  # pragma: no cover
-                raise Exception(_("Invalid authentication token: %s" % response_json['status_message']))
+        response_json = response.json()
+        if response_json['status'] != 0:  # pragma: no cover
+            raise Exception(_("Invalid authentication token: %s" % response_json['status_message']))
 
-            channel = Channel.create(org, user, None, Channel.TYPE_VIBER_PUBLIC,
-                                     name=response_json['uri'], address=response_json['id'],
-                                     config={Channel.CONFIG_AUTH_TOKEN: auth_token}, scheme=VIBER_SCHEME)
+        channel = Channel.create(org, user, None, Channel.TYPE_VIBER_PUBLIC,
+                                 name=response_json['uri'], address=response_json['id'],
+                                 config={Channel.CONFIG_AUTH_TOKEN: auth_token}, scheme=VIBER_SCHEME)
 
-            # set the webhook for the channel
-            # {
-            #   "auth_token": "4453b6ac1s345678-e02c5f12174805f9-daec9cbb5448c51r",
-            #   "url": "https://my.host.com",
-            #   "event_types": ["delivered", "seen", "failed", "conversation_started"]
-            # }
-            response = requests.post('https://chatapi.viber.com/pa/set_webhook',
-                                     json=dict(auth_token=auth_token,
-                                               url="https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.viber_public_handler', args=[channel.uuid]),
-                                               event_types=['delivered', 'failed', 'conversation_started']))
-            if response.status_code != 200:  # pragma: no cover
-                channel.delete()
-                raise Exception(_("Unable to set webhook for channel: %s", response.text))
+        # set the webhook for the channel
+        # {
+        #   "auth_token": "4453b6ac1s345678-e02c5f12174805f9-daec9cbb5448c51r",
+        #   "url": "https://my.host.com",
+        #   "event_types": ["delivered", "seen", "failed", "conversation_started"]
+        # }
+        response = requests.post('https://chatapi.viber.com/pa/set_webhook',
+                                 json=dict(auth_token=auth_token,
+                                           url="https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.viber_public_handler', args=[channel.uuid]),
+                                           event_types=['delivered', 'failed', 'conversation_started']))
+        if response.status_code != 200:  # pragma: no cover
+            channel.delete()
+            raise Exception(_("Unable to set webhook for channel: %s", response.text))
 
-            response_json = response.json()
-            if response_json['status'] != 0:  # pragma: no cover
-                raise Exception(_("Unable to set Viber webhook: %s" % response_json['status_message']))
+        response_json = response.json()
+        if response_json['status'] != 0:  # pragma: no cover
+            raise Exception(_("Unable to set Viber webhook: %s" % response_json['status_message']))
 
-            return channel
-
-        except Exception as e:
-            raise e
+        return channel
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,

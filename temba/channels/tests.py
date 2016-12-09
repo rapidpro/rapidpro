@@ -8328,7 +8328,7 @@ class ViberPublicTest(TembaTest):
     def test_receive(self):
         # invalid UUID
         response = self.client.post(reverse('handlers.viber_public_handler', args=['00000000-0000-0000-0000-000000000000']))
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
 
         data = {
             "event": "message",

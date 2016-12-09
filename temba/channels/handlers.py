@@ -2111,7 +2111,7 @@ class ViberPublicHandler(BaseChannelHandler):
         # look up the channel
         channel = Channel.objects.filter(uuid=request_uuid, is_active=True, channel_type=Channel.TYPE_VIBER_PUBLIC).exclude(org=None).first()
         if not channel:
-            return HttpResponse("Channel not found for id: %s" % request_uuid, status=400)
+            return HttpResponse("Channel not found for id: %s" % request_uuid, status=200)
 
         # parse our response
         try:
@@ -2128,8 +2128,7 @@ class ViberPublicHandler(BaseChannelHandler):
             return HttpResponse("Invalid signature, ignoring request.", status=400)
 
         if 'event' not in body:
-            return HttpResponse("Missing 'event' in request body.",
-                                status=400)
+            return HttpResponse("Missing 'event' in request body.", status=400)
 
         event = body['event']
 
