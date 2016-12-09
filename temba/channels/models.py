@@ -109,6 +109,7 @@ class Channel(TembaModel):
     CONFIG_CHANNEL_MID = 'channel_mid'
     CONFIG_FCM_KEY = 'FCM_KEY'
     CONFIG_FCM_TITLE = 'FCM_TITLE'
+    CONFIG_FCM_NOTIFICATION = 'FCM_NOTIFICATION'
 
     ENCODING_DEFAULT = 'D'  # we just pass the text down to the endpoint
     ENCODING_SMART = 'S'  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
@@ -337,14 +338,8 @@ class Channel(TembaModel):
         assert Channel.CONFIG_FCM_KEY in data and Channel.CONFIG_FCM_TITLE in data, "%s and %s are required" % (
             Channel.CONFIG_FCM_KEY, Channel.CONFIG_FCM_TITLE)
 
-        existing = Channel.objects.filter(is_active=True, org=org, channel_type=Channel.TYPE_FCM).first()
-        if existing:
-            existing.config = json.dumps(data)
-            existing.save(update_fields=('config',))
-            return existing
-        else:
-            return Channel.create(org, user, None, Channel.TYPE_FCM, name=org.name, address="fcm-%s" % org.slug,
-                                  config=data, scheme=FCM_SCHEME)
+        return Channel.create(org, user, None, Channel.TYPE_FCM, name=data.get(Channel.CONFIG_FCM_TITLE),
+                              address=data.get(Channel.CONFIG_FCM_KEY), config=data, scheme=FCM_SCHEME)
 
     @classmethod
     def add_authenticated_external_channel(cls, org, user, country, phone_number,
@@ -1133,42 +1128,56 @@ class Channel(TembaModel):
         from temba.msgs.models import Msg, WIRED
         start = time.time()
 
-        api_key = channel.config.get(Channel.CONFIG_FCM_KEY) if Channel.CONFIG_FCM_KEY in channel.config else None
+        url = 'https://fcm.googleapis.com/fcm/send'
+        title = channel.config.get(Channel.CONFIG_FCM_TITLE)
+        data = {
+            'data': {
+                'type': 'rapidpro',
+                'title': title,
+                'message': text,
+                'message_id': msg.id
+            },
+            'content_available': False,
+            'to': msg.urn_path,
+            'priority': 'high'
+        }
 
-        if api_key:
-            url = 'https://fcm.googleapis.com/fcm/send'
-            title = channel.config.get(Channel.CONFIG_FCM_TITLE)
-            data_message = {'type': 'rapidpro', 'title': title, 'message': text, 'message_id': msg.id}
-            payload = json.dumps({
-                'data': data_message,
-                'content_available': True,
-                'to': msg.urn_path,
-                'notification': {
-                    "title": title,
-                    'body': data_message['message']
-                },
-                'priority': 'high'
-            })
-            try:
-                headers = {'Content-Type': 'application/json', 'Authorization': 'key=%s' % api_key}
-                headers.update(TEMBA_HEADERS)
-                response = requests.post(url, data=payload, headers=headers, timeout=5)
-                result = json.loads(response.content)
-                if response.status_code == 200 and 'success' in result and result['success'] == 1:
-                    external_id = result.get('multicast_id')
-                    Channel.success(channel, msg, WIRED, start, 'POST', url, payload, response, external_id)
-                else:
-                    raise SendException("Got non-200 response [%d] from Firebase Cloud Messaging" %
-                                        response.status_code,
-                                        method='POST',
-                                        url=url,
-                                        request=payload,
-                                        response=result,
-                                        response_status=response.status_code)
-            except Exception as e:  # pragma: no cover
-                ChannelLog.log_error(msg, e)
-        else:  # pragma: no cover
-            ChannelLog.log_error(msg, "FCM key not found.")
+        if channel.config.get(Channel.CONFIG_FCM_NOTIFICATION):
+            data['notification'] = {
+                'title': title,
+                'body': text
+            }
+            data['content_available'] = True
+
+        payload = json.dumps(data)
+        headers = {'Content-Type': 'application/json',
+                   'Authorization': 'key=%s' % channel.config.get(Channel.CONFIG_FCM_KEY)}
+        headers.update(TEMBA_HEADERS)
+
+        try:
+            response = requests.post(url, data=payload, headers=headers, timeout=5)
+            result = json.loads(response.content) if response.status_code == 200 else None
+        except Exception as e:  # pragma: no cover
+            raise SendException(unicode(e),
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response="",
+                                response_status=503,
+                                start=start)
+
+        if result and 'success' in result and result.get('success') == 1:
+            external_id = result.get('multicast_id')
+            Channel.success(channel, msg, WIRED, start, 'POST', url, payload, response, external_id)
+        else:
+            raise SendException("Got non-200 response [%d] from Firebase Cloud Messaging" %
+                                response.status_code,
+                                method='POST',
+                                url=url,
+                                request=payload,
+                                response=result,
+                                response_status=response.status_code,
+                                start=start)
 
     @classmethod
     def send_jasmin_message(cls, channel, msg, text):

@@ -1889,24 +1889,27 @@ class ChannelCRUDL(SmartCRUDL):
             title = forms.CharField(label=_('Notification title'))
             key = forms.CharField(label=_('FCM Key'),
                                   help_text=_("The KEY generated on Firebase Console when a new app is created."))
+            send_notification = forms.CharField(label=_('Send notification'),
+                                                help_text=_("Check if you want this channel send notification to the "
+                                                             "contacts."),
+                                                widget=forms.CheckboxInput())
 
         form_class = ClaimFcmForm
-        fields = ('title', 'key',)
+        fields = ('title', 'key', 'send_notification',)
         title = _("Connect Firebase Cloud Messaging")
         success_url = "id@channels.channel_configuration"
 
         def form_valid(self, form):
-            org = self.request.user.get_org()
-
-            if not org:  # pragma: no cover
-                raise Exception(_("No org for this user, cannot claim"))
-
             cleaned_data = form.cleaned_data
             data = {
                 Channel.CONFIG_FCM_TITLE: cleaned_data.get('title'),
                 Channel.CONFIG_FCM_KEY: cleaned_data.get('key')
             }
-            self.object = Channel.add_fcm_channel(org=org, user=self.request.user, data=data)
+
+            if cleaned_data.get('send_notification') == 'True':
+                data[Channel.CONFIG_FCM_NOTIFICATION] = True
+
+            self.object = Channel.add_fcm_channel(org=self.request.user.get_org(), user=self.request.user, data=data)
 
             return super(ChannelCRUDL.ClaimFcm, self).form_valid(form)
 
