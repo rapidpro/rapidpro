@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import logging
 import time
 
-from celery.app import task
+from celery.task import task
 from datetime import timedelta
 from django.core.cache import cache
 from django.utils import timezone

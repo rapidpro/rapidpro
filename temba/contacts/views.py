@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError
 from django.http import HttpResponseRedirect, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
@@ -23,7 +23,7 @@ from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartX
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
-from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime
+from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime, on_transaction_commit
 from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG, TEL_SCHEME
 from .models import ExportContactsTask
@@ -360,7 +360,8 @@ class ContactCRUDL(SmartCRUDL):
                     analytics.track(self.request.user.username, 'temba.contact_exported')
 
                 export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
-                transaction.on_commit(lambda: export_contacts_task.delay(export.pk))
+
+                on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
                     messages.info(self.request,
@@ -368,7 +369,6 @@ class ContactCRUDL(SmartCRUDL):
                                   % self.request.user.username)
 
                 else:
-                    export = ExportContactsTask.objects.get(id=export.pk)
                     dl_url = reverse('assets.download', kwargs=dict(type='contact_export', pk=export.pk))
                     messages.info(self.request,
                                   _("Export complete, you can find it here: %s (production users will get an email)")

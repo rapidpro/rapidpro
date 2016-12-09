@@ -18,7 +18,7 @@ from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group
-from django.db import models, connection, transaction
+from django.db import models, connection
 from django.db.models import Q, Count, QuerySet, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _, ungettext_lazy as _n
@@ -34,7 +34,7 @@ from temba.msgs.models import Broadcast, Msg, FLOW, INBOX, INCOMING, QUEUED, INI
 from temba.msgs.models import INTERRUPTED, OUTGOING, UnreachableException
 from temba.orgs.models import Org, Language, UNREAD_FLOW_MSGS, CURRENT_EXPORT_VERSION
 from temba.utils import get_datetime_format, str_to_datetime, datetime_to_str, analytics, json_date_to_datetime
-from temba.utils import chunk_list, clean_string
+from temba.utils import chunk_list, clean_string, on_transaction_commit
 from temba.utils.email import send_template_email, is_valid_address
 from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
@@ -844,7 +844,7 @@ class Flow(TembaModel):
             trigger.release()
 
         # delete our results in the background
-        transaction.on_commit(lambda: delete_flow_results_task.delay(self.id))
+        on_transaction_commit(lambda: delete_flow_results_task.delay(self.id))
 
     def delete_results(self):
         """
@@ -1402,7 +1402,7 @@ class Flow(TembaModel):
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
 
-        transaction.on_commit(lambda: start_flow_task.delay(flow_start.pk))
+        on_transaction_commit(lambda: start_flow_task.delay(flow_start.pk))
 
     def start(self, groups, contacts, restart_participants=False, started_flows=None,
               start_msg=None, extra=None, flow_start=None, parent_run=None, interrupt=True):
@@ -2560,7 +2560,7 @@ class FlowRun(models.Model):
             run_objs.update(is_active=False, exited_on=now, exit_type=exit_type, modified_on=now)
 
             # continue the parent flows to continue async
-            transaction.on_commit(lambda: continue_parent_flows.delay(ids))
+            on_transaction_commit(lambda: continue_parent_flows.delay(ids))
 
     def get_last_msg(self, direction):
         """
@@ -2681,7 +2681,7 @@ class FlowRun(models.Model):
             from .tasks import continue_parent_flows
 
             # we delay this by a second to allow current flow execution to complete (and msgs to be sent)
-            transaction.on_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
+            on_transaction_commit(lambda: continue_parent_flows.apply_async(args=[[self.id]], countdown=1))
 
     def set_interrupted(self, final_step=None):
         """
@@ -4319,7 +4319,7 @@ class FlowStart(SmartModel):
 
     def async_start(self):
         from temba.flows.tasks import start_flow_task
-        transaction.on_commit(lambda: start_flow_task.delay(self.id))
+        on_transaction_commit(lambda: start_flow_task.delay(self.id))
 
     def start(self):
         self.status = FlowStart.STATUS_STARTING
@@ -4539,7 +4539,7 @@ class EmailAction(Action):
 
         if not run.contact.is_test:
             if valid_addresses:
-                transaction.on_commit(lambda: send_email_action_task.delay(valid_addresses, subject, message))
+                on_transaction_commit(lambda: send_email_action_task.delay(valid_addresses, subject, message))
         else:
             if valid_addresses:
                 valid_addresses = ['"%s"' % elt for elt in valid_addresses]

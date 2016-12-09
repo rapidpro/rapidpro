@@ -11,7 +11,6 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
-from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
@@ -25,7 +24,7 @@ from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, INTERRUPTED, OUTGOING
 from temba.triggers.models import Trigger
-from temba.utils import json_date_to_datetime, ms_to_datetime
+from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from .tasks import fb_channel_subscribe
@@ -1492,7 +1491,7 @@ class MageHandler(BaseChannelHandler):
             except ValueError:
                 return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
 
-            transaction.on_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
+            on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
                                                                            queue='handler'))
 
         return JsonResponse(dict(error=None))
@@ -1776,7 +1775,7 @@ class FacebookHandler(BaseChannelHandler):
             if channel.secret == request.GET.get('hub.verify_token'):
                 # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to
                 # this webhook result
-                transaction.on_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))
+                on_transaction_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))
 
                 return HttpResponse(request.GET.get('hub.challenge'))
 

@@ -14,7 +14,7 @@ from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
-from django.db import models, connection, transaction
+from django.db import models, connection
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
 from django.conf import settings
@@ -31,7 +31,7 @@ from smartmin.models import SmartModel
 from temba.nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
 from temba.utils.email import send_template_email
-from temba.utils import analytics, random_string, dict_to_struct, dict_to_json
+from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
 from time import sleep
 from twilio.rest import TwilioRestClient
 from twython import Twython
@@ -590,7 +590,7 @@ class Channel(TembaModel):
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                transaction.on_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate))
+                on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate))
 
         return channel
 
@@ -1028,7 +1028,7 @@ class Channel(TembaModel):
         if notify_mage and self.channel_type == Channel.TYPE_TWITTER:
             # notify Mage so that it deactivates this channel
             from .tasks import MageStreamAction, notify_mage_task
-            transaction.on_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate))
+            on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate))
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
@@ -1044,7 +1044,7 @@ class Channel(TembaModel):
                 if not gcm_id:
                     gcm_id = self.gcm_id
                 if gcm_id:
-                    transaction.on_commit(lambda: sync_channel_task.delay(gcm_id, channel_id=self.pk))
+                    on_transaction_commit(lambda: sync_channel_task.delay(gcm_id, channel_id=self.pk))
 
         # otherwise this is an aggregator, no-op
         else:
