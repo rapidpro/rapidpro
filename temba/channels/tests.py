@@ -1881,7 +1881,7 @@ class ChannelTest(TembaTest):
             self.assertEqual(channel.channel_type, "FCM")
             self.assertEqual(channel.config_json()[Channel.CONFIG_FCM_KEY], 'abcde12345')
             self.assertEqual(channel.config_json()[Channel.CONFIG_FCM_TITLE], 'FCM Channel')
-            self.assertEqual(channel.address, "fcm-%s" % self.org.slug)
+            self.assertEqual(channel.address, "abcde12345")
 
     def test_release(self):
         Channel.objects.all().delete()
@@ -8291,7 +8291,8 @@ class FcmTest(TembaTest):
 
         self.channel.delete()
         self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_FCM, 'FCM Channel', 'fcm-channel',
-                                      config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel'),
+                                      config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel',
+                                                  FCM_NOTIFICATION=True),
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_receive(self):
@@ -8331,7 +8332,7 @@ class FcmTest(TembaTest):
         with self.settings(SEND_MESSAGES=True):
 
             with patch('requests.post') as mock:
-                mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "error": 0 }')
+                mock.return_value = MockResponse(200, '{ "success": 1, "multicast_id": 123456, "failures": 0 }')
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -8340,6 +8341,32 @@ class FcmTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEqual(msg.status, WIRED)
                 self.assertTrue(msg.sent_on)
+
+                data = json.dumps({
+                    'data': {
+                        'type': 'rapidpro',
+                        'title': 'FCM Channel',
+                        'message': 'Hello, world!',
+                        'message_id': msg.id
+                    },
+                    'content_available': True,
+                    'to': '123456abcdef',
+                    'priority': 'high',
+                    'notification': {
+                        'title': 'FCM Channel',
+                        'body': 'Hello, world!'
+                    }
+                })
+                TEMBA_HEADERS.update({
+                    'Content-Type': 'application/json',
+                    'Authorization': 'key=123456789'
+                })
+
+                mock.assert_called_with('https://fcm.googleapis.com/fcm/send',
+                                        data=data,
+                                        headers=TEMBA_HEADERS,
+                                        timeout=5)
+
                 self.clear_cache()
 
             with patch('requests.post') as mock:
