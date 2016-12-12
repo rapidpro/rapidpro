@@ -14,7 +14,7 @@ from openpyxl import load_workbook
 from temba.contacts.models import Contact, ContactField, ContactURN, TEL_SCHEME
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.msgs.models import Msg, ExportMessagesTask, RESENT, FAILED, OUTGOING, PENDING, WIRED, DELIVERED, ERRORED
-from temba.msgs.models import Broadcast, Label, SystemLabel, UnreachableException
+from temba.msgs.models import Broadcast, BroadcastRecipient, Label, SystemLabel, UnreachableException
 from temba.msgs.models import HANDLED, QUEUED, SENT, INCOMING, INBOX, FLOW
 from temba.msgs.tasks import purge_broadcasts_task
 from temba.orgs.models import Language, Debit, Org
@@ -1336,6 +1336,8 @@ class BroadcastTest(TembaTest):
         broadcast2.created_on = long_ago
         broadcast2.save()
 
+        print(repr([{'name': m.contact.name, 'status': m.status} for m in broadcast2.msgs.all()]))
+
         # create a recent broadcast to same contacts
         broadcast3 = Broadcast.create(self.org, self.user, "New broadcast",
                                       [self.joe_and_frank, self.kevin, self.lucy])
@@ -1357,7 +1359,12 @@ class BroadcastTest(TembaTest):
         broadcast5.created_on = long_ago
         broadcast5.save()
 
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 9)
+        # mark all outgoing messages as sent except broadcast #2 to Joe
+        Msg.objects.filter(direction='O').update(status='S')
+        broadcast2.msgs.filter(contact=self.joe).update(status='F')
+
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 8)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 1)
         self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 7)
         self.assertEqual(ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today), 2)
 
@@ -1385,8 +1392,15 @@ class BroadcastTest(TembaTest):
         debit2 = Debit.objects.get(topup__org=self.org2)
         self.assertEqual(debit2.amount, 1)
 
+        # check the recipient records for broadcast #2
+        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.joe).purged_status, FAILED)
+        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.frank).purged_status, SENT)
+        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.kevin).purged_status, SENT)
+        self.assertEqual(BroadcastRecipient.objects.get(broadcast=broadcast2, contact=self.lucy).purged_status, SENT)
+
         # check system label counts have been updated
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 4)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 4)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_FAILED], 0)
 
         # but daily channel counts should be unchanged
         self.assertEqual(ChannelCount.get_day_count(self.channel, ChannelCount.OUTGOING_MSG_TYPE, today), 7)
@@ -1403,7 +1417,8 @@ class BroadcastTest(TembaTest):
         broadcast5.created_on = timezone.now() - timedelta(days=100)
         broadcast5.save()
 
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 8)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 4)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 4)
 
         purge_broadcasts_task()
 
@@ -1413,7 +1428,8 @@ class BroadcastTest(TembaTest):
         # check debits were created and squashed
         self.assertEqual(Debit.objects.get(topup__org=self.org).amount, 9)
 
-        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 4)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_OUTBOX], 0)
+        self.assertEqual(SystemLabel.get_counts(self.org)[SystemLabel.TYPE_SENT], 4)
 
     def test_clear_old_msg_external_ids(self):
         last_month = timezone.now() - timedelta(days=31)
