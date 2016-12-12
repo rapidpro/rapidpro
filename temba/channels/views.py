@@ -18,6 +18,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
@@ -27,7 +28,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
@@ -211,6 +212,10 @@ def channel_status_processor(request):
         # and facebook
         if not send_channel:
             send_channel = org.get_send_channel(scheme=FACEBOOK_SCHEME)
+
+        # and viber
+        if not send_channel:
+            send_channel = org.get_send_channel(scheme=VIBER_SCHEME)
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
@@ -552,7 +557,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1072,6 +1077,39 @@ class ChannelCRUDL(SmartCRUDL):
             self.object.save()
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
+
+    class ClaimViberPublic(OrgPermsMixin, SmartFormView):
+        class ViberClaimForm(forms.ModelForm):
+            auth_token = forms.CharField(help_text=_("The authentication token provided by Viber"))
+
+            def clean_auth_token(self):
+                auth_token = self.data['auth_token']
+                response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
+                if response.status_code != 200 or response.json()['status'] != 0:
+                    raise ValidationError("Error validating authentication token: %s" % response.json()['status_message'])
+                return auth_token
+
+            class Meta:
+                model = Channel
+                fields = ('auth_token',)
+
+        title = _("Connect Public Viber Channel")
+        form_class = ViberClaimForm
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+            data = form.cleaned_data
+            try:
+                self.object = Channel.add_viber_public_channel(self.request.user.get_org(), self.request.user, data['auth_token'])
+            except Exception as e:
+                form._errors['auth_token'] = form.error_class([unicode(e.message)])
+                return self.form_invalid(form)
+
+            return super(ChannelCRUDL.ClaimViberPublic, self).form_valid(form)
+
+        @transaction.non_atomic_requests
+        def dispatch(self, request, *args, **kwargs):
+            return super(ChannelCRUDL.ClaimViberPublic, self).dispatch(request, *args, **kwargs)
 
     class ClaimKannel(OrgPermsMixin, SmartFormView):
         class KannelClaimForm(forms.Form):
