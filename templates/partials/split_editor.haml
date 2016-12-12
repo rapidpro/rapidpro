@@ -112,7 +112,7 @@
             Enter the URL to call out to at this point in the flow.
 
         %select{ng-model:"formData.webhook_action",ng-options:"method for method in methods",style:"height:34px;width:95px",class:"method",select2:""}
-        %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url", maxlength:"255"}
+        %input{ng-model:"formData.webhook",placeholder:"http://yourwebsite.com/endpoint",auto-complete:"",ng-required:"true",type:"url",class:"url"}
         .help-text
           -blocktrans
             We'll include the message text along with data specified in

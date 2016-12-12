@@ -331,9 +331,6 @@ class ContactCRUDL(SmartCRUDL):
     class Export(OrgPermsMixin, SmartXlsView):
 
         def render_to_response(self, context, **response_kwargs):
-
-            analytics.track(self.request.user.username, 'temba.contact_exported')
-
             user = self.request.user
             org = user.get_org()
 
@@ -358,6 +355,10 @@ class ContactCRUDL(SmartCRUDL):
 
             # otherwise, off we go
             else:
+                previous_export = ExportContactsTask.objects.filter(org=org, created_by=user).order_by('-modified_on').first()
+                if previous_export and previous_export.created_on < timezone.now() - timedelta(hours=24):
+                    analytics.track(self.request.user.username, 'temba.contact_exported')
+
                 export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
                 export_contacts_task.delay(export.pk)
 
@@ -581,12 +582,22 @@ class ContactCRUDL(SmartCRUDL):
         fields = ('csv_file',)
         success_message = ''
 
+        def pre_save(self, task):
+            super(ContactCRUDL.Import, self).pre_save(task)
+
+            previous_import = ImportTask.objects.filter(created_by=self.request.user).order_by('-created_on').first()
+            if previous_import and previous_import.created_on < timezone.now() - timedelta(hours=24):
+                analytics.track(self.request.user.username, 'temba.contact_imported')
+
+            return task
+
         def post_save(self, task):
             # configure import params with current org and timezone
             org = self.derive_org()
             params = dict(org_id=org.id, timezone=six.text_type(org.timezone), extra_fields=[], original_filename=self.form.cleaned_data['csv_file'].name)
             params_dump = json.dumps(params)
             ImportTask.objects.filter(pk=task.pk).update(import_params=params_dump)
+
             return task
 
         def get_form_kwargs(self):
@@ -599,8 +610,6 @@ class ContactCRUDL(SmartCRUDL):
             context['task'] = None
             context['group'] = None
             context['show_form'] = True
-
-            analytics.track(self.request.user.username, 'temba.contact_imported')
 
             task_id = self.request.GET.get('task', None)
             if task_id:
@@ -1249,7 +1258,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             sorted_results.insert(0, dict(key='groups', label='Groups'))
 
-            for config in URN_SCHEME_CONFIG:
+            for config in reversed(URN_SCHEME_CONFIG):
                 sorted_results.insert(0, dict(key=config[3], label=unicode(config[1])))
 
             sorted_results.insert(0, dict(key='name', label='Full name'))

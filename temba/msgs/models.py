@@ -864,9 +864,9 @@ class Msg(models.Model):
         msg.error_count += 1
         if msg.error_count >= 3 or fatal:
             if isinstance(msg, Msg):
-                msg.fail()
+                msg.status_fail()
             else:
-                Msg.objects.select_related('org').get(pk=msg.id).fail()
+                Msg.objects.select_related('org').get(pk=msg.id).status_fail()
 
             if channel:
                 analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
@@ -1157,7 +1157,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, media=None, msg_type=None, topup=None):
+                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1213,7 +1213,8 @@ class Msg(models.Model):
                         direction=INCOMING,
                         msg_type=msg_type,
                         media=media,
-                        status=status)
+                        status=status,
+                        external_id=external_id)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1428,9 +1429,9 @@ class Msg(models.Model):
 
         return contact, contact_urn
 
-    def fail(self):
+    def status_fail(self):
         """
-        Fails this message, provided it is currently not failed
+        Update the message status to FAILED
         """
         self.status = FAILED
         self.modified_on = timezone.now()
