@@ -1032,7 +1032,14 @@ class Flow(TembaModel):
             if count:
                 active[key[key.rfind(':') + 1:]] = count
 
-        return (active, self.get_visit_counts())
+        # visited path
+        visited = r.hgetall(self.get_stats_cache_key(FlowStatsCache.visit_count_map))
+
+        # make sure our counts are treated as ints for consistency
+        for k, v in visited.items():
+            visited[k] = int(v)
+
+        return (active, visited)
 
     def get_total_runs(self):
         return FlowRunCount.run_count(self)
@@ -3638,6 +3645,11 @@ class FlowPathCount(models.Model):
         if not last_squash:
             last_squash = 0
 
+        # insert our new top squashed id
+        max_id = FlowPathCount.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(FlowPathCount.LAST_SQUASH_KEY, max_id.id)
+
         # get the unique ids for all new ones
         start = time.time()
         squash_count = 0
@@ -3650,11 +3662,6 @@ class FlowPathCount(models.Model):
                 c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period))
 
             squash_count += 1
-
-        # insert our new top squashed id
-        max_id = FlowPathCount.objects.all().order_by('-id').first()
-        if max_id:
-            r.set(FlowPathCount.LAST_SQUASH_KEY, max_id.id)
 
         print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
 
