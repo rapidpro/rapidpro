@@ -162,27 +162,27 @@ $$ LANGUAGE plpgsql;
 -- Keeps track of our flowpathcounts as steps are updated
 ----------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION temba_update_flowpathcount() RETURNS TRIGGER AS $$
+DECLARE is_test boolean;
 BEGIN
-
-
 
   -- FlowStep being added, increment if next is set
   IF TG_OP = 'INSERT' THEN
-    IF NOT temba_flows_contact_is_test(NEW.contact_id) AND NEW.next_uuid IS NOT NULL AND NEW.left_on IS NOT NULL THEN
+    IF NEW.next_uuid IS NOT NULL AND NEW.left_on IS NOT NULL AND NOT temba_flows_contact_is_test(NEW.contact_id) THEN
       PERFORM temba_insert_flowpathcount(temba_flow_for_run(NEW.run_id), temba_step_from_uuid(NEW), uuid(NEW.next_uuid), NEW.left_on, 1);
     END IF;
 
   -- FlowStep being removed
   ELSIF TG_OP = 'DELETE' THEN
-    IF NOT temba_flows_contact_is_test(OLD.contact_id) AND OLD.next_uuid IS NOT NULL AND OLD.left_on IS NOT NULL THEN
+    IF OLD.next_uuid IS NOT NULL AND OLD.left_on IS NOT NULL AND NOT temba_flows_contact_is_test(OLD.contact_id) THEN
       PERFORM temba_insert_flowpathcount(temba_flow_for_run(OLD.run_id), temba_step_from_uuid(OLD), uuid(OLD.next_uuid), OLD.left_on, -1);
     END IF;
   -- FlowStep being updated
   ELSIF TG_OP = 'UPDATE' THEN
-    IF NOT temba_flows_contact_is_test(OLD.contact_id) AND OLD.next_uuid IS NOT NULL THEN
+    is_test = temba_flows_contact_is_test(OLD.contact_id);
+    IF NOT is_test AND OLD.next_uuid IS NOT NULL THEN
       PERFORM temba_insert_flowpathcount(temba_flow_for_run(OLD.run_id), temba_step_from_uuid(OLD), uuid(OLD.next_uuid), OLD.left_on, -1);
     END IF;
-    IF NOT temba_flows_contact_is_test(NEW.contact_id) AND NEW.next_uuid IS NOT NULL THEN
+    IF NOT is_test AND NEW.next_uuid IS NOT NULL THEN
       PERFORM temba_insert_flowpathcount(temba_flow_for_run(NEW.run_id), temba_step_from_uuid(NEW), uuid(NEW.next_uuid), NEW.left_on, 1);
     END IF;
 

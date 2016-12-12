@@ -165,8 +165,6 @@ CREATE OR REPLACE FUNCTION temba_update_flowpathcount() RETURNS TRIGGER AS $$
 DECLARE is_test boolean;
 BEGIN
 
-
-
   -- FlowStep being added, increment if next is set
   IF TG_OP = 'INSERT' THEN
     IF NEW.next_uuid IS NOT NULL AND NEW.left_on IS NOT NULL AND NOT temba_flows_contact_is_test(NEW.contact_id) THEN
