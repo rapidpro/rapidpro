@@ -2885,7 +2885,7 @@ class ChannelCount(models.Model):
         count = ChannelCount.objects.filter(channel=channel, count_type=count_type, day=day)
         count = count.order_by('day', 'count_type').aggregate(count_sum=Sum('count'))
 
-        return 0 if not count else count['count_sum']
+        return count['count_sum'] if count['count_sum'] is not None else 0
 
     @classmethod
     def squash_counts(cls):
