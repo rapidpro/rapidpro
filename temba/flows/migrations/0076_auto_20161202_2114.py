@@ -79,7 +79,7 @@ def do_populate(Contact, FlowRun, FlowStep, FlowPathCount):
         if last_add == 0:
             last_id = MAX_INT
 
-        query = "SELECT fr.flow_id as \"flow_id\", step_uuid, next_uuid, rule_uuid, count(*), date_trunc('hour', left_on) as \"period\" "
+        query = "SELECT max(fs.id) as max_id, fr.flow_id as \"flow_id\", step_uuid, next_uuid, rule_uuid, count(*), date_trunc('hour', left_on) as \"period\" "
         query += "FROM flows_flowstep fs, flows_flowrun fr, contacts_contact c "
         query += "WHERE fs.run_id = fr.id AND fs.contact_id = c.id AND c.is_test = False "
         query += "AND fs.id > %s AND fs.id <= %s AND fs.next_uuid IS NOT NULL GROUP BY fr.flow_id, fs.step_uuid, fs.next_uuid, fs.rule_uuid, period;"
@@ -88,10 +88,14 @@ def do_populate(Contact, FlowRun, FlowStep, FlowPathCount):
             cursor.execute(query, [highpoint, last_id])
             results = dictfetchall(cursor)
 
+            max_id = 0
             for result in results:
                 from_uuid = result.get('rule_uuid')
                 if not from_uuid:
                     from_uuid = result.get('step_uuid')
+
+                if max_id < result.get('max_id'):
+                    max_id = result.get('max_id')
 
                 counts.append(FlowPathCount(flow_id=result.get('flow_id'),
                                             from_uuid=from_uuid,
@@ -101,11 +105,15 @@ def do_populate(Contact, FlowRun, FlowStep, FlowPathCount):
 
             FlowPathCount.objects.bulk_create(counts)
             last_add = len(counts)
-            print 'Added %d counts' % len(counts)
+            print 'Added %d counts (Max: %d)' % (len(counts), max_id)
+
+            if max_id > 0:
+                r.set(HIGHPOINT_KEY, max_id)
+
             counts = []
             squash_counts(FlowPathCount)
             highpoint += CHUNK_SIZE
-            r.set(HIGHPOINT_KEY, highpoint)
+
 
 def apply_manual():
     from temba.flows.models import FlowRun, FlowStep, FlowPathCount
