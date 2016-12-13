@@ -5681,13 +5681,11 @@ class TwilioTest(TembaTest):
 
             response = self.client.get(reverse('channels.channellog_list') + "?channel=%d" % (self.channel.pk))
 
-            # there should be two log items for the two times we sent
+            # there should be three log items for the three times we sent
             self.assertEquals(3, len(response.context['channellog_list']))
 
-            # of items on this page should be right as well
+            # number of items on this page should be right as well
             self.assertEquals(3, response.context['paginator'].count)
-
-            # the counts on our relayer should be correct as well
             self.assertEquals(2, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
