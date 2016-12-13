@@ -130,6 +130,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        InstallSQL('0076_flows_pre'),
         migrations.RunPython(apply_as_migration),
         InstallSQL('0076_flows')
     ]
