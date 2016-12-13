@@ -104,8 +104,8 @@ def do_populate(Contact, FlowRun, FlowStep, FlowPathCount):
             print 'Added %d counts' % len(counts)
             counts = []
             squash_counts(FlowPathCount)
-            r.set(HIGHPOINT_KEY, highpoint)
             highpoint += CHUNK_SIZE
+            r.set(HIGHPOINT_KEY, highpoint)
 
 def apply_manual():
     from temba.flows.models import FlowRun, FlowStep, FlowPathCount
