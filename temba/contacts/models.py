@@ -482,15 +482,21 @@ class Contact(TembaModel):
         """
         from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
-        from temba.msgs.models import Msg
+        from temba.msgs.models import Msg, BroadcastRecipient
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
-        broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gte=after, created_on__lt=before)
-        for broadcast in broadcasts:
+        recipients = BroadcastRecipient.objects.filter(contact=self)
+        recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
+        recipients = recipients.select_related('broadcast', 'contact')
+        broadcasts = []
+        for recipient in recipients:
+            broadcast = recipient.broadcast
             broadcast.translated_text = broadcast.get_translated_text(contact=self, org=self.org)
+            broadcast.purged_status = recipient.purged_status
+            broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
