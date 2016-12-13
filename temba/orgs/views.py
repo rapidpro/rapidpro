@@ -1179,19 +1179,22 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_manage(self, obj):
             if obj.parent:
-                return '<a href="%s?org=%s"><div class="btn btn-tiny">Manage Accounts</div></a>' % (reverse('orgs.org_manage_accounts_sub_org'), obj.id)
+                return mark_safe('<a href="%s?org=%s"><div class="btn btn-tiny">Manage Accounts</div></a>'
+                                 % (reverse('orgs.org_manage_accounts_sub_org'), obj.id))
             return ''
 
         def get_credits(self, obj):
             credits = obj.get_credits_remaining()
-            return '<div class="edit-org" data-url="%s?org=%d"><div class="num-credits">%s</div></div>' % (reverse('orgs.org_edit_sub_org'), obj.id, format(credits, ",d"))
+            return mark_safe('<div class="edit-org" data-url="%s?org=%d"><div class="num-credits">%s</div></div>'
+                             % (reverse('orgs.org_edit_sub_org'), obj.id, format(credits, ",d")))
 
         def get_name(self, obj):
             org_type = 'child'
             if not obj.parent:
                 org_type = 'parent'
 
-            return "<div class='%s-org-name'>%s</div><div class='org-timezone'>%s</div>" % (org_type, obj.name, obj.timezone)
+            return mark_safe("<div class='%s-org-name'>%s</div><div class='org-timezone'>%s</div>"
+                             % (org_type, obj.name, obj.timezone))
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.SubOrgs, self).derive_queryset(**kwargs)
