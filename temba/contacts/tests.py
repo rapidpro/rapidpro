@@ -1392,6 +1392,10 @@ class ContactTest(TembaTest):
         from temba.msgs.models import Broadcast
         msg.broadcast = Broadcast.create(self.org, self.admin, 'Test message', [])
         msg.broadcast.recipient_count = 5
+        msg.status = 'F'
+        self.assertEquals('<span class="glyph icon-bubble-notification"></span>', activity_icon(msg))
+
+        msg.status = 'S'
         self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
 
     def test_media_tags(self):
