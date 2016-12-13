@@ -136,9 +136,15 @@ def extension(url):
 @register.filter
 def activity_icon(item):
     name = type(item).__name__
-    if name == 'Msg':
+
+    if name == 'Broadcast':
+        if item.purged_status in ('E', 'F'):
+            name = 'Failed'
+    elif name == 'Msg':
         if item.broadcast and item.broadcast.recipient_count > 1:
             name = 'Broadcast'
+            if item.status in ('E', 'F'):
+                name = 'Failed'
         elif item.msg_type == 'V':
             if item.direction == 'I':
                 name = 'DTMF'
