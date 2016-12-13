@@ -490,7 +490,7 @@ class Contact(TembaModel):
         # we also include in the timeline purged broadcasts with a best guess at the translation used
         recipients = BroadcastRecipient.objects.filter(contact=self)
         recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
-        recipients = recipients.select_related('broadcast', 'contact')
+        recipients = recipients.select_related('broadcast')
         broadcasts = []
         for recipient in recipients:
             broadcast = recipient.broadcast
