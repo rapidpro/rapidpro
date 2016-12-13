@@ -25,5 +25,6 @@ class Migration(migrations.Migration):
         migrations.AlterIndexTogether(
             name='flowpathcount',
             index_together=set([('flow', 'from_uuid', 'to_uuid', 'period')]),
-        )
+        ),
+        InstallSQL('0075_flows')
     ]
