@@ -437,6 +437,7 @@ PERMISSIONS = {
                          'claim_twitter',
                          'claim_verboice',
                          'claim_viber',
+                         'claim_viber_public',
                          'create_viber',
                          'claim_vumi',
                          'claim_vumi_ussd',
@@ -667,6 +668,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_viber',
+        'channels.channel_claim_viber_public',
         'channels.channel_create_viber',
         'channels.channel_claim_vumi',
         'channels.channel_claim_vumi_ussd',
@@ -803,6 +805,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_viber',
+        'channels.channel_claim_viber_public',
         'channels.channel_create_viber',
         'channels.channel_claim_vumi',
         'channels.channel_claim_vumi_ussd',
@@ -1006,6 +1009,10 @@ CELERYBEAT_SCHEDULE = {
     },
     "squash-flowruncounts": {
         'task': 'squash_flowruncounts',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-flowpathcounts": {
+        'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
     "squash-channelcounts": {
