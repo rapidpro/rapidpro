@@ -22,7 +22,7 @@ django-compressor==2.1
 django-countries==3.4.1
 django-debug-toolbar==1.2.2
 django-digest==1.13
-django-extensions==1.5.7
+django-extensions==1.7.5
 django-guardian==1.4.2
 django-hstore==1.3.5
 -e git+http://github.com/nyaruka/django-modeltranslation.git@dffebc9363297d77d91c99d46e8e53b32dc05e61#egg=django_modeltranslation

@@ -22,6 +22,7 @@ from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.http import urlquote
+from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
@@ -816,7 +817,8 @@ class OrgCRUDL(SmartCRUDL):
             return response
 
     class Manage(SmartListView):
-        fields = ('credits', 'used', 'name', 'owner', 'created_on')
+        fields = ('credits', 'used', 'name', 'owner', 'service', 'created_on')
+        field_config = {'service': {'label': ''}}
         default_order = ('-credits', '-created_on',)
         search_fields = ('name__icontains', 'created_by__email__iexact', 'config__icontains')
         link_fields = ('name', 'owner')
@@ -833,31 +835,34 @@ class OrgCRUDL(SmartCRUDL):
                 used_class = 'used-warning'
             if used_pct >= 90:
                 used_class = 'used-alert'
-            return "<div class='used-pct %s'>%d%%</div>" % (used_class, used_pct)
+            return mark_safe("<div class='used-pct %s'>%d%%</div>" % (used_class, used_pct))
 
         def get_credits(self, obj):
             if not obj.credits:
                 obj.credits = 0
-            return "<div class='num-credits'><a href='%s'>%s</a></div>" % (reverse('orgs.topup_manage') + "?org=%d" % obj.id,
-                                                                           format(obj.credits, ",d"))
+            return mark_safe("<div class='num-credits'><a href='%s'>%s</a></div>"
+                             % (reverse('orgs.topup_manage') + "?org=%d" % obj.id, format(obj.credits, ",d")))
 
         def get_owner(self, obj):
-            owner = obj.latest_admin()
-
             # default to the created by if there are no admins
-            if not owner:
-                owner = obj.created_by
+            owner = obj.latest_admin() or obj.created_by
 
+            return mark_safe("<div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>"
+                             % (owner.first_name, owner.last_name, owner))
+
+        def get_service(self, obj):
             url = reverse('orgs.org_service')
-            return "<a href='%s?organization=%d' class='service posterize btn btn-tiny'>Service</a><div class='owner-name'>%s %s</div>" \
-                   "<div class='owner-email'>%s</div>" % (url, obj.id, owner.first_name, owner.last_name, owner)
+
+            return mark_safe("<a href='%s?organization=%d' class='service posterize btn btn-tiny'>Service</a>"
+                             % (url, obj.id))
 
         def get_name(self, obj):
             suspended = ''
             if obj.is_suspended():
                 suspended = '<span class="suspended">(Suspended)</span>'
 
-            return "<div class='org-name'>%s %s</div><div class='org-timezone'>%s</div>" % (suspended, obj.name, obj.timezone)
+            return mark_safe("<div class='org-name'>%s %s</div><div class='org-timezone'>%s</div>"
+                             % (suspended, obj.name, obj.timezone))
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.Manage, self).derive_queryset(**kwargs)
