@@ -116,7 +116,7 @@ class InboxView(OrgPermsMixin, SmartListView):
         org = self.request.user.get_org()
         counts = SystemLabel.get_counts(org)
 
-        system_label = getattr(self, 'system_label')
+        system_label = getattr(self, 'system_label', None)
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging

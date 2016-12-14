@@ -50,9 +50,7 @@
               - for folder in folders
                 %li{'class': '{% if request.path == folder.url %}active{% endif %}' }
                   %a{'href':'={folder.url}'}
-                    ={folder.label}
-                    -if folder.count >= 0
-                      ({{ folder.count | intcomma }})
+                    ={folder.label} {% if folder.count >= 0 %}({{ folder.count | intcomma }}){% endif %}
 
               - if labels
                 %li.nav-header
@@ -219,15 +217,6 @@
 -block post-content
   - if org_perms.msgs.broadcast_send
     -include "msgs/msg_send_modal.haml"
-
--block extra-style
-  {{ block.super }}
-  :css
-    {% if hide_paginator_count %}
-    .pagination-text {
-      display: none
-    }
-    {% endif %}
 
 -block extra-script
   {{ block.super }}
