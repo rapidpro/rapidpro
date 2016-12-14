@@ -1261,7 +1261,7 @@ class NCCOTest(TembaTest):
                                                               bargeIn=False),
                                                          dict(format='wav', eventMethod='post',
                                                               eventUrl=['http://example.com'],
-                                                              endOnSilence='4', timeOut='60',
+                                                              endOnSilence='4', timeOut='60', endOnKey='#',
                                                               action='record', beepStart=True),
                                                          dict(action='input', maxDigits=1, timeOut=1,
                                                               eventUrl=["%s?save_media=1" % "http://example.com"]),
@@ -1316,7 +1316,7 @@ class NCCOTest(TembaTest):
         response.record()
 
         self.assertEqual(json.loads(unicode(response)), [dict(format='wav', endOnSilence='4', beepStart=True,
-                                                              action='record'),
+                                                              action='record', endOnKey='#'),
                                                          dict(action='input', maxDigits=1, timeOut=1,
                                                               eventUrl=["None?save_media=1"])
                                                          ])
@@ -1326,7 +1326,7 @@ class NCCOTest(TembaTest):
 
         self.assertEqual(json.loads(unicode(response)), [dict(format='wav', eventMethod='post',
                                                               eventUrl=['http://example.com'],
-                                                              endOnSilence='4', timeOut='60',
+                                                              endOnSilence='4', timeOut='60', endOnKey='#',
                                                               action='record', beepStart=True),
                                                          dict(action='input', maxDigits=1, timeOut=1,
                                                               eventUrl=["%s?save_media=1" % "http://example.com"])

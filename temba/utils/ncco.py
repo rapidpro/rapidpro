@@ -94,7 +94,7 @@ class Response(object):
         return self
 
     def record(self, **kwargs):
-        result = dict(format='wav', endOnSilence='4', beepStart=True, action='record')
+        result = dict(format='wav', endOnSilence='4', endOnKey='#', beepStart=True, action='record')
 
         if kwargs.get('maxLength', False):
             result['timeOut'] = str(kwargs.get('maxLength'))
