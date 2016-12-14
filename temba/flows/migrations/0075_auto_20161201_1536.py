@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-
+from temba.sql import InstallSQL
 
 class Migration(migrations.Migration):
 
@@ -25,5 +25,6 @@ class Migration(migrations.Migration):
         migrations.AlterIndexTogether(
             name='flowpathcount',
             index_together=set([('flow', 'from_uuid', 'to_uuid', 'period')]),
-        )
+        ),
+        InstallSQL('0075_flows')
     ]

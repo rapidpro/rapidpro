@@ -2,22 +2,13 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-from django.db.models import Func, Value, Count
 from django_redis import get_redis_connection
 from django.db import connection
-from temba.utils import chunk_list
 from temba.sql import InstallSQL
-import time
 
 HIGHPOINT_KEY = 'flowpathcount_backfill_highpoint'
 CHUNK_SIZE = 200000
 MAX_INT = 2147483647
-LAST_SQUASH_KEY = 'last_flowpathcount_squash'
-
-class DateTrunc(Func):
-    function = 'DATE_TRUNC'
-    def __init__(self, trunc_type, field_expression, **extra):
-        super(DateTrunc, self).__init__(Value(trunc_type), field_expression, **extra)
 
 def dictfetchall(cursor):
     "Return all rows from a cursor as a dict"
@@ -27,34 +18,11 @@ def dictfetchall(cursor):
         for row in cursor.fetchall()
     ]
 
-def squash_counts(FlowPathCount):
-    # get the id of the last count we squashed
-    r = get_redis_connection()
-    last_squash = r.get(LAST_SQUASH_KEY)
-    if not last_squash:
-        last_squash = 0
-
-    # get the unique ids for all new ones
-    start = time.time()
-    squash_count = 0
-
-    for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'period') \
-            .distinct('flow_id', 'from_uuid', 'to_uuid', 'period'):
-        # perform our atomic squash in SQL by calling our squash method
-        with connection.cursor() as c:
-            c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s);",
-                      (count.flow_id, count.from_uuid, count.to_uuid, count.period))
-
-        squash_count += 1
-
-    # insert our new top squashed id
-    max_id = FlowPathCount.objects.all().order_by('-id').first()
-    if max_id:
-        r.set(LAST_SQUASH_KEY, max_id.id)
-
-    print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
-
-def do_populate(Contact, FlowRun, FlowStep, FlowPathCount):
+def apply_as_migration(apps, schema_editor):
+    FlowRun = apps.get_model('flows', 'FlowRun')
+    FlowStep = apps.get_model('flows', 'FlowStep')
+    FlowPathCount = apps.get_model('flows', 'FlowPathCount')
+    Contact = apps.get_model('contacts', 'Contact')
 
     r = get_redis_connection()
 
@@ -111,31 +79,16 @@ def do_populate(Contact, FlowRun, FlowStep, FlowPathCount):
                 r.set(HIGHPOINT_KEY, max_id)
 
             counts = []
-            squash_counts(FlowPathCount)
             highpoint += CHUNK_SIZE
-
-
-def apply_manual():
-    from temba.flows.models import FlowRun, FlowStep, FlowPathCount
-    from temba.contacts.models import Contact
-
-    do_populate(Contact, FlowRun, FlowStep, FlowPathCount)
-
-def apply_as_migration(apps, schema_editor):
-    FlowRun = apps.get_model('flows', 'FlowRun')
-    FlowStep = apps.get_model('flows', 'FlowStep')
-    FlowPathCount = apps.get_model('flows', 'FlowPathCount')
-    Contact = apps.get_model('contacts', 'Contact')
-
-    do_populate(Contact, FlowRun, FlowStep, FlowPathCount)
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0075_auto_20161201_1536'),
+        ('flows', '0076_auto_20161202_2114'),
     ]
 
     operations = [
-        migrations.RunPython(apply_as_migration)
+        migrations.RunPython(apply_as_migration),
+        InstallSQL('0077_flows')
     ]
