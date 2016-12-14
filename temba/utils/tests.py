@@ -319,14 +319,104 @@ class CacheTest(TembaTest):
 class EmailTest(TembaTest):
 
     def test_is_valid_address(self):
-        self.assertFalse(is_valid_address(None))
-        self.assertFalse(is_valid_address(""))
-        self.assertFalse(is_valid_address("abc"))
-        self.assertFalse(is_valid_address("a@b"))
-        self.assertFalse(is_valid_address(" @ .c"))
-        self.assertFalse(is_valid_address("a @b.c"))
-        self.assertTrue(is_valid_address("a@b.c"))
-        self.assertTrue(is_valid_address('"Abc@def"+label@example.com'))
+
+        self.VALID_EMAILS = [
+
+            # Cases from https://en.wikipedia.org/wiki/Email_address
+            'prettyandsimple@example.com',
+            'very.common@example.com',
+            'disposable.style.email.with+symbol@example.com',
+            'other.email-with-dash@example.com',
+            'x@example.com',
+            '"much.more unusual"@example.com',
+            '"very.unusual.@.unusual.com"@example.com'
+            '"very.(),:;<>[]\".VERY.\"very@\\ \"very\".unusual"@strange.example.com',
+            'example-indeed@strange-example.com',
+            "#!$%&'*+-/=?^_`{}|~@example.org",
+            '"()<>[]:,;@\\\"!#$%&\'-/=?^_`{}| ~.a"@example.org'
+            '" "@example.org',
+            'example@localhost',
+            'example@s.solutions',
+
+
+            # Cases from Django tests
+            'email@here.com',
+            'weirder-email@here.and.there.com',
+            'email@[127.0.0.1]',
+            'email@[2001:dB8::1]',
+            'email@[2001:dB8:0:0:0:0:0:1]',
+            'email@[::fffF:127.0.0.1]',
+            'example@valid-----hyphens.com',
+            'example@valid-with-hyphens.com',
+            'test@domain.with.idn.tld.उदाहरण.परीक्षा',
+            'email@localhost',
+            '"test@test"@example.com',
+            'example@atm.%s' % ('a' * 63),
+            'example@%s.atm' % ('a' * 63),
+            'example@%s.%s.atm' % ('a' * 63, 'b' * 10),
+            '"\\\011"@here.com',
+            'a@%s.us' % ('a' * 63)
+        ]
+
+        self.INVALID_EMAILS = [
+
+            # Cases from https://en.wikipedia.org/wiki/Email_address
+            None,
+            "",
+            "abc",
+            "a@b",
+            " @ .c",
+            "a @b.c",
+            "{@flow.email}",
+            'Abc.example.com',
+            'A@b@c@example.com',
+            'a"b(c)d,e:f;g<h>i[j\k]l@example.com'
+            'just"not"right@example.com'
+            'this is"not\allowed@example.com'
+            'this\ still\"not\\allowed@example.com'
+            '1234567890123456789012345678901234567890123456789012345678901234+x@example.com'
+            'john..doe@example.com'
+            'john.doe@example..com'
+
+            # Cases from Django tests
+            'example@atm.%s' % ('a' * 64),
+            'example@%s.atm.%s' % ('b' * 64, 'a' * 63),
+            None,
+            '',
+            'abc',
+            'abc@',
+            'abc@bar',
+            'a @x.cz',
+            'abc@.com',
+            'something@@somewhere.com',
+            'email@127.0.0.1',
+            'email@[127.0.0.256]',
+            'email@[2001:db8::12345]',
+            'email@[2001:db8:0:0:0:0:1]',
+            'email@[::ffff:127.0.0.256]',
+            'example@invalid-.com',
+            'example@-invalid.com',
+            'example@invalid.com-',
+            'example@inv-.alid-.com',
+            'example@inv-.-alid.com',
+            'test@example.com\n\n<script src="x.js">',
+            # Quoted-string format (CR not allowed)
+            '"\\\012"@here.com',
+            'trailingdot@shouldfail.com.',
+            # Max length of domain name labels is 63 characters per RFC 1034.
+            'a@%s.us' % ('a' * 64),
+            # Trailing newlines in username or domain not allowed
+            'a@b.com\n',
+            'a\n@b.com',
+            '"test@test"\n@example.com',
+            'a@[127.0.0.1]\n'
+        ]
+
+        for email in self.VALID_EMAILS:
+            self.assertTrue(is_valid_address(email), "FAILED: %s should be a valid email" % email)
+
+        for email in self.INVALID_EMAILS:
+            self.assertFalse(is_valid_address(email), "FAILED: %s should be an invalid email" % email)
 
 
 class JsonTest(TembaTest):

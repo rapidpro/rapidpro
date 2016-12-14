@@ -18,6 +18,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
 from django.utils import timezone
@@ -25,6 +27,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
 from enum import Enum
+from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -1663,6 +1666,34 @@ class Org(SmartModel):
         self.create_system_labels_and_groups()
         self.create_sample_flows(branding.get('api_link', ""))
         self.create_welcome_topup(topup_size)
+
+    def download_and_save_media(self, request, extension=None):
+        """
+        Given an HTTP Request object, downloads the file then saves it as media for the current org. If no extension
+        is passed it we attempt to extract it from the filename
+        """
+        s = Session()
+        prepped = s.prepare_request(request)
+        response = s.send(prepped)
+
+        if response.status_code == 200:
+            # download the content to a temp file
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            # try to derive our extension from the filename if it wasn't passed in
+            if not extension:
+                url_parts = urlparse(request.url)
+                if url_parts.path:
+                    path_pieces = url_parts.path.rsplit('.')
+                    if len(path_pieces) > 1:
+                        extension = path_pieces[-1]
+
+        else:
+            raise Exception("Received non-200 response (%s) for request: %s" % (response.status_code, response.content))
+
+        return self.save_media(File(temp), extension)
 
     def save_media(self, file, extension):
         """

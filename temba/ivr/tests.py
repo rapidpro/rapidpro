@@ -21,8 +21,8 @@ from temba.ivr.models import IVRCall
 class IVRTests(FlowFileTest):
 
     def setUp(self):
-
         super(IVRTests, self).setUp()
+        settings.SEND_CALLS = True
 
         # configure our account to be IVR enabled
         self.channel.channel_type = Channel.TYPE_TWILIO
@@ -30,6 +30,10 @@ class IVRTests(FlowFileTest):
         self.channel.save()
         self.admin.groups.add(Group.objects.get(name="Beta"))
         self.login(self.admin)
+
+    def tearDown(self):
+        super(IVRTests, self).tearDown()
+        settings.SEND_CALLS = False
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -60,6 +64,26 @@ class IVRTests(FlowFileTest):
         log = ActionLog.objects.all().order_by('-pk').first()
         self.assertEquals(log.text, 'Call ended. Could not authenticate with your Twilio account. '
                                     'Check your token and try again.')
+
+    @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
+    @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
+    @patch('twilio.util.RequestValidator', MockRequestValidator)
+    def test_disable_calls(self):
+        with self.settings(SEND_CALLS=False):
+            self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
+            self.org.save()
+
+            with patch('twilio.rest.resources.calls.Calls.create') as mock:
+                self.import_file('call_me_maybe')
+                flow = Flow.objects.filter(name='Call me maybe').first()
+
+                # start our flow
+                contact = self.create_contact('Chuck D', number='+13603621737')
+                flow.start([], [contact])
+
+                self.assertEqual(mock.call_count, 0)
+                call = IVRCall.objects.get()
+                self.assertEquals(IVRCall.FAILED, call.status)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

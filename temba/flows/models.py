@@ -999,6 +999,19 @@ class Flow(TembaModel):
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
 
+    def get_visit_counts(self, simulation=False):
+
+        if simulation:
+            (active, visits) = self._calculate_activity(simulation=True)
+            return visits
+
+        # all the flow path counts for our flow
+        paths = FlowPathCount.objects.filter(flow=self)
+
+        # group by our from and to and sum the counts
+        paths = paths.values('from_uuid', 'to_uuid').order_by().annotate(Sum('count'))
+        return {'%s:%s' % (p['from_uuid'], p['to_uuid']): p['count__sum'] for p in paths}
+
     def get_activity(self, simulation=False, check_cache=True):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
@@ -1445,13 +1458,13 @@ class Flow(TembaModel):
 
         # prevents infinite loops
         if self.pk in started_flows:
-            return
+            return []
 
         # add this flow to our list of started flows
         started_flows.append(self.pk)
 
         if not self.entry_uuid:
-            return
+            return []
 
         if start_msg and start_msg.id:
             start_msg.msg_type = FLOW
@@ -1495,7 +1508,7 @@ class Flow(TembaModel):
         if contact_count == 0:
             if flow_start:
                 flow_start.update_status()
-            return
+            return []
 
         # single contact starting from a trigger? increment our unread count
         if start_msg and contact_count == 1:
@@ -1583,7 +1596,7 @@ class Flow(TembaModel):
 
             if message_text:
                 broadcast = Broadcast.create(self.org, self.created_by, message_text, [],
-                                             language_dict=language_dict)
+                                             language_dict=language_dict, base_language=self.base_language)
                 broadcast.update_contacts(all_contact_ids)
 
                 # manually set our broadcast status to QUEUED, our sub processes will send things off for us
@@ -1679,8 +1692,7 @@ class Flow(TembaModel):
                 created_on = timezone.now()
                 broadcast.send(message_context=message_context, trigger_send=False,
                                response_to=start_msg, status=INITIALIZING, msg_type=FLOW,
-                               created_on=created_on, base_language=self.base_language,
-                               partial_recipients=partial_recipients, run_map=run_map)
+                               created_on=created_on, partial_recipients=partial_recipients, run_map=run_map)
 
                 # map all the messages we just created back to our contact
                 for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
@@ -3620,6 +3632,54 @@ class FlowRevision(SmartModel):
                     revision=self.revision)
 
 
+class FlowPathCount(models.Model):
+    """
+    Maintains hourly counts of flow paths
+    """
+
+    LAST_SQUASH_KEY = 'last_flowpathcount_squash'
+
+    flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
+    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def squash_counts(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(FlowPathCount.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # insert our new top squashed id
+        max_id = FlowPathCount.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(FlowPathCount.LAST_SQUASH_KEY, max_id.id)
+
+        # get the unique ids for all new ones
+        start = time.time()
+        squash_count = 0
+
+        for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
+                .distinct('flow_id', 'from_uuid', 'to_uuid', 'period'):
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period))
+
+            squash_count += 1
+
+        print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
+
+    def __unicode__(self):  # pragma: no cover
+        return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
+
+    class Meta:
+        index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
+
+
 class FlowRunCount(models.Model):
     """
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
@@ -3949,6 +4009,8 @@ class ExportFlowResultsTask(SmartModel):
 
         urn_display_cache = {}
 
+        seen_msgs = set()
+
         def get_contact_urn_display(contact):
             """
             Gets the possibly cached URN display (e.g. formatted phone number) for the given contact
@@ -4143,59 +4205,62 @@ class ExportFlowResultsTask(SmartModel):
                     msg_row += 1
                     msgs_row = []
 
-                    if msg_row > max_rows or not msgs:
-                        msg_row = 2
+                    if msg.pk not in seen_msgs:
+                        if msg_row > max_rows or not msgs:
+                            msg_row = 2
 
-                        name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
-                        msgs = book.create_sheet(name)
-                        msgs_row = []
-                        msg_sheet_index += 1
+                            name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
+                            msgs = book.create_sheet(name)
+                            msgs_row = []
+                            msg_sheet_index += 1
 
-                        cell = WriteOnlyCell(msgs, value="Contact UUID")
+                            cell = WriteOnlyCell(msgs, value="Contact UUID")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            cell = WriteOnlyCell(msgs, value="URN")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                            cell = WriteOnlyCell(msgs, value="Name")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            cell = WriteOnlyCell(msgs, value="Date")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            cell = WriteOnlyCell(msgs, value="Direction")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                            cell = WriteOnlyCell(msgs, value="Message")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
+                            cell = WriteOnlyCell(msgs, value="Channel")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+
+                            msgs.append(msgs_row)
+                            msgs_row = []
+
+                        msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
+                        channel_name = msg.channel.name if msg.channel else ''
+                        text = clean_string(msg.text)
+
+                        cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                        cell = WriteOnlyCell(msgs, value="URN")
+                        cell = WriteOnlyCell(msgs, value=msg_urn_display)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
-                        cell = WriteOnlyCell(msgs, value="Name")
+                        cell = WriteOnlyCell(msgs, value=contact_name)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                        cell = WriteOnlyCell(msgs, value="Date")
+                        cell = WriteOnlyCell(msgs, value=as_org_tz(msg.created_on))
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                        cell = WriteOnlyCell(msgs, value="Direction")
+                        cell = WriteOnlyCell(msgs, value="IN" if msg.direction == INCOMING else "OUT")
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
-                        cell = WriteOnlyCell(msgs, value="Message")
+                        cell = WriteOnlyCell(msgs, value=text)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
-                        cell = WriteOnlyCell(msgs, value="Channel")
+                        cell = WriteOnlyCell(msgs, value=channel_name)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
 
                         msgs.append(msgs_row)
-                        msgs_row = []
 
-                    msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
-                    channel_name = msg.channel.name if msg.channel else ''
-                    text = clean_string(msg.text)
-
-                    cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=msg_urn_display)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=contact_name)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=as_org_tz(msg.created_on))
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value="IN" if msg.direction == INCOMING else "OUT")
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=text)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=channel_name)
-                    msgs_row.append(cell)
-
-                    msgs.append(msgs_row)
+                        seen_msgs.add(msg.pk)
 
         if runs_sheet_row != [None] * sheet_columns_number:
             runs.append(runs_sheet_row)
@@ -4544,7 +4609,7 @@ class EmailAction(Action):
         valid_addresses = []
         invalid_addresses = []
         for email in self.emails:
-            if email[0] == '@':
+            if email.startswith('@'):
                 # a valid email will contain @ so this is very likely to generate evaluation errors
                 (address, errors) = Msg.substitute_variables(email, run.contact, message_context, org=run.flow.org)
             else:
@@ -4562,8 +4627,10 @@ class EmailAction(Action):
                 send_email_action_task.delay(valid_addresses, subject, message)
         else:
             if valid_addresses:
+                valid_addresses = ['"%s"' % elt for elt in valid_addresses]
                 ActionLog.info(run, _("\"%s\" would be sent to %s") % (message, ", ".join(valid_addresses)))
             if invalid_addresses:
+                invalid_addresses = ['"%s"' % elt for elt in invalid_addresses]
                 ActionLog.warn(run, _("Some email address appear to be invalid: %s") % ", ".join(invalid_addresses))
         return []
 
@@ -5545,8 +5612,8 @@ class SendAction(VariableContactAction):
                 recipients = groups + contacts
 
                 broadcast = Broadcast.create(flow.org, flow.modified_by, message_text, recipients,
-                                             language_dict=language_dict)
-                broadcast.send(trigger_send=False, message_context=message_context, base_language=flow.base_language)
+                                             language_dict=language_dict, base_language=flow.base_language)
+                broadcast.send(trigger_send=False, message_context=message_context)
                 return list(broadcast.get_messages())
 
             else:

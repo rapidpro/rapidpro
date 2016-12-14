@@ -106,7 +106,7 @@ class InboxView(OrgPermsMixin, SmartListView):
         queryset = super(InboxView, self).get_queryset(**kwargs)
 
         # if we are searching, limit to last 90
-        if 'search' in self.request.REQUEST:
+        if 'search' in self.request.GET:
             last_90 = timezone.now() - timedelta(days=90)
             queryset = queryset.filter(created_on__gte=last_90)
 
@@ -118,7 +118,7 @@ class InboxView(OrgPermsMixin, SmartListView):
 
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'system_label') and 'search' not in self.request.REQUEST:
+        if hasattr(self, 'system_label') and 'search' not in self.request.GET:
             self.object_list.count = lambda: counts[self.system_label]
 
         context = super(InboxView, self).get_context_data(**kwargs)
@@ -247,7 +247,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def pre_process(self, *args, **kwargs):
             response = super(BroadcastCRUDL.Send, self).pre_process(*args, **kwargs)
             org = self.request.user.get_org()
-            simulation = self.request.REQUEST.get('simulation', 'false') == 'true'
+            simulation = self.request.GET.get('simulation', 'false') == 'true'
 
             if simulation:
                 return response
@@ -259,20 +259,20 @@ class BroadcastCRUDL(SmartCRUDL):
             return response
 
         def derive_success_message(self):
-            if 'from_contact' not in self.request.REQUEST:
+            if 'from_contact' not in self.request.POST:
                 return super(BroadcastCRUDL.Send, self).derive_success_message()
             else:
                 return None
 
         def get_success_url(self):
             success_url = super(BroadcastCRUDL.Send, self).get_success_url()
-            if 'from_contact' in self.request.REQUEST:
+            if 'from_contact' in self.request.POST:
                 contact = self.form.cleaned_data['omnibox']['contacts'][0]
                 success_url = reverse('contacts.contact_read', args=[contact.uuid])
             return success_url
 
         def form_invalid(self, form):
-            if '_format' in self.request.REQUEST and self.request.REQUEST['_format'] == 'json':
+            if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 return HttpResponse(json.dumps(dict(status="error", errors=form.errors)), content_type='application/json', status=400)
             else:
                 return super(BroadcastCRUDL.Send, self).form_invalid(form)
@@ -280,7 +280,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def form_valid(self, form):
             self.form = form
             user = self.request.user
-            simulation = self.request.REQUEST.get('simulation', 'false') == 'true'
+            simulation = self.request.GET.get('simulation', 'false') == 'true'
 
             omnibox = self.form.cleaned_data['omnibox']
             has_schedule = self.form.cleaned_data['schedule']
@@ -314,7 +314,7 @@ class BroadcastCRUDL(SmartCRUDL):
             analytics.track(self.request.user.username, 'temba.broadcast_created',
                             dict(contacts=len(contacts), groups=len(groups), urns=len(urns)))
 
-            if '_format' in self.request.REQUEST and self.request.REQUEST['_format'] == 'json':
+            if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 data = dict(status="success", redirect=reverse('msgs.broadcast_schedule_read', args=[broadcast.pk]))
                 return HttpResponse(json.dumps(data), content_type='application/json')
             else:
@@ -427,14 +427,14 @@ class MsgCRUDL(SmartCRUDL):
         success_url = "@msgs.msg_inbox"
 
         def get_success_url(self):
-            label_id = self.request.REQUEST.get('label', None)
+            label_id = self.request.GET.get('label', None)
 
             if label_id:
                 return reverse('msgs.msg_filter', args=[label_id])
             return reverse('msgs.msg_inbox')
 
         def form_invalid(self, form):
-            if '_format' in self.request.REQUEST and self.request.REQUEST['_format'] == 'json':
+            if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 return HttpResponse(json.dumps(dict(status="error", errors=form.errors)), content_type='application/json', status=400)
             else:
                 return super(MsgCRUDL.Export, self).form_invalid(form)
@@ -445,7 +445,7 @@ class MsgCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            label_id = self.request.REQUEST.get('label', None)
+            label_id = self.request.GET.get('label', None)
 
             label = None
             if label_id:

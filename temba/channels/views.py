@@ -19,6 +19,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
@@ -28,7 +29,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
@@ -535,6 +536,10 @@ def channel_status_processor(request):
         if not send_channel:
             send_channel = org.get_send_channel(scheme=FACEBOOK_SCHEME)
 
+        # and viber
+        if not send_channel:
+            send_channel = org.get_send_channel(scheme=VIBER_SCHEME)
+
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
         status['has_outgoing_channel'] = send_channel or call_channel
@@ -620,8 +625,8 @@ def sync(request, channel_id):
 
     channel = channel[0]
 
-    request_time = request.REQUEST.get('ts', '')
-    request_signature = request.REQUEST.get('signature', '')
+    request_time = request.GET.get('ts', '')
+    request_signature = request.GET.get('signature', '')
 
     if not channel.secret or not channel.org:
         return HttpResponse(json.dumps(dict(cmds=[channel.build_registration_command()])), content_type='application/javascript')
@@ -875,7 +880,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1259,7 +1264,7 @@ class ChannelCRUDL(SmartCRUDL):
         def form_valid(self, form):
 
             # make sure they own the channel
-            channel = self.request.REQUEST.get('channel', None)
+            channel = self.request.GET.get('channel', None)
             if channel:
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
             if not channel:
@@ -1396,6 +1401,39 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
 
+    class ClaimViberPublic(OrgPermsMixin, SmartFormView):
+        class ViberClaimForm(forms.ModelForm):
+            auth_token = forms.CharField(help_text=_("The authentication token provided by Viber"))
+
+            def clean_auth_token(self):
+                auth_token = self.data['auth_token']
+                response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
+                if response.status_code != 200 or response.json()['status'] != 0:
+                    raise ValidationError("Error validating authentication token: %s" % response.json()['status_message'])
+                return auth_token
+
+            class Meta:
+                model = Channel
+                fields = ('auth_token',)
+
+        title = _("Connect Public Viber Channel")
+        form_class = ViberClaimForm
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+            data = form.cleaned_data
+            try:
+                self.object = Channel.add_viber_public_channel(self.request.user.get_org(), self.request.user, data['auth_token'])
+            except Exception as e:
+                form._errors['auth_token'] = form.error_class([unicode(e.message)])
+                return self.form_invalid(form)
+
+            return super(ChannelCRUDL.ClaimViberPublic, self).form_valid(form)
+
+        @transaction.non_atomic_requests
+        def dispatch(self, request, *args, **kwargs):
+            return super(ChannelCRUDL.ClaimViberPublic, self).dispatch(request, *args, **kwargs)
+
     class ClaimKannel(OrgPermsMixin, SmartFormView):
         class KannelClaimForm(forms.Form):
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
@@ -1494,7 +1532,7 @@ class ChannelCRUDL(SmartCRUDL):
             return dict(body=Channel.CONFIG_DEFAULT_SEND_BODY)
 
         def get_form_class(self):
-            if self.request.REQUEST.get('role', None) == 'S':
+            if self.request.GET.get('role', None) == 'S':
                 return ChannelCRUDL.ClaimExternal.EXSendClaimForm
             else:
                 return ChannelCRUDL.ClaimExternal.EXClaimForm
@@ -1507,7 +1545,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
 
-            if self.request.REQUEST.get('role', None) == 'S':
+            if self.request.GET.get('role', None) == 'S':
                 # get our existing channel
                 receive = org.get_receive_channel(TEL_SCHEME)
                 role = Channel.ROLE_SEND
@@ -1528,7 +1566,7 @@ class ChannelCRUDL(SmartCRUDL):
                     country = None
 
             # see if there is a parent channel we are adding a delegate for
-            channel = self.request.REQUEST.get('channel', None)
+            channel = self.request.GET.get('channel', None)
             if channel:
                 # make sure they own it
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
@@ -2168,7 +2206,7 @@ class ChannelCRUDL(SmartCRUDL):
             api_secret = settings.TWITTER_API_SECRET
             oauth_token = self.request.session.get(SESSION_TWITTER_TOKEN, None)
             oauth_token_secret = self.request.session.get(SESSION_TWITTER_SECRET, None)
-            oauth_verifier = self.request.REQUEST.get('oauth_verifier', None)
+            oauth_verifier = self.request.GET.get('oauth_verifier', None)
 
             # if we have all oauth values, then we be returning from an authorization callback
             if oauth_token and oauth_token_secret and oauth_verifier:
@@ -2892,7 +2930,7 @@ class ChannelLogCRUDL(SmartCRUDL):
         paginate_by = 50
 
         def derive_queryset(self, **kwargs):
-            channel = Channel.objects.get(pk=self.request.REQUEST['channel'])
+            channel = Channel.objects.get(pk=self.request.GET['channel'])
             events = ChannelLog.objects.filter(channel=channel).order_by('-created_on').select_related('msg__contact', 'msg')
 
             # monkey patch our queryset for the total count
@@ -2901,7 +2939,7 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(ChannelLogCRUDL.List, self).get_context_data(**kwargs)
-            context['channel'] = Channel.objects.get(pk=self.request.REQUEST['channel'])
+            context['channel'] = Channel.objects.get(pk=self.request.GET['channel'])
             return context
 
     class Read(ChannelCRUDL.AnonMixin, SmartReadView):

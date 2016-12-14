@@ -151,7 +151,7 @@ class ModalMixin(SmartFormView):
         if 'success_url' in kwargs:  # pragma: no cover
             context['success_url'] = kwargs['success_url']
 
-        pairs = [urlquote(k) + "=" + urlquote(v) for k, v in six.iteritems(self.request.REQUEST) if k != '_']
+        pairs = [urlquote(k) + "=" + urlquote(v) for k, v in six.iteritems(self.request.GET) if k != '_']
         context['action_url'] = self.request.path + "?" + ("&".join(pairs))
 
         return context
@@ -487,8 +487,8 @@ class OrgCRUDL(SmartCRUDL):
             from temba.flows.models import Flow
             from temba.campaigns.models import Campaign
 
-            flows = set(Flow.objects.filter(id__in=self.request.REQUEST.getlist('flows'), org=self.get_object(), is_active=True))
-            campaigns = Campaign.objects.filter(id__in=self.request.REQUEST.getlist('campaigns'), org=self.get_object())
+            flows = set(Flow.objects.filter(id__in=self.request.POST.getlist('flows'), org=self.get_object(), is_active=True))
+            campaigns = Campaign.objects.filter(id__in=self.request.POST.getlist('campaigns'), org=self.get_object())
 
             # by default we include the triggers for the requested flows
             dependencies = dict(flows=set(), campaigns=set(), groups=set(), triggers=set())
@@ -526,7 +526,7 @@ class OrgCRUDL(SmartCRUDL):
 
             context = super(OrgCRUDL.Export, self).get_context_data(**kwargs)
 
-            include_archived = self.request.REQUEST.get('archived', 0)
+            include_archived = self.request.GET.get('archived', 0)
 
             # all of our user facing flows
             flows = self.get_object().get_export_flows(include_archived=include_archived)
@@ -928,12 +928,12 @@ class OrgCRUDL(SmartCRUDL):
             return links
 
         def post(self, request, *args, **kwargs):
-            if 'status' in request.REQUEST:
-                if request.REQUEST.get('status', None) == SUSPENDED:
+            if 'status' in request.POST:
+                if request.POST.get('status', None) == SUSPENDED:
                     self.get_object().set_suspended()
-                elif request.REQUEST.get('status', None) == WHITELISTED:
+                elif request.POST.get('status', None) == WHITELISTED:
                     self.get_object().set_whitelisted()
-                elif request.REQUEST.get('status', None) == RESTORED:
+                elif request.POST.get('status', None) == RESTORED:
                     self.get_object().set_restored()
                 return HttpResponseRedirect(self.get_success_url())
             return super(OrgCRUDL.Update, self).post(request, *args, **kwargs)
@@ -1119,16 +1119,16 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super(OrgCRUDL.ManageAccountsSubOrg, self).get_context_data(**kwargs)
-            org_id = self.request.REQUEST.get('org')
+            org_id = self.request.GET.get('org')
             context['parent'] = Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
             return context
 
         def get_object(self, *args, **kwargs):
-            org_id = self.request.REQUEST.get('org')
+            org_id = self.request.GET.get('org')
             return Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
 
         def get_success_url(self):
-            org_id = self.request.REQUEST.get('org')
+            org_id = self.request.GET.get('org')
             return '%s?org=%s' % (reverse('orgs.org_manage_accounts_sub_org'), org_id)
 
     class Service(SmartFormView):
@@ -1519,7 +1519,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super(OrgCRUDL.Surveyor, self).derive_initial()
-            initial['surveyor_password'] = self.request.REQUEST.get('surveyor_password', '')
+            initial['surveyor_password'] = self.request.POST.get('surveyor_password', '')
             return initial
 
         def get_context_data(self, **kwargs):
@@ -1545,7 +1545,7 @@ class OrgCRUDL(SmartCRUDL):
                 return OrgCRUDL.Surveyor.PasswordForm
 
         def get_step(self):
-            return 2 if 'first_name' in self.request.REQUEST else 1
+            return 2 if 'first_name' in self.request.POST else 1
 
         def form_valid(self, form):
             if self.get_step() == 1:
@@ -1589,7 +1589,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_template_names(self):
             if 'android' in self.request.META.get('HTTP_X_REQUESTED_WITH', '') \
-                    or 'mobile' in self.request.REQUEST \
+                    or 'mobile' in self.request.GET \
                     or 'Android' in self.request.META.get('HTTP_USER_AGENT', ''):
                 return ['orgs/org_surveyor_mobile.haml']
             else:
@@ -1674,7 +1674,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super(OrgCRUDL.Signup, self).get_initial()
-            initial['email'] = self.request.REQUEST.get('email', None)
+            initial['email'] = self.request.POST.get('email', None)
             return initial
 
         def get_welcome_size(self):
@@ -2073,7 +2073,7 @@ class OrgCRUDL(SmartCRUDL):
         success_url = '@orgs.org_sub_orgs'
 
         def get_object(self, *args, **kwargs):
-            org_id = self.request.REQUEST.get('org')
+            org_id = self.request.GET.get('org')
             return Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
 
     class TransferCredits(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartFormView):
@@ -2214,8 +2214,8 @@ class OrgCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
 
-            if 'search' in self.request.REQUEST or 'initial' in self.request.REQUEST:
-                initial = self.request.REQUEST.get('initial', '').split(',')
+            if 'search' in self.request.GET or 'initial' in self.request.GET:
+                initial = self.request.GET.get('initial', '').split(',')
                 matches = []
 
                 if len(initial) > 0:
@@ -2225,7 +2225,7 @@ class OrgCRUDL(SmartCRUDL):
                             matches.append(dict(id=iso_code, text=lang))
 
                 if len(matches) == 0:
-                    search = self.request.REQUEST.get('search', '').strip().lower()
+                    search = self.request.GET.get('search', '').strip().lower()
                     matches += languages.search_language_names(search)
                 return build_json_response(dict(results=matches))
 
@@ -2255,7 +2255,7 @@ class OrgCRUDL(SmartCRUDL):
         success_url = 'id@orgs.org_update'
 
         def pre_process(self, request, *args, **kwargs):
-            cache = OrgCache(int(request.REQUEST['cache']))
+            cache = OrgCache(int(request.POST['cache']))
             num_deleted = self.get_object().clear_caches([cache])
             self.success_message = _("Cleared %s cache for this organization (%d keys)") % (cache.name, num_deleted)
 
@@ -2356,7 +2356,7 @@ class TopUpCRUDL(SmartCRUDL):
             return reverse('orgs.topup_manage') + ('?org=%d' % self.object.org.id)
 
         def save(self, obj):
-            obj.org = Org.objects.get(pk=self.request.REQUEST['org'])
+            obj.org = Org.objects.get(pk=self.request.GET['org'])
             return TopUp.create(self.request.user, price=obj.price, credits=obj.credits, org=obj.org)
 
         def post_save(self, obj):
@@ -2402,7 +2402,7 @@ class TopUpCRUDL(SmartCRUDL):
             return context
 
         def derive_queryset(self):
-            self.org = Org.objects.get(pk=self.request.REQUEST['org'])
+            self.org = Org.objects.get(pk=self.request.GET['org'])
             return self.org.topups.all()
 
 

@@ -9,7 +9,7 @@ from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HAND
 from temba.utils.email import send_simple_email
 from temba.utils.queues import start_task, complete_task
 from temba.utils.queues import push_task, nonoverlapping_task
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount, FlowPathCount
 
 
 @task(track_started=True, name='send_email_action_task')
@@ -137,6 +137,11 @@ def calculate_flow_stats_task(flow_id):
 
     if runs_started != runs_started_cached:
         Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
+
+
+@nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key='squash_flowpathcounts')
+def squash_flowpathcounts():
+    FlowPathCount.squash_counts()
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowruncounts", lock_key='squash_flowruncounts')

@@ -35,7 +35,7 @@ class CallHandler(View):
         print "\n\n\n"
         print request.body
 
-        if channel_type in Channel.TWIML_CHANNELS and request.REQUEST.get('hangup', 0):
+        if channel_type in Channel.TWIML_CHANNELS and request.POST.get('hangup', 0):
             if not request.user.is_anonymous():
                 user_org = request.user.get_org()
                 if user_org and user_org.pk == call.org.pk:
