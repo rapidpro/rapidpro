@@ -3231,6 +3231,9 @@ class AfricasTalkingTest(TembaTest):
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
+
         finally:
             settings.SEND_MESSAGES = False
 
@@ -3311,8 +3314,8 @@ class ExternalTest(TembaTest):
 
         # load our message, make sure the date was saved properly
         msg = Msg.objects.get()
-        self.assertEquals(2012, msg.created_on.year)
-        self.assertEquals(18, msg.created_on.hour)
+        self.assertEquals(2012, msg.sent_on.year)
+        self.assertEquals(18, msg.sent_on.hour)
 
     def test_receive_external(self):
         self.channel.scheme = 'ext'
@@ -3430,6 +3433,9 @@ class ExternalTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
 
         finally:
             settings.SEND_MESSAGES = False
@@ -3569,6 +3575,9 @@ class YoTest(TembaTest):
 
                 self.clear_cache()
 
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
+
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "ybs_autocreate_status=ERROR&ybs_autocreate_message=" +
                                                       "YBS+AutoCreate+Subsystem%3A+Access+denied" +
@@ -3606,6 +3615,9 @@ class YoTest(TembaTest):
                 self.assertFalse(joe.is_stopped)
 
                 self.clear_cache()
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, "ybs_autocreate_status=ERROR&ybs_autocreate_message=" +
@@ -3697,6 +3709,9 @@ class ShaqodoonTest(TembaTest):
                 # message should be marked as an error
                 msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
 
         finally:
             settings.SEND_MESSAGES = False
@@ -3820,6 +3835,9 @@ class M3TechTest(TembaTest):
                 self.assertEquals(FAILED, msg.status)
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
 
                 self.clear_cache()
         finally:
@@ -4026,6 +4044,9 @@ class KannelTest(TembaTest):
                 # message should be marked as an error
                 msg.refresh_from_db()
                 self.assertEquals(ERRORED, msg.status)
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
         finally:
             settings.SEND_MESSAGES = False
 
@@ -4323,6 +4344,8 @@ class VumiTest(TembaTest):
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
 
+                self.assertEqual(mock.call_args[0][0], 'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
+
                 # check the status of the message is now sent
                 msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
@@ -4405,6 +4428,9 @@ class VumiTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(FAILED, msg.status)
                 self.assertEquals(2, msg.error_count)
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
 
             with patch('requests.put') as mock:
                 # set our next attempt as if we are trying anew
@@ -4534,6 +4560,9 @@ class ZenviaTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(200, '001-error', method='GET')
@@ -4872,6 +4901,9 @@ class SMSCentralTest(TembaTest):
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
+
         finally:
             settings.SEND_MESSAGES = False
 
@@ -5006,7 +5038,7 @@ class HighConnectionTest(TembaTest):
         self.assertEquals(self.org, msg.org)
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello World", msg.text)
-        self.assertEquals(14, msg.created_on.astimezone(pytz.utc).hour)
+        self.assertEquals(14, msg.sent_on.astimezone(pytz.utc).hour)
 
         # try it with an invalid receiver, should fail as UUID isn't known
         callback_url = reverse('handlers.hcnx_handler', args=['receive', uuid.uuid4()])
@@ -5077,6 +5109,9 @@ class HighConnectionTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
 
         finally:
             settings.SEND_MESSAGES = False
@@ -5340,7 +5375,6 @@ class TwilioTest(TembaTest):
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
-
             with patch('twilio.rest.resources.Messages.create') as mock:
                 mock.return_value = "Sent"
 
@@ -5595,7 +5629,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals(u"mexico k mis papas no ten\xeda dinero para comprarnos lo q quer\xedamos..", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
     def test_receive_iso_8859_1(self):
@@ -5623,7 +5657,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals(u'\x05\x034\x02\x02i mapfumbamwe vana 4 kuwacha handingapedze izvozvo ndozvikukonzera kt varoorwe varipwere ngapaonekwe ipapo ndatenda.', msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
         Msg.objects.all().delete()
@@ -5643,7 +5677,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Artwell Sìbbnda", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
         Msg.objects.all().delete()
@@ -5663,7 +5697,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("a? £irvine stinta?¥.  ", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
         Msg.objects.all().delete()
@@ -5684,7 +5718,7 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("when? or What? is this ", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
         self.assertEquals('id1234', msg1.external_id)
 
     def test_receive(self):
@@ -5711,10 +5745,10 @@ class ClickatellTest(TembaTest):
         self.assertEquals(self.org, msg1.org)
         self.assertEquals(self.channel, msg1.channel)
         self.assertEquals("Hello World", msg1.text)
-        self.assertEquals(2012, msg1.created_on.year)
+        self.assertEquals(2012, msg1.sent_on.year)
 
         # times are sent as GMT+2
-        self.assertEquals(8, msg1.created_on.hour)
+        self.assertEquals(8, msg1.sent_on.hour)
         self.assertEquals('id1234', msg1.external_id)
 
     def test_status(self):
@@ -5839,6 +5873,9 @@ class ClickatellTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
 
         finally:
             settings.SEND_MESSAGES = False
@@ -6312,6 +6349,9 @@ class PlivoTest(TembaTest):
                 self.assertEquals(2, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
+
         finally:
             settings.SEND_MESSAGES = False
 
@@ -6765,6 +6805,9 @@ class StartMobileTest(TembaTest):
                 self.assertTrue(msg.next_attempt)
                 self.clear_cache()
 
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))
+
         finally:
             settings.SEND_MESSAGES = False
 
@@ -6831,7 +6874,7 @@ class ChikkaTest(TembaTest):
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello World!", msg.text)
         self.assertEquals('4004', msg.external_id)
-        self.assertEquals(msg.created_on.date(), date(day=11, month=3, year=2016))
+        self.assertEquals(msg.sent_on.date(), date(day=11, month=3, year=2016))
 
     def test_send(self):
         joe = self.create_contact("Joe", '+63911231234')
@@ -7082,6 +7125,9 @@ class JasminTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
 
+            self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                              "referenced before assignment"))
+
 
 class MbloxTest(TembaTest):
 
@@ -7168,7 +7214,7 @@ class MbloxTest(TembaTest):
         self.assertEqual(msg.org, self.org)
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "MO")
-        self.assertEqual(msg.created_on.date(), date(day=30, month=3, year=2016))
+        self.assertEqual(msg.sent_on.date(), date(day=30, month=3, year=2016))
 
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
@@ -7208,6 +7254,9 @@ class MbloxTest(TembaTest):
             # check the status of the message now errored
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
+
+            self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                              "referenced before assignment"))
 
 
 class FacebookTest(TembaTest):
@@ -7604,6 +7653,9 @@ class FacebookTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(ERRORED, msg.status)
 
+            self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                              "referenced before assignment"))
+
 
 class GlobeTest(TembaTest):
 
@@ -7683,7 +7735,7 @@ class GlobeTest(TembaTest):
         self.assertEqual(msg.org, self.org)
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "Hello")
-        self.assertEqual(msg.created_on.date(), date(day=22, month=11, year=2013))
+        self.assertEqual(msg.sent_on.date(), date(day=22, month=11, year=2013))
 
     def test_send(self):
         joe = self.create_contact("Joe", "+639171234567")
@@ -7741,6 +7793,9 @@ class GlobeTest(TembaTest):
             msg.refresh_from_db()
             self.assertEquals(FAILED, msg.status)
             self.clear_cache()
+
+            self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                              "referenced before assignment"))
 
 
 class ViberTest(TembaTest):
@@ -7831,7 +7886,7 @@ class ViberTest(TembaTest):
         self.assertEqual(msg.org, self.org)
         self.assertEqual(msg.channel, self.channel)
         self.assertEqual(msg.text, "a message to the service")
-        self.assertEqual(msg.created_on.date(), date(day=22, month=8, year=2016))
+        self.assertEqual(msg.sent_on.date(), date(day=22, month=8, year=2016))
         self.assertEqual(msg.external_id, "44444444444444")
 
     def test_send(self):
@@ -7990,3 +8045,18 @@ class LineTest(TembaTest):
                 self.assertEquals(ERRORED, msg.status)
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
+
+            with patch('requests.post') as mock:
+                mock.side_effect = Exception('Kaboom!')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as an error
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(2, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+
+                self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
+                                                                                  "referenced before assignment"))

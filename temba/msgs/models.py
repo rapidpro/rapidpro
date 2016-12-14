@@ -185,6 +185,9 @@ class Broadcast(models.Model):
     language_dict = models.TextField(verbose_name=_("Translations"),
                                      help_text=_("The localized versions of the broadcast"), null=True)
 
+    base_language = models.CharField(max_length=4, null=True, blank=True,
+                                     help_text=_('The language used to send this to contacts without a language'))
+
     is_active = models.BooleanField(default=True, help_text="Whether this broadcast is active")
 
     created_by = models.ForeignKey(User, related_name="%(app_label)s_%(class)s_creations",
@@ -362,16 +365,16 @@ class Broadcast(models.Model):
             return []
         return get_cacheable_attr(self, '_translations', lambda: json.loads(self.language_dict))
 
-    def get_translated_text(self, contact, base_language=None, org=None):
+    def get_translated_text(self, contact, org=None):
         """
         Gets the appropriate translation for the given contact. base_language may be provided
         """
         translations = self.get_translations()
-        preferred_languages = self.get_preferred_languages(contact, base_language, org)
+        preferred_languages = self.get_preferred_languages(contact, self.base_language, org)
         return Language.get_localized_text(translations, preferred_languages, self.text)
 
     def send(self, trigger_send=True, message_context=None, response_to=None, status=PENDING, msg_type=INBOX,
-             created_on=None, base_language=None, partial_recipients=None, run_map=None):
+             created_on=None, partial_recipients=None, run_map=None):
         """
         Sends this broadcast by creating outgoing messages for each recipient.
         """
@@ -420,7 +423,7 @@ class Broadcast(models.Model):
             contact = recipient if isinstance(recipient, Contact) else recipient.contact
 
             # get the appropriate translation for this contact
-            text = self.get_translated_text(contact, base_language)
+            text = self.get_translated_text(contact)
 
             # add in our parent context if the message references @parent
             if run_map:
@@ -1163,7 +1166,7 @@ class Msg(models.Model):
         if contact_urn:
             contact_urn.update_affinity(channel)
 
-        existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
+        existing = Msg.objects.filter(text=text, sent_on=date, contact=contact, direction='I').first()
         if existing:
             return existing
 
@@ -1183,7 +1186,8 @@ class Msg(models.Model):
                         org=org,
                         channel=channel,
                         text=text,
-                        created_on=date,
+                        sent_on=date,
+                        created_on=timezone.now(),
                         modified_on=timezone.now(),
                         queued_on=timezone.now(),
                         direction=INCOMING,
