@@ -749,8 +749,7 @@ class Msg(models.Model):
                     traceback.print_exc(e)
                     logger.exception("Error in message handling: %s" % e)
 
-        if msg.status:
-            cls.mark_handled(msg)
+        cls.mark_handled(msg)
 
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
@@ -1164,13 +1163,12 @@ class Msg(models.Model):
         if contact_urn:
             contact_urn.update_affinity(channel)
 
-        topup_id = None
-
         existing = Msg.objects.filter(text=text, created_on=date, contact=contact, direction='I').first()
         if existing:
             return existing
 
         # costs 1 credit to receive a message
+        topup_id = None
         if topup:
             topup_id = topup.pk
         elif not contact.is_test:
