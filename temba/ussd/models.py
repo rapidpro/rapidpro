@@ -27,6 +27,8 @@ class USSDSession(ChannelSession):
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
         if not self.pk:
             self.session_type = USSDSession.USSD
+            self.created_by = self.channel.created_by
+            self.modified_by = self.channel.created_by
         super(USSDSession, self).save(force_insert, force_update, using, update_fields)
 
     def start_session_async(self):
@@ -61,8 +63,7 @@ class USSDSession(ChannelSession):
         contact_urn.update_affinity(channel)
 
         # setup session
-        defaults = dict(channel=channel, contact=contact, contact_urn=contact_urn, org=channel.org,
-                        created_by=channel.created_by, modified_by=channel.created_by)
+        defaults = dict(channel=channel, contact=contact, contact_urn=contact_urn, org=channel.org)
 
         if status == cls.TRIGGERED:
             trigger = Trigger.find_trigger_for_ussd_session(contact, starcode)
