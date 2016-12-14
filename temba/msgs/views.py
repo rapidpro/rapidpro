@@ -116,10 +116,12 @@ class InboxView(OrgPermsMixin, SmartListView):
         org = self.request.user.get_org()
         counts = SystemLabel.get_counts(org)
 
+        system_label = getattr(self, 'system_label')
+
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'system_label') and 'search' not in self.request.GET:
-            self.object_list.count = lambda: counts[self.system_label]
+        if system_label and 'search' not in self.request.GET:
+            self.object_list.count = lambda: counts[system_label]
 
         context = super(InboxView, self).get_context_data(**kwargs)
 
@@ -137,6 +139,7 @@ class InboxView(OrgPermsMixin, SmartListView):
         context['has_labels'] = Label.label_objects.filter(org=org).exists()
         context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
+        context['hide_paginator_count'] = system_label == SystemLabel.TYPE_SENT if system_label else False
         return context
 
 

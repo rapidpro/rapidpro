@@ -220,6 +220,15 @@
   - if org_perms.msgs.broadcast_send
     -include "msgs/msg_send_modal.haml"
 
+-block extra-style
+  {{ block.super }}
+  :css
+    {% if hide_paginator_count %}
+    .pagination-text {
+      display: none
+    }
+    {% endif %}
+
 -block extra-script
   {{ block.super }}
   :javascript
