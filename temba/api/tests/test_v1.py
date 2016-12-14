@@ -753,7 +753,7 @@ class APITest(TembaTest):
                     submitted_by=self.admin.username,
                     started='2015-08-25T11:09:29.088Z',
                     steps=[
-                        dict(node='00000000-00000000-00000000-00000001',
+                        dict(node='00000000-0000-0000-0000-000000000001',
                              arrived_on='2015-08-25T11:09:30.088Z',
                              actions=[
                                  dict(type="reply", msg="What is your favorite color?")
@@ -774,7 +774,7 @@ class APITest(TembaTest):
 
         steps = list(run.steps.order_by('pk'))
         self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0].step_uuid, '00000000-00000000-00000000-00000001')
+        self.assertEqual(steps[0].step_uuid, '00000000-0000-0000-0000-000000000001')
         self.assertEqual(steps[0].step_type, 'A')
         self.assertEqual(steps[0].rule_uuid, None)
         self.assertEqual(steps[0].rule_category, None)
@@ -797,7 +797,7 @@ class APITest(TembaTest):
         self.assertEqual(flow.get_completed_runs(), 0)
 
         # check flow activity
-        self.assertEqual(flow.get_activity(), ({u'00000000-00000000-00000000-00000001': 1}, {}))
+        self.assertEqual(flow.get_activity(), ({u'00000000-0000-0000-0000-000000000001': 1}, {}))
 
         data = dict(flow=flow.uuid,
                     revision=2,
@@ -805,13 +805,13 @@ class APITest(TembaTest):
                     started='2015-08-25T11:09:29.088Z',
                     submitted_by=self.admin.username,
                     steps=[
-                        dict(node='00000000-00000000-00000000-00000005',
+                        dict(node='00000000-0000-0000-0000-000000000005',
                              arrived_on='2015-08-25T11:11:30.088Z',
-                             rule=dict(uuid='00000000-00000000-00000000-00000012',
+                             rule=dict(uuid='00000000-0000-0000-0000-000000000012',
                                        value="orange",
                                        category="Orange",
                                        text="I like orange")),
-                        dict(node='00000000-00000000-00000000-00000002',
+                        dict(node='00000000-0000-0000-0000-000000000002',
                              arrived_on='2015-08-25T11:13:30.088Z',
                              actions=[
                                  dict(type="reply", msg="I love orange too!")
@@ -842,15 +842,15 @@ class APITest(TembaTest):
 
         steps = list(run.steps.order_by('pk'))
         self.assertEqual(steps[0].left_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
-        self.assertEqual(steps[0].next_uuid, '00000000-00000000-00000000-00000005')
+        self.assertEqual(steps[0].next_uuid, '00000000-0000-0000-0000-000000000005')
 
-        self.assertEqual(steps[1].step_uuid, '00000000-00000000-00000000-00000005')
+        self.assertEqual(steps[1].step_uuid, '00000000-0000-0000-0000-000000000005')
         self.assertEqual(steps[1].step_type, 'R')
-        self.assertEqual(steps[1].rule_uuid, '00000000-00000000-00000000-00000012')
+        self.assertEqual(steps[1].rule_uuid, '00000000-0000-0000-0000-000000000012')
         self.assertEqual(steps[1].rule_category, 'Orange')
         self.assertEqual(steps[1].rule_value, "orange")
         self.assertEqual(steps[1].rule_decimal_value, None)
-        self.assertEqual(steps[1].next_uuid, '00000000-00000000-00000000-00000002')
+        self.assertEqual(steps[1].next_uuid, '00000000-0000-0000-0000-000000000002')
         self.assertEqual(steps[1].arrived_on, datetime(2015, 8, 25, 11, 11, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].left_on, datetime(2015, 8, 25, 11, 13, 30, 88000, pytz.UTC))
         self.assertEqual(steps[1].messages.count(), 1)
@@ -859,8 +859,8 @@ class APITest(TembaTest):
         value = Value.objects.get(org=self.org)
         self.assertEqual(value.contact, self.joe)
         self.assertEqual(value.run, run)
-        self.assertEqual(value.ruleset, RuleSet.objects.get(uuid='00000000-00000000-00000000-00000005'))
-        self.assertEqual(value.rule_uuid, '00000000-00000000-00000000-00000012')
+        self.assertEqual(value.ruleset, RuleSet.objects.get(uuid='00000000-0000-0000-0000-000000000005'))
+        self.assertEqual(value.rule_uuid, '00000000-0000-0000-0000-000000000012')
         self.assertEqual(value.string_value, 'orange')
         self.assertEqual(value.decimal_value, None)
         self.assertEqual(value.datetime_value, None)
@@ -873,7 +873,7 @@ class APITest(TembaTest):
         self.assertEqual(step1_msgs[0].contact_urn, None)
         self.assertEqual(step1_msgs[0].text, "I like orange")
 
-        self.assertEqual(steps[2].step_uuid, '00000000-00000000-00000000-00000002')
+        self.assertEqual(steps[2].step_uuid, '00000000-0000-0000-0000-000000000002')
         self.assertEqual(steps[2].step_type, 'A')
         self.assertEqual(steps[2].rule_uuid, None)
         self.assertEqual(steps[2].rule_category, None)
@@ -898,9 +898,9 @@ class APITest(TembaTest):
 
         # check flow activity
         self.assertEqual(flow.get_activity(), ({},
-                                               {'00000000-00000000-00000000-00000002:00000000-00000000-00000000-00000020': 1,
-                                                '00000000-00000000-00000000-00000012:00000000-00000000-00000000-00000002': 1,
-                                                '00000000-00000000-00000000-00000001:00000000-00000000-00000000-00000005': 1}))
+                                               {'00000000-0000-0000-0000-000000000002:00000000-0000-0000-0000-000000000020': 1,
+                                                '00000000-0000-0000-0000-000000000012:00000000-0000-0000-0000-000000000002': 1,
+                                                '00000000-0000-0000-0000-000000000001:00000000-0000-0000-0000-000000000005': 1}))
 
         # now lets remove our last action set
         definition['action_sets'].pop()
@@ -927,7 +927,7 @@ class APITest(TembaTest):
             data['revision'] = 3
             response = self.postJSON(url, data)
             self.assertEquals(400, response.status_code)
-            self.assertResponseError(response, 'non_field_errors', "No such node with UUID 00000000-00000000-00000000-00000020 in flow 'Color Flow'")
+            self.assertResponseError(response, 'non_field_errors', "No such node with UUID 00000000-0000-0000-0000-000000000020 in flow 'Color Flow'")
 
             # this version doesn't exist
             data['revision'] = 12

@@ -57,7 +57,7 @@ def add_testing_flag_to_context(*args):
 
 
 def uuid(val):
-    return '00000000-00000000-00000000-%08d' % val
+    return '00000000-0000-0000-0000-%012d' % val
 
 
 class TembaTest(SmartminTest):
@@ -421,7 +421,6 @@ class FlowFileTest(TembaTest):
         """
         if not contact:
             contact = self.contact
-
         try:
             if contact.is_test:
                 Contact.set_simulation(True)

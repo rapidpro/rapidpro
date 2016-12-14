@@ -993,6 +993,19 @@ class Flow(TembaModel):
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
 
+    def get_visit_counts(self, simulation=False):
+
+        if simulation:
+            (active, visits) = self._calculate_activity(simulation=True)
+            return visits
+
+        # all the flow path counts for our flow
+        paths = FlowPathCount.objects.filter(flow=self)
+
+        # group by our from and to and sum the counts
+        paths = paths.values('from_uuid', 'to_uuid').order_by().annotate(Sum('count'))
+        return {'%s:%s' % (p['from_uuid'], p['to_uuid']): p['count__sum'] for p in paths}
+
     def get_activity(self, simulation=False, check_cache=True):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
@@ -3609,6 +3622,54 @@ class FlowRevision(SmartModel):
                     id=self.pk,
                     version=self.spec_version,
                     revision=self.revision)
+
+
+class FlowPathCount(models.Model):
+    """
+    Maintains hourly counts of flow paths
+    """
+
+    LAST_SQUASH_KEY = 'last_flowpathcount_squash'
+
+    flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
+    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def squash_counts(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(FlowPathCount.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # insert our new top squashed id
+        max_id = FlowPathCount.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(FlowPathCount.LAST_SQUASH_KEY, max_id.id)
+
+        # get the unique ids for all new ones
+        start = time.time()
+        squash_count = 0
+
+        for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
+                .distinct('flow_id', 'from_uuid', 'to_uuid', 'period'):
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period))
+
+            squash_count += 1
+
+        print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
+
+    def __unicode__(self):  # pragma: no cover
+        return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
+
+    class Meta:
+        index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
 
 
 class FlowRunCount(models.Model):
