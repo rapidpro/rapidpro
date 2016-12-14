@@ -168,14 +168,14 @@
       var queryEditor = codeMirrors["request-query-" + slug];
       var bodyEditor = codeMirrors["request-body-" + slug];
 
-      var query = queryEditor ? ensureQueryPrefix(queryEditor.getValue()) : null;
+      var query = queryEditor ? ensureQueryPrefix(queryEditor.getValue()) : '';
       var body = bodyEditor ? bodyEditor.getValue() : null;
 
       $("#result-" + slug).text("Requesting...");
 
       $.ajax({
         type: method,
-        url: url,
+        url: url + query,
         data: body,
         headers: {
           Accept : "application/json; charset=utf-8; indent=4;",
