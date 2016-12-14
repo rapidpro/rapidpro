@@ -50,7 +50,9 @@
               - for folder in folders
                 %li{'class': '{% if request.path == folder.url %}active{% endif %}' }
                   %a{'href':'={folder.url}'}
-                    ={folder.label} ({{ folder.count | intcomma }})
+                    ={folder.label}
+                    -if folder.count >= 0
+                      ({{ folder.count | intcomma }})
 
               - if labels
                 %li.nav-header

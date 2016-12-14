@@ -127,7 +127,7 @@ class InboxView(OrgPermsMixin, SmartListView):
                    dict(count=counts[SystemLabel.TYPE_FLOWS], label=_("Flows"), url=reverse('msgs.msg_flow')),
                    dict(count=counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse('msgs.msg_archived')),
                    dict(count=counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse('msgs.msg_outbox')),
-                   dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse('msgs.msg_sent')),
+                   dict(count=-1, label=_("Sent"), url=reverse('msgs.msg_sent')),
                    dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse('channels.channelevent_calls')),
                    dict(count=counts[SystemLabel.TYPE_SCHEDULED], label=_("Schedules"), url=reverse('msgs.broadcast_schedule_list')),
                    dict(count=counts[SystemLabel.TYPE_FAILED], label=_("Failed"), url=reverse('msgs.msg_failed'))]
