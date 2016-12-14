@@ -1087,9 +1087,9 @@ class VumiHandler(View):
             content = body.get('content')
 
             if is_ussd:  # receive USSD message
-                if body.get('session_event', '') == "close":
+                if body.get('session_event') == "close":
                     status = USSDSession.INTERRUPTED
-                elif body.get('session_event', '') == "new":
+                elif body.get('session_event') == "new":
                     status = USSDSession.TRIGGERED
                 else:  # "resume" or null handling
                     status = USSDSession.IN_PROGRESS
