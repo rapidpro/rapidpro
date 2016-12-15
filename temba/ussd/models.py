@@ -7,29 +7,28 @@ from temba.contacts.models import Contact, URN
 from temba.triggers.models import Trigger
 
 
-class USSDManager(models.Manager):
-    def get_queryset(self):
-        return super(USSDManager, self).get_queryset().filter(session_type=USSDSession.USSD)
+class USSDQuerySet(models.QuerySet):
+    def get(self, *args, **kwargs):
+        kwargs.update(dict(session_type=USSDSession.USSD))
+        return super(USSDQuerySet, self).get(*args, **kwargs)
+
+    def create(self, **kwargs):
+        user = kwargs.get('channel').created_by
+        kwargs.update(dict(session_type=USSDSession.USSD, created_by=user, modified_by=user))
+        return super(USSDQuerySet, self).create(**kwargs)
 
     def get_initiated_push_session(self, contact):
-        return self.get_queryset().filter(direction=USSDSession.USSD_PUSH, contact=contact).first()
+        return self.filter(direction=USSDSession.USSD_PUSH, contact=contact).first()
 
 
 class USSDSession(ChannelSession):
     USSD_PULL = INCOMING = 'I'
     USSD_PUSH = OUTGOING = 'O'
 
-    objects = USSDManager()
+    objects = USSDQuerySet.as_manager()
 
     class Meta:
         proxy = True
-
-    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
-        if not self.pk:
-            self.session_type = USSDSession.USSD
-            self.created_by = self.channel.created_by
-            self.modified_by = self.channel.created_by
-        super(USSDSession, self).save(force_insert, force_update, using, update_fields)
 
     def start_session_async(self):
         self.flow.start([], [self.contact], start_msg=None, restart_participants=True, session=self)
@@ -49,7 +48,7 @@ class USSDSession(ChannelSession):
     def handle_incoming(cls, channel, urn, date, external_id, message_id=None, status=None,
                         flow=None, content=None, starcode=None, org=None, async=True):
 
-        if not external_id:
+        if not external_id or not channel:
             return False
 
         trigger = None
