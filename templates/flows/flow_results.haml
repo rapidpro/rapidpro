@@ -2,7 +2,6 @@
 -load smartmin sms compress temba contacts i18n
 
 -block extra-less
-  <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}bower/DataTables/media/css/jquery.dataTables.css">
 
   -compress css inline
     {% lessblock %}
@@ -14,7 +13,6 @@
 
         table {
           width: 100%;
-          //border-bottom: 1px solid #e6e6e6;
         }
 
         td {
@@ -82,9 +80,18 @@
     {% endlessblock %}
 
 -block extra-script
+  <script src="{{ STATIC_URL }}/bower/highcharts/highcharts.js"></script>
+
   {{ block.super }}
 
   :javascript
+
+     Highcharts.setOptions({
+        global: {
+            timezoneOffset: 5 * 60
+        }
+    });
+
     function exportFlow(){
       var flowIds = getCheckedIds();
       var modal = new Modax('{% trans "Export Flow Results" %}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
@@ -190,11 +197,14 @@
 
 -block content
 
+  <hr>
+
+  <div class="text-center" ic-get-from="/flow/activity_chart/{{object.id}}" ic-trigger-on="load">
+    <i class="fa fa-spinner fa-spin fa-2x"></i> Loading Graph...
+  </div>
+
   .hidden-columns.pull-right
     <input type="hidden" id="columns" style="width:300px"/>
-
-  %h3
-    Latest Activity
 
   %table
     %tbody{id:"results_run_table"}
@@ -223,7 +233,7 @@
             %a{href:'javascript:toggleValue({{forloop.counter0}});'}
               category
 
-      %tr{ic-append-from:"/flow/runs_partial/{{object.id}}", ic-trigger-on:"scrolled-into-view", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+      %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"scrolled-into-view", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
   #indicator{style:"display:none"}
     .loader

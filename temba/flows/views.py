@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
-from django.db.models import Count
+from django.db.models import Count, Min, Max
 from django import forms
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
@@ -340,8 +340,8 @@ class PartialTemplate(SmartTemplateView):  # pragma: no cover
 
 class FlowCRUDL(SmartCRUDL):
     actions = ('list', 'archived', 'copy', 'create', 'delete', 'update', 'simulate', 'export_results',
-               'upload_action_recording', 'read', 'editor', 'results', 'runs_partial', 'json', 'broadcast', 'activity', 'filter',
-               'campaign', 'completion', 'revisions', 'recent_messages')
+               'upload_action_recording', 'read', 'editor', 'results', 'run_table', 'json', 'broadcast', 'activity',
+               'activity_chart', 'filter', 'campaign', 'completion', 'revisions', 'recent_messages')
 
     model = Flow
 
@@ -1061,12 +1061,90 @@ class FlowCRUDL(SmartCRUDL):
                 response['REDIRECT'] = self.get_success_url()
                 return response
 
-    class RunsPartial(OrgObjPermsMixin, SmartReadView):
+    class ActivityChart(OrgObjPermsMixin, SmartReadView):
+        """
+        Intercooler helper that renders a chart of activity by a given period
+        """
+
+        # the min number of responses to show a histogram
+        HISTOGRAM_MIN = 1000
+
+        # the min number of responses to show the period charts
+        PERIOD_MIN = 200
+
+        def get_context_data(self, *args, **kwargs):
+
+            total_responses = 0
+
+            from django.db.models import Sum
+            context = super(FlowCRUDL.ActivityChart, self).get_context_data(*args, **kwargs)
+
+            flow = self.get_object()
+            from temba.flows.models import FlowPathCount
+            rulesets = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT))
+
+            from_uuids = []
+            for ruleset in rulesets:
+                from_uuids += [rule.uuid for rule in ruleset.get_rules()]
+
+            dates = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).aggregate(Max('period'), Min('period'))
+            start_date = dates.get('period__min')
+            end_date = dates.get('period__max')
+
+            # by hour of the day
+            hod = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).extra({"hour": "extract(hour from period::timestamp)"})
+            hod = hod.values('hour').annotate(count=Sum('count')).order_by('hour')
+            hod_dict = {int(h.get('hour')): h.get('count') for h in hod}
+
+            hours = []
+            for x in range(0, 24):
+                hours.append({'bucket': datetime(1970, 1, 1, hour=x), 'count': hod_dict.get(x, 0)})
+
+            # by day of the week
+            dow = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).extra({"day": "extract(dow from period::timestamp)"})
+            dow = dow.values('day').annotate(count=Sum('count'))
+            for day in dow:
+                day['day'] = int(day['day'])
+                total_responses += day['count']
+
+            if total_responses > FlowCRUDL.ActivityChart.PERIOD_MIN:
+                dow = sorted(dow, key=lambda k: k['day'])
+                days = (_('Sunday'), _('Monday'), _('Tuesday'), _('Wednesday'), _('Thursday'), _('Friday'), _('Saturday'))
+                dow = [{'day': days[d['day']], 'count': d['count'],
+                        'pct': 100 * float(d['count']) / float(total_responses)} for d in dow]
+                context['dow'] = dow
+                context['hod'] = hours
+
+            if total_responses > FlowCRUDL.ActivityChart.HISTOGRAM_MIN:
+                # our main histogram
+                date_range = end_date - start_date
+                histogram = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids)
+                if date_range < timedelta(days=21):
+                    histogram = histogram.extra({"bucket": "date_trunc('hour', period)"})
+                elif date_range < timedelta(days=500):
+                    histogram = histogram.extra({"bucket": "date_trunc('day', period)"})
+                else:
+                    histogram = histogram.extra({"bucket": "date_trunc('week', period)"})
+
+                histogram = histogram.values('bucket').annotate(count=Sum('count')).order_by('bucket')
+                context['histogram'] = histogram
+
+                # highcharts works in UTC, but we want to offset our chart according to the org timezone
+                context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds())
+
+            context['total_responses'] = total_responses
+
+            return context
+
+    class RunTable(OrgObjPermsMixin, SmartReadView):
+        """
+        Intercooler helper which renders rows of runs to be embedded in an existing table with infinite scrolling
+        """
 
         paginate_by = 100
 
         def get_context_data(self, *args, **kwargs):
-            context = super(FlowCRUDL.RunsPartial, self).get_context_data(*args, **kwargs)
+            context = super(FlowCRUDL.RunTable, self).get_context_data(*args, **kwargs)
             flow = self.get_object()
 
             context['rulesets'] = list(flow.rule_sets.filter(ruleset_type__in=RuleSet.TYPE_WAIT).order_by('y'))
@@ -1083,7 +1161,7 @@ class FlowCRUDL(SmartCRUDL):
                 modified_on = datetime.fromtimestamp(int(modified_on), flow.org.timezone)
                 runs = runs.filter(modified_on__lt=modified_on).exclude(modified_on=modified_on, id__lt=id)
 
-            runs = list(runs.order_by('-modified_on'))[:FlowCRUDL.RunsPartial.paginate_by]
+            runs = list(runs.order_by('-modified_on'))[:FlowCRUDL.RunTable.paginate_by]
 
             # populate ruleset values
             for run in runs:
