@@ -16,7 +16,7 @@ class Response(object):
         for idx in range(object_len):
             action_dict = self.document[idx]
 
-            if action_dict['action'] == 'talk':
+            if action_dict['action'] in ['talk', 'stream']:
                 if idx == object_len - 1:
                     self.document[idx]['bargeIn'] = False
                 elif idx <= object_len - 2:
@@ -48,6 +48,7 @@ class Response(object):
         if url:
             result['action'] = 'stream'
             result['streamUrl'] = [url]
+            result['bargeIn'] = True
 
         elif digits:
             result['bargeIn'] = True

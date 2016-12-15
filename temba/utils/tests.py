@@ -1213,13 +1213,13 @@ class NCCOTest(TembaTest):
         response = ncco.Response()
         response.play(url='http://example.com/audio.wav')
 
-        self.assertEqual(json.loads(unicode(response)), [dict(action='stream',
+        self.assertEqual(json.loads(unicode(response)), [dict(action='stream', bargeIn=False,
                                                               streamUrl=['http://example.com/audio.wav'])])
 
         response = ncco.Response()
         response.play(url='http://example.com/audio.wav', digits='123')
 
-        self.assertEqual(json.loads(unicode(response)), [dict(action='stream',
+        self.assertEqual(json.loads(unicode(response)), [dict(action='stream', bargeIn=False,
                                                               streamUrl=['http://example.com/audio.wav'])])
 
     def test_bargeIn(self):
@@ -1271,6 +1271,18 @@ class NCCOTest(TembaTest):
                                                          dict(action='input', maxDigits=1, timeOut=1,
                                                               eventUrl=["%s?input_redirect=1" % 'http://example.com/']),
                                                          dict(action='talk', text='Bye', bargeIn=False)])
+
+        response = ncco.Response()
+        response.play(url='http://example.com/audio.wav')
+        response.redirect('http://example.com/')
+        response.say('Goodbye')
+
+        self.assertEqual(json.loads(unicode(response)), [dict(action='stream', bargeIn=True,
+                                                              streamUrl=['http://example.com/audio.wav']),
+                                                         dict(action='input', maxDigits=1, timeOut=1,
+                                                              eventUrl=[
+                                                                  "%s?input_redirect=1" % 'http://example.com/']),
+                                                         dict(action='talk', text='Goodbye', bargeIn=False)])
 
     def test_pause(self):
         response = ncco.Response()
