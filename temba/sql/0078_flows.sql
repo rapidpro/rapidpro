@@ -202,8 +202,6 @@ BEGIN
     is_test = temba_flows_contact_is_test(OLD.contact_id);
     flow_id = temba_flow_for_run(OLD.run_id);
 
-    RAISE LOG 'Updating %', OLD;
-
     IF NOT is_test AND NEW.left_on IS NOT NULL THEN
       IF NEW.next_uuid is NOT NULL THEN
         PERFORM temba_insert_flowpathcount(flow_id, temba_step_from_uuid(NEW), uuid(NEW.next_uuid), NEW.left_on, 1);
