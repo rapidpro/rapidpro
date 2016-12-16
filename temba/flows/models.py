@@ -2625,7 +2625,7 @@ class FlowRun(models.Model):
                     # finally, trigger our parent flow
                     Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
-    def resume_after_timeout(self):
+    def resume_after_timeout(self, expired_timeout):
         """
         Resumes a flow that is at a ruleset that has timed out
         """
@@ -2636,8 +2636,15 @@ class FlowRun(models.Model):
         if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
             timeout = node.get_timeout()
 
-            # if our current node doesn't have a timeout, then we've moved on
-            if timeout:
+            # if our current node doesn't have a timeout, but our timeout is still right, then the ruleset
+            # has changed out from under us and no longer has a timeout, clear our run's timeout_on
+            if not timeout and abs(expired_timeout - self.timeout_on) < timedelta(milliseconds=1):
+                self.timeout_on = None
+                self.modified_on = timezone.now()
+                self.save(update_fields=['timeout_on', 'modified_on'])
+
+            # this is a valid timeout, deal with it
+            else:
                 # get the last outgoing msg for this contact
                 msg = self.get_last_msg(OUTGOING)
 
