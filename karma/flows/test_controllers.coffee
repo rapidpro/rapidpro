@@ -232,16 +232,16 @@ describe 'Controllers:', ->
       loadFavoritesFlow()
       ruleset = flowService.flow.rule_sets[0]
 
-      # three rules and our other
-      expect(ruleset.rules.length).toBe(4)
+      # four rules and our other
+      expect(ruleset.rules.length).toBe(5)
 
       editRules ruleset, (scope) ->
         scope.formData.hasTimeout = true
         scope.formData.timeout = scope.formData.timeoutOptions[5]
 
-      # now we have three rules, our other, and a timeout
+      # now we have four rules, our other, and a timeout
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(5)
+      expect(ruleset.rules.length).toBe(6)
 
       # checkout our timeout rule as the right settings
       lastRule = ruleset.rules[ruleset.rules.length - 1]
@@ -493,9 +493,9 @@ describe 'Controllers:', ->
 
       loadFavoritesFlow()
 
-      # our first ruleset, starts off with four rules
+      # our first ruleset, starts off with five rules
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(4)
+      expect(ruleset.rules.length).toBe(5)
 
       # make our last "true" rule route to the entry node
       ruleset.rules[3].destination = '127f3736-77ce-4006-9ab0-0c07cea88956'
@@ -510,9 +510,9 @@ describe 'Controllers:', ->
       # click on ruleset, then check timeout option
       editRules(ruleset, (scope) -> scope.formData.hasTimeout = true)
 
-      # should now have 5 rules to account for the timeout
+      # should now have 6 rules to account for the timeout
       ruleset = flowService.flow.rule_sets[0]
-      expect(ruleset.rules.length).toBe(5)
+      expect(ruleset.rules.length).toBe(6)
 
       # but our route should still be there
       expect(ruleset.rules[3].destination).toBe('127f3736-77ce-4006-9ab0-0c07cea88956')
