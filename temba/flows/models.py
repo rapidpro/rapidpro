@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 import json
@@ -40,6 +41,7 @@ from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
+from temba_expressions.utils import tokenize
 from twilio import twiml
 from uuid import uuid4
 
@@ -6081,11 +6083,11 @@ class ContainsTest(Test):
         test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
+        tests = tokenize(test.lower())
 
         # tokenize our sms
-        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
-        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
 
         tests = [elt for elt in tests if elt != '']
         words = [elt for elt in words if elt != '']
@@ -6125,11 +6127,11 @@ class ContainsAnyTest(ContainsTest):
         test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
+        tests = tokenize(test.lower())
 
         # tokenize our sms
-        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
-        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
 
         tests = [elt for elt in tests if elt != '']
         words = [elt for elt in words if elt != '']
