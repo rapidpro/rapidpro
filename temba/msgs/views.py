@@ -129,7 +129,7 @@ class InboxView(OrgPermsMixin, SmartListView):
                    dict(count=counts[SystemLabel.TYPE_FLOWS], label=_("Flows"), url=reverse('msgs.msg_flow')),
                    dict(count=counts[SystemLabel.TYPE_ARCHIVED], label=_("Archived"), url=reverse('msgs.msg_archived')),
                    dict(count=counts[SystemLabel.TYPE_OUTBOX], label=_("Outbox"), url=reverse('msgs.msg_outbox')),
-                   dict(count=-1, label=_("Sent"), url=reverse('msgs.msg_sent')),
+                   dict(count=counts[SystemLabel.TYPE_SENT], label=_("Sent"), url=reverse('msgs.msg_sent')),
                    dict(count=counts[SystemLabel.TYPE_CALLS], label=_("Calls"), url=reverse('channels.channelevent_calls')),
                    dict(count=counts[SystemLabel.TYPE_SCHEDULED], label=_("Schedules"), url=reverse('msgs.broadcast_schedule_list')),
                    dict(count=counts[SystemLabel.TYPE_FAILED], label=_("Failed"), url=reverse('msgs.msg_failed'))]
@@ -139,7 +139,7 @@ class InboxView(OrgPermsMixin, SmartListView):
         context['has_labels'] = Label.label_objects.filter(org=org).exists()
         context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
-        context['hide_paginator_count'] = system_label == SystemLabel.TYPE_SENT if system_label else False
+        context['org_is_purged'] = org.is_purgeable
         return context
 
 
@@ -609,7 +609,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Sent(MsgActionMixin, InboxView):
         title = _("Sent Messages")
-        template_name = 'msgs/message_box.haml'
+        template_name = 'msgs/msg_sent.haml'
         system_label = SystemLabel.TYPE_SENT
 
         def get_queryset(self, **kwargs):
