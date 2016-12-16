@@ -1835,7 +1835,10 @@ class Flow(TembaModel):
         step_uuid = step.step_uuid
         if step.rule_uuid:
             step_uuid = step.rule_uuid
-        r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
+
+        # only activity for paths taken are recorded
+        if step.next_uuid:
+            r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
 
     def update_activity(self, step, previous_step=None, rule_uuid=None):
         """

@@ -4098,9 +4098,11 @@ class FlowsTest(FlowFileTest):
         beer = RuleSet.objects.get(label='Beer', flow=flow)
         color = RuleSet.objects.get(label='Color', flow=flow)
         color_other_uuid = color.get_rules()[-1].uuid
+        color_cyan_uuid = color.get_rules()[-2].uuid
 
         other_rule_to_msg = '%s:%s' % (color_other_uuid, other_action.uuid)
         msg_to_color_step = '%s:%s' % (other_action.uuid, color.uuid)
+        cyan_to_nothing = '%s:None' % (color_cyan_uuid)
 
         # we don't know this shade of green, it should route us to the beginning again
         self.send_message(flow, 'chartreuse')
@@ -4283,6 +4285,24 @@ class FlowsTest(FlowFileTest):
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
         self.assertEquals(1, flow.get_total_runs())
+
+        # choose a rule that is not wired up (end of flow)
+        jimmy = self.create_contact('Jimmy Graham', '+12065558888')
+        self.send_message(flow, 'cyan', contact=jimmy, assert_reply=False)
+
+        tyler = self.create_contact('Tyler Lockett', '+12065559999')
+        self.send_message(flow, 'cyan', contact=tyler, assert_reply=False)
+
+        # we should have 2 counts of the cyan rule to nothing
+        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+        self.assertEqual(2, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
+
+        # squash our counts and make sure they are still the same
+        FlowPathCount.squash_counts()
+        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+
+        # but now we have a single count
+        self.assertEqual(1, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
