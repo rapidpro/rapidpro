@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 import json
@@ -40,6 +41,7 @@ from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
+from temba_expressions.utils import tokenize
 from twilio import twiml
 from uuid import uuid4
 
@@ -1835,7 +1837,10 @@ class Flow(TembaModel):
         step_uuid = step.step_uuid
         if step.rule_uuid:
             step_uuid = step.rule_uuid
-        r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
+
+        # only activity for paths taken are recorded
+        if step.next_uuid:
+            r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
 
     def update_activity(self, step, previous_step=None, rule_uuid=None):
         """
@@ -2625,7 +2630,7 @@ class FlowRun(models.Model):
                     # finally, trigger our parent flow
                     Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
-    def resume_after_timeout(self):
+    def resume_after_timeout(self, expired_timeout):
         """
         Resumes a flow that is at a ruleset that has timed out
         """
@@ -2636,8 +2641,15 @@ class FlowRun(models.Model):
         if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
             timeout = node.get_timeout()
 
-            # if our current node doesn't have a timeout, then we've moved on
-            if timeout:
+            # if our current node doesn't have a timeout, but our timeout is still right, then the ruleset
+            # has changed out from under us and no longer has a timeout, clear our run's timeout_on
+            if not timeout and abs(expired_timeout - self.timeout_on) < timedelta(milliseconds=1):
+                self.timeout_on = None
+                self.modified_on = timezone.now()
+                self.save(update_fields=['timeout_on', 'modified_on'])
+
+            # this is a valid timeout, deal with it
+            else:
                 # get the last outgoing msg for this contact
                 msg = self.get_last_msg(OUTGOING)
 
@@ -6074,11 +6086,11 @@ class ContainsTest(Test):
         test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
+        tests = tokenize(test.lower())
 
         # tokenize our sms
-        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
-        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
 
         tests = [elt for elt in tests if elt != '']
         words = [elt for elt in words if elt != '']
@@ -6118,11 +6130,11 @@ class ContainsAnyTest(ContainsTest):
         test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
+        tests = tokenize(test.lower())
 
         # tokenize our sms
-        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
-        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
 
         tests = [elt for elt in tests if elt != '']
         words = [elt for elt in words if elt != '']

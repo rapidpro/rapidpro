@@ -1272,6 +1272,15 @@ class FlowTest(TembaTest):
         sms.text = "this and that and this other thing is good and will match"
         self.assertTest(True, "this that this", test)
 
+        sms.text = "when we win we \U0001F64C @ "
+
+        test = ContainsTest(test=dict(base="\U0001F64C"))
+        self.assertTest(True, "\U0001F64C", test)
+
+        sms.text = "I am \U0001F44D"
+        test = ContainsAnyTest(test=dict(base=u"\U0001F64C \U0001F44D"))
+        self.assertTest(True, "\U0001F44D", test)
+
         sms.text = "text"
 
         test = AndTest([TrueTest(), TrueTest()])
@@ -3880,7 +3889,7 @@ class FlowsTest(FlowFileTest):
         other_rule_destination = other_rule.destination
         other_rule_uuid = other_rule.uuid
 
-        blue_rule = ruleset.get_rules()[-2]
+        blue_rule = ruleset.get_rules()[-3]
         blue_rule_uuid = blue_rule.uuid
         blue_rule_destination = blue_rule.destination
 
@@ -4092,9 +4101,11 @@ class FlowsTest(FlowFileTest):
         beer = RuleSet.objects.get(label='Beer', flow=flow)
         color = RuleSet.objects.get(label='Color', flow=flow)
         color_other_uuid = color.get_rules()[-1].uuid
+        color_cyan_uuid = color.get_rules()[-2].uuid
 
         other_rule_to_msg = '%s:%s' % (color_other_uuid, other_action.uuid)
         msg_to_color_step = '%s:%s' % (other_action.uuid, color.uuid)
+        cyan_to_nothing = '%s:None' % (color_cyan_uuid)
 
         # we don't know this shade of green, it should route us to the beginning again
         self.send_message(flow, 'chartreuse')
@@ -4277,6 +4288,24 @@ class FlowsTest(FlowFileTest):
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
         self.assertEquals(1, flow.get_total_runs())
+
+        # choose a rule that is not wired up (end of flow)
+        jimmy = self.create_contact('Jimmy Graham', '+12065558888')
+        self.send_message(flow, 'cyan', contact=jimmy, assert_reply=False)
+
+        tyler = self.create_contact('Tyler Lockett', '+12065559999')
+        self.send_message(flow, 'cyan', contact=tyler, assert_reply=False)
+
+        # we should have 2 counts of the cyan rule to nothing
+        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+        self.assertEqual(2, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
+
+        # squash our counts and make sure they are still the same
+        FlowPathCount.squash_counts()
+        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+
+        # but now we have a single count
+        self.assertEqual(1, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
@@ -6251,6 +6280,44 @@ class OrderingTest(FlowFileTest):
 
 
 class TimeoutTest(FlowFileTest):
+
+    def test_disappearing_timeout(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        flow = self.get_flow('timeout')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # check our timeout is set
+        run = FlowRun.objects.get()
+        self.assertTrue(run.is_active)
+
+        start_step = run.steps.order_by('-id').first()
+
+        # mark our last message as sent
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
+        last_msg.save()
+
+        time.sleep(.5)
+
+        # ok, change our timeout to the past
+        timeout = timezone.now()
+        FlowRun.objects.all().update(timeout_on=timeout)
+
+        # remove our timeout rule
+        flow_json = flow.as_json()
+        del flow_json['rule_sets'][0]['rules'][-1]
+        flow.update(flow_json)
+
+        # process our timeouts
+        check_flow_timeouts_task()
+
+        # our timeout_on should have been cleared and we should be at the same node
+        run.refresh_from_db()
+        self.assertIsNone(run.timeout_on)
+        current_step = run.steps.order_by('-id').first()
+        self.assertEqual(current_step.step_uuid, start_step.step_uuid)
 
     def test_timeout_loop(self):
         from temba.flows.tasks import check_flow_timeouts_task
