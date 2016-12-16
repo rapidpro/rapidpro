@@ -37,7 +37,7 @@ def process_run_timeout(run_id, timeout_on):
 
                 # this is still the timeout to process (json doesn't have microseconds so close enough)
                 if run.timeout_on and abs(run.timeout_on - timeout_on) < timedelta(milliseconds=1):
-                    run.resume_after_timeout()
+                    run.resume_after_timeout(timeout_on)
                 else:
                     print "T[%09d] .. skipping timeout, already handled" % run.id
 

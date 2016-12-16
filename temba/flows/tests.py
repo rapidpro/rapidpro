@@ -1272,6 +1272,15 @@ class FlowTest(TembaTest):
         sms.text = "this and that and this other thing is good and will match"
         self.assertTest(True, "this that this", test)
 
+        sms.text = "when we win we \U0001F64C @ "
+
+        test = ContainsTest(test=dict(base="\U0001F64C"))
+        self.assertTest(True, "\U0001F64C", test)
+
+        sms.text = "I am \U0001F44D"
+        test = ContainsAnyTest(test=dict(base=u"\U0001F64C \U0001F44D"))
+        self.assertTest(True, "\U0001F44D", test)
+
         sms.text = "text"
 
         test = AndTest([TrueTest(), TrueTest()])
@@ -6305,6 +6314,44 @@ class OrderingTest(FlowFileTest):
 
 
 class TimeoutTest(FlowFileTest):
+
+    def test_disappearing_timeout(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        flow = self.get_flow('timeout')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # check our timeout is set
+        run = FlowRun.objects.get()
+        self.assertTrue(run.is_active)
+
+        start_step = run.steps.order_by('-id').first()
+
+        # mark our last message as sent
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
+        last_msg.save()
+
+        time.sleep(.5)
+
+        # ok, change our timeout to the past
+        timeout = timezone.now()
+        FlowRun.objects.all().update(timeout_on=timeout)
+
+        # remove our timeout rule
+        flow_json = flow.as_json()
+        del flow_json['rule_sets'][0]['rules'][-1]
+        flow.update(flow_json)
+
+        # process our timeouts
+        check_flow_timeouts_task()
+
+        # our timeout_on should have been cleared and we should be at the same node
+        run.refresh_from_db()
+        self.assertIsNone(run.timeout_on)
+        current_step = run.steps.order_by('-id').first()
+        self.assertEqual(current_step.step_uuid, start_step.step_uuid)
 
     def test_timeout_loop(self):
         from temba.flows.tasks import check_flow_timeouts_task
