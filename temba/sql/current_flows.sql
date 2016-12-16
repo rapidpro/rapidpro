@@ -90,3 +90,122 @@ CREATE TRIGGER temba_flowrun_truncate_flowruncount
   AFTER TRUNCATE
   ON flows_flowrun
   EXECUTE PROCEDURE temba_update_flowruncount();
+
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+-- Triggers for managing FlowPathCount squashing
+----------------------------------------------------------------------
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
+-- Utility function to lookup whether a contact is a simulator contact
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_flows_contact_is_test(_contact_id INT) RETURNS BOOLEAN AS $$
+DECLARE
+  _is_test BOOLEAN;
+BEGIN
+  SELECT is_test INTO STRICT _is_test FROM contacts_contact WHERE id = _contact_id;
+  RETURN _is_test;
+END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- Inserts a new flowpathcount
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_insert_flowpathcount(_flow_id INTEGER, _from_uuid UUID, _to_uuid UUID, _period TIMESTAMP WITH TIME ZONE, _count INTEGER) RETURNS VOID AS $$
+  BEGIN
+    INSERT INTO flows_flowpathcount("flow_id", "from_uuid", "to_uuid", "period", "count")
+      VALUES(_flow_id, _from_uuid, _to_uuid, date_trunc('hour', _period), _count);
+  END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- Squashes all the existing flowpathcounts into a single row
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_squash_flowpathcount(_flow_id INTEGER, _from_uuid UUID, _to_uuid UUID, _period TIMESTAMP WITH TIME ZONE) RETURNS VOID AS $$
+  BEGIN
+    WITH removed as (DELETE FROM flows_flowpathcount
+      WHERE "flow_id" = _flow_id AND "from_uuid" = _from_uuid
+            AND "to_uuid" = _to_uuid AND "period" = date_trunc('hour', _period)
+      RETURNING "count")
+      INSERT INTO flows_flowpathcount("flow_id", "from_uuid", "to_uuid", "period", "count")
+      VALUES (_flow_id, _from_uuid, _to_uuid, date_trunc('hour', _period), GREATEST(0, (SELECT SUM("count") FROM removed)));
+  END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- Utility function to fetch the flow id from a run
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_flow_for_run(_run_id INT) RETURNS INTEGER AS $$
+DECLARE
+  _flow_id INTEGER;
+BEGIN
+  SELECT flow_id INTO STRICT _flow_id FROM flows_flowrun WHERE id = _run_id;
+  RETURN _flow_id;
+END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- Utility function to return the appropriate from uuid
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_step_from_uuid(_row flows_flowstep) RETURNS UUID AS $$
+BEGIN
+  IF _row.rule_uuid IS NOT NULL THEN
+    RETURN uuid(_row.rule_uuid);
+  ELSIF _row.step_uuid IS NOT NULL THEN
+    RETURN uuid(_row.step_uuid);
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------------------------------------------
+-- Keeps track of our flowpathcounts as steps are updated
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_update_flowpathcount() RETURNS TRIGGER AS $$
+DECLARE is_test boolean;
+BEGIN
+
+  -- FlowStep being added, increment if next is set
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.next_uuid IS NOT NULL AND NEW.left_on IS NOT NULL AND NOT temba_flows_contact_is_test(NEW.contact_id) THEN
+      PERFORM temba_insert_flowpathcount(temba_flow_for_run(NEW.run_id), temba_step_from_uuid(NEW), uuid(NEW.next_uuid), NEW.left_on, 1);
+    END IF;
+
+  -- FlowStep being removed
+  ELSIF TG_OP = 'DELETE' THEN
+    IF OLD.next_uuid IS NOT NULL AND OLD.left_on IS NOT NULL AND NOT temba_flows_contact_is_test(OLD.contact_id) THEN
+      PERFORM temba_insert_flowpathcount(temba_flow_for_run(OLD.run_id), temba_step_from_uuid(OLD), uuid(OLD.next_uuid), OLD.left_on, -1);
+    END IF;
+  -- FlowStep being updated
+  ELSIF TG_OP = 'UPDATE' THEN
+    is_test = temba_flows_contact_is_test(OLD.contact_id);
+    IF NOT is_test AND OLD.next_uuid IS NOT NULL THEN
+      PERFORM temba_insert_flowpathcount(temba_flow_for_run(OLD.run_id), temba_step_from_uuid(OLD), uuid(OLD.next_uuid), OLD.left_on, -1);
+    END IF;
+    IF NOT is_test AND NEW.next_uuid IS NOT NULL THEN
+      PERFORM temba_insert_flowpathcount(temba_flow_for_run(NEW.run_id), temba_step_from_uuid(NEW), uuid(NEW.next_uuid), NEW.left_on, 1);
+    END IF;
+
+  -- Table being cleared, reset all counts
+  ELSIF TG_OP = 'TRUNCATE' THEN
+    DELETE FROM flows_flowpathcount;
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Install INSERT, UPDATE and DELETE triggers
+DROP TRIGGER IF EXISTS temba_flowstep_update_flowpathcount on flows_flowstep;
+CREATE TRIGGER temba_flowstep_update_flowpathcount
+   AFTER INSERT OR DELETE OR UPDATE OF next_uuid
+   ON flows_flowstep
+   FOR EACH ROW
+   EXECUTE PROCEDURE temba_update_flowpathcount();
+
+-- Install TRUNCATE trigger
+DROP TRIGGER IF EXISTS temba_flowstep_truncate_flowpathcount on flows_flowstep;
+CREATE TRIGGER temba_flowstep_truncate_flowpathcount
+  AFTER TRUNCATE
+  ON flows_flowstep
+  EXECUTE PROCEDURE temba_update_flowpathcount();

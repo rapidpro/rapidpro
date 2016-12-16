@@ -5626,7 +5626,7 @@ class TwilioTest(TembaTest):
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
-            with patch('twilio.rest.resources.Messages.create') as mock:
+            with patch('twilio.rest.resources.messages.Messages.create') as mock:
                 mock.return_value = "Sent"
 
                 # manually send it off
@@ -5653,7 +5653,7 @@ class TwilioTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(msg.status, DELIVERED)
 
-            with patch('twilio.rest.resources.Messages.create') as mock:
+            with patch('twilio.rest.resources.messages.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
 
                 # manually send it off
@@ -5665,20 +5665,28 @@ class TwilioTest(TembaTest):
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
+            with patch('twilio.rest.resources.messages.Messages.create') as mock:
+                mock.side_effect = TwilioRestException(400, "https://twilio.com/", "User has opted out", code=21610)
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as failed and the contact should be stopped
+                msg.refresh_from_db()
+                self.assertEquals(FAILED, msg.status)
+                self.assertTrue(Contact.objects.get(id=msg.contact_id))
+
             # check that our channel log works as well
             self.login(self.admin)
 
             response = self.client.get(reverse('channels.channellog_list') + "?channel=%d" % (self.channel.pk))
 
-            # there should be two log items for the two times we sent
-            self.assertEquals(2, len(response.context['channellog_list']))
+            # there should be three log items for the three times we sent
+            self.assertEquals(3, len(response.context['channellog_list']))
 
-            # of items on this page should be right as well
-            self.assertEquals(2, response.context['paginator'].count)
-
-            # the counts on our relayer should be correct as well
-            self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(1, self.channel.get_error_log_count())
+            # number of items on this page should be right as well
+            self.assertEquals(3, response.context['paginator'].count)
+            self.assertEquals(2, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
             # view the detailed information for one of them
@@ -5687,12 +5695,10 @@ class TwilioTest(TembaTest):
             # check that it contains the log of our exception
             self.assertContains(response, "Failed to send message")
 
-            # delete our error entry
+            # delete our error entries
             ChannelLog.objects.filter(is_error=True).delete()
 
             # our counts should be right
-            # the counts on our relayer should be correct as well
-            self.channel = Channel.objects.get(id=self.channel.pk)
             self.assertEquals(0, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 

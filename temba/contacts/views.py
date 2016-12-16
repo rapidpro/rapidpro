@@ -697,7 +697,7 @@ class ContactCRUDL(SmartCRUDL):
 
             merged_upcoming_events = []
             for fire in event_fires:
-                merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.message,
+                merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.get_message(),
                                                    flow_uuid=fire.event.flow.uuid, flow_name=fire.event.flow.name,
                                                    scheduled=fire.scheduled))
 
