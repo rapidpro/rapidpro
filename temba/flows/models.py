@@ -3633,7 +3633,7 @@ class FlowPathCount(models.Model):
 
     flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
-    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
+    to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
     period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
     count = models.IntegerField(default=0)
 
