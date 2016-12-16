@@ -3886,7 +3886,7 @@ class FlowsTest(FlowFileTest):
         other_rule_destination = other_rule.destination
         other_rule_uuid = other_rule.uuid
 
-        blue_rule = ruleset.get_rules()[-2]
+        blue_rule = ruleset.get_rules()[-3]
         blue_rule_uuid = blue_rule.uuid
         blue_rule_destination = blue_rule.destination
 
