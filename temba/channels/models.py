@@ -32,6 +32,8 @@ from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
 from temba.utils.email import send_template_email
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json
 from time import sleep
+
+from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from twython import Twython
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -2266,25 +2268,44 @@ class Channel(TembaModel):
         callback_url = Channel.build_twilio_callback_url(msg.id)
         start = time.time()
 
-        if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
-            config = channel.config
-            client = TwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN), base=config.get(Channel.CONFIG_SEND_URL))
-        else:
-            client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
+        try:
+            if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
+                config = channel.config
+                client = TwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN), base=config.get(Channel.CONFIG_SEND_URL))
+            else:
+                client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
 
-        if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
-            messaging_service_sid = channel.config['messaging_service_sid']
-            client.messages.create(to=msg.urn_path,
-                                   messaging_service_sid=messaging_service_sid,
-                                   body=text,
-                                   status_callback=callback_url)
-        else:
-            client.messages.create(to=msg.urn_path,
-                                   from_=channel.address,
-                                   body=text,
-                                   status_callback=callback_url)
+            if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
+                messaging_service_sid = channel.config['messaging_service_sid']
+                client.messages.create(to=msg.urn_path,
+                                       messaging_service_sid=messaging_service_sid,
+                                       body=text,
+                                       status_callback=callback_url)
+            else:
+                client.messages.create(to=msg.urn_path,
+                                       from_=channel.address,
+                                       body=text,
+                                       status_callback=callback_url)
 
-        Channel.success(channel, msg, WIRED, start)
+            Channel.success(channel, msg, WIRED, start)
+
+        except TwilioRestException as e:
+            fatal = False
+
+            # user has blacklisted us, stop the contact
+            if e.code == 21610:
+                from temba.contacts.models import Contact
+                fatal = True
+                contact = Contact.objects.get(id=msg.contact)
+                contact.stop(contact.modified_by)
+
+            raise SendException(e.msg,
+                                e.uri,
+                                e.method,
+                                None,
+                                e.msg,
+                                e.status,
+                                fatal=fatal)
 
     @classmethod
     def send_telegram_message(cls, channel, msg, text):
