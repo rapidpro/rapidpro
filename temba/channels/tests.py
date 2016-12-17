@@ -3100,9 +3100,9 @@ class CountTest(TembaTest):
         # and only one channel count
         self.assertEquals(ChannelCount.objects.all().count(), 1)
 
-        # delete it, back to 1
+        # deleting a message doesn't decrement the count
         msg.delete()
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
@@ -3111,9 +3111,9 @@ class CountTest(TembaTest):
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
-        # delete it, should be gone now
+        # deleting a message still doesn't decrement the count
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
@@ -3124,7 +3124,7 @@ class CountTest(TembaTest):
 
         # delete it, should be gone now
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
@@ -3135,7 +3135,7 @@ class CountTest(TembaTest):
 
         # delete it, should be gone now
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
 
 
 class AfricasTalkingTest(TembaTest):
@@ -5698,8 +5698,9 @@ class TwilioTest(TembaTest):
             # delete our error entries
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our counts should be right
-            self.assertEquals(0, self.channel.get_error_log_count())
+            # our channel counts should be unaffected
+            self.channel = Channel.objects.get(id=self.channel.pk)
+            self.assertEquals(2, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 
@@ -5844,10 +5845,9 @@ class TwilioMessagingServiceTest(TembaTest):
             # delete our error entry
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our counts should be right
-            # the counts on our relayer should be correct as well
+            # our channel counts should be unaffected
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(0, self.channel.get_error_log_count())
+            self.assertEquals(1, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 

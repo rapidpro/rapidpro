@@ -21,7 +21,7 @@ from temba.contacts.templatetags.contacts import contact_field, osm_link, locati
 from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import Msg, Label, SystemLabel, Broadcast
+from temba.msgs.models import Msg, Label, SystemLabel, Broadcast, BroadcastRecipient
 from temba.orgs.models import Org
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
@@ -1266,6 +1266,9 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(url + '?before=%d' % before, self.admin)
         self.assertFalse(response.context['has_older'])
 
+        # none of our messages have a failed status yet
+        self.assertNotContains(response, 'icon-bubble-notification')
+
         # activity should include 11 remaining messages and the event fire
         activity = response.context['activity']
         self.assertEqual(len(activity), 12)
@@ -1279,8 +1282,16 @@ class ContactTest(TembaTest):
         bcast.save()
         bcast.msgs.all().delete()
 
+        recipient = BroadcastRecipient.objects.filter(broadcast=bcast).first()
+        recipient.purged_status = 'F'
+        recipient.save()
+
         response = self.fetch_protected(url, self.admin)
         activity = response.context['activity']
+
+        # our broadcast recipient purged_status is failed
+        self.assertContains(response, 'icon-bubble-notification')
+
         self.assertEqual(len(activity), 94)
         self.assertIsInstance(activity[3], Broadcast)  # TODO fix order so initial broadcasts come after their run
         self.assertEqual(activity[3].text, "What is your favorite color?")
@@ -1381,6 +1392,10 @@ class ContactTest(TembaTest):
         from temba.msgs.models import Broadcast
         msg.broadcast = Broadcast.create(self.org, self.admin, 'Test message', [])
         msg.broadcast.recipient_count = 5
+        msg.status = 'F'
+        self.assertEquals('<span class="glyph icon-bubble-notification"></span>', activity_icon(msg))
+
+        msg.status = 'S'
         self.assertEquals('<span class="glyph icon-bullhorn"></span>', activity_icon(msg))
 
     def test_media_tags(self):
