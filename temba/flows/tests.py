@@ -4341,6 +4341,10 @@ class FlowsTest(FlowFileTest):
         # ie, there are no counts added with respect to the next question
         self.assertEqual(counts, len(flow.get_visit_counts()))
 
+        # ensure no negative counts
+        for k, v in flow.get_visit_counts().iteritems():
+            self.assertTrue(v >= 0)
+
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
 
