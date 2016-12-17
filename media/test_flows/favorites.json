@@ -142,6 +142,20 @@
             },
             {
               "test": {
+                "test": {
+                  "base": "Cyan"
+                },
+                "type": "contains_any"
+              },
+              "category": {
+                "base": "Cyan"
+              },
+              "destination": null,
+              "uuid": "6f463a78-b176-49c1-bb5c-6e152502b0db",
+              "destination_type": null
+            },
+            {
+              "test": {
                 "test": "true",
                 "type": "true"
               },
