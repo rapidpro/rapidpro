@@ -4098,14 +4098,19 @@ class FlowsTest(FlowFileTest):
         self.clear_activity(flow)
 
         other_action = ActionSet.objects.get(y=8, flow=flow)
+        beer_question = ActionSet.objects.get(y=237, flow=flow)
         beer = RuleSet.objects.get(label='Beer', flow=flow)
         color = RuleSet.objects.get(label='Color', flow=flow)
-        color_other_uuid = color.get_rules()[-1].uuid
-        color_cyan_uuid = color.get_rules()[-2].uuid
+
+        rules = color.get_rules()
+        color_other_uuid = rules[-1].uuid
+        color_cyan_uuid = rules[-2].uuid
+        color_blue_uuid = rules[-3].uuid
 
         other_rule_to_msg = '%s:%s' % (color_other_uuid, other_action.uuid)
         msg_to_color_step = '%s:%s' % (other_action.uuid, color.uuid)
         cyan_to_nothing = '%s:None' % (color_cyan_uuid)
+        blue_to_beer = '%s:%s' % (color_blue_uuid, beer_question.uuid)
 
         # we don't know this shade of green, it should route us to the beginning again
         self.send_message(flow, 'chartreuse')
@@ -4306,6 +4311,33 @@ class FlowsTest(FlowFileTest):
 
         # but now we have a single count
         self.assertEqual(1, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
+
+        counts = len(flow.get_visit_counts())
+
+        # check that flow interruption counts properly
+        rawls = self.create_contact('Thomas Rawls', '+12065557777')
+        self.send_message(flow, 'blue', contact=rawls)
+
+        # but he's got other things on his mind
+        random_word = self.get_flow('random_word')
+        self.send_message(random_word, 'blerg', contact=rawls)
+
+        # here's our count for our response path
+        self.assertEqual(1, flow.get_visit_counts()[blue_to_beer])
+
+        # let's also create a flow run that gets expired
+        pete = self.create_contact('Pete', '+12065554444')
+        self.send_message(flow, 'blue', contact=pete)
+        run = FlowRun.objects.filter(contact=pete).first()
+        run.expire()
+
+        # but there should be no additional records due to the interruption or expiration
+        # ie, there are no counts added with respect to the next question
+        self.assertEqual(counts, len(flow.get_visit_counts()))
+
+        # ensure no negative counts
+        for k, v in flow.get_visit_counts().iteritems():
+            self.assertTrue(v >= 0)
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
