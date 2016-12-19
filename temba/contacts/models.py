@@ -43,23 +43,25 @@ END_TEST_CONTACT_PATH = 12065550199
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250
 
-TEL_SCHEME = 'tel'
-TWITTER_SCHEME = 'twitter'
-TWILIO_SCHEME = 'twilio'
-FACEBOOK_SCHEME = 'facebook'
-TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
+FACEBOOK_SCHEME = 'facebook'
 LINE_SCHEME = 'line'
+TEL_SCHEME = 'tel'
+TELEGRAM_SCHEME = 'telegram'
+TWILIO_SCHEME = 'twilio'
+TWITTER_SCHEME = 'twitter'
+VIBER_SCHEME = 'viber'
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
+                     (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
+                     (VIBER_SCHEME, _("Viber identifier"), 'viber', VIBER_SCHEME),
+                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
-                     (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
-                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
-                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME))
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
@@ -143,6 +145,10 @@ class URN(object):
                 return True
             except ValueError:
                 return False
+
+        # validate Viber URNS look right (this is a guess)
+        elif scheme == VIBER_SCHEME:
+            return regex.match(r'^[a-zA-Z0-9_=]{1,16}$', path, regex.V0)
 
         # anything goes for external schemes
         return True
@@ -233,6 +239,10 @@ class URN(object):
     @classmethod
     def from_external(cls, path):
         return cls.from_parts(EXTERNAL_SCHEME, path)
+
+    @classmethod
+    def from_viber(cls, path):
+        return cls.from_parts(VIBER_SCHEME, path)
 
 
 class ContactField(SmartModel):
@@ -472,15 +482,21 @@ class Contact(TembaModel):
         """
         from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
-        from temba.msgs.models import Msg
+        from temba.msgs.models import Msg, BroadcastRecipient
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
-        broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gte=after, created_on__lt=before)
-        for broadcast in broadcasts:
+        recipients = BroadcastRecipient.objects.filter(contact=self)
+        recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
+        recipients = recipients.select_related('broadcast')
+        broadcasts = []
+        for recipient in recipients:
+            broadcast = recipient.broadcast
             broadcast.translated_text = broadcast.get_translated_text(contact=self, org=self.org)
+            broadcast.purged_status = recipient.purged_status
+            broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
@@ -1723,13 +1739,14 @@ class ContactURN(models.Model):
         EMAIL_SCHEME: dict(label="Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
         TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
         FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
+        VIBER_SCHEME: dict(label="Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
     }
 
     PRIORITY_LOWEST = 1
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90}
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90, VIBER_SCHEME: 90}
 
     ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
 

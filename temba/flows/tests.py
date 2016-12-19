@@ -35,7 +35,7 @@ from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, \
     InterruptTest
-from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, get_flow_user
+from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, get_flow_user
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
@@ -427,7 +427,7 @@ class FlowTest(TembaTest):
         self.assertEqual(len(contact2_steps), 2)
 
         # check our steps for contact #1
-        self.assertEqual(six.text_type(contact1_steps[0]), "Eric - A:00000000-00000000-00000000-00000001")
+        self.assertEqual(six.text_type(contact1_steps[0]), "Eric - A:00000000-0000-0000-0000-000000000001")
         self.assertEqual(contact1_steps[0].step_uuid, entry.uuid)
         self.assertEqual(contact1_steps[0].step_type, FlowStep.TYPE_ACTION_SET)
         self.assertEqual(contact1_steps[0].contact, self.contact)
@@ -437,7 +437,7 @@ class FlowTest(TembaTest):
         self.assertEqual(set(contact1_steps[0].messages.all()), {contact1_msg})
         self.assertEqual(contact1_steps[0].next_uuid, entry.destination)
 
-        self.assertEqual(six.text_type(contact1_steps[1]), "Eric - R:00000000-00000000-00000000-00000005")
+        self.assertEqual(six.text_type(contact1_steps[1]), "Eric - R:00000000-0000-0000-0000-000000000005")
         self.assertEqual(contact1_steps[1].step_uuid, entry.destination)
         self.assertEqual(contact1_steps[1].step_type, FlowStep.TYPE_RULE_SET)
         self.assertEqual(contact1_steps[1].contact, self.contact)
@@ -817,6 +817,42 @@ class FlowTest(TembaTest):
 
         self.assertExcelRow(sheet_runs, 1, [contact1_run1.contact.uuid, "+250788382382", "Eric", "Devs", "36",
                                             c1_run1_first, c1_run1_last, "Orange", "orange", "orange"], tz)
+
+    def test_export_results_list_messages_once(self):
+        self.flow.update(self.definition)
+        contact1_run1 = self.flow.start([], [self.contact])[0]
+
+        time.sleep(1)
+
+        contact1_in1 = self.create_msg(direction=INCOMING, contact=self.contact, text="Red")
+        Flow.find_and_handle(contact1_in1)
+
+        contact1_run1_rs = FlowStep.objects.filter(run=contact1_run1, step_type='R')
+        contact1_out1 = Msg.objects.get(steps__run=contact1_run1, text="What is your favorite color?")
+        contact1_out2 = Msg.objects.get(steps__run=contact1_run1, text="That is a funny color. Try again.")
+
+        # consider msg is also on the second step too to test it is not exported in two rows
+        contact1_run1_rs.last().messages.add(contact1_in1)
+
+        tz = self.org.timezone
+        workbook = self.export_flow_results(self.flow)
+
+        sheet_runs, sheet_contacts, sheet_msgs = workbook.worksheets
+
+        self.assertEqual(len(list(sheet_msgs.rows)), 4)  # header + 2 msgs
+
+        self.assertExcelRow(sheet_msgs, 0, ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"])
+
+        self.assertExcelRow(sheet_msgs, 1, [contact1_out1.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out1.created_on, "OUT",
+                                            "What is your favorite color?", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 2, [contact1_run1.contact.uuid, "+250788382382", "Eric",
+                                            contact1_in1.created_on, 'IN', "Red", "Test Channel"], tz)
+
+        self.assertExcelRow(sheet_msgs, 3, [contact1_out2.contact.uuid, "+250788382382", "Eric",
+                                            contact1_out2.created_on, "OUT",
+                                            "That is a funny color. Try again.", "Test Channel"], tz)
 
     def test_export_results_remove_control_characters(self):
         self.flow.update(self.definition)
@@ -1235,6 +1271,15 @@ class FlowTest(TembaTest):
         test.test = dict(base="this THAT")
         sms.text = "this and that and this other thing is good and will match"
         self.assertTest(True, "this that this", test)
+
+        sms.text = "when we win we \U0001F64C @ "
+
+        test = ContainsTest(test=dict(base="\U0001F64C"))
+        self.assertTest(True, "\U0001F64C", test)
+
+        sms.text = "I am \U0001F44D"
+        test = ContainsAnyTest(test=dict(base=u"\U0001F64C \U0001F44D"))
+        self.assertTest(True, "\U0001F44D", test)
 
         sms.text = "text"
 
@@ -3850,7 +3895,7 @@ class FlowsTest(FlowFileTest):
         other_rule_destination = other_rule.destination
         other_rule_uuid = other_rule.uuid
 
-        blue_rule = ruleset.get_rules()[-2]
+        blue_rule = ruleset.get_rules()[-3]
         blue_rule_uuid = blue_rule.uuid
         blue_rule_destination = blue_rule.destination
 
@@ -4059,12 +4104,19 @@ class FlowsTest(FlowFileTest):
         self.clear_activity(flow)
 
         other_action = ActionSet.objects.get(y=8, flow=flow)
+        beer_question = ActionSet.objects.get(y=237, flow=flow)
         beer = RuleSet.objects.get(label='Beer', flow=flow)
         color = RuleSet.objects.get(label='Color', flow=flow)
-        color_other_uuid = color.get_rules()[-1].uuid
+
+        rules = color.get_rules()
+        color_other_uuid = rules[-1].uuid
+        color_cyan_uuid = rules[-2].uuid
+        color_blue_uuid = rules[-3].uuid
 
         other_rule_to_msg = '%s:%s' % (color_other_uuid, other_action.uuid)
         msg_to_color_step = '%s:%s' % (other_action.uuid, color.uuid)
+        cyan_to_nothing = '%s:None' % (color_cyan_uuid)
+        blue_to_beer = '%s:%s' % (color_blue_uuid, beer_question.uuid)
 
         # we don't know this shade of green, it should route us to the beginning again
         self.send_message(flow, 'chartreuse')
@@ -4200,6 +4252,12 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
 
+        # try the same thing after squashing
+        FlowPathCount.squash_counts()
+        visited = flow.get_activity()[1]
+        self.assertEquals(1, visited[msg_to_color_step])
+        self.assertEquals(1, visited[other_rule_to_msg])
+
         # but hammer should have created some simulation activity
         (active, visited) = flow.get_activity(simulation=True)
         self.assertEquals(0, len(active))
@@ -4241,6 +4299,51 @@ class FlowsTest(FlowFileTest):
         (active, visited) = flow.get_activity()
         self.assertEquals(0, len(active))
         self.assertEquals(1, flow.get_total_runs())
+
+        # choose a rule that is not wired up (end of flow)
+        jimmy = self.create_contact('Jimmy Graham', '+12065558888')
+        self.send_message(flow, 'cyan', contact=jimmy, assert_reply=False)
+
+        tyler = self.create_contact('Tyler Lockett', '+12065559999')
+        self.send_message(flow, 'cyan', contact=tyler, assert_reply=False)
+
+        # we should have 2 counts of the cyan rule to nothing
+        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+        self.assertEqual(2, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
+
+        # squash our counts and make sure they are still the same
+        FlowPathCount.squash_counts()
+        self.assertEqual(2, flow.get_visit_counts()[cyan_to_nothing])
+
+        # but now we have a single count
+        self.assertEqual(1, FlowPathCount.objects.filter(from_uuid=color_cyan_uuid).count())
+
+        counts = len(flow.get_visit_counts())
+
+        # check that flow interruption counts properly
+        rawls = self.create_contact('Thomas Rawls', '+12065557777')
+        self.send_message(flow, 'blue', contact=rawls)
+
+        # but he's got other things on his mind
+        random_word = self.get_flow('random_word')
+        self.send_message(random_word, 'blerg', contact=rawls)
+
+        # here's our count for our response path
+        self.assertEqual(1, flow.get_visit_counts()[blue_to_beer])
+
+        # let's also create a flow run that gets expired
+        pete = self.create_contact('Pete', '+12065554444')
+        self.send_message(flow, 'blue', contact=pete)
+        run = FlowRun.objects.filter(contact=pete).first()
+        run.expire()
+
+        # but there should be no additional records due to the interruption or expiration
+        # ie, there are no counts added with respect to the next question
+        self.assertEqual(counts, len(flow.get_visit_counts()))
+
+        # ensure no negative counts
+        for k, v in flow.get_visit_counts().iteritems():
+            self.assertTrue(v >= 0)
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
@@ -6237,6 +6340,44 @@ class OrderingTest(FlowFileTest):
 
 
 class TimeoutTest(FlowFileTest):
+
+    def test_disappearing_timeout(self):
+        from temba.flows.tasks import check_flow_timeouts_task
+        flow = self.get_flow('timeout')
+
+        # start the flow
+        flow.start([], [self.contact])
+
+        # check our timeout is set
+        run = FlowRun.objects.get()
+        self.assertTrue(run.is_active)
+
+        start_step = run.steps.order_by('-id').first()
+
+        # mark our last message as sent
+        last_msg = run.get_last_msg(OUTGOING)
+        last_msg.sent_on = timezone.now() - timedelta(minutes=5)
+        last_msg.save()
+
+        time.sleep(.5)
+
+        # ok, change our timeout to the past
+        timeout = timezone.now()
+        FlowRun.objects.all().update(timeout_on=timeout)
+
+        # remove our timeout rule
+        flow_json = flow.as_json()
+        del flow_json['rule_sets'][0]['rules'][-1]
+        flow.update(flow_json)
+
+        # process our timeouts
+        check_flow_timeouts_task()
+
+        # our timeout_on should have been cleared and we should be at the same node
+        run.refresh_from_db()
+        self.assertIsNone(run.timeout_on)
+        current_step = run.steps.order_by('-id').first()
+        self.assertEqual(current_step.step_uuid, start_step.step_uuid)
 
     def test_timeout_loop(self):
         from temba.flows.tasks import check_flow_timeouts_task

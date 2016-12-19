@@ -697,7 +697,7 @@ class ContactCRUDL(SmartCRUDL):
 
             merged_upcoming_events = []
             for fire in event_fires:
-                merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.message,
+                merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.get_message(),
                                                    flow_uuid=fire.event.flow.uuid, flow_name=fire.event.flow.name,
                                                    scheduled=fire.scheduled))
 
@@ -1258,7 +1258,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             sorted_results.insert(0, dict(key='groups', label='Groups'))
 
-            for config in URN_SCHEME_CONFIG:
+            for config in reversed(URN_SCHEME_CONFIG):
                 sorted_results.insert(0, dict(key=config[3], label=unicode(config[1])))
 
             sorted_results.insert(0, dict(key='name', label='Full name'))

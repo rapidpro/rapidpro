@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0069_populate_broadcast_base_lang'),
+        ('msgs', '0072_broadcastrecipient_purged_status'),
     ]
 
     operations = [
