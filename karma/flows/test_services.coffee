@@ -478,13 +478,13 @@ describe 'Services:', ->
 
         # check we have the right number of categories to start
         colors = getNode(flow, colorRulesId)
-        expect(colors._categories.length).toBe(4, 'categories were not derived properly')
+        expect(colors._categories.length).toBe(5, 'categories were not derived properly')
 
         # now set the green category name to the same as red
         green = getRule(flow, colorRulesId, greenRuleId)
         green.category = {base: 'red'}
         flowService.deriveCategories(colors, 'base')
-        expect(colors._categories.length).toBe(3, 'like named category did not get merged')
+        expect(colors._categories.length).toBe(4, 'like named category did not get merged')
 
         # change red to skip a question
         flowService.updateDestination(colorRulesId + '_' + redRuleId, nameActionsId)
