@@ -1132,6 +1132,27 @@ class FlowCRUDL(SmartCRUDL):
                 # highcharts works in UTC, but we want to offset our chart according to the org timezone
                 context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds())
 
+            from temba.flows.models import FlowRunCount
+            from django.db.models import Sum
+            counts = FlowRunCount.objects.filter(flow=flow).values('exit_type').annotate(Sum('count'))
+
+            def get_exit_type(type):
+                if not type:
+                    return 'active'
+                elif type == FlowRun.EXIT_TYPE_COMPLETED:
+                    return 'completed'
+                elif type == FlowRun.EXIT_TYPE_INTERRUPTED:
+                    return 'interrupted'
+                elif type == FlowRun.EXIT_TYPE_EXPIRED:
+                    return 'expired'
+
+            total_runs = 0
+            for count in counts:
+                key = get_exit_type(count['exit_type'])
+                context[key] = count['count__sum']
+                total_runs += count['count__sum']
+
+            context['total_runs'] = total_runs
             context['total_responses'] = total_responses
 
             return context

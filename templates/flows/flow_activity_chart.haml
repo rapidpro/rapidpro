@@ -1,7 +1,8 @@
 -load humanize i18n compress temba
 
-// <script src="{{ STATIC_URL }}/bower/jquery/jquery.js"></script>
-// <script src="{{ STATIC_URL }}/bower/highcharts/highcharts.js"></script>
+//<script src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
+//<script src="https://code.highcharts.com/highcharts.js"></script>
+//<script src="https://code.highcharts.com/modules/drilldown.js"></script>
 
 -compress css inline
   {% lessblock %}
@@ -20,7 +21,7 @@
       }
 
       #hod_container {
-        width: 68%;
+        width: 40%;
         display: inline-block;
 
         #hod {
@@ -28,7 +29,14 @@
         }
       }
 
+      #completion_container {
+        display: inline-block;
+        width: 29%;
 
+        #completion {
+          height: 200px;
+        }
+      }
 
       .datalabel {
         size: 75%;
@@ -48,6 +56,11 @@
       Time of Day
     #hod
 
+#completion_container
+  %h4
+    Completion
+  #completion
+
 -if histogram
   #histogram
 
@@ -60,7 +73,7 @@
   {% endblocktrans %}
 
 :javascript
-    $(document).ready(function(){
+  $(document).ready(function(){
     Highcharts.setOptions({
       global: {
         {% if utcoffset %}
@@ -71,6 +84,83 @@
         thousandsSep: ','
       }
     });
+  });
+
+:javascript
+  var pie_points = [
+    {% if active %}{ name: 'Active', y: {{active}} },{%endif%}
+    {
+      name: 'Completed',
+      y: {{completed}},
+      drilldown: null
+    },
+    {
+      name: 'Exited',
+      y: {{interrupted|add:expired}},
+      drilldown: 'incomplete',
+    },
+
+  ];
+
+  var pie_drill = {
+    series: [{
+      name: 'Exited',
+      id: 'incomplete',
+      innerSize: '50%',
+      data:[
+        ['Expired', {{expired}}],
+        ['Interruped', {{interrupted}}],
+      ]
+    }]
+  };
+
+
+  new Highcharts.chart({
+    credits: { enabled: false },
+    colors: ['#80b9fb', '#2980b9'],
+    chart: {
+        renderTo: 'completion',
+        type: 'pie',
+        backgroundColor: 'transparent',
+        margin: [0, 0, -40, 0],
+        spacingTop: 0,
+        spacingBottom: 0,
+        spacingLeft: 0,
+        spacingRight: 0
+    },
+    title: {
+        text: '{{total_runs|intcomma}}<br/>runs',
+        align: 'center',
+        verticalAlign: 'middle',
+        y: 40
+    },
+    legend: {
+      enabled: false
+    },
+    tooltip: {
+      formatter: function() {
+        return '<b>' + this.point.name + ':</b> ' + Highcharts.numberFormat(this.point.y, 0) + '</b> <span style="font-size:90%"> (' + Highcharts.numberFormat(this.percentage, 2) + '%)</span>';
+      }
+    },
+    series:[{
+      name: 'Completion',
+      innerSize: '50%',
+      data: pie_points
+    }],
+    drilldown: pie_drill,
+    plotOptions: {
+      pie: {
+        size:'130%',
+        dataLabels: {
+            enabled: false,
+            distance: -50,
+        },
+        startAngle: -90,
+        endAngle: 90,
+        center: ['50%', '75%']
+      }
+    }
+  });
 
 -if hod
   :javascript
@@ -80,7 +170,7 @@
       {% endfor %}
     ];
 
-    new Highcharts.Chart({
+    new Highcharts.chart({
       credits: { enabled: false },
       colors: ['#2980b9'],
       chart: {
@@ -124,8 +214,6 @@
           pointPadding: 0,
           borderWidth: 0
         },
-        column: {
-        }
       },
       tooltip: {
         formatter: function() {
@@ -136,7 +224,6 @@
         data: hod_points
       }]
     });
-  });
 
 -if dow
   :javascript
@@ -226,7 +313,7 @@
 
     $(document).ready(function() {
 
-        chart = new Highcharts.Chart({
+        chart = new Highcharts.chart({
             credits: {
                 enabled: false
             },
