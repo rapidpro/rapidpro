@@ -5276,36 +5276,6 @@ class FlowsTest(FlowFileTest):
         interrupted_group = ContactGroup.user_groups.get(name='Interrupted')
         self.assertFalse(interrupted_group.contacts.filter(id=contact.id).exists())
 
-    def test_interrupted_state_with_loop(self):
-        flow = self.get_flow('ussd_interrupt_example')
-
-        # disconnect action from interrupt state and connect to itself (create a self-loop)
-        ruleset = flow.rule_sets.first()
-        rules = ruleset.get_rules()
-        interrupt_rule = filter(lambda rule: isinstance(rule.test, InterruptTest), rules)[0]
-        interrupt_rule.destination = ruleset.uuid
-        interrupt_rule.destination_type = 'R'
-        ruleset.set_rules(rules)
-        ruleset.save()
-
-        # start the flow, check if we are interrupted yet
-        flow.start([], [self.contact])
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
-
-        # check if the message was sent out
-        self.assertEqual(len(flow.steps()), 1)
-
-        USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
-                                    external_id="12341231", status=USSDSession.INTERRUPTED)
-
-        # the interrupt state leads back to the USSD ruleset itself
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
-
-        # it should send out the same message again
-        self.assertEqual(len(flow.steps()), 2)
-        self.assertEqual(flow.steps()[0].messages.count(), 2)
-        self.assertEqual(flow.steps()[0].messages.last().text, flow.steps()[1].messages.first().text)
-
     def test_airtime_flow(self):
         flow = self.get_flow('airtime')
 
