@@ -5304,6 +5304,7 @@ class FlowsTest(FlowFileTest):
         # it should send out the same message again
         self.assertEqual(len(flow.steps()), 2)
         self.assertEqual(flow.steps()[0].messages.count(), 2)
+        self.assertEqual(flow.steps()[0].messages.last().text, flow.steps()[1].messages.first().text)
 
     def test_airtime_flow(self):
         flow = self.get_flow('airtime')
