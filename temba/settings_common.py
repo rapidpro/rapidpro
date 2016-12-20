@@ -437,6 +437,7 @@ PERMISSIONS = {
                          'claim_twitter',
                          'claim_verboice',
                          'claim_viber',
+                         'claim_viber_public',
                          'create_viber',
                          'claim_vumi',
                          'claim_vumi_ussd',
@@ -666,6 +667,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_viber',
+        'channels.channel_claim_viber_public',
         'channels.channel_create_viber',
         'channels.channel_claim_vumi',
         'channels.channel_claim_vumi_ussd',
@@ -802,6 +804,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_viber',
+        'channels.channel_claim_viber_public',
         'channels.channel_create_viber',
         'channels.channel_claim_vumi',
         'channels.channel_claim_vumi_ussd',
@@ -990,9 +993,13 @@ CELERYBEAT_SCHEDULE = {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
     },
+    "purge-broadcasts": {
+        'task': 'purge_broadcasts_task',
+        'schedule': crontab(hour=1, minute=0),
+    },
     "clear-old-msg-external-ids": {
         'task': 'clear_old_msg_external_ids',
-        'schedule': crontab(hour=1, minute=0),
+        'schedule': crontab(hour=2, minute=0),
     },
     "trim-channel-log": {
         'task': 'trim_channel_log_task',
@@ -1004,6 +1011,10 @@ CELERYBEAT_SCHEDULE = {
     },
     "squash-flowruncounts": {
         'task': 'squash_flowruncounts',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-flowpathcounts": {
+        'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
     "squash-channelcounts": {

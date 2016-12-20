@@ -143,6 +143,21 @@ class UnreachableException(Exception):
     pass
 
 
+class BroadcastRecipient(models.Model):
+    """
+    Through table for broadcast recipients many-to-many
+    """
+    broadcast = models.ForeignKey('msgs.Broadcast')
+
+    contact = models.ForeignKey(Contact)
+
+    purged_status = models.CharField(null=True, max_length=1,
+                                     help_text=_("Used when broadcast is purged to record contact's message's state"))
+
+    class Meta:
+        db_table = 'msgs_broadcast_recipients'
+
+
 class Broadcast(models.Model):
     """
     A broadcast is a message that is sent out to more than one recipient, such
@@ -165,7 +180,8 @@ class Broadcast(models.Model):
     urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"), related_name='addressed_broadcasts',
                                   help_text=_("Individual URNs included in this message"))
 
-    recipients = models.ManyToManyField(Contact, verbose_name=_("Recipients"), related_name='broadcasts',
+    recipients = models.ManyToManyField(Contact, through=BroadcastRecipient, verbose_name=_("Recipients"),
+                                        related_name='broadcasts',
                                         help_text=_("The contacts which received this message"))
 
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
@@ -205,8 +221,8 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
-    purged = models.NullBooleanField(default=False,
-                                     help_text="If the messages for this broadcast have been purged")
+    purged = models.BooleanField(default=False,
+                                 help_text="If the messages for this broadcast have been purged")
 
     @classmethod
     def create(cls, org, user, text, recipients, channel=None, **kwargs):
@@ -848,9 +864,9 @@ class Msg(models.Model):
         msg.error_count += 1
         if msg.error_count >= 3 or fatal:
             if isinstance(msg, Msg):
-                msg.fail()
+                msg.status_fail()
             else:
-                Msg.objects.select_related('org').get(pk=msg.id).fail()
+                Msg.objects.select_related('org').get(pk=msg.id).status_fail()
 
             if channel:
                 analytics.gauge('temba.msg_failed_%s' % channel.channel_type.lower())
@@ -1141,7 +1157,7 @@ class Msg(models.Model):
 
     @classmethod
     def create_incoming(cls, channel, urn, text, user=None, date=None, org=None, contact=None,
-                        status=PENDING, media=None, msg_type=None, topup=None):
+                        status=PENDING, media=None, msg_type=None, topup=None, external_id=None):
 
         from temba.api.models import WebHookEvent, SMS_RECEIVED
         if not org and channel:
@@ -1197,7 +1213,8 @@ class Msg(models.Model):
                         direction=INCOMING,
                         msg_type=msg_type,
                         media=media,
-                        status=status)
+                        status=status,
+                        external_id=external_id)
 
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
@@ -1412,9 +1429,9 @@ class Msg(models.Model):
 
         return contact, contact_urn
 
-    def fail(self):
+    def status_fail(self):
         """
-        Fails this message, provided it is currently not failed
+        Update the message status to FAILED
         """
         self.status = FAILED
         self.modified_on = timezone.now()

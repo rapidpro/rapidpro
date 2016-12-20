@@ -13,11 +13,15 @@ import traceback
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
-from django.contrib.auth.models import User, Group
+
 from django.conf import settings
+from django.contrib.auth.models import User, Group
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
 from django.utils import timezone
@@ -25,6 +29,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
 from enum import Enum
+from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -201,6 +206,9 @@ class Org(SmartModel):
 
     is_anon = models.BooleanField(default=False,
                                   help_text=_("Whether this organization anonymizes the phone numbers of contacts within it"))
+
+    is_purgeable = models.BooleanField(default=False,
+                                       help_text=_("Whether this org's outgoing messages should be purged"))
 
     primary_language = models.ForeignKey('orgs.Language', null=True, blank=True, related_name='orgs',
                                          help_text=_('The primary language will be used for contacts with no language preference.'),
@@ -1247,7 +1255,7 @@ class Org(SmartModel):
 
                             # create a debit for transaction history
                             Debit.objects.create(topup_id=topup_id, amount=debited, beneficiary=new_topup,
-                                                 debit_type=Debit.TYPE_ALLOCATION, created_by=user, modified_by=user)
+                                                 debit_type=Debit.TYPE_ALLOCATION, created_by=user)
 
                             # decrease the amount of credits we need
                             amount -= debited
@@ -1640,6 +1648,34 @@ class Org(SmartModel):
         self.create_sample_flows(branding.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
+    def download_and_save_media(self, request, extension=None):
+        """
+        Given an HTTP Request object, downloads the file then saves it as media for the current org. If no extension
+        is passed it we attempt to extract it from the filename
+        """
+        s = Session()
+        prepped = s.prepare_request(request)
+        response = s.send(prepped)
+
+        if response.status_code == 200:
+            # download the content to a temp file
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            # try to derive our extension from the filename if it wasn't passed in
+            if not extension:
+                url_parts = urlparse(request.url)
+                if url_parts.path:
+                    path_pieces = url_parts.path.rsplit('.')
+                    if len(path_pieces) > 1:
+                        extension = path_pieces[-1]
+
+        else:
+            raise Exception("Received non-200 response (%s) for request: %s" % (response.status_code, response.content))
+
+        return self.save_media(File(temp), extension)
+
     def save_media(self, file, extension):
         """
         Saves the given file data with the extension and returns an absolute url to the result
@@ -2025,7 +2061,7 @@ class TopUp(SmartModel):
         return "%s Credits" % self.credits
 
 
-class Debit(SmartModel):
+class Debit(models.Model):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
@@ -2036,6 +2072,8 @@ class Debit(SmartModel):
     DEBIT_TYPES = ((TYPE_ALLOCATION, 'Allocation'),
                    (TYPE_PURGE, 'Purge'))
 
+    LAST_SQUASH_KEY = 'last_debit_squash'
+
     topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
 
     amount = models.IntegerField(help_text=_('How many credits were debited'))
@@ -2045,6 +2083,33 @@ class Debit(SmartModel):
                                     help_text=_('Optional topup that was allocated with these credits'))
 
     debit_type = models.CharField(max_length=1, choices=DEBIT_TYPES, null=False, help_text=_('What caused this debit'))
+
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
+                                   related_name="debits_created",
+                                   help_text="The user which originally created this item")
+    created_on = models.DateTimeField(default=timezone.now,
+                                      help_text="When this item was originally created")
+
+    @classmethod
+    def squash_purge_debits(cls):
+        last_squash_id = cache.get(cls.LAST_SQUASH_KEY, 0)
+        unsquashed_topups = cls.objects.filter(pk__gt=last_squash_id, debit_type=cls.TYPE_PURGE)
+        unsquashed_topups = unsquashed_topups.values_list('topup', flat=True).distinct('topup')
+
+        for topup_id in unsquashed_topups:
+            with connection.cursor() as cursor:
+                sql = """
+                WITH removed as (
+                    DELETE FROM orgs_debit WHERE "topup_id" = %s AND debit_type = 'P' RETURNING "amount"
+                )
+                INSERT INTO orgs_debit("topup_id", "amount", "debit_type", "created_on")
+                VALUES (%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %s);"""
+
+                cursor.execute(sql, [topup_id, topup_id, timezone.now()])
+
+        max_id = cls.objects.filter(debit_type=Debit.TYPE_PURGE).order_by('-id').values_list('id', flat=True).first()
+        if max_id:
+            cache.set(cls.LAST_SQUASH_KEY, max_id)
 
 
 class TopUpCredits(models.Model):
