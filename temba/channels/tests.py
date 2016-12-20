@@ -28,7 +28,7 @@ from mock import patch
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
-from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED, PENDING
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
@@ -1486,6 +1486,60 @@ class ChannelTest(TembaTest):
 
                 mock_delete.assert_called_once_with('https://graph.facebook.com/v2.5/me/subscribed_apps',
                                                     params=dict(access_token=channel.config_json()[Channel.CONFIG_AUTH_TOKEN]))
+
+    def test_claim_viber_public(self):
+        self.login(self.admin)
+
+        # remove any existing channels
+        Channel.objects.all().delete()
+        url = reverse('channels.channel_claim_viber_public')
+        token = "auth"
+
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(400, json.dumps(dict(status=3, status_message="Invalid token")))]
+            response = self.client.post(url, dict(auth_token=token))
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Error validating authentication token")
+
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, json.dumps(dict(status=3, status_message="Invalid token")))]
+            response = self.client.post(url, dict(auth_token=token))
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Error validating authentication token")
+
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok"))),
+                                MockResponse(400, json.dumps(dict(status=3, status_message="Invalid token")))]
+            response = self.client.post(url, dict(auth_token=token))
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Invalid authentication token")
+
+        # ok this time claim with a success
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok"))),
+                                MockResponse(200, json.dumps(dict(status=0, status_message="ok", id="viberId", uri="viberName"))),
+                                MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
+
+            response = self.client.post(url, dict(auth_token=token), follow=True)
+
+            # assert our channel got created
+            channel = Channel.objects.get()
+            self.assertEqual(channel.config_json()[Channel.CONFIG_AUTH_TOKEN], token)
+            self.assertEqual(channel.address, 'viberId')
+            self.assertEqual(channel.name, 'viberName')
+
+            # should have been called with our webhook URL
+            self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
+
+        # remove the channel
+        with patch('requests.post') as mock:
+            mock.side_effect = [MockResponse(200, json.dumps(dict(status=0, status_message="ok")))]
+            channel.release()
+
+            self.assertEqual(mock.call_args[0][0], 'https://chatapi.viber.com/pa/set_webhook')
 
     def test_claim_nexmo(self):
         self.login(self.admin)
@@ -3046,9 +3100,9 @@ class CountTest(TembaTest):
         # and only one channel count
         self.assertEquals(ChannelCount.objects.all().count(), 1)
 
-        # delete it, back to 1
+        # deleting a message doesn't decrement the count
         msg.delete()
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
@@ -3057,9 +3111,9 @@ class CountTest(TembaTest):
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
-        # delete it, should be gone now
+        # deleting a message still doesn't decrement the count
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
@@ -3070,7 +3124,7 @@ class CountTest(TembaTest):
 
         # delete it, should be gone now
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
@@ -3081,7 +3135,7 @@ class CountTest(TembaTest):
 
         # delete it, should be gone now
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
 
 
 class AfricasTalkingTest(TembaTest):
@@ -5572,7 +5626,7 @@ class TwilioTest(TembaTest):
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
-            with patch('twilio.rest.resources.Messages.create') as mock:
+            with patch('twilio.rest.resources.messages.Messages.create') as mock:
                 mock.return_value = "Sent"
 
                 # manually send it off
@@ -5599,7 +5653,7 @@ class TwilioTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(msg.status, DELIVERED)
 
-            with patch('twilio.rest.resources.Messages.create') as mock:
+            with patch('twilio.rest.resources.messages.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
 
                 # manually send it off
@@ -5611,20 +5665,28 @@ class TwilioTest(TembaTest):
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
+            with patch('twilio.rest.resources.messages.Messages.create') as mock:
+                mock.side_effect = TwilioRestException(400, "https://twilio.com/", "User has opted out", code=21610)
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as failed and the contact should be stopped
+                msg.refresh_from_db()
+                self.assertEquals(FAILED, msg.status)
+                self.assertTrue(Contact.objects.get(id=msg.contact_id))
+
             # check that our channel log works as well
             self.login(self.admin)
 
             response = self.client.get(reverse('channels.channellog_list') + "?channel=%d" % (self.channel.pk))
 
-            # there should be two log items for the two times we sent
-            self.assertEquals(2, len(response.context['channellog_list']))
+            # there should be three log items for the three times we sent
+            self.assertEquals(3, len(response.context['channellog_list']))
 
-            # of items on this page should be right as well
-            self.assertEquals(2, response.context['paginator'].count)
-
-            # the counts on our relayer should be correct as well
-            self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(1, self.channel.get_error_log_count())
+            # number of items on this page should be right as well
+            self.assertEquals(3, response.context['paginator'].count)
+            self.assertEquals(2, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
             # view the detailed information for one of them
@@ -5633,13 +5695,12 @@ class TwilioTest(TembaTest):
             # check that it contains the log of our exception
             self.assertContains(response, "Failed to send message")
 
-            # delete our error entry
+            # delete our error entries
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our counts should be right
-            # the counts on our relayer should be correct as well
+            # our channel counts should be unaffected
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(0, self.channel.get_error_log_count())
+            self.assertEquals(2, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 
@@ -5784,10 +5845,9 @@ class TwilioMessagingServiceTest(TembaTest):
             # delete our error entry
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our counts should be right
-            # the counts on our relayer should be correct as well
+            # our channel counts should be unaffected
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(0, self.channel.get_error_log_count())
+            self.assertEquals(1, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 
@@ -6023,7 +6083,7 @@ class ClickatellTest(TembaTest):
 
             with patch('requests.get') as mock:
                 msg.text = "Test message ☺"
-                mock.return_value = MockResponse(200, "000")
+                mock.return_value = MockResponse(200, "ID: 15")
 
                 # manually send it off
                 Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
@@ -6032,6 +6092,7 @@ class ClickatellTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(WIRED, msg.status)
                 self.assertTrue(msg.sent_on)
+                self.assertEqual(msg.external_id, "15")
                 params = {'api_id': 'api1',
                           'user': 'uname',
                           'password': 'pword',
@@ -8257,3 +8318,227 @@ class LineTest(TembaTest):
 
                 self.assertFalse(ChannelLog.objects.filter(description__icontains="local variable 'response' "
                                                                                   "referenced before assignment"))
+
+
+class ViberPublicTest(TembaTest):
+
+    def setUp(self):
+        super(ViberPublicTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, None, Channel.TYPE_VIBER_PUBLIC, None, '1001',
+                                      uuid='00000000-0000-0000-0000-000000001234',
+                                      config={Channel.CONFIG_AUTH_TOKEN: "auth_token"})
+
+        self.callback_url = reverse('handlers.viber_public_handler', args=[self.channel.uuid])
+
+    def test_receive(self):
+        # invalid UUID
+        response = self.client.post(reverse('handlers.viber_public_handler', args=['00000000-0000-0000-0000-000000000000']))
+        self.assertEqual(response.status_code, 200)
+
+        data = {
+            "event": "message",
+            "timestamp": 1481142112807,
+            "message_token": 4987381189870374000,
+            "sender": {
+                "id": "xy5/5y6O81+/kbWHpLhBoA==",
+                "name": "ET3",
+            },
+            "message": {
+                "text": "incoming msg",
+                "type": "text",
+                "tracking_data": "3055"
+            }
+        }
+
+        # try a GET
+        response = self.client.get(self.callback_url)
+        self.assertEqual(response.status_code, 405)
+
+        # POST invalid JSON data
+        response = self.client.post(self.callback_url, "not json", content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # Invalid signature
+        response = self.client.post(self.callback_url, json.dumps({}), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='bad_sig')
+        self.assertEqual(response.status_code, 400)
+
+        # POST missing data
+        response = self.client.post(self.callback_url, json.dumps({}), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='a182e13e58cbe9bb893cc03c055a1218fba31e8efa6f3ab74a54d4f8542ae376')
+        self.assertEqual(response.status_code, 400)
+
+        # ok, valid post
+        response = self.client.post(self.callback_url, json.dumps(data), content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE='ab4ea2337c1bb9a49eff53dd182f858817707df97cbc82368769e00c56d38419')
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEqual(response.content, "Msg Accepted: %d" % msg.id)
+
+        self.assertEqual(msg.contact.get_urn(VIBER_SCHEME).path, "xy5/5y6O81+/kbWHpLhBoA==")
+        self.assertEqual(msg.contact.name, "ET3")
+        self.assertEqual(msg.direction, INCOMING)
+        self.assertEqual(msg.org, self.org)
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(msg.text, "incoming msg")
+        self.assertEqual(msg.sent_on.date(), date(day=7, month=12, year=2016))
+        self.assertEqual(msg.external_id, "4987381189870374000")
+
+    def assertSignedRequest(self, payload):
+        from temba.channels.handlers import ViberPublicHandler
+
+        signature = ViberPublicHandler.calculate_sig(payload, "auth_token")
+        response = self.client.post(self.callback_url, payload, content_type="application/json",
+                                    HTTP_X_VIBER_CONTENT_SIGNATURE=signature)
+
+        self.assertEqual(response.status_code, 200, response.content)
+
+    def assertMessageReceived(self, msg_type, payload_name, payload_value, assert_text, assert_media=None):
+        data = {
+            "event": "message",
+            "timestamp": 1481142112807,
+            "message_token": 4987381189870374000,
+            "sender": {
+                "id": "xy5/5y6O81+/kbWHpLhBoA==",
+                "name": "ET3",
+            },
+            "message": {
+                "text": "incoming msg",
+                "type": "undefined",
+                "tracking_data": "3055",
+            }
+        }
+
+        data['message']['type'] = msg_type
+        data['message'][payload_name] = payload_value
+
+        self.assertSignedRequest(json.dumps(data))
+
+        msg = Msg.objects.get()
+        self.assertEqual(msg.text, assert_text)
+
+        if assert_media:
+            self.assertEqual(msg.media, assert_media)
+
+    def test_receive_contact(self):
+        self.assertMessageReceived('contact', 'contact', dict(name="Alex", phone_number="+12067799191"), 'Alex: +12067799191')
+
+    def test_receive_url(self):
+        self.assertMessageReceived('url', 'media', 'http://foo.com/', 'http://foo.com/')
+
+    def test_receive_gps(self):
+        self.assertMessageReceived('location', 'location', dict(lat='1.2', lon='-1.3'), 'geo:1.2,-1.3')
+
+    def test_webhook_check(self):
+        data = {
+            "event": "webhook",
+            "timestamp": 4987034606158369000,
+            "message_token": 1481059480858
+        }
+        self.assertSignedRequest(json.dumps(data))
+
+    def test_subscribed(self):
+        data = {
+            "event": "subscribed",
+            "timestamp": 1457764197627,
+            "user": {
+                "id": "01234567890A=",
+                "name": "yarden",
+                "avatar": "http://avatar_url",
+                "country": "IL",
+                "language": "en",
+                "api_version": 1
+            },
+            "message_token": 4912661846655238145
+        }
+        self.assertSignedRequest(json.dumps(data))
+
+        # check that the contact was created
+        contact = Contact.objects.get(org=self.org, urns__path='01234567890A=', urns__scheme=VIBER_SCHEME)
+        self.assertEqual(contact.name, "yarden")
+
+        data = {
+            "event": "unsubscribed",
+            "timestamp": 1457764197627,
+            "user_id": "01234567890A=",
+            "message_token": 4912661846655238145
+        }
+        self.assertSignedRequest(json.dumps(data))
+        contact.refresh_from_db()
+        self.assertTrue(contact.is_stopped)
+
+        # use a user id we haven't seen before
+        data['user_id'] = "01234567890B="
+        self.assertSignedRequest(json.dumps(data))
+
+        # should not create contacts we don't already know about
+        self.assertIsNone(Contact.from_urn(self.org, URN.from_viber("01234567890B=")))
+
+    def test_conversation_started(self):
+        # this is a no-op
+        data = {
+            "event": "conversation_started",
+            "timestamp": 1457764197627,
+            "message_token": 4912661846655238145,
+            "type": "open",
+            "context": "context information",
+            "user": {
+                "id": "01234567890A=",
+                "name": "yarden",
+                "avatar": "http://avatar_url",
+                "country": "IL",
+                "language": "en",
+                "api_version": 1
+            }
+        }
+        self.assertSignedRequest(json.dumps(data))
+
+    def test_send(self):
+        joe = self.create_contact("Joe", urn="viber:xy5/5y6O81+/kbWHpLhBoA==")
+        msg = joe.send("MT", self.admin, trigger_send=False)
+
+        settings.SEND_MESSAGES = True
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"status":0,"status_message":"ok","message_token":4987381194038857789}')
+
+            # manually send it off
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+            mock.assert_called_with('https://chatapi.viber.com/pa/send_message',
+                                    headers={'Accept': u'application/json', u'User-agent': u'RapidPro'},
+                                    json={'text': u'MT',
+                                          'auth_token': u'auth_token',
+                                          'tracking_data': msg.id,
+                                          'type': u'text',
+                                          'receiver': u'xy5/5y6O81+/kbWHpLhBoA=='},
+                                    timeout=5)
+
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, WIRED)
+            self.assertTrue(msg.sent_on)
+            self.assertEqual(msg.external_id, "4987381194038857789")
+            self.clear_cache()
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(200, '{"status":3, "status_message":"invalidAuthToken"}')
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            msg.refresh_from_db()
+            self.assertEqual(msg.status, FAILED)
+            self.clear_cache()
+
+        with patch('requests.post') as mock:
+            mock.return_value = MockResponse(401, '{"status":"5"}')
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()
+
+        with patch('requests.post') as mock:
+            mock.side_effect = Exception("Unable to reach host")
+            Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+            msg.refresh_from_db()
+            self.assertEquals(ERRORED, msg.status)
+            self.clear_cache()

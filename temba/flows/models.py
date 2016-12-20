@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
 import json
@@ -40,6 +41,7 @@ from temba.utils.models import TembaModel, ChunkIterator, generate_uuid
 from temba.utils.profiler import SegmentProfiler
 from temba.utils.queues import push_task
 from temba.values.models import Value
+from temba_expressions.utils import tokenize
 from twilio import twiml
 from uuid import uuid4
 
@@ -993,6 +995,19 @@ class Flow(TembaModel):
         # check flow stats for accuracy, rebuilding if necessary
         check_flow_stats_accuracy_task.delay(self.pk)
 
+    def get_visit_counts(self, simulation=False):
+
+        if simulation:
+            (active, visits) = self._calculate_activity(simulation=True)
+            return visits
+
+        # all the flow path counts for our flow
+        paths = FlowPathCount.objects.filter(flow=self)
+
+        # group by our from and to and sum the counts
+        paths = paths.values('from_uuid', 'to_uuid').order_by().annotate(Sum('count'))
+        return {'%s:%s' % (p['from_uuid'], p['to_uuid']): p['count__sum'] for p in paths}
+
     def get_activity(self, simulation=False, check_cache=True):
         """
         Get the activity summary for a flow as a tuple of the number of active runs
@@ -1822,7 +1837,10 @@ class Flow(TembaModel):
         step_uuid = step.step_uuid
         if step.rule_uuid:
             step_uuid = step.rule_uuid
-        r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
+
+        # only activity for paths taken are recorded
+        if step.next_uuid:
+            r.hincrby(self.get_stats_cache_key(FlowStatsCache.visit_count_map), "%s:%s" % (step_uuid, step.next_uuid), -1)
 
     def update_activity(self, step, previous_step=None, rule_uuid=None):
         """
@@ -2612,7 +2630,7 @@ class FlowRun(models.Model):
                     # finally, trigger our parent flow
                     Flow.find_and_handle(msg, user_input=False, started_flows=[run.flow, run.parent.flow], resume_parent_run=True)
 
-    def resume_after_timeout(self):
+    def resume_after_timeout(self, expired_timeout):
         """
         Resumes a flow that is at a ruleset that has timed out
         """
@@ -2623,8 +2641,15 @@ class FlowRun(models.Model):
         if isinstance(node, RuleSet) and timezone.now() > self.timeout_on > last_step.arrived_on:
             timeout = node.get_timeout()
 
-            # if our current node doesn't have a timeout, then we've moved on
-            if timeout:
+            # if our current node doesn't have a timeout, but our timeout is still right, then the ruleset
+            # has changed out from under us and no longer has a timeout, clear our run's timeout_on
+            if not timeout and abs(expired_timeout - self.timeout_on) < timedelta(milliseconds=1):
+                self.timeout_on = None
+                self.modified_on = timezone.now()
+                self.save(update_fields=['timeout_on', 'modified_on'])
+
+            # this is a valid timeout, deal with it
+            else:
                 # get the last outgoing msg for this contact
                 msg = self.get_last_msg(OUTGOING)
 
@@ -3611,6 +3636,54 @@ class FlowRevision(SmartModel):
                     revision=self.revision)
 
 
+class FlowPathCount(models.Model):
+    """
+    Maintains hourly counts of flow paths
+    """
+
+    LAST_SQUASH_KEY = 'last_flowpathcount_squash'
+
+    flow = models.ForeignKey(Flow, related_name='activity', help_text=_("The flow where the activity occurred"))
+    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
+    to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
+    period = models.DateTimeField(help_text=_("When the activity occured with hourly precision"))
+    count = models.IntegerField(default=0)
+
+    @classmethod
+    def squash_counts(cls):
+        # get the id of the last count we squashed
+        r = get_redis_connection()
+        last_squash = r.get(FlowPathCount.LAST_SQUASH_KEY)
+        if not last_squash:
+            last_squash = 0
+
+        # insert our new top squashed id
+        max_id = FlowPathCount.objects.all().order_by('-id').first()
+        if max_id:
+            r.set(FlowPathCount.LAST_SQUASH_KEY, max_id.id)
+
+        # get the unique ids for all new ones
+        start = time.time()
+        squash_count = 0
+
+        for count in FlowPathCount.objects.filter(id__gt=last_squash).order_by('flow_id', 'from_uuid', 'to_uuid', 'period')\
+                .distinct('flow_id', 'from_uuid', 'to_uuid', 'period'):
+
+            # perform our atomic squash in SQL by calling our squash method
+            with connection.cursor() as c:
+                c.execute("SELECT temba_squash_flowpathcount(%s, uuid(%s), uuid(%s), %s);", (count.flow_id, count.from_uuid, count.to_uuid, count.period))
+
+            squash_count += 1
+
+        print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
+
+    def __unicode__(self):  # pragma: no cover
+        return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
+
+    class Meta:
+        index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
+
+
 class FlowRunCount(models.Model):
     """
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
@@ -3940,6 +4013,8 @@ class ExportFlowResultsTask(SmartModel):
 
         urn_display_cache = {}
 
+        seen_msgs = set()
+
         def get_contact_urn_display(contact):
             """
             Gets the possibly cached URN display (e.g. formatted phone number) for the given contact
@@ -4134,59 +4209,62 @@ class ExportFlowResultsTask(SmartModel):
                     msg_row += 1
                     msgs_row = []
 
-                    if msg_row > max_rows or not msgs:
-                        msg_row = 2
+                    if msg.pk not in seen_msgs:
+                        if msg_row > max_rows or not msgs:
+                            msg_row = 2
 
-                        name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
-                        msgs = book.create_sheet(name)
-                        msgs_row = []
-                        msg_sheet_index += 1
+                            name = "Messages" if (msg_sheet_index + 1) <= 1 else "Messages (%d)" % (msg_sheet_index + 1)
+                            msgs = book.create_sheet(name)
+                            msgs_row = []
+                            msg_sheet_index += 1
 
-                        cell = WriteOnlyCell(msgs, value="Contact UUID")
+                            cell = WriteOnlyCell(msgs, value="Contact UUID")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            cell = WriteOnlyCell(msgs, value="URN")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                            cell = WriteOnlyCell(msgs, value="Name")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            cell = WriteOnlyCell(msgs, value="Date")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+                            cell = WriteOnlyCell(msgs, value="Direction")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
+                            cell = WriteOnlyCell(msgs, value="Message")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
+                            cell = WriteOnlyCell(msgs, value="Channel")
+                            msgs_row.append(cell)
+                            msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
+
+                            msgs.append(msgs_row)
+                            msgs_row = []
+
+                        msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
+                        channel_name = msg.channel.name if msg.channel else ''
+                        text = clean_string(msg.text)
+
+                        cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                        cell = WriteOnlyCell(msgs, value="URN")
+                        cell = WriteOnlyCell(msgs, value=msg_urn_display)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
-                        cell = WriteOnlyCell(msgs, value="Name")
+                        cell = WriteOnlyCell(msgs, value=contact_name)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                        cell = WriteOnlyCell(msgs, value="Date")
+                        cell = WriteOnlyCell(msgs, value=as_org_tz(msg.created_on))
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
-                        cell = WriteOnlyCell(msgs, value="Direction")
+                        cell = WriteOnlyCell(msgs, value="IN" if msg.direction == INCOMING else "OUT")
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = small_width
-                        cell = WriteOnlyCell(msgs, value="Message")
+                        cell = WriteOnlyCell(msgs, value=text)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = large_width
-                        cell = WriteOnlyCell(msgs, value="Channel")
+                        cell = WriteOnlyCell(msgs, value=channel_name)
                         msgs_row.append(cell)
-                        msgs.column_dimensions[get_column_letter(len(msgs_row))].width = medium_width
 
                         msgs.append(msgs_row)
-                        msgs_row = []
 
-                    msg_urn_display = msg.contact_urn.get_display(org=org, formatted=False) if msg.contact_urn else ''
-                    channel_name = msg.channel.name if msg.channel else ''
-                    text = clean_string(msg.text)
-
-                    cell = WriteOnlyCell(msgs, value=run_step.contact.uuid)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=msg_urn_display)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=contact_name)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=as_org_tz(msg.created_on))
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value="IN" if msg.direction == INCOMING else "OUT")
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=text)
-                    msgs_row.append(cell)
-                    cell = WriteOnlyCell(msgs, value=channel_name)
-                    msgs_row.append(cell)
-
-                    msgs.append(msgs_row)
+                        seen_msgs.add(msg.pk)
 
         if runs_sheet_row != [None] * sheet_columns_number:
             runs.append(runs_sheet_row)
@@ -6008,11 +6086,11 @@ class ContainsTest(Test):
         test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
+        tests = tokenize(test.lower())
 
         # tokenize our sms
-        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
-        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
 
         tests = [elt for elt in tests if elt != '']
         words = [elt for elt in words if elt != '']
@@ -6052,11 +6130,11 @@ class ContainsAnyTest(ContainsTest):
         test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
 
         # tokenize our test
-        tests = regex.split(r"\W+", test.lower(), flags=regex.UNICODE | regex.V0)
+        tests = tokenize(test.lower())
 
         # tokenize our sms
-        words = regex.split(r"\W+", text.lower(), flags=regex.UNICODE | regex.V0)
-        raw_words = regex.split(r"\W+", text, flags=regex.UNICODE | regex.V0)
+        words = tokenize(text.lower())
+        raw_words = tokenize(text)
 
         tests = [elt for elt in tests if elt != '']
         words = [elt for elt in words if elt != '']

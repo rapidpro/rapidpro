@@ -309,6 +309,7 @@ FieldController = ($scope, $http) ->
               label: results.label
               id: results.id
               categories: results.results[0].categories
+              open_ended: results.results[0].open_ended
 
             total = 0
 
@@ -317,6 +318,9 @@ FieldController = ($scope, $http) ->
               total += category.count
               if category.count > 0
                 categories_with_contacts++
+
+            if data.open_ended
+              total = results.results[0].set
 
             # force single chart data to a bar
             if categories_with_contacts == 1
@@ -619,6 +623,7 @@ FieldController = ($scope, $http) ->
     $http.get("/ruleset/results/" + field.id + "/?" + url_params).success (results) ->
       chart = field.chart
       chart.chartType = field.chartType
+      chart.open_ended = results.results[0].open_ended
       chart.total = 0
       chart.segments = []
 
@@ -633,6 +638,9 @@ FieldController = ($scope, $http) ->
           chartCategory.count = category.count
           chart.total += category.count
           segmentTotal += category.count
+          if results.results[0].open_ended
+            chart.total = results.results[0].set
+            segmentTotal = results.results[0].set
 
           segmentCategories.push(chartCategory)
 
@@ -642,6 +650,9 @@ FieldController = ($scope, $http) ->
           categories: segmentCategories
 
       field.total = chart.total
+
+      if results.results[0].open_ended
+        field.total = results.results[0].set
 
       if field.table
         field.table = chart
@@ -1020,6 +1031,7 @@ app.directive "chart", ->
       $.extend deepCopy, newSettings, chartDefaults
 
       chartType = config.chartType
+      open_ended = config.open_ended
       newSettings.chart.type = chartType
       newSettings.series = []
       series = newSettings.series
@@ -1064,6 +1076,15 @@ app.directive "chart", ->
           else
             newSettings.tooltip.formatter = ->
               return "<b>" + @series.name + " - " + @key + "</b> - " + @y + gettext(" of ") + @point.total + gettext(" responses")
+
+          if open_ended
+            if config.segments.length == 1
+              newSettings.tooltip.formatter = ->
+                "<b>" + @key + "</b> - " + gettext(" mentioned ") + @y + gettext(" times in all responses ")
+            else
+              newSettings.tooltip.formatter = ->
+                return "<b>" + @series.name + " - " + @key + "</b> - " + gettext(" mentioned ") + @y + gettext(" times in all responses ")
+
 
         else if chartType is "bar" or chartType is "column"
           i = 0
