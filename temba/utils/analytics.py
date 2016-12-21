@@ -32,7 +32,7 @@ def identify(username, attributes):
     segment_analytics.identify(username, attributes)
 
 
-def track(user, event, properties=None, context=None):
+def track(user, event, properties=None, context=None):  # pragma: needs cover
     """
     Helper function that wraps the segment.io track and adds in the source
     for the event as our current hostname.

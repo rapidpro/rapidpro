@@ -134,7 +134,7 @@ class Value(models.Model):
         start = time.time()
 
         # caller may identify either a ruleset or contact field to summarize
-        if (not ruleset and not contact_field) or (ruleset and contact_field):
+        if (not ruleset and not contact_field) or (ruleset and contact_field):  # pragma: needs cover
             raise ValueError("Must define either a RuleSet or ContactField to summarize values for")
 
         if ruleset:
@@ -151,7 +151,7 @@ class Value(models.Model):
         if filters:
             if filter_contacts is None:
                 contacts = org_contacts
-            else:
+            else:  # pragma: needs cover
                 contacts = Contact.objects.filter(pk__in=filter_contacts)
 
             for contact_filter in filters:
@@ -185,7 +185,7 @@ class Value(models.Model):
                 # we are filtering by one or more admin boundaries
                 elif 'boundary' in contact_filter:
                     boundaries = contact_filter['boundary']
-                    if not isinstance(boundaries, list):
+                    if not isinstance(boundaries, list):  # pragma: needs cover
                         boundaries = [boundaries]
 
                     # filter our contacts by those that are in that location boundary
@@ -203,7 +203,7 @@ class Value(models.Model):
 
                     contacts = contacts.filter(contact_query)
 
-                else:
+                else:  # pragma: needs cover
                     raise ValueError("Invalid filter definition, must include 'group', 'ruleset', 'contact_field' or 'boundary'")
 
             contacts = set([c['id'] for c in contacts.values('id')])
@@ -280,7 +280,7 @@ class Value(models.Model):
                 categories, set_contacts = cls._filtered_values_to_categories(contacts, values, 'location_value__osm_id',
                                                                               return_contacts=return_contacts)
 
-            else:
+            else:  # pragma: needs cover
                 raise ValueError(_("Summary of contact fields with value type of %s is not supported" % contact_field.get_value_type_display()))
 
             set_contacts = contacts & set_contacts
@@ -300,7 +300,7 @@ class Value(models.Model):
         ruleset or group that changed and all result summaries that have changed will be invalidated accordingly.
         :return: how many cached records were invalidated
         """
-        if not contact_field and not ruleset and not group:
+        if not contact_field and not ruleset and not group:  # pragma: needs cover
             raise ValueError("You must specify a contact field, ruleset or group to invalidate results for")
 
         if contact_field:
@@ -344,7 +344,7 @@ class Value(models.Model):
         # start = time.time()
         results = []
 
-        if (not ruleset and not contact_field) or (ruleset and contact_field):
+        if (not ruleset and not contact_field) or (ruleset and contact_field):  # pragma: needs cover
             raise ValueError("Must specify either a RuleSet or Contact field.")
 
         org = ruleset.flow.org if ruleset else contact_field.org
@@ -374,14 +374,14 @@ class Value(models.Model):
             if 'groups' in contact_filter:
                 for group_id in contact_filter['groups']:
                     dependencies.add(GROUP_KEY % group_id)
-            if 'location' in contact_filter:
+            if 'location' in contact_filter:  # pragma: needs cover
                 field = ContactField.get_by_label(org, contact_filter['location'])
                 dependencies.add(CONTACT_KEY % field.id)
 
         if segment:
             if 'ruleset' in segment:
                 dependencies.add(RULESET_KEY % segment['ruleset'])
-            if 'groups' in segment:
+            if 'groups' in segment:  # pragma: needs cover
                 for group_id in segment['groups']:
                     dependencies.add(GROUP_KEY % group_id)
             if 'location' in segment:
@@ -402,7 +402,7 @@ class Value(models.Model):
         if cached is not None:
             try:
                 return json_to_dict(cached)
-            except Exception:
+            except Exception:  # pragma: needs cover
                 # failed decoding, oh well, go calculate it instead
                 pass
 
@@ -420,7 +420,7 @@ class Value(models.Model):
                     results.append(dict(label=category, open_ended=open_ended, set=set_count, unset=unset_count, categories=categories))
 
             # segmenting by groups instead, same principle but we add group filters
-            elif 'groups' in segment:
+            elif 'groups' in segment:  # pragma: needs cover
                 for group_id in segment['groups']:
                     # load our group
                     group = ContactGroup.user_groups.get(org=org, pk=group_id)
@@ -453,11 +453,11 @@ class Value(models.Model):
                 field = ContactField.get_by_label(org, segment['location'])
 
                 # make sure they are segmenting on a location type that makes sense
-                if field.value_type not in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
+                if field.value_type not in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:  # pragma: needs cover
                     raise ValueError(_("Cannot segment on location for field that is not a State or District type"))
 
                 # make sure our org has a country for location based responses
-                if not org.country:
+                if not org.country:  # pragma: needs cover
                     raise ValueError(_("Cannot segment by location until country has been selected for organization"))
 
                 # the boundaries we will segment by
@@ -472,10 +472,10 @@ class Value(models.Model):
                 boundaries = list(AdminBoundary.objects.filter(parent=parent).order_by('name'))
 
                 # if the field is a district field, they need to specify the parent state
-                if not parent_osm_id and field.value_type == Value.TYPE_DISTRICT:
+                if not parent_osm_id and field.value_type == Value.TYPE_DISTRICT:  # pragma: needs cover
                     raise ValueError(_("You must specify a parent state to segment results by district"))
 
-                if not parent_osm_id and field.value_type == Value.TYPE_WARD:
+                if not parent_osm_id and field.value_type == Value.TYPE_WARD:  # pragma: needs cover
                     raise ValueError(_("You must specify a parent state to segment results by ward"))
 
                 # if this is a district, we can speed things up by only including those districts in our parent, build
@@ -586,7 +586,7 @@ class Value(models.Model):
 
         return results
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: needs cover
         if self.ruleset:
             return "Contact: %d - %s = %s" % (self.contact.pk, self.ruleset.label, self.category)
         elif self.contact_field:

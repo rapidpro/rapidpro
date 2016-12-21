@@ -65,7 +65,7 @@ init_analytics()
 
 @worker_process_init.connect
 def configure_workers(sender=None, **kwargs):
-    init_analytics()
+    init_analytics()  # pragma: needs cover
 
 
 def track_user(self):  # pragma: no cover
