@@ -1274,7 +1274,7 @@ class OrgCRUDL(SmartCRUDL):
                     if org.get_org_surveyors().filter(username=self.request.user.username):
                         return HttpResponseRedirect(reverse('orgs.org_surveyor'))
 
-                    return HttpResponseRedirect(self.get_success_url())
+                    return HttpResponseRedirect(self.get_success_url())  # pragma: needs cover
 
                 elif user_orgs.count() == 0:  # pragma: needs cover
                     if user.groups.filter(name='Customer Support').first():
@@ -1663,7 +1663,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             # if our brand doesn't allow signups, then redirect to the homepage
-            if not request.branding.get('allow_signups', False):
+            if not request.branding.get('allow_signups', False):  # pragma: needs cover
                 return HttpResponseRedirect(reverse('public.public_index'))
 
             else:

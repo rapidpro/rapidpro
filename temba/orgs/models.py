@@ -1964,7 +1964,7 @@ class TopUp(SmartModel):
         org.update_caches(OrgEvent.topup_new, topup)
         return topup
 
-    def get_ledger(self):
+    def get_ledger(self):  # pragma: needs cover
         debits = self.debits.filter(debit_type=Debit.TYPE_ALLOCATION).order_by('-created_by')
         balance = self.credits
         ledger = []
@@ -1974,14 +1974,14 @@ class TopUp(SmartModel):
         if active:
             transfer = self.allocations.all().first()
 
-            if transfer:  # pragma: needs cover
+            if transfer:
                 comment = _('Transfer from %s' % transfer.topup.org.name)
             else:
-                if self.price > 0:  # pragma: needs cover
+                if self.price > 0:
                     comment = _('Purchased Credits')
                 elif self.price == 0:
                     comment = _('Complimentary Credits')
-                else:  # pragma: needs cover
+                else:
                     comment = _('Credits')
 
             ledger.append(dict(date=self.created_on,
@@ -2007,7 +2007,7 @@ class TopUp(SmartModel):
                                balance=self.get_remaining()))
 
         # add a line for expired credits
-        if expired and self.get_remaining() > 0:  # pragma: needs cover
+        if expired and self.get_remaining() > 0:
             ledger.append(dict(date=self.expires_on,
                                comment=_('Expired credits'),
                                amount=-self.get_remaining(),

@@ -11,7 +11,7 @@ _librato = None
 
 def init_librato(user, token):
     global _librato
-    _librato = Client(user, token)
+    _librato = Client(user, token)  # pragma: needs cover
 
 
 def gauge(event, value=None):
@@ -22,7 +22,7 @@ def gauge(event, value=None):
         value = 1
 
     if _librato:
-        _librato.gauge(event, value, settings.HOSTNAME)
+        _librato.gauge(event, value, settings.HOSTNAME)  # pragma: needs cover
 
 
 def identify(username, attributes):
