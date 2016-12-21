@@ -181,6 +181,32 @@ class VumiUssdTest(TembaTest):
         finally:
             settings.SEND_MESSAGES = False
 
+    def test_send_default_url(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        self.create_group("Reporters", [joe])
+        msg = joe.send("Test message", self.admin, trigger_send=False)
+
+        # our outgoing message
+        msg.refresh_from_db()
+        r = get_redis_connection()
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.put') as mock:
+                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                self.assertEqual(mock.call_args[0][0],
+                                 'https://go.vumi.org/api/v1/go/http_api_nostream/key/messages.json')
+
+                self.clear_cache()
+
+        finally:
+            settings.SEND_MESSAGES = False
+
     def test_ack(self):
         joe = self.create_contact("Joe", "+250788383383")
         self.create_group("Reporters", [joe])
