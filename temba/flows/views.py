@@ -12,7 +12,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
-from django.db.models import Count, Min, Max
+from django.db.models import Count, Min, Max, Sum
 from django import forms
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
@@ -28,7 +28,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, TEL_SCHEM
 from temba.ivr.models import IVRCall
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.reports.models import Report
-from temba.flows.models import Flow, FlowRun, FlowRevision
+from temba.flows.models import Flow, FlowRun, FlowRevision, FlowRunCount
 from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING, INTERRUPTED
@@ -1072,11 +1072,16 @@ class FlowCRUDL(SmartCRUDL):
         # the min number of responses to show the period charts
         PERIOD_MIN = 200
 
+        EXIT_TYPES = {
+            None: 'active',
+            FlowRun.EXIT_TYPE_COMPLETED: 'completed',
+            FlowRun.EXIT_TYPE_INTERRUPTED: 'interrupted',
+            FlowRun.EXIT_TYPE_EXPIRED: 'expired'
+        }
+
         def get_context_data(self, *args, **kwargs):
 
             total_responses = 0
-
-            from django.db.models import Sum
             context = super(FlowCRUDL.ActivityChart, self).get_context_data(*args, **kwargs)
 
             flow = self.get_object()
@@ -1132,23 +1137,11 @@ class FlowCRUDL(SmartCRUDL):
                 # highcharts works in UTC, but we want to offset our chart according to the org timezone
                 context['utcoffset'] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds())
 
-            from temba.flows.models import FlowRunCount
-            from django.db.models import Sum
             counts = FlowRunCount.objects.filter(flow=flow).values('exit_type').annotate(Sum('count'))
-
-            def get_exit_type(type):
-                if not type:
-                    return 'active'
-                elif type == FlowRun.EXIT_TYPE_COMPLETED:
-                    return 'completed'
-                elif type == FlowRun.EXIT_TYPE_INTERRUPTED:
-                    return 'interrupted'
-                elif type == FlowRun.EXIT_TYPE_EXPIRED:
-                    return 'expired'
 
             total_runs = 0
             for count in counts:
-                key = get_exit_type(count['exit_type'])
+                key = self.EXIT_TYPES[count['exit_type']]
                 context[key] = count['count__sum']
                 total_runs += count['count__sum']
 
@@ -1187,7 +1180,7 @@ class FlowCRUDL(SmartCRUDL):
                 modified_on = datetime.fromtimestamp(int(modified_on), flow.org.timezone)
                 runs = runs.filter(modified_on__lt=modified_on).exclude(modified_on=modified_on, id__lt=id)
 
-            runs = list(runs.order_by('-modified_on'))[:FlowCRUDL.RunTable.paginate_by]
+            runs = list(runs.order_by('-modified_on'))[:self.paginate_by]
 
             # populate ruleset values
             for run in runs:
