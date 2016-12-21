@@ -81,7 +81,7 @@ class DocumentationRenderer(BrowsableAPIRenderer):
         Usually one customizes the browsable view by overriding the rest_framework/api.html template but we have two
         versions of the API to support with two different templates.
         """
-        if not renderer_context:
+        if not renderer_context:  # pragma: needs cover
             raise ValueError("Can't render without context")
 
         request_path = renderer_context['request'].path

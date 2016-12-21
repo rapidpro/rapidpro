@@ -23,7 +23,7 @@ from hamlpy.template.utils import get_django_template_loaders
 def get_haml_loader(loader):
     if hasattr(loader, 'Loader'):
         baseclass = loader.Loader
-    else:
+    else:  # pragma: needs cover
         class baseclass(object):
             def load_template_source(self, *args, **kwargs):
                 return loader.load_template_source(*args, **kwargs)
@@ -52,7 +52,7 @@ def get_haml_loader(loader):
 
         load_template_source.is_usable = True
 
-        def get_contents(self, origin):
+        def get_contents(self, origin):  # pragma: needs cover
             """
             Used by Django 1.9+
             """

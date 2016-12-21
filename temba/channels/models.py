@@ -525,7 +525,7 @@ class Channel(TembaModel):
                                             voice_application_sid=application_sid,
                                             sms_application_sid=application_sid)
 
-            else:
+            else:  # pragma: needs cover
                 twilio_phone = client.phone_numbers.purchase(phone_number=phone_number,
                                                              voice_application_sid=application_sid,
                                                              sms_application_sid=application_sid)
@@ -831,7 +831,7 @@ class Channel(TembaModel):
                 normalized = phonenumbers.parse(self.address, str(self.country))
                 fmt = phonenumbers.PhoneNumberFormat.E164 if e164 else phonenumbers.PhoneNumberFormat.INTERNATIONAL
                 return phonenumbers.format_number(normalized, fmt)
-            except NumberParseException:
+            except NumberParseException:  # pragma: needs cover
                 # the number may be alphanumeric in the case of short codes
                 pass
 
@@ -989,7 +989,7 @@ class Channel(TembaModel):
         """
         from temba.contacts.models import ContactURN
 
-        if not self.country:
+        if not self.country:  # pragma: needs cover
             self.country = ContactURN.derive_country_from_tel(phone)
 
         self.alert_email = user.email
@@ -1279,7 +1279,7 @@ class Channel(TembaModel):
                                 response_status=503,
                                 start=start)
 
-        if response.status_code not in [200, 201, 202]:
+        if response.status_code not in [200, 201, 202]:  # pragma: needs cover
             raise SendException("Got non-200 response [%d] from Line" % response.status_code,
                                 method='POST',
                                 url=send_url,
@@ -1704,7 +1704,7 @@ class Channel(TembaModel):
                                 response_status=503,
                                 start=start)
 
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:  # pragma: needs cover
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 method='POST',
                                 url=url,

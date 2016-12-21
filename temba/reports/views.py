@@ -33,7 +33,7 @@ class ReportCRUDL(SmartCRUDL):
 
             try:
                 report = Report.create_report(org, user, json_dict)
-            except Exception as e:
+            except Exception as e:  # pragma: needs cover
                 traceback.print_exc(e)
                 return build_json_response(dict(status="error", description="Error creating report: %s" % str(e)), status=400)
 

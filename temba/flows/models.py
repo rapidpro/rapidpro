@@ -246,7 +246,7 @@ class Flow(TembaModel):
         name = 'Single Message (%s)' % unicode(uuid4())
 
         base_language = 'base'
-        if org.primary_language:
+        if org.primary_language:  # pragma: needs cover
             base_language = org.primary_language.iso_code
 
         flow = Flow.create(org, user, name, flow_type=Flow.MESSAGE, base_language=base_language)
@@ -307,7 +307,7 @@ class Flow(TembaModel):
                 # check if we can find that flow by id first
                 if same_site:
                     flow = Flow.objects.filter(org=org, is_active=True, uuid=flow_spec['metadata']['uuid']).first()
-                    if flow:
+                    if flow:  # pragma: needs cover
                         flow.expires_after_minutes = flow_spec['metadata'].get('expires', FLOW_DEFAULT_EXPIRES_AFTER)
                         flow.name = Flow.get_unique_name(org, name, ignore=flow)
                         flow.save(update_fields=['name', 'expires_after_minutes'])
@@ -506,7 +506,7 @@ class Flow(TembaModel):
         count = 2
         while True:
             flows = Flow.objects.filter(name=name, org=org, is_active=True)
-            if ignore:
+            if ignore:  # pragma: needs cover
                 flows = flows.exclude(pk=ignore.pk)
 
             if not flows.exists():
@@ -580,7 +580,7 @@ class Flow(TembaModel):
                 if destination.is_pause():
                     should_pause = True
 
-                if triggered_start and destination.is_ussd():
+                if triggered_start and destination.is_ussd():  # pragma: needs cover
                     result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
 
                 if (user_input or resume_after_timeout) or not should_pause:
@@ -757,7 +757,7 @@ class Flow(TembaModel):
         return dict(handled=True, destination=None, step=step, msgs=msgs)
 
     @classmethod
-    def apply_action_label(cls, user, flows, label, add):
+    def apply_action_label(cls, user, flows, label, add):  # pragma: needs cover
         return label.toggle_label(flows, add)
 
     @classmethod
@@ -907,7 +907,7 @@ class Flow(TembaModel):
         """
         r = get_redis_connection()
         lock_key = FLOW_LOCK_KEY % (self.org_id, self.pk, lock.name)
-        if qualifier:
+        if qualifier:  # pragma: needs cover
             lock_key += (":%s" % qualifier)
 
         if not lock_ttl:
@@ -996,7 +996,7 @@ class Flow(TembaModel):
 
     def get_visit_counts(self, simulation=False):
 
-        if simulation:
+        if simulation:  # pragma: needs cover
             (active, visits) = self._calculate_activity(simulation=True)
             return visits
 
@@ -1104,13 +1104,13 @@ class Flow(TembaModel):
             if not url:
                 return None
 
-            try:
+            try:  # pragma: needs cover
                 url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, url)
                 temp = NamedTemporaryFile(delete=True)
                 temp.write(urllib2.urlopen(url).read())
                 temp.flush()
                 return default_storage.save(path, temp)
-            except Exception:
+            except Exception:  # pragma: needs cover
                 # its okay if its no longer there, we'll remove the recording
                 return None
 
@@ -1169,7 +1169,7 @@ class Flow(TembaModel):
         Trigger.objects.filter(flow=self).update(is_archived=True)
 
     def restore(self):
-        if self.flow_type == Flow.VOICE:
+        if self.flow_type == Flow.VOICE:  # pragma: needs cover
             if not self.org.supports_ivr():
                 raise FlowException("%s requires a Twilio number")
 
@@ -1184,7 +1184,7 @@ class Flow(TembaModel):
         action_sets = [dict(x=100, y=0, uuid=uuid, actions=[dict(type='reply', msg=message_dict)])]
         self.update(dict(entry=uuid, rule_sets=[], action_sets=action_sets, base_language=self.base_language))
 
-    def extract_first_message(self):
+    def extract_first_message(self):  # pragma: needs cover
         ActionSet.objects.filter(flow=self, )
 
     def steps(self):
@@ -1306,7 +1306,7 @@ class Flow(TembaModel):
         return context
 
     def get_results(self, contact=None, filter_ruleset=None, only_last_run=True, run=None):
-        if filter_ruleset:
+        if filter_ruleset:  # pragma: needs cover
             ruleset_list = [filter_ruleset]
         elif run and hasattr(run.flow, 'ruleset_prefetch'):
             ruleset_list = run.flow.ruleset_prefetch
@@ -1342,7 +1342,7 @@ class Flow(TembaModel):
             flow_steps = flow_steps.filter(run__pk__in=[r.pk for r in runs])
 
             # and the ruleset we care about
-            if filter_ruleset:
+            if filter_ruleset:  # pragma: needs cover
                 flow_steps = flow_steps.filter(step_uuid=filter_ruleset.uuid)
 
             flow_steps = flow_steps.order_by('arrived_on', 'pk')
@@ -1391,7 +1391,7 @@ class Flow(TembaModel):
                     category = rule_categories.get(rule_step['rule_uuid'], None)
 
                     # if this category no longer exists, use the category label at the time
-                    if not category:
+                    if not category:  # pragma: needs cover
                         category = rule_step['rule_category']
 
                     value = rule_step['rule_decimal_value'] if rule_step['rule_decimal_value'] is not None else rule_step['rule_value']
@@ -1452,13 +1452,13 @@ class Flow(TembaModel):
             started_flows = []
 
         # prevents infinite loops
-        if self.pk in started_flows:
+        if self.pk in started_flows:  # pragma: needs cover
             return []
 
         # add this flow to our list of started flows
         started_flows.append(self.pk)
 
-        if not self.entry_uuid:
+        if not self.entry_uuid:  # pragma: needs cover
             return []
 
         if start_msg and start_msg.id:
@@ -1592,7 +1592,7 @@ class Flow(TembaModel):
         runs = []
         channel = self.org.get_call_channel()
 
-        if not channel or Channel.ROLE_CALL not in channel.role:
+        if not channel or Channel.ROLE_CALL not in channel.role:  # pragma: needs cover
             return runs
 
         for contact_id in all_contact_ids:
@@ -1605,7 +1605,7 @@ class Flow(TembaModel):
                 continue
 
             run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
-            if extra:
+            if extra:  # pragma: needs cover
                 run.update_fields(extra)
 
             # create our call objects
@@ -1628,7 +1628,7 @@ class Flow(TembaModel):
 
             runs.append(run)
 
-        if flow_start:
+        if flow_start:  # pragma: needs cover
             flow_start.update_status()
 
         return runs
@@ -1759,7 +1759,7 @@ class Flow(TembaModel):
                 for msg in Msg.objects.filter(broadcast=broadcast, created_on=created_on):
                     if msg.contact_id not in message_map:
                         message_map[msg.contact_id] = [msg]
-                    else:
+                    else:  # pragma: needs cover
                         message_map[msg.contact_id].append(msg)
 
         # now execute our actual flow steps
@@ -2036,14 +2036,14 @@ class Flow(TembaModel):
 
         def lookup_action_contacts(action, contacts, groups):
 
-            if 'contact' in action:
+            if 'contact' in action:  # pragma: needs cover
                 contacts.append(action['contact']['uuid'])
 
             if 'contacts' in action:
                 for contact in action['contacts']:
                     contacts.append(contact['uuid'])
 
-            if 'group' in action:
+            if 'group' in action:  # pragma: needs cover
                 g = action['group']
                 if isinstance(g, dict):
                     if 'uuid' in g:
@@ -2057,7 +2057,7 @@ class Flow(TembaModel):
 
         def replace_action_contacts(action, contacts, groups):
 
-            if 'contact' in action:
+            if 'contact' in action:  # pragma: needs cover
                 contact = contacts.get(action['contact']['uuid'], None)
                 if contact:
                     action['contact'] = contact.as_json()
@@ -2071,7 +2071,7 @@ class Flow(TembaModel):
 
                 action['contacts'] = expanded_contacts
 
-            if 'group' in action:
+            if 'group' in action:  # pragma: needs cover
                 # variable substitution
                 group = action['group']
                 if isinstance(group, dict):
@@ -2172,7 +2172,7 @@ class Flow(TembaModel):
         def get_destinations(uuid):
             node = node_map.get(uuid)
 
-            if not node:
+            if not node:  # pragma: needs cover
                 return []
 
             rules = node.get('rules', [])
@@ -2224,7 +2224,7 @@ class Flow(TembaModel):
                 revision = self.revisions.all().order_by('-revision').all().first()
                 if revision:
                     json_flow = revision.get_definition_json()
-                else:
+                else:  # pragma: needs cover
                     json_flow = self.as_json()
 
                 self.update(json_flow)
@@ -2255,9 +2255,9 @@ class Flow(TembaModel):
 
                 if not saved_on or str_to_datetime(saved_on, org.timezone) < self.saved_on:
                     saver = ""
-                    if self.saved_by.first_name:
+                    if self.saved_by.first_name:  # pragma: needs cover
                         saver += "%s " % self.saved_by.first_name
-                    if self.saved_by.last_name:
+                    if self.saved_by.last_name:  # pragma: needs cover
                         saver += "%s" % self.saved_by.last_name
 
                     if not saver:
@@ -2440,7 +2440,7 @@ class Flow(TembaModel):
 
             # make sure all destinations are present though
             for destination in destinations:
-                if destination not in existing_rulesets and destination not in existing_actionsets:
+                if destination not in existing_rulesets and destination not in existing_actionsets:  # pragma: needs cover
                     raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
 
             entry = json_dict.get('entry', None)
@@ -2620,7 +2620,7 @@ class FlowRun(models.Model):
             for (i, v) in enumerate(fields):
                 (list_dict[str(i)], count) = FlowRun.normalize_fields(v, max_values, count)
 
-                if count >= max_values:
+                if count >= max_values:  # pragma: needs cover
                     break
 
             return list_dict, count
@@ -2794,7 +2794,7 @@ class FlowRun(models.Model):
         """
         Mark run as interrupted
         """
-        if self.contact.is_test:
+        if self.contact.is_test:  # pragma: needs cover
             ActionLog.create(self, _('%s has interrupted this flow') % self.contact.get_display(self.flow.org, short=True))
 
         now = timezone.now()
@@ -2978,7 +2978,7 @@ class FlowStep(models.Model):
                     incoming = Msg.create_incoming(org=run.org, contact=run.contact, text=json_obj['rule']['text'],
                                                    media=media, msg_type=FLOW, status=HANDLED, date=arrived_on,
                                                    channel=None, urn=None)
-            else:
+            else:  # pragma: needs cover
                 incoming = Msg.objects.filter(org=run.org, direction=INCOMING, steps__run=run).order_by('-pk').first()
 
             if incoming:
@@ -3008,7 +3008,7 @@ class FlowStep(models.Model):
                         rule = r
                         break
 
-                if not rule:
+                if not rule:  # pragma: needs cover
                     raise ValueError("No such rule with UUID %s" % rule_uuid)
 
                 rule.category = rule_category
@@ -3080,7 +3080,7 @@ class FlowStep(models.Model):
         # It's possible that messages have been purged but we still have broadcasts. Broadcast isn't implicitly ordered
         # like Msg is so .all().first() would cause an extra db hit even if all() has been prefetched.
         broadcasts = list(self.broadcasts.all())
-        if broadcasts:
+        if broadcasts:  # pragma: needs cover
             run = run or self.run
             return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
 
@@ -3116,7 +3116,7 @@ class FlowStep(models.Model):
         """
         if self.step_type == FlowStep.TYPE_RULE_SET:
             return RuleSet.objects.filter(uuid=self.step_uuid).first()
-        else:
+        else:  # pragma: needs cover
             return ActionSet.objects.filter(uuid=self.step_uuid).first()
 
     def __unicode__(self):
@@ -3227,7 +3227,7 @@ class RuleSet(models.Model):
         return Flow.label_to_slug(self.label)
 
     @classmethod
-    def contains_step(cls, text):
+    def contains_step(cls, text):  # pragma: needs cover
 
         # remove any padding
         if text:
@@ -3237,7 +3237,7 @@ class RuleSet(models.Model):
         return text and text[0] == '@' and 'step' in text
 
     def config_json(self):
-        if not self.config:
+        if not self.config:  # pragma: needs cover
             return dict()
         else:
             return json.loads(self.config)
@@ -3287,19 +3287,19 @@ class RuleSet(models.Model):
             if not isinstance(rule, TrueTest):
                 rule_count += 1
 
-            if isinstance(rule, NumericTest):
+            if isinstance(rule, NumericTest):  # pragma: needs cover
                 dec_rules += 1
-            elif isinstance(rule, DateTest):
+            elif isinstance(rule, DateTest):  # pragma: needs cover
                 dt_rules += 1
 
         # no real rules? this is open ended, return
-        if rule_count == 0:
+        if rule_count == 0:  # pragma: needs cover
             return Value.TYPE_TEXT
 
         # if we are all of one type (excluding other) then we are that type
         if dec_rules == len(rules) - 1:
             return Value.TYPE_DECIMAL
-        elif dt_rules == len(rules) - 1:
+        elif dt_rules == len(rules) - 1:  # pragma: needs cover
             return Value.TYPE_DATETIME
         else:
             return Value.TYPE_TEXT
@@ -3387,7 +3387,7 @@ class RuleSet(models.Model):
                     resthook.remove_subscriber(url, run.flow.created_by)
 
                 # if this is a success and we haven't ever succeeded, set our code and body
-                elif 200 <= result.status_code < 300 and not (200 <= status_code < 300):
+                elif 200 <= result.status_code < 300 and not (200 <= status_code < 300):  # pragma: needs cover
                     status_code = result.status_code
                     body = result.body
 
@@ -3397,7 +3397,7 @@ class RuleSet(models.Model):
                     body = _("No subscribers to this event")
 
             # default to a status code of 418 if we made no calls
-            if not status_code:
+            if not status_code:  # pragma: needs cover
                 status_code = 418
 
             # find our matching rule, we pass in the status from our calls
@@ -3470,7 +3470,7 @@ class RuleSet(models.Model):
         dt_value = None
         media_value = None
 
-        if isinstance(value, AdminBoundary):
+        if isinstance(value, AdminBoundary):  # pragma: needs cover
             location_value = value
         else:
             dt_value = run.flow.org.parse_date(value)
@@ -3479,7 +3479,7 @@ class RuleSet(models.Model):
         # if its a media value, only store the path as the value
         if ':' in value:
             (media_type, media_path) = value.split(':', 1)
-            if media_type in Msg.MEDIA_TYPES:
+            if media_type in Msg.MEDIA_TYPES:  # pragma: needs cover
                 media_value = value
                 value = media_path
 
@@ -3502,7 +3502,7 @@ class RuleSet(models.Model):
     def get_rules(self):
         return Rule.from_json_array(self.flow.org, json.loads(self.rules))
 
-    def get_rule_uuids(self):
+    def get_rule_uuids(self):  # pragma: needs cover
         return [rule['uuid'] for rule in json.loads(self.rules)]
 
     def set_rules_dict(self, json_dict):
@@ -3634,7 +3634,7 @@ class FlowRevision(SmartModel):
                 raise ValueError(non_localized_error)
 
             # and contain the base_language
-            if base_language not in lang_dict:
+            if base_language not in lang_dict:  # pragma: needs cover
                 raise ValueError(non_localized_error)
 
         for actionset in flow_spec['action_sets']:
@@ -3820,7 +3820,7 @@ class FlowRunCount(models.Model):
             if count['count'] > 0:
                 FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: needs cover
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
 
     class Meta:
@@ -3921,7 +3921,7 @@ class ExportFlowResultsTask(SmartModel):
         def as_org_tz(dt):
             if dt:
                 return dt.astimezone(org_tz).replace(tzinfo=None, microsecond=0)
-            else:
+            else:  # pragma: needs cover
                 return None
 
         # create a mapping of column id to index
@@ -4107,12 +4107,12 @@ class ExportFlowResultsTask(SmartModel):
                                       contact_fields=contact_fields):
 
             processed_steps += 1
-            if processed_steps % 10000 == 0:
+            if processed_steps % 10000 == 0:  # pragma: needs cover
                 print "Export of %s - %d%% complete in %0.2fs" % \
                       (flow_names, processed_steps * 100 / total_steps, time.time() - start)
 
             # skip over test contacts
-            if run_step.contact.is_test:
+            if run_step.contact.is_test:  # pragma: needs cover
                 continue
 
             contact_urn_display = get_contact_urn_display(run_step.contact)
@@ -4131,7 +4131,7 @@ class ExportFlowResultsTask(SmartModel):
                     merged_sheet_row = [None] * sheet_columns_number
                     merged_row += 1
 
-                    if merged_row > max_rows:
+                    if merged_row > max_rows:  # pragma: needs cover
                         # get the next sheet to use for Contacts
                         merged_row = 1
                         merged_run_sheet_index += 1
@@ -4149,7 +4149,7 @@ class ExportFlowResultsTask(SmartModel):
                         runs_sheet_row = [None] * sheet_columns_number
                         run_row += 1
 
-                        if run_row > max_rows:
+                        if run_row > max_rows:  # pragma: needs cover
                             # get the next sheet to use for Runs
                             run_row = 1
                             run_sheet_index += 1
@@ -4243,7 +4243,7 @@ class ExportFlowResultsTask(SmartModel):
                             runs_sheet_row[col] = cell
                         cell = WriteOnlyCell(merged_runs, value=category)
                         merged_sheet_row[col] = cell
-                    elif run_step.rule_category:
+                    elif run_step.rule_category:  # pragma: needs cover
                         if include_runs:
                             cell = WriteOnlyCell(runs, value=run_step.rule_category)
                             runs_sheet_row[col] = cell
@@ -4424,7 +4424,7 @@ class ActionLog(models.Model):
     def simulator_json(self):
         return self.as_json()
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: needs cover
         return self.text
 
 
@@ -4459,10 +4459,10 @@ class FlowStart(SmartModel):
 
     @classmethod
     def create(cls, flow, user, groups=None, contacts=None, restart_participants=True, extra=None):
-        if contacts is None:
+        if contacts is None:  # pragma: needs cover
             contacts = []
 
-        if groups is None:
+        if groups is None:  # pragma: needs cover
             groups = []
 
         start = FlowStart.objects.create(flow=flow, restart_participants=restart_participants,
@@ -4587,7 +4587,7 @@ def get_flow_user():
     global __flow_user
     if not __flow_user:
         user = User.objects.filter(username='flow').first()
-        if user:
+        if user:  # pragma: needs cover
             __flow_user = user
         else:
             user = User.objects.create_user('flow')
@@ -4781,7 +4781,7 @@ class AddToGroupAction(Action):
             else:
                 if g and g[0] == '@':
                     groups.append(g)
-                else:
+                else:  # pragma: needs cover
                     group = ContactGroup.get_user_group(org, g)
                     if group:
                         groups.append(group)
@@ -4821,11 +4821,11 @@ class AddToGroupAction(Action):
 
                             try:
                                 group = ContactGroup.create_static(contact.org, user, name=value)
-                                if run.contact.is_test:
+                                if run.contact.is_test:  # pragma: needs cover
                                     ActionLog.info(run, _("Group '%s' created") % value)
-                            except ValueError:
+                            except ValueError:  # pragma: needs cover
                                     ActionLog.error(run, _("Unable to create group with name '%s'") % value)
-                    else:
+                    else:  # pragma: needs cover
                         ActionLog.error(run, _("Group name could not be evaluated: %s") % ', '.join(errors))
 
                 if group:
@@ -4838,7 +4838,7 @@ class AddToGroupAction(Action):
                         if run.contact.is_test:
                             if add:
                                 ActionLog.error(run, _("%s is a dynamic group which we can't add contacts to") % group.name)
-                            else:
+                            else:  # pragma: needs cover
                                 ActionLog.error(run, _("%s is a dynamic group which we can't remove contacts from") % group.name)
                         continue
 
@@ -4884,7 +4884,7 @@ class DeleteFromGroupAction(AddToGroupAction):
                                                              group_type=ContactGroup.TYPE_USER_DEFINED,
                                                              query__isnull=True):
                     group.update_contacts(user, [contact], False)
-                    if run.contact.is_test:
+                    if run.contact.is_test:  # pragma: needs cover
                         ActionLog.info(run, _("Removed %s from %s") % (run.contact.name, group.name))
             return []
         return AddToGroupAction.execute(self, run, actionset, msg, offline_on)
@@ -4923,9 +4923,9 @@ class AddLabelAction(Action):
                 if label_data and label_data[0] == '@':
                     # label name is a variable substitution
                     labels.append(label_data)
-                else:
+                else:  # pragma: needs cover
                     labels.append(Label.get_or_create(org, org.get_user(), label_data))
-            else:
+            else:  # pragma: needs cover
                 raise ValueError("Label data must be a dict or string")
 
         return AddLabelAction(labels)
@@ -4953,16 +4953,16 @@ class AddLabelAction(Action):
                 if not errors:
                     try:
                         label = Label.get_or_create(contact.org, contact.org.get_user(), value)
-                        if run.contact.is_test:
+                        if run.contact.is_test:  # pragma: needs cover
                             ActionLog.info(run, _("Label '%s' created") % label.name)
-                    except ValueError:
+                    except ValueError:  # pragma: needs cover
                         ActionLog.error(run, _("Unable to create label with name '%s'") % label.name)
-                else:
+                else:  # pragma: needs cover
                     label = None
                     ActionLog.error(run, _("Label name could not be evaluated: %s") % ', '.join(errors))
 
             if label and msg and msg.pk:
-                if run.contact.is_test:
+                if run.contact.is_test:  # pragma: needs cover
                     # don't really add labels to simulator messages
                     ActionLog.info(run, _("Added %s label to msg '%s'") % (label.name, msg.text))
                 else:
@@ -5003,7 +5003,7 @@ class SayAction(Action):
             recording = run.flow.get_localized_text(self.recording, run.contact)
 
             # if we have a localized recording, create the url
-            if recording:
+            if recording:  # pragma: needs cover
                 media_url = "https://%s/%s" % (settings.AWS_BUCKET_DOMAIN, recording)
 
         # localize the text for our message, need this either way for logging
@@ -5014,12 +5014,12 @@ class SayAction(Action):
 
         if msg:
             if run.contact.is_test:
-                if media_url:
+                if media_url:  # pragma: needs cover
                     ActionLog.create(run, _('Played recorded message for "%s"') % message)
                 else:
                     ActionLog.create(run, _('Read message "%s"') % message)
             return [msg]
-        else:
+        else:  # pragma: needs cover
             # no message, possibly failed loop detection
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
@@ -5050,11 +5050,11 @@ class PlayAction(Action):
         msg = run.create_outgoing_ivr(_('Played contact recording'), media)
 
         if msg:
-            if run.contact.is_test:
+            if run.contact.is_test:  # pragma: needs cover
                 log_txt = _('Played recording at "%s"') % msg.media
                 ActionLog.create(run, log_txt)
             return [msg]
-        else:
+        else:  # pragma: needs cover
             # no message, possibly failed loop detection
             run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
             return []
@@ -5224,11 +5224,11 @@ class VariableContactAction(Action):
             contact_uuid = contact.get(VariableContactAction.UUID, None)
 
             contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
-            if not contact and phone:
+            if not contact and phone:  # pragma: needs cover
                 contact = Contact.get_or_create(org, org.created_by, name=None, urns=[(TEL_SCHEME, phone)])
 
                 # if they dont have a name use the one in our action
-                if name and not contact.name:
+                if name and not contact.name:  # pragma: needs cover
                     contact.name = name
                     contact.save(update_fields=['name'])
 
@@ -5254,7 +5254,7 @@ class VariableContactAction(Action):
             # this is a marker for a new contact
             if variable == NEW_CONTACT_VARIABLE:
                 # if this is a test contact, stuff a fake contact in for logging purposes
-                if run.contact.is_test:
+                if run.contact.is_test:  # pragma: needs cover
                     contacts.append(Contact(pk=-1))
 
                 # otherwise, really create the contact
@@ -5267,7 +5267,7 @@ class VariableContactAction(Action):
                                                               message_context=message_context, org=run.flow.org)
 
                 variable_group = ContactGroup.get_user_group(run.flow.org, name=variable)
-                if variable_group:
+                if variable_group:  # pragma: needs cover
                     groups.append(variable_group)
                 else:
                     country = run.flow.org.get_country_code()
@@ -5331,7 +5331,7 @@ class TriggerFlowAction(VariableContactAction):
                     msgs += run.start_msgs
 
                 return msgs
-            else:
+            else:  # pragma: needs cover
                 unique_contacts = set()
                 for contact in contacts:
                     unique_contacts.add(contact.pk)
@@ -5342,11 +5342,11 @@ class TriggerFlowAction(VariableContactAction):
 
                 self.logger(run, self.flow, len(unique_contacts))
 
-            return []
+            return []  # pragma: needs cover
         else:  # pragma: no cover
             return []
 
-    def logger(self, run, flow, contact_count):
+    def logger(self, run, flow, contact_count):  # pragma: needs cover
         log_txt = _("Added %d contact(s) to '%s' flow") % (contact_count, flow.name)
         log = ActionLog.create(run, log_txt)
         return log
@@ -5382,7 +5382,7 @@ class SetLanguageAction(Action):
         self.logger(run)
         return []
 
-    def logger(self, run):
+    def logger(self, run):  # pragma: needs cover
         # only log for test contact
         if not run.contact.is_test:
             return False
@@ -5442,7 +5442,7 @@ class StartFlowAction(Action):
         self.logger(run)
         return msgs
 
-    def logger(self, run):
+    def logger(self, run):  # pragma: needs cover
         # only log for test contact
         if not run.contact.is_test:
             return False
@@ -5518,7 +5518,7 @@ class SaveToContactAction(Action):
         message_context = run.flow.build_message_context(contact, msg)
         (value, errors) = Msg.substitute_variables(self.value, contact, message_context, org=run.flow.org)
 
-        if contact.is_test and errors:
+        if contact.is_test and errors:  # pragma: needs cover
             ActionLog.warn(run, _("Expression contained errors: %s") % ', '.join(errors))
 
         value = value.strip()
@@ -5544,7 +5544,7 @@ class SaveToContactAction(Action):
             scheme = ContactURN.CONTEXT_KEYS_TO_SCHEME[self.field]
 
             # trim off '@' for twitter handles
-            if self.field == 'twitter':
+            if self.field == 'twitter':  # pragma: needs cover
                 if len(new_value) > 0:
                     if new_value[0] == '@':
                         new_value = new_value[1:]
@@ -5578,7 +5578,7 @@ class SaveToContactAction(Action):
 
         return []
 
-    def logger(self, run, new_value):
+    def logger(self, run, new_value):  # pragma: needs cover
         # only log for test contact
         if not run.contact.is_test:
             return False
@@ -5610,7 +5610,7 @@ class SetChannelAction(Action):
 
         if channel_uuid:
             channel = Channel.objects.filter(org=org, is_active=True, uuid=channel_uuid).first()
-        else:
+        else:  # pragma: needs cover
             channel = None
         return SetChannelAction(channel)
 
@@ -5732,7 +5732,7 @@ class Rule(object):
         self.label = label
 
     def get_category_name(self, flow_lang):
-        if not self.category:
+        if not self.category:  # pragma: needs cover
             if isinstance(self.test, BetweenTest):
                 return "%s-%s" % (self.test.min, self.test.max)
 
@@ -5740,10 +5740,10 @@ class Rule(object):
         if isinstance(self.category, dict):
             if flow_lang:
                 return self.category[flow_lang]
-            else:
+            else:  # pragma: needs cover
                 return self.category.values()[0]
 
-        return self.category
+        return self.category  # pragma: needs cover
 
     def matches(self, run, sms, context, text):
         return self.test.evaluate(run, sms, context, text)
@@ -5870,7 +5870,7 @@ class WebhookStatusTest(Test):
     def from_json(cls, org, json):
         return WebhookStatusTest(json.get('status'))
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=WebhookStatusTest.TYPE, status=self.status)
 
     def evaluate(self, run, sms, context, text):
@@ -5905,7 +5905,7 @@ class AirtimeStatusTest(Test):
     def from_json(cls, org, json):
         return AirtimeStatusTest(json.get('exit_status'))
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
 
     def evaluate(self, run, sms, context, text):
@@ -5934,7 +5934,7 @@ class InGroupTest(Test):
         uuid = group.get(InGroupTest.UUID)
         return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid))
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=InGroupTest.TYPE, name=self.group.name, uuid=self.group.uuid)
 
     def evaluate(self, run, sms, context, text):
@@ -5963,7 +5963,7 @@ class SubflowTest(Test):
     def from_json(cls, org, json):
         return SubflowTest(json.get(SubflowTest.EXIT))
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
 
     def evaluate(self, run, sms, context, text):
@@ -5989,13 +5989,13 @@ class TimeoutTest(Test):
     def from_json(cls, org, json):
         return TimeoutTest(int(json.get(TimeoutTest.MINUTES)))
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return {'type': TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
 
     def evaluate(self, run, sms, context, text):
         if run.timeout_on < timezone.now():
             return 1, None
-        else:
+        else:  # pragma: needs cover
             return 0, None
 
 
@@ -6056,7 +6056,7 @@ class AndTest(Test):
     def as_json(self):
         return dict(type=AndTest.TYPE, tests=[_.as_json() for _ in self.tests])
 
-    def evaluate(self, run, sms, context, text):
+    def evaluate(self, run, sms, context, text):  # pragma: needs cover
         matches = []
         for test in self.tests:
             (result, value) = test.evaluate(run, sms, context, text)
@@ -6086,7 +6086,7 @@ class OrTest(Test):
     def as_json(self):
         return dict(type=OrTest.TYPE, tests=[_.as_json() for _ in self.tests])
 
-    def evaluate(self, run, sms, context, text):
+    def evaluate(self, run, sms, context, text):  # pragma: needs cover
         for test in self.tests:
             (result, value) = test.evaluate(run, sms, context, text)
             if result:
@@ -6102,17 +6102,17 @@ class NotEmptyTest(Test):
 
     TYPE = 'not_empty'
 
-    def __init__(self):
+    def __init__(self):  # pragma: needs cover
         pass
 
     @classmethod
-    def from_json(cls, org, json):
+    def from_json(cls, org, json):  # pragma: needs cover
         return NotEmptyTest()
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=NotEmptyTest.TYPE)
 
-    def evaluate(self, run, sms, context, text):
+    def evaluate(self, run, sms, context, text):  # pragma: needs cover
         if text and len(text.strip()):
             return 1, text
         return 0, None
@@ -6241,7 +6241,7 @@ class StartsWithTest(Test):
     def from_json(cls, org, json):
         return cls(json[cls.TEST])
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=StartsWithTest.TYPE, test=self.test)
 
     def evaluate(self, run, sms, context, text):
@@ -6343,7 +6343,7 @@ class HasWardTest(Test):
     def evaluate(self, run, sms, context, text):
         # if they removed their country since adding the rule
         org = run.flow.org
-        if not org.country:
+        if not org.country:  # pragma: needs cover
             return 0, None
         district = None
 
@@ -6377,7 +6377,7 @@ class HasDateTest(Test):
     def from_json(cls, org, json):
         return cls()
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=self.TYPE)
 
     def evaluate_date_test(self, message_date):
@@ -6395,7 +6395,7 @@ class HasDateTest(Test):
         if date is not None and self.evaluate_date_test(date):
             return 1, datetime_to_str(date, tz=tz, format=time_format, ms=False)
 
-        return 0, None
+        return 0, None  # pragma: needs cover
 
 
 class DateTest(Test):
@@ -6412,13 +6412,13 @@ class DateTest(Test):
     def from_json(cls, org, json):
         return cls(json[cls.TEST])
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=self.TYPE, test=self.test)
 
-    def evaluate_date_test(self, date_message, date_test):
+    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
         raise FlowException("Evaluate date test needs to be defined by subclass.")
 
-    def evaluate(self, run, sms, context, text):
+    def evaluate(self, run, sms, context, text):  # pragma: needs cover
         org = run.flow.org
         dayfirst = org.get_dayfirst()
         tz = org.timezone
@@ -6441,7 +6441,7 @@ class DateEqualTest(DateTest):
     TEST = 'test'
     TYPE = 'date_equal'
 
-    def evaluate_date_test(self, date_message, date_test):
+    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
         return date_message.date() == date_test.date()
 
 
@@ -6449,7 +6449,7 @@ class DateAfterTest(DateTest):
     TEST = 'test'
     TYPE = 'date_after'
 
-    def evaluate_date_test(self, date_message, date_test):
+    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
         return date_message >= date_test
 
 
@@ -6457,7 +6457,7 @@ class DateBeforeTest(DateTest):
     TEST = 'test'
     TYPE = 'date_before'
 
-    def evaluate_date_test(self, date_message, date_test):
+    def evaluate_date_test(self, date_message, date_test):  # pragma: needs cover
         return date_message <= date_test
 
 
@@ -6481,11 +6481,11 @@ class NumericTest(Test):
             if original_word == word:
                 # does this start with a number?  just use that part if so
                 match = regex.match(r"^(\d+).*$", word, regex.UNICODE | regex.V0)
-                if match:
+                if match:  # pragma: needs cover
                     return (match.group(1), Decimal(match.group(1)))
                 else:
                     raise e
-            else:
+            else:  # pragma: needs cover
                 raise e
 
     # test every word in the message against our test
@@ -6496,7 +6496,7 @@ class NumericTest(Test):
                 (word, decimal) = NumericTest.convert_to_decimal(word)
                 if self.evaluate_numeric_test(run, context, decimal):
                     return 1, decimal
-            except Exception:
+            except Exception:  # pragma: needs cover
                 pass
         return 0, None
 
@@ -6527,10 +6527,10 @@ class BetweenTest(NumericTest):
         if not min_errors and not max_errors:
             try:
                 return Decimal(min_val) <= decimal_value <= Decimal(max_val)
-            except Exception:
+            except Exception:  # pragma: needs cover
                 pass
 
-        return False
+        return False  # pragma: needs cover
 
 
 class NumberTest(NumericTest):
@@ -6546,7 +6546,7 @@ class NumberTest(NumericTest):
     def from_json(cls, org, json):
         return cls()
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=self.TYPE)
 
     def evaluate_numeric_test(self, run, context, decimal_value):
@@ -6616,7 +6616,7 @@ class LteTest(SimpleNumericTest):
     TEST = 'test'
     TYPE = 'lte'
 
-    def evaluate_numeric_test(self, message_numeric, test_numeric):
+    def evaluate_numeric_test(self, message_numeric, test_numeric):  # pragma: needs cover
         return message_numeric <= test_numeric
 
 
@@ -6641,7 +6641,7 @@ class PhoneTest(Test):
     def from_json(cls, org, json):
         return cls()
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(type=self.TYPE)
 
     def evaluate(self, run, sms, context, text):
@@ -6649,14 +6649,14 @@ class PhoneTest(Test):
 
         # try to find a phone number in the text we have been sent
         country_code = org.get_country_code()
-        if not country_code:
+        if not country_code:  # pragma: needs cover
             country_code = 'US'
 
         number = None
         matches = phonenumbers.PhoneNumberMatcher(text, country_code)
 
         # try it as an international number if we failed
-        if not matches.has_next():
+        if not matches.has_next():  # pragma: needs cover
             matches = phonenumbers.PhoneNumberMatcher('+' + text, country_code)
 
         for match in matches:
@@ -6665,7 +6665,7 @@ class PhoneTest(Test):
         return number, number
 
 
-class RegexTest(Test):
+class RegexTest(Test):  # pragma: needs cover
     """
     Test for whether a response matches a regular expression
     """

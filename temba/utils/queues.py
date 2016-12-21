@@ -49,7 +49,7 @@ def push_task(org, queue, task_name, args, priority=DEFAULT_PRIORITY):
         if getattr(settings, 'CELERY_ALWAYS_EAGER', False):
             task_function = lookup_task_function(task_name)
             task_function()
-        else:
+        else:  # pragma: needs cover
             current_app.send_task(task_name, args=[], kwargs={}, queue=queue)
 
 
@@ -109,11 +109,11 @@ def lookup_task_function(task_name):
     and call our tasks manually. This takes care of that.
     """
     task_map = getattr(settings, 'CELERY_TASK_MAP', None)
-    if not task_map:
+    if not task_map:  # pragma: needs cover
         print "Empty or missing CELERY_TASK_MAP in settings.py, unable to find task for %s" % task_name
 
     task_function = task_map.get(task_name, None)
-    if not task_function:
+    if not task_function:  # pragma: needs cover
         raise Exception("Unable to find '%s' task in settings.CELERY_TASK_MAP, aborting" % task_name)
 
     m, f = task_function.rsplit('.', 1)
