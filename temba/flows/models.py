@@ -669,9 +669,8 @@ class Flow(TembaModel):
 
     @classmethod
     def handle_ruleset(cls, ruleset, step, run, msg, started_flows, resume_parent_run=False, resume_after_timeout=False):
-        from temba.ussd.models import USSDSession
 
-        if ruleset.is_ussd() and run.session and run.session.status == USSDSession.INTERRUPTED:
+        if ruleset.is_ussd() and run.session_interrupted:
             rule, value = ruleset.find_interrupt_rule(step, run, msg)
             if not rule:
                 run.set_interrupted(final_step=step)
@@ -720,14 +719,14 @@ class Flow(TembaModel):
 
         # output the new value if in the simulator
         if run.contact.is_test:
-            if run.session and run.session.status == USSDSession.INTERRUPTED:
+            if run.session_interrupted:
                 ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
             else:
                 ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
 
         # no destination for our rule?  we are done, though we did handle this message, user is now out of the flow
         if not rule.destination:
-            if run.session and run.session.status == USSDSession.INTERRUPTED:
+            if run.session_interrupted:
                 # run was interrupted and interrupt state not handled (not connected)
                 run.set_interrupted(final_step=step)
             else:
@@ -2584,6 +2583,10 @@ class FlowRun(models.Model):
             return FlowRun.objects.create(**args)
         else:
             return FlowRun(**args)
+
+    @property
+    def session_interrupted(self):
+        return self.session and self.session.status == ChannelSession.INTERRUPTED
 
     @classmethod
     def normalize_field_key(cls, key):
