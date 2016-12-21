@@ -172,7 +172,7 @@ def migrate_export_to_version_9(exported_json, org, same_site=True):
     def remap_channel(ele):
         from temba.channels.models import Channel
         channel_id = ele.get('channel')
-        if channel_id:
+        if channel_id:  # pragma: needs cover
             channel = Channel.objects.filter(pk=channel_id).first()
             if channel:
                 ele['channel'] = channel.uuid
@@ -296,7 +296,7 @@ def migrate_to_version_7(json_flow, flow=None):
 
         return definition
 
-    return json_flow
+    return json_flow  # pragma: needs cover
 
 
 def migrate_to_version_6(json_flow, flow=None):
@@ -312,7 +312,7 @@ def migrate_to_version_6(json_flow, flow=None):
     base_language = 'base'
 
     def convert_to_dict(d, key):
-        if key not in d:
+        if key not in d:  # pragma: needs cover
             raise ValueError("Missing '%s' in dict: %s" % (key, d))
 
         if not isinstance(d[key], dict):
@@ -392,12 +392,12 @@ def migrate_to_version_5(json_flow, flow=None):
             # all previous ruleset that require step should be wait_message
             if requires_step(operand):
                 # if we have an empty operand, go ahead and update it
-                if not operand:
+                if not operand:  # pragma: needs cover
                     ruleset['operand'] = '@step.value'
 
                 if response_type == 'K':
                     ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGITS
-                elif response_type == 'M':
+                elif response_type == 'M':  # pragma: needs cover
                     ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_DIGIT
                 elif response_type == 'R':
                     ruleset['ruleset_type'] = RuleSet.TYPE_WAIT_RECORDING
@@ -427,7 +427,7 @@ def migrate_to_version_5(json_flow, flow=None):
                         ruleset['ruleset_type'] = RuleSet.TYPE_EXPRESSION
                     elif operand.find('@contact.') == 0:
                         ruleset['ruleset_type'] = RuleSet.TYPE_CONTACT_FIELD
-                    elif operand.find('@flow.') == 0:
+                    elif operand.find('@flow.') == 0:  # pragma: needs cover
                         ruleset['ruleset_type'] = RuleSet.TYPE_FLOW_FIELD
 
                 # we used to stop at webhooks, now we need a new node
@@ -520,7 +520,7 @@ def insert_node(flow, node, _next):
     """ Inserts a node right before _next """
 
     def update_destination(node_to_update, uuid):
-        if node_to_update.get('actions', []):
+        if node_to_update.get('actions', []):  # pragma: needs cover
             node_to_update['destination'] = uuid
         else:
             for rule in node_to_update.get('rules', []):
@@ -541,7 +541,7 @@ def insert_node(flow, node, _next):
             ruleset['y'] += 100
 
     # we are an actionset
-    if node.get('actions', []):
+    if node.get('actions', []):  # pragma: needs cover
         node.destination = _next.uuid
         flow['action_sets'].append(node)
 

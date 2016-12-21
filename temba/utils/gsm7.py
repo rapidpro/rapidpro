@@ -250,7 +250,7 @@ def_escape_encode_dict = \
     dict((u, g) for g, u in def_escape_decode_dict.iteritems())
 
 
-def encode(input_, errors='strict'):
+def encode(input_, errors='strict'):  # pragma: needs cover
     """
     :type input_: unicode
     :return: string
@@ -288,7 +288,7 @@ def decode(input_, errors='strict'):
     while index < len(input_):
         c = input_[index]
         index += 1
-        if c == '\x1b':
+        if c == '\x1b':  # pragma: needs cover
             if index < len(input_):
                 c = input_[index]
                 index += 1
@@ -298,7 +298,7 @@ def decode(input_, errors='strict'):
         else:
             try:
                 result.append(def_regular_decode_dict[c])
-            except KeyError:
+            except KeyError:  # pragma: needs cover
                 # error handling: unassigned byte, must be > 0x7f
                 if errors == 'strict':
                     raise UnicodeError("Unrecognized GSM character")

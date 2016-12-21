@@ -16,7 +16,7 @@ def check_schedule_task(sched_id=None):
 
     if sched_id:
         schedules = [Schedule.objects.get(pk=sched_id)]
-    else:
+    else:  # pragma: needs cover
         schedules = Schedule.objects.filter(status='S', is_active=True, next_fire__lt=timezone.now())
 
     r = get_redis_connection()
@@ -50,7 +50,7 @@ def check_schedule_task(sched_id=None):
                         if sched.repeat_period == 'O':
                             sched.reset()
 
-        except ObjectDoesNotExist:
+        except ObjectDoesNotExist:  # pragma: needs cover
             # this means the schedule already got fired, so perfectly ok, ignore
             pass
 

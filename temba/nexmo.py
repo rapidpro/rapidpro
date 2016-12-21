@@ -49,12 +49,12 @@ class NexmoClient(object):
         response = requests.post(urljoin(NexmoClient.URL, path), params=params, headers=headers)
         return self._validate_response(response)
 
-    def update_account(self, mo_url, dr_url):
+    def update_account(self, mo_url, dr_url):  # pragma: needs cover
         path = 'account/settings/%s/%s' % (self.api_key, self.api_secret)
         params = dict(moCallBackUrl=mo_url, drCallBackUrl=dr_url)
         self._fire_post(path, params)
 
-    def get_balance(self):
+    def get_balance(self):  # pragma: needs cover
         path = "/account/get-balance/%s/%s" % (self.api_key, self.api_secret)
         response = self._fire_get(path, {})
         return response['value']
@@ -112,7 +112,7 @@ class NexmoClient(object):
         else:
             return messages[0]['message-id'], response
 
-    def search_numbers(self, country, pattern):
+    def search_numbers(self, country, pattern):  # pragma: needs cover
         path = '/number/search/%s/%s/%s?features=SMS' % (self.api_key, self.api_secret, country)
         response = self._fire_get(path, dict(pattern=pattern))
         if int(response.get('count', 0)):
@@ -130,7 +130,7 @@ class NexmoClient(object):
         path = '/number/update/%s/%s/%s/%s' % (self.api_key, self.api_secret, country, number)
         self._fire_post(path, dict(moHttpUrl=moURL))
 
-    def test_credentials(self):
+    def test_credentials(self):  # pragma: needs cover
         try:
             self.get_balance()
             return True

@@ -28,7 +28,7 @@ def webhook_status_processor(request):
         past_hour = timezone.now() - timedelta(hours=1)
         failed = WebHookEvent.objects.filter(org=org, status__in=['F', 'E'], created_on__gte=past_hour).order_by('-created_on')
 
-        if failed:
+        if failed:  # pragma: needs cover
             status['failed_webhooks'] = True
             status['webhook_errors_count'] = failed.count()
 
@@ -46,7 +46,7 @@ class RefreshAPITokenView(OrgPermsMixin, SmartView, View):
         return JsonResponse(dict(token=token.key))
 
 
-class WebHookEventMixin(OrgPermsMixin):
+class WebHookEventMixin(OrgPermsMixin):  # pragma: needs cover
     def get_status(self, obj):
         return obj.get_status_display()
 
@@ -66,7 +66,7 @@ class WebHookEventListView(WebHookEventMixin, SmartListView):
     default_order = ('-created_on',)
     permission = 'api.webhookevent_list'
 
-    def get_context_data(self, *args, **kwargs):
+    def get_context_data(self, *args, **kwargs):  # pragma: needs cover
         context = super(WebHookEventListView, self).get_context_data(*args, **kwargs)
         context['org'] = self.request.user.get_org()
         return context
@@ -91,7 +91,7 @@ class WebHookEventReadView(WebHookEventMixin, SmartReadView):
                 else:
                     return _("Never, event delivery failed permanently")
 
-    def get_context_data(self, *args, **kwargs):
+    def get_context_data(self, *args, **kwargs):  # pragma: needs cover
         context = super(WebHookEventReadView, self).get_context_data(*args, **kwargs)
 
         context['results'] = WebHookResult.objects.filter(event=self.object)
@@ -121,7 +121,7 @@ class WebHookTunnelView(View):
             response = requests.post(url, data=outgoing_data, timeout=3)
             result = response.text
 
-        except Exception as e:
+        except Exception as e:  # pragma: needs cover
             result = str(e)
 
         return HttpResponse(result)
