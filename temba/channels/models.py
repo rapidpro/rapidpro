@@ -13,6 +13,7 @@ from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
+from django.core.validators import URLValidator
 from django.db import models, connection
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
@@ -1796,7 +1797,6 @@ class Channel(TembaModel):
                                 response_status=503,
                                 start=start)
 
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 method='POST',
                                 url=url,
@@ -1836,6 +1836,9 @@ class Channel(TembaModel):
         url = "%s/%s/messages.json" % (api_url_base, channel.config['conversation_key'])
 
         start = time.time()
+
+        validator = URLValidator()
+        validator(url)
 
         try:
             response = requests.put(url,
