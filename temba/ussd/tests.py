@@ -188,7 +188,6 @@ class VumiUssdTest(TembaTest):
 
         # our outgoing message
         msg.refresh_from_db()
-        r = get_redis_connection()
 
         try:
             settings.SEND_MESSAGES = True
