@@ -106,7 +106,7 @@ class OrgPermsMixin(object):
         if self.get_user().is_anonymous():
             return False
 
-        if self.get_user().has_perm(self.permission):
+        if self.get_user().has_perm(self.permission):  # pragma: needs cover
             return True
 
         return self.has_org_perm(self.permission)
