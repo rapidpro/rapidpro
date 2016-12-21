@@ -20,5 +20,5 @@ def get_bundle_map(bundles):
 
 
 # a map of our price in US cents vs the number of messages you purchase for
-def get_bundle_choices(bundles):
+def get_bundle_choices(bundles):  # pragma: no cover
     return [(b['cents'], b['description']) for b in bundles]

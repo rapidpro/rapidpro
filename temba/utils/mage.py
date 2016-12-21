@@ -6,7 +6,7 @@ import requests
 from temba.utils import analytics
 
 
-class MageError(Exception):
+class MageError(Exception):  # pragma: needs cover
     def __init__(self, caused_by=None, error_code=None):
         self.caused_by = caused_by
         self.error_code = error_code
@@ -18,7 +18,7 @@ class MageError(Exception):
         return str(unicode(self))
 
 
-class MageClient(object):
+class MageClient(object):  # pragma: needs cover
     """
     Simple client for API calls to a Message Mage instance
     """
