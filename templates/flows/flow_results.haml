@@ -6,7 +6,6 @@
   -compress css inline
     {% lessblock %}
       :plain
-
         .hidden-columns {
           margin-top:10px;
         }
@@ -80,14 +79,14 @@
     {% endlessblock %}
 
 -block extra-script
-  <script src="{{ STATIC_URL }}/bower/highcharts/highcharts.js"></script>
-  <script src="{{ STATIC_URL }}/bower/highcharts/modules/drilldown.js"></script>
+  %script{src:"{{ STATIC_URL }}/bower/highcharts/highcharts.js"}
+  %script{src:"{{ STATIC_URL }}/bower/highcharts/modules/drilldown.js"}
 
   {{ block.super }}
 
   :javascript
 
-     Highcharts.setOptions({
+    Highcharts.setOptions({
         global: {
             timezoneOffset: 5 * 60
         }
@@ -118,7 +117,7 @@
 
     function updateCols() {
       var hidden = false;
-      for (var idx=0; idx<columns.length; idx++) {
+      for (var idx=0; idx < columns.length; idx++) {
         var col = columns[idx];
         var child_idx = idx + 3;
 
@@ -163,7 +162,7 @@
     $(document).ready(function() {
       $("#columns").select2({ placeholder:'Add Column', data: columns, minimumResultsForSearch: -1, query: function(q){
         var results = [];
-        for (var i=0; i<this.data.length; i++) {
+        for (var i=0; i < this.data.length; i++) {
           if (this.data[i].hidden) {
             results.push(this.data[i]);
           }
@@ -198,14 +197,12 @@
 
 -block content
 
-  <hr>
-
-  <div class="text-center" ic-get-from="/flow/activity_chart/{{object.id}}" ic-trigger-on="load">
-    <i class="fa fa-spinner fa-spin fa-2x"></i> Loading Graph...
-  </div>
+  %hr
+  .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
+    %i.fa.fa-spinner.fa-spin.fa-2x
 
   .hidden-columns.pull-right
-    <input type="hidden" id="columns" style="width:300px"/>
+    %input#columns{type:'hidden', style:'width:300px'}
 
   %table
     %tbody{id:"results_run_table"}

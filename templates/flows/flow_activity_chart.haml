@@ -1,8 +1,8 @@
 -load humanize i18n compress temba
 
-//<script src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
-//<script src="https://code.highcharts.com/highcharts.js"></script>
-//<script src="https://code.highcharts.com/modules/drilldown.js"></script>
+// <script src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
+// <script src="https://code.highcharts.com/highcharts.js"></script>
+// <script src="https://code.highcharts.com/modules/drilldown.js"></script>
 
 -compress css inline
   {% lessblock %}
@@ -84,9 +84,8 @@
 :javascript
   var pie_points = [
     {% if active %}{ name: 'Active', y: {{active}} },{%endif%}
-    { name: 'Completed', y: {{completed}}, drilldown: null},
+    { name: 'Completed', y: {{completed}}, drilldown: null },
     { name: 'Exited', y: {{interrupted|add:expired}}, drilldown: 'incomplete' },
-    {% endif }
   ];
 
   var pie_drill = {
