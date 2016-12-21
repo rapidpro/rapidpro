@@ -65,12 +65,7 @@
   #histogram
 
 %h3.pull-left
-  {{total_responses|intcomma}}
-  {% blocktrans count total_responses as total%}
-      Response
-  {% plural %}
-      Responses
-  {% endblocktrans %}
+  {{total_responses|intcomma}} {% blocktrans count total_responses as total%}Response{% plural %}Responses{% endblocktrans %}
 
 :javascript
   $(document).ready(function(){
@@ -89,17 +84,9 @@
 :javascript
   var pie_points = [
     {% if active %}{ name: 'Active', y: {{active}} },{%endif%}
-    {
-      name: 'Completed',
-      y: {{completed}},
-      drilldown: null
-    },
-    {
-      name: 'Exited',
-      y: {{interrupted|add:expired}},
-      drilldown: 'incomplete',
-    },
-
+    { name: 'Completed', y: {{completed}}, drilldown: null},
+    { name: 'Exited', y: {{interrupted|add:expired}}, drilldown: 'incomplete' },
+    {% endif }
   ];
 
   var pie_drill = {

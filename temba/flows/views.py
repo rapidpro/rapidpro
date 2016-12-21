@@ -1152,6 +1152,11 @@ class FlowCRUDL(SmartCRUDL):
                 context[key] = count['count__sum']
                 total_runs += count['count__sum']
 
+            # make sure we have a value for each one
+            for state in ('expired', 'interrupted', 'completed', 'active'):
+                if state not in context:
+                    context[state] = 0
+
             context['total_runs'] = total_runs
             context['total_responses'] = total_responses
 

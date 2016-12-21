@@ -3862,6 +3862,49 @@ class FlowsTest(FlowFileTest):
         response = flow.update(flow_json, self.admin)
         self.assertEquals(response.get('status'), 'unsaved')
 
+    def test_flow_results(self):
+
+        favorites = self.get_flow('favorites')
+        jimmy = self.create_contact('Jimmy', '+12065553026')
+        self.send_message(favorites, 'red', contact=jimmy)
+        self.send_message(favorites, 'turbo', contact=jimmy)
+
+        pete = self.create_contact('Pete', '+12065553027')
+        self.send_message(favorites, 'blue', contact=pete)
+
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.flow_results', args=[favorites.pk]))
+
+        # the rulesets should be present as column headers
+        self.assertContains(response, 'Beer')
+        self.assertContains(response, 'Color')
+        self.assertContains(response, 'Name')
+
+        # fetch our intercooler rows for the run table
+        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertContains(response, 'Jimmy')
+        self.assertContains(response, 'red')
+        self.assertContains(response, 'Red')
+        self.assertContains(response, 'turbo')
+        self.assertContains(response, 'Turbo King')
+
+        # and some charts
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+
+        # we have two active runs
+        self.assertContains(response, "{ name: 'Active', y: 2 }")
+        self.assertContains(response, "3 Responses")
+
+        # now send another message
+        self.send_message(favorites, 'primus', contact=pete)
+        self.send_message(favorites, 'Pete', contact=pete)
+
+        # now only one active, one completed, and 5 total responses
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+        self.assertContains(response, "name: 'Active', y: 1")
+        self.assertContains(response, "name: 'Completed', y: 1")
+        self.assertContains(response, "5 Responses")
+
     def test_get_columns_order(self):
         flow = self.get_flow('columns_order')
 
