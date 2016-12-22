@@ -719,7 +719,7 @@ class Flow(TembaModel):
 
         # output the new value if in the simulator
         if run.contact.is_test:
-            if run.session_interrupted:
+            if run.session_interrupted:  # pragma: no cover
                 ActionLog.create(run, _("@flow.%s has been interrupted") % (Flow.label_to_slug(ruleset.label)))
             else:
                 ActionLog.create(run, _("Saved '%s' as @flow.%s") % (value, Flow.label_to_slug(ruleset.label)))
