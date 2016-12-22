@@ -457,6 +457,7 @@ PERMISSIONS = {
     'flows.flowstart': ('api',),
 
     'flows.flow': ('activity',
+                   'activity_chart',
                    'activity_list',
                    'analytics',
                    'api',
@@ -474,6 +475,7 @@ PERMISSIONS = {
                    'recent_messages',
                    'results',
                    'revisions',
+                   'run_table',
                    'simulate',
                    'upload_action_recording',
                    ),
@@ -882,6 +884,7 @@ GROUP_PERMISSIONS = {
         'channels.channelevent_calls',
 
         'flows.flow_activity',
+        'flows.flow_activity_chart',
         'flows.flow_archived',
         'flows.flow_campaign',
         'flows.flow_completion',
@@ -894,6 +897,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_json',
         'flows.flow_recent_messages',
         'flows.flow_results',
+        'flows.flow_run_table',
         'flows.flow_simulate',
         'flows.ruleset_analytics',
         'flows.ruleset_results',

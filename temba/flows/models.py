@@ -2591,9 +2591,10 @@ class FlowRun(models.Model):
             # continue the parent flows to continue async
             continue_parent_flows.delay(ids)
 
-    def get_last_msg(self, direction):
+    def get_last_msg(self, direction=INCOMING):
         """
         Returns the last incoming msg on this run
+        :param direction: the direction of the messge to fetch, default INCOMING
         """
         return Msg.objects.filter(steps__run=self, direction=direction).order_by('-created_on').first()
 
