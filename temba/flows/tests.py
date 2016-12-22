@@ -3915,11 +3915,15 @@ class FlowsTest(FlowFileTest):
         self.assertContains(response, "name: 'Active', y: 1")
         self.assertContains(response, "name: 'Completed', y: 1")
         self.assertContains(response, "5 Responses")
-
         self.assertFalse('histogram' in response.context)
 
         FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
         FlowCRUDL.ActivityChart.PERIOD_MIN = 0
+
+        # they all happened on the same day
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+        points = response.context['histogram']
+        self.assertEqual(1, len(points))
 
         # put one of our counts way in the past so we get a different histogram scale
         count = FlowPathCount.objects.filter(flow=favorites).order_by('id')[1]
