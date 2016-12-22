@@ -2594,6 +2594,7 @@ class FlowRun(models.Model):
     def get_last_msg(self, direction=INCOMING):
         """
         Returns the last incoming msg on this run
+        :param direction: the direction of the messge to fetch, default INCOMING
         """
         return Msg.objects.filter(steps__run=self, direction=direction).order_by('-created_on').first()
 
