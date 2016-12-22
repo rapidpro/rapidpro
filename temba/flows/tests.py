@@ -3899,6 +3899,9 @@ class FlowsTest(FlowFileTest):
         result = response.content.strip()
         self.assertEqual(0, len(result))
 
+        FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
+        FlowCRUDL.ActivityChart.PERIOD_MIN = 0
+
         # and some charts
         response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
 
@@ -3916,9 +3919,6 @@ class FlowsTest(FlowFileTest):
         self.assertContains(response, "name: 'Completed', y: 1")
         self.assertContains(response, "5 Responses")
         self.assertFalse('histogram' in response.context)
-
-        FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
-        FlowCRUDL.ActivityChart.PERIOD_MIN = 0
 
         # they all happened on the same day
         response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
