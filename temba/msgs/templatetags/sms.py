@@ -29,7 +29,7 @@ def as_icon(contact_event):
     else:
         status = None
 
-    if media_type == 'image':
+    if media_type == 'image':  # pragma: needs cover
         icon = 'icon-photo_camera primary boost'
     elif msg_type == 'V':
         icon = 'icon-phone'

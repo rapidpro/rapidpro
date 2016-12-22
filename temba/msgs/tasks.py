@@ -57,7 +57,7 @@ def process_message_task(msg_id, from_mage=False, new_contact=False):
     msg = Msg.objects.filter(pk=msg_id, status=PENDING).select_related('org', 'contact', 'contact_urn', 'channel').first()
 
     # somebody already handled this message, move on
-    if not msg:
+    if not msg:  # pragma: needs cover
         return
 
     # get a lock on this contact, we process messages one by one to prevent odd behavior in flow processing
@@ -86,7 +86,7 @@ def send_broadcast_task(broadcast_id):
 
 
 @task(track_started=True, name='send_spam')
-def send_spam(user_id, contact_id):
+def send_spam(user_id, contact_id):  # pragma: no cover
     """
     Processses a single incoming message through our queue.
     """
@@ -112,12 +112,12 @@ def send_spam(user_id, contact_id):
 
 
 @task(track_started=True, name='fail_old_messages')
-def fail_old_messages():
+def fail_old_messages():  # pragma: needs cover
     Msg.fail_old_messages()
 
 
 @nonoverlapping_task(track_started=True, name='collect_message_metrics_task', time_limit=900)
-def collect_message_metrics_task():
+def collect_message_metrics_task():  # pragma: needs cover
     """
     Collects message metrics and sends them to our analytics.
     """
@@ -154,7 +154,7 @@ def collect_message_metrics_task():
 
 
 @nonoverlapping_task(track_started=True, name='check_messages_task', time_limit=900)
-def check_messages_task():
+def check_messages_task():  # pragma: needs cover
     """
     Checks to see if any of our aggregators have errored messages that need to be retried.
     Also takes care of flipping Contacts from Failed to Normal and back based on their status.
@@ -195,7 +195,7 @@ def check_messages_task():
 
 
 @task(track_started=True, name='export_sms_task')
-def export_sms_task(id):
+def export_sms_task(id):  # pragma: needs cover
     """
     Export messages to a file and e-mail a link to the user
     """
@@ -222,7 +222,7 @@ def handle_event_task():
     org_id, event_task = start_task(HANDLE_EVENT_TASK)
 
     # it is possible we have no message to send, if so, just return
-    if not event_task:
+    if not event_task:  # pragma: needs cover
         return
 
     try:
@@ -246,7 +246,7 @@ def handle_event_task():
             timeout_on = json_date_to_datetime(event_task['timeout_on'])
             process_run_timeout(event_task['run'], timeout_on)
 
-        else:
+        else:  # pragma: needs cover
             raise Exception("Unexpected event type: %s" % event_task)
     finally:
         complete_task(HANDLE_EVENT_TASK, org_id)
