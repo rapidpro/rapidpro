@@ -1531,10 +1531,10 @@ class Flow(TembaModel):
         for contact_id in all_contact_ids:
 
             run = FlowRun.create(self, contact_id, start=flow_start, parent=parent_run)
-            if extra:
+            if extra:  # pragma: needs cover
                 run.update_fields(extra)
 
-            if run.contact.is_test:
+            if run.contact.is_test:  # pragma: no cover
                 ActionLog.create(run, '%s has entered the "%s" flow' % (run.contact.get_display(self.org, short=True), run.flow.name))
 
             # [USSD PUSH] we have to create an outgoing session for the recipient
@@ -1551,7 +1551,7 @@ class Flow(TembaModel):
             run.save(update_fields=['session'])
 
             # if we were started by other session, save that off
-            if parent_run and parent_run.session:
+            if parent_run and parent_run.session:  # pragma: needs cover
                 session.parent = parent_run.session
                 session.save()
             else:
@@ -1568,7 +1568,7 @@ class Flow(TembaModel):
                     for msg in step_msgs:
                         msgs.append(msg)
 
-            # no start msgs in call flows but we want the variable there
+            # no start msgs in ussd flows but we want the variable there
             run.start_msgs = []
 
             runs.append(run)
@@ -1582,7 +1582,7 @@ class Flow(TembaModel):
             # trigger a sync
             self.org.trigger_send(msgs)
 
-        if flow_start:
+        if flow_start:  # pragma: needs cover
             flow_start.update_status()
 
         return runs

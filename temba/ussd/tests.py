@@ -30,6 +30,15 @@ class USSDSessionTest(TembaTest):
                                                    created_by=self.user, modified_by=self.user, org=self.org,
                                                    trigger_type=Trigger.TYPE_USSD_PULL)
 
+        # handle a message that has an unmatched wrong keyword
+        session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
+                                              status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1234",
+                                              message_id="1111211", starcode="wrongkeyword")
+
+        # check if session was started and created
+        self.assertFalse(session)
+        self.assertFalse(start_session_async.called)
+
         # handle a message that has an unmatched starcode
         session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
                                               status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1234",
@@ -354,7 +363,9 @@ class VumiUssdTest(TembaTest):
         response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
         self.assertEqual(response.status_code, 404)
 
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
+        from_addr = "+250788383383"
+
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr=from_addr,
                     content="Hello from Vumi", to_addr="*113#", transport_type='ussd')
 
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
@@ -367,6 +378,34 @@ class VumiUssdTest(TembaTest):
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello from Vumi", msg.text)
         self.assertEquals('123456', msg.external_id)
+        Msg.objects.all().delete()
+
+        # test with vumi session data
+        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123457", from_addr=from_addr,
+                    content="Hello from Vumi 2", to_addr="*113#", transport_type='ussd')
+
+        session_start = "12341423453"
+        data.update({
+            "helper_metadata": {
+                "session_metadata": {
+                    "session_start": session_start
+                }
+            }
+        })
+
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello from Vumi 2", msg.text)
+        self.assertEquals('123457', msg.external_id)
+
+        session = USSDSession.objects.last()
+        self.assertEqual(session.external_id, str(int(from_addr) + int(session_start)))
 
     @patch('temba.msgs.models.Msg.create_incoming')
     def test_interrupt(self, create_incoming):

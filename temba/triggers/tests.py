@@ -965,10 +965,18 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.channel, self.channel)
         self.assertEqual(list(trigger.groups.all()), [group])
 
-    def test_ussd_trigger(self):
+    @patch('temba.orgs.models.Org.get_ussd_channels')
+    def test_ussd_trigger(self, get_ussd_channels):
         self.login(self.admin)
 
         flow = self.get_flow('ussd_example')
+
+        # check if we have ussd section
+        get_ussd_channels.return_value = True
+        response = self.client.get(reverse('triggers.trigger_create'))
+
+        self.assertTrue(get_ussd_channels.called)
+        self.assertContains(response, 'USSD mobile initiated flow')
 
         channel = Channel.add_config_external_channel(self.org, self.user,
                                                       "HU", 1234, Channel.TYPE_VUMI_USSD,

@@ -810,11 +810,6 @@ class TriggerCRUDL(SmartCRUDL):
     class Ussd(CreateTrigger):
         form_class = UssdTriggerForm
 
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super(TriggerCRUDL.CreateTrigger, self).pre_save(obj, *args, **kwargs)
-            obj.org = self.request.user.get_org()
-            return obj
-
         def form_valid(self, form):
             user = self.request.user
             org = user.get_org()

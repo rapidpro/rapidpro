@@ -3792,6 +3792,44 @@ class SimulationTest(FlowFileTest):
         self.assertEquals("You picked 3!", json_dict['messages'][4]['text'])
         self.assertEquals('Ben Haggerty has exited this flow', json_dict['messages'][5]['text'])
 
+    @patch('temba.ussd.models.USSDSession.handle_incoming')
+    def test_ussd_simulation(self, handle_incoming):
+        flow = self.get_flow('ussd_example')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="derp")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        self.assertEquals(response.status_code, 200)
+
+        # session should have started now
+        self.assertTrue(handle_incoming.called)
+        self.assertEqual(handle_incoming.call_count, 1)
+
+        self.assertIsNone(handle_incoming.call_args[1]['status'])
+
+    @patch('temba.ussd.models.USSDSession.handle_incoming')
+    def test_ussd_simulation_interrupt(self, handle_incoming):
+        flow = self.get_flow('ussd_example')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="__interrupt__")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        self.assertEquals(response.status_code, 200)
+
+        # session should have started now
+        self.assertTrue(handle_incoming.called)
+        self.assertEqual(handle_incoming.call_count, 1)
+
+        self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
+
 
 class FlowsTest(FlowFileTest):
 

@@ -4326,6 +4326,11 @@ class VumiTest(TembaTest):
         response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
+        data = dict(timestamp="2014-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383")
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 400)
+
         data = dict(timestamp="2014-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
                     content="Hello from Vumi")
 
