@@ -23,7 +23,7 @@ class AirtimeCRUDL(SmartCRUDL):
             org = self.derive_org()
             return AirtimeTransfer.objects.filter(org=org)
 
-        def get_channel(self, obj):
+        def get_channel(self, obj):  # pragma: needs cover
             if obj.channel:
                 return obj.channel
             return "--"
@@ -47,14 +47,14 @@ class AirtimeCRUDL(SmartCRUDL):
             user = self.request.user
             if not org.is_anon or user.is_superuser or user.is_staff:
                 return True
-            return False
+            return False  # pragma: needs cover
 
         def derive_fields(self):
             if self.show_logs():
                 return ('contact', 'status', 'channel', 'amount', 'message',
                         'recipient', 'denomination', 'created_on')
 
-            return ('contact', 'status', 'channel', 'amount', 'message', 'created_on')
+            return ('contact', 'status', 'channel', 'amount', 'message', 'created_on')  # pragma: needs cover
 
         def get_status(self, obj):
             return obj.get_status_display()
@@ -65,5 +65,5 @@ class AirtimeCRUDL(SmartCRUDL):
 
         def get_channel(self, obj):
             if obj.channel:
-                return obj.channel
+                return obj.channel  # pragma: needs cover
             return "--"

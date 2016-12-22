@@ -23,7 +23,7 @@ def handle_asset_request(user, asset_type, pk):
         asset_org, location, filename = asset_type.store.resolve(user, pk)
         asset_type = mimetypes.guess_type(filename)[0]
 
-        if location.startswith('http'):
+        if location.startswith('http'):  # pragma: needs cover
             # return an HTTP Redirect to the source
             response = HttpResponseRedirect(location)
         else:
@@ -34,7 +34,7 @@ def handle_asset_request(user, asset_type, pk):
         return response
     except AssetEntityNotFound:
         return HttpResponseNotFound("No such object in database")
-    except AssetAccessDenied:
+    except AssetAccessDenied:  # pragma: needs cover
         return HttpResponseForbidden("Not allowed")
     except AssetFileNotFound:
         return HttpResponseNotFound("Object has no associated asset")
@@ -59,7 +59,7 @@ class AssetDownloadView(SmartTemplateView):
             asset_org, location, filename = asset_type.store.resolve(self.request.user, pk)
         except (AssetEntityNotFound, AssetFileNotFound):
             file_error = _("File not found")
-        except AssetAccessDenied:
+        except AssetAccessDenied:  # pragma: needs cover
             file_error = _("You do not have permission to access this file")
         else:
             file_error = None

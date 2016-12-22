@@ -143,7 +143,7 @@ class AirtimeTransfer(SmartModel):
 
             product_list = content_json.get('product_list', [])
 
-            if not isinstance(product_list, list):
+            if not isinstance(product_list, list):  # pragma: needs cover
                 product_list = [product_list]
 
             targeted_prices = [float(i) for i in product_list if float(i) <= float(amount)]
@@ -158,7 +158,7 @@ class AirtimeTransfer(SmartModel):
                 airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)
 
-            if denomination is None:
+            if denomination is None:  # pragma: needs cover
                 message = "No TransferTo denomination matched"
                 airtime.status = AirtimeTransfer.FAILED
                 raise Exception(message)

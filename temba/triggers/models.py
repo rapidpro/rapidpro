@@ -70,9 +70,9 @@ class Trigger(SmartModel):
     def __unicode__(self):
         if self.trigger_type == Trigger.TYPE_KEYWORD:
             return self.keyword
-        return self.get_trigger_type_display()
+        return self.get_trigger_type_display()  # pragma: needs cover
 
-    def name(self):
+    def name(self):  # pragma: needs cover
         return self.__unicode__()
 
     def as_json(self):
@@ -102,7 +102,7 @@ class Trigger(SmartModel):
         self.archive_conflicts(user)
 
         # if this is new conversation trigger, register for the FB callback
-        if self.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
+        if self.trigger_type == Trigger.TYPE_NEW_CONVERSATION:  # pragma: needs cover
             self.channel.set_fb_call_to_action_payload(Channel.GET_STARTED)
 
     def archive_conflicts(self, user):
@@ -119,7 +119,7 @@ class Trigger(SmartModel):
                 matches = matches.filter(keyword=self.keyword)
 
             # if this trigger has a group, only archive others with the same group
-            if self.groups.all():
+            if self.groups.all():  # pragma: needs cover
                 matches = matches.filter(groups__in=self.groups.all())
             else:
                 matches = matches.filter(groups=None)
@@ -137,7 +137,7 @@ class Trigger(SmartModel):
         Import triggers from our export file
         """
         from temba.orgs.models import EARLIEST_IMPORT_VERSION
-        if exported_json.get('version', 0) < EARLIEST_IMPORT_VERSION:
+        if exported_json.get('version', 0) < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
 
         # first things first, let's create our groups if necesary and map their ids accordingly
@@ -150,7 +150,7 @@ class Trigger(SmartModel):
 
                     group = None
 
-                    if same_site:
+                    if same_site:  # pragma: needs cover
                         group = ContactGroup.user_groups.filter(org=org, uuid=group_spec['uuid']).first()
 
                     if not group:
@@ -159,7 +159,7 @@ class Trigger(SmartModel):
                     if not group:
                         group = ContactGroup.create_static(org, user, group_spec['name'])
 
-                    if not group.is_active:
+                    if not group.is_active:  # pragma: needs cover
                         group.is_active = True
                         group.save()
 
@@ -211,7 +211,7 @@ class Trigger(SmartModel):
         elif isinstance(entity, Contact):
             contact = entity
             start_msg = Msg(org=entity.org, contact=contact, channel=channel, created_on=timezone.now(), id=0)
-        else:
+        else:  # pragma: needs cover
             raise ValueError("Entity must be of type msg, call or contact")
 
         triggers = Trigger.get_triggers_of_type(entity.org, trigger_type)
@@ -250,7 +250,7 @@ class Trigger(SmartModel):
 
         keyword = words[0].lower()
 
-        if not keyword:
+        if not keyword:  # pragma: needs cover
             return False
 
         active_run_qs = FlowRun.objects.filter(is_active=True, contact=msg.contact,
@@ -349,11 +349,11 @@ class Trigger(SmartModel):
         self.save()
 
     def fire(self):
-        if self.is_archived or not self.is_active:
+        if self.is_archived or not self.is_active:  # pragma: needs cover
             return None
 
         channels = self.flow.org.channels.all()
-        if not channels:
+        if not channels:  # pragma: needs cover
             return None
 
         groups = list(self.groups.all())
@@ -366,4 +366,4 @@ class Trigger(SmartModel):
 
             return self.flow.start(groups, contacts, restart_participants=True)
 
-        return False
+        return False  # pragma: needs cover
