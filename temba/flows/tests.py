@@ -3918,7 +3918,6 @@ class FlowsTest(FlowFileTest):
         self.assertContains(response, "name: 'Active', y: 1")
         self.assertContains(response, "name: 'Completed', y: 1")
         self.assertContains(response, "5 Responses")
-        self.assertFalse('histogram' in response.context)
 
         # they all happened on the same day
         response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
