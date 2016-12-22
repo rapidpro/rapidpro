@@ -44,22 +44,21 @@
       }
   {% endlessblock %}
 
--if dow
+-if hod and dow
   #dow_container
     %h4
       Day of Week
     #dow
 
--if hod
   #hod_container
     %h4
       Time of Day
     #hod
 
-#completion_container
-  %h4
-    Completion
-  #completion
+  #completion_container
+    %h4
+      Completion
+    #completion
 
 -if histogram
   #histogram
@@ -81,74 +80,74 @@
     });
   });
 
-:javascript
-  var pie_points = [
-    {% if active %}{ name: 'Active', y: {{active}} },{%endif%}
-    { name: 'Completed', y: {{completed}}, drilldown: null },
-    { name: 'Exited', y: {{interrupted|add:expired}}, drilldown: 'incomplete' },
-  ];
+-if hod and dow
+  :javascript
+    var pie_points = [
+      {% if active %}{ name: 'Active', y: {{active}} },{%endif%}
+      { name: 'Completed', y: {{completed}}, drilldown: null },
+      { name: 'Exited', y: {{interrupted|add:expired}}, drilldown: 'incomplete' },
+    ];
 
-  var pie_drill = {
-    series: [{
-      name: 'Exited',
-      id: 'incomplete',
-      innerSize: '50%',
-      data:[
-        ['Expired', {{expired}}],
-        ['Interruped', {{interrupted}}],
-      ]
-    }]
-  };
+    var pie_drill = {
+      series: [{
+        name: 'Exited',
+        id: 'incomplete',
+        innerSize: '50%',
+        data:[
+          ['Expired', {{expired}}],
+          ['Interruped', {{interrupted}}],
+        ]
+      }]
+    };
 
 
-  new Highcharts.chart({
-    credits: { enabled: false },
-    colors: ['#80b9fb', '#2980b9'],
-    chart: {
-        renderTo: 'completion',
-        type: 'pie',
-        backgroundColor: 'transparent',
-        margin: [0, 0, -40, 0],
-        spacingTop: 0,
-        spacingBottom: 0,
-        spacingLeft: 0,
-        spacingRight: 0
-    },
-    title: {
-        text: '{{total_runs|intcomma}}<br/>runs',
-        align: 'center',
-        verticalAlign: 'middle',
-        y: 40
-    },
-    legend: {
-      enabled: false
-    },
-    tooltip: {
-      formatter: function() {
-        return '<b>' + this.point.name + ':</b> ' + Highcharts.numberFormat(this.point.y, 0) + '</b> <span style="font-size:90%"> (' + Highcharts.numberFormat(this.percentage, 2) + '%)</span>';
+    new Highcharts.chart({
+      credits: { enabled: false },
+      colors: ['#80b9fb', '#2980b9'],
+      chart: {
+          renderTo: 'completion',
+          type: 'pie',
+          backgroundColor: 'transparent',
+          margin: [0, 0, -40, 0],
+          spacingTop: 0,
+          spacingBottom: 0,
+          spacingLeft: 0,
+          spacingRight: 0
+      },
+      title: {
+          text: '{{total_runs|intcomma}}<br/>runs',
+          align: 'center',
+          verticalAlign: 'middle',
+          y: 40
+      },
+      legend: {
+        enabled: false
+      },
+      tooltip: {
+        formatter: function() {
+          return '<b>' + this.point.name + ':</b> ' + Highcharts.numberFormat(this.point.y, 0) + '</b> <span style="font-size:90%"> (' + Highcharts.numberFormat(this.percentage, 2) + '%)</span>';
+        }
+      },
+      series:[{
+        name: 'Completion',
+        innerSize: '50%',
+        data: pie_points
+      }],
+      drilldown: pie_drill,
+      plotOptions: {
+        pie: {
+          size:'130%',
+          dataLabels: {
+              enabled: false,
+              distance: -50,
+          },
+          startAngle: -90,
+          endAngle: 90,
+          center: ['50%', '75%']
+        }
       }
-    },
-    series:[{
-      name: 'Completion',
-      innerSize: '50%',
-      data: pie_points
-    }],
-    drilldown: pie_drill,
-    plotOptions: {
-      pie: {
-        size:'130%',
-        dataLabels: {
-            enabled: false,
-            distance: -50,
-        },
-        startAngle: -90,
-        endAngle: 90,
-        center: ['50%', '75%']
-      }
-    }
-  });
+    });
 
--if hod
   :javascript
     var hod_points = [
       {% for point in hod %}
@@ -211,7 +210,6 @@
       }]
     });
 
--if dow
   :javascript
     var dow_points = [
       {% for point in dow %}
