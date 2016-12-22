@@ -5,8 +5,10 @@ import datetime
 import json
 import os
 import pytz
+import re
 import six
 import time
+
 
 from datetime import timedelta
 from decimal import Decimal
@@ -33,17 +35,17 @@ from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
-from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, \
-    InterruptTest
-from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, get_flow_user
+from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
+from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import HasStateTest, HasDistrictTest, HasWardTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
-from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog, \
-    VariableContactAction, UssdAction
+from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
+from .models import VariableContactAction, UssdAction
+from .views import FlowCRUDL
 from .flow_migrations import map_actions
 from temba.msgs.models import WIRED
 
@@ -3882,11 +3884,20 @@ class FlowsTest(FlowFileTest):
 
         # fetch our intercooler rows for the run table
         response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertEqual(200, response.status_code)
         self.assertContains(response, 'Jimmy')
         self.assertContains(response, 'red')
         self.assertContains(response, 'Red')
         self.assertContains(response, 'turbo')
         self.assertContains(response, 'Turbo King')
+
+        next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
+        response = self.client.get(next_link)
+        self.assertEqual(200, response.status_code)
+
+        # no more rows to add
+        result = response.content.strip()
+        self.assertEqual(0, len(result))
 
         # and some charts
         response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
@@ -3904,6 +3915,31 @@ class FlowsTest(FlowFileTest):
         self.assertContains(response, "name: 'Active', y: 1")
         self.assertContains(response, "name: 'Completed', y: 1")
         self.assertContains(response, "5 Responses")
+
+        self.assertFalse('histogram' in response.context)
+
+        FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
+        FlowCRUDL.ActivityChart.PERIOD_MIN = 0
+
+        # put one of our counts way in the past so we get a different histogram scale
+        count = FlowPathCount.objects.filter(flow=favorites).order_by('id')[1]
+        count.period = count.period - timedelta(days=25)
+        count.save()
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+        points = response.context['histogram']
+        self.assertTrue(timedelta(days=24) < (points[1]['bucket'] - points[0]['bucket']))
+
+        # pick another scale
+        count.period = count.period - timedelta(days=600)
+        count.save()
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+
+        # this should give us a more compressed histogram
+        points = response.context['histogram']
+        self.assertTrue(timedelta(days=620) < (points[1]['bucket'] - points[0]['bucket']))
+
+        self.assertEqual(24, len(response.context['hod']))
+        self.assertEqual(7, len(response.context['dow']))
 
     def test_get_columns_order(self):
         flow = self.get_flow('columns_order')

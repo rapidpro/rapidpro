@@ -1108,11 +1108,15 @@ class FlowCRUDL(SmartCRUDL):
             # by day of the week
             dow = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids).extra({"day": "extract(dow from period::timestamp)"})
             dow = dow.values('day').annotate(count=Sum('count'))
-            for day in dow:
-                day['day'] = int(day['day'])
-                total_responses += day['count']
+            dow_dict = {int(d.get('day')): d.get('count') for d in dow}
 
-            if total_responses > FlowCRUDL.ActivityChart.PERIOD_MIN:
+            dow = []
+            for x in range(0, 7):
+                day_count = dow_dict.get(x, 0)
+                dow.append({'day': x, 'count': day_count})
+                total_responses += day_count
+
+            if total_responses > self.PERIOD_MIN:
                 dow = sorted(dow, key=lambda k: k['day'])
                 days = (_('Sunday'), _('Monday'), _('Tuesday'), _('Wednesday'), _('Thursday'), _('Friday'), _('Saturday'))
                 dow = [{'day': days[d['day']], 'count': d['count'],
@@ -1120,7 +1124,7 @@ class FlowCRUDL(SmartCRUDL):
                 context['dow'] = dow
                 context['hod'] = hours
 
-            if total_responses > FlowCRUDL.ActivityChart.HISTOGRAM_MIN:
+            if total_responses > self.HISTOGRAM_MIN:
                 # our main histogram
                 date_range = end_date - start_date
                 histogram = FlowPathCount.objects.filter(flow=flow, from_uuid__in=from_uuids)
