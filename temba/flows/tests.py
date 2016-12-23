@@ -22,9 +22,9 @@ from temba.api.models import WebHookEvent, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.ivr.models import IVRCall
+from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, INTERRUPTED
-from temba.msgs.models import OUTGOING
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, OUTGOING, PENDING, FLOW
 from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
@@ -3398,13 +3398,13 @@ class FlowRunTest(TembaTest):
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
 
     def test_is_interrupted(self):
-        self.flow.start([], [self.contact])
+        flow = self.get_flow('ussd_example')
+        flow.start([], [self.contact])
 
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
-        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
-                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
-        Flow.find_and_handle(msg)
+        USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
+                                    external_id="12341231", status=USSDSession.INTERRUPTED)
 
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
@@ -3791,6 +3791,44 @@ class SimulationTest(FlowFileTest):
         self.assertEquals("Saved &#39;3&#39; as @flow.number", json_dict['messages'][3]['text'])
         self.assertEquals("You picked 3!", json_dict['messages'][4]['text'])
         self.assertEquals('Ben Haggerty has exited this flow', json_dict['messages'][5]['text'])
+
+    @patch('temba.ussd.models.USSDSession.handle_incoming')
+    def test_ussd_simulation(self, handle_incoming):
+        flow = self.get_flow('ussd_example')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="derp")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        self.assertEquals(response.status_code, 200)
+
+        # session should have started now
+        self.assertTrue(handle_incoming.called)
+        self.assertEqual(handle_incoming.call_count, 1)
+
+        self.assertIsNone(handle_incoming.call_args[1]['status'])
+
+    @patch('temba.ussd.models.USSDSession.handle_incoming')
+    def test_ussd_simulation_interrupt(self, handle_incoming):
+        flow = self.get_flow('ussd_example')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="__interrupt__")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        self.assertEquals(response.status_code, 200)
+
+        # session should have started now
+        self.assertTrue(handle_incoming.called)
+        self.assertEqual(handle_incoming.call_count, 1)
+
+        self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
 
 
 class FlowsTest(FlowFileTest):
@@ -5236,10 +5274,8 @@ class FlowsTest(FlowFileTest):
         flow.start([], [self.contact])
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
-        # make an incoming (fake) interrupt message
-        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
-                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
-        Flow.find_and_handle(msg)
+        USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
+                                    external_id="12341231", status=USSDSession.INTERRUPTED)
 
         # as the example flow has an interrupt state connected to a valid destination,
         # the flow will go on and reach the destination
@@ -5267,10 +5303,8 @@ class FlowsTest(FlowFileTest):
 
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
-        # make an incoming (fake) interrupt message
-        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
-                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
-        Flow.find_and_handle(msg)
+        USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
+                                    external_id="12341231", status=USSDSession.INTERRUPTED)
 
         # the interrupt state is empty, it should interrupt the flow
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
@@ -5279,37 +5313,6 @@ class FlowsTest(FlowFileTest):
         contact = flow.get_results()[0]['contact']
         interrupted_group = ContactGroup.user_groups.get(name='Interrupted')
         self.assertFalse(interrupted_group.contacts.filter(id=contact.id).exists())
-
-    def test_interrupted_state_with_loop(self):
-        flow = self.get_flow('ussd_interrupt_example')
-
-        # disconnect action from interrupt state and connect to itself (create a self-loop)
-        ruleset = flow.rule_sets.first()
-        rules = ruleset.get_rules()
-        interrupt_rule = filter(lambda rule: isinstance(rule.test, InterruptTest), rules)[0]
-        interrupt_rule.destination = ruleset.uuid
-        interrupt_rule.destination_type = 'R'
-        ruleset.set_rules(rules)
-        ruleset.save()
-
-        # start the flow, check if we are interrupted yet
-        flow.start([], [self.contact])
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
-
-        # check if the message was sent out
-        self.assertEqual(len(flow.steps()), 1)
-
-        # make an incoming (fake) interrupt message
-        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
-                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
-        Flow.find_and_handle(msg)
-
-        # the interrupt state leads back to the USSD ruleset itself
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
-
-        # it should send out the same message again
-        self.assertEqual(len(flow.steps()), 2)
-        self.assertEqual(flow.steps()[0].messages.first().text, flow.steps()[1].messages.first().text)
 
     def test_airtime_flow(self):
         flow = self.get_flow('airtime')

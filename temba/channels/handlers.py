@@ -25,8 +25,9 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, URN
 from temba.flows.models import Flow, FlowRun
 from temba.orgs.models import NEXMO_UUID
-from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, INTERRUPTED, OUTGOING
+from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
+from temba.ussd.models import USSDSession
 from temba.utils import json_date_to_datetime, ms_to_datetime
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
@@ -1059,7 +1060,7 @@ class VumiHandler(BaseChannelHandler):
             return HttpResponse("Invalid JSON: %s" % unicode(e), status=400)
 
         # determine if it's a USSD session message or a regular SMS
-        is_ussd = "ussd" in body.get('transport_name', '') or body.get('transport_type') == 'ussd'
+        is_ussd = "ussd" in body.get('transport_name', '') or body.get('transport_type', '') == 'ussd'
         channel_type = Channel.TYPE_VUMI_USSD if is_ussd else Channel.TYPE_VUMI
 
         # look up the channel
@@ -1116,24 +1117,58 @@ class VumiHandler(BaseChannelHandler):
 
         # this is a new incoming message
         elif action == 'receive':
-            if not any(attr in body for attr in ('timestamp', 'from_addr', 'content', 'message_id')):
-                return HttpResponse("Missing one of timestamp, from_addr, content or message_id, ignoring message", status=400)
+
+            if any(attr not in body for attr in ('timestamp', 'from_addr', 'message_id')):
+                return HttpResponse("Missing one of timestamp, from_addr or message_id, ignoring message",
+                                    status=400)
 
             # dates come in the format "2014-04-18 03:54:20.570618" GMT
             message_date = datetime.strptime(body['timestamp'], "%Y-%m-%d %H:%M:%S.%f")
             gmt_date = pytz.timezone('GMT').localize(message_date)
 
-            status = PENDING
-            if body.get('session_event') == "close":
-                status = INTERRUPTED
-            message = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), body['content'], date=gmt_date, status=status)
+            content = body.get('content')
 
-            if status != INTERRUPTED:
+            if is_ussd:  # receive USSD message
+                if body.get('session_event') == "close":
+                    status = USSDSession.INTERRUPTED
+                elif body.get('session_event') == "new":
+                    status = USSDSession.TRIGGERED
+                else:  # "resume" or null handling
+                    status = USSDSession.IN_PROGRESS
+
+                # determine the session ID
+                # since VUMI does not provide a session ID we have to fabricate it from some unique identifiers
+                # part1 - urn of the sender
+                # part2 - when the session was started or ordinal date
+                session_id_part1 = int(body.get('from_addr'))
+
+                if "helper_metadata" in body and "session_metadata" in body["helper_metadata"] and "session_start" in \
+                        body["helper_metadata"]["session_metadata"]:
+                    session_id_part2 = int(body["helper_metadata"]["session_metadata"]["session_start"])
+                else:
+                    session_id_part2 = gmt_date.toordinal()
+
+                session_id = str(session_id_part1 + session_id_part2)
+
+                session = USSDSession.handle_incoming(channel=channel, urn=body['from_addr'], content=content,
+                                                      status=status, date=gmt_date, external_id=session_id,
+                                                      message_id=body['message_id'], starcode=body.get('to_addr'))
+
+                if session:
+                    return HttpResponse("Accepted: %d" % session.id)
+                else:
+                    return HttpResponse("Session not handled", status=400)
+
+            else:  # receive SMS message
+                if not content:
+                    return HttpResponse("No content, ignoring message", status=400)
+
+                message = Msg.create_incoming(channel, URN.from_tel(body['from_addr']), content, date=gmt_date, status=PENDING)
+
                 # use an update so there is no race with our handling
                 Msg.objects.filter(pk=message.id).update(external_id=body['message_id'])
 
-            # TODO: handle "session_event" == "new" as USSD Trigger
-            return HttpResponse("Message Accepted: %d" % message.id)
+                return HttpResponse("Message Accepted: %d" % message.id)
 
         else:  # pragma: needs cover
             return HttpResponse("Not handled", status=400)

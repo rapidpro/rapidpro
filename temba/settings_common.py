@@ -240,6 +240,7 @@ INSTALLED_APPS = (
     'temba.utils',
     'temba.campaigns',
     'temba.ivr',
+    'temba.ussd',
     'temba.locations',
     'temba.values',
     'temba.airtime',
@@ -520,6 +521,7 @@ PERMISSIONS = {
                          'new_conversation',
                          'register',
                          'schedule',
+                         'ussd',
                          ),
 }
 
@@ -600,6 +602,7 @@ GROUP_PERMISSIONS = {
         'csv_imports.importtask.*',
 
         'ivr.ivrcall.*',
+        'ussd.ussdsession.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',
@@ -755,6 +758,7 @@ GROUP_PERMISSIONS = {
         'csv_imports.importtask.*',
 
         'ivr.ivrcall.*',
+        'ussd.ussdsession.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',
