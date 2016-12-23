@@ -26,9 +26,8 @@ from temba.contacts.models import Contact, ContactGroup, ContactField, ContactUR
 from temba.ivr.models import IVRCall
 from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, INTERRUPTED
-from temba.msgs.models import OUTGOING
-from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, OUTGOING
+from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, str_to_datetime
