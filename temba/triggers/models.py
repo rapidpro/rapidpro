@@ -26,6 +26,7 @@ class Trigger(SmartModel):
     TYPE_CATCH_ALL = 'C'
     TYPE_FOLLOW = 'F'
     TYPE_NEW_CONVERSATION = 'N'
+    TYPE_USSD_PULL = 'U'
 
     TRIGGER_TYPES = ((TYPE_KEYWORD, _("Keyword Trigger")),
                      (TYPE_SCHEDULE, _("Schedule Trigger")),
@@ -33,7 +34,8 @@ class Trigger(SmartModel):
                      (TYPE_MISSED_CALL, _("Missed Call Trigger")),
                      (TYPE_CATCH_ALL, _("Catch All Trigger")),
                      (TYPE_FOLLOW, _("Follow Account Trigger")),
-                     (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")))
+                     (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")),
+                     (TYPE_USSD_PULL, _("USSD Pull Session Trigger")))
 
     org = models.ForeignKey(Org, verbose_name=_("Org"), help_text=_("The organization this trigger belongs to"))
 
@@ -314,6 +316,29 @@ class Trigger(SmartModel):
         trigger.save()
 
         return trigger.flow
+
+    @classmethod
+    def find_trigger_for_ussd_session(cls, contact, starcode):
+        # Determine keyword from starcode
+        matched_object = regex.match('(^\*[\d\*]+\#)((?:\d+\#)*)$', starcode)
+        if matched_object:
+            keyword = matched_object.group(1)
+        else:
+            return None
+
+        matching = Trigger.objects.filter(is_archived=False, is_active=True, org=contact.org, keyword__iexact=keyword,
+                                          trigger_type=Trigger.TYPE_USSD_PULL, flow__is_archived=False,
+                                          flow__is_active=True, groups=None)
+
+        if not matching:
+            return None
+
+        trigger = matching.first()
+        trigger.last_triggered = timezone.now()
+        trigger.trigger_count += 1
+        trigger.save()
+
+        return trigger
 
     @classmethod
     def apply_action_archive(cls, user, triggers):

@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 import time
 import json
+from uuid import uuid4
 
 from mock import patch
 from datetime import timedelta
@@ -963,3 +964,57 @@ class TriggerTest(TembaTest):
         self.assertEqual(trigger.flow, flow)
         self.assertEqual(trigger.channel, self.channel)
         self.assertEqual(list(trigger.groups.all()), [group])
+
+    @patch('temba.orgs.models.Org.get_ussd_channels')
+    def test_ussd_trigger(self, get_ussd_channels):
+        self.login(self.admin)
+
+        flow = self.get_flow('ussd_example')
+
+        # check if we have ussd section
+        get_ussd_channels.return_value = True
+        response = self.client.get(reverse('triggers.trigger_create'))
+
+        self.assertTrue(get_ussd_channels.called)
+        self.assertContains(response, 'USSD mobile initiated flow')
+
+        channel = Channel.add_config_external_channel(self.org, self.user,
+                                                      "HU", 1234, Channel.TYPE_VUMI_USSD,
+                                                      dict(account_key="11111",
+                                                           access_token=str(uuid4()),
+                                                           transport_name="ussd_transport",
+                                                           conversation_key="22222"))
+
+        # flow options should show ussd flow example
+        response = self.client.get(reverse("triggers.trigger_ussd"))
+        self.assertContains(response, flow.name)
+
+        # try a ussd code with letters instead of numbers
+        post_data = dict(channel=channel.pk, keyword='*keyword#', flow=flow.pk)
+        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
+        self.assertEquals(1, len(response.context['form'].errors))
+        self.assertTrue("keyword" in response.context['form'].errors)
+        self.assertEquals(response.context['form'].errors['keyword'], [u'USSD code must contain only *,# and numbers'])
+
+        # try a proper ussd code
+        post_data = dict(channel=channel.pk, keyword='*111#', flow=flow.pk)
+        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
+        self.assertEquals(0, len(response.context['form'].errors))
+        trigger = Trigger.objects.get(keyword='*111#')
+        self.assertEquals(flow.pk, trigger.flow.pk)
+
+        # try a duplicate ussd code
+        post_data = dict(channel=channel.pk, keyword='*111#', flow=flow.pk)
+        response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
+        self.assertEquals(2, len(response.context['form'].errors))
+        self.assertEquals(response.context['form'].errors['keyword'],
+                          [u'Another active trigger uses this code, code must be unique'])
+
+        # try a second ussd code with the same channel
+        # TODO: fix this with multichannel triggers
+        # post_data = dict(channel=channel.pk, keyword='*112#', flow=flow.pk)
+        # response = self.client.post(reverse("triggers.trigger_ussd"), data=post_data)
+        # self.assertEquals(0, len(response.context['form'].errors))
+        # self.assertEquals(2, Trigger.objects.count())
+        # trigger = Trigger.objects.get(keyword='*112#')
+        # self.assertEquals(flow.pk, trigger.flow.pk)
