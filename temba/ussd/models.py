@@ -39,16 +39,13 @@ class USSDSession(ChannelSession):
         message.external_id = message_id
         message.save()
 
-    def handle_ussd_session_sync(self):
+    def handle_ussd_session_sync(self):  # pragma: needs cover
         # TODO: implement for InfoBip and other sync APIs
         pass
 
     @classmethod
     def handle_incoming(cls, channel, urn, date, external_id, message_id=None, status=None,
                         flow=None, content=None, starcode=None, org=None, async=True):
-
-        if not external_id or not channel:
-            return False
 
         trigger = None
 

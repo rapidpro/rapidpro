@@ -20,8 +20,7 @@ from .models import USSDSession
 
 class USSDSessionTest(TembaTest):
 
-    @patch('temba.ussd.models.USSDSession.start_session_async')
-    def test_pull_async_trigger_start(self, start_session_async):
+    def test_pull_async_trigger_start(self):
         flow = self.get_flow('ussd_example')
 
         starcode = "*113#"
@@ -37,7 +36,6 @@ class USSDSessionTest(TembaTest):
 
         # check if session was started and created
         self.assertFalse(session)
-        self.assertFalse(start_session_async.called)
 
         # handle a message that has an unmatched starcode
         session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
@@ -46,15 +44,10 @@ class USSDSessionTest(TembaTest):
 
         # check if session was started and created
         self.assertFalse(session)
-        self.assertFalse(start_session_async.called)
 
         session = USSDSession.handle_incoming(channel=self.channel, urn="+329732973", content="None",
                                               status=USSDSession.TRIGGERED, date=timezone.now(), external_id="1235",
                                               message_id="1111131", starcode=starcode)
-
-        # session should have started now
-        self.assertTrue(start_session_async.called)
-        self.assertEqual(start_session_async.call_count, 1)
 
         # check session properties
         self.assertEqual(session.status, USSDSession.TRIGGERED)
