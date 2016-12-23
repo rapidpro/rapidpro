@@ -113,3 +113,6 @@ textit
 .vagrant/
 ansible/vendor/
 ansible/site.retry
+
+# sublime projects
+*.sublime*
