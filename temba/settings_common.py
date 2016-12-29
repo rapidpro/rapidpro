@@ -1066,7 +1066,8 @@ BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
 BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 
-CELERY_RESULT_BACKEND = BROKER_URL
+# we don't want to keep any tombstones around, tasks take care of tracking their exit state
+CELERY_RESULT_BACKEND = None
 
 IS_PROD = False
 HOSTNAME = "localhost"
