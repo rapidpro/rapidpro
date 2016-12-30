@@ -645,7 +645,7 @@
   -elif object.channel_type == 'VI'
     %h4
       -blocktrans
-        Your Viber channel is connected, if need the IP addresses, status and receive endpoints are listed below.
+        Your Viber channel is connected, the IP addresses, status and receive endpoints are listed below.
 
     %hr
 
@@ -667,6 +667,18 @@
     %code
       https://{{ domain }}{% url 'handlers.viber_handler' 'receive' object.uuid %}
 
+  -elif object.channel_type == 'VI'
+    %h4
+      -blocktrans
+        Your Viber public channel is connected. If needed the webhook endpoints are listed below.
+
+    %hr
+
+    %h4
+      -trans "Webhook URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_public_handler' object.uuid %}
 
   -elif object.channel_type == 'LN'
     %h4

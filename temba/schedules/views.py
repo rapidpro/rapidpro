@@ -35,7 +35,7 @@ class BaseScheduleForm(object):
             else:
                 return None
 
-        return timezone.now() - timedelta(days=1)
+        return timezone.now() - timedelta(days=1)  # pragma: needs cover
 
 
 class ScheduleForm(BaseScheduleForm, forms.ModelForm):
@@ -75,7 +75,7 @@ class ScheduleCRUDL(SmartCRUDL):
 
             if broadcast:
                 return reverse('msgs.broadcast_schedule_list')
-            elif trigger:
+            elif trigger:  # pragma: needs cover
                 return reverse('triggers.trigger_list')
 
             return reverse('public.public_welcome')

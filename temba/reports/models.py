@@ -54,7 +54,7 @@ class Report(SmartModel):
     def as_json(self):
         return dict(text=self.title, id=self.pk, description=self.description, config=self.config, public=self.is_published)
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: needs cover
         return "%s - %s" % (self.pk, self.title)
 
     class Meta:
