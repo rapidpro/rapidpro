@@ -41,10 +41,10 @@ def send_msg_task():
     org_id, msg_tasks = start_task(SEND_MSG_TASK)
 
     # it is possible we have no message to send, if so, just return
-    if not msg_tasks:
+    if not msg_tasks:  # pragma: needs cover
         return
 
-    if not isinstance(msg_tasks, list):
+    if not isinstance(msg_tasks, list):  # pragma: needs cover
         msg_tasks = [msg_tasks]
 
     r = get_redis_connection()
@@ -89,7 +89,7 @@ def send_alert_task(alert_id, resolved):
 
 
 @nonoverlapping_task(track_started=True, name='trim_channel_log_task')
-def trim_channel_log_task():
+def trim_channel_log_task():  # pragma: needs cover
     """
     Runs daily and clears any channel log items older than 48 hours.
     """

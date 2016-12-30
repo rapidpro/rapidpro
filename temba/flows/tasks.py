@@ -23,7 +23,7 @@ def update_run_expirations_task(flow_id):
     """
     Update all of our current run expirations according to our new expiration period
     """
-    for step in FlowStep.objects.filter(run__flow__id=flow_id, run__is_active=True, left_on=None).distinct('run'):
+    for step in FlowStep.objects.filter(run__flow__id=flow_id, run__is_active=True, left_on=None).distinct('run'):  # pragma: needs cover
         step.run.update_expiration(step.arrived_on)
 
     # force an expiration update
@@ -80,7 +80,7 @@ def start_msg_flow_batch_task():
     org_id, task_obj = start_task(Flow.START_MSG_FLOW_BATCH)
 
     # it is possible that somehow we might get None back if more workers were started than tasks got added, bail if so
-    if task_obj is None:
+    if task_obj is None:  # pragma: needs cover
         return
 
     start = time.time()
@@ -88,7 +88,7 @@ def start_msg_flow_batch_task():
     try:
         # instantiate all the objects we need that were serialized as JSON
         flow = Flow.objects.filter(pk=task_obj['flow'], is_active=True).first()
-        if not flow:
+        if not flow:  # pragma: needs cover
             return
 
         broadcasts = [] if not task_obj['broadcasts'] else Broadcast.objects.filter(pk__in=task_obj['broadcasts'])
@@ -141,7 +141,7 @@ def calculate_flow_stats_task(flow_id):
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key='squash_flowpathcounts')
-def squash_flowpathcounts():
+def squash_flowpathcounts():  # pragma: needs cover
     FlowPathCount.squash_counts()
 
 

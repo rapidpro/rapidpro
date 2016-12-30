@@ -240,6 +240,7 @@ INSTALLED_APPS = (
     'temba.utils',
     'temba.campaigns',
     'temba.ivr',
+    'temba.ussd',
     'temba.locations',
     'temba.values',
     'temba.airtime',
@@ -457,6 +458,7 @@ PERMISSIONS = {
     'flows.flowstart': ('api',),
 
     'flows.flow': ('activity',
+                   'activity_chart',
                    'activity_list',
                    'analytics',
                    'api',
@@ -474,6 +476,7 @@ PERMISSIONS = {
                    'recent_messages',
                    'results',
                    'revisions',
+                   'run_table',
                    'simulate',
                    'upload_action_recording',
                    ),
@@ -520,6 +523,7 @@ PERMISSIONS = {
                          'new_conversation',
                          'register',
                          'schedule',
+                         'ussd',
                          ),
 }
 
@@ -600,6 +604,7 @@ GROUP_PERMISSIONS = {
         'csv_imports.importtask.*',
 
         'ivr.ivrcall.*',
+        'ussd.ussdsession.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',
@@ -755,6 +760,7 @@ GROUP_PERMISSIONS = {
         'csv_imports.importtask.*',
 
         'ivr.ivrcall.*',
+        'ussd.ussdsession.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',
@@ -882,6 +888,7 @@ GROUP_PERMISSIONS = {
         'channels.channelevent_calls',
 
         'flows.flow_activity',
+        'flows.flow_activity_chart',
         'flows.flow_archived',
         'flows.flow_campaign',
         'flows.flow_completion',
@@ -894,6 +901,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_json',
         'flows.flow_recent_messages',
         'flows.flow_results',
+        'flows.flow_run_table',
         'flows.flow_simulate',
         'flows.ruleset_analytics',
         'flows.ruleset_results',
@@ -993,9 +1001,13 @@ CELERYBEAT_SCHEDULE = {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
     },
+    "purge-broadcasts": {
+        'task': 'purge_broadcasts_task',
+        'schedule': crontab(hour=1, minute=0),
+    },
     "clear-old-msg-external-ids": {
         'task': 'clear_old_msg_external_ids',
-        'schedule': crontab(hour=1, minute=0),
+        'schedule': crontab(hour=2, minute=0),
     },
     "trim-channel-log": {
         'task': 'trim_channel_log_task',

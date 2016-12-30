@@ -140,7 +140,7 @@ class Resthook(SmartModel):
 
     def release(self, user):
         # release any active subscribers
-        for s in self.subscribers.filter(is_active=True):
+        for s in self.subscribers.filter(is_active=True):  # pragma: needs cover
             s.release()
 
         # then ourselves
@@ -152,7 +152,7 @@ class Resthook(SmartModel):
     def as_select2(self):
         return dict(text=self.slug, id=self.slug)
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: needs cover
         return unicode(self.slug)
 
 
@@ -164,7 +164,7 @@ class ResthookSubscriber(SmartModel):
                                  help_text=_("The resthook being subscribed to"))
     target_url = models.URLField(help_text=_("The URL that we will call when our ruleset is reached"))
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(id=self.id, resthook=self.resthook.slug, target_url=self.target_url, created_on=self.created_on)
 
     def release(self, user):
@@ -262,7 +262,7 @@ class WebHookEvent(SmartModel):
                     steps=json.dumps(steps),
                     time=json_time)
 
-        if not action:
+        if not action:  # pragma: needs cover
             action = 'POST'
 
         webhook_event = WebHookEvent.objects.create(org=org,
@@ -388,7 +388,7 @@ class WebHookEvent(SmartModel):
 
     @classmethod
     def trigger_call_event(cls, call):
-        if not call.channel:
+        if not call.channel:  # pragma: needs cover
             return
 
         org = call.channel.org
@@ -526,7 +526,7 @@ class WebHookEvent(SmartModel):
                     if serializer.is_valid():
                         result['serializer'] = serializer
                         obj = serializer.object
-                        result['message'] = "SMS message to %d recipient(s) with text: '%s'" % (len(obj.contacts), obj.text)
+                        result['message'] = "SMS message to %d recipient(s) with text: '%s'" % (len(obj.contacts), obj.text)  # pragma: needs cover
                     else:
                         errors = serializer.errors
                         result['message'] = "Event delivered successfully, ignoring response body, wrong format: %s" % \
@@ -556,7 +556,7 @@ class WebHookEvent(SmartModel):
 
         return result
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: needs cover
         return "WebHookEvent[%s:%d] %s" % (self.event, self.pk, self.data)
 
 
@@ -578,7 +578,7 @@ class WebHookResult(SmartModel):
     body = models.TextField(null=True, blank=True,
                             help_text="The body of the HTTP response as returned by the web hook")
 
-    def stripped_body(self):
+    def stripped_body(self):  # pragma: needs cover
         return self.body.strip() if self.body else ""
 
     @classmethod

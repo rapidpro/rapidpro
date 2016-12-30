@@ -58,7 +58,6 @@ HANDLED = 'H'
 ERRORED = 'E'
 FAILED = 'F'
 RESENT = 'R'
-INTERRUPTED = 'X'
 
 INCOMING = 'I'
 OUTGOING = 'O'
@@ -88,8 +87,6 @@ STATUS_CONFIG = (
     (ERRORED, _("Error Sending"), 'errored'),  # there was an error during delivery
     (FAILED, _("Failed Sending"), 'failed'),   # we gave up on sending this message
     (RESENT, _("Resent message"), 'resent'),   # we retried this message
-
-    (INTERRUPTED, _("Interrupt message"), 'interrupted'),   # we were interrupted, ie, ussd termination
 )
 
 
@@ -143,6 +140,21 @@ class UnreachableException(Exception):
     pass
 
 
+class BroadcastRecipient(models.Model):
+    """
+    Through table for broadcast recipients many-to-many
+    """
+    broadcast = models.ForeignKey('msgs.Broadcast')
+
+    contact = models.ForeignKey(Contact)
+
+    purged_status = models.CharField(null=True, max_length=1,
+                                     help_text=_("Used when broadcast is purged to record contact's message's state"))
+
+    class Meta:
+        db_table = 'msgs_broadcast_recipients'
+
+
 class Broadcast(models.Model):
     """
     A broadcast is a message that is sent out to more than one recipient, such
@@ -165,7 +177,8 @@ class Broadcast(models.Model):
     urns = models.ManyToManyField(ContactURN, verbose_name=_("URNs"), related_name='addressed_broadcasts',
                                   help_text=_("Individual URNs included in this message"))
 
-    recipients = models.ManyToManyField(Contact, verbose_name=_("Recipients"), related_name='broadcasts',
+    recipients = models.ManyToManyField(Contact, through=BroadcastRecipient, verbose_name=_("Recipients"),
+                                        related_name='broadcasts',
                                         help_text=_("The contacts which received this message"))
 
     recipient_count = models.IntegerField(verbose_name=_("Number of recipients"), null=True,
@@ -205,8 +218,8 @@ class Broadcast(models.Model):
     modified_on = models.DateTimeField(auto_now=True,
                                        help_text="When this item was last modified")
 
-    purged = models.NullBooleanField(default=False,
-                                     help_text="If the messages for this broadcast have been purged")
+    purged = models.BooleanField(default=False,
+                                 help_text="If the messages for this broadcast have been purged")
 
     @classmethod
     def create(cls, org, user, text, recipients, channel=None, **kwargs):
@@ -256,7 +269,7 @@ class Broadcast(models.Model):
                 contacts.append(recipient)
             elif isinstance(recipient, ContactGroup):
                 groups.append(recipient)
-            else:
+            else:  # pragma: needs cover
                 raise ValueError("Recipient item is not a Contact, ContactURN or ContactGroup")
 
         self.urns.clear()
@@ -277,7 +290,7 @@ class Broadcast(models.Model):
 
         return urns, contacts
 
-    def has_pending_fire(self):
+    def has_pending_fire(self):  # pragma: needs cover
         return self.schedule and self.schedule.has_pending_fire()
 
     def fire(self):
@@ -297,25 +310,25 @@ class Broadcast(models.Model):
     def get_messages(self):
         return self.msgs.exclude(status=RESENT)
 
-    def get_messages_substitution_complete(self):
+    def get_messages_substitution_complete(self):  # pragma: needs cover
         return self.get_messages().filter(has_template_error=False)
 
-    def get_messages_substitution_incomplete(self):
+    def get_messages_substitution_incomplete(self):  # pragma: needs cover
         return self.get_messages().filter(has_template_error=True)
 
     def get_message_count(self):
         return self.get_messages().count()
 
-    def get_message_sending_count(self):
+    def get_message_sending_count(self):  # pragma: needs cover
         return self.get_messages().filter(status__in=[PENDING, QUEUED]).count()
 
-    def get_message_sent_count(self):
+    def get_message_sent_count(self):  # pragma: needs cover
         return self.get_messages().filter(status__in=[SENT, DELIVERED, WIRED]).count()
 
-    def get_message_delivered_count(self):
+    def get_message_delivered_count(self):  # pragma: needs cover
         return self.get_messages().filter(status=DELIVERED).count()
 
-    def get_message_failed_count(self):
+    def get_message_failed_count(self):  # pragma: needs cover
         return self.get_messages().filter(status__in=[FAILED, RESENT]).count()
 
     def get_sync_commands(self, channel):
@@ -699,7 +712,7 @@ class Msg(models.Model):
                         # if this is a different contact than our last, and we have msgs for that last contact, queue the task
                         if task_msgs and last_contact != msg.contact_id:
                             # if no priority was set, default to DEFAULT
-                            if task_priority is None:
+                            if task_priority is None:  # pragma: needs cover
                                 task_priority = DEFAULT_PRIORITY
 
                             push_task(task_msgs[0]['org'], MSG_QUEUE, SEND_MSG_TASK, task_msgs, priority=task_priority)
@@ -732,7 +745,7 @@ class Msg(models.Model):
         """
         handlers = get_message_handlers()
 
-        if msg.contact.is_blocked and not msg.status == INTERRUPTED:
+        if msg.contact.is_blocked:
             msg.visibility = Msg.VISIBILITY_ARCHIVED
             msg.modified_on = timezone.now()
             msg.save(update_fields=['visibility', 'modified_on'])
@@ -755,8 +768,7 @@ class Msg(models.Model):
                     traceback.print_exc(e)
                     logger.exception("Error in message handling: %s" % e)
 
-        if not msg.status == INTERRUPTED:
-            cls.mark_handled(msg)
+        cls.mark_handled(msg)
 
         # if this is an inbox message, increment our unread inbox count
         if msg.msg_type == INBOX:
@@ -774,21 +786,21 @@ class Msg(models.Model):
     def get_messages(cls, org, is_archived=False, direction=None, msg_type=None):
         messages = Msg.objects.filter(org=org)
 
-        if is_archived:
+        if is_archived:  # pragma: needs cover
             messages = messages.filter(visibility=Msg.VISIBILITY_ARCHIVED)
         else:
             messages = messages.filter(visibility=Msg.VISIBILITY_VISIBLE)
 
-        if direction:
+        if direction:  # pragma: needs cover
             messages = messages.filter(direction=direction)
 
-        if msg_type:
+        if msg_type:  # pragma: needs cover
             messages = messages.filter(msg_type=msg_type)
 
         return messages.filter(contact__is_test=False)
 
     @classmethod
-    def fail_old_messages(cls):
+    def fail_old_messages(cls):  # pragma: needs cover
         """
         Looks for any errored or queued messages more than a week old and fails them. Messages that old would
         probably be confusing to go out.
@@ -982,7 +994,7 @@ class Msg(models.Model):
 
         if self.media:
             # TODO: remove after migration msgs.0053
-            if self.media.startswith('http'):
+            if self.media.startswith('http'):  # pragma: needs cover
                 return self.media
 
             if ':' in self.media:
@@ -992,12 +1004,12 @@ class Msg(models.Model):
 
         if self.media:
             # TODO: remove after migration msgs.0053
-            if self.media.startswith('http'):
+            if self.media.startswith('http'):  # pragma: needs cover
                 return 'audio'
 
         if self.media and ':' in self.media:
             type = self.media.split(':', 1)[0]
-            if type == 'application/octet-stream':
+            if type == 'application/octet-stream':  # pragma: needs cover
                 return 'audio'
             return type.split('/', 1)[0]
 
@@ -1112,14 +1124,14 @@ class Msg(models.Model):
         # send our message
         self.org.trigger_send([cloned])
 
-    def get_flow_step(self):
+    def get_flow_step(self):  # pragma: needs cover
         if self.msg_type not in (FLOW, IVR):
             return None
 
         steps = list(self.steps.all())  # steps may have been pre-fetched
         return steps[0] if steps else None
 
-    def get_flow(self):
+    def get_flow(self):  # pragma: needs cover
         step = self.get_flow_step()
         return step.run.flow if step else None
 
@@ -1176,7 +1188,7 @@ class Msg(models.Model):
 
         # costs 1 credit to receive a message
         topup_id = None
-        if topup:
+        if topup:  # pragma: needs cover
             topup_id = topup.pk
         elif not contact.is_test:
             (topup_id, amount) = org.decrement_credit()
@@ -1203,11 +1215,7 @@ class Msg(models.Model):
         if topup_id is not None:
             msg_args['topup_id'] = topup_id
 
-        # fake interrupt message to handle the flow properly
-        if status == INTERRUPTED:
-            msg = Msg(**msg_args)
-        else:
-            msg = Msg.objects.create(**msg_args)
+        msg = Msg.objects.create(**msg_args)
 
         # if this contact is currently stopped, unstop them
         if contact.is_stopped:
@@ -1217,7 +1225,7 @@ class Msg(models.Model):
             analytics.gauge('temba.msg_incoming_%s' % channel.channel_type.lower())
 
         # ivr messages are handled in handle_call
-        if status in (PENDING, INTERRUPTED) and msg_type != IVR:
+        if status == PENDING and msg_type != IVR:
             msg.handle()
 
             # fire an event off for this message
@@ -1294,7 +1302,7 @@ class Msg(models.Model):
                 else:
                     channel = org.get_send_channel(contact_urn=contact_urn)
 
-                if not channel and not contact.is_test:
+                if not channel and not contact.is_test:  # pragma: needs cover
                     raise ValueError("No suitable channel available for this org")
         else:
             # if message has already been sent, recipient must be a tuple of contact and URN
@@ -1343,7 +1351,7 @@ class Msg(models.Model):
                                                     text=text,
                                                     direction=OUTGOING,
                                                     created_on__gte=created_on - timedelta(hours=24)).count()
-                if same_msg_count >= 10:
+                if same_msg_count >= 10:  # pragma: needs cover
                     analytics.gauge('temba.msg_shortcode_loop_caught')
                     return None
 
@@ -1475,7 +1483,7 @@ class Msg(models.Model):
         """
         Restores (i.e. un-archives) this message
         """
-        if self.direction != INCOMING or self.contact.is_test:
+        if self.direction != INCOMING or self.contact.is_test:  # pragma: needs cover
             raise ValueError("Can only restore incoming non-test messages")
 
         self.visibility = Msg.VISIBILITY_VISIBLE
@@ -1639,7 +1647,7 @@ class SystemLabel(models.Model):
             qs = Broadcast.objects.exclude(schedule=None)
         elif label_type == cls.TYPE_CALLS:
             qs = ChannelEvent.objects.filter(is_active=True, event_type__in=ChannelEvent.CALL_TYPES)
-        else:
+        else:  # pragma: needs cover
             raise ValueError("Invalid label type: %s" % label_type)
 
         qs = qs.filter(org=org)
@@ -1657,7 +1665,7 @@ class SystemLabel(models.Model):
         """
         Recalculates the system label counts for the passed in org, updating them in our database
         """
-        if label_types is None:
+        if label_types is None:  # pragma: needs cover
             label_types = [cls.TYPE_INBOX, cls.TYPE_FLOWS, cls.TYPE_ARCHIVED, cls.TYPE_OUTBOX, cls.TYPE_SENT,
                            cls.TYPE_FAILED, cls.TYPE_SCHEDULED, cls.TYPE_CALLS]
 
@@ -1738,7 +1746,7 @@ class Label(TembaModel):
         if not cls.is_valid_name(name):
             raise ValueError("Invalid label name: %s" % name)
 
-        if folder and not folder.is_folder():
+        if folder and not folder.is_folder():  # pragma: needs cover
             raise ValueError("%s is not a label folder" % unicode(folder))
 
         label = cls.label_objects.filter(org=org, name__iexact=name).first()
@@ -1751,11 +1759,11 @@ class Label(TembaModel):
     def get_or_create_folder(cls, org, user, name):
         name = name.strip()
 
-        if not cls.is_valid_name(name):
+        if not cls.is_valid_name(name):  # pragma: needs cover
             raise ValueError("Invalid folder name: %s" % name)
 
         folder = cls.folder_objects.filter(org=org, name__iexact=name).first()
-        if folder:
+        if folder:  # pragma: needs cover
             return folder
 
         return cls.folder_objects.create(org=org, name=name, label_type=Label.TYPE_FOLDER,
@@ -1808,7 +1816,7 @@ class Label(TembaModel):
         """
         Adds or removes this label from the given messages
         """
-        if self.is_folder():
+        if self.is_folder():  # pragma: needs cover
             raise ValueError("Can only assign messages to user labels")
 
         changed = set()
@@ -1912,7 +1920,7 @@ class ExportMessagesTask(SmartModel):
 
     uuid = models.CharField(max_length=36, null=True, help_text=_("The uuid used to name the resulting export file"))
 
-    def start_export(self):
+    def start_export(self):  # pragma: needs cover
         """
         Starts our export, wrapping it in a try block to make sure we mark it as finished when complete.
         """
@@ -1953,18 +1961,18 @@ class ExportMessagesTask(SmartModel):
 
         tz = self.org.timezone
 
-        if self.start_date:
+        if self.start_date:  # pragma: needs cover
             start_date = tz.localize(datetime.combine(self.start_date, datetime.min.time()))
             all_messages = all_messages.filter(created_on__gte=start_date)
 
-        if self.end_date:
+        if self.end_date:  # pragma: needs cover
             end_date = tz.localize(datetime.combine(self.end_date, datetime.max.time()))
             all_messages = all_messages.filter(created_on__lte=end_date)
 
-        if self.groups.all():
+        if self.groups.all():  # pragma: needs cover
             all_messages = all_messages.filter(contact__all_groups__in=self.groups.all())
 
-        if self.label:
+        if self.label:  # pragma: needs cover
             all_messages = all_messages.filter(labels=self.label)
 
         all_message_ids = [m['id'] for m in all_messages.values('id')]
@@ -1993,7 +2001,7 @@ class ExportMessagesTask(SmartModel):
                                select_related=['contact', 'contact_urn'],
                                prefetch_related=[prefetch]):
 
-            if row >= max_rows:
+            if row >= max_rows:  # pragma: needs cover
                 messages_sheet_number += 1
                 current_messages_sheet = book.create_sheet(unicode(_("Messages %d" % messages_sheet_number)))
                 sheet_row = []
@@ -2011,7 +2019,7 @@ class ExportMessagesTask(SmartModel):
             msg_labels = ", ".join(clean_string(msg_label.name) for msg_label in msg.labels.all())
 
             # only show URN path if org isn't anon and there is a URN
-            if self.org.is_anon:
+            if self.org.is_anon:  # pragma: needs cover
                 urn_path = msg.contact.anon_identifier
             elif msg.contact_urn:
                 urn_path = msg.contact_urn.get_display(org=self.org, formatted=False)
@@ -2048,7 +2056,7 @@ class ExportMessagesTask(SmartModel):
             row += 1
             processed += 1
 
-            if processed % 10000 == 0:
+            if processed % 10000 == 0:  # pragma: needs cover
                 print "Export of %d msgs for %s - %d%% complete in %0.2fs" % \
                       (len(all_message_ids), self.org.name, processed * 100 / len(all_message_ids), time.time() - start)
 

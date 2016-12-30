@@ -232,7 +232,7 @@ class AuthenticateView(SmartFormView):
                 for org in valid_orgs:
                     token = APIToken.get_or_create(org, user, role)
                     tokens.append({'org': {'id': org.pk, 'name': org.name}, 'token': token.key})
-            else:
+            else:  # pragma: needs cover
                 return HttpResponse(status=404)
 
             return JsonResponse({'tokens': tokens})
@@ -2653,7 +2653,7 @@ class ResthookEventsEndpoint(ListAPIMixin, BaseAPIView):
         queryset = queryset.exclude(resthook=None)
 
         resthook = params.get('resthook')
-        if resthook:
+        if resthook:  # pragma: needs cover
             queryset = queryset.filter(resthook__slug=resthook)
 
         return queryset.select_related('resthook')

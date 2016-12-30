@@ -13,7 +13,7 @@ from temba.contacts.models import Contact
 
 try:
     import cProfile as profile
-except ImportError:
+except ImportError:  # pragma: no cover
     import profile
 
 
@@ -31,7 +31,7 @@ class BrandingMiddleware(object):
     @classmethod
     def get_branding_for_host(cls, host):
         # ignore subdomains
-        if len(host.split('.')) > 2:
+        if len(host.split('.')) > 2:  # pragma: needs cover
             host = '.'.join(host.split('.')[-2:])
 
         # prune off the port
@@ -58,7 +58,7 @@ class BrandingMiddleware(object):
         host = 'localhost'
         try:
             host = request.get_host()
-        except Exception:
+        except Exception:  # pragma: needs cover
             traceback.print_exc()
 
         request.branding = BrandingMiddleware.get_branding_for_host(host)
@@ -117,7 +117,7 @@ class FlowSimulationMiddleware(object):
         return None
 
 
-class ProfilerMiddleware(object):
+class ProfilerMiddleware(object):  # pragma: no cover
     """
     Simple profile middleware to profile django views. To run it, add ?prof to
     the URL like this:

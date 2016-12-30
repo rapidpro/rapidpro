@@ -89,7 +89,7 @@ python-telegram-bot==3.3b1
 pytz==2016.4
 PyYAML==3.11
 pyzmq==14.3.1
-rapidpro-expressions==1.1.5
+rapidpro-expressions==1.1.9
 raven==5.23.0
 redis==2.10.1
 regex==2014.6.28

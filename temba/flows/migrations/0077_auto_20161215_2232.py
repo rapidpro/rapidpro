@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
-from django.db.models import Func, Value, Count
+from django.db.models import Count
 from django_redis import get_redis_connection
 from django.db import connection
 from temba.utils import chunk_list
@@ -13,11 +13,6 @@ HIGHPOINT_KEY = 'flowpathcount_backfill_highpoint'
 CHUNK_SIZE = 200000
 MAX_INT = 2147483647
 LAST_SQUASH_KEY = 'last_flowpathcount_squash'
-
-class DateTrunc(Func):
-    function = 'DATE_TRUNC'
-    def __init__(self, trunc_type, field_expression, **extra):
-        super(DateTrunc, self).__init__(Value(trunc_type), field_expression, **extra)
 
 def dictfetchall(cursor):
     "Return all rows from a cursor as a dict"
@@ -70,6 +65,8 @@ def do_populate(Contact, FlowRun, FlowStep, FlowPathCount):
 
     while last_add is None or last_id < MAX_INT:
 
+        start = time.time()
+
         test_contacts = Contact.objects.filter(is_test=True).values_list('id', flat=True)
 
         counts = []
@@ -81,8 +78,8 @@ def do_populate(Contact, FlowRun, FlowStep, FlowPathCount):
 
         query = "SELECT max(fs.id) as max_id, fr.flow_id as \"flow_id\", step_uuid, next_uuid, rule_uuid, count(*), date_trunc('hour', left_on) as \"period\" "
         query += "FROM flows_flowstep fs, flows_flowrun fr, contacts_contact c "
-        query += "WHERE fs.run_id = fr.id AND fs.contact_id = c.id AND c.is_test = False "
-        query += "AND fs.id > %s AND fs.id <= %s AND fs.next_uuid IS NOT NULL GROUP BY fr.flow_id, fs.step_uuid, fs.next_uuid, fs.rule_uuid, period;"
+        query += "WHERE fs.run_id = fr.id AND fs.contact_id = c.id AND c.is_test = False AND fs.left_on is not null "
+        query += "AND fs.id > %s AND fs.id <= %s GROUP BY fr.flow_id, fs.step_uuid, fs.next_uuid, fs.rule_uuid, period;"
 
         with connection.cursor() as cursor:
             cursor.execute(query, [highpoint, last_id])
@@ -105,7 +102,10 @@ def do_populate(Contact, FlowRun, FlowStep, FlowPathCount):
 
             FlowPathCount.objects.bulk_create(counts)
             last_add = len(counts)
-            print 'Added %d counts (Max: %d)' % (len(counts), max_id)
+
+            seconds = time.time() - start
+            total = len(counts)
+            print 'Added %d counts (Max: %d) in %0.3fs (%0.0fs/s)' % (total, max_id, seconds, float(total) / float(seconds))
 
             if max_id > 0:
                 r.set(HIGHPOINT_KEY, max_id)
@@ -133,7 +133,7 @@ def apply_as_migration(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0075_auto_20161201_1536'),
+        ('flows', '0076_auto_20161215_2209'),
     ]
 
     operations = [

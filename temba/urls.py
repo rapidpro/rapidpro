@@ -42,7 +42,7 @@ if settings.DEBUG:
 
 
 # import any additional urls
-for app in settings.APP_URLS:
+for app in settings.APP_URLS:  # pragma: needs cover
     importlib.import_module(app)
 
 
@@ -50,13 +50,13 @@ for app in settings.APP_URLS:
 def init_analytics():
     import analytics
     analytics_key = getattr(settings, 'SEGMENT_IO_KEY', None)
-    if analytics_key:
+    if analytics_key:  # pragma: needs cover
         analytics.init(analytics_key, send=settings.IS_PROD, log=not settings.IS_PROD, log_level=logging.DEBUG)
 
     from temba.utils.analytics import init_librato
     librato_user = getattr(settings, 'LIBRATO_USER', None)
     librato_token = getattr(settings, 'LIBRATO_TOKEN', None)
-    if librato_user and librato_token:
+    if librato_user and librato_token:  # pragma: needs cover
         init_librato(librato_user, librato_token)
 
 # initialize our analytics (the signal below will initialize each worker)
@@ -65,7 +65,7 @@ init_analytics()
 
 @worker_process_init.connect
 def configure_workers(sender=None, **kwargs):
-    init_analytics()
+    init_analytics()  # pragma: needs cover
 
 
 def track_user(self):  # pragma: no cover
@@ -107,6 +107,4 @@ def handler500(request):
     from django.http import HttpResponseServerError
 
     t = loader.get_template('500.html')
-    return HttpResponseServerError(t.render(Context({
-        'request': request,
-    })))
+    return HttpResponseServerError(t.render(Context({'request': request})))  # pragma: needs cover

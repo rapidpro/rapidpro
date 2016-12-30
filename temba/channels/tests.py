@@ -28,9 +28,9 @@ from mock import patch
 from smartmin.tests import SmartminTest
 from temba.api.models import WebHookEvent, SMS_RECEIVED
 from temba.contacts.models import Contact, ContactGroup, ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, EXTERNAL_SCHEME, LINE_SCHEME
+from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, PENDING
 from temba.contacts.models import TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.ivr.models import IVRCall
-from temba.msgs.models import Broadcast, Msg, IVR, WIRED, FAILED, SENT, DELIVERED, ERRORED, INCOMING, INTERRUPTED, PENDING
 from temba.msgs.models import MSG_SENT_KEY, SystemLabel
 from temba.orgs.models import Org, ALL_EVENTS, ACCOUNT_SID, ACCOUNT_TOKEN, APPLICATION_SID, NEXMO_KEY, NEXMO_SECRET, FREE_PLAN, NEXMO_UUID
 from temba.tests import TembaTest, MockResponse, MockTwilioClient, MockRequestValidator
@@ -3100,9 +3100,9 @@ class CountTest(TembaTest):
         # and only one channel count
         self.assertEquals(ChannelCount.objects.all().count(), 1)
 
-        # delete it, back to 1
+        # deleting a message doesn't decrement the count
         msg.delete()
-        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 2, ChannelCount.INCOMING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
@@ -3111,9 +3111,9 @@ class CountTest(TembaTest):
         msg = Msg.create_outgoing(self.org, self.admin, real_contact, "Real Message", channel=self.channel)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
-        # delete it, should be gone now
+        # deleting a message still doesn't decrement the count
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_MSG_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
@@ -3124,7 +3124,7 @@ class CountTest(TembaTest):
 
         # delete it, should be gone now
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.INCOMING_IVR_TYPE, msg.created_on.date())
 
         ChannelCount.objects.all().delete()
 
@@ -3135,7 +3135,7 @@ class CountTest(TembaTest):
 
         # delete it, should be gone now
         msg.delete()
-        self.assertDailyCount(self.channel, 0, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
+        self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
 
 
 class AfricasTalkingTest(TembaTest):
@@ -4326,6 +4326,11 @@ class VumiTest(TembaTest):
         response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
+        data = dict(timestamp="2014-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383")
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        self.assertEqual(response.status_code, 400)
+
         data = dict(timestamp="2014-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
                     content="Hello from Vumi")
 
@@ -4510,203 +4515,6 @@ class VumiTest(TembaTest):
 
         finally:
             settings.SEND_MESSAGES = False
-
-
-class VumiUssdTest(TembaTest):
-
-    def setUp(self):
-        super(VumiUssdTest, self).setUp()
-
-        self.channel.delete()
-        self.channel = Channel.create(self.org, self.user, 'RW', Channel.TYPE_VUMI_USSD, None, '+250788123123',
-                                      config=dict(account_key='vumi-key', access_token='vumi-token', conversation_key='key'),
-                                      uuid='00000000-0000-0000-0000-000000001234')
-
-    def test_receive(self):
-        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
-
-        response = self.client.get(callback_url)
-        self.assertEqual(response.status_code, 405)
-
-        response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
-        self.assertEqual(response.status_code, 404)
-
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                    content="Hello from Vumi", transport_type='ussd')
-
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        msg = Msg.objects.get()
-        self.assertEquals(INCOMING, msg.direction)
-        self.assertEquals(self.org, msg.org)
-        self.assertEquals(self.channel, msg.channel)
-        self.assertEquals("Hello from Vumi", msg.text)
-        self.assertEquals('123456', msg.external_id)
-
-    def test_send(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing message
-        msg.refresh_from_db()
-        r = get_redis_connection()
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.put') as mock:
-                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
-                self.assertEquals("1515", msg.external_id)
-                self.assertEquals(1, mock.call_count)
-
-                # should have a failsafe that it was sent
-                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
-
-                # try sending again, our failsafe should kick in
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # we shouldn't have been called again
-                self.assertEquals(1, mock.call_count)
-
-                self.clear_cache()
-        finally:
-            settings.SEND_MESSAGES = False
-
-    def test_ack(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing message
-        msg.refresh_from_db()
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.put') as mock:
-                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
-                self.assertEquals("1515", msg.external_id)
-                self.assertEquals(1, mock.call_count)
-
-                # simulate Vumi calling back to us sending an ACK event
-                data = {
-                    "transport_name": "ussd_transport",
-                    "event_type": "ack",
-                    "event_id": unicode(uuid.uuid4()),
-                    "sent_message_id": unicode(uuid.uuid4()),
-                    "helper_metadata": {},
-                    "routing_metadata": {},
-                    "message_version": "20110921",
-                    "timestamp": unicode(timezone.now()),
-                    "transport_metadata": {},
-                    "user_message_id": msg.external_id,
-                    "message_type": "event"
-                }
-                callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
-                self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-                # it should be SENT now
-                msg.refresh_from_db()
-                self.assertEquals(SENT, msg.status)
-
-                self.clear_cache()
-        finally:
-            settings.SEND_MESSAGES = False
-
-    def test_nack(self):
-        joe = self.create_contact("Joe", "+250788383383")
-        self.create_group("Reporters", [joe])
-        msg = joe.send("Test message", self.admin, trigger_send=False)
-
-        # our outgoing message
-        msg.refresh_from_db()
-        r = get_redis_connection()
-
-        try:
-            settings.SEND_MESSAGES = True
-
-            with patch('requests.put') as mock:
-                mock.return_value = MockResponse(200, '{ "message_id": "1515" }')
-
-                # manually send it off
-                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
-
-                # check the status of the message is now sent
-                msg.refresh_from_db()
-                self.assertEquals(WIRED, msg.status)
-                self.assertTrue(msg.sent_on)
-                self.assertEquals("1515", msg.external_id)
-                self.assertEquals(1, mock.call_count)
-
-                # should have a failsafe that it was sent
-                self.assertTrue(r.sismember(timezone.now().strftime(MSG_SENT_KEY), str(msg.id)))
-
-                # simulate Vumi calling back to us sending an NACK event
-                data = {
-                    "transport_name": "ussd_transport",
-                    "event_type": "nack",
-                    "nack_reason": "Unknown address.",
-                    "event_id": unicode(uuid.uuid4()),
-                    "timestamp": unicode(timezone.now()),
-                    "message_version": "20110921",
-                    "transport_metadata": {},
-                    "user_message_id": msg.external_id,
-                    "message_type": "event"
-                }
-                callback_url = reverse('handlers.vumi_handler', args=['event', self.channel.uuid])
-                response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-                self.assertEqual(response.status_code, 200)
-                self.assertTrue(self.create_contact("Joe", "+250788383383").is_stopped)
-
-                self.clear_cache()
-        finally:
-            settings.SEND_MESSAGES = False
-
-    @patch('temba.msgs.models.Msg.create_incoming')
-    def test_interrupt(self, create_incoming):
-        callback_url = reverse('handlers.vumi_handler', args=['receive', self.channel.uuid])
-
-        response = self.client.get(callback_url)
-        self.assertEqual(response.status_code, 405)
-
-        response = self.client.post(callback_url, json.dumps(dict()), content_type="application/json")
-        self.assertEqual(response.status_code, 404)
-
-        data = dict(timestamp="2016-04-18 03:54:20.570618", message_id="123456", from_addr="+250788383383",
-                    content="Hello from Vumi", transport_type='ussd', session_event="close")
-
-        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
-
-        self.assertEqual(response.status_code, 200)
-
-        # no real messages stored
-        self.assertEquals(Msg.objects.count(), 0)
-
-        self.assertTrue(create_incoming.called)
-        self.assertEqual(create_incoming.call_count, 1)
-
-        args, kwargs = create_incoming.call_args
-        self.assertEqual(kwargs['status'], INTERRUPTED)
 
 
 class ZenviaTest(TembaTest):
@@ -5626,7 +5434,7 @@ class TwilioTest(TembaTest):
         msg = joe.send("Test message", self.admin, trigger_send=False)
 
         with self.settings(SEND_MESSAGES=True):
-            with patch('twilio.rest.resources.Messages.create') as mock:
+            with patch('twilio.rest.resources.messages.Messages.create') as mock:
                 mock.return_value = "Sent"
 
                 # manually send it off
@@ -5653,7 +5461,7 @@ class TwilioTest(TembaTest):
                 msg.refresh_from_db()
                 self.assertEquals(msg.status, DELIVERED)
 
-            with patch('twilio.rest.resources.Messages.create') as mock:
+            with patch('twilio.rest.resources.messages.Messages.create') as mock:
                 mock.side_effect = Exception("Failed to send message")
 
                 # manually send it off
@@ -5665,20 +5473,28 @@ class TwilioTest(TembaTest):
                 self.assertEquals(1, msg.error_count)
                 self.assertTrue(msg.next_attempt)
 
+            with patch('twilio.rest.resources.messages.Messages.create') as mock:
+                mock.side_effect = TwilioRestException(400, "https://twilio.com/", "User has opted out", code=21610)
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as failed and the contact should be stopped
+                msg.refresh_from_db()
+                self.assertEquals(FAILED, msg.status)
+                self.assertTrue(Contact.objects.get(id=msg.contact_id))
+
             # check that our channel log works as well
             self.login(self.admin)
 
             response = self.client.get(reverse('channels.channellog_list') + "?channel=%d" % (self.channel.pk))
 
-            # there should be two log items for the two times we sent
-            self.assertEquals(2, len(response.context['channellog_list']))
+            # there should be three log items for the three times we sent
+            self.assertEquals(3, len(response.context['channellog_list']))
 
-            # of items on this page should be right as well
-            self.assertEquals(2, response.context['paginator'].count)
-
-            # the counts on our relayer should be correct as well
-            self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(1, self.channel.get_error_log_count())
+            # number of items on this page should be right as well
+            self.assertEquals(3, response.context['paginator'].count)
+            self.assertEquals(2, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
             # view the detailed information for one of them
@@ -5687,13 +5503,12 @@ class TwilioTest(TembaTest):
             # check that it contains the log of our exception
             self.assertContains(response, "Failed to send message")
 
-            # delete our error entry
+            # delete our error entries
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our counts should be right
-            # the counts on our relayer should be correct as well
+            # our channel counts should be unaffected
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(0, self.channel.get_error_log_count())
+            self.assertEquals(2, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 
@@ -5838,10 +5653,9 @@ class TwilioMessagingServiceTest(TembaTest):
             # delete our error entry
             ChannelLog.objects.filter(is_error=True).delete()
 
-            # our counts should be right
-            # the counts on our relayer should be correct as well
+            # our channel counts should be unaffected
             self.channel = Channel.objects.get(id=self.channel.pk)
-            self.assertEquals(0, self.channel.get_error_log_count())
+            self.assertEquals(1, self.channel.get_error_log_count())
             self.assertEquals(1, self.channel.get_success_log_count())
 
 

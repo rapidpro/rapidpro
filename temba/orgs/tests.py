@@ -1779,11 +1779,6 @@ class AnonOrgTest(TembaTest):
 
         self.assertNotContains(response, "788 123 123")
 
-        # also shouldn't show up on the flow results page
-        response = self.client.get(reverse('flows.flow_results', args=[flow.pk]) + "?json=true")
-        self.assertNotContains(response, "788 123 123")
-        self.assertContains(response, masked)
-
         # create an incoming SMS, check our flow page
         Msg.create_incoming(self.channel, contact.get_urn().urn, "Blue")
         response = self.client.get(reverse('msgs.msg_flow'))

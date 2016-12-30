@@ -14,6 +14,7 @@ from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
+from django.core.validators import URLValidator
 from django.db import models, connection
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
@@ -33,6 +34,8 @@ from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
 from temba.utils.email import send_template_email
 from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
 from time import sleep
+
+from twilio import TwilioRestException
 from twilio.rest import TwilioRestClient
 from twython import Twython
 from temba.utils.gsm7 import is_gsm7, replace_non_gsm7_accents
@@ -136,7 +139,7 @@ class Channel(TembaModel):
     YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
     YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
-    VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream/'
+    VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream'
 
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
@@ -523,7 +526,7 @@ class Channel(TembaModel):
                                             voice_application_sid=application_sid,
                                             sms_application_sid=application_sid)
 
-            else:
+            else:  # pragma: needs cover
                 twilio_phone = client.phone_numbers.purchase(phone_number=phone_number,
                                                              voice_application_sid=application_sid,
                                                              sms_application_sid=application_sid)
@@ -829,7 +832,7 @@ class Channel(TembaModel):
                 normalized = phonenumbers.parse(self.address, str(self.country))
                 fmt = phonenumbers.PhoneNumberFormat.E164 if e164 else phonenumbers.PhoneNumberFormat.INTERNATIONAL
                 return phonenumbers.format_number(normalized, fmt)
-            except NumberParseException:
+            except NumberParseException:  # pragma: needs cover
                 # the number may be alphanumeric in the case of short codes
                 pass
 
@@ -987,7 +990,7 @@ class Channel(TembaModel):
         """
         from temba.contacts.models import ContactURN
 
-        if not self.country:
+        if not self.country:  # pragma: needs cover
             self.country = ContactURN.derive_country_from_tel(phone)
 
         self.alert_email = user.email
@@ -1277,7 +1280,7 @@ class Channel(TembaModel):
                                 response_status=503,
                                 start=start)
 
-        if response.status_code not in [200, 201, 202]:
+        if response.status_code not in [200, 201, 202]:  # pragma: needs cover
             raise SendException("Got non-200 response [%d] from Line" % response.status_code,
                                 method='POST',
                                 url=send_url,
@@ -1702,7 +1705,7 @@ class Channel(TembaModel):
                                 response_status=503,
                                 start=start)
 
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:  # pragma: needs cover
             raise SendException("Got non-200 response [%d] from API" % response.status_code,
                                 method='POST',
                                 url=url,
@@ -1832,9 +1835,12 @@ class Channel(TembaModel):
 
         api_url_base = channel.config.get('api_url', cls.VUMI_GO_API_URL)
 
-        url = urlparse.urljoin(api_url_base, "%s/messages.json" % channel.config['conversation_key'])
+        url = "%s/%s/messages.json" % (api_url_base, channel.config['conversation_key'])
 
         start = time.time()
+
+        validator = URLValidator()
+        validator(url)
 
         try:
             response = requests.put(url,
@@ -2267,25 +2273,44 @@ class Channel(TembaModel):
         callback_url = Channel.build_twilio_callback_url(msg.id)
         start = time.time()
 
-        if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
-            config = channel.config
-            client = TwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN), base=config.get(Channel.CONFIG_SEND_URL))
-        else:
-            client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
+        try:
+            if channel.channel_type == Channel.TYPE_TWIML:  # pragma: no cover
+                config = channel.config
+                client = TwilioRestClient(config.get(ACCOUNT_SID), config.get(ACCOUNT_TOKEN), base=config.get(Channel.CONFIG_SEND_URL))
+            else:
+                client = TwilioRestClient(channel.org_config[ACCOUNT_SID], channel.org_config[ACCOUNT_TOKEN])
 
-        if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
-            messaging_service_sid = channel.config['messaging_service_sid']
-            client.messages.create(to=msg.urn_path,
-                                   messaging_service_sid=messaging_service_sid,
-                                   body=text,
-                                   status_callback=callback_url)
-        else:
-            client.messages.create(to=msg.urn_path,
-                                   from_=channel.address,
-                                   body=text,
-                                   status_callback=callback_url)
+            if channel.channel_type == Channel.TYPE_TWILIO_MESSAGING_SERVICE:
+                messaging_service_sid = channel.config['messaging_service_sid']
+                client.messages.create(to=msg.urn_path,
+                                       messaging_service_sid=messaging_service_sid,
+                                       body=text,
+                                       status_callback=callback_url)
+            else:
+                client.messages.create(to=msg.urn_path,
+                                       from_=channel.address,
+                                       body=text,
+                                       status_callback=callback_url)
 
-        Channel.success(channel, msg, WIRED, start)
+            Channel.success(channel, msg, WIRED, start)
+
+        except TwilioRestException as e:
+            fatal = False
+
+            # user has blacklisted us, stop the contact
+            if e.code == 21610:
+                from temba.contacts.models import Contact
+                fatal = True
+                contact = Contact.objects.get(id=msg.contact)
+                contact.stop(contact.modified_by)
+
+            raise SendException(e.msg,
+                                e.uri,
+                                e.method,
+                                None,
+                                e.msg,
+                                e.status,
+                                fatal=fatal)
 
     @classmethod
     def send_telegram_message(cls, channel, msg, text):
@@ -2886,7 +2911,7 @@ class ChannelCount(models.Model):
         count = ChannelCount.objects.filter(channel=channel, count_type=count_type, day=day)
         count = count.order_by('day', 'count_type').aggregate(count_sum=Sum('count'))
 
-        return 0 if not count else count['count_sum']
+        return count['count_sum'] if count['count_sum'] is not None else 0
 
     @classmethod
     def squash_counts(cls):
@@ -3321,8 +3346,11 @@ class ChannelSession(SmartModel):
     FAILED = 'F'
     NO_ANSWER = 'N'
     CANCELED = 'C'
+    TRIGGERED = 'T'
+    INTERRUPTED = 'X'
+    INITIATED = 'A'
 
-    DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED]
+    DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED]
 
     INCOMING = 'I'
     OUTGOING = 'O'
@@ -3342,7 +3370,10 @@ class ChannelSession(SmartModel):
                       (BUSY, "Busy"),
                       (FAILED, "Failed"),
                       (NO_ANSWER, "No Answer"),
-                      (CANCELED, "Canceled"))
+                      (CANCELED, "Canceled"),
+                      (INTERRUPTED, "Interrupted"),
+                      (TRIGGERED, "Triggered"),
+                      (INITIATED, "Initiated"))
 
     external_id = models.CharField(max_length=255,
                                    help_text="The external id for this session, our twilio id usually")

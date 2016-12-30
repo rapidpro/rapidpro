@@ -268,7 +268,7 @@ class ContactForm(forms.ModelForm):
                     return False
                 # validate but not with country as users are allowed to enter numbers before adding a channel
                 elif not URN.validate(normalized):
-                    if scheme == TEL_SCHEME:
+                    if scheme == TEL_SCHEME:  # pragma: needs cover
                         self._errors[key] = _("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")
                     else:
                         self._errors[key] = _("Invalid format")
@@ -356,7 +356,7 @@ class ContactCRUDL(SmartCRUDL):
             # otherwise, off we go
             else:
                 previous_export = ExportContactsTask.objects.filter(org=org, created_by=user).order_by('-modified_on').first()
-                if previous_export and previous_export.created_on < timezone.now() - timedelta(hours=24):
+                if previous_export and previous_export.created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                     analytics.track(self.request.user.username, 'temba.contact_exported')
 
                 export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
@@ -429,7 +429,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             pre_process = super(ContactCRUDL.Customize, self).pre_process(request, *args, **kwargs)
-            if pre_process is not None:
+            if pre_process is not None:  # pragma: needs cover
                 return pre_process
 
             headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
@@ -586,7 +586,7 @@ class ContactCRUDL(SmartCRUDL):
             super(ContactCRUDL.Import, self).pre_save(task)
 
             previous_import = ImportTask.objects.filter(created_by=self.request.user).order_by('-created_on').first()
-            if previous_import and previous_import.created_on < timezone.now() - timedelta(hours=24):
+            if previous_import and previous_import.created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                 analytics.track(self.request.user.username, 'temba.contact_imported')
 
             return task
@@ -697,7 +697,7 @@ class ContactCRUDL(SmartCRUDL):
 
             merged_upcoming_events = []
             for fire in event_fires:
-                merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.message,
+                merged_upcoming_events.append(dict(event_type=fire.event.event_type, message=fire.event.get_message(),
                                                    flow_uuid=fire.event.flow.uuid, flow_name=fire.event.flow.name,
                                                    scheduled=fire.scheduled))
 

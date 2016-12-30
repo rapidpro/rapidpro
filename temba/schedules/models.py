@@ -56,10 +56,10 @@ class Schedule(SmartModel):
     def get_org_timezone(self):
         org = None
 
-        if self.get_broadcast():
+        if self.get_broadcast():  # pragma: needs cover
             org = self.get_broadcast().org
 
-        if org and org.timezone:
+        if org and org.timezone:  # pragma: needs cover
             return org.timezone
         else:
             return timezone.pytz.utc

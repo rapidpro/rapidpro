@@ -116,10 +116,12 @@ class InboxView(OrgPermsMixin, SmartListView):
         org = self.request.user.get_org()
         counts = SystemLabel.get_counts(org)
 
+        system_label = getattr(self, 'system_label', None)
+
         # if there isn't a search filtering the queryset, we can replace the count function with a quick cache lookup to
         # speed up paging
-        if hasattr(self, 'system_label') and 'search' not in self.request.GET:
-            self.object_list.count = lambda: counts[self.system_label]
+        if system_label and 'search' not in self.request.GET:
+            self.object_list.count = lambda: counts[system_label]
 
         context = super(InboxView, self).get_context_data(**kwargs)
 
@@ -137,6 +139,7 @@ class InboxView(OrgPermsMixin, SmartListView):
         context['has_labels'] = Label.label_objects.filter(org=org).exists()
         context['has_messages'] = org.has_messages() or self.object_list.count() > 0
         context['send_form'] = SendMessageForm(self.request.user)
+        context['org_is_purged'] = org.is_purgeable
         return context
 
 
@@ -151,7 +154,7 @@ class BroadcastForm(forms.ModelForm):
     def is_valid(self):
         valid = super(BroadcastForm, self).is_valid()
         if valid:
-            if 'omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0:
+            if 'omnibox' not in self.data or len(self.data['omnibox'].strip()) == 0:  # pragma: needs cover
                 self.errors['__all__'] = self.error_class([_("At least one recipient is required")])
                 return False
 
@@ -380,7 +383,7 @@ class TestMessageForm(forms.Form):
     text = forms.CharField(max_length=160, widget=forms.Textarea,
                            help_text=_("The message that is being delivered"))
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):  # pragma: needs cover
         org = kwargs['org']
         del kwargs['org']
 
@@ -407,10 +410,10 @@ class ExportForm(Form):
         start_date = cleaned_data['start_date']
         end_date = cleaned_data['end_date']
 
-        if start_date and start_date > date.today():
+        if start_date and start_date > date.today():  # pragma: needs cover
             raise forms.ValidationError(_("The Start Date should not be a date in the future."))
 
-        if end_date and start_date and end_date <= start_date:
+        if end_date and start_date and end_date <= start_date:  # pragma: needs cover
             raise forms.ValidationError(_("The End Date should be a date after the Start Date"))
 
         return cleaned_data
@@ -429,11 +432,11 @@ class MsgCRUDL(SmartCRUDL):
         def get_success_url(self):
             label_id = self.request.GET.get('label', None)
 
-            if label_id:
+            if label_id:  # pragma: needs cover
                 return reverse('msgs.msg_filter', args=[label_id])
             return reverse('msgs.msg_inbox')
 
-        def form_invalid(self, form):
+        def form_invalid(self, form):  # pragma: needs cover
             if '_format' in self.request.GET and self.request.GET['_format'] == 'json':
                 return HttpResponse(json.dumps(dict(status="error", errors=form.errors)), content_type='application/json', status=400)
             else:
@@ -448,7 +451,7 @@ class MsgCRUDL(SmartCRUDL):
             label_id = self.request.GET.get('label', None)
 
             label = None
-            if label_id:
+            if label_id:  # pragma: needs cover
                 label = Label.label_objects.get(pk=label_id)
 
             groups = form.cleaned_data['groups']
@@ -467,7 +470,7 @@ class MsgCRUDL(SmartCRUDL):
                                 "for that export to complete before starting another." % existing.created_by.username))
 
             # otherwise, off we go
-            else:
+            else:  # pragma: needs cover
                 export = ExportMessagesTask.objects.create(created_by=user, modified_by=user, org=org, label=label,
                                                            start_date=start_date, end_date=end_date)
                 for group in groups:
@@ -514,7 +517,7 @@ class MsgCRUDL(SmartCRUDL):
         title = "Test Message Delivery"
         permissions = 'msgs.msg_test'
 
-        def form_valid(self, *args, **kwargs):
+        def form_valid(self, *args, **kwargs):  # pragma: no cover
             data = self.form.cleaned_data
             handled = Msg.create_incoming(data['channel'], URN.from_tel(data['urn']), data['text'],
                                           user=self.request.user)
@@ -533,7 +536,7 @@ class MsgCRUDL(SmartCRUDL):
             context['base_template'] = 'msgs/msg_test_frame.html'
             return self.render_to_response(Context(context))
 
-        def get_form_kwargs(self, *args, **kwargs):
+        def get_form_kwargs(self, *args, **kwargs):  # pragma: needs cover
             kwargs = super(MsgCRUDL.Test, self).get_form_kwargs(*args, **kwargs)
             kwargs['org'] = self.request.user.get_org()
             return kwargs
@@ -605,14 +608,14 @@ class MsgCRUDL(SmartCRUDL):
 
     class Sent(MsgActionMixin, InboxView):
         title = _("Sent Messages")
-        template_name = 'msgs/message_box.haml'
+        template_name = 'msgs/msg_sent.haml'
         system_label = SystemLabel.TYPE_SENT
 
-        def get_queryset(self, **kwargs):
+        def get_queryset(self, **kwargs):  # pragma: needs cover
             qs = super(MsgCRUDL.Sent, self).get_queryset(**kwargs)
             return qs.order_by('-created_on').prefetch_related('channel_logs', 'steps__run__flow').select_related('contact')
 
-        def get_context_data(self, *args, **kwargs):
+        def get_context_data(self, *args, **kwargs):  # pragma: needs cover
             context = super(MsgCRUDL.Sent, self).get_context_data(*args, **kwargs)
             context['actions'] = []
             return context
@@ -765,7 +768,7 @@ class LabelCRUDL(SmartCRUDL):
         def post_save(self, obj, *args, **kwargs):
             obj = super(LabelCRUDL.Create, self).post_save(obj, *args, **kwargs)
 
-            if self.form.cleaned_data['messages']:
+            if self.form.cleaned_data['messages']:  # pragma: needs cover
                 msg_ids = [int(m) for m in self.form.cleaned_data['messages'].split(',') if m.isdigit()]
                 messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
                 if messages:
