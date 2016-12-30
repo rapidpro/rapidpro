@@ -48,16 +48,16 @@ class BaseActionForm(forms.Form):
         if action in ('label', 'unlabel', 'archive', 'restore', 'block', 'unblock', 'unstop') and not update_allowed:
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
 
-        if action == 'delete' and not delete_allowed:
+        if action == 'delete' and not delete_allowed:  # pragma: needs cover
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
 
-        if action == 'resend' and not resend_allowed:
+        if action == 'resend' and not resend_allowed:  # pragma: needs cover
             raise forms.ValidationError(_("Sorry you have no permission for this action."))
 
-        if action == 'label' and 'label' not in self.cleaned_data:
+        if action == 'label' and 'label' not in self.cleaned_data:  # pragma: needs cover
             raise forms.ValidationError(_("Must specify a label"))
 
-        if action == 'unlabel' and 'label' not in self.cleaned_data:
+        if action == 'unlabel' and 'label' not in self.cleaned_data:  # pragma: needs cover
             raise forms.ValidationError(_("Must specify a label"))
 
         return data
