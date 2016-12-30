@@ -1171,7 +1171,7 @@ class Channel(TembaModel):
 
     @classmethod
     def send_fcm_message(cls, channel, msg, text):
-        from temba.msgs.models import Msg, WIRED
+        from temba.msgs.models import WIRED
         start = time.time()
 
         url = 'https://fcm.googleapis.com/fcm/send'
