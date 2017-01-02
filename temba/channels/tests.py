@@ -1925,9 +1925,10 @@ class ChannelTest(TembaTest):
         claim_fcm_url = reverse('channels.channel_claim_fcm')
 
         with patch('requests.get') as mock:
-            mock.return_value = MockResponse(200, json.dumps(dict(title='FCM Channel', key='abcde12345')))
+            mock.return_value = MockResponse(200, json.dumps(dict(title='FCM Channel', key='abcde12345',
+                                                                  send_notification='True')))
 
-            payload = dict(title='FCM Channel', key='abcde12345')
+            payload = dict(title='FCM Channel', key='abcde12345', send_notification='True')
 
             response = self.client.post(claim_fcm_url, payload, follow=True)
             channel = Channel.objects.get(channel_type=Channel.TYPE_FCM)
@@ -8389,16 +8390,26 @@ class FcmTest(TembaTest):
                                       config=dict(FCM_KEY='123456789', FCM_TITLE='FCM Channel',
                                                   FCM_NOTIFICATION=True),
                                       uuid='00000000-0000-0000-0000-000000001234')
+        self.receive_url = reverse('handlers.fcm_handler', args=['receive', self.channel.uuid])
+        self.register_url = reverse('handlers.fcm_handler', args=['register', self.channel.uuid])
 
     def test_receive(self):
-        data = {'from': '12345abcde', 'msg': 'Hello World!'}
-        callback_url = reverse('handlers.fcm_handler', args=['receive', self.channel.uuid])
-        response = self.client.post(callback_url, data)
+        # invalid UUID
+        response = self.client.post(reverse('handlers.fcm_handler', args=['receive',
+                                                                          '00000000-0000-0000-0000-000000000000']))
+        self.assertEqual(response.status_code, 404)
+
+        # try GET
+        response = self.client.get(self.receive_url)
+        self.assertEqual(response.status_code, 405)
+
+        data = {'from': '12345abcde', 'msg': 'Hello World!', 'date': '2017-01-01T08:50:00.000'}
+        response = self.client.post(self.receive_url, data)
         self.assertEquals(400, response.status_code)
 
-        data = {'from': '12345abcde', 'msg': 'Hello World!', 'fcm_token': '1234567890qwertyuiop'}
-        callback_url = reverse('handlers.fcm_handler', args=['receive', self.channel.uuid])
-        response = self.client.post(callback_url, data)
+        data = {'from': '12345abcde', 'msg': 'Hello World!', 'date': '2017-01-01T08:50:00.000',
+                'fcm_token': '1234567890qwertyuiop'}
+        response = self.client.post(self.receive_url, data)
         self.assertEquals(200, response.status_code)
 
         # load our message
@@ -8411,14 +8422,20 @@ class FcmTest(TembaTest):
 
     def test_register(self):
         data = {'urn': '12345abcde'}
-        callback_url = reverse('handlers.fcm_handler', args=['register', self.channel.uuid])
-        response = self.client.post(callback_url, data)
+        response = self.client.post(self.register_url, data)
         self.assertEquals(400, response.status_code)
 
         data = {'urn': '12345abcde', 'fcm_token': '1234567890qwertyuiop'}
-        callback_url = reverse('handlers.fcm_handler', args=['register', self.channel.uuid])
-        response = self.client.post(callback_url, data)
+        response = self.client.post(self.register_url, data)
         self.assertEquals(200, response.status_code)
+        contact = json.loads(response.content)
+
+        data = {'urn': '12345abcde', 'fcm_token': 'qwertyuiop1234567890'}
+        response = self.client.post(self.register_url, data)
+        self.assertEquals(200, response.status_code)
+        updated_contact = json.loads(response.content)
+
+        self.assertEquals(contact.get('contact_uuid'), updated_contact.get('contact_uuid'))
 
     def test_send(self):
         joe = self.create_contact("Joe", urn="fcm:12345abcde", extra_path="123456abcdef")

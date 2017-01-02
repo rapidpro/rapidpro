@@ -2338,7 +2338,7 @@ class FCMHandler(BaseChannelHandler):
     url_name = 'handlers.fcm_handler'
 
     def get(self, request, *args, **kwargs):
-        return self.post(request, *args, **kwargs)
+        return HttpResponse("Must be called as a POST", status=405)
 
     def post(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
