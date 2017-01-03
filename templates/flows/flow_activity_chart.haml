@@ -1,0 +1,356 @@
+-load humanize i18n compress temba
+
+// <script src="{{ STATIC_URL }}bower/jquery/jquery.js"></script>
+// <script src="https://code.highcharts.com/highcharts.js"></script>
+// <script src="https://code.highcharts.com/modules/drilldown.js"></script>
+
+-compress css inline
+  {% lessblock %}
+    :plain
+      #histogram {
+        height: 250px;
+        border-bottom: 3px solid #80b9fb;
+      }
+
+      #dow_container {
+        width: 30%;
+        display: inline-block;
+        #dow {
+          height: 200px;
+        }
+      }
+
+      #hod_container {
+        width: 40%;
+        display: inline-block;
+
+        #hod {
+          height:200px;
+        }
+      }
+
+      #completion_container {
+        display: inline-block;
+        width: 29%;
+
+        #completion {
+          height: 200px;
+        }
+      }
+
+      .datalabel {
+        size: 75%;
+        color: red;
+      }
+  {% endlessblock %}
+
+-if hod and dow
+  #dow_container
+    %h4
+      Day of Week
+    #dow
+
+  #hod_container
+    %h4
+      Time of Day
+    #hod
+
+  #completion_container
+    %h4
+      Completion
+    #completion
+
+-if histogram
+  #histogram
+
+%h3.pull-left
+  {{total_responses|intcomma}} {% blocktrans count total_responses as total%}Response{% plural %}Responses{% endblocktrans %}
+
+:javascript
+  $(document).ready(function(){
+    Highcharts.setOptions({
+      global: {
+        {% if utcoffset %}
+          timezoneOffset: {{utcoffset}},
+        {% endif %}
+      },
+      lang: {
+        thousandsSep: ','
+      }
+    });
+  });
+
+-if hod and dow
+  :javascript
+    var pie_points = [
+      {% if active %}{ name: 'Active', y: {{active}} },{%endif%}
+      { name: 'Completed', y: {{completed}}, drilldown: null },
+      { name: 'Exited', y: {{interrupted|add:expired}}, drilldown: 'incomplete' },
+    ];
+
+    var pie_drill = {
+      series: [{
+        name: 'Exited',
+        id: 'incomplete',
+        innerSize: '50%',
+        data:[
+          ['Expired', {{expired}}],
+          ['Interruped', {{interrupted}}],
+        ]
+      }]
+    };
+
+
+    new Highcharts.chart({
+      credits: { enabled: false },
+      colors: ['#80b9fb', '#2980b9'],
+      chart: {
+          renderTo: 'completion',
+          type: 'pie',
+          backgroundColor: 'transparent',
+          margin: [0, 0, -40, 0],
+          spacingTop: 0,
+          spacingBottom: 0,
+          spacingLeft: 0,
+          spacingRight: 0
+      },
+      title: {
+          text: '{{total_runs|intcomma}}<br/>runs',
+          align: 'center',
+          verticalAlign: 'middle',
+          y: 40
+      },
+      legend: {
+        enabled: false
+      },
+      tooltip: {
+        formatter: function() {
+          return '<b>' + this.point.name + ':</b> ' + Highcharts.numberFormat(this.point.y, 0) + '</b> <span style="font-size:90%"> (' + Highcharts.numberFormat(this.percentage, 2) + '%)</span>';
+        }
+      },
+      series:[{
+        name: 'Completion',
+        innerSize: '50%',
+        data: pie_points
+      }],
+      drilldown: pie_drill,
+      plotOptions: {
+        pie: {
+          size:'130%',
+          dataLabels: {
+              enabled: false,
+              distance: -50,
+          },
+          startAngle: -90,
+          endAngle: 90,
+          center: ['50%', '75%']
+        }
+      }
+    });
+
+  :javascript
+    var hod_points = [
+      {% for point in hod %}
+        [new Date({{point.bucket|date:"U"}}), {{point.count}}]{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ];
+
+    new Highcharts.chart({
+      credits: { enabled: false },
+      colors: ['#2980b9'],
+      chart: {
+          renderTo: 'hod',
+          type: 'column',
+          backgroundColor: 'transparent'
+      },
+      title: {
+          text: null
+      },
+      xAxis: {
+        title: { text: null },
+        type: 'datetime',
+        labels: {
+          rotation: 0,
+          style: {
+            fontSize:"75%"
+          }
+        },
+        lineWidth: 0,
+        minorGridLineWidth: 0,
+        lineColor: 'transparent',
+        minorTickLength: 0,
+        tickLength: 0,
+        categories: ['12a', '', '', '', '', '', '6a', '', '', '', '', '', '12p', '', '', '', '', '', '6p', '', '', '', '', '']
+      },
+      yAxis: {
+        title: { text: null },
+        labels: { enabled: false },
+        lineWidth: 0,
+        minorGridLineWidth: 0,
+        lineColor: 'transparent',
+        gridLineWidth: 0,
+      },
+      legend: {
+        enabled: false
+      },
+      plotOptions: {
+        series: {
+          groupPadding: .05,
+          pointPadding: 0,
+          borderWidth: 0
+        },
+      },
+      tooltip: {
+        formatter: function() {
+          return '<b>Messages</b>: ' + Highcharts.numberFormat(this.point.y, 0);
+        }
+      },
+      series:[{
+        data: hod_points
+      }]
+    });
+
+  :javascript
+    var dow_points = [
+      {% for point in dow %}
+        {name:"{{point.day}}", y:{{point.pct}}, msgs: {{point.count}}}{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ];
+
+    $(document).ready(function(){
+      Highcharts.setOptions({
+        global: {
+          {% if utcoffset %}
+            timezoneOffset: {{utcoffset}},
+          {% endif %}
+        },
+        lang: {
+          thousandsSep: ','
+        }
+      });
+
+      new Highcharts.Chart({
+        credits: { enabled: false },
+        colors: ['#2980b9'],
+        chart: {
+            renderTo: 'dow',
+            type: 'column',
+            backgroundColor: 'transparent'
+        },
+        title: {
+            text: null
+        },
+        xAxis: {
+          title: { text: null },
+          labels: { enabled: true },
+          lineWidth: 0,
+          minorGridLineWidth: 0,
+          lineColor: 'transparent',
+          minorTickLength: 0,
+          tickLength: 0,
+
+          categories: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+        },
+        yAxis: {
+          title: { text: null },
+          labels: { enabled: false },
+          lineWidth: 0,
+          minorGridLineWidth: 0,
+          lineColor: 'transparent',
+          gridLineWidth: 0,
+        },
+        legend: {
+          enabled: false
+        },
+        plotOptions: {
+          series: {
+            groupPadding: .05,
+            pointPadding: 0,
+            borderWidth: 0
+          },
+          column: {
+            dataLabels: {
+              enabled: true,
+              formatter:function() {
+                return '<span style="font-size:75%">' + Highcharts.numberFormat(this.point.y,0) + '%</span>';
+              }
+            }
+          }
+        },
+        tooltip: {
+          formatter: function() {
+            return '<b>Messages</b>: ' + Highcharts.numberFormat(this.point.msgs, 0);
+          }
+        },
+        series:[{
+          data: dow_points
+        }]
+      });
+    });
+
+-if histogram
+  :javascript
+    var counts = [
+    {% for point in histogram %}
+      [ {{point.bucket|date:"U"}}, {{point.count}}]{% if not forloop.last %},{% endif %}{% endfor %}
+    ];
+
+    $(document).ready(function() {
+
+        chart = new Highcharts.chart({
+            credits: {
+                enabled: false
+            },
+            colors: ['#80b9fb',
+                     '#2980b9',
+                     '#CD76F0',
+                     '#8e44ad',
+                     '#633077'],
+            chart: {
+                renderTo: 'histogram',
+                type: 'column',
+                margin: 0,
+                backgroundColor: 'transparent',
+            },
+            title: {
+                text: null
+            },
+            xAxis: {
+              title: { text: null },
+              labels: { enabled: false },
+              lineWidth: 0,
+              minorGridLineWidth: 0,
+              lineColor: 'transparent',
+              minorTickLength: 0,
+              tickLength: 0
+            },
+            yAxis: {
+              title: { text: null },
+              labels: { enabled: false },
+              lineWidth: 0,
+              minorGridLineWidth: 0,
+              lineColor: 'transparent',
+              gridLineWidth: 0,
+            },
+            legend: {
+              enabled: false
+            },
+            plotOptions: {
+              series: {
+                groupPadding: 0,
+                pointPadding: 0,
+                borderWidth: 0
+              }
+            },
+            tooltip: {
+              formatter: function() {
+                return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>' + Highcharts.dateFormat('%b %e, %Y %l:%M %P', this.x * 1000);
+              }
+            },
+            series:[{
+              name: 'Messages',
+              data: counts
+            }]
+        });
+      });
+

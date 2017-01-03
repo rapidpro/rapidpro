@@ -18,6 +18,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect
@@ -27,7 +28,7 @@ from django_countries.data import COUNTRIES
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartCRUDL, SmartReadView
 from smartmin.views import SmartUpdateView, SmartDeleteView, SmartTemplateView, SmartListView, SmartFormView
-from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME
+from temba.contacts.models import ContactURN, URN, TEL_SCHEME, TWITTER_SCHEME, TELEGRAM_SCHEME, FACEBOOK_SCHEME, VIBER_SCHEME
 from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRED, OUTGOING
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
@@ -211,6 +212,10 @@ def channel_status_processor(request):
         # and facebook
         if not send_channel:
             send_channel = org.get_send_channel(scheme=FACEBOOK_SCHEME)
+
+        # and viber
+        if not send_channel:
+            send_channel = org.get_send_channel(scheme=VIBER_SCHEME)
 
         status['send_channel'] = send_channel
         status['call_channel'] = call_channel
@@ -552,7 +557,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -621,7 +626,7 @@ class ChannelCRUDL(SmartCRUDL):
             if 'HTTP_X_FORMAX' in self.request.META:  # no additional data needed if request is only for formax
                 return context
 
-            if not channel.is_active:
+            if not channel.is_active:  # pragma: needs cover
                 raise Http404("No active channel with that id")
 
             context['msg_count'] = channel.get_msg_count()
@@ -862,7 +867,7 @@ class ChannelCRUDL(SmartCRUDL):
         def pre_save(self, obj):
             if obj.config:
                 config = json.loads(obj.config)
-                for field in self.form.Meta.config_fields:
+                for field in self.form.Meta.config_fields:  # pragma: needs cover
                     config[field] = bool(self.form.cleaned_data[field])
                 obj.config = json.dumps(config)
             return obj
@@ -876,7 +881,7 @@ class ChannelCRUDL(SmartCRUDL):
                     e164_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip('+')
                 except Exception:
                     pass
-                for channel in obj.get_delegate_channels():
+                for channel in obj.get_delegate_channels():  # pragma: needs cover
                     channel.address = obj.address
                     channel.bod = e164_phone_number
                     channel.save(update_fields=('address', 'bod'))
@@ -939,7 +944,7 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.request.GET.get('channel', None)
             if channel:
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
-            if not channel:
+            if not channel:  # pragma: needs cover
                 raise forms.ValidationError("Can't add sender for that number")
 
             user = self.request.user
@@ -1073,6 +1078,39 @@ class ChannelCRUDL(SmartCRUDL):
 
             return super(ChannelCRUDL.ClaimViber, self).form_valid(form)
 
+    class ClaimViberPublic(OrgPermsMixin, SmartFormView):
+        class ViberClaimForm(forms.ModelForm):
+            auth_token = forms.CharField(help_text=_("The authentication token provided by Viber"))
+
+            def clean_auth_token(self):
+                auth_token = self.data['auth_token']
+                response = requests.post('https://chatapi.viber.com/pa/get_account_info', json=dict(auth_token=auth_token))
+                if response.status_code != 200 or response.json()['status'] != 0:
+                    raise ValidationError("Error validating authentication token: %s" % response.json()['status_message'])
+                return auth_token
+
+            class Meta:
+                model = Channel
+                fields = ('auth_token',)
+
+        title = _("Connect Public Viber Channel")
+        form_class = ViberClaimForm
+        success_url = "id@channels.channel_configuration"
+
+        def form_valid(self, form):
+            data = form.cleaned_data
+            try:
+                self.object = Channel.add_viber_public_channel(self.request.user.get_org(), self.request.user, data['auth_token'])
+            except Exception as e:
+                form._errors['auth_token'] = form.error_class([unicode(e.message)])
+                return self.form_invalid(form)
+
+            return super(ChannelCRUDL.ClaimViberPublic, self).form_valid(form)
+
+        @transaction.non_atomic_requests
+        def dispatch(self, request, *args, **kwargs):
+            return super(ChannelCRUDL.ClaimViberPublic, self).dispatch(request, *args, **kwargs)
+
     class ClaimKannel(OrgPermsMixin, SmartFormView):
         class KannelClaimForm(forms.Form):
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
@@ -1171,7 +1209,7 @@ class ChannelCRUDL(SmartCRUDL):
             return dict(body=Channel.CONFIG_DEFAULT_SEND_BODY)
 
         def get_form_class(self):
-            if self.request.GET.get('role', None) == 'S':
+            if self.request.GET.get('role', None) == 'S':  # pragma: needs cover
                 return ChannelCRUDL.ClaimExternal.EXSendClaimForm
             else:
                 return ChannelCRUDL.ClaimExternal.EXClaimForm
@@ -1184,7 +1222,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             data = form.cleaned_data
 
-            if self.request.GET.get('role', None) == 'S':
+            if self.request.GET.get('role', None) == 'S':  # pragma: needs cover
                 # get our existing channel
                 receive = org.get_receive_channel(TEL_SCHEME)
                 role = Channel.ROLE_SEND
@@ -1197,16 +1235,16 @@ class ChannelCRUDL(SmartCRUDL):
                 if scheme == TEL_SCHEME:
                     address = data['number']
                     country = data['country']
-                elif scheme == TWITTER_SCHEME:
+                elif scheme == TWITTER_SCHEME:  # pragma: needs cover
                     address = data['handle']
                     country = None
-                else:
+                else:  # pragma: needs cover
                     address = data['address']
                     country = None
 
             # see if there is a parent channel we are adding a delegate for
             channel = self.request.GET.get('channel', None)
-            if channel:
+            if channel:  # pragma: needs cover
                 # make sure they own it
                 channel = self.request.user.get_org().channels.filter(pk=channel).first()
 
@@ -1241,7 +1279,7 @@ class ChannelCRUDL(SmartCRUDL):
                 try:
                     cleaned = phonenumbers.parse(number, None)
                     return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
-                except Exception:
+                except Exception:  # pragma: needs cover
                     raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))
 
         title = "Connect External Service"
@@ -1422,7 +1460,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = VerboiceClaimForm
         fields = ('country', 'number', 'username', 'password', 'channel')
 
-        def form_valid(self, form):
+        def form_valid(self, form):  # pragma: needs cover
             org = self.request.user.get_org()
 
             if not org:  # pragma: no cover
@@ -1456,7 +1494,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = GlobeClaimForm
         fields = ('number', 'app_id', 'app_secret', 'passphrase')
 
-        def get_submitted_country(self, data):
+        def get_submitted_country(self, data):  # pragma: needs cover
             return 'PH'
 
         def form_valid(self, form):
@@ -1480,10 +1518,10 @@ class ChannelCRUDL(SmartCRUDL):
         channel_type = Channel.TYPE_HUB9
         readonly = ('country',)
 
-        def get_country(self, obj):
+        def get_country(self, obj):  # pragma: needs cover
             return "Indonesia"
 
-        def get_submitted_country(self, data):
+        def get_submitted_country(self, data):  # pragma: needs cover
             return "ID"
 
     class ClaimHighConnection(ClaimAuthenticatedExternal):
@@ -1514,7 +1552,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_country(self, obj):
             return "Somalia"
 
-        def get_submitted_country(self, data):
+        def get_submitted_country(self, data):  # pragma: needs cover
             return 'SO'
 
         def form_valid(self, form):
@@ -1595,9 +1633,9 @@ class ChannelCRUDL(SmartCRUDL):
                     try:
                         cleaned = phonenumbers.parse(number, self.data['country'])
                         return phonenumbers.format_number(cleaned, phonenumbers.PhoneNumberFormat.E164)
-                    except Exception:
+                    except Exception:  # pragma: needs cover
                         raise forms.ValidationError(_("Invalid phone number, please include the country code. ex: +250788123123"))
-                else:
+                else:  # pragma: needs cover
                     return number
 
         title = _("Connect Clickatell")
@@ -1738,10 +1776,10 @@ class ChannelCRUDL(SmartCRUDL):
             # if they didn't set a username or password, generate them, we do this after the addition above
             # because we use the channel id in the configuration
             config = self.object.config_json()
-            if not config.get(ACCOUNT_SID, None):
+            if not config.get(ACCOUNT_SID, None):  # pragma: needs cover
                 config[ACCOUNT_SID] = '%s_%d' % (self.request.branding['name'].lower(), self.object.pk)
 
-            if not config.get(ACCOUNT_TOKEN, None):
+            if not config.get(ACCOUNT_TOKEN, None):  # pragma: needs cover
                 config[ACCOUNT_TOKEN] = str(uuid4())
 
             self.object.config = json.dumps(config)
@@ -1802,7 +1840,7 @@ class ChannelCRUDL(SmartCRUDL):
                                                                str(self.object.country))
 
             # always prefer the country of the phone number they are entering if we have one
-            if phone_country and phone_country != country:
+            if phone_country and phone_country != country:  # pragma: needs cover
                 self.object.country = phone_country
 
             analytics.track(self.request.user.username, 'temba.channel_create')
@@ -1823,7 +1861,7 @@ class ChannelCRUDL(SmartCRUDL):
                 org = user.get_org()
 
             org_id = self.request.session.get('org_id', None)
-            if org_id:
+            if org_id:  # pragma: needs cover
                 org = Org.objects.get(pk=org_id)
 
             return org
@@ -2017,10 +2055,10 @@ class ChannelCRUDL(SmartCRUDL):
 
         form_class = SearchNumbersForm
 
-        def form_invalid(self, *args, **kwargs):
+        def form_invalid(self, *args, **kwargs):  # pragma: needs cover
             return HttpResponse(json.dumps([]))
 
-        def search_available_numbers(self, client, **kwargs):
+        def search_available_numbers(self, client, **kwargs):  # pragma: needs cover
             available_numbers = []
 
             kwargs['type'] = 'local'
@@ -2037,7 +2075,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return available_numbers
 
-        def form_valid(self, form, *args, **kwargs):
+        def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
             org = self.request.user.get_org()
             client = org.get_twilio_client()
             data = form.cleaned_data
@@ -2075,7 +2113,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         form_class = ClaimNumberForm
 
-        def pre_process(self, *args, **kwargs):
+        def pre_process(self, *args, **kwargs):  # pragma: needs cover
             org = self.request.user.get_org()
             try:
                 client = org.get_twilio_client()
@@ -2161,7 +2199,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             # must have an org
             org = self.request.user.get_org()
-            if not org:
+            if not org:  # pragma: needs cover
                 form._errors['upgrade'] = True
                 form._errors['phone_number'] = form.error_class([_("Sorry, you need to have an organization to add numbers. "
                                                                    "You can still test things out for free using an Android phone.")])
@@ -2172,7 +2210,7 @@ class ChannelCRUDL(SmartCRUDL):
             # no number parse for short codes
             if len(data['phone_number']) > 6:
                 phone = phonenumbers.parse(data['phone_number'])
-                if not self.is_valid_country(phone.country_code):
+                if not self.is_valid_country(phone.country_code):  # pragma: needs cover
                     form._errors['phone_number'] = form.error_class([_("Sorry, the number you chose is not supported. "
                                                                        "You can still deploy in any country using your "
                                                                        "own SIM card and an Android phone.")])
@@ -2180,12 +2218,12 @@ class ChannelCRUDL(SmartCRUDL):
 
             # don't add the same number twice to the same account
             existing = org.channels.filter(is_active=True, address=data['phone_number']).first()
-            if existing:
+            if existing:  # pragma: needs cover
                 form._errors['phone_number'] = form.error_class([_("That number is already connected (%s)" % data['phone_number'])])
                 return self.form_invalid(form)
 
             existing = Channel.objects.filter(is_active=True, address=data['phone_number']).first()
-            if existing:
+            if existing:  # pragma: needs cover
                 form._errors['phone_number'] = form.error_class([_("That number is already connected to another account - %s (%s)" % (existing.org, existing.created_by.username))])
                 return self.form_invalid(form)
 
@@ -2198,7 +2236,7 @@ class ChannelCRUDL(SmartCRUDL):
                 self.remove_api_credentials_from_session()
 
                 return HttpResponseRedirect('%s?success' % reverse('public.public_welcome'))
-            except Exception as e:
+            except Exception as e:  # pragma: needs cover
                 import traceback
                 traceback.print_exc(e)
                 if e.message:
@@ -2278,7 +2316,7 @@ class ChannelCRUDL(SmartCRUDL):
             phone_number = forms.CharField(help_text=_("The phone number being added"))
 
             def clean_phone_number(self):
-                if not self.cleaned_data.get('country', None):
+                if not self.cleaned_data.get('country', None):  # pragma: needs cover
                     raise ValidationError(_("That number is not currently supported."))
 
                 phone = self.cleaned_data['phone_number']
@@ -2294,12 +2332,12 @@ class ChannelCRUDL(SmartCRUDL):
             org = Org.objects.get(pk=self.request.user.get_org().pk)
             try:
                 client = org.get_nexmo_client()
-            except Exception:
+            except Exception:  # pragma: needs cover
                 client = None
 
             if client:
                 return None
-            else:
+            else:  # pragma: needs cover
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
 
         def is_valid_country(self, country_code):
@@ -2327,7 +2365,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             numbers = []
             for number in account_numbers:
-                if number['type'] == 'mobile-shortcode':
+                if number['type'] == 'mobile-shortcode':  # pragma: needs cover
                     phone_number = number['msisdn']
                 else:
                     parsed = phonenumbers.parse(number['msisdn'], number['country'])
@@ -2355,7 +2393,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         form_class = SearchNexmoForm
 
-        def form_valid(self, form, *args, **kwargs):
+        def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
             org = self.request.user.get_org()
             client = org.get_nexmo_client()
             data = form.cleaned_data
@@ -2379,7 +2417,7 @@ class ChannelCRUDL(SmartCRUDL):
             phone_number = forms.CharField(help_text=_("The phone number being added"))
 
             def clean_phone_number(self):
-                if not self.cleaned_data.get('country', None):
+                if not self.cleaned_data.get('country', None):  # pragma: needs cover
                     raise ValidationError(_("That number is not currently supported."))
 
                 phone = self.cleaned_data['phone_number']
@@ -2407,7 +2445,7 @@ class ChannelCRUDL(SmartCRUDL):
                 validation_response = client.get_account()
                 if validation_response[0] != 200:
                     client = None
-            except plivo.PlivoError:
+            except plivo.PlivoError:  # pragma: needs cover
                 client = None
 
             return client
@@ -2486,7 +2524,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         form_class = SearchPlivoForm
 
-        def pre_process(self, *args, **kwargs):
+        def pre_process(self, *args, **kwargs):  # pragma: needs cover
             client = self.get_valid_client()
 
             if client:
@@ -2494,7 +2532,7 @@ class ChannelCRUDL(SmartCRUDL):
             else:
                 return HttpResponseRedirect(reverse('channels.channel_claim'))
 
-        def get_valid_client(self):
+        def get_valid_client(self):  # pragma: needs cover
             auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
             auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
 
@@ -2509,7 +2547,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return client
 
-        def form_valid(self, form, *args, **kwargs):
+        def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
             data = form.cleaned_data
             client = self.get_valid_client()
 

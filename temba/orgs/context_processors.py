@@ -26,7 +26,7 @@ class GroupPermWrapper(object):
     def __getitem__(self, module_name):
         return self.apps.get(module_name, self.empty)
 
-    def __iter__(self):
+    def __iter__(self):  # pragma: needs cover
         # I am large, I contain multitudes.
         raise TypeError("GroupPermWrapper is not iterable.")
 
@@ -34,10 +34,10 @@ class GroupPermWrapper(object):
         """
         Lookup by "someapp" or "someapp.someperm" in perms.
         """
-        if '.' not in perm_name:
+        if '.' not in perm_name:  # pragma: needs cover
             return perm_name in self.apps
 
-        else:
+        else:  # pragma: needs cover
             module_name, perm_name = perm_name.split('.', 1)
             if module_name in self.apps:
                 return perm_name in self.apps[module_name]
