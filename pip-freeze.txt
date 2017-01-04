@@ -120,3 +120,4 @@ pyexcel-xlsx==0.2.2
 texttable==0.8.4
 xlrd==1.0.0
 xlwt==1.1.2
+elasticsearch==5.0.1

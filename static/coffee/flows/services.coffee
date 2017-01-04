@@ -504,6 +504,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         { type: 'contains', name: 'Contains all', verbose_name:'has all of the words', operands: 1, localized:true, show:true }
         { type: 'not_empty', name: 'Not empty', verbose_name:'is not empty', operands: 0, localized:true, show:true }
         { type: 'starts', name: 'Starts with', verbose_name:'starts with', operands: 1, voice:true, localized:true, show:true }
+        { type: 'elasticsearch', name: 'Elasticsearch', verbose_name:'elasticsearch', operands: 1, voice:true, localized:true, show:true }
         { type: 'number', name: 'Has a number', verbose_name:'has a number', operands: 0, voice:true, show:true }
         { type: 'lt', name: 'Less than', verbose_name:'has a number less than', operands: 1, voice:true, show:true }
         { type: 'eq', name: 'Equal to', verbose_name:'has a number equal to', operands: 1, voice:true, show:true }
@@ -535,6 +536,7 @@ app.factory 'Flow', ['$rootScope', '$window', '$http', '$timeout', '$interval', 
         'between': ''
         'number': ''
         'starts': ''
+        'elasticsearch':''
         'contains': ''
         'contains_any': ''
         'date': ''

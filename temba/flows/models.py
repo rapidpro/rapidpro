@@ -5739,6 +5739,7 @@ class Test(object):
                 EqTest.TYPE: EqTest,
                 BetweenTest.TYPE: BetweenTest,
                 StartsWithTest.TYPE: StartsWithTest,
+                ElasticsearchTest.TYPE: ElasticsearchTest,
                 HasDateTest.TYPE: HasDateTest,
                 DateEqualTest.TYPE: DateEqualTest,
                 DateAfterTest.TYPE: DateAfterTest,
@@ -6154,6 +6155,80 @@ class ContainsAnyTest(ContainsTest):
             return 1, matched_words
         else:
             return 0, None
+
+
+class ElasticsearchTest(Test):
+    """
+    { op: "elasticsearch", "test": "red" }
+    """
+    TEST = 'test'
+    TYPE = 'elasticsearch'
+
+    FLOW_INDEX = 'flows'
+    FLOW_DOC_TYPE = 'flow'
+
+    INDEX_SETTINGS = { "settings": {
+                        "analysis":{
+                            "filter": {
+                                "spanish_stop": { "type": "stop", "stopwords":  "_spanish_" },
+                                "spanish_stemmer": { "type": "stemmer", "language": "light_spanish"}},
+                            "analyzer": {
+                                "spanish": {
+                                    "tokenizer": "standard",
+                                        "filter":[ "lowercase", "spanish_stop", "spanish_stemmer"]
+                                        }
+                                    }
+                                }
+                            }}
+
+    def __init__(self, test):
+        self.test = test
+
+        from elasticsearch import Elasticsearch
+        import os
+        self.es = Elasticsearch([{u'host': str(os.environ['ES_PORT_9200_TCP_ADDR']), u'port': b'9200'}])
+        exist = self.es.indices.exists(ElasticsearchTest.FLOW_INDEX)
+
+        if not (exist):
+            self.es.indices.create(index = ElasticsearchTest.FLOW_INDEX, body = ElasticsearchTest.INDEX_SETTINGS)
+
+        result = self.es.search(index= ElasticsearchTest.FLOW_INDEX, body = {'query' : {'fuzzy': {'base': {'value': test['base'].lower(), 'fuzziness':1}}}})
+        hit = result['hits']['hits']
+        if not hit:
+            test_transform = test.copy()
+            test_transform['base'] = test_transform['base'].lower()
+            self.es.index(index = ElasticsearchTest.FLOW_INDEX, doc_type = ElasticsearchTest.FLOW_DOC_TYPE, body =test_transform)
+
+
+    @classmethod
+    def from_json(cls, org, json):
+        return cls(json[cls.TEST])
+
+    def as_json(self):  # pragma: needs cover
+        return dict(type=ElasticsearchTest.TYPE, test=self.test)
+
+    def evaluate(self, run, sms, context, text):
+        # substitute any variables in our test
+        test = run.flow.get_localized_text(self.test, run.contact)
+        test, errors = Msg.substitute_variables(test, run.contact, context, org=run.flow.org)
+
+        # strip leading and trailing whitespace
+        text = text.strip()
+
+        # see whether we start with our test
+        if text.lower().find(test.lower()) == 0:
+            return 1, text[:len(test)]
+        else:
+            #Search in elasticsearch
+            result = self.es.search(index= ElasticsearchTest.FLOW_INDEX, body = {'query' : {'fuzzy': {'base': {'value': text.lower(), 'fuzziness':8}}}})
+            hits = result['hits']['hits']
+            if hits:
+                final_item = hits[0]['_source']['base']
+                print  "resultado %s %s" %(result, final_item)
+                return 1, final_item
+            else:
+                print  "resultado %s" %(result)
+                return 0, None
 
 
 class StartsWithTest(Test):
