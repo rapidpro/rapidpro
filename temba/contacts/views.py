@@ -135,7 +135,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
-        groups = [dict(pk=g.pk, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
+        groups = [dict(pk=g.pk, uuid=g.uuid, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
         contacts = list(context['object_list'])
@@ -947,10 +947,10 @@ class ContactCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r'^%s/%s/(?P<group>\d+)/$' % (path, action)
+            return r'^%s/%s/(?P<group>[^/]+)/$' % (path, action)
 
         def derive_group(self):
-            return ContactGroup.user_groups.get(pk=self.kwargs['group'])
+            return ContactGroup.user_groups.get(uuid=self.kwargs['group'])
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
@@ -1143,7 +1143,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
         fields = ('name', 'preselected_contacts', 'group_query')
-        success_url = "id@contacts.contact_filter"
+        success_url = "uuid@contacts.contact_filter"
         success_message = ''
         submit_button_name = _("Create")
 
@@ -1173,7 +1173,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactGroupForm
         fields = ('name',)
-        success_url = 'id@contacts.contact_filter'
+        success_url = 'uuid@contacts.contact_filter'
         success_message = ''
 
         def derive_fields(self):
@@ -1191,7 +1191,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             return obj
 
     class Delete(OrgObjPermsMixin, SmartDeleteView):
-        cancel_url = 'id@contacts.contact_filter'
+        cancel_url = 'uuid@contacts.contact_filter'
         redirect_url = '@contacts.contact_list'
         success_message = ''
 
