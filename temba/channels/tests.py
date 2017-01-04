@@ -7770,25 +7770,24 @@ class GlobeTest(TembaTest):
         response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
-        # POST, invalid destination Address
-        bad_data = copy.deepcopy(data)
-        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = '9999'
-        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-
-        # POST, mismatched destination address
-        bad_data = copy.deepcopy(data)
-        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = 'tel:9999'
-        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-
         # POST, invalid sender address
         bad_data = copy.deepcopy(data)
         bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['senderAddress'] = '9999'
         response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
-        # ok, valid post
+        # POST, different destination address accepted (globe does mapping on their side)
+        bad_data = copy.deepcopy(data)
+        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = 'tel:9999'
+        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+        Msg.objects.all().delete()
+
+        # another valid post on the right address
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
 

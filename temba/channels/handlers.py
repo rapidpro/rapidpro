@@ -1992,9 +1992,6 @@ class GlobeHandler(BaseChannelHandler):
                 except ValueError as v:
                     return HttpResponse("Error parsing destination address: " + str(v), status=400)
 
-                if destination != channel.address:
-                    return HttpResponse("Invalid request, channel address: %s mismatch with destinationAddress: %s" % (channel.address, destination), status=400)
-
                 # dates come in the format "2014-04-18 03:54:20.570618" GMT
                 sms_date = datetime.strptime(inbound_msg['dateTime'], "%a %b %d %Y %H:%M:%S GMT+0000 (UTC)")
                 gmt_date = pytz.timezone('GMT').localize(sms_date)
