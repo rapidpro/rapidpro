@@ -6830,7 +6830,7 @@ class StartMobileTest(TembaTest):
                 # check the call that was made
                 self.assertEqual('http://bulk.startmobile.com.ua/clients.php', mock.call_args[0][0])
                 message_el = ET.fromstring(mock.call_args[1]['data'])
-                self.assertEqual(message_el.find('service').attrib, dict(source=1212, id='single', validity='+12 hours'))
+                self.assertEqual(message_el.find('service').attrib, dict(source='1212', id='single', validity='+12 hours'))
                 self.assertEqual(message_el.find('body').text, msg.text)
 
                 self.clear_cache()
