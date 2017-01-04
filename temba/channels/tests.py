@@ -41,6 +41,7 @@ from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
+from xml.etree import ElementTree as ET
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
@@ -6826,7 +6827,12 @@ class StartMobileTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEqual(msg.external_id, "380502535130309161501")
 
+                # check the call that was made
                 self.assertEqual('http://bulk.startmobile.com.ua/clients.php', mock.call_args[0][0])
+                message_el = ET.fromstring(mock.call_args[1]['data'])
+                self.assertEqual(message_el.find('service').attrib, dict(source=1212, id='single', validity='+12 hours'))
+                self.assertEqual(message_el.find('body').text, msg.text)
+
                 self.clear_cache()
 
             # return 400
