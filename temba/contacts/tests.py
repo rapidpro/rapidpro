@@ -205,7 +205,7 @@ class ContactGroupTest(TembaTest):
 
         # dynamic group should not have remove to group button
         self.login(self.admin)
-        filter_url = reverse('contacts.contact_filter', args=[group.pk])
+        filter_url = reverse('contacts.contact_filter', args=[group.uuid])
         response = self.client.get(filter_url)
         self.assertFalse('unlabel' in response.context['actions'])
 
@@ -362,7 +362,7 @@ class ContactGroupTest(TembaTest):
         self.assertEquals(302, response.status_code)
         response = self.client.post(delete_url, dict(), follow=True)
         self.assertTrue(ContactGroup.user_groups.get(pk=group.pk).is_active)
-        self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.pk]))
+        self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.uuid]))
 
         # archive a trigger
         second_trigger.is_archived = True
@@ -372,7 +372,7 @@ class ContactGroupTest(TembaTest):
         self.assertEquals(302, response.status_code)
         response = self.client.post(delete_url, dict(), follow=True)
         self.assertTrue(ContactGroup.user_groups.get(pk=group.pk).is_active)
-        self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.pk]))
+        self.assertEquals(response.request['PATH_INFO'], reverse('contacts.contact_filter', args=[group.uuid]))
 
         trigger.is_archived = True
         trigger.save()
@@ -1704,7 +1704,7 @@ class ContactTest(TembaTest):
         group = self.create_group("Test", [self.joe])
 
         # view our test group
-        filter_url = reverse('contacts.contact_filter', args=[group.pk])
+        filter_url = reverse('contacts.contact_filter', args=[group.uuid])
         response = self.client.get(filter_url)
         self.assertEquals(1, len(response.context['object_list']))
         self.assertEquals(self.joe, response.context['object_list'][0])
@@ -1756,7 +1756,7 @@ class ContactTest(TembaTest):
         self.assertEquals(len(self.joe_and_frank.contacts.all()), 2)
 
         # test filtering by group
-        joe_and_frank_filter_url = reverse('contacts.contact_filter', args=[self.joe_and_frank.pk])
+        joe_and_frank_filter_url = reverse('contacts.contact_filter', args=[self.joe_and_frank.uuid])
 
         # now test when the action with some data missing
         self.assertEquals(self.joe.user_groups.filter(is_active=True).count(), 2)
@@ -3243,7 +3243,7 @@ class ContactTest(TembaTest):
         self.assertTrue(other_contact in response.context['object_list'])
         self.assertFalse("Simulator Contact" in response.content)
 
-        response = self.client.get(reverse('contacts.contact_filter', args=[group.pk]))
+        response = self.client.get(reverse('contacts.contact_filter', args=[group.uuid]))
         self.assertEquals(response.status_code, 200)
         self.assertFalse(simulator_contact in response.context['object_list'])
         self.assertTrue(other_contact in response.context['object_list'])
