@@ -41,7 +41,7 @@
                 -trans "Groups"
               - for group in groups
                 %li{'class':'{% if current_group.id == group.pk %}active{% endif %}'}
-                  %a{'href':'{% url "contacts.contact_filter" group.pk %}'}
+                  %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
                     ={group.label} ({{ group.count | intcomma }})
 
           %div{style:"margin-top: 10px"}
@@ -182,7 +182,7 @@
                           %nobr
                             - for group in object.user_groups.all
                               %span.label.label-info.lbl{ data-id: '{{group.id}}'}
-                                %a{'href':'{% url "contacts.contact_filter" group.pk %}'}
+                                %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
                                   ={group.name}
 
                   -empty
