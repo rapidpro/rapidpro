@@ -266,7 +266,10 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose'
-        }
+        },
+        'null': {
+            'class': 'logging.NullHandler',
+        },
     },
     'loggers': {
         'pycountry': {
