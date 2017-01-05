@@ -5,8 +5,10 @@ import datetime
 import json
 import os
 import pytz
+import re
 import six
 import time
+
 
 from datetime import timedelta
 from decimal import Decimal
@@ -22,10 +24,10 @@ from temba.api.models import WebHookEvent, Resthook
 from temba.channels.models import Channel, ChannelEvent
 from temba.contacts.models import Contact, ContactGroup, ContactField, ContactURN, URN, TEL_SCHEME
 from temba.ivr.models import IVRCall
+from temba.ussd.models import USSDSession
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, INTERRUPTED
-from temba.msgs.models import OUTGOING
-from temba.orgs.models import Org, Language, CURRENT_EXPORT_VERSION
+from temba.msgs.models import Broadcast, Label, Msg, INCOMING, PENDING, FLOW, OUTGOING
+from temba.orgs.models import Language, CURRENT_EXPORT_VERSION
 from temba.tests import TembaTest, MockResponse, FlowFileTest, uuid
 from temba.triggers.models import Trigger
 from temba.utils import datetime_to_str, str_to_datetime
@@ -33,17 +35,17 @@ from temba.values.models import Value
 from uuid import uuid4
 from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate_to_version_7
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
-from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask, \
-    InterruptTest
-from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, get_flow_user
+from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
+from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
 from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
 from .models import HasStateTest, HasDistrictTest, HasWardTest
 from .models import SendAction, AddLabelAction, AddToGroupAction, ReplyAction, SaveToContactAction, SetLanguageAction, SetChannelAction
-from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog, \
-    VariableContactAction, UssdAction
+from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromGroupAction, WebhookAction, ActionLog
+from .models import VariableContactAction, UssdAction
+from .views import FlowCRUDL
 from .flow_migrations import map_actions
 from temba.msgs.models import WIRED
 
@@ -1992,12 +1994,6 @@ class FlowTest(TembaTest):
         flow = flow1
         flow.start([], [self.contact])
 
-        # remove one of the contacts
-        run = flow1.runs.get(contact=self.contact)
-        response = self.client.post(reverse('flows.flow_results', args=[flow.pk]), data=dict(run=run.pk))
-        self.assertEquals(200, response.status_code)
-        self.assertFalse(FlowStep.objects.filter(run__contact=self.contact))
-
         # test getting the json
         response = self.client.get(reverse('flows.flow_json', args=[flow.pk]))
         self.assertTrue('channels' in json.loads(response.content))
@@ -3398,13 +3394,13 @@ class FlowRunTest(TembaTest):
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_completed())
 
     def test_is_interrupted(self):
-        self.flow.start([], [self.contact])
+        flow = self.get_flow('ussd_example')
+        flow.start([], [self.contact])
 
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
-        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
-                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
-        Flow.find_and_handle(msg)
+        USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
+                                    external_id="12341231", status=USSDSession.INTERRUPTED)
 
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
@@ -3792,6 +3788,44 @@ class SimulationTest(FlowFileTest):
         self.assertEquals("You picked 3!", json_dict['messages'][4]['text'])
         self.assertEquals('Ben Haggerty has exited this flow', json_dict['messages'][5]['text'])
 
+    @patch('temba.ussd.models.USSDSession.handle_incoming')
+    def test_ussd_simulation(self, handle_incoming):
+        flow = self.get_flow('ussd_example')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="derp")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        self.assertEquals(response.status_code, 200)
+
+        # session should have started now
+        self.assertTrue(handle_incoming.called)
+        self.assertEqual(handle_incoming.call_count, 1)
+
+        self.assertIsNone(handle_incoming.call_args[1]['status'])
+
+    @patch('temba.ussd.models.USSDSession.handle_incoming')
+    def test_ussd_simulation_interrupt(self, handle_incoming):
+        flow = self.get_flow('ussd_example')
+
+        simulate_url = reverse('flows.flow_simulate', args=[flow.pk])
+
+        post_data = dict(has_refresh=True, new_message="__interrupt__")
+
+        self.login(self.admin)
+        response = self.client.post(simulate_url, json.dumps(post_data), content_type="application/json")
+
+        self.assertEquals(response.status_code, 200)
+
+        # session should have started now
+        self.assertTrue(handle_incoming.called)
+        self.assertEqual(handle_incoming.call_count, 1)
+
+        self.assertEqual(handle_incoming.call_args[1]['status'], USSDSession.INTERRUPTED)
+
 
 class FlowsTest(FlowFileTest):
 
@@ -3867,6 +3901,86 @@ class FlowsTest(FlowFileTest):
         # but if we save from in the past after our save it should fail
         response = flow.update(flow_json, self.admin)
         self.assertEquals(response.get('status'), 'unsaved')
+
+    def test_flow_results(self):
+
+        favorites = self.get_flow('favorites')
+        jimmy = self.create_contact('Jimmy', '+12065553026')
+        self.send_message(favorites, 'red', contact=jimmy)
+        self.send_message(favorites, 'turbo', contact=jimmy)
+
+        pete = self.create_contact('Pete', '+12065553027')
+        self.send_message(favorites, 'blue', contact=pete)
+
+        self.login(self.admin)
+        response = self.client.get(reverse('flows.flow_results', args=[favorites.pk]))
+
+        # the rulesets should be present as column headers
+        self.assertContains(response, 'Beer')
+        self.assertContains(response, 'Color')
+        self.assertContains(response, 'Name')
+
+        # fetch our intercooler rows for the run table
+        response = self.client.get(reverse('flows.flow_run_table', args=[favorites.pk]))
+        self.assertEqual(200, response.status_code)
+        self.assertContains(response, 'Jimmy')
+        self.assertContains(response, 'red')
+        self.assertContains(response, 'Red')
+        self.assertContains(response, 'turbo')
+        self.assertContains(response, 'Turbo King')
+
+        next_link = re.search('ic-append-from=\"(.*)\" ic-trigger-on', response.content).group(1)
+        response = self.client.get(next_link)
+        self.assertEqual(200, response.status_code)
+
+        # no more rows to add
+        result = response.content.strip()
+        self.assertEqual(0, len(result))
+
+        FlowCRUDL.ActivityChart.HISTOGRAM_MIN = 0
+        FlowCRUDL.ActivityChart.PERIOD_MIN = 0
+
+        # and some charts
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+
+        # we have two active runs
+        self.assertContains(response, "{ name: 'Active', y: 2 }")
+        self.assertContains(response, "3 Responses")
+
+        # now send another message
+        self.send_message(favorites, 'primus', contact=pete)
+        self.send_message(favorites, 'Pete', contact=pete)
+
+        # now only one active, one completed, and 5 total responses
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+        self.assertContains(response, "name: 'Active', y: 1")
+        self.assertContains(response, "name: 'Completed', y: 1")
+        self.assertContains(response, "5 Responses")
+
+        # they all happened on the same day
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+        points = response.context['histogram']
+        self.assertEqual(1, len(points))
+
+        # put one of our counts way in the past so we get a different histogram scale
+        count = FlowPathCount.objects.filter(flow=favorites).order_by('id')[1]
+        count.period = count.period - timedelta(days=25)
+        count.save()
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+        points = response.context['histogram']
+        self.assertTrue(timedelta(days=24) < (points[1]['bucket'] - points[0]['bucket']))
+
+        # pick another scale
+        count.period = count.period - timedelta(days=600)
+        count.save()
+        response = self.client.get(reverse('flows.flow_activity_chart', args=[favorites.pk]))
+
+        # this should give us a more compressed histogram
+        points = response.context['histogram']
+        self.assertTrue(timedelta(days=620) < (points[1]['bucket'] - points[0]['bucket']))
+
+        self.assertEqual(24, len(response.context['hod']))
+        self.assertEqual(7, len(response.context['dow']))
 
     def test_get_columns_order(self):
         flow = self.get_flow('columns_order')
@@ -5236,10 +5350,8 @@ class FlowsTest(FlowFileTest):
         flow.start([], [self.contact])
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
-        # make an incoming (fake) interrupt message
-        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
-                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
-        Flow.find_and_handle(msg)
+        USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
+                                    external_id="12341231", status=USSDSession.INTERRUPTED)
 
         # as the example flow has an interrupt state connected to a valid destination,
         # the flow will go on and reach the destination
@@ -5267,10 +5379,8 @@ class FlowsTest(FlowFileTest):
 
         self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
 
-        # make an incoming (fake) interrupt message
-        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
-                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
-        Flow.find_and_handle(msg)
+        USSDSession.handle_incoming(channel=self.channel, urn=self.contact.get_urn().path, date=timezone.now(),
+                                    external_id="12341231", status=USSDSession.INTERRUPTED)
 
         # the interrupt state is empty, it should interrupt the flow
         self.assertTrue(FlowRun.objects.get(contact=self.contact).is_interrupted())
@@ -5279,37 +5389,6 @@ class FlowsTest(FlowFileTest):
         contact = flow.get_results()[0]['contact']
         interrupted_group = ContactGroup.user_groups.get(name='Interrupted')
         self.assertFalse(interrupted_group.contacts.filter(id=contact.id).exists())
-
-    def test_interrupted_state_with_loop(self):
-        flow = self.get_flow('ussd_interrupt_example')
-
-        # disconnect action from interrupt state and connect to itself (create a self-loop)
-        ruleset = flow.rule_sets.first()
-        rules = ruleset.get_rules()
-        interrupt_rule = filter(lambda rule: isinstance(rule.test, InterruptTest), rules)[0]
-        interrupt_rule.destination = ruleset.uuid
-        interrupt_rule.destination_type = 'R'
-        ruleset.set_rules(rules)
-        ruleset.save()
-
-        # start the flow, check if we are interrupted yet
-        flow.start([], [self.contact])
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
-
-        # check if the message was sent out
-        self.assertEqual(len(flow.steps()), 1)
-
-        # make an incoming (fake) interrupt message
-        msg = Msg(direction=INCOMING, contact=self.contact, text="", status=INTERRUPTED,
-                  org=self.org, channel=self.channel, contact_urn=self.contact.get_urn(), created_on=timezone.now())
-        Flow.find_and_handle(msg)
-
-        # the interrupt state leads back to the USSD ruleset itself
-        self.assertFalse(FlowRun.objects.get(contact=self.contact).is_interrupted())
-
-        # it should send out the same message again
-        self.assertEqual(len(flow.steps()), 2)
-        self.assertEqual(flow.steps()[0].messages.first().text, flow.steps()[1].messages.first().text)
 
     def test_airtime_flow(self):
         flow = self.get_flow('airtime')
@@ -5859,34 +5938,6 @@ class FlowMigrationTest(FlowFileTest):
         # our test user doesn't use an email address, check for Administrator for the email
         actionset = order_checker.action_sets.filter(y=991).first()
         self.assertEqual('Administrator', actionset.get_actions()[1].emails[0])
-
-    def test_flow_results(self):
-
-        flow = self.get_flow('favorites')
-
-        self.send_message(flow, "green")
-        self.send_message(flow, "primus")
-        self.send_message(flow, "Ben")
-
-        ryan = self.create_contact('Ryan Lewis', '+12065551212')
-        self.send_message(flow, "red", contact=ryan)
-        self.send_message(flow, "turbo king", contact=ryan)
-        self.send_message(flow, "Ryan", contact=ryan)
-
-        # see that we can fetch results
-        self.login(self.admin)
-        response = self.client.get('%s?json=true&sSearch=&sEcho=1' % reverse('flows.flow_results', args=[flow.pk]))
-        response = json.loads(response.content)
-        self.assertEquals(2, len(response['aaData']))
-        self.assertEquals('+12065551212', response['aaData'][0][1]['category'])
-
-        # make sure it still shows up for anon orgs and nameless contacts
-        Org.objects.all().update(is_anon=True)
-        Contact.objects.all().update(name=None)
-
-        response = self.client.get('%s?json=true&sSearch=&sEcho=1' % reverse('flows.flow_results', args=[flow.pk]))
-        response = json.loads(response.content)
-        self.assertEquals(2, len(response['aaData']))
 
 
 class DuplicateValueTest(FlowFileTest):

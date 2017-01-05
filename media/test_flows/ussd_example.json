@@ -69,34 +69,80 @@
           "y": 0, 
           "x": 624, 
           "config": {
-            "ussd_message": "What would you like to read about?"
+            "ussd_menu": [
+              {
+                "category": {
+                  "base": "Sports"
+                },
+                "uuid": "337e5e25-204b-4786-bee6-ff4c431986eb",
+                "option": 1,
+                "label": "I'm interested in sports"
+              },
+              {
+                "category": {
+                  "base": "Politics"
+                },
+                "uuid": "45803c40-aaf3-44d3-a301-f7eb35fa6be4",
+                "option": 2,
+                "label": "I'm interested in politics"
+              },
+              {
+                "category": {
+                  "base": "Movies"
+                },
+                "uuid": "13f3ed00-44d0-4119-b5fd-269c8f09fce3",
+                "option": 3,
+                "label": "I'm interested in movies"
+              }
+            ],
+            "ussd_message": {
+              "base": "What would you like to read about?"
+            }
           }
-        }, 
+        },
         {
-          "uuid": "66aa0bb5-d1e5-4026-a056-fd22c353539e", 
-          "webhook_action": null, 
+          "uuid": "66aa0bb5-d1e5-4026-a056-fd22c353539e",
+          "webhook_action": null,
           "rules": [
             {
               "test": {
-                "test": "true", 
+                "test": "true",
                 "type": "true"
-              }, 
+              },
               "category": {
                 "base": "All Responses"
-              }, 
+              },
               "uuid": "0df9b0ac-d241-460c-9b7c-f9f350a661bf"
             }
-          ], 
-          "webhook": null, 
-          "ruleset_type": "wait_ussd", 
-          "label": "Response 2", 
-          "operand": "@step.value", 
-          "finished_key": null, 
-          "response_type": "", 
-          "y": 310, 
-          "x": 725, 
+          ],
+          "webhook": null,
+          "ruleset_type": "wait_ussd",
+          "label": "Response 2",
+          "operand": "@step.value",
+          "finished_key": null,
+          "response_type": "",
+          "y": 310,
+          "x": 725,
           "config": {
-            "ussd_message": "Thank you"
+            "ussd_menu": [
+              {
+                "category": {
+                  "base": "Dfd"
+                },
+                "uuid": "03f39461-b649-4cb0-97f9-9ce6ecb5c606",
+                "option": 1,
+                "label": "dfdf"
+              },
+              {
+                "category": {},
+                "uuid": "8211b1dc-b443-4b1c-8849-bf18a69e13ef",
+                "option": 2,
+                "label": ""
+              }
+            ],
+            "ussd_message": {
+              "base": "Thank you!"
+            }
           }
         }
       ], 

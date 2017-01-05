@@ -13,6 +13,7 @@ from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
 from django.core.urlresolvers import reverse
+from django.core.validators import URLValidator
 from django.db import models, connection
 from django.db.models import Q, Max, Sum
 from django.db.models.signals import pre_save
@@ -137,7 +138,7 @@ class Channel(TembaModel):
     YO_API_URL_2 = 'http://41.220.12.201:9100/sendsms'
     YO_API_URL_3 = 'http://164.40.148.210:9100/sendsms'
 
-    VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream/'
+    VUMI_GO_API_URL = 'https://go.vumi.org/api/v1/go/http_api_nostream'
 
     # various hard coded settings for the channel types
     CHANNEL_SETTINGS = {
@@ -1833,9 +1834,12 @@ class Channel(TembaModel):
 
         api_url_base = channel.config.get('api_url', cls.VUMI_GO_API_URL)
 
-        url = urlparse.urljoin(api_url_base, "%s/messages.json" % channel.config['conversation_key'])
+        url = "%s/%s/messages.json" % (api_url_base, channel.config['conversation_key'])
 
         start = time.time()
+
+        validator = URLValidator()
+        validator(url)
 
         try:
             response = requests.put(url,
@@ -3341,8 +3345,11 @@ class ChannelSession(SmartModel):
     FAILED = 'F'
     NO_ANSWER = 'N'
     CANCELED = 'C'
+    TRIGGERED = 'T'
+    INTERRUPTED = 'X'
+    INITIATED = 'A'
 
-    DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED]
+    DONE = [COMPLETED, BUSY, FAILED, NO_ANSWER, CANCELED, INTERRUPTED]
 
     INCOMING = 'I'
     OUTGOING = 'O'
@@ -3362,7 +3369,10 @@ class ChannelSession(SmartModel):
                       (BUSY, "Busy"),
                       (FAILED, "Failed"),
                       (NO_ANSWER, "No Answer"),
-                      (CANCELED, "Canceled"))
+                      (CANCELED, "Canceled"),
+                      (INTERRUPTED, "Interrupted"),
+                      (TRIGGERED, "Triggered"),
+                      (INITIATED, "Initiated"))
 
     external_id = models.CharField(max_length=255,
                                    help_text="The external id for this session, our twilio id usually")
