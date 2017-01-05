@@ -33,7 +33,7 @@ from temba.msgs.models import Broadcast, Msg, SystemLabel, QUEUED, PENDING, WIRE
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org, ACCOUNT_SID, ACCOUNT_TOKEN
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
-from temba.utils import analytics, non_atomic_when_eager
+from temba.utils import analytics, non_atomic_when_eager, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import timezone_to_country_code
 from twilio import TwilioRestException
@@ -792,7 +792,7 @@ class ChannelCRUDL(SmartCRUDL):
         cancel_url = 'id@channels.channel_read'
         title = _("Remove Android")
         success_message = ''
-        form = []
+        fields = ('id',)
 
         def get_success_url(self):
             return reverse('orgs.org_home')
@@ -889,7 +889,7 @@ class ChannelCRUDL(SmartCRUDL):
             if obj.channel_type == Channel.TYPE_TWITTER:
                 # notify Mage so that it refreshes this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                notify_mage_task.delay(obj.uuid, MageStreamAction.refresh)
+                on_transaction_commit(lambda: notify_mage_task.delay(obj.uuid, MageStreamAction.refresh))
 
             return obj
 
@@ -1479,7 +1479,7 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimGlobe(ClaimAuthenticatedExternal):
         class GlobeClaimForm(forms.Form):
             number = forms.CharField(max_length=14, min_length=1, label=_("Number"),
-                                     help_text=_("The shortcode you have been assigned by Globe Labs"
+                                     help_text=_("The shortcode you have been assigned by Globe Labs "
                                                  "ex: 15543"))
             app_id = forms.CharField(label=_("Application Id"),
                                      help_text=_("The id of your Globe Labs application"))
@@ -2617,4 +2617,4 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             queryset = super(ChannelLogCRUDL.Read, self).derive_queryset(**kwargs)
-            return queryset.filter(msg__channel__org=self.request.user.get_org).order_by('-created_on')
+            return queryset.filter(msg__channel__org=self.request.user.get_org()).order_by('-created_on')
