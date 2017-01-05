@@ -407,7 +407,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         # try to create a contact group whose name is only whitespace
         response = self.client.post(url, dict(name="  "))
-        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+        self.assertFormError(response, 'form', 'name', "This field is required.")
 
         # try to create a contact group whose name begins with reserved character
         response = self.client.post(url, dict(name="+People"))
@@ -444,7 +444,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         # try to update name to only whitespace
         response = self.client.post(url, dict(name="   "))
-        self.assertFormError(response, 'form', 'name', "Group name must not be blank or begin with + or -")
+        self.assertFormError(response, 'form', 'name', "This field is required.")
 
         # try to update name to start with reserved character
         response = self.client.post(url, dict(name="+People"))
@@ -3463,7 +3463,7 @@ class ContactFieldTest(TembaTest):
         blocking_export.is_finished = True
         blocking_export.save()
 
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(37):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 
@@ -3487,7 +3487,7 @@ class ContactFieldTest(TembaTest):
         contact4 = self.create_contact('Stephen', '+12078778899', twitter='stephen')
         ContactURN.create(self.org, contact, 'tel:+12062233445')
 
-        with self.assertNumQueries(38):
+        with self.assertNumQueries(37):
             self.client.get(reverse('contacts.contact_export'), dict())
             task = ExportContactsTask.objects.all().order_by('-id').first()
 

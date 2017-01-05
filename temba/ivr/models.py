@@ -4,6 +4,7 @@ from django.db import models
 from django.conf import settings
 from django.core.urlresolvers import reverse
 from temba.channels.models import ChannelSession
+from temba.utils import on_transaction_commit
 
 
 class IVRManager(models.Manager):
@@ -95,4 +96,4 @@ class IVRCall(ChannelSession):
 
     def start_call(self):
         from temba.ivr.tasks import start_call_task
-        start_call_task.delay(self.pk)
+        on_transaction_commit(lambda: start_call_task.delay(self.pk))

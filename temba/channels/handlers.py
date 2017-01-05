@@ -28,7 +28,7 @@ from temba.orgs.models import NEXMO_UUID
 from temba.msgs.models import Msg, HANDLE_EVENT_TASK, HANDLER_QUEUE, MSG_EVENT, OUTGOING
 from temba.triggers.models import Trigger
 from temba.ussd.models import USSDSession
-from temba.utils import json_date_to_datetime, ms_to_datetime
+from temba.utils import json_date_to_datetime, ms_to_datetime, on_transaction_commit
 from temba.utils.middleware import disable_middleware
 from temba.utils.queues import push_task
 from .tasks import fb_channel_subscribe
@@ -75,7 +75,7 @@ def get_channel_handlers():
 
 class TwimlAPIHandler(BaseChannelHandler):
 
-    url = r'^/twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^twiml_api/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.twiml_api_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
@@ -251,7 +251,7 @@ class TwimlAPIHandler(BaseChannelHandler):
 
 class TwilioHandler(TwimlAPIHandler):
 
-    url = r'^/twilio/$'
+    url = r'^twilio/$'
     url_name = 'handlers.twilio_handler'
 
     def get_receive_channel(self, channel_uuid=None, to_number=None):
@@ -263,7 +263,7 @@ class TwilioHandler(TwimlAPIHandler):
 
 class TwilioMessagingServiceHandler(BaseChannelHandler):
 
-    url = r'^/twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^twilio_messaging_service/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.twilio_messaging_service_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: no cover
@@ -306,7 +306,7 @@ class TwilioMessagingServiceHandler(BaseChannelHandler):
 
 class AfricasTalkingHandler(BaseChannelHandler):
 
-    url = r'^/africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^africastalking/(?P<action>delivery|callback)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.africas_talking_handler'
 
     def get(self, request, *args, **kwargs):
@@ -359,7 +359,7 @@ class AfricasTalkingHandler(BaseChannelHandler):
 
 class ZenviaHandler(BaseChannelHandler):
 
-    url = r'^/zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^zenvia/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.zenvia_handler'
 
     def get(self, request, *args, **kwargs):
@@ -426,7 +426,7 @@ class ZenviaHandler(BaseChannelHandler):
 
 class ExternalHandler(BaseChannelHandler):
 
-    url = r'^/external/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^external/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.external_handler'
 
     def get_channel_type(self):
@@ -500,7 +500,7 @@ class ShaqodoonHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Shaqodoon messages
     """
-    url = r'^/shaqodoon/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^shaqodoon/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.shaqodoon_handler'
 
     def get_channel_type(self):
@@ -511,7 +511,7 @@ class YoHandler(ExternalHandler):
     """
     Overloaded external channel for accepting Yo! Messages.
     """
-    url = r'^/yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^yo/(?P<action>received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.yo_handler'
 
     def get_channel_type(self):
@@ -520,7 +520,7 @@ class YoHandler(ExternalHandler):
 
 class TelegramHandler(BaseChannelHandler):
 
-    url = r'^/telegram/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^telegram/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.telegram_handler'
 
     @classmethod
@@ -654,7 +654,7 @@ class TelegramHandler(BaseChannelHandler):
 
 class InfobipHandler(BaseChannelHandler):
 
-    url = r'^/infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^infobip/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.infobip_handler'
 
     def post(self, request, *args, **kwargs):
@@ -730,7 +730,7 @@ class InfobipHandler(BaseChannelHandler):
 
 class Hub9Handler(BaseChannelHandler):
 
-    url = r'^/hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.hub9_handler'
 
     def get(self, request, *args, **kwargs):
@@ -782,7 +782,7 @@ class Hub9Handler(BaseChannelHandler):
 
 class HighConnectionHandler(BaseChannelHandler):
 
-    url = r'^/hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^hcnx/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.hcnx_handler'
 
     def post(self, request, *args, **kwargs):
@@ -842,7 +842,7 @@ class HighConnectionHandler(BaseChannelHandler):
 
 class BlackmynaHandler(BaseChannelHandler):
 
-    url = r'^/blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^blackmyna/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.blackmyna_handler'
 
     def post(self, request, *args, **kwargs):  # pragma: needs cover
@@ -898,7 +898,7 @@ class BlackmynaHandler(BaseChannelHandler):
 
 class SMSCentralHandler(BaseChannelHandler):
 
-    url = r'^/smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^smscentral/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.smscentral_handler'
 
     def post(self, request, *args, **kwargs):  # pragma: needs cover
@@ -932,7 +932,7 @@ class M3TechHandler(ExternalHandler):
     """
     Exposes our API for handling and receiving messages, same as external handlers.
     """
-    url = r'^/m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^m3tech/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.m3tech_handler'
 
     def get_channel_type(self):
@@ -941,7 +941,7 @@ class M3TechHandler(ExternalHandler):
 
 class NexmoHandler(BaseChannelHandler):
 
-    url = r'^/nexmo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^nexmo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.nexmo_handler'
 
     def post(self, request, *args, **kwargs):  # pragma: needs cover
@@ -1004,7 +1004,7 @@ class NexmoHandler(BaseChannelHandler):
 
 class VerboiceHandler(BaseChannelHandler):
 
-    url = r'^/verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^verboice/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.verboice_handler'
 
     def post(self, request, *args, **kwargs):
@@ -1039,7 +1039,7 @@ class VerboiceHandler(BaseChannelHandler):
 
 class VumiHandler(BaseChannelHandler):
 
-    url = r'^/vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^vumi/(?P<action>event|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.vumi_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1174,7 +1174,7 @@ class VumiHandler(BaseChannelHandler):
 
 class KannelHandler(BaseChannelHandler):
 
-    url = r'^/kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^kannel/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.kannel_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
@@ -1257,7 +1257,7 @@ class KannelHandler(BaseChannelHandler):
 
 class ClickatellHandler(BaseChannelHandler):
 
-    url = r'^/clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^clickatell/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.clickatell_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1380,7 +1380,7 @@ class ClickatellHandler(BaseChannelHandler):
 
 class PlivoHandler(BaseChannelHandler):
 
-    url = r'^/plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^plivo/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.plivo_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1488,7 +1488,7 @@ class PlivoHandler(BaseChannelHandler):
 
 class MageHandler(BaseChannelHandler):
 
-    url = r'^/mage/(?P<action>handle_message|follow_notification)$'
+    url = r'^mage/(?P<action>handle_message|follow_notification)$'
     url_name = 'handlers.mage_handler'
 
     def get(self, request, *args, **kwargs):
@@ -1525,14 +1525,15 @@ class MageHandler(BaseChannelHandler):
             except ValueError:  # pragma: needs cover
                 return JsonResponse(dict(error="Invalid channel or contact URN id"), status=400)
 
-            fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact), queue='handler')
+            on_transaction_commit(lambda: fire_follow_triggers.apply_async(args=(channel_id, contact_urn_id, new_contact),
+                                                                           queue='handler'))
 
         return JsonResponse(dict(error=None))
 
 
 class StartHandler(BaseChannelHandler):
 
-    url = r'^/start/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^start/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.start_handler'
 
     def post(self, request, *args, **kwargs):
@@ -1578,7 +1579,7 @@ class StartHandler(BaseChannelHandler):
 
 class ChikkaHandler(BaseChannelHandler):
 
-    url = r'^/chikka/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^chikka/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.chikka_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
@@ -1656,7 +1657,7 @@ class ChikkaHandler(BaseChannelHandler):
 
 class JasminHandler(BaseChannelHandler):
 
-    url = r'^/jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^jasmin/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.jasmin_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
@@ -1719,7 +1720,7 @@ class JasminHandler(BaseChannelHandler):
 
 class MbloxHandler(BaseChannelHandler):
 
-    url = r'^/mblox/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^mblox/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.mblox_handler'
 
     def get(self, request, *args, **kwargs):  # pragma: needs cover
@@ -1788,7 +1789,7 @@ class MbloxHandler(BaseChannelHandler):
 
 class FacebookHandler(BaseChannelHandler):
 
-    url = r'^/facebook/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^facebook/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.facebook_handler'
 
     def lookup_channel(self, kwargs):
@@ -1806,8 +1807,9 @@ class FacebookHandler(BaseChannelHandler):
         if request.GET.get('hub.mode') == 'subscribe':
             # verify the token against our secret, if the same return the challenge FB sent us
             if channel.secret == request.GET.get('hub.verify_token'):
-                # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to this webhook result
-                fb_channel_subscribe.apply_async([channel.id], delay=5)
+                # fire off a subscription for facebook events, we have a bit of a delay here so that FB can react to
+                # this webhook result
+                on_transaction_commit(lambda: fb_channel_subscribe.apply_async([channel.id], delay=5))
 
                 return HttpResponse(request.GET.get('hub.challenge'))
 
@@ -1932,7 +1934,7 @@ class FacebookHandler(BaseChannelHandler):
 
 class GlobeHandler(BaseChannelHandler):
 
-    url = r'^/globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^globe/(?P<action>receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.globe_handler'
 
     def get(self, request, *args, **kwargs):
@@ -2013,7 +2015,7 @@ class GlobeHandler(BaseChannelHandler):
 
 class ViberHandler(BaseChannelHandler):
 
-    url = r'^/viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^viber/(?P<action>status|receive)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.viber_handler'
 
     def get(self, request, *args, **kwargs):
@@ -2081,7 +2083,7 @@ class ViberHandler(BaseChannelHandler):
 
 class LineHandler(BaseChannelHandler):
 
-    url = r'^/line/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^line/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.line_handler'
 
     def get(self, request, *args, **kwargs):
@@ -2123,7 +2125,7 @@ class LineHandler(BaseChannelHandler):
 
 class ViberPublicHandler(BaseChannelHandler):
 
-    url = r'^/viber_public/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^viber_public/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.viber_public_handler'
 
     @classmethod
