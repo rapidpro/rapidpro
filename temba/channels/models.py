@@ -1722,12 +1722,15 @@ class Channel(TembaModel):
 
         post_body = u"""
           <message>
-            <service id="single" source=$$FROM$$ />
+            <service id="single" source=$$FROM$$ validity=$$VALIDITY$$/>
             <to>$$TO$$</to>
             <body content-type="plain/text" encoding="plain">$$BODY$$</body>
           </message>
         """
         post_body = post_body.replace("$$FROM$$", quoteattr(channel.address))
+
+        # tell Start to attempt to deliver this message for up to 12 hours
+        post_body = post_body.replace("$$VALIDITY$$", quoteattr("+12 hours"))
         post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
         post_body = post_body.replace("$$BODY$$", escape(msg.text))
         post_body = post_body.encode('utf8')

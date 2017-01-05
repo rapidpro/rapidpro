@@ -41,6 +41,7 @@ from twilio import TwilioRestException
 from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
+from xml.etree import ElementTree as ET
 from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
@@ -6826,7 +6827,12 @@ class StartMobileTest(TembaTest):
                 self.assertTrue(msg.sent_on)
                 self.assertEqual(msg.external_id, "380502535130309161501")
 
+                # check the call that was made
                 self.assertEqual('http://bulk.startmobile.com.ua/clients.php', mock.call_args[0][0])
+                message_el = ET.fromstring(mock.call_args[1]['data'])
+                self.assertEqual(message_el.find('service').attrib, dict(source='1212', id='single', validity='+12 hours'))
+                self.assertEqual(message_el.find('body').text, msg.text)
+
                 self.clear_cache()
 
             # return 400
@@ -7770,25 +7776,30 @@ class GlobeTest(TembaTest):
         response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
-        # POST, invalid destination Address
-        bad_data = copy.deepcopy(data)
-        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = '9999'
-        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-
-        # POST, mismatched destination address
-        bad_data = copy.deepcopy(data)
-        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = 'tel:9999'
-        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
-        self.assertEqual(response.status_code, 400)
-
         # POST, invalid sender address
         bad_data = copy.deepcopy(data)
         bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['senderAddress'] = '9999'
         response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
-        # ok, valid post
+        # POST, invalid destination address
+        bad_data = copy.deepcopy(data)
+        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = '9999'
+        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+        # POST, different destination address accepted (globe does mapping on their side)
+        bad_data = copy.deepcopy(data)
+        bad_data['inboundSMSMessageList']['inboundSMSMessage'][0]['destinationAddress'] = 'tel:9999'
+        response = self.client.post(callback_url, json.dumps(bad_data), content_type="application/json")
+        self.assertEqual(response.status_code, 200)
+
+        msg = Msg.objects.get()
+        self.assertEqual(msg.channel, self.channel)
+        self.assertEqual(response.content, "Msgs Accepted: %d" % msg.id)
+        Msg.objects.all().delete()
+
+        # another valid post on the right address
         response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
         self.assertEqual(response.status_code, 200)
 
