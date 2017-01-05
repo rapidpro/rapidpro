@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from django.conf.urls import patterns
 from django.views.decorators.csrf import csrf_exempt
 from .sitemaps import PublicViewSitemap, VideoSitemap
-from .views import LeadCRUDL, LeadViewer, VideoCRUDL
+from .views import LeadViewer, VideoCRUDL
 from .views import IndexView, Blog, Welcome, Deploy, Privacy, WelcomeRedirect, OrderStatus, GenerateCoupon
 
 
@@ -26,6 +26,6 @@ urlpatterns = patterns('',
                        (r'^demo/status/$', csrf_exempt(OrderStatus.as_view()), {}, 'demo.order_status'),
                        (r'^demo/coupon/$', csrf_exempt(GenerateCoupon.as_view()), {}, 'demo.generate_coupon'))
 
-urlpatterns += LeadCRUDL().as_urlpatterns()
+
 urlpatterns += LeadViewer().as_urlpatterns()
 urlpatterns += VideoCRUDL().as_urlpatterns()
