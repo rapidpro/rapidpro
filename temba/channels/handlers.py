@@ -733,11 +733,14 @@ class Hub9Handler(BaseChannelHandler):
     url = r'^/hub9/(?P<action>sent|delivered|failed|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.hub9_handler'
 
+    def get_channel_type(self):
+        return Channel.TYPE_HUB9
+
     def get(self, request, *args, **kwargs):
         from temba.msgs.models import Msg
 
         channel_uuid = kwargs['uuid']
-        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=Channel.TYPE_HUB9).exclude(org=None).first()
+        channel = Channel.objects.filter(uuid=channel_uuid, is_active=True, channel_type=self.get_channel_type()).exclude(org=None).first()
         if not channel:  # pragma: needs cover
             return HttpResponse("Channel with uuid: %s not found." % channel_uuid, status=404)
 
@@ -778,6 +781,15 @@ class Hub9Handler(BaseChannelHandler):
             return HttpResponse("000")
 
         return HttpResponse("Unreconized action: %s" % action, status=404)  # pragma: needs cover
+
+
+class DartMediaHandler(Hub9Handler):
+
+    url = r'^/dartmedia/(?P<action>delivered|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url_name = 'handlers.dartmedia_handler'
+
+    def get_channel_type(self):
+        return Channel.TYPE_DARTMEDIA
 
 
 class HighConnectionHandler(BaseChannelHandler):

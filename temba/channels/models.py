@@ -60,6 +60,7 @@ class Channel(TembaModel):
     TYPE_BLACKMYNA = 'BM'
     TYPE_CHIKKA = 'CK'
     TYPE_CLICKATELL = 'CT'
+    TYPE_DARTMEDIA = 'DA'
     TYPE_DUMMY = 'DM'
     TYPE_EXTERNAL = 'EX'
     TYPE_FACEBOOK = 'FB'
@@ -147,6 +148,7 @@ class Channel(TembaModel):
         TYPE_BLACKMYNA: dict(scheme='tel', max_length=1600),
         TYPE_CHIKKA: dict(scheme='tel', max_length=160),
         TYPE_CLICKATELL: dict(scheme='tel', max_length=420),
+        TYPE_DARTMEDIA: dict(scheme='tel', max_length=160),
         TYPE_DUMMY: dict(scheme='tel', max_length=160),
         TYPE_EXTERNAL: dict(max_length=160),
         TYPE_FACEBOOK: dict(scheme='facebook', max_length=320),
@@ -182,6 +184,7 @@ class Channel(TembaModel):
                     (TYPE_ANDROID, "Android"),
                     (TYPE_BLACKMYNA, "Blackmyna"),
                     (TYPE_CLICKATELL, "Clickatell"),
+                    (TYPE_DARTMEDIA, "Dart Media"),
                     (TYPE_DUMMY, "Dummy"),
                     (TYPE_EXTERNAL, "External"),
                     (TYPE_FACEBOOK, "Facebook"),
@@ -2082,7 +2085,7 @@ class Channel(TembaModel):
         Channel.success(channel, msg, SENT, start, 'POST', url, json.dumps(payload), response, external_id)
 
     @classmethod
-    def send_hub9_message(cls, channel, msg, text):
+    def send_hub9_or_dartmedia_message(cls, channel, msg, text):
         from temba.msgs.models import SENT
 
         # http://175.103.48.29:28078/testing/smsmt.php?
@@ -2095,8 +2098,21 @@ class Channel(TembaModel):
         #   &message=Test+Normal+Single+Message&dcs=0
         #   &udhl=0&charset=utf-8
         #
-        from temba.settings import HUB9_ENDPOINT
-        url = HUB9_ENDPOINT
+        from temba.settings import HUB9_ENDPOINT, DART_MEDIA_ENDPOINT
+
+        url = None
+        if channel.channel_type == Channel.TYPE_HUB9:
+            url = HUB9_ENDPOINT
+        elif channel.channel_type == Channel.TYPE_DARTMEDIA:
+            url = DART_MEDIA_ENDPOINT
+
+        if not url:
+            raise SendException("Missing URL config",
+                                url="",
+                                method=None,
+                                response=None,
+                                response_status=None)
+
         payload = dict(userid=channel.config['username'], password=channel.config['password'],
                        original=channel.address.lstrip('+'), sendto=msg.urn_path.lstrip('+'),
                        messageid=msg.id, message=text, dcs=0, udhl=0)
@@ -2833,6 +2849,7 @@ class Channel(TembaModel):
     class Meta:
         ordering = ('-last_seen', '-pk')
 
+
 SOURCE_AC = "AC"
 SOURCE_USB = "USB"
 SOURCE_WIRELESS = "WIR"
@@ -2848,12 +2865,13 @@ SEND_FUNCTIONS = {Channel.TYPE_AFRICAS_TALKING: Channel.send_africas_talking_mes
                   Channel.TYPE_BLACKMYNA: Channel.send_blackmyna_message,
                   Channel.TYPE_CHIKKA: Channel.send_chikka_message,
                   Channel.TYPE_CLICKATELL: Channel.send_clickatell_message,
+                  Channel.TYPE_DARTMEDIA: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_DUMMY: Channel.send_dummy_message,
                   Channel.TYPE_EXTERNAL: Channel.send_external_message,
                   Channel.TYPE_FACEBOOK: Channel.send_facebook_message,
                   Channel.TYPE_GLOBE: Channel.send_globe_message,
                   Channel.TYPE_HIGH_CONNECTION: Channel.send_high_connection_message,
-                  Channel.TYPE_HUB9: Channel.send_hub9_message,
+                  Channel.TYPE_HUB9: Channel.send_hub9_or_dartmedia_message,
                   Channel.TYPE_INFOBIP: Channel.send_infobip_message,
                   Channel.TYPE_JASMIN: Channel.send_jasmin_message,
                   Channel.TYPE_KANNEL: Channel.send_kannel_message,

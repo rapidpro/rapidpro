@@ -557,7 +557,7 @@ class ChannelCRUDL(SmartCRUDL):
                'claim_verboice', 'claim_clickatell', 'claim_plivo', 'search_plivo', 'claim_high_connection', 'claim_blackmyna',
                'claim_smscentral', 'claim_start', 'claim_telegram', 'claim_m3tech', 'claim_yo', 'claim_viber', 'create_viber',
                'claim_twilio_messaging_service', 'claim_zenvia', 'claim_jasmin', 'claim_mblox', 'claim_facebook', 'claim_globe',
-               'claim_twiml_api', 'claim_line', 'claim_viber_public')
+               'claim_twiml_api', 'claim_line', 'claim_viber_public', 'claim_dart_media')
     permissions = True
 
     class AnonMixin(OrgPermsMixin):
@@ -1516,6 +1516,17 @@ class ChannelCRUDL(SmartCRUDL):
     class ClaimHub9(ClaimAuthenticatedExternal):
         title = _("Connect Hub9")
         channel_type = Channel.TYPE_HUB9
+        readonly = ('country',)
+
+        def get_country(self, obj):  # pragma: needs cover
+            return "Indonesia"
+
+        def get_submitted_country(self, data):  # pragma: needs cover
+            return "ID"
+
+    class ClaimDartMedia(ClaimAuthenticatedExternal):
+        title = _("Connect Dart Media")
+        channel_type = Channel.TYPE_DARTMEDIA
         readonly = ('country',)
 
         def get_country(self, obj):  # pragma: needs cover

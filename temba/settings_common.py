@@ -415,6 +415,7 @@ PERMISSIONS = {
                          'claim_blackmyna',
                          'claim_chikka',
                          'claim_clickatell',
+                         'claim_dart_media',
                          'claim_external',
                          'claim_facebook',
                          'claim_globe',
@@ -650,6 +651,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_blackmyna',
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
+        'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
         'channels.channel_claim_globe',
@@ -788,6 +790,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_blackmyna',
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
+        'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
         'channels.channel_claim_globe',
@@ -1127,6 +1130,9 @@ REST_HANDLE_EXCEPTIONS = not TESTING
 # Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
 # and make sure you send from a whitelisted IP Address
 HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
+
+# Dart Media is another aggregator in Indonesia, set this to the endpoint for your service
+DART_MEDIA_ENDPOINT = 'http://202.43.169.11/APIhttpU/receive2waysms.php'
 
 # -----------------------------------------------------------------------------------
 # Django Compressor configuration
