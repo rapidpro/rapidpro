@@ -9,7 +9,7 @@ import django.db.models.manager
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('msgs', '0069_populate_broadcast_base_lang'),
+        ('msgs', '0073_auto_20161201_1639'),
     ]
 
     operations = [
