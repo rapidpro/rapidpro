@@ -41,10 +41,38 @@
     {% endlessblock %}
 
 -block post-header
-    .row
+   #marketing
+    .container
       #splash
-        %h1.description
-          {{ brand.description }}
+        .row
+          .span12
+            %h1.description
+              {{ brand.description }}
+         .row
+          .span3
+            <a href="#send-suggestion" data-toggle="modal">
+                <img src="{{ STATIC_URL }}images/question.png" style="width: 50px; height: 50px; right: 0px; bottom: 0px; position: fixed; z-index: 999;">
+            </a>
 
-    -if not thanks
-      %br{clear:"both"}.clearfix
+            <!-- Modal -->
+            <div id="send-suggestion" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+              <div class="modal-dialog">
+              <div class="modal-content">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                %span.title{:style =>"color: rgb(255, 255, 255)! important;"}
+                   -trans "Escríbenos"
+              </div>
+              <div class="modal-body" style="margin-right: 0px;">
+                <form role="form" action="" method="post">
+                  {% csrf_token %}
+                  %h4 Comentario:
+                  {{ send_suggestion_form.text }}
+                <div>
+                  <button type="submit" class="btn btn-primary btn-block send-button"style="width: 100px;" >Enviar</button>
+                </div>
+                </form>
+              </div><!-- End of Modal body -->
+            </div><!-- End of Modal content -->
+          </div><!-- End of Modal dialog -->
+        </div>
