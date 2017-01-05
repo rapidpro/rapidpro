@@ -1178,7 +1178,7 @@ class OrgCRUDL(SmartCRUDL):
             return links
 
         def get_manage(self, obj):
-            if obj.parent: # pragma: needs cover
+            if obj.parent:  # pragma: needs cover
                 return mark_safe('<a href="%s?org=%s"><div class="btn btn-tiny">Manage Accounts</div></a>'
                                  % (reverse('orgs.org_manage_accounts_sub_org'), obj.id))
             return ''
