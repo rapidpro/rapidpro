@@ -1532,9 +1532,6 @@ class OrgCRUDL(SmartCRUDL):
             context['form'] = self.form
             context['step'] = self.get_step()
 
-            if hasattr(self.form, 'cleaned_data'):
-                context['org'] = self.form.cleaned_data.get('org', None)
-
             for key, field in six.iteritems(self.form.fields):
                 context[key] = field
 
