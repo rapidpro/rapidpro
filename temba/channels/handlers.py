@@ -995,9 +995,7 @@ class NexmoHandler(BaseChannelHandler):
         # this is a new incoming message
         elif action == 'receive':
             urn = URN.from_tel('+%s' % self.get_param('msisdn'))
-            sms = Msg.create_incoming(channel, urn, self.get_param('text'))
-            sms.external_id = external_id
-            sms.save(update_fields=['external_id'])
+            sms = Msg.create_incoming(channel, urn, self.get_param('text'), external_id=external_id)
             return HttpResponse("SMS Accepted: %d" % sms.id)
 
         else:  # pragma: needs cover
