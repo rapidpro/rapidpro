@@ -1,9 +1,9 @@
 from __future__ import unicode_literals
 
+from celery.task import task
 from datetime import timedelta
 from django.utils import timezone
 from django_redis import get_redis_connection
-from djcelery_transactions import task
 from .models import WebHookEvent, WebHookResult, COMPLETE, FAILED, ERRORED, PENDING
 
 

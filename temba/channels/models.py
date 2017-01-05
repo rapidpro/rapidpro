@@ -9,6 +9,7 @@ import regex
 import requests
 import telegram
 import re
+
 from enum import Enum
 from datetime import timedelta
 from django.contrib.auth.models import User, Group
@@ -31,7 +32,7 @@ from smartmin.models import SmartModel
 from temba.nexmo import NexmoClient
 from temba.orgs.models import Org, OrgLock, APPLICATION_SID, NEXMO_UUID
 from temba.utils.email import send_template_email
-from temba.utils import analytics, random_string, dict_to_struct, dict_to_json
+from temba.utils import analytics, random_string, dict_to_struct, dict_to_json, on_transaction_commit
 from time import sleep
 
 from twilio import TwilioRestException
@@ -630,7 +631,7 @@ class Channel(TembaModel):
 
                 # notify Mage so that it activates this channel
                 from .tasks import MageStreamAction, notify_mage_task
-                notify_mage_task.delay(channel.uuid, MageStreamAction.activate)
+                on_transaction_commit(lambda: notify_mage_task.delay(channel.uuid, MageStreamAction.activate))
 
         return channel
 
@@ -1073,7 +1074,7 @@ class Channel(TembaModel):
         if notify_mage and self.channel_type == Channel.TYPE_TWITTER:
             # notify Mage so that it deactivates this channel
             from .tasks import MageStreamAction, notify_mage_task
-            notify_mage_task.delay(self.uuid, MageStreamAction.deactivate)
+            on_transaction_commit(lambda: notify_mage_task.delay(self.uuid, MageStreamAction.deactivate))
 
         from temba.triggers.models import Trigger
         Trigger.objects.filter(channel=self, org=org).update(is_active=False)
@@ -1089,7 +1090,7 @@ class Channel(TembaModel):
                 if not gcm_id:
                     gcm_id = self.gcm_id
                 if gcm_id:
-                    sync_channel_task.delay(gcm_id, channel_id=self.pk)
+                    on_transaction_commit(lambda: sync_channel_task.delay(gcm_id, channel_id=self.pk))
 
         # otherwise this is an aggregator, no-op
         else:
@@ -1721,12 +1722,15 @@ class Channel(TembaModel):
 
         post_body = u"""
           <message>
-            <service id="single" source=$$FROM$$ />
+            <service id="single" source=$$FROM$$ validity=$$VALIDITY$$/>
             <to>$$TO$$</to>
             <body content-type="plain/text" encoding="plain">$$BODY$$</body>
           </message>
         """
         post_body = post_body.replace("$$FROM$$", quoteattr(channel.address))
+
+        # tell Start to attempt to deliver this message for up to 12 hours
+        post_body = post_body.replace("$$VALIDITY$$", quoteattr("+12 hours"))
         post_body = post_body.replace("$$TO$$", escape(msg.urn_path))
         post_body = post_body.replace("$$BODY$$", escape(msg.text))
         post_body = post_body.encode('utf8')
