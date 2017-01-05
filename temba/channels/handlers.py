@@ -453,15 +453,15 @@ class ExternalHandler(BaseChannelHandler):
 
         # this is a callback for a message we sent
         if action == 'delivered' or action == 'failed' or action == 'sent':
-            sms_pk = self.get_param('id')
+            sms_id = self.get_param('id')
 
-            if sms_pk is None:  # pragma: needs cover
+            if sms_id is None:
                 return HttpResponse("Missing 'id' parameter, invalid call.", status=400)
 
             # look up the message
-            sms = Msg.objects.filter(channel=channel, pk=sms_pk).select_related('channel').first()
+            sms = Msg.objects.filter(channel=channel, direction=OUTGOING, id=sms_id).select_related('channel').first()
             if not sms:
-                return HttpResponse("No SMS message with id: %s" % sms_pk, status=400)
+                return HttpResponse("No outgoing message with id: %s" % sms_id, status=400)
 
             if action == 'delivered':
                 sms.status_delivered()
