@@ -3557,6 +3557,14 @@ class ActionSet(models.Model):
     def get(cls, flow, uuid):
         return ActionSet.objects.filter(flow=flow, uuid=uuid).select_related('flow', 'flow__org').first()
 
+    @property
+    def is_messaging(self):
+        actions = self.get_actions()
+        for action in actions:
+            if isinstance(action, (ReplyAction, SendAction)):
+                return True
+        return False
+
     def get_step_type(self):
         return FlowStep.TYPE_ACTION_SET
 
