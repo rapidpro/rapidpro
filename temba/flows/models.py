@@ -3227,6 +3227,10 @@ class RuleSet(models.Model):
     def context_key(self):
         return Flow.label_to_slug(self.label)
 
+    @property
+    def is_messaging(self):
+        return self.ruleset_type in (self.TYPE_USSD + (self.TYPE_WAIT_MESSAGE, ))
+
     @classmethod
     def contains_step(cls, text):  # pragma: needs cover
 
