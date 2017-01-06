@@ -9,6 +9,7 @@ from django.contrib.auth.models import User, AnonymousUser
 from django.conf import settings
 from temba.channels.views import register, sync
 from django.views.i18n import javascript_catalog
+from django.conf.urls.static import static
 
 # javascript translation packages
 js_info_dict = {
@@ -39,8 +40,7 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns.append(url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT, }))
-
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # import any additional urls
 for app in settings.APP_URLS:  # pragma: needs cover
