@@ -613,6 +613,7 @@ class Flow(TembaModel):
 
         # lookup our next destination
         handled = False
+
         while destination:
             result = {"handled": False}
 
@@ -623,16 +624,15 @@ class Flow(TembaModel):
                 if destination.is_pause():
                     should_pause = True
 
-                if triggered_start and destination.is_ussd():  # pragma: needs cover
-                    result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
-
                 if (user_input or resume_after_timeout) or not should_pause:
                     result = Flow.handle_ruleset(destination, step, run, msg, started_flows, resume_parent_run,
                                                  resume_after_timeout)
                     add_to_path(path, destination.uuid)
 
+                    # USSD check for session end
+                    close_session = Flow.should_close_session(run, destination, result.get('destination'))
+
                 # USSD ruleset has extra functionality to send out messages.
-                # This is handled as a shadow step for the ruleset.
                 elif destination.is_ussd():
                     result = Flow.handle_ussd_ruleset_action(destination, step, run, msg)
 
@@ -652,6 +652,9 @@ class Flow(TembaModel):
 
                 # add any generated messages to be sent at once
                 msgs += result['msgs']
+
+                # USSD check for session end
+                close_session = Flow.should_close_session(run, destination, result.get('destination'))
 
             # if this is a triggered start, we only consider user input on the first step, so clear it now
             if triggered_start:
