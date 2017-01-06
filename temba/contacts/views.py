@@ -506,8 +506,8 @@ class ContactCRUDL(SmartCRUDL):
             kwargs['org'] = self.derive_org()
             return kwargs
 
-        def get_form(self, form_class):
-            form = super(ContactCRUDL.Customize, self).get_form(form_class)
+        def get_form(self):
+            form = super(ContactCRUDL.Customize, self).get_form()
             form.fields.clear()
 
             self.column_controls = self.create_column_controls(self.headers)
@@ -964,8 +964,8 @@ class ContactCRUDL(SmartCRUDL):
             form_kwargs['user'] = self.request.user
             return form_kwargs
 
-        def get_form(self, form_class):
-            return super(ContactCRUDL.Create, self).get_form(form_class)
+        def get_form(self):
+            return super(ContactCRUDL.Create, self).get_form()
 
         def pre_save(self, obj):
             obj = super(ContactCRUDL.Create, self).pre_save(obj)
@@ -1011,8 +1011,8 @@ class ContactCRUDL(SmartCRUDL):
             form_kwargs['user'] = self.request.user
             return form_kwargs
 
-        def get_form(self, form_class):
-            return super(ContactCRUDL.Update, self).get_form(form_class)
+        def get_form(self):
+            return super(ContactCRUDL.Update, self).get_form()
 
         def save(self, obj):
             super(ContactCRUDL.Update, self).save(obj)
@@ -1286,8 +1286,8 @@ class ContactFieldCRUDL(SmartCRUDL):
             context['contact_fields'] = contact_fields
             return context
 
-        def get_form(self, form_class):
-            form = super(ContactFieldCRUDL.Managefields, self).get_form(form_class)
+        def get_form(self):
+            form = super(ContactFieldCRUDL.Managefields, self).get_form()
             form.fields.clear()
 
             org = self.request.user.get_org()

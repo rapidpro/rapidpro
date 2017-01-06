@@ -36,7 +36,7 @@ urlpatterns = [
     url(r'^users/', include('smartmin.users.urls')),
     url(r'^imports/', include('smartmin.csv_imports.urls')),
     url(r'^assets/', include('temba.assets.urls')),
-    url(r'^jsi18n/$', javascript_catalog, js_info_dict, name='javascript-catalog'),
+    url(r'^jsi18n/$', javascript_catalog, js_info_dict, name='django.views.i18n.javascript_catalog'),
 ]
 
 if settings.DEBUG:
