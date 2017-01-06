@@ -518,6 +518,49 @@ class Flow(TembaModel):
         return name
 
     @classmethod
+    def should_close_session(cls, run, current_destination, next_destination):
+        if run.flow.flow_type == Flow.USSD:
+            if current_destination.is_messaging:
+                # this might be our last node that sends msg
+                if not next_destination:
+                    return True
+                else:
+                    if next_destination.is_messaging:
+                        return False
+                    else:
+                        return Flow.should_close_session_graph(next_destination)
+        else:
+            return False
+
+    @classmethod
+    def should_close_session_graph(cls, start_node):
+        # tweaked DFS that is looking for nodes with messaging capabilities
+        if start_node.get_step_type() == FlowStep.TYPE_RULE_SET:
+            # keep rules only that have destination
+            rules = [rule for rule in start_node.get_rules() if rule.destination]
+            if not rules:
+                return True
+            else:
+                for rule in rules:
+                    next_node = Flow.get_node(start_node.flow, rule.destination, rule.destination_type)
+                    if next_node.is_messaging:
+                        return False
+                    else:
+                        return Flow.should_close_session_graph(next_node)
+        else:  # actionset
+            if start_node.is_messaging:
+                return False
+            else:
+                if start_node.destination:
+                    next_node = Flow.get_node(start_node.flow, start_node.destination, start_node.destination_type)
+                    if next_node.is_messaging:
+                        return False
+                    else:
+                        return Flow.should_close_session_graph(next_node)
+                else:
+                    return True
+
+    @classmethod
     def find_and_handle(cls, msg, started_flows=None, voice_response=None,
                         triggered_start=False, resume_parent_run=False,
                         resume_after_timeout=False, user_input=True):
