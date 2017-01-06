@@ -1812,7 +1812,7 @@ class Flow(TembaModel):
                     Flow.find_and_handle(start_msg, started_flows_by_contact, triggered_start=True)
 
                 # if we didn't get an incoming message, see if we need to evaluate it passively
-                elif not entry_rules.is_pause() or entry_rules.is_ussd():
+                elif not entry_rules.is_pause():
                     # create an empty placeholder message
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                     handled, step_msgs = Flow.handle_destination(entry_rules, step, run, msg, started_flows_by_contact, trigger_send=False)
