@@ -2100,13 +2100,11 @@ class Channel(TembaModel):
         #
         from temba.settings import HUB9_ENDPOINT, DART_MEDIA_ENDPOINT
 
-        url = None
         if channel.channel_type == Channel.TYPE_HUB9:
             url = HUB9_ENDPOINT
         elif channel.channel_type == Channel.TYPE_DARTMEDIA:
             url = DART_MEDIA_ENDPOINT
-
-        if not url:
+        else:
             raise SendException("Missing URL config",
                                 url="",
                                 method=None,
