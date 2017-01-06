@@ -422,7 +422,7 @@ if(!Array.prototype.indexOf){
 		svg.trim = function(s) { return s.replace(/^\s+|\s+$/g, ''); }
 		
 		// compress spaces
-		svg.compressSpaces = function(s) { return s.replace(/[\s\r\t\n]+/gm,' '); }
+		svg.compressSpaces = function(s) { return s ? s.replace(/[\s\r\t\n]+/gm,' ') : ''; }
 		
 		// ajax
 		svg.ajax = function(url) {
@@ -2132,14 +2132,14 @@ if(!Array.prototype.indexOf){
 						child.x = x;
 					}
 					
-					var childLength = child.measureText(ctx);
+					var childLength = child.measureText ? child.measureText(ctx) : 0;
 					if (textAnchor != 'start' && (i==0 || child.attribute('x').hasValue())) { // new group?
 						// loop through rest of children
 						var groupLength = childLength;
 						for (var j=i+1; j<this.children.length; j++) {
 							var childInGroup = this.children[j];
 							if (childInGroup.attribute('x').hasValue()) break; // new group
-							groupLength += childInGroup.measureText(ctx);
+							groupLength += childInGroup.measureText ? childInGroup.measureText(ctx) : 0;
 						}
 						child.x -= (textAnchor == 'end' ? groupLength : groupLength / 2.0);
 					}
@@ -2908,19 +2908,17 @@ if (CanvasRenderingContext2D) {
 		});
 	}
 }/**
- * @license Highcharts JS v4.1.1 (2015-02-17)
+ * @license Highcharts JS v4.2.7 (2016-09-21)
  * CanVGRenderer Extension module
  *
- * (c) 2011-2012 Torstein Honsi, Erik Olsson
+ * (c) 2011-2016 Torstein Honsi, Erik Olsson
  *
  * License: www.highcharts.com/license
  */
 
-// JSLint options:
-/*global Highcharts */
-
-(function (Highcharts) { // encapsulate
+(function (Highcharts) {
 	var UNDEFINED,
+		win = Highcharts.win,
 		DIV = 'div',
 		ABSOLUTE = 'absolute',
 		RELATIVE = 'relative',
@@ -2955,7 +2953,7 @@ if (CanvasRenderingContext2D) {
 				canvas,
 				initialHiddenStyle = { visibility: HIDDEN, position: ABSOLUTE };
 
-			this.init.apply(this, [container, chartWidth, chartHeight]);
+			this.init(container, chartWidth, chartHeight);
 
 			// add the canvas above it
 			canvas = createElement('canvas', {
@@ -3033,7 +3031,11 @@ if (CanvasRenderingContext2D) {
 				tooltipDiv.innerHTML = args.text;
 
 				// Compute the best position for the tooltip based on the divs size and container size.
-				position = chart.tooltip.getPosition(tooltipDiv.offsetWidth, tooltipDiv.offsetHeight, {plotX: args.x, plotY: args.y});
+				position = chart.tooltip.getPosition(
+					tooltipDiv.offsetWidth, 
+					tooltipDiv.offsetHeight, 
+					{ plotX: args.x, plotY: args.y }
+				);
 
 				css(tooltipDiv, {
 					visibility: VISIBLE,
@@ -3107,7 +3109,7 @@ if (CanvasRenderingContext2D) {
 		 */
 		draw: function () {
 			var renderer = this;
-			window.canvg(renderer.canvas, renderer.hiddenSvg.innerHTML);
+			win.canvg(renderer.canvas, renderer.hiddenSvg.innerHTML);
 		}
 	});
 }(Highcharts));

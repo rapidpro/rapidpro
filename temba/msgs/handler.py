@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 
-class MessageHandler(object):
+class MessageHandler(object):  # pragma: no cover
     """
     Base class for message handlers.
     """

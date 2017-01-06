@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.utils.timezone import get_current_timezone_name
 from smartmin.views import SmartCRUDL, SmartUpdateView
 from temba.orgs.views import OrgPermsMixin
+from temba.utils import on_transaction_commit
 from .models import Schedule
 
 
@@ -35,7 +36,7 @@ class BaseScheduleForm(object):
             else:
                 return None
 
-        return timezone.now() - timedelta(days=1)
+        return timezone.now() - timedelta(days=1)  # pragma: needs cover
 
 
 class ScheduleForm(BaseScheduleForm, forms.ModelForm):
@@ -75,7 +76,7 @@ class ScheduleCRUDL(SmartCRUDL):
 
             if broadcast:
                 return reverse('msgs.broadcast_schedule_list')
-            elif trigger:
+            elif trigger:  # pragma: needs cover
                 return reverse('triggers.trigger_list')
 
             return reverse('public.public_welcome')
@@ -129,4 +130,4 @@ class ScheduleCRUDL(SmartCRUDL):
             # trigger our schedule if necessary
             if schedule.is_expired():
                 from .tasks import check_schedule_task
-                check_schedule_task.delay(schedule.pk)
+                on_transaction_commit(lambda: check_schedule_task.delay(schedule.pk))

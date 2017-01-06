@@ -1,0 +1,28 @@
+-load contacts
+
+-for run in runs
+  <tr class="exit-{{run.exit_type}}" {%if forloop.last%}ic-append-from="/flow/run_table/{{object.id}}/?modified_on={{run.modified_on|date:'U'}}&id={{run.id}}" ic-trigger-on="scrolled-into-view" ic-target="#results_run_table" ic-template="results_run_table" ic-indicator="#indicator"{%endif%}>
+    %td
+      .details
+        {{run.modified_on}}
+
+    %td
+      .details.breaks
+        %a{href:"{% url 'contacts.contact_read' run.contact.uuid %}"}
+          -if run.contact.name
+            {{run.contact.name|truncatechars:100}}
+          -else
+            {{ run.contact|format_urn:user_org }}
+
+    -for value in run.value_list
+      %td
+        .details.breaks
+          -if value
+            .category
+              {{value.category}}
+            .text.hide
+              {{value.string_value}}
+          -else
+            .empty
+              &ndash;
+  </tr>
