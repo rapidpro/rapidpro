@@ -1529,10 +1529,10 @@ class ChannelCRUDL(SmartCRUDL):
         channel_type = Channel.TYPE_DARTMEDIA
         readonly = ('country',)
 
-        def get_country(self, obj):  # pragma: needs cover
+        def get_country(self, obj):
             return "Indonesia"
 
-        def get_submitted_country(self, data):  # pragma: needs cover
+        def get_submitted_country(self, data):
             return "ID"
 
     class ClaimHighConnection(ClaimAuthenticatedExternal):
