@@ -335,9 +335,9 @@ class ContactCRUDL(SmartCRUDL):
             org = user.get_org()
 
             group = None
-            group_id = self.request.GET.get('g', None)
-            if group_id:
-                groups = ContactGroup.user_groups.filter(pk=group_id, org=org)
+            group_uuid = self.request.GET.get('g', None)
+            if group_uuid:
+                groups = ContactGroup.user_groups.filter(uuid=group_uuid, org=org)
 
                 if groups:
                     group = groups[0]
