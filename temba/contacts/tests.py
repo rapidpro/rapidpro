@@ -1709,6 +1709,10 @@ class ContactTest(TembaTest):
         self.assertEquals(1, len(response.context['object_list']))
         self.assertEquals(self.joe, response.context['object_list'][0])
 
+        # should have the export link
+        export_url = "%s?g=%s" % (reverse('contacts.contact_export'), group.uuid)
+        self.assertContains(response, export_url)
+
         # should have an edit button
         update_url = reverse('contacts.contactgroup_update', args=[group.pk])
         delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
