@@ -534,7 +534,7 @@ class Flow(TembaModel):
 
     @classmethod
     def should_close_session_graph(cls, start_node):
-        # tweaked DFS that is looking for nodes with messaging capabilities
+        # modified DFS that is looking for nodes with messaging capabilities
         if start_node.get_step_type() == FlowStep.TYPE_RULE_SET:
             # keep rules only that have destination
             rules = [rule for rule in start_node.get_rules() if rule.destination]
@@ -546,7 +546,11 @@ class Flow(TembaModel):
                     if next_node.is_messaging:
                         return False
                     else:
-                        return Flow.should_close_session_graph(next_node)
+                        if Flow.should_close_session_graph(next_node):
+                            continue
+                        else:
+                            return False
+                return True
         else:  # actionset
             if start_node.is_messaging:
                 return False
@@ -613,6 +617,7 @@ class Flow(TembaModel):
 
         # lookup our next destination
         handled = False
+        close_session = False
 
         while destination:
             result = {"handled": False}
@@ -682,6 +687,8 @@ class Flow(TembaModel):
             Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
 
             # TODO: take last message and mark it as last if close_session == True
+            if close_session:
+                pass
 
             run.flow.org.trigger_send(msgs)
 
