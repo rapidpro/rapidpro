@@ -1129,18 +1129,6 @@ REST_FRAMEWORK = {
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
 
-
-# -----------------------------------------------------------------------------------
-# Aggregator settings
-# -----------------------------------------------------------------------------------
-
-# Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
-# and make sure you send from a whitelisted IP Address
-HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
-
-# Dart Media is another aggregator in Indonesia, set this to the endpoint for your service
-DART_MEDIA_ENDPOINT = 'http://202.43.169.11/APIhttpU/receive2waysms.php'
-
 # -----------------------------------------------------------------------------------
 # Django Compressor configuration
 # -----------------------------------------------------------------------------------

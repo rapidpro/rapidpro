@@ -42,7 +42,8 @@ from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
 from xml.etree import ElementTree as ET
-from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS
+from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS, HUB9_ENDPOINT
+from .models import DART_MEDIA_ENDPOINT
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
 
@@ -5098,7 +5099,7 @@ class Hub9Test(TembaTest):
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
 
-                self.assertTrue(mock.call_args[0][0].startswith(settings.HUB9_ENDPOINT))
+                self.assertTrue(mock.call_args[0][0].startswith(HUB9_ENDPOINT))
 
                 self.clear_cache()
 
@@ -5206,7 +5207,7 @@ class DartMediaTest(TembaTest):
 
                 self.clear_cache()
 
-                self.assertTrue(mock.call_args[0][0].startswith(settings.DART_MEDIA_ENDPOINT))
+                self.assertTrue(mock.call_args[0][0].startswith(DART_MEDIA_ENDPOINT))
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')

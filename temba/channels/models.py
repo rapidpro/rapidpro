@@ -48,6 +48,13 @@ TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 # Some providers need a static ip to whitelist, route them through our proxy
 OUTGOING_PROXIES = settings.OUTGOING_PROXIES
 
+# Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
+# and make sure you send from a whitelisted IP Address
+HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
+
+# Dart Media is another aggregator in Indonesia, set this to the endpoint for your service
+DART_MEDIA_ENDPOINT = 'http://202.43.169.11/APIhttpU/receive2waysms.php'
+
 
 class Encoding(Enum):
     GSM7 = 1
@@ -2099,8 +2106,6 @@ class Channel(TembaModel):
         #   &message=Test+Normal+Single+Message&dcs=0
         #   &udhl=0&charset=utf-8
         #
-        from temba.settings import HUB9_ENDPOINT, DART_MEDIA_ENDPOINT
-
         if channel.channel_type == Channel.TYPE_HUB9:
             url = HUB9_ENDPOINT
         elif channel.channel_type == Channel.TYPE_DARTMEDIA:
