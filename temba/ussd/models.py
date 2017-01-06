@@ -17,7 +17,7 @@ class USSDQuerySet(models.QuerySet):
         return super(USSDQuerySet, self).create(**kwargs)
 
     def get_initiated_push_session(self, contact):
-        return self.filter(direction=USSDSession.USSD_PUSH, contact=contact).first()
+        return self.filter(direction=USSDSession.USSD_PUSH, status=USSDSession.INITIATED, contact=contact).first()
 
 
 class USSDSession(ChannelSession):
@@ -70,7 +70,7 @@ class USSDSession(ChannelSession):
             defaults.update(dict(ended_on=date, status=status))
 
         else:
-            defaults.update(dict(status=USSDSession.IN_PROGRESS))
+            defaults.update(dict(status=cls.IN_PROGRESS))
 
         # check if there's an initiated PUSH session
         session = cls.objects.get_initiated_push_session(contact)
