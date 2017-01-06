@@ -3341,27 +3341,33 @@ class ExternalTest(TembaTest):
                                       uuid='00000000-0000-0000-0000-000000001234')
 
     def test_status(self):
-        # ok, what happens with an invalid uuid?
-        data = dict(id="-1")
-        response = self.client.post(reverse('handlers.external_handler', args=['sent', 'not-real-uuid']), data)
+        # try with an invalid channel
+        response = self.client.post(reverse('handlers.external_handler', args=['sent', 'not-real-uuid']), dict(id="-1"))
+        self.assertEqual(response.status_code, 400)
 
-        self.assertEquals(400, response.status_code)
-
-        # ok, try with a valid uuid, but invalid message id -1
         delivery_url = reverse('handlers.external_handler', args=['sent', self.channel.uuid])
-        response = self.client.post(delivery_url, data)
+        joe = self.create_contact("Joe Biden", "+254788383383")
 
-        self.assertEquals(400, response.status_code)
+        # try with missing message id
+        response = self.client.post(delivery_url, {})
+        self.assertEqual(response.status_code, 400)
+
+        # try with an invalid message id
+        response = self.client.post(delivery_url, {'id': -1234})
+        self.assertEqual(response.status_code, 400)
+
+        # try with an incoming message id
+        incoming = self.create_msg(direction='I', contact=joe, text="It's me")
+        response = self.client.post(delivery_url, {'id': incoming.id})
+        self.assertEqual(response.status_code, 400)
 
         # ok, lets create an outgoing message to update
-        joe = self.create_contact("Joe Biden", "+254788383383")
         msg = joe.send("Hey Joe, it's Obama, pick up!", self.admin)
-
-        data['id'] = msg.pk
+        payload = {'id': msg.id}
 
         def assertStatus(sms, status, assert_status):
-            response = self.client.post(reverse('handlers.external_handler', args=[status, self.channel.uuid]), data)
-            self.assertEquals(200, response.status_code)
+            resp = self.client.post(reverse('handlers.external_handler', args=[status, self.channel.uuid]), payload)
+            self.assertEquals(200, resp.status_code)
             sms = Msg.objects.get(pk=sms.id)
             self.assertEquals(assert_status, sms.status)
 
