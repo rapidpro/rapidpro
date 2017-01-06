@@ -2550,6 +2550,8 @@ class ChannelClaimTest(TembaTest):
 
         # try to claim a channel
         response = self.client.get(reverse('channels.channel_claim_dart_media'))
+        self.assertEquals(response.context['view'].get_country({}), 'Indonesia')
+
         post_data = response.context['form'].initial
 
         post_data['username'] = 'uname'
@@ -2788,6 +2790,8 @@ class ChannelClaimTest(TembaTest):
 
         response = self.client.get(reverse('channels.channel_claim_chikka'))
         self.assertEquals(200, response.status_code)
+        self.assertEquals(response.context['view'].get_country({}), 'Philippines')
+
         post_data = response.context['form'].initial
 
         post_data['number'] = '5259'

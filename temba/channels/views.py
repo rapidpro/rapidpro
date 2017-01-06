@@ -1378,7 +1378,7 @@ class ChannelCRUDL(SmartCRUDL):
         form_class = ChikkaForm
 
         def get_country(self, obj):
-            return "Indonesia"
+            return "Philippines"
 
         def get_submitted_country(self, data):
             return 'PH'
