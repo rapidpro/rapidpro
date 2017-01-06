@@ -680,6 +680,9 @@ class Flow(TembaModel):
         if msgs and trigger_send:
             msgs.sort(key=lambda message: message.created_on)
             Msg.objects.filter(id__in=[m.id for m in msgs]).update(status=PENDING)
+
+            # TODO: take last message and mark it as last if close_session == True
+
             run.flow.org.trigger_send(msgs)
 
         return handled, msgs
