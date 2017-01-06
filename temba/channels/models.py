@@ -2105,12 +2105,6 @@ class Channel(TembaModel):
             url = HUB9_ENDPOINT
         elif channel.channel_type == Channel.TYPE_DARTMEDIA:
             url = DART_MEDIA_ENDPOINT
-        else:
-            raise SendException("Missing URL config",
-                                url="",
-                                method=None,
-                                response=None,
-                                response_status=None)
 
         payload = dict(userid=channel.config['username'], password=channel.config['password'],
                        original=channel.address.lstrip('+'), sendto=msg.urn_path.lstrip('+'),
