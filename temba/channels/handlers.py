@@ -785,7 +785,7 @@ class Hub9Handler(BaseChannelHandler):
 
 class DartMediaHandler(Hub9Handler):
 
-    url = r'^/dartmedia/(?P<action>delivered|received)/(?P<uuid>[a-z0-9\-]+)/?$'
+    url = r'^dartmedia/(?P<action>delivered|received)/(?P<uuid>[a-z0-9\-]+)/?$'
     url_name = 'handlers.dartmedia_handler'
 
     def get_channel_type(self):
