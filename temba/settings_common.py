@@ -1054,7 +1054,7 @@ CELERY_TASK_MAP = {
 }
 
 # -----------------------------------------------------------------------------------
-# Async tasks with django-celery
+# Async tasks with celery
 # -----------------------------------------------------------------------------------
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
@@ -1068,6 +1068,8 @@ BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 
 CELERY_RESULT_BACKEND = BROKER_URL
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
 
 IS_PROD = False
 HOSTNAME = "localhost"
