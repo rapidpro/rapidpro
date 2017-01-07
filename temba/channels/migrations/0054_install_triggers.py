@@ -9,9 +9,9 @@ from temba.sql import InstallSQL
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0052_reset_4'),
+        ('channels', '0053_reset_4'),
     ]
 
     operations = [
-        InstallSQL('0053_channels')
+        InstallSQL('0054_channels')
     ]

@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('contacts', '0046_reset_1'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('channels', '0051_reset_3'),
+        ('channels', '0052_reset_3'),
         ('schedules', '0003_reset'),
         ('orgs', '0029_reset'),
     ]

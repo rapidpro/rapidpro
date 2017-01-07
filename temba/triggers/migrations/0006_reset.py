@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
         ('flows', '0079_reset_1'),
         ('schedules', '0003_reset'),
         ('orgs', '0029_reset'),
-        ('channels', '0051_reset_3'),
+        ('channels', '0052_reset_3'),
         ('contacts', '0046_reset_1'),
     ]
 

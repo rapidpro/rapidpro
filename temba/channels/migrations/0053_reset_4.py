@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('channels', '0051_reset_3'),
+        ('channels', '0052_reset_3'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('msgs', '0075_reset'),
         ('contacts', '0046_reset_1'),

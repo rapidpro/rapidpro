@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('channels', '0049_reset_1'),
+        ('channels', '0050_reset_1'),
     ]
 
     operations = [

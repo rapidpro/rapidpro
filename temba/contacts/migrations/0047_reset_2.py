@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         ('orgs', '0029_reset'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('contacts', '0046_reset_1'),
-        ('channels', '0052_reset_4'),
+        ('channels', '0053_reset_4'),
         ('csv_imports', '0003_importtask_task_status'),
     ]
 

@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
         ('orgs', '0029_reset'),
         ('msgs', '0075_reset'),
         ('contacts', '0046_reset_1'),
-        ('channels', '0052_reset_4'),
+        ('channels', '0053_reset_4'),
     ]
 
     operations = [
