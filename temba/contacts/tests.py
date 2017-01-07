@@ -1709,6 +1709,10 @@ class ContactTest(TembaTest):
         self.assertEquals(1, len(response.context['object_list']))
         self.assertEquals(self.joe, response.context['object_list'][0])
 
+        # should have the export link
+        export_url = "%s?g=%s" % (reverse('contacts.contact_export'), group.uuid)
+        self.assertContains(response, export_url)
+
         # should have an edit button
         update_url = reverse('contacts.contactgroup_update', args=[group.pk])
         delete_url = reverse('contacts.contactgroup_delete', args=[group.pk])
@@ -3508,7 +3512,7 @@ class ContactFieldTest(TembaTest):
         # export a specified group of contacts
         self.client.post(reverse('contacts.contactgroup_create'), dict(name="Poppin Tags", group_query='Haggerty'))
         group = ContactGroup.user_groups.get(name='Poppin Tags')
-        self.client.get(reverse('contacts.contact_export'), dict(g=group.id))
+        self.client.get(reverse('contacts.contact_export'), dict(g=group.uuid))
         task = ExportContactsTask.objects.all().order_by('-id').first()
         filename = "%s/test_orgs/%d/contact_exports/%s.xlsx" % (settings.MEDIA_ROOT, self.org.pk, task.uuid)
         workbook = load_workbook(filename=filename)

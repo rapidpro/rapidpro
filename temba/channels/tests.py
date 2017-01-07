@@ -42,7 +42,8 @@ from twilio.util import RequestValidator
 from twython import TwythonError
 from urllib import urlencode
 from xml.etree import ElementTree as ET
-from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS
+from .models import Channel, ChannelCount, ChannelEvent, SyncEvent, Alert, ChannelLog, TEMBA_HEADERS, HUB9_ENDPOINT
+from .models import DART_MEDIA_ENDPOINT
 from .tasks import check_channels_task, squash_channelcounts
 from .views import TWILIO_SUPPORTED_COUNTRIES
 
@@ -2543,6 +2544,41 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
 
+    def test_claim_dart_media(self):
+        Channel.objects.all().delete()
+
+        self.login(self.admin)
+
+        # try to claim a channel
+        response = self.client.get(reverse('channels.channel_claim_dart_media'))
+        self.assertEquals(response.context['view'].get_country({}), 'Indonesia')
+
+        post_data = response.context['form'].initial
+
+        post_data['username'] = 'uname'
+        post_data['password'] = 'pword'
+        post_data['number'] = '5151'
+        post_data['country'] = 'ID'
+
+        response = self.client.post(reverse('channels.channel_claim_dart_media'), post_data)
+
+        channel = Channel.objects.get()
+
+        self.assertEquals('ID', channel.country)
+        self.assertTrue(channel.uuid)
+        self.assertEquals(post_data['number'], channel.address)
+        self.assertEquals(post_data['username'], channel.config_json()['username'])
+        self.assertEquals(post_data['password'], channel.config_json()['password'])
+        self.assertEquals(Channel.TYPE_DARTMEDIA, channel.channel_type)
+
+        config_url = reverse('channels.channel_configuration', args=[channel.pk])
+        self.assertRedirect(response, config_url)
+
+        response = self.client.get(config_url)
+        self.assertEquals(200, response.status_code)
+
+        self.assertContains(response, reverse('handlers.dartmedia_handler', args=['received', channel.uuid]))
+
     def test_shaqodoon(self):
         Channel.objects.all().delete()
 
@@ -2755,6 +2791,8 @@ class ChannelClaimTest(TembaTest):
 
         response = self.client.get(reverse('channels.channel_claim_chikka'))
         self.assertEquals(200, response.status_code)
+        self.assertEquals(response.context['view'].get_country({}), 'Philippines')
+
         post_data = response.context['form'].initial
 
         post_data['number'] = '5259'
@@ -5061,7 +5099,115 @@ class Hub9Test(TembaTest):
                 self.assertEquals(SENT, msg.status)
                 self.assertTrue(msg.sent_on)
 
+                self.assertTrue(mock.call_args[0][0].startswith(HUB9_ENDPOINT))
+
                 self.clear_cache()
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(400, "Error", method='POST')
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # message should be marked as an error
+                msg.refresh_from_db()
+                self.assertEquals(ERRORED, msg.status)
+                self.assertEquals(1, msg.error_count)
+                self.assertTrue(msg.next_attempt)
+        finally:
+            settings.SEND_MESSAGES = False
+
+
+class DartMediaTest(TembaTest):
+
+    def setUp(self):
+        super(DartMediaTest, self).setUp()
+
+        self.channel.delete()
+        self.channel = Channel.create(self.org, self.user, 'ID', 'DA', None, '+6289881134567',
+                                      config=dict(username='dartmedia-user', password='dartmedia-password'),
+                                      uuid='00000000-0000-0000-0000-000000001234')
+
+    def test_received(self):
+        # http://localhost:8000/api/v1/dartmedia/received/9bbffaeb-3b12-4fe1-bcaa-fd50cce2ada2/?
+        # userid=testusr&password=test&original=6289881134567&sendto=6282881134567
+        # &messageid=99123635&message=Test+sending+sms
+        data = {
+            'userid': 'testusr',
+            'password': 'test',
+            'original': '6289881134560',
+            'sendto': '6289881134567',
+            'message': 'Hello World'
+        }
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('handlers.dartmedia_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        msg = Msg.objects.get()
+        self.assertEquals('+6289881134560', msg.contact.get_urn(TEL_SCHEME).path)
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello World", msg.text)
+
+        # try it with an invalid receiver, should fail as UUID and receiver id are mismatched
+        data['sendto'] = '6289881131111'
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('handlers.dartmedia_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        # should get 404 as the channel wasn't found
+        self.assertEquals(404, response.status_code)
+
+        # the case of 11 digits number from dartmedia
+        data = {
+            'userid': 'testusr',
+            'password': 'test',
+            'original': '62811999374',
+            'sendto': '6289881134567',
+            'message': 'Hello Jakarta'
+        }
+        encoded_message = urlencode(data)
+
+        callback_url = reverse('handlers.dartmedia_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        msg = Msg.objects.all().order_by('-pk').first()
+        self.assertEquals('+62811999374', msg.contact.raw_tel())
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello Jakarta", msg.text)
+
+    def test_send(self):
+        joe = self.create_contact("Joe", "+250788383383")
+        msg = joe.send("Test message", self.admin, trigger_send=False)
+
+        try:
+            settings.SEND_MESSAGES = True
+
+            with patch('requests.get') as mock:
+                mock.return_value = MockResponse(200, "000")
+
+                # manually send it off
+                Channel.send_message(dict_to_struct('MsgStruct', msg.as_task_json()))
+
+                # check the status of the message is now sent
+                msg.refresh_from_db()
+                self.assertEquals(SENT, msg.status)
+                self.assertTrue(msg.sent_on)
+
+                self.clear_cache()
+
+                self.assertTrue(mock.call_args[0][0].startswith(DART_MEDIA_ENDPOINT))
 
             with patch('requests.get') as mock:
                 mock.return_value = MockResponse(400, "Error", method='POST')
