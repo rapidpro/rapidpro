@@ -2892,6 +2892,9 @@ class ContactTest(TembaTest):
         self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[], creates=3,
                                                             updates=0))
 
+        contact1 = Contact.objects.all().order_by('name')[0]
+        self.assertEquals(contact1.get_field_raw('startdate'), '31-12-2014 10:00')
+
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")
 
