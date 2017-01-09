@@ -389,14 +389,27 @@ class OrgTest(TembaTest):
         response = self.client.get(update_url)
         self.assertEquals(200, response.status_code)
 
-        post_data = response.context['form'].initial
-        post_data['plan'] = 'TRIAL'
-        post_data['language'] = ''
-        post_data['country'] = ''
-        post_data['primary_language'] = ''
-        post_data['parent'] = ''
-
         # change to the trial plan
+        post_data = {
+            'name': 'Temba',
+            'brand': 'rapidpro.io',
+            'plan': 'TRIAL',
+            'language': '',
+            'country': '',
+            'primary_language': '',
+            'timezone': pytz.timezone("Africa/Kigali"),
+            'config': '{}',
+            'date_format': 'D',
+            'webhook': None,
+            'webhook_events': 0,
+            'parent': '',
+            'viewers': [self.user.id],
+            'editors': [self.editor.id],
+            'administrators': [self.admin.id],
+            'surveyors': [self.surveyor.id],
+            'surveyor_password': None
+        }
+
         response = self.client.post(update_url, post_data)
         self.assertEquals(302, response.status_code)
 
