@@ -25,7 +25,7 @@ class NexmoClient(nexmo.Client):
         kwargs['private_key'] = app_private_key.strip()
         nexmo.Client.__init__(self, **kwargs)
 
-    def update_account(self, mo_url, dr_url):
+    def update_account(self, mo_url, dr_url):  # pragma: needs cover
         nexmo.Client.update_settings(self, moCallBackUrl=mo_url, drCallBackUrl=dr_url)
 
     def get_numbers(self, pattern=None, size=10):
@@ -81,7 +81,7 @@ class NexmoClient(nexmo.Client):
         else:
             return messages[0]['message-id'], response
 
-    def search_numbers(self, country, pattern):
+    def search_numbers(self, country, pattern):  # pragma: needs cover
         response = nexmo.Client.get_available_numbers(self, pattern=pattern, search_pattern=1,
                                                       features='SMS', country=country)
         numbers = []
@@ -106,7 +106,7 @@ class NexmoClient(nexmo.Client):
                       voiceCallbackValue=app_id)
         nexmo.Client.update_number(self, params=params)
 
-    def test_credentials(self):
+    def test_credentials(self):  # pragma: needs cover
         try:
             self.get_balance()
             return True

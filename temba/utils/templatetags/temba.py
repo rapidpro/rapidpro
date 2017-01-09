@@ -49,7 +49,7 @@ def ssl_brand_url(context, url_name, args=None):
         hostname = context['brand'].get('domain', settings.HOSTNAME)
 
     path = reverse(url_name, args)
-    if getattr(settings, 'SESSION_COOKIE_SECURE', False):
+    if getattr(settings, 'SESSION_COOKIE_SECURE', False):  # pragma: needs cover
         return "https://%s%s" % (hostname, path)
     else:
         return path
@@ -64,7 +64,7 @@ def non_ssl_brand_url(context, url_name, args=None):
     path = reverse(url_name, args)
     if settings.HOSTNAME != "localhost":
         return "http://%s%s" % (hostname, path)
-    return path
+    return path  # pragma: needs cover
 
 
 def lessblock(parser, token):

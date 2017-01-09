@@ -95,7 +95,7 @@ def omnibox_mixed_search(org, search, types):
                     term_as_int = int(term)
                     term_clauses.append("id = %s")
                     _params.append(term_as_int)
-                except ValueError:
+                except ValueError:  # pragma: needs cover
                     pass
 
         _clauses.append('AND (' + join_op.join(term_clauses) + ')')

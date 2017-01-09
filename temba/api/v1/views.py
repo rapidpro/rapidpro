@@ -130,11 +130,11 @@ class AuthenticateEndpoint(SmartFormView):
                 for org in valid_orgs:
                     token = APIToken.get_or_create(org, user, role)
                     orgs.append(dict(id=org.pk, name=org.name, token=token.key))
-            else:
+            else:  # pragma: needs cover
                 return HttpResponse(status=403)
 
             return JsonResponse(orgs, safe=False)
-        else:
+        else:  # pragma: needs cover
             return HttpResponse(status=403)
 
 
@@ -453,7 +453,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
-            except Exception:
+            except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.query_params.get('after', None)
@@ -461,7 +461,7 @@ class BroadcastEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
-            except Exception:
+            except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
 
         return queryset.order_by('-created_on').select_related('org').prefetch_related('urns', 'contacts', 'groups')
@@ -729,7 +729,7 @@ class MessageEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         return spec
 
     @classmethod
-    def get_write_explorer(cls):
+    def get_write_explorer(cls):  # pragma: needs cover
         spec = dict(method="POST",
                     title="Send one or more messages",
                     url=reverse('api.v1.messages'),
@@ -1004,7 +1004,7 @@ class CallEndpoint(ListAPIMixin, BaseAPIView):
             queryset = queryset.filter(contact__urns__path__in=phones)
 
         channel = self.request.query_params.get('relayer', None)
-        if channel:
+        if channel:  # pragma: needs cover
             try:
                 channel = int(channel)
                 queryset = queryset.filter(channel_id=channel)
@@ -1448,7 +1448,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(modified_on__lte=before)
-            except Exception:
+            except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.query_params.get('after', None)
@@ -1456,7 +1456,7 @@ class ContactEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAPIView)
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(modified_on__gte=after)
-            except Exception:
+            except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
 
         phones = splitting_getlist(self.request, 'phone')  # deprecated, use urns
@@ -1648,7 +1648,7 @@ class FieldEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         queryset = self.model.objects.filter(org=self.request.user.get_org(), is_active=True)
 
         key = self.request.query_params.get('key', None)
-        if key:
+        if key:  # pragma: needs cover
             queryset = queryset.filter(key__icontains=key)
 
         return queryset
@@ -1945,7 +1945,7 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if before:
             try:
                 before = json_date_to_datetime(before)
-                queryset = queryset.filter(modified_on__lte=before)
+                queryset = queryset.filter(modified_on__lte=before)  # pragma: needs cover
             except Exception:
                 queryset = queryset.filter(pk=-1)
 
@@ -1953,8 +1953,8 @@ class FlowRunEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
         if after:
             try:
                 after = json_date_to_datetime(after)
-                queryset = queryset.filter(modified_on__gte=after)
-            except Exception:
+                queryset = queryset.filter(modified_on__gte=after)  # pragma: needs cover
+            except Exception:  # pragma: needs cover
                 queryset = queryset.filter(pk=-1)
 
         # it's faster to filter by contact group using a join than a subquery - especially for larger groups
@@ -2102,7 +2102,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
             queryset = queryset.filter(pk__in=ids)
 
         before = self.request.query_params.get('before', None)
-        if before:
+        if before:  # pragma: needs cover
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
@@ -2110,7 +2110,7 @@ class CampaignEndpoint(ListAPIMixin, CreateAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.query_params.get('after', None)
-        if after:
+        if after:  # pragma: needs cover
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
@@ -2264,19 +2264,19 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
             queryset = queryset.filter(uuid__in=uuids)
 
         campaign_uuids = splitting_getlist(self.request, 'campaign_uuid')
-        if campaign_uuids:
+        if campaign_uuids:  # pragma: needs cover
             queryset = queryset.filter(campaign__uuid__in=campaign_uuids)
 
         ids = splitting_getlist(self.request, 'event')  # deprecated, use uuid
-        if ids:
+        if ids:  # pragma: needs cover
             queryset = queryset.filter(pk__in=ids)
 
         campaign_ids = splitting_getlist(self.request, 'campaign')  # deprecated, use campaign_uuid
-        if campaign_ids:
+        if campaign_ids:  # pragma: needs cover
             queryset = queryset.filter(campaign__pk__in=campaign_ids)
 
         before = self.request.query_params.get('before', None)
-        if before:
+        if before:  # pragma: needs cover
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
@@ -2284,7 +2284,7 @@ class CampaignEventEndpoint(ListAPIMixin, CreateAPIMixin, DeleteAPIMixin, BaseAP
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.query_params.get('after', None)
-        if after:
+        if after:  # pragma: needs cover
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
@@ -2415,7 +2415,7 @@ class BoundaryEndpoint(ListAPIMixin, BaseAPIView):
     def get_queryset(self):
 
         org = self.request.user.get_org()
-        if not org.country:
+        if not org.country:  # pragma: needs cover
             return []
 
         queryset = org.country.get_descendants(include_self=True).order_by('level', 'name')
@@ -2611,7 +2611,7 @@ class FlowDefinitionEndpoint(BaseAPIView, CreateAPIMixin):
             # make sure we have the latest format
             flow.ensure_current_version()
             return Response(flow.as_json(), status=status.HTTP_200_OK)
-        else:
+        else:  # pragma: needs cover
             return Response(dict(error="Invalid flow uuid"), status=status.HTTP_400_BAD_REQUEST)
 
     def render_write_response(self, flow, context):
@@ -2690,7 +2690,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
             queryset = queryset.filter(pk__in=ids)
 
         before = self.request.query_params.get('before', None)
-        if before:
+        if before:  # pragma: needs cover
             try:
                 before = json_date_to_datetime(before)
                 queryset = queryset.filter(created_on__lte=before)
@@ -2698,7 +2698,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(pk=-1)
 
         after = self.request.query_params.get('after', None)
-        if after:
+        if after:  # pragma: needs cover
             try:
                 after = json_date_to_datetime(after)
                 queryset = queryset.filter(created_on__gte=after)
@@ -2714,7 +2714,7 @@ class FlowEndpoint(ListAPIMixin, BaseAPIView):
             queryset = queryset.filter(is_archived=str_to_bool(archived))
 
         flow_type = self.request.query_params.getlist('type', None)
-        if flow_type:
+        if flow_type:  # pragma: needs cover
             queryset = queryset.filter(flow_type__in=flow_type)
 
         return queryset.prefetch_related('labels')
@@ -2744,7 +2744,7 @@ class AssetEndpoint(BaseAPIView):
     """
     This endpoint allows you to fetch assets associated with your account using the ```GET``` method.
     """
-    def get(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):  # pragma: needs cover
         type_name = request.GET.get('type')
         identifier = request.GET.get('identifier')
         if not type_name or not identifier:
@@ -2794,7 +2794,7 @@ class OrgEndpoint(BaseAPIView):
         return Response(data, status=status.HTTP_200_OK)
 
     @classmethod
-    def get_read_explorer(cls):
+    def get_read_explorer(cls):  # pragma: needs cover
         return dict(method="GET", title="View Current Org", url=reverse('api.v1.org'), slug='org-read', request="")
 
 
@@ -2844,7 +2844,7 @@ class FlowStepEndpoint(CreateAPIMixin, BaseAPIView):
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     @classmethod
-    def get_write_explorer(cls):
+    def get_write_explorer(cls):  # pragma: needs cover
         spec = dict(method="POST",
                     title="Create or update a flow run with new steps",
                     url=reverse('api.v1.steps'),

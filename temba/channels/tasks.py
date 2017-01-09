@@ -4,11 +4,11 @@ import requests
 import logging
 import time
 
+from celery.task import task
 from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 from django_redis import get_redis_connection
-from djcelery_transactions import task
 from enum import Enum
 from temba.msgs.models import SEND_MSG_TASK, MSG_QUEUE
 from temba.utils import dict_to_struct
@@ -41,10 +41,10 @@ def send_msg_task():
     org_id, msg_tasks = start_task(SEND_MSG_TASK)
 
     # it is possible we have no message to send, if so, just return
-    if not msg_tasks:
+    if not msg_tasks:  # pragma: needs cover
         return
 
-    if not isinstance(msg_tasks, list):
+    if not isinstance(msg_tasks, list):  # pragma: needs cover
         msg_tasks = [msg_tasks]
 
     r = get_redis_connection()
@@ -89,7 +89,7 @@ def send_alert_task(alert_id, resolved):
 
 
 @nonoverlapping_task(track_started=True, name='trim_channel_log_task')
-def trim_channel_log_task():
+def trim_channel_log_task():  # pragma: needs cover
     """
     Runs daily and clears any channel log items older than 48 hours.
     """
@@ -106,8 +106,7 @@ def trim_channel_log_task():
 @task(track_started=True, name='notify_mage_task')
 def notify_mage_task(channel_uuid, action):
     """
-    Notifies Mage of a change to a Twitter channel. Having this in a djcelery_transactions task ensures that the channel
-    db object is updated before Mage tries to fetch it
+    Notifies Mage of a change to a Twitter channel
     """
     mage = MageClient(settings.MAGE_API_URL, settings.MAGE_AUTH_TOKEN)
 

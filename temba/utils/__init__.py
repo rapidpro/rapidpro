@@ -493,3 +493,14 @@ def clean_string(string_text):
         (string_text, matches) = rexp.subn('', string_text)
 
     return string_text
+
+
+def on_transaction_commit(func):
+    """
+    Requests that the given function be called after the current transaction has been committed. However function will
+    be called immediately if CELERY_ALWAYS_EAGER is True or if there is no active transaction.
+    """
+    if getattr(settings, 'CELERY_ALWAYS_EAGER', False):
+        func()
+    else:
+        transaction.on_commit(func)

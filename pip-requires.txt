@@ -1,5 +1,5 @@
 smartmin
-Django<1.9
+Django<1.10
 coverage
 django-celery
 django-compressor
@@ -32,7 +32,6 @@ requests
 mock
 selenium
 unidecode
--e git+http://github.com/nyaruka/django-celery-transactions.git#egg=django-celery-transactions
 stripe
 dj-database-url
 psycopg2

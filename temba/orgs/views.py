@@ -23,6 +23,7 @@ from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect
 from django.utils import timezone
 from django.utils.http import urlquote
+from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from django.views.generic import View
@@ -75,7 +76,7 @@ class OrgPermsMixin(object):
         user = self.get_user()
         org = self.derive_org()
 
-        if not org:
+        if not org:  # pragma: needs cover
             if user.is_authenticated():
                 if user.is_superuser or user.is_staff:
                     return None
@@ -106,7 +107,7 @@ class OrgPermsMixin(object):
         if self.get_user().is_anonymous():
             return False
 
-        if self.get_user().has_perm(self.permission):
+        if self.get_user().has_perm(self.permission):  # pragma: needs cover
             return True
 
         return self.has_org_perm(self.permission)
@@ -257,11 +258,11 @@ class OrgGrantForm(forms.ModelForm):
         # or both email and password must be included
         if email:
             user = User.objects.filter(username__iexact=email).first()
-            if user:
+            if user:  # pragma: needs cover
                 if password:
                     raise ValidationError(_("User already exists, please do not include password."))
 
-            elif not password or len(password) < 8:
+            elif not password or len(password) < 8:  # pragma: needs cover
                 raise ValidationError(_("Password must be at least 8 characters long"))
 
         return data
@@ -359,13 +360,13 @@ class UserCRUDL(SmartCRUDL):
             if org:
                 org_users = org.administrators.all() | org.editors.all() | org.viewers.all() | org.surveyors.all()
 
-                if not user.is_authenticated():
+                if not user.is_authenticated():  # pragma: needs cover
                     return False
 
                 if user in org_users:
                     return True
 
-            return False
+            return False  # pragma: needs cover
 
 
 class InferOrgMixin(object):
@@ -383,13 +384,13 @@ class PhoneRequiredForm(forms.ModelForm):
     def clean_tel(self):
         if 'tel' in self.cleaned_data:
             tel = self.cleaned_data['tel']
-            if not tel:
+            if not tel:  # pragma: needs cover
                 return tel
 
             import phonenumbers
             try:
                 normalized = phonenumbers.parse(tel, None)
-                if not phonenumbers.is_possible_number(normalized):
+                if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
                     raise forms.ValidationError(_("Invalid phone number, try again."))
             except Exception:  # pragma: no cover
                 raise forms.ValidationError(_("Invalid phone number, try again."))
@@ -457,7 +458,7 @@ class OrgCRUDL(SmartCRUDL):
         success_message = _("Import successful")
         form_class = FlowImportForm
 
-        def get_success_url(self):
+        def get_success_url(self):  # pragma: needs cover
             return reverse('orgs.org_home')
 
         def get_form_kwargs(self):
@@ -477,7 +478,7 @@ class OrgCRUDL(SmartCRUDL):
                 form._errors['import_file'] = form.error_class([_("Sorry, your import file is invalid.")])
                 return self.form_invalid(form)
 
-            return super(OrgCRUDL.Import, self).form_valid(form)
+            return super(OrgCRUDL.Import, self).form_valid(form)  # pragma: needs cover
 
     class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
 
@@ -580,7 +581,7 @@ class OrgCRUDL(SmartCRUDL):
                 account_sid = self.cleaned_data.get('account_sid', None)
                 account_token = self.cleaned_data.get('account_token', None)
 
-                if not account_sid:
+                if not account_sid:  # pragma: needs cover
                     raise ValidationError(_("You must enter your Twilio Account SID"))
 
                 if not account_token:
@@ -675,14 +676,14 @@ class OrgCRUDL(SmartCRUDL):
                     if not api_key:
                         raise ValidationError(_("You must enter your Nexmo Account API Key"))
 
-                    if not api_secret:
+                    if not api_secret:  # pragma: needs cover
                         raise ValidationError(_("You must enter your Nexmo Account API Secret"))
 
                     try:
                         from nexmo import Client as NexmoClient
                         client = NexmoClient(api_key, api_secret)
                         client.get_numbers()
-                    except Exception:
+                    except Exception:  # pragma: needs cover
                         raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data
@@ -788,7 +789,7 @@ class OrgCRUDL(SmartCRUDL):
                 try:
                     client = plivo.RestAPI(auth_id, auth_token)
                     validation_response = client.get_account()
-                except Exception:
+                except Exception:  # pragma: needs cover
                     raise ValidationError(_("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."))
 
                 if validation_response[0] != 200:
@@ -819,48 +820,52 @@ class OrgCRUDL(SmartCRUDL):
             return response
 
     class Manage(SmartListView):
-        fields = ('credits', 'used', 'name', 'owner', 'created_on')
+        fields = ('credits', 'used', 'name', 'owner', 'service', 'created_on')
+        field_config = {'service': {'label': ''}}
         default_order = ('-credits', '-created_on',)
         search_fields = ('name__icontains', 'created_by__email__iexact', 'config__icontains')
         link_fields = ('name', 'owner')
         title = "Organizations"
 
         def get_used(self, obj):
-            if not obj.credits:
+            if not obj.credits:  # pragma: needs cover
                 used_pct = 0
             else:
                 used_pct = round(100 * float(obj.get_credits_used()) / float(obj.credits))
 
             used_class = 'used-normal'
-            if used_pct >= 75:
+            if used_pct >= 75:  # pragma: needs cover
                 used_class = 'used-warning'
-            if used_pct >= 90:
+            if used_pct >= 90:  # pragma: needs cover
                 used_class = 'used-alert'
-            return "<div class='used-pct %s'>%d%%</div>" % (used_class, used_pct)
+            return mark_safe("<div class='used-pct %s'>%d%%</div>" % (used_class, used_pct))
 
         def get_credits(self, obj):
-            if not obj.credits:
+            if not obj.credits:  # pragma: needs cover
                 obj.credits = 0
-            return "<div class='num-credits'><a href='%s'>%s</a></div>" % (reverse('orgs.topup_manage') + "?org=%d" % obj.id,
-                                                                           format(obj.credits, ",d"))
+            return mark_safe("<div class='num-credits'><a href='%s'>%s</a></div>"
+                             % (reverse('orgs.topup_manage') + "?org=%d" % obj.id, format(obj.credits, ",d")))
 
         def get_owner(self, obj):
-            owner = obj.latest_admin()
-
             # default to the created by if there are no admins
-            if not owner:
-                owner = obj.created_by
+            owner = obj.latest_admin() or obj.created_by
 
+            return mark_safe("<div class='owner-name'>%s %s</div><div class='owner-email'>%s</div>"
+                             % (owner.first_name, owner.last_name, owner))
+
+        def get_service(self, obj):
             url = reverse('orgs.org_service')
-            return "<a href='%s?organization=%d' class='service posterize btn btn-tiny'>Service</a><div class='owner-name'>%s %s</div>" \
-                   "<div class='owner-email'>%s</div>" % (url, obj.id, owner.first_name, owner.last_name, owner)
+
+            return mark_safe("<a href='%s?organization=%d' class='service posterize btn btn-tiny'>Service</a>"
+                             % (url, obj.id))
 
         def get_name(self, obj):
             suspended = ''
             if obj.is_suspended():
                 suspended = '<span class="suspended">(Suspended)</span>'
 
-            return "<div class='org-name'>%s %s</div><div class='org-timezone'>%s</div>" % (suspended, obj.name, obj.timezone)
+            return mark_safe("<div class='org-name'>%s %s</div><div class='org-timezone'>%s</div>"
+                             % (suspended, obj.name, obj.timezone))
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.Manage, self).derive_queryset(**kwargs)
@@ -879,7 +884,7 @@ class OrgCRUDL(SmartCRUDL):
                 return reverse('users.user_update', args=[obj.created_by.pk])
             return super(OrgCRUDL.Manage, self).lookup_field_link(context, field, obj)
 
-        def get_created_by(self, obj):
+        def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class Update(SmartUpdateView):
@@ -913,7 +918,7 @@ class OrgCRUDL(SmartCRUDL):
                                   style='btn-secondary',
                                   posterize=True,
                                   href='%s?status=restored' % reverse("orgs.org_update", args=[org.pk])))
-            else:
+            else:  # pragma: needs cover
                 links.append(dict(title=_('Suspend'),
                                   style='btn-secondary',
                                   posterize=True,
@@ -943,7 +948,7 @@ class OrgCRUDL(SmartCRUDL):
         class PasswordForm(forms.ModelForm):
             surveyor_password = forms.CharField(max_length=128)
 
-            def clean_surveyor_password(self):
+            def clean_surveyor_password(self):  # pragma: needs cover
                 password = self.cleaned_data.get('surveyor_password', '')
                 existing = Org.objects.filter(surveyor_password=password).exclude(pk=self.instance.pk).first()
                 if existing:
@@ -1127,7 +1132,7 @@ class OrgCRUDL(SmartCRUDL):
             org_id = self.request.GET.get('org')
             return Org.objects.filter(id=org_id, parent=self.request.user.get_org()).first()
 
-        def get_success_url(self):
+        def get_success_url(self):  # pragma: needs cover
             org_id = self.request.GET.get('org')
             return '%s?org=%s' % (reverse('orgs.org_manage_accounts_sub_org'), org_id)
 
@@ -1176,20 +1181,23 @@ class OrgCRUDL(SmartCRUDL):
             return links
 
         def get_manage(self, obj):
-            if obj.parent:
-                return '<a href="%s?org=%s"><div class="btn btn-tiny">Manage Accounts</div></a>' % (reverse('orgs.org_manage_accounts_sub_org'), obj.id)
+            if obj.parent:  # pragma: needs cover
+                return mark_safe('<a href="%s?org=%s"><div class="btn btn-tiny">Manage Accounts</div></a>'
+                                 % (reverse('orgs.org_manage_accounts_sub_org'), obj.id))
             return ''
 
         def get_credits(self, obj):
             credits = obj.get_credits_remaining()
-            return '<div class="edit-org" data-url="%s?org=%d"><div class="num-credits">%s</div></div>' % (reverse('orgs.org_edit_sub_org'), obj.id, format(credits, ",d"))
+            return mark_safe('<div class="edit-org" data-url="%s?org=%d"><div class="num-credits">%s</div></div>'
+                             % (reverse('orgs.org_edit_sub_org'), obj.id, format(credits, ",d")))
 
         def get_name(self, obj):
             org_type = 'child'
             if not obj.parent:
                 org_type = 'parent'
 
-            return "<div class='%s-org-name'>%s</div><div class='org-timezone'>%s</div>" % (org_type, obj.name, obj.timezone)
+            return mark_safe("<div class='%s-org-name'>%s</div><div class='org-timezone'>%s</div>"
+                             % (org_type, obj.name, obj.timezone))
 
         def derive_queryset(self, **kwargs):
             queryset = super(OrgCRUDL.SubOrgs, self).derive_queryset(**kwargs)
@@ -1210,7 +1218,7 @@ class OrgCRUDL(SmartCRUDL):
             context['searches'] = ['Nyaruka', ]
             return context
 
-        def get_created_by(self, obj):
+        def get_created_by(self, obj):  # pragma: needs cover
             return "%s %s - %s" % (obj.created_by.first_name, obj.created_by.last_name, obj.created_by.email)
 
     class CreateSubOrg(MultiOrgMixin, ModalMixin, InferOrgMixin, SmartCreateView):
@@ -1277,9 +1285,9 @@ class OrgCRUDL(SmartCRUDL):
                     if org.get_org_surveyors().filter(username=self.request.user.username):
                         return HttpResponseRedirect(reverse('orgs.org_surveyor'))
 
-                    return HttpResponseRedirect(self.get_success_url())
+                    return HttpResponseRedirect(self.get_success_url())  # pragma: needs cover
 
-                elif user_orgs.count() == 0:
+                elif user_orgs.count() == 0:  # pragma: needs cover
                     if user.groups.filter(name='Customer Support').first():
                         return HttpResponseRedirect(reverse('orgs.org_manage'))
 
@@ -1287,9 +1295,9 @@ class OrgCRUDL(SmartCRUDL):
                     messages.info(request, _("No organizations for this account, please contact your administrator."))
                     logout(request)
                     return HttpResponseRedirect(reverse('users.user_login'))
-            return None
+            return None  # pragma: needs cover
 
-        def get_context_data(self, **kwargs):
+        def get_context_data(self, **kwargs):  # pragma: needs cover
             context = super(OrgCRUDL.Choose, self).get_context_data(**kwargs)
             context['orgs'] = self.get_user_orgs()
             return context
@@ -1297,12 +1305,12 @@ class OrgCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated()
 
-        def customize_form_field(self, name, field):
+        def customize_form_field(self, name, field):  # pragma: needs cover
             if name == 'organization':
                 field.widget.choices.queryset = self.get_user_orgs()
             return field
 
-        def form_valid(self, form):
+        def form_valid(self, form):  # pragma: needs cover
             org = form.cleaned_data['organization']
 
             if org in self.get_user_orgs():
@@ -1326,7 +1334,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             org = self.get_object()
-            if not org:
+            if not org:  # pragma: needs cover
                 messages.info(request, _("Your invitation link is invalid. Please contact your organization administrator."))
                 return HttpResponseRedirect(reverse('public.public_index'))
             return None
@@ -1348,11 +1356,11 @@ class OrgCRUDL(SmartCRUDL):
             login(self.request, user)
             if self.invitation.user_group == 'A':
                 obj.administrators.add(user)
-            elif self.invitation.user_group == 'E':
+            elif self.invitation.user_group == 'E':  # pragma: needs cover
                 obj.editors.add(user)
             elif self.invitation.user_group == 'S':
                 obj.surveyors.add(user)
-            else:
+            else:  # pragma: needs cover
                 obj.viewers.add(user)
 
             # make the invitation inactive
@@ -1382,7 +1390,7 @@ class OrgCRUDL(SmartCRUDL):
             invitation = self.get_invitation()
             if invitation:
                 return invitation.org
-            return None
+            return None  # pragma: needs cover
 
         def derive_title(self):
             org = self.get_object()
@@ -1409,7 +1417,7 @@ class OrgCRUDL(SmartCRUDL):
         submit_button_name = _("Join")
         permission = False
 
-        def pre_process(self, request, *args, **kwargs):
+        def pre_process(self, request, *args, **kwargs):  # pragma: needs cover
             secret = self.kwargs.get('secret')
 
             org = self.get_object()
@@ -1421,11 +1429,11 @@ class OrgCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse('orgs.org_create_login', args=[secret]))
             return None
 
-        def derive_title(self):
+        def derive_title(self):  # pragma: needs cover
             org = self.get_object()
             return _("Join %(name)s") % {'name': org.name}
 
-        def save(self, org):
+        def save(self, org):  # pragma: needs cover
             org = self.get_object()
             self.invitation = self.get_invitation()
             if org:
@@ -1446,7 +1454,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.request.user.set_org(org)
                 self.request.session['org_id'] = org.pk
 
-        def get_success_url(self):
+        def get_success_url(self):  # pragma: needs cover
             if self.invitation.user_group == 'S':
                 return reverse('orgs.org_surveyor')
 
@@ -1456,7 +1464,7 @@ class OrgCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r'^%s/%s/(?P<secret>\w+)/$' % (path, action)
 
-        def get_invitation(self, **kwargs):
+        def get_invitation(self, **kwargs):  # pragma: needs cover
             invitation = None
             secret = self.kwargs.get('secret')
             invitations = Invitation.objects.filter(secret=secret, is_active=True)
@@ -1464,12 +1472,12 @@ class OrgCRUDL(SmartCRUDL):
                 invitation = invitations[0]
             return invitation
 
-        def get_object(self, **kwargs):
+        def get_object(self, **kwargs):  # pragma: needs cover
             invitation = self.get_invitation()
             if invitation:
                 return invitation.org
 
-        def get_context_data(self, **kwargs):
+        def get_context_data(self, **kwargs):  # pragma: needs cover
             context = super(OrgCRUDL.Join, self).get_context_data(**kwargs)
 
             context['org'] = self.get_object()
@@ -1527,10 +1535,7 @@ class OrgCRUDL(SmartCRUDL):
             context['form'] = self.form
             context['step'] = self.get_step()
 
-            if hasattr(self.form, 'cleaned_data'):
-                context['org'] = self.form.cleaned_data.get('org', None)
-
-            for key, field in self.form.fields.iteritems():
+            for key, field in six.iteritems(self.form.fields):
                 context[key] = field
 
             return context
@@ -1552,10 +1557,12 @@ class OrgCRUDL(SmartCRUDL):
 
                 org = self.form.cleaned_data.get('org', None)
 
-                self.form = OrgCRUDL.Surveyor.RegisterForm(initial=self.derive_initial())
                 context = self.get_context_data()
                 context['step'] = 2
                 context['org'] = org
+
+                self.form = OrgCRUDL.Surveyor.RegisterForm(initial=self.derive_initial())
+                context['form'] = self.form
 
                 return self.render_to_response(context)
             else:
@@ -1640,14 +1647,14 @@ class OrgCRUDL(SmartCRUDL):
             obj.brand = self.request.branding.get('host', settings.DEFAULT_BRAND)
             return obj
 
-        def get_welcome_size(self):
+        def get_welcome_size(self):  # pragma: needs cover
             return self.form.cleaned_data['credits']
 
         def post_save(self, obj):
             obj = super(OrgCRUDL.Grant, self).post_save(obj)
             obj.administrators.add(self.user)
 
-            if not self.request.user.is_anonymous() and self.request.user.has_perm('orgs.org_grant'):
+            if not self.request.user.is_anonymous() and self.request.user.has_perm('orgs.org_grant'):  # pragma: needs cover
                 obj.administrators.add(self.request.user.pk)
 
             obj.initialize(branding=obj.get_branding(), topup_size=self.get_welcome_size())
@@ -1666,7 +1673,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             # if our brand doesn't allow signups, then redirect to the homepage
-            if not request.branding.get('allow_signups', False):
+            if not request.branding.get('allow_signups', False):  # pragma: needs cover
                 return HttpResponseRedirect(reverse('public.public_index'))
 
             else:
@@ -1793,13 +1800,13 @@ class OrgCRUDL(SmartCRUDL):
             webhook_events = 0
             if data['mt_sms']:
                 webhook_events = MT_SMS_EVENTS
-            if data['mo_sms']:
+            if data['mo_sms']:  # pragma: needs cover
                 webhook_events |= MO_SMS_EVENTS
-            if data['mt_call']:
+            if data['mt_call']:  # pragma: needs cover
                 webhook_events |= MT_CALL_EVENTS
-            if data['mo_call']:
+            if data['mo_call']:  # pragma: needs cover
                 webhook_events |= MO_CALL_EVENTS
-            if data['alarm']:
+            if data['alarm']:  # pragma: needs cover
                 webhook_events |= ALARM_EVENTS
 
             analytics.track(self.request.user.username, 'temba.org_configured_webhook')
@@ -1866,7 +1873,7 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section('twilio', reverse('orgs.org_twilio_account'), icon='icon-channel-twilio')
 
                 nexmo_client = org.get_nexmo_client()
-                if nexmo_client:
+                if nexmo_client:  # pragma: needs cover
                     formax.add_section('nexmo', reverse('orgs.org_nexmo_account'), icon='icon-channel-nexmo')
 
             if self.has_org_perm('orgs.org_profile'):
@@ -1885,7 +1892,7 @@ class OrgCRUDL(SmartCRUDL):
                 if not self.object.is_connected_to_transferto():
                     formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
                                        action='redirect', button=_("Connect"))
-                else:
+                else:  # pragma: needs cover
                     formax.add_section('transferto', reverse('orgs.org_transfer_to_account'), icon='icon-transferto',
                                        action='redirect', nobutton=True)
 
@@ -1990,7 +1997,7 @@ class OrgCRUDL(SmartCRUDL):
                     if not account_sid:
                         raise ValidationError(_("You must enter your Twilio Account SID"))
 
-                    if not account_token:
+                    if not account_token:  # pragma: needs cover
                         raise ValidationError(_("You must enter your Twilio Account Token"))
 
                     try:
@@ -2000,7 +2007,7 @@ class OrgCRUDL(SmartCRUDL):
                         account = client.accounts.get(account_sid)
                         self.cleaned_data['account_sid'] = account.sid
                         self.cleaned_data['account_token'] = account.auth_token
-                    except Exception:
+                    except Exception:  # pragma: needs cover
                         raise ValidationError(_("The Twilio account SID and Token seem invalid. Please check them again and retry."))
 
                 return self.cleaned_data
@@ -2287,7 +2294,7 @@ class TopUpCRUDL(SmartCRUDL):
     model = TopUp
 
     class Read(OrgPermsMixin, SmartReadView):
-        def derive_queryset(self, **kwargs):
+        def derive_queryset(self, **kwargs):  # pragma: needs cover
             return TopUp.objects.filter(is_active=True, org=self.request.user.get_org()).order_by('-expires_on')
 
     class List(OrgPermsMixin, SmartListView):

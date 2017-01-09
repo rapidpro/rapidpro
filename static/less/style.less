@@ -511,6 +511,10 @@ a.logo {
   font-size:96px;
   margin-top: -2px;
   text-decoration:none;
+
+  .name {
+    display: none;
+  }
 }
 
 .spacer-right-10 {
@@ -2688,3 +2692,46 @@ span.label a {
   overflow-wrap: break-word;
 }
 
+.loader {
+  height: 1px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: #ddd;
+  &:before{
+    display: block;
+    position: absolute;
+    content: "";
+    left: -200px;
+    width: 200px;
+    height: 1px;
+    background-color: #2980b9;
+    animation: loading 2s linear infinite;
+  }
+}
+
+@keyframes loading {
+    from {left: -200px; width: 30%;}
+    50% {width: 30%;}
+    70% {width: 70%;}
+    80% { left: 50%;}
+    95% {left: 120%;}
+    to {left: 100%;}
+}
+
+.nobreak {
+  white-space: nowrap;
+}
+
+.breaks {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+
+  -ms-word-break: break-all;
+  word-break: break-word;
+
+  -ms-hyphens: auto;
+  -moz-hyphens: auto;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}

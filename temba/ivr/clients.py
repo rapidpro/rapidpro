@@ -121,7 +121,7 @@ class TwilioClient(TwilioRestClient):
 
             raise IVRException(message)
 
-    def validate(self, request):
+    def validate(self, request):  # pragma: needs cover
         validator = RequestValidator(self.auth[1])
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
 
@@ -167,10 +167,10 @@ class TwilioClient(TwilioRestClient):
 
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
-        return None
+        return None  # pragma: needs cover
 
 
-class VerboiceClient:
+class VerboiceClient:  # pragma: needs cover
 
     def __init__(self, channel):
         self.endpoint = 'https://verboice.instedd.org/api/call'

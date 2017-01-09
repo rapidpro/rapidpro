@@ -23,7 +23,7 @@ from smartmin.views import SmartListView, SmartReadView, SmartUpdateView, SmartX
 from temba.msgs.views import SendMessageForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.values.models import Value
-from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime
+from temba.utils import analytics, slugify_with, languages, datetime_to_ms, ms_to_datetime, on_transaction_commit
 from temba.utils.views import BaseActionForm
 from .models import Contact, ContactGroup, ContactField, ContactURN, URN, URN_SCHEME_CONFIG, TEL_SCHEME
 from .models import ExportContactsTask
@@ -135,7 +135,7 @@ class ContactListView(OrgPermsMixin, SmartListView):
 
         groups_qs = ContactGroup.user_groups.filter(org=org).select_related('org')
         groups_qs = groups_qs.extra(select={'lower_group_name': 'lower(contacts_contactgroup.name)'}).order_by('lower_group_name')
-        groups = [dict(pk=g.pk, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
+        groups = [dict(pk=g.pk, uuid=g.uuid, label=g.name, count=g.get_member_count(), is_dynamic=g.is_dynamic) for g in groups_qs]
 
         # resolve the paginated object list so we can initialize a cache of URNs and fields
         contacts = list(context['object_list'])
@@ -268,7 +268,7 @@ class ContactForm(forms.ModelForm):
                     return False
                 # validate but not with country as users are allowed to enter numbers before adding a channel
                 elif not URN.validate(normalized):
-                    if scheme == TEL_SCHEME:
+                    if scheme == TEL_SCHEME:  # pragma: needs cover
                         self._errors[key] = _("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")
                     else:
                         self._errors[key] = _("Invalid format")
@@ -335,9 +335,9 @@ class ContactCRUDL(SmartCRUDL):
             org = user.get_org()
 
             group = None
-            group_id = self.request.GET.get('g', None)
-            if group_id:
-                groups = ContactGroup.user_groups.filter(pk=group_id, org=org)
+            group_uuid = self.request.GET.get('g', None)
+            if group_uuid:
+                groups = ContactGroup.user_groups.filter(uuid=group_uuid, org=org)
 
                 if groups:
                     group = groups[0]
@@ -356,11 +356,12 @@ class ContactCRUDL(SmartCRUDL):
             # otherwise, off we go
             else:
                 previous_export = ExportContactsTask.objects.filter(org=org, created_by=user).order_by('-modified_on').first()
-                if previous_export and previous_export.created_on < timezone.now() - timedelta(hours=24):
+                if previous_export and previous_export.created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                     analytics.track(self.request.user.username, 'temba.contact_exported')
 
                 export = ExportContactsTask.objects.create(created_by=user, modified_by=user, org=org, group=group)
-                export_contacts_task.delay(export.pk)
+
+                on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
 
                 if not getattr(settings, 'CELERY_ALWAYS_EAGER', False):  # pragma: no cover
                     messages.info(self.request,
@@ -368,7 +369,6 @@ class ContactCRUDL(SmartCRUDL):
                                   % self.request.user.username)
 
                 else:
-                    export = ExportContactsTask.objects.get(id=export.pk)
                     dl_url = reverse('assets.download', kwargs=dict(type='contact_export', pk=export.pk))
                     messages.info(self.request,
                                   _("Export complete, you can find it here: %s (production users will get an email)")
@@ -429,7 +429,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             pre_process = super(ContactCRUDL.Customize, self).pre_process(request, *args, **kwargs)
-            if pre_process is not None:
+            if pre_process is not None:  # pragma: needs cover
                 return pre_process
 
             headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
@@ -586,7 +586,7 @@ class ContactCRUDL(SmartCRUDL):
             super(ContactCRUDL.Import, self).pre_save(task)
 
             previous_import = ImportTask.objects.filter(created_by=self.request.user).order_by('-created_on').first()
-            if previous_import and previous_import.created_on < timezone.now() - timedelta(hours=24):
+            if previous_import and previous_import.created_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
                 analytics.track(self.request.user.username, 'temba.contact_imported')
 
             return task
@@ -947,10 +947,10 @@ class ContactCRUDL(SmartCRUDL):
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return r'^%s/%s/(?P<group>\d+)/$' % (path, action)
+            return r'^%s/%s/(?P<group>[^/]+)/$' % (path, action)
 
         def derive_group(self):
-            return ContactGroup.user_groups.get(pk=self.kwargs['group'])
+            return ContactGroup.user_groups.get(uuid=self.kwargs['group'])
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactForm
@@ -1143,7 +1143,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
         fields = ('name', 'preselected_contacts', 'group_query')
-        success_url = "id@contacts.contact_filter"
+        success_url = "uuid@contacts.contact_filter"
         success_message = ''
         submit_button_name = _("Create")
 
@@ -1173,7 +1173,7 @@ class ContactGroupCRUDL(SmartCRUDL):
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = ContactGroupForm
         fields = ('name',)
-        success_url = 'id@contacts.contact_filter'
+        success_url = 'uuid@contacts.contact_filter'
         success_message = ''
 
         def derive_fields(self):
@@ -1191,7 +1191,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             return obj
 
     class Delete(OrgObjPermsMixin, SmartDeleteView):
-        cancel_url = 'id@contacts.contact_filter'
+        cancel_url = 'uuid@contacts.contact_filter'
         redirect_url = '@contacts.contact_list'
         success_message = ''
 

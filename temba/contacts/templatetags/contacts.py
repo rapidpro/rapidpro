@@ -93,7 +93,7 @@ def location(geo_url):
 def media_url(media):
     if media:
         # TODO: remove after migration msgs.0053
-        if media.startswith('http'):
+        if media.startswith('http'):  # pragma: needs cover
             return media
         return media.partition(':')[2]
 
@@ -102,7 +102,7 @@ def media_url(media):
 def media_content_type(media):
     if media:
         # TODO: remove after migration msgs.0053
-        if media.startswith('http'):
+        if media.startswith('http'):  # pragma: needs cover
             return 'audio/x-wav'
         return media.partition(':')[0]
 
@@ -110,15 +110,15 @@ def media_content_type(media):
 @register.filter
 def media_type(media):
     type = media_content_type(media)
-    if type == 'application/octet-stream' and media.endswith('.oga'):
+    if type == 'application/octet-stream' and media.endswith('.oga'):  # pragma: needs cover
         return 'audio'
-    if type and '/' in type:
+    if type and '/' in type:  # pragma: needs cover
         type = type.split('/')[0]
     return type
 
 
 @register.filter
-def is_supported_audio(content_type):
+def is_supported_audio(content_type):  # pragma: needs cover
     return content_type in ['audio/wav', 'audio/x-wav', 'audio/vnd.wav', 'application/octet-stream']
 
 
@@ -129,7 +129,7 @@ def is_document(media_url):
 
 
 @register.filter
-def extension(url):
+def extension(url):  # pragma: needs cover
     return url.rpartition('.')[2]
 
 
