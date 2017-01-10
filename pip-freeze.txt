@@ -7,7 +7,7 @@ backports.ssl-match-hostname==3.4.0.2
 BeautifulSoup==3.2.1
 beautifulsoup4==4.4.1
 billiard==3.3.0.23
-boto==2.29.1
+boto==2.45.0
 celery==3.1.23
 certifi==14.5.14
 colorama==0.3.1
@@ -32,7 +32,7 @@ django-redis==4.5.0
 django-reversion==1.8.0
 django-rosetta==0.6.2
 Django-Select2==4.2.2
-django-storages==1.1.8
+django-storages==1.5.1
 django-timezone-field==2.0
 -e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django_ttag
 djangorestframework==3.5.1
