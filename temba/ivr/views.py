@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelLog
 from temba.ivr.models import IVRCall
 from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
@@ -34,6 +34,9 @@ class CallHandler(View):
 
         print "\n\n\n"
         print request.body
+
+        request_method = request.method
+        request_path = request.get_full_path()
 
         if channel_type in Channel.TWIML_CHANNELS and request.POST.get('hangup', 0):
             if not request.user.is_anonymous():
@@ -119,7 +122,10 @@ class CallHandler(View):
                         saved_media_url = client.download_media(media_url)
                         cache.delete('last_call:media_url:%d' % call.pk)
                     else:
-                        return HttpResponse(unicode('media URL saved'))
+                        response_msg = 'media URL saved'
+                        ChannelLog.log_ivr_interaction(call, "Saved media URL", request.body, unicode(response_msg),
+                                                       request_path, request_method)
+                        return HttpResponse(unicode(response_msg))
 
             if call.status in [IVRCall.IN_PROGRESS, IVRCall.RINGING] or hangup:
                 if call.is_ivr():
@@ -130,8 +136,12 @@ class CallHandler(View):
                         print unicode(response)
                         print "=" * 80
 
+                        ChannelLog.log_ivr_interaction(call, "Returned response", request.body, unicode(response),
+                                                       request_path, request_method)
                         return build_json_response(json.loads(unicode(response)))
 
+                    ChannelLog.log_ivr_interaction(call, "Returned response", request.body, unicode(response),
+                                                   request_path, request_method)
                     return HttpResponse(unicode(response))
             else:
                 if call.status == IVRCall.COMPLETED:
@@ -139,10 +149,22 @@ class CallHandler(View):
                     run = FlowRun.objects.filter(session=call).first()
                     if run:
                         run.set_completed()
-                return build_json_response(dict(message="Updated call status"))
+
+                response = dict(message="Updated call status")
+                ChannelLog.log_ivr_interaction(call, "Updated call status: %s" % call.get_status_display(),
+                                               request.body, json.dumps(response), request_path, request_method)
+                return build_json_response(response)
 
         else:  # pragma: no cover
-            # raise an exception that things weren't properly signed
-            raise ValidationError("Invalid request signature")
 
-        return build_json_response(dict(message="Unhandled"))  # pragma: no cover
+            error_message = "Invalid request signature"
+            ChannelLog.log_ivr_interaction(call, error_message, request.body, error_message,
+                                           request_path, request_method, is_error=True)
+            # raise an exception that things weren't properly signed
+            raise ValidationError(error_message)
+
+        response = dict(message="Unhandled")
+        ChannelLog.log_ivr_interaction(call, "Unhandled", request.body, json.dumps(response),
+                                       request_path, request_method, is_error=True)
+
+        return build_json_response(response)  # pragma: no cover

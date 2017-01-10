@@ -3132,6 +3132,17 @@ class ChannelLog(models.Model):
                                   is_error=True,
                                   description=description[:255])
 
+    @classmethod
+    def log_ivr_interaction(cls, call, description, request, response, url, method, is_error=False):
+        ChannelLog.objects.create(channel_id=call.channel_id,
+                                  session_id=call.id,
+                                  request=request,
+                                  response=response,
+                                  url=url,
+                                  method=method,
+                                  is_error=is_error,
+                                  description=description[:255])
+
 
 class SyncEvent(SmartModel):
     channel = models.ForeignKey(Channel, verbose_name=_("Channel"),

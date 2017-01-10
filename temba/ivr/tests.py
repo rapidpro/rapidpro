@@ -10,7 +10,7 @@ from django.contrib.auth.models import Group
 from django.core.files import File
 from django.core.urlresolvers import reverse
 from mock import patch
-from temba.channels.models import Channel
+from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
 from temba.msgs.models import Msg, IVR
@@ -131,6 +131,11 @@ class IVRTests(FlowFileTest):
         response = self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), post_data)
         self.assertContains(response, '<Say>Please make a recording after the tone.</Say>')
 
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        channel_log = ChannelLog.objects.last()
+        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.description, "Returned response")
+
         # simulate the caller making a recording and then hanging up, first they'll give us the
         # recording (they give us a call status of completed at the same time)
         from temba.tests import MockResponse
@@ -146,6 +151,11 @@ class IVRTests(FlowFileTest):
                                   RecordingUrl='http://api.twilio.com/ASID/Recordings/SID',
                                   RecordingSid='FAKESID'))
 
+        self.assertEqual(ChannelLog.objects.all().count(), 2)
+        channel_log = ChannelLog.objects.last()
+        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.description, "Returned response")
+
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(IVRCall.COMPLETED, call.status)
@@ -153,6 +163,11 @@ class IVRTests(FlowFileTest):
         # twilio will also send us a final completion message with the call duration (status of completed again)
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]),
                          dict(CallStatus='completed', CallDuration='15'))
+
+        self.assertEqual(ChannelLog.objects.all().count(), 3)
+        channel_log = ChannelLog.objects.last()
+        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.description, "Updated call status: Complete")
 
         call = IVRCall.objects.get(pk=call.pk)
         self.assertEquals(IVRCall.COMPLETED, call.status)
@@ -218,6 +233,11 @@ class IVRTests(FlowFileTest):
         response = self.client.post(callback_url, content_type='application/json',
                                     data=json.dumps(dict(status='ringing', duration=0)))
 
+        self.assertEqual(ChannelLog.objects.all().count(), 1)
+        channel_log = ChannelLog.objects.last()
+        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.description, "Returned response")
+
         # we have a talk action
         self.assertContains(response, '"action": "talk",')
         self.assertContains(response, '"text": "Please make a recording after the tone."')
@@ -240,14 +260,28 @@ class IVRTests(FlowFileTest):
                                         data=json.dumps(dict(recording_url='http://example.com/allo.wav')))
 
             self.assertContains(response, 'media URL saved')
+            self.assertEqual(ChannelLog.objects.all().count(), 2)
+            channel_log = ChannelLog.objects.last()
+            self.assertEqual(channel_log.session.id, call.id)
+            self.assertEqual(channel_log.description, "Saved media URL")
 
             # hack input call back to tell us to save the recording and an empty input submission
             self.client.post("%s?save_media=1" % callback_url, content_type='application/json',
                              data=json.dumps(dict(status='answered', duration=2, dtmf='')))
 
+            self.assertEqual(ChannelLog.objects.all().count(), 3)
+            channel_log = ChannelLog.objects.last()
+            self.assertEqual(channel_log.session.id, call.id)
+            self.assertEqual(channel_log.description, "Returned response")
+
         # nexmo will also send us a final completion message with the call duration
         self.client.post(reverse('ivr.ivrcall_handle', args=[call.pk]), content_type='application/json',
                          data=json.dumps({"status": "completed", "duration": "15"}))
+
+        self.assertEqual(ChannelLog.objects.all().count(), 4)
+        channel_log = ChannelLog.objects.last()
+        self.assertEqual(channel_log.session.id, call.id)
+        self.assertEqual(channel_log.description, "Updated call status: Complete")
 
         # we should have captured the recording, and ended the call
         call = IVRCall.objects.get(pk=call.pk)

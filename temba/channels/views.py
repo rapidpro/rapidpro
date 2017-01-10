@@ -2958,4 +2958,4 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             queryset = super(ChannelLogCRUDL.Read, self).derive_queryset(**kwargs)
-            return queryset.filter(msg__channel__org=self.request.user.get_org()).order_by('-created_on')
+            return queryset.filter(channel__org=self.request.user.get_org()).order_by('-created_on')
