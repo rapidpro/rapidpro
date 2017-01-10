@@ -4573,6 +4573,11 @@ class FlowLabel(models.Model):
 __flow_user = None
 
 
+def clear_flow_user():
+    global __flow_user
+    __flow_user = None
+
+
 def get_flow_user():
     global __flow_user
     if not __flow_user:
