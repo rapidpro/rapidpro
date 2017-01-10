@@ -17,6 +17,7 @@ v3.0.0
 % python manage.py migrate public --fake
 % python manage.py migrate reports --fake
 % python manage.py migrate schedules --fake
+% python manage.py migrate triggers --fake
 % python manage.py migrate values --fake
 % python manage.py migrate
 ```
