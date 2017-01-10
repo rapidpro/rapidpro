@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 import os
 import sys
@@ -10,14 +10,6 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'temba.settings')
 
 app = Celery('temba')
 
-# use django-celery database backend
-app.conf.update(
-    CELERY_RESULT_BACKEND='djcelery.backends.cache:CacheBackend',
-    CELERY_ACCEPT_CONTENT=['json'],
-    CELERY_TASK_SERIALIZER='json',
-    CELERY_RESULT_SERIALIZER='json',
-)
-
 # Using a string here means the worker will not have to
 # pickle the object when using Windows.
 app.config_from_object('django.conf:settings')
@@ -27,6 +19,7 @@ app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 @app.task(bind=True)
 def debug_task(self):  # pragma: needs cover
     print('Request: {0!r}'.format(self.request))
+
 
 # this is needed to simulate CELERY_ALWAYS_EAGER for plain 'send' tasks
 if 'test' in sys.argv or getattr(settings, 'CELERY_ALWAYS_EAGER', False):
