@@ -1,3 +1,12 @@
+v3.0.2
+----------
+ * Fixes DartMedia channel for short codes
+
+v3.0.1
+----------
+ * Remove django-celery as it is unneeded, also stop saving Celery tombstones as we now store
+   all task state (ContactImport for example) directly in models
+
 v3.0.0
 ----------
  * IMPORTANT: This release resets all Temba migrations. You need to run the latest migrations
