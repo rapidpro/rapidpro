@@ -759,7 +759,7 @@ class Hub9Handler(BaseChannelHandler):
         if action == 'delivered':  # pragma: needs cover
 
             if external_id is None or status is None:
-                return HttpResponse("Parameters messageid and status should not be null.", status=404)
+                return HttpResponse("Parameters messageid and status should not be null.", status=401)
 
             # look up the message
             sms = Msg.objects.filter(channel=channel, pk=external_id).select_related('channel').first()
@@ -780,7 +780,7 @@ class Hub9Handler(BaseChannelHandler):
 
             if message is None or from_number is None or to_number is None:
                 return HttpResponse("Parameters message, original and sendto should not be null.",
-                                    status=404)
+                                    status=401)
 
             # make sure the channel number matches the receiver
             if channel.address not in ['+' + to_number, to_number]:

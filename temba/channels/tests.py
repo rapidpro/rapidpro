@@ -5203,7 +5203,7 @@ class DartMediaTest(TembaTest):
         callback_url = reverse('handlers.dartmedia_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
         response = self.client.get(callback_url)
 
-        self.assertEquals(404, response.status_code)
+        self.assertEquals(401, response.status_code)
         self.assertEquals(response.content, "Parameters message, original and sendto should not be null.")
 
         # all needed params
