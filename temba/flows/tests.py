@@ -4584,6 +4584,7 @@ class FlowsTest(FlowFileTest):
         with self.assertRaises(FlowException):
             self.send_message(flow, "1", assert_reply=False)
 
+        flow.runs.all().delete()
         flow.delete()
 
         # non-blocking rule to non-blocking rule and back
@@ -4605,6 +4606,7 @@ class FlowsTest(FlowFileTest):
         with self.assertRaises(FlowException):
             self.send_message(flow, "2", assert_reply=False)
 
+        flow.runs.all().delete()
         flow.delete()
 
     def test_decimal_substitution(self):

@@ -9,6 +9,8 @@ from datetime import datetime, date, timedelta
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.conf import settings
+from django.db.models import Value as DbValue
+from django.db.models.functions import Substr, Concat
 from django.utils import timezone
 from mock import patch
 from openpyxl import load_workbook
@@ -1069,8 +1071,7 @@ class ContactTest(TembaTest):
         # Postgres will defer to strcoll for ordering which even for en_US.UTF-8 will return different results on OSX
         # and Ubuntu. To keep ordering consistent for this test, we don't let URNs start with +
         # (see http://postgresql.nabble.com/a-strange-order-by-behavior-td4513038.html)
-        from django.db.models.functions import Substr, Concat, Value
-        ContactURN.objects.filter(path__startswith="+").update(path=Substr('path', 2), urn=Concat(Value('tel:'), Substr('path', 2)))
+        ContactURN.objects.filter(path__startswith="+").update(path=Substr('path', 2), urn=Concat(DbValue('tel:'), Substr('path', 2)))
 
         self.admin.set_org(self.org)
         self.login(self.admin)

@@ -142,7 +142,6 @@ class TembaTest(SmartminTest):
         return indexes
 
     def tearDown(self):
-
         if self.get_verbosity() > 2:
             details = []
             for query in connection.queries:
@@ -161,6 +160,9 @@ class TembaTest(SmartminTest):
                     print '  No Index Used'
 
             settings.DEBUG = False
+
+        from temba.flows.models import clear_flow_user
+        clear_flow_user()
 
     def clear_cache(self):
         """
