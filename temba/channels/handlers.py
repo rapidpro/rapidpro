@@ -954,7 +954,7 @@ class M3TechHandler(ExternalHandler):
 
 class NexmoCallHandler(BaseChannelHandler):
 
-    url = r'^/nexmo/(?P<action>answer|event)/(?P<uuid>[a-z0-9\-]+)/$'
+    url = r'^nexmo/(?P<action>answer|event)/(?P<uuid>[a-z0-9\-]+)/$'
     url_name = 'handlers.nexmo_call_handler'
 
     def post(self, request, *args, **kwargs):

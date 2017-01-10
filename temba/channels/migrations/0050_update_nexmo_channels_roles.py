@@ -10,7 +10,7 @@ from temba.orgs.models import Org, NEXMO_UUID, NEXMO_KEY, NEXMO_SECRET, NEXMO_AP
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('channels', '0047_update_triggers'),
+        ('channels', '0049_auto_20170106_0910'),
     ]
 
     def update_nexmo_channels_roles(apps, schema_editor):
