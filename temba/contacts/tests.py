@@ -9,6 +9,8 @@ from datetime import datetime, date, timedelta
 from django.core.files.base import ContentFile
 from django.core.urlresolvers import reverse
 from django.conf import settings
+from django.db.models import Value as DbValue
+from django.db.models.functions import Substr, Concat
 from django.utils import timezone
 from mock import patch
 from openpyxl import load_workbook
@@ -1069,8 +1071,7 @@ class ContactTest(TembaTest):
         # Postgres will defer to strcoll for ordering which even for en_US.UTF-8 will return different results on OSX
         # and Ubuntu. To keep ordering consistent for this test, we don't let URNs start with +
         # (see http://postgresql.nabble.com/a-strange-order-by-behavior-td4513038.html)
-        from django.db.models.functions import Substr, Concat, Value
-        ContactURN.objects.filter(path__startswith="+").update(path=Substr('path', 2), urn=Concat(Value('tel:'), Substr('path', 2)))
+        ContactURN.objects.filter(path__startswith="+").update(path=Substr('path', 2), urn=Concat(DbValue('tel:'), Substr('path', 2)))
 
         self.admin.set_org(self.org)
         self.login(self.admin)
@@ -2870,6 +2871,30 @@ class ContactTest(TembaTest):
                 csv_file='test_imports/filename',
                 model_class="Contact", import_params='bogus!', import_log="", task_id="A")
             Contact.import_csv(task, log=None)
+
+        Contact.objects.all().delete()
+        ContactGroup.user_groups.all().delete()
+
+        # existing datetime field
+        ContactField.objects.create(org=self.org, key='startdate', label='StartDate', value_type=Value.TYPE_DATETIME,
+                                    created_by=self.admin, modified_by=self.admin)
+
+        response = self.assertContactImport(
+            '%s/test_imports/sample_contacts_with_extra_field_date_joined.xls' % settings.MEDIA_ROOT,
+            None, task_customize=True)
+
+        customize_url = reverse('contacts.contact_customize', args=[response.context['task'].pk])
+
+        post_data = dict()
+        post_data['column_joined_include'] = 'on'
+        post_data['column_joined_type'] = 'D'
+        post_data['column_joined_label'] = 'StartDate'
+        response = self.client.post(customize_url, post_data, follow=True)
+        self.assertEquals(response.context['results'], dict(records=3, errors=0, error_messages=[], creates=3,
+                                                            updates=0))
+
+        contact1 = Contact.objects.all().order_by('name')[0]
+        self.assertEquals(contact1.get_field_raw('startdate'), '31-12-2014 10:00')
 
     def test_contact_import_with_languages(self):
         self.create_contact(name="Eric", number="+250788382382")

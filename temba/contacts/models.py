@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import phonenumbers
+import pytz
 import regex
 import time
 
@@ -1019,6 +1020,9 @@ class Contact(TembaModel):
 
             # date values need converted to localized strings
             if isinstance(value, datetime.date):
+                # make naive datetime timezone-aware, ignoring date
+                if getattr(value, 'tzinfo', 'ignore') is None:
+                    value = org.timezone.localize(value) if org.timezone else pytz.utc.localize(value)
                 value = org.format_date(value, True)
 
             contact.set_field(user, key, value)
