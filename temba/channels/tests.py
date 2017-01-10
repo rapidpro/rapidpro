@@ -7856,6 +7856,40 @@ class FacebookTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(msg.text, "Get in touch with us.\nhttp://m.me/")
 
+        # link attachment without title
+        data = """{
+          "object":"page",
+          "entry":[{
+            "id":"32408604530",
+            "time":1468418021822,
+            "messaging":[{
+              "sender":{"id":"5678"},
+              "recipient":{"id":"1234"},
+              "timestamp":1468417833159,
+              "message": {
+                "mid":"external_id",
+                "seq":11242,
+                "attachments":[{
+                  "title": null,
+                  "url": "http:\x5c/\x5c/m.me\x5c/",
+                  "type": "fallback",
+                  "payload": null
+                }]
+              }
+            }]
+          }]
+        }
+        """
+        Msg.objects.all().delete()
+
+        data = json.loads(data)
+        response = self.client.post(callback_url, json.dumps(data), content_type="application/json")
+
+        msg = Msg.objects.get()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(msg.text, "http://m.me/")
+
     def test_send(self):
         joe = self.create_contact("Joe", urn="facebook:1234")
         msg = joe.send("Facebook Msg", self.admin, trigger_send=False)

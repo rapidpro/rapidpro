@@ -1938,7 +1938,7 @@ class FacebookHandler(BaseChannelHandler):
                                     if attachment['payload'] and 'url' in attachment['payload']:
                                         urls.append(attachment['payload']['url'])
                                     elif 'url' in attachment and attachment['url']:
-                                        if 'title' in attachment:
+                                        if 'title' in attachment and attachment['title']:
                                             urls.append(attachment['title'])
                                         urls.append(attachment['url'])
 
