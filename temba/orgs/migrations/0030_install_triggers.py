@@ -9,7 +9,7 @@ from temba.sql import InstallSQL
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orgs', '0029_reset'),
+        ('orgs', '0029_reset_1'),
     ]
 
     operations = [

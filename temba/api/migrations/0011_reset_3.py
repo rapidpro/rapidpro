@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('api', '0010_reset_2'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('orgs', '0029_reset'),
+        ('orgs', '0029_reset_1'),
     ]
 
     operations = [

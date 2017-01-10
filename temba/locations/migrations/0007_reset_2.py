@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('locations', '0006_reset_1'),
-        ('orgs', '0029_reset'),
+        ('orgs', '0029_reset_1'),
     ]
 
     operations = [

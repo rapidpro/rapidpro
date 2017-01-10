@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         ('locations', '0006_reset_1'),
         ('flows', '0079_reset_1'),
         ('contacts', '0046_reset_1'),
-        ('orgs', '0029_reset'),
+        ('orgs', '0029_reset_1'),
     ]
 
     operations = [

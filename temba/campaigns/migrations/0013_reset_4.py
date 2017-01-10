@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('campaigns', '0012_reset_3'),
-        ('orgs', '0029_reset'),
+        ('orgs', '0029_reset_1'),
     ]
 
     operations = [

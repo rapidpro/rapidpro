@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('airtime', '0005_reset_3'),
-        ('orgs', '0029_reset'),
+        ('orgs', '0029_reset_1'),
     ]
 
     operations = [
