@@ -1111,7 +1111,7 @@ class IVRTests(FlowFileTest):
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
     @patch('twilio.util.RequestValidator', MockRequestValidator)
-    def test_download_media(self):
+    def test_download_media_twilio(self):
         self.org.connect_twilio("TEST_SID", "TEST_TOKEN", self.admin)
         self.org.save()
 
@@ -1133,3 +1133,57 @@ class IVRTests(FlowFileTest):
                 # saved_media was called with a file as first argument and the guessed extension as second argument
                 self.assertIsInstance(mock_save_media.call_args_list[0][0][0], File)
                 self.assertEqual(mock_save_media.call_args_list[0][0][1], 'vcf')
+
+    @patch('temba.temba_nexmo.NexmoClient.download_recording')
+    @patch('nexmo.Client.create_application')
+    @patch('nexmo.Client.create_call')
+    def test_download_media_nexmo(self, mock_create_call, mock_create_application, mock_download_recording):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+        mock_create_call.return_value = dict(conversation_uuid='12345')
+        mock_download_recording.side_effect = [
+            MockResponse(200, "SOUND BITS"),
+
+            MockResponse(400, "Error"),
+            MockResponse(200, "SOUND_BITS", headers={"Content-Type": "audio/x-wav"}),
+
+            MockResponse(200, "SOUND_BITS", headers={"Content-Type": "audio/x-wav", "Content-Disposition": "inline"}),
+
+            MockResponse(200, "SOUND_BITS", headers={"Content-Type": "audio/x-wav",
+                                                     "Content-Disposition": 'attachment; filename="playme.wav"'})
+        ]
+
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.save()
+
+        nexmo_client = self.org.get_nexmo_client()
+
+        with patch('temba.orgs.models.Org.save_media') as mock_save_media:
+            mock_save_media.return_value = 'SAVED'
+
+            # without content-type
+            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            self.assertIsNone(output)
+
+            # with content-type and retry fetch
+            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            self.assertIsNotNone(output)
+            self.assertEqual(output, 'audio/x-wav:SAVED')
+
+            # for content-disposition inline
+            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            self.assertIsNotNone(output)
+            self.assertEqual(output, 'audio/x-wav:SAVED')
+
+            # for content disposition attachment
+            output = nexmo_client.download_media("http://nexmo.com/some_audio_link")
+            self.assertIsNotNone(output)
+            self.assertEqual(output, 'audio/x-wav:SAVED')
+
+            self.assertEqual(3, len(mock_save_media.call_args_list))
+
+            for i in range(len(mock_save_media.call_args_list)):
+                self.assertIsInstance(mock_save_media.call_args_list[i][0][0], File)
+                self.assertEqual(mock_save_media.call_args_list[i][0][1], 'wav')
