@@ -1,3 +1,8 @@
+v3.0.3
+----------
+ * Refactor JSON responses to use native Django JSONResponse
+ * Dont use proxy for Dart Media and Hub9, expose IPs to whitelist
+
 v3.0.2
 ----------
  * Fixes DartMedia channel for short codes
