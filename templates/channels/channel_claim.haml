@@ -198,6 +198,28 @@
                 -blocktrans
                   Easily add a two way number you have configured with Hub9 in Indonesia.
 
+      .claim-row.dartmedia-channel{class:"{% if recommended_channel == 'dartmedia' %}recommended{% endif %}"}
+        .recommendation.hide
+          %h3
+            -trans "Recommendation"
+          -blocktrans with "<a href='http://www.dartmedia.biz'>" as link_start and "</a>" as link_end
+            We recommend using a Dart Media phone number in Indonesia, please visit {{link_start}}http://www.dartmedia.biz{{link_end}} for details.
+
+        .row
+          .span3
+            %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_dart_media' %}"}
+              .btn-container
+                .claim-glyph.icon-channel-external
+                %p.claim-text
+                  -trans "Dart Media Number"
+
+          .span9
+            .claim-description
+              %div
+                -blocktrans
+                  Easily add a two way number you have configured with Dart Media in Indonesia.
+
+
     -if not user_org.is_connected_to_twilio
       .claim-row.twilio-channel{class:"{% if recommended_channel == 'twilio' %}recommended{% endif %}"}
         .recommendation.hide
@@ -642,11 +664,11 @@
                     for free. Your users will need an Android, Windows or iOS device and a Telegram account to send
                     and receive messages.
 
-      -if org_perms.channels.channel_claim_viber
+      -if org_perms.channels.channel_claim_viber_public
         .claim-row.viber-channel
           .row
             .span3
-              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_create_viber' %}"}
+              %a.btn.btn-primary.btn-primary-muted.btn-claim{href:"{% url 'channels.channel_claim_viber_public' %}"}
                 .btn-container
                   .claim-glyph.icon-viber
                   %p.claim-text
@@ -656,9 +678,8 @@
               .claim-description
                 %div
                   -blocktrans
-                    Add a <a href="http://viber.com/en/">Viber</a> bot to send and receive messages to Viber users
-                    for free. Your users will need an Android, Windows or iOS device and a Viber account to send
-                    and receive messages.
+                    Connect a <a href="http://viber.com/en/">Viber</a> public channel to send and receive messages to Viber users
+                    for free. Your users will need an Android, Windows or iOS device and a Viber account to send and receive messages.
 
 
       -if org_perms.channels.channel_claim_line

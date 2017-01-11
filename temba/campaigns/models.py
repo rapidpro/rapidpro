@@ -9,6 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import ContactGroup, ContactField, Contact
 from temba.flows.models import Flow
 from temba.orgs.models import Org
+from temba.utils import on_transaction_commit
 from temba.utils.models import TembaModel
 from temba.values.models import Value
 
@@ -32,7 +33,7 @@ class Campaign(TembaModel):
     @classmethod
     def get_campaigns(cls, org, archived=None):
         qs = cls.objects.filter(org=org, is_active=True)
-        if archived is not None:
+        if archived is not None:  # pragma: needs cover
             qs = qs.filter(is_archived=archived)
         return qs
 
@@ -46,7 +47,7 @@ class Campaign(TembaModel):
         count = 2
         while True:
             campaigns = Campaign.objects.filter(name=name, org=org, is_active=True)
-            if ignore:
+            if ignore:  # pragma: needs cover
                 campaigns = campaigns.exclude(pk=ignore.pk)
 
             if not campaigns.exists():
@@ -63,7 +64,7 @@ class Campaign(TembaModel):
         Import campaigns from our export file
         """
         from temba.orgs.models import EARLIEST_IMPORT_VERSION
-        if exported_json.get('version', 0) < EARLIEST_IMPORT_VERSION:
+        if exported_json.get('version', 0) < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % exported_json.get('version', 0)))
 
         if 'campaigns' in exported_json:
@@ -75,12 +76,12 @@ class Campaign(TembaModel):
                 # first check if we have the objects by id
                 if same_site:
                     group = ContactGroup.user_groups.filter(uuid=campaign_spec['group']['uuid'], org=org).first()
-                    if group:
+                    if group:  # pragma: needs cover
                         group.name = campaign_spec['group']['name']
                         group.save()
 
                     campaign = Campaign.objects.filter(org=org, uuid=campaign_spec['uuid']).first()
-                    if campaign:
+                    if campaign:  # pragma: needs cover
                         campaign.name = Campaign.get_unique_name(org, name, ignore=campaign)
                         campaign.save()
 
@@ -182,7 +183,7 @@ class Campaign(TembaModel):
             if message:
                 try:
                     message = json.loads(message)
-                except:
+                except:  # pragma: needs cover
                     message = dict(base=message)
 
             events.append(dict(uuid=event.uuid, offset=event.offset,
@@ -196,7 +197,7 @@ class Campaign(TembaModel):
         definition['events'] = events
         return definition
 
-    def get_all_flows(self):
+    def get_all_flows(self):  # pragma: needs cover
         """
         Unique set of flows, including single message flows
         """
@@ -336,7 +337,7 @@ class CampaignEvent(TembaModel):
         # by default our offset is in minutes
         offset = self.offset
 
-        if self.unit == self.UNIT_HOURS:
+        if self.unit == self.UNIT_HOURS:  # pragma: needs cover
             offset = self.offset * 60
         elif self.unit == self.UNIT_DAYS:
             offset = self.offset * 60 * 24
@@ -369,9 +370,9 @@ class CampaignEvent(TembaModel):
 
         # try to parse it to a datetime
         try:
-            if self.unit == CampaignEvent.UNIT_MINUTES:
+            if self.unit == CampaignEvent.UNIT_MINUTES:  # pragma: needs cover
                 delta = timedelta(minutes=self.offset)
-            elif self.unit == CampaignEvent.UNIT_HOURS:
+            elif self.unit == CampaignEvent.UNIT_HOURS:  # pragma: needs cover
                 delta = timedelta(hours=self.offset)
             elif self.unit == CampaignEvent.UNIT_DAYS:
                 delta = timedelta(days=self.offset)
@@ -398,7 +399,7 @@ class CampaignEvent(TembaModel):
         except Exception:  # pragma: no cover
             pass
 
-        return None
+        return None  # pragma: no cover
 
     def release(self):
         """
@@ -459,7 +460,7 @@ class EventFire(Model):
         Should be called anytime a campaign changes.
         """
         from temba.campaigns.tasks import update_event_fires_for_campaign
-        update_event_fires_for_campaign.delay(campaign.pk)
+        on_transaction_commit(lambda: update_event_fires_for_campaign.delay(campaign.pk))
 
     @classmethod
     def do_update_campaign_events(cls, campaign):
@@ -469,7 +470,7 @@ class EventFire(Model):
     @classmethod
     def update_eventfires_for_event(cls, event):
         from temba.campaigns.tasks import update_event_fires
-        update_event_fires.delay(event.pk)
+        on_transaction_commit(lambda: update_event_fires.delay(event.pk))
 
     @classmethod
     def do_update_eventfires_for_event(cls, event):

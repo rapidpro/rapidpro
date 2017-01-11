@@ -427,10 +427,53 @@
     %p
       -blocktrans
         This endpoint should be called by Hub9 when a message has been to the final recipient. (delivery reports)
-        You can set the delivery callback URL on your Infobip account by contacting your sales agent.
+        You can set the delivery callback URL on your Hub9 account by contacting your sales agent.
 
     %code
       https://{{ domain }}{% url 'handlers.hub9_handler' 'delivered' object.uuid %}
+
+  -elif object.channel_type == 'DA'
+    %h4
+      -blocktrans
+        To finish configuring your Dart Media connection you'll need to provide them with the following details.
+
+    .clearfix
+      .config-value
+        .name
+          -trans "Username:"
+        .value {{ object.config_json.username }}
+      .config-value
+        .name
+          -trans "Password:"
+        .value
+          xxxxxxxx
+
+    .clearfix
+    %hr
+
+    %h4
+      -trans "Received URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by Dart Media when new messages are received to your number. You can set the receive URL on your Dart Media account by contacting your sales agent.
+
+    %code
+      https://{{ domain }}{% url 'handlers.dartmedia_handler' 'received' object.uuid %}
+
+    %hr
+
+    %h4
+      -trans "Delivered URL"
+
+    %p
+      -blocktrans
+        This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports)
+        You can set the delivery callback URL on your Dart Media account by contacting your sales agent.
+
+    %code
+      https://{{ domain }}{% url 'handlers.dartmedia_handler' 'delivered' object.uuid %}
+
 
   -elif object.channel_type == 'VM' or object.channel_type == 'VMU'
     %h4
@@ -604,7 +647,7 @@
   -elif object.channel_type == 'VI'
     %h4
       -blocktrans
-        Your Viber channel is connected, if need the IP addresses, status and receive endpoints are listed below.
+        Your Viber channel is connected, the IP addresses, status and receive endpoints are listed below.
 
     %hr
 
@@ -626,6 +669,18 @@
     %code
       https://{{ domain }}{% url 'handlers.viber_handler' 'receive' object.uuid %}
 
+  -elif object.channel_type == 'VI'
+    %h4
+      -blocktrans
+        Your Viber public channel is connected. If needed the webhook endpoints are listed below.
+
+    %hr
+
+    %h4
+      -trans "Webhook URL"
+
+    %code
+      https://{{ domain }}{% url 'handlers.viber_public_handler' object.uuid %}
 
   -elif object.channel_type == 'LN'
     %h4

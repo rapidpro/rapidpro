@@ -13,11 +13,15 @@ import traceback
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from decimal import Decimal
-from django.contrib.auth.models import User, Group
+
 from django.conf import settings
+from django.contrib.auth.models import User, Group
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
+from django.core.files import File
+from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction, connection
 from django.db.models import Sum, F, Q
 from django.utils import timezone
@@ -25,6 +29,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.utils.text import slugify
 from django_redis import get_redis_connection
 from enum import Enum
+from requests import Session
 from smartmin.models import SmartModel
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -202,6 +207,9 @@ class Org(SmartModel):
     is_anon = models.BooleanField(default=False,
                                   help_text=_("Whether this organization anonymizes the phone numbers of contacts within it"))
 
+    is_purgeable = models.BooleanField(default=False,
+                                       help_text=_("Whether this org's outgoing messages should be purged"))
+
     primary_language = models.ForeignKey('orgs.Language', null=True, blank=True, related_name='orgs',
                                          help_text=_('The primary language will be used for contacts with no language preference.'),
                                          on_delete=models.SET_NULL)
@@ -309,7 +317,7 @@ class Org(SmartModel):
         """
         Clears the given cache types (currently just credits) for this org. Returns number of keys actually deleted
         """
-        if OrgCache.credits in caches:
+        if OrgCache.credits in caches:  # pragma: needs cover
             r = get_redis_connection()
 
             active_topup_keys = [ORG_ACTIVE_TOPUP_REMAINING % (self.pk, topup.pk) for topup in self.topups.all()]
@@ -319,7 +327,7 @@ class Org(SmartModel):
                             ORG_ACTIVE_TOPUP_KEY % self.pk,
                             **active_topup_keys)
         else:
-            return 0
+            return 0  # pragma: needs cover
 
     def set_status(self, status):
         config = self.config_json()
@@ -359,7 +367,7 @@ class Org(SmartModel):
         # see if our export needs to be updated
         export_version = data.get('version', 0)
         from temba.orgs.models import EARLIEST_IMPORT_VERSION, CURRENT_EXPORT_VERSION
-        if export_version < EARLIEST_IMPORT_VERSION:
+        if export_version < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
             raise ValueError(_("Unknown version (%s)" % data.get('version', 0)))
 
         if export_version < CURRENT_EXPORT_VERSION:
@@ -411,7 +419,7 @@ class Org(SmartModel):
         else:
             return dict()
 
-    def can_add_sender(self):
+    def can_add_sender(self):  # pragma: needs cover
         """
         If an org's telephone send channel is an Android device, let them add a bulk sender
         """
@@ -421,7 +429,7 @@ class Org(SmartModel):
         send_channel = self.get_send_channel(TEL_SCHEME)
         return send_channel and send_channel.channel_type == Channel.TYPE_ANDROID
 
-    def can_add_caller(self):
+    def can_add_caller(self):  # pragma: needs cover
         return not self.supports_ivr() and self.is_connected_to_twilio()
 
     def supports_ivr(self):
@@ -538,6 +546,10 @@ class Org(SmartModel):
         from temba.channels.models import Channel
         return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME, contact_urn=contact_urn, country_code=country_code)
 
+    def get_ussd_channels(self):
+        from temba.channels.models import Channel
+        return self.channels.filter(is_active=True, org=self, channel_type__in=Channel.USSD_CHANNELS)
+
     def get_channel_delegate(self, channel, role):
         """
         Gets a channel's delegate for the given role with caching on the org object
@@ -641,7 +653,7 @@ class Org(SmartModel):
 
         # otherwise, sync all pending messages and channels
         else:
-            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID):
+            for channel in self.channels.filter(is_active=True, channel_type=Channel.TYPE_ANDROID):  # pragma: needs cover
                 channel.trigger_sync()
 
             # otherwise, send any pending messages on our channels
@@ -711,7 +723,7 @@ class Org(SmartModel):
         apps = client.applications.list(friendly_name=app_name)
         if apps:
             temba_app = apps[0]
-        else:
+        else:  # pragma: needs cover
             app_url = "https://" + settings.TEMBA_HOST + "%s" % reverse('handlers.twilio_handler')
 
             # the the twiml to run when the voice app fails
@@ -769,7 +781,7 @@ class Org(SmartModel):
             # release any nexmo channels
             from temba.channels.models import Channel
             channels = self.channels.filter(is_active=True, channel_type=Channel.TYPE_NEXMO)
-            for channel in channels:
+            for channel in channels:  # pragma: needs cover
                 channel.release()
 
             # clear all our channel configurations
@@ -794,7 +806,7 @@ class Org(SmartModel):
             # clear all our channel configurations
             self.clear_channel_caches()
 
-    def get_verboice_client(self):
+    def get_verboice_client(self):  # pragma: needs cover
         from temba.ivr.clients import VerboiceClient
         channel = self.get_call_channel()
         from temba.channels.models import Channel
@@ -985,7 +997,7 @@ class Org(SmartModel):
                     for i in range(0, len(words) - 1):
                         bigram = " ".join(words[i:i + 2])
                         boundary = self.find_boundary_by_name(bigram, level, parent)
-                        if boundary:
+                        if boundary:  # pragma: needs cover
                             break
 
         return boundary
@@ -1010,16 +1022,16 @@ class Org(SmartModel):
         admin = self.get_org_admins().last()
 
         # no admins? try editors
-        if not admin:
+        if not admin:  # pragma: needs cover
             admin = self.get_org_editors().last()
 
         # no editors? try viewers
-        if not admin:
+        if not admin:  # pragma: needs cover
             admin = self.get_org_viewers().last()
 
         return admin
 
-    def is_free_plan(self):
+    def is_free_plan(self):  # pragma: needs cover
         return self.plan == FREE_PLAN or self.plan == TRIAL_PLAN
 
     def is_import_flows_tier(self):
@@ -1047,11 +1059,11 @@ class Org(SmartModel):
 
         return getattr(user, '_org_group', None)
 
-    def has_twilio_number(self):
+    def has_twilio_number(self):  # pragma: needs cover
         from temba.channels.models import Channel
         return self.channels.filter(channel_type=Channel.TYPE_TWILIO)
 
-    def has_nexmo_number(self):
+    def has_nexmo_number(self):  # pragma: needs cover
         from temba.channels.models import Channel
         return self.channels.filter(channel_type=Channel.TYPE_NEXMO)
 
@@ -1094,7 +1106,7 @@ class Org(SmartModel):
 
             try:
                 self.import_app(json.loads(org_example), user)
-            except Exception:
+            except Exception:  # pragma: needs cover
                 import traceback
                 logger = logging.getLogger(__name__)
                 msg = 'Failed creating sample flows'
@@ -1247,12 +1259,12 @@ class Org(SmartModel):
 
                             # create a debit for transaction history
                             Debit.objects.create(topup_id=topup_id, amount=debited, beneficiary=new_topup,
-                                                 debit_type=Debit.TYPE_ALLOCATION, created_by=user, modified_by=user)
+                                                 debit_type=Debit.TYPE_ALLOCATION, created_by=user)
 
                             # decrease the amount of credits we need
                             amount -= debited
 
-                        else:
+                        else:  # pragma: needs cover
                             break
 
                     # recalculate our caches
@@ -1366,7 +1378,7 @@ class Org(SmartModel):
         # move it to the same day our plan started (taking into account short months)
         plan_start = today.replace(day=min(self.plan_start.day, calendar.monthrange(today.year, today.month)[1]))
 
-        if plan_start > today:
+        if plan_start > today:  # pragma: needs cover
             plan_start -= relativedelta(months=1)
 
         return plan_start
@@ -1591,13 +1603,13 @@ class Org(SmartModel):
         elif countrycode == 'SO':
             recommended = 'shaqodoon'
 
-        elif countrycode == 'NP':
+        elif countrycode == 'NP':  # pragma: needs cover
             recommended = 'blackmyna'
 
-        elif countrycode == 'UG':
+        elif countrycode == 'UG':  # pragma: needs cover
             recommended = 'yo'
 
-        elif countrycode == 'PH':
+        elif countrycode == 'PH':  # pragma: needs cover
             recommended = 'globe'
 
         return recommended
@@ -1640,6 +1652,34 @@ class Org(SmartModel):
         self.create_sample_flows(branding.get('api_link', ""))
         self.create_welcome_topup(topup_size)
 
+    def download_and_save_media(self, request, extension=None):  # pragma: needs cover
+        """
+        Given an HTTP Request object, downloads the file then saves it as media for the current org. If no extension
+        is passed it we attempt to extract it from the filename
+        """
+        s = Session()
+        prepped = s.prepare_request(request)
+        response = s.send(prepped)
+
+        if response.status_code == 200:
+            # download the content to a temp file
+            temp = NamedTemporaryFile(delete=True)
+            temp.write(response.content)
+            temp.flush()
+
+            # try to derive our extension from the filename if it wasn't passed in
+            if not extension:
+                url_parts = urlparse(request.url)
+                if url_parts.path:
+                    path_pieces = url_parts.path.rsplit('.')
+                    if len(path_pieces) > 1:
+                        extension = path_pieces[-1]
+
+        else:
+            raise Exception("Received non-200 response (%s) for request: %s" % (response.status_code, response.content))
+
+        return self.save_media(File(temp), extension)
+
     def save_media(self, file, extension):
         """
         Saves the given file data with the extension and returns an absolute url to the result
@@ -1662,7 +1702,7 @@ class Org(SmartModel):
 
     @classmethod
     def get_org(cls, user):
-        if not user:
+        if not user:  # pragma: needs cover
             return None
 
         if not hasattr(user, '_org'):
@@ -1693,16 +1733,16 @@ def get_org(obj):
     return getattr(obj, '_org', None)
 
 
-def is_alpha_user(user):
+def is_alpha_user(user):  # pragma: needs cover
     return user.groups.filter(name='Alpha')
 
 
-def is_beta_user(user):
+def is_beta_user(user):  # pragma: needs cover
     return user.groups.filter(name='Beta')
 
 
 def get_settings(user):
-    if not user:
+    if not user:  # pragma: needs cover
         return None
 
     settings = UserSettings.objects.filter(user=user).first()
@@ -1729,19 +1769,19 @@ def _user_has_org_perm(user, org, permission):
     """
     Determines if a user has the given permission in this org
     """
-    if user.is_superuser:
+    if user.is_superuser:  # pragma: needs cover
         return True
 
-    if user.is_anonymous():
+    if user.is_anonymous():  # pragma: needs cover
         return False
 
     # has it innately? (customer support)
-    if user.has_perm(permission):
+    if user.has_perm(permission):  # pragma: needs cover
         return True
 
     org_group = org.get_user_org_group(user)
 
-    if not org_group:
+    if not org_group:  # pragma: needs cover
         return False
 
     (app_label, codename) = permission.split(".")
@@ -1787,7 +1827,7 @@ class Language(SmartModel):
     def create(cls, org, user, name, iso_code):
         return cls.objects.create(org=org, name=name, iso_code=iso_code, created_by=user, modified_by=user)
 
-    def as_json(self):
+    def as_json(self):  # pragma: needs cover
         return dict(name=self.name, iso_code=self.iso_code)
 
     @classmethod
@@ -1814,7 +1854,7 @@ class Language(SmartModel):
 
         return default_text
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: needs cover
         return '%s' % self.name
 
 
@@ -1841,7 +1881,7 @@ class Invitation(SmartModel):
         if not self.secret:
             secret = random_string(64)
 
-            while Invitation.objects.filter(secret=secret):
+            while Invitation.objects.filter(secret=secret):  # pragma: needs cover
                 secret = random_string(64)
 
             self.secret = secret
@@ -1849,7 +1889,7 @@ class Invitation(SmartModel):
         return super(Invitation, self).save(*args, **kwargs)
 
     @classmethod
-    def generate_random_string(cls, length):
+    def generate_random_string(cls, length):  # pragma: needs cover
         """
         Generates a [length] characters alpha numeric secret
         """
@@ -1862,7 +1902,7 @@ class Invitation(SmartModel):
 
     def send_email(self):
         # no=op if we do not know the email
-        if not self.email:
+        if not self.email:  # pragma: needs cover
             return
 
         branding = self.org.get_branding()
@@ -1928,7 +1968,7 @@ class TopUp(SmartModel):
         org.update_caches(OrgEvent.topup_new, topup)
         return topup
 
-    def get_ledger(self):
+    def get_ledger(self):  # pragma: needs cover
         debits = self.debits.filter(debit_type=Debit.TYPE_ALLOCATION).order_by('-created_by')
         balance = self.credits
         ledger = []
@@ -1953,7 +1993,7 @@ class TopUp(SmartModel):
                                amount=self.credits,
                                balance=self.credits))
 
-        for debit in debits:
+        for debit in debits:  # pragma: needs cover
             balance -= debit.amount
             ledger.append(dict(date=debit.created_on,
                           comment=_('Transfer to %(org)s') % dict(org=debit.beneficiary.org.name),
@@ -1987,12 +2027,12 @@ class TopUp(SmartModel):
         return "$%.2f" % self.dollars()
 
     def dollars(self):
-        if self.price == 0:
+        if self.price == 0:  # pragma: needs cover
             return 0
         else:
             return Decimal(self.price) / Decimal(100)
 
-    def revert_topup(self):
+    def revert_topup(self):  # pragma: needs cover
         # unwind any items that were assigned to this topup
         self.msgs.update(topup=None)
 
@@ -2000,7 +2040,7 @@ class TopUp(SmartModel):
         self.is_active = False
         self.save()
 
-    def get_stripe_charge(self):
+    def get_stripe_charge(self):  # pragma: needs cover
         try:
             stripe.api_key = get_stripe_credentials()[1]
             return stripe.Charge.retrieve(self.stripe_charge)
@@ -2021,11 +2061,11 @@ class TopUp(SmartModel):
         """
         return self.credits - self.get_used()
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: needs cover
         return "%s Credits" % self.credits
 
 
-class Debit(SmartModel):
+class Debit(models.Model):
     """
     Transactional history of credits allocated to other topups or chunks of archived messages
     """
@@ -2036,6 +2076,8 @@ class Debit(SmartModel):
     DEBIT_TYPES = ((TYPE_ALLOCATION, 'Allocation'),
                    (TYPE_PURGE, 'Purge'))
 
+    LAST_SQUASH_KEY = 'last_debit_squash'
+
     topup = models.ForeignKey(TopUp, related_name="debits", help_text=_("The topup these credits are applied against"))
 
     amount = models.IntegerField(help_text=_('How many credits were debited'))
@@ -2045,6 +2087,33 @@ class Debit(SmartModel):
                                     help_text=_('Optional topup that was allocated with these credits'))
 
     debit_type = models.CharField(max_length=1, choices=DEBIT_TYPES, null=False, help_text=_('What caused this debit'))
+
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True,
+                                   related_name="debits_created",
+                                   help_text="The user which originally created this item")
+    created_on = models.DateTimeField(default=timezone.now,
+                                      help_text="When this item was originally created")
+
+    @classmethod
+    def squash_purge_debits(cls):
+        last_squash_id = cache.get(cls.LAST_SQUASH_KEY, 0)
+        unsquashed_topups = cls.objects.filter(pk__gt=last_squash_id, debit_type=cls.TYPE_PURGE)
+        unsquashed_topups = unsquashed_topups.values_list('topup', flat=True).distinct('topup')
+
+        for topup_id in unsquashed_topups:
+            with connection.cursor() as cursor:
+                sql = """
+                WITH removed as (
+                    DELETE FROM orgs_debit WHERE "topup_id" = %s AND debit_type = 'P' RETURNING "amount"
+                )
+                INSERT INTO orgs_debit("topup_id", "amount", "debit_type", "created_on")
+                VALUES (%s, GREATEST(0, (SELECT SUM("amount") FROM removed)), 'P', %s);"""
+
+                cursor.execute(sql, [topup_id, topup_id, timezone.now()])
+
+        max_id = cls.objects.filter(debit_type=Debit.TYPE_PURGE).order_by('-id').values_list('id', flat=True).first()
+        if max_id:
+            cache.set(cls.LAST_SQUASH_KEY, max_id)
 
 
 class TopUpCredits(models.Model):
@@ -2096,7 +2165,7 @@ class CreditAlert(SmartModel):
     @classmethod
     def trigger_credit_alert(cls, org, alert_type):
         # is there already an active alert at this threshold? if so, exit
-        if CreditAlert.objects.filter(is_active=True, org=org, alert_type=alert_type):
+        if CreditAlert.objects.filter(is_active=True, org=org, alert_type=alert_type):  # pragma: needs cover
             return None
 
         print "triggering %s credits alert type for %s" % (alert_type, org.name)
@@ -2116,7 +2185,7 @@ class CreditAlert(SmartModel):
 
     def send_email(self):
         email = self.created_by.email
-        if not email:
+        if not email:  # pragma: needs cover
             return
 
         branding = self.org.get_branding()
@@ -2151,7 +2220,7 @@ class CreditAlert(SmartModel):
 
             if org_remaining_credits <= 0:
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_OVER)
-            elif org_low_credits:
+            elif org_low_credits:  # pragma: needs cover
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_LOW)
-            elif org_credits_expiring > 0:
+            elif org_credits_expiring > 0:  # pragma: needs cover
                 CreditAlert.trigger_credit_alert(org, ORG_CREDIT_EXPIRING)

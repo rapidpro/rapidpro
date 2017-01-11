@@ -240,6 +240,7 @@ INSTALLED_APPS = (
     'temba.utils',
     'temba.campaigns',
     'temba.ivr',
+    'temba.ussd',
     'temba.locations',
     'temba.values',
     'temba.airtime',
@@ -265,12 +266,19 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose'
-        }
+        },
+        'null': {
+            'class': 'logging.NullHandler',
+        },
     },
     'loggers': {
         'pycountry': {
             'level': 'ERROR',
             'handlers': ['console'],
+            'propagate': False,
+        },
+        'django.security.DisallowedHost': {
+            'handlers': ['null'],
             'propagate': False,
         },
         'django.db.backends': {
@@ -414,6 +422,7 @@ PERMISSIONS = {
                          'claim_blackmyna',
                          'claim_chikka',
                          'claim_clickatell',
+                         'claim_dart_media',
                          'claim_external',
                          'claim_facebook',
                          'claim_globe',
@@ -437,6 +446,7 @@ PERMISSIONS = {
                          'claim_twitter',
                          'claim_verboice',
                          'claim_viber',
+                         'claim_viber_public',
                          'create_viber',
                          'claim_vumi',
                          'claim_vumi_ussd',
@@ -456,6 +466,7 @@ PERMISSIONS = {
     'flows.flowstart': ('api',),
 
     'flows.flow': ('activity',
+                   'activity_chart',
                    'activity_list',
                    'analytics',
                    'api',
@@ -473,6 +484,7 @@ PERMISSIONS = {
                    'recent_messages',
                    'results',
                    'revisions',
+                   'run_table',
                    'simulate',
                    'upload_action_recording',
                    ),
@@ -519,6 +531,7 @@ PERMISSIONS = {
                          'new_conversation',
                          'register',
                          'schedule',
+                         'ussd',
                          ),
 }
 
@@ -599,6 +612,7 @@ GROUP_PERMISSIONS = {
         'csv_imports.importtask.*',
 
         'ivr.ivrcall.*',
+        'ussd.ussdsession.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',
@@ -644,6 +658,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_blackmyna',
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
+        'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
         'channels.channel_claim_globe',
@@ -666,6 +681,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_viber',
+        'channels.channel_claim_viber_public',
         'channels.channel_create_viber',
         'channels.channel_claim_vumi',
         'channels.channel_claim_vumi_ussd',
@@ -753,6 +769,7 @@ GROUP_PERMISSIONS = {
         'csv_imports.importtask.*',
 
         'ivr.ivrcall.*',
+        'ussd.ussdsession.*',
 
         'locations.adminboundary_alias',
         'locations.adminboundary_api',
@@ -780,6 +797,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_blackmyna',
         'channels.channel_claim_chikka',
         'channels.channel_claim_clickatell',
+        'channels.channel_claim_dart_media',
         'channels.channel_claim_external',
         'channels.channel_claim_facebook',
         'channels.channel_claim_globe',
@@ -802,6 +820,7 @@ GROUP_PERMISSIONS = {
         'channels.channel_claim_twitter',
         'channels.channel_claim_verboice',
         'channels.channel_claim_viber',
+        'channels.channel_claim_viber_public',
         'channels.channel_create_viber',
         'channels.channel_claim_vumi',
         'channels.channel_claim_vumi_ussd',
@@ -879,6 +898,7 @@ GROUP_PERMISSIONS = {
         'channels.channelevent_calls',
 
         'flows.flow_activity',
+        'flows.flow_activity_chart',
         'flows.flow_archived',
         'flows.flow_campaign',
         'flows.flow_completion',
@@ -891,6 +911,7 @@ GROUP_PERMISSIONS = {
         'flows.flow_json',
         'flows.flow_recent_messages',
         'flows.flow_results',
+        'flows.flow_run_table',
         'flows.flow_simulate',
         'flows.ruleset_analytics',
         'flows.ruleset_results',
@@ -990,9 +1011,13 @@ CELERYBEAT_SCHEDULE = {
         'task': 'fail_old_messages',
         'schedule': crontab(hour=0, minute=0),
     },
+    "purge-broadcasts": {
+        'task': 'purge_broadcasts_task',
+        'schedule': crontab(hour=1, minute=0),
+    },
     "clear-old-msg-external-ids": {
         'task': 'clear_old_msg_external_ids',
-        'schedule': crontab(hour=1, minute=0),
+        'schedule': crontab(hour=2, minute=0),
     },
     "trim-channel-log": {
         'task': 'trim_channel_log_task',
@@ -1004,6 +1029,10 @@ CELERYBEAT_SCHEDULE = {
     },
     "squash-flowruncounts": {
         'task': 'squash_flowruncounts',
+        'schedule': timedelta(seconds=300),
+    },
+    "squash-flowpathcounts": {
+        'task': 'squash_flowpathcounts',
         'schedule': timedelta(seconds=300),
     },
     "squash-channelcounts": {
@@ -1100,15 +1129,6 @@ REST_FRAMEWORK = {
 }
 REST_HANDLE_EXCEPTIONS = not TESTING
 
-
-# -----------------------------------------------------------------------------------
-# Aggregator settings
-# -----------------------------------------------------------------------------------
-
-# Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
-# and make sure you send from a whitelisted IP Address
-HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
-
 # -----------------------------------------------------------------------------------
 # Django Compressor configuration
 # -----------------------------------------------------------------------------------
@@ -1153,6 +1173,11 @@ SEND_EMAILS = False
 # DANGER: only turn this on if you know what you are doing!
 #         could cause airtime transfers in test environment
 SEND_AIRTIME = False
+
+######
+# DANGER: only turn this on if you know what you are doing!
+#         could cause calls in test environments
+SEND_CALLS = False
 
 
 MESSAGE_HANDLERS = ['temba.triggers.handlers.TriggerHandler',

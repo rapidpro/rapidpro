@@ -1,15 +1,16 @@
 from __future__ import unicode_literals
 
 import time
+
+from celery.task import task
 from django.utils import timezone
 from django_redis import get_redis_connection
-from djcelery_transactions import task
 from temba.flows.models import FlowStatsCache
 from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HANDLE_EVENT_TASK
 from temba.utils.email import send_simple_email
 from temba.utils.queues import start_task, complete_task
 from temba.utils.queues import push_task, nonoverlapping_task
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount, FlowPathCount
 
 
 @task(track_started=True, name='send_email_action_task')
@@ -22,7 +23,7 @@ def update_run_expirations_task(flow_id):
     """
     Update all of our current run expirations according to our new expiration period
     """
-    for step in FlowStep.objects.filter(run__flow__id=flow_id, run__is_active=True, left_on=None).distinct('run'):
+    for step in FlowStep.objects.filter(run__flow__id=flow_id, run__is_active=True, left_on=None).distinct('run'):  # pragma: needs cover
         step.run.update_expiration(step.arrived_on)
 
     # force an expiration update
@@ -79,7 +80,7 @@ def start_msg_flow_batch_task():
     org_id, task_obj = start_task(Flow.START_MSG_FLOW_BATCH)
 
     # it is possible that somehow we might get None back if more workers were started than tasks got added, bail if so
-    if task_obj is None:
+    if task_obj is None:  # pragma: needs cover
         return
 
     start = time.time()
@@ -87,7 +88,7 @@ def start_msg_flow_batch_task():
     try:
         # instantiate all the objects we need that were serialized as JSON
         flow = Flow.objects.filter(pk=task_obj['flow'], is_active=True).first()
-        if not flow:
+        if not flow:  # pragma: needs cover
             return
 
         broadcasts = [] if not task_obj['broadcasts'] else Broadcast.objects.filter(pk__in=task_obj['broadcasts'])
@@ -137,6 +138,11 @@ def calculate_flow_stats_task(flow_id):
 
     if runs_started != runs_started_cached:
         Flow.objects.get(pk=flow_id).do_calculate_flow_stats()
+
+
+@nonoverlapping_task(track_started=True, name="squash_flowpathcounts", lock_key='squash_flowpathcounts')
+def squash_flowpathcounts():  # pragma: needs cover
+    FlowPathCount.squash_counts()
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowruncounts", lock_key='squash_flowruncounts')

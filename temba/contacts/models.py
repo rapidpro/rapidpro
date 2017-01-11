@@ -43,23 +43,25 @@ END_TEST_CONTACT_PATH = 12065550199
 # how many sequential contacts on import triggers suspension
 SEQUENTIAL_CONTACTS_THRESHOLD = 250
 
-TEL_SCHEME = 'tel'
-TWITTER_SCHEME = 'twitter'
-TWILIO_SCHEME = 'twilio'
-FACEBOOK_SCHEME = 'facebook'
-TELEGRAM_SCHEME = 'telegram'
 EMAIL_SCHEME = 'mailto'
 EXTERNAL_SCHEME = 'ext'
+FACEBOOK_SCHEME = 'facebook'
 LINE_SCHEME = 'line'
+TEL_SCHEME = 'tel'
+TELEGRAM_SCHEME = 'telegram'
+TWILIO_SCHEME = 'twilio'
+TWITTER_SCHEME = 'twitter'
+VIBER_SCHEME = 'viber'
 
 # Scheme, Label, Export/Import Header, Context Key
 URN_SCHEME_CONFIG = ((TEL_SCHEME, _("Phone number"), 'phone', 'tel_e164'),
+                     (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
                      (TWITTER_SCHEME, _("Twitter handle"), 'twitter', TWITTER_SCHEME),
+                     (VIBER_SCHEME, _("Viber identifier"), 'viber', VIBER_SCHEME),
+                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME),
                      (TELEGRAM_SCHEME, _("Telegram identifier"), 'telegram', TELEGRAM_SCHEME),
                      (EMAIL_SCHEME, _("Email address"), 'email', EMAIL_SCHEME),
-                     (FACEBOOK_SCHEME, _("Facebook identifier"), 'facebook', FACEBOOK_SCHEME),
-                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME),
-                     (LINE_SCHEME, _("LINE identifier"), 'line', LINE_SCHEME))
+                     (EXTERNAL_SCHEME, _("External identifier"), 'external', EXTERNAL_SCHEME))
 
 IMPORT_HEADERS = tuple((c[2], c[0]) for c in URN_SCHEME_CONFIG)
 
@@ -143,6 +145,10 @@ class URN(object):
                 return True
             except ValueError:
                 return False
+
+        # validate Viber URNS look right (this is a guess)
+        elif scheme == VIBER_SCHEME:  # pragma: needs cover
+            return regex.match(r'^[a-zA-Z0-9_=]{1,16}$', path, regex.V0)
 
         # anything goes for external schemes
         return True
@@ -233,6 +239,10 @@ class URN(object):
     @classmethod
     def from_external(cls, path):
         return cls.from_parts(EXTERNAL_SCHEME, path)
+
+    @classmethod
+    def from_viber(cls, path):
+        return cls.from_parts(VIBER_SCHEME, path)
 
 
 class ContactField(SmartModel):
@@ -472,22 +482,21 @@ class Contact(TembaModel):
         """
         from temba.flows.models import Flow
         from temba.ivr.models import IVRCall
-        # BUSY, FAILED, NO_ANSWER, CANCELED
-        from temba.msgs.models import Msg
+        from temba.msgs.models import Msg, BroadcastRecipient
 
         msgs = Msg.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
         msgs = msgs.exclude(visibility=Msg.VISIBILITY_DELETED).select_related('channel').prefetch_related('channel_logs')
 
         # we also include in the timeline purged broadcasts with a best guess at the translation used
-        broadcasts = self.broadcasts.filter(purged=True).filter(created_on__gte=after, created_on__lt=before)
-        broadcasts = broadcasts.prefetch_related('steps__run__flow')
-        for broadcast in broadcasts:
-            steps = list(broadcast.steps.all())
-            flow = steps[0].run.flow if steps else None
-            flow_language = flow.base_language if flow else None
-            broadcast.translated_text = broadcast.get_translated_text(contact=self,
-                                                                      base_language=flow_language,
-                                                                      org=self.org)
+        recipients = BroadcastRecipient.objects.filter(contact=self)
+        recipients = recipients.filter(broadcast__purged=True, broadcast__created_on__gte=after, broadcast__created_on__lt=before)
+        recipients = recipients.select_related('broadcast')
+        broadcasts = []
+        for recipient in recipients:
+            broadcast = recipient.broadcast
+            broadcast.translated_text = broadcast.get_translated_text(contact=self, org=self.org)
+            broadcast.purged_status = recipient.purged_status
+            broadcasts.append(broadcast)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         runs = self.runs.filter(created_on__gte=after, created_on__lt=before).exclude(flow__flow_type=Flow.MESSAGE)
@@ -760,7 +769,7 @@ class Contact(TembaModel):
                         if name:
                             contact.name = name
                             updated_attrs.append(Contact.NAME)
-                        if language:
+                        if language:  # pragma: needs cover
                             contact.language = language
                             updated_attrs.append(Contact.LANGUAGE)
 
@@ -1115,12 +1124,12 @@ class Contact(TembaModel):
 
         header = sheet_data[line_number]
         line_number += 1
-        while header is not None and len(header[0]) > 1 and header[0][0] == "#":
+        while header is not None and len(header[0]) > 1 and header[0][0] == "#":  # pragma: needs cover
             header = sheet_data[line_number]
             line_number += 1
 
         # do some sanity checking to make sure they uploaded the right kind of file
-        if len(header) < 1:
+        if len(header) < 1:  # pragma: needs cover
             raise Exception("Invalid header for import file")
 
         # normalize our header names, removing quotes and spaces
@@ -1146,7 +1155,7 @@ class Contact(TembaModel):
             line_number += 1
 
             # make sure there are same number of fields
-            if len(row_data) != len(header):
+            if len(row_data) != len(header):  # pragma: needs cover
                 raise Exception("Line %d: The number of fields for this row is incorrect. Expected %d but found %d." % (line_number, len(header), len(row_data)))
 
             field_values = dict(zip(header, row_data))
@@ -1159,13 +1168,13 @@ class Contact(TembaModel):
                 record = cls.create_instance(field_values)
                 if record:
                     records.append(record)
-                else:
+                else:  # pragma: needs cover
                     num_errors += 1
 
             except SmartImportRowError as e:
                 error_messages.append(dict(line=line_number, error=str(e)))
 
-            except Exception as e:
+            except Exception as e:  # pragma: needs cover
                 if log:
                     import traceback
                     traceback.print_exc(100, log)
@@ -1190,7 +1199,7 @@ class Contact(TembaModel):
         if task.import_params:
             try:
                 import_params = json.loads(task.import_params)
-            except Exception:
+            except Exception:  # pragma: needs cover
                 logger.error("Failed to parse JSON for contact import #d" % task.pk, exc_info=True)
 
         # this file isn't good enough, lets write it to local disk
@@ -1269,7 +1278,7 @@ class Contact(TembaModel):
                         group_org.set_suspended()
                         break
 
-            except Exception:  # pragma: no-cover
+            except Exception:  # pragma: no cover
                 # if we fail to parse phone numbers for any reason just punt
                 pass
 
@@ -1521,7 +1530,7 @@ class Contact(TembaModel):
                     self.clear_urn_cache()
                     break
 
-    def get_urns_for_scheme(self, scheme):
+    def get_urns_for_scheme(self, scheme):  # pragma: needs cover
         """
         Returns all the URNs for the passed in scheme
         """
@@ -1730,13 +1739,14 @@ class ContactURN(models.Model):
         EMAIL_SCHEME: dict(label="Email", key=None, id=0, field=None, urn_scheme=EMAIL_SCHEME),
         TELEGRAM_SCHEME: dict(label="Telegram", key=None, id=0, field=None, urn_scheme=TELEGRAM_SCHEME),
         FACEBOOK_SCHEME: dict(label="Facebook", key=None, id=0, field=None, urn_scheme=FACEBOOK_SCHEME),
+        VIBER_SCHEME: dict(label="Viber", key=None, id=0, field=None, urn_scheme=VIBER_SCHEME),
     }
 
     PRIORITY_LOWEST = 1
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
-    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90}
+    PRIORITY_DEFAULTS = {TEL_SCHEME: PRIORITY_STANDARD, TWITTER_SCHEME: 90, FACEBOOK_SCHEME: 90, TELEGRAM_SCHEME: 90, VIBER_SCHEME: 90}
 
     ANON_MASK = '*' * 8  # returned instead of URN values for anon orgs
 
@@ -2219,7 +2229,7 @@ class ContactGroupCount(models.Model):
         # insert updated count, returning it
         return ContactGroupCount.objects.create(group=group, count=count)
 
-    def __unicode__(self):
+    def __unicode__(self):  # pragma: needs cover
         return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)
 
 

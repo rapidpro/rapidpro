@@ -12,7 +12,7 @@ from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Msg, Label, STATUS_CONFIG, INCOMING, OUTGOING, INBOX, FLOW, IVR, PENDING
 from temba.msgs.models import QUEUED
-from temba.utils import datetime_to_json_date
+from temba.utils import datetime_to_json_date, on_transaction_commit
 from temba.values.models import Value
 
 from . import fields
@@ -136,7 +136,8 @@ class BroadcastWriteSerializer(WriteSerializer):
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task
-        send_broadcast_task.delay(broadcast.id)
+        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id))
+
         return broadcast
 
 
@@ -266,7 +267,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
                     self.instance.event_type = CampaignEvent.TYPE_MESSAGE
 
                 # otherwise, we can just update that flow
-                else:
+                else:  # pragma: needs cover
                     # set our single message on our flow
                     self.instance.flow.update_single_message_flow(message=message)
 
@@ -691,7 +692,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     extra = serializers.JSONField(required=False)
 
     def validate_extra(self, value):
-        if not value:
+        if not value:  # pragma: needs cover
             return None
         else:
             return FlowRun.normalize_fields(value)[0]
@@ -914,7 +915,7 @@ class ResthookSubscriberWriteSerializer(WriteSerializer):
         target_url = data['target_url']
 
         # make sure this combination doesn't already exist
-        if ResthookSubscriber.objects.filter(resthook=resthook, target_url=target_url, is_active=True):
+        if ResthookSubscriber.objects.filter(resthook=resthook, target_url=target_url, is_active=True):  # pragma: needs cover
             raise serializers.ValidationError("URL is already subscribed to this event.")
 
         return data

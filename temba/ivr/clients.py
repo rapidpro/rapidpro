@@ -31,6 +31,8 @@ class TwilioClient(TwilioRestClient):
         super(TwilioClient, self).__init__(account=account, token=token, **kwargs)
 
     def start_call(self, call, to, from_, status_callback):
+        if not settings.SEND_CALLS:
+            raise IVRException("SEND_CALLS set to False, skipping call start")
 
         try:
             twilio_call = self.calls.create(to=to,
@@ -46,7 +48,7 @@ class TwilioClient(TwilioRestClient):
 
             raise IVRException(message)
 
-    def validate(self, request):
+    def validate(self, request):  # pragma: needs cover
         validator = RequestValidator(self.auth[1])
         signature = request.META.get('HTTP_X_TWILIO_SIGNATURE', '')
 
@@ -92,10 +94,10 @@ class TwilioClient(TwilioRestClient):
 
             return '%s:%s' % (content_type, self.org.save_media(File(temp), extension))
 
-        return None
+        return None  # pragma: needs cover
 
 
-class VerboiceClient:
+class VerboiceClient:  # pragma: needs cover
 
     def __init__(self, channel):
         self.endpoint = 'https://verboice.instedd.org/api/call'
@@ -111,6 +113,8 @@ class VerboiceClient:
         return True
 
     def start_call(self, call, to, from_, status_callback):
+        if not settings.SEND_CALLS:
+            raise IVRException("SEND_CALLS set to False, skipping call start")
 
         channel = call.channel
         Contact.get_or_create(channel.org, channel.created_by, urns=[URN.from_tel(to)])

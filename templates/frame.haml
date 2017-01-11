@@ -32,6 +32,7 @@
         (function() { document.write(unescape('%3Cscript src="' + src + '"%3E%3C/script%3E')); })();
       }
 
+
     // ==== JQUERY ====
     :javascript
       conditionalLoad('bower/jquery/jquery.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js');
@@ -77,12 +78,14 @@
       %script{src:"{{ STATIC_URL }}bower/jquery-history/scripts/jquery.history.js"}
       %script{src:"{{ STATIC_URL }}bower/jquery-easing/jquery.easing.js"}
       %script{src:"{{ STATIC_URL }}bower/jquery-hoverintent/jquery.hoverIntent.js"}
+      %script{src:"{{ STATIC_URL }}bower/intercooler-js/src/intercooler.js"}
       %script{src:"{{ STATIC_URL }}bower/moment/moment.js"}
       %script{src:"{{ STATIC_URL }}bower/moment-timezone/builds/moment-timezone-with-data.js"}
       %script{src:"{{ STATIC_URL }}bower/featherlight/src/featherlight.js"}
       %script{src:"{{ STATIC_URL }}bower/video.js/dist/video.js"}
       %script{src:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.js"}
       %script{src:"{{ STATIC_URL }}bower/xregexp/xregexp-all.js"}
+
 
       // Non-bower packages
       %script{src:"{{ STATIC_URL }}lib/uuid.js"}
@@ -166,6 +169,8 @@
     &nbsp;
 
   %a#big-logo.logo.icon-logo{href:"/", title:"{{brand.name}}"}
+    .name
+      {{brand.name}}
 
   -include 'includes/nav.html'
 

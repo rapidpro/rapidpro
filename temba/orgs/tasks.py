@@ -2,8 +2,8 @@ from __future__ import absolute_import, unicode_literals
 
 import time
 
+from celery.task import task
 from datetime import timedelta
-from djcelery_transactions import task
 from django.utils import timezone
 from django_redis import get_redis_connection
 from .models import CreditAlert, Invitation, Org, TopUpCredits
@@ -22,12 +22,12 @@ def send_alert_email_task(alert_id):
 
 
 @task(track_started=True, name='check_credits_task')
-def check_credits_task():
+def check_credits_task():  # pragma: needs cover
     CreditAlert.check_org_credits()
 
 
 @task(track_started=True, name='calculate_credit_caches')
-def calculate_credit_caches():
+def calculate_credit_caches():  # pragma: needs cover
     """
     Repopulates the active topup and total credits for each organization
     that received messages in the past week.

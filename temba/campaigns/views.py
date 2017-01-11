@@ -229,7 +229,7 @@ class EventForm(forms.ModelForm):
         if self.cleaned_data['direction'] == 'B':
             obj.offset = -obj.offset
 
-        if self.cleaned_data['unit'] == 'H' or self.cleaned_data['unit'] == 'M':
+        if self.cleaned_data['unit'] == 'H' or self.cleaned_data['unit'] == 'M':  # pragma: needs cover
             obj.delivery_hour = -1
 
         # if its a message flow, set that accordingly
@@ -271,7 +271,7 @@ class EventForm(forms.ModelForm):
             # temporary until data migration is complete
             try:
                 message = json.loads(self.instance.message)
-            except:
+            except:  # pragma: needs cover
                 message = dict(base=message)
 
         self.languages = []
@@ -390,7 +390,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def get_redirect_url(self):
             return reverse('campaigns.campaign_read', args=[self.object.campaign.pk])
 
-        def get_cancel_url(self):
+        def get_cancel_url(self):  # pragma: needs cover
             return reverse('campaigns.campaign_read', args=[self.object.campaign.pk])
 
     class Update(OrgPermsMixin, ModalMixin, SmartUpdateView):
@@ -448,7 +448,7 @@ class CampaignEventCRUDL(SmartCRUDL):
         def pre_save(self, obj):
 
             prev = CampaignEvent.objects.get(pk=obj.pk)
-            if prev.event_type == 'M' and obj.event_type == 'F' and prev.flow:
+            if prev.event_type == 'M' and obj.event_type == 'F' and prev.flow:  # pragma: needs cover
                 flow = prev.flow
                 flow.is_active = False
                 flow.save()
@@ -507,6 +507,6 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             obj = super(CampaignEventCRUDL.Create, self).pre_save(obj)
-            obj.campaign = Campaign.objects.get(org=self.request.user.get_org(), pk=self.request.REQUEST.get('campaign'))
+            obj.campaign = Campaign.objects.get(org=self.request.user.get_org(), pk=self.request.GET.get('campaign'))
             self.form.pre_save(self.request, obj)
             return obj

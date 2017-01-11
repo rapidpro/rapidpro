@@ -15,7 +15,7 @@ from temba.flows.models import Flow, FlowRun, FlowStep, RuleSet, FlowRevision
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Broadcast, Label, Msg, INCOMING
 from temba.orgs.models import CURRENT_EXPORT_VERSION, EARLIEST_IMPORT_VERSION
-from temba.utils import datetime_to_json_date
+from temba.utils import datetime_to_json_date, on_transaction_commit
 from temba.values.models import Value
 
 # Maximum number of items that can be passed to bulk action endpoint. We don't currently enforce this for messages but
@@ -427,7 +427,7 @@ class ContactWriteSerializer(WriteSerializer):
                     normalized = URN.normalize(urn)
                     scheme, path = URN.to_parts(normalized)
                     # for backwards compatibility we don't validate phone numbers here
-                    if scheme != TEL_SCHEME and not URN.validate(normalized):
+                    if scheme != TEL_SCHEME and not URN.validate(normalized):  # pragma: needs cover
                         raise ValueError()
                 except ValueError:
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
@@ -952,7 +952,7 @@ class CampaignWriteSerializer(WriteSerializer):
         if value:
             if ContactGroup.is_valid_name(value):
                 self.group_obj = ContactGroup.get_or_create(self.org, self.user, value)
-            else:
+            else:  # pragma: needs cover
                 raise serializers.ValidationError("Invalid group name: %s" % value)
         return value
 
@@ -960,7 +960,7 @@ class CampaignWriteSerializer(WriteSerializer):
         if not data.get('group') and not data.get('group_uuid'):
             raise serializers.ValidationError("Must specify either group name or group_uuid")
 
-        if data.get('campaign') and data.get('uuid'):
+        if data.get('campaign') and data.get('uuid'):  # pragma: needs cover
             raise serializers.ValidationError("Can't specify both campaign and uuid")
 
         return data
@@ -1010,7 +1010,7 @@ class FlowReadSerializer(ReadSerializer):
 
         obj.ensure_current_version()
 
-        for ruleset in obj.rule_sets.all().order_by('y'):
+        for ruleset in obj.rule_sets.all().order_by('y'):  # pragma: needs cover
 
             # backwards compat for old response types
             response_type = 'C'
@@ -1052,7 +1052,7 @@ class FlowWriteSerializer(WriteSerializer):
     id = serializers.IntegerField(required=False)
 
     def validate_version(self, value):
-        if value > CURRENT_EXPORT_VERSION or value < EARLIEST_IMPORT_VERSION:
+        if value > CURRENT_EXPORT_VERSION or value < EARLIEST_IMPORT_VERSION:  # pragma: needs cover
             raise serializers.ValidationError("Flow version %s not supported" % value)
         return value
 
@@ -1065,7 +1065,7 @@ class FlowWriteSerializer(WriteSerializer):
         version = data.get('version')
 
         if version < 7:
-            if not data.get('name'):
+            if not data.get('name'):  # pragma: needs cover
                 raise serializers.ValidationError("This field is required for version %s" % version)
             if not data.get('definition'):
                 data['definition'] = dict(action_sets=[], rule_sets=[])
@@ -1074,13 +1074,13 @@ class FlowWriteSerializer(WriteSerializer):
             # only required starting at version 7
             metadata = data.get('metadata')
             if metadata:
-                if 'name' not in metadata:
+                if 'name' not in metadata:  # pragma: needs cover
                     raise serializers.ValidationError("Name is missing from metadata")
 
                 uuid = metadata.get('uuid', None)
-                if uuid and not Flow.objects.filter(org=self.org, is_active=True, uuid=uuid).exists():
+                if uuid and not Flow.objects.filter(org=self.org, is_active=True, uuid=uuid).exists():  # pragma: needs cover
                     raise serializers.ValidationError("No such flow with UUID: %s" % uuid)
-            else:
+            else:  # pragma: needs cover
                 raise serializers.ValidationError("Metadata field is required for version %s" % version)
 
         return data
@@ -1148,7 +1148,7 @@ class FlowRunReadSerializer(ReadSerializer):
         results = obj.flow.get_results(obj.contact, run=obj)
         if results:
             return results[0]['values']
-        else:
+        else:  # pragma: needs cover
             return []
 
     def get_steps(self, obj):
@@ -1194,23 +1194,23 @@ class FlowRunWriteSerializer(WriteSerializer):
             user = User.objects.filter(username=value).first()
             if user and self.org in user.get_user_orgs():
                 self.submitted_by_obj = user
-            else:
+            else:  # pragma: needs cover
                 raise serializers.ValidationError("Invalid submitter id, user doesn't exist")
 
     def validate_flow(self, value):
         if value:
             self.flow_obj = Flow.objects.filter(org=self.org, uuid=value).first()
-            if not self.flow_obj:
+            if not self.flow_obj:  # pragma: needs cover
                 raise serializers.ValidationError(_("Unable to find contact with uuid: %s") % value)
 
-            if self.flow_obj.is_archived:
+            if self.flow_obj.is_archived:  # pragma: needs cover
                 raise serializers.ValidationError("You cannot start an archived flow.")
         return value
 
     def validate_contact(self, value):
         if value:
             self.contact_obj = Contact.objects.filter(uuid=value, org=self.org, is_active=True).first()
-            if not self.contact_obj:
+            if not self.contact_obj:  # pragma: needs cover
                 raise serializers.ValidationError(_("Unable to find contact with uuid: %s") % value)
         return value
 
@@ -1237,7 +1237,7 @@ class FlowRunWriteSerializer(WriteSerializer):
         steps = data.get('steps')
         revision = data.get('revision', data.get('version'))
 
-        if not revision:
+        if not revision:  # pragma: needs cover
             raise serializers.ValidationError("Missing 'revision' field")
 
         flow_revision = self.flow_obj.revisions.filter(revision=revision).first()
@@ -1334,14 +1334,14 @@ class FlowRunStartSerializer(WriteSerializer):
     def validate_flow(self, value):
         if value:
             self.flow_obj = Flow.objects.filter(pk=value, is_active=True, org=self.org).first()
-            if not self.flow_obj:
+            if not self.flow_obj:  # pragma: needs cover
                 raise serializers.ValidationError("No flow with id %d" % value)
         return value
 
     def validate_flow_uuid(self, value):
         if value:
             self.flow_obj = Flow.objects.filter(uuid=value, is_active=True, org=self.org).first()
-            if not self.flow_obj:
+            if not self.flow_obj:  # pragma: needs cover
                 raise serializers.ValidationError("No flow with UUID %s" % value)
         return value
 
@@ -1349,7 +1349,7 @@ class FlowRunStartSerializer(WriteSerializer):
         if value:
             for uuid in value:
                 group = ContactGroup.user_groups.filter(uuid=uuid, org=self.org).first()
-                if not group:
+                if not group:  # pragma: needs cover
                     raise serializers.ValidationError(_("Unable to find contact group with uuid: %s") % uuid)
                 self.group_objs.append(group)
         return value
@@ -1358,7 +1358,7 @@ class FlowRunStartSerializer(WriteSerializer):
         if value:
             for uuid in value:
                 contact = Contact.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
-                if not contact:
+                if not contact:  # pragma: needs cover
                     raise serializers.ValidationError(_("Unable to find contact with uuid: %s") % uuid)
                 self.contact_objs.append(contact)
         return value
@@ -1367,7 +1367,7 @@ class FlowRunStartSerializer(WriteSerializer):
         if value:
             for uuid in value:
                 contact = Contact.objects.filter(uuid=uuid, org=self.org, is_active=True).first()
-                if not contact:
+                if not contact:  # pragma: needs cover
                     raise serializers.ValidationError(_("Unable to find contact with uuid: %s") % uuid)
                 self.contact_objs.append(contact)
         return value
@@ -1389,7 +1389,7 @@ class FlowRunStartSerializer(WriteSerializer):
                     tel, phone = URN.to_parts(urn)
                     try:
                         normalized = phonenumbers.parse(phone, country)
-                        if not phonenumbers.is_possible_number(normalized):
+                        if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
                             raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
                     except:
                         raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
@@ -1402,7 +1402,7 @@ class FlowRunStartSerializer(WriteSerializer):
         if not self.flow_obj:
             raise serializers.ValidationError("Use flow_uuid to specify which flow to start")
 
-        if self.flow_obj.is_archived:
+        if self.flow_obj.is_archived:  # pragma: needs cover
             raise serializers.ValidationError("You cannot start an archived flow.")
 
         return data
@@ -1429,7 +1429,7 @@ class FlowRunStartSerializer(WriteSerializer):
             if self.group_objs or self.contact_objs:
                 return self.flow_obj.start(self.group_objs, self.contact_objs,
                                            restart_participants=restart_participants, extra=extra)
-            else:
+            else:  # pragma: needs cover
                 return []
         finally:
             # reset our simulation state
@@ -1511,7 +1511,7 @@ class BroadcastCreateSerializer(WriteSerializer):
                 except ValueError, e:
                     raise serializers.ValidationError(e.message)
 
-                if not URN.validate(normalized, country):
+                if not URN.validate(normalized, country):  # pragma: needs cover
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
                 urns.append(normalized)
 
@@ -1524,7 +1524,7 @@ class BroadcastCreateSerializer(WriteSerializer):
             # check for UUIDs that didn't resolve to a valid contact
             validate_bulk_fetch(contacts, value)
             return contacts
-        return []
+        return []  # pragma: needs cover
 
     def validate_groups(self, value):
         if value:
@@ -1533,12 +1533,12 @@ class BroadcastCreateSerializer(WriteSerializer):
             # check for UUIDs that didn't resolve to a valid group
             validate_bulk_fetch(groups, value)
             return groups
-        return []
+        return []  # pragma: needs cover
 
     def validate_channel(self, value):
         if value:
             # do they have permission to use this channel?
-            if value.org != self.org:
+            if value.org != self.org:  # pragma: needs cover
                 raise serializers.ValidationError("Invalid pk '%d' - object does not exist." % value.id)
         return value
 
@@ -1566,7 +1566,8 @@ class BroadcastCreateSerializer(WriteSerializer):
                                      recipients=recipients, channel=self.validated_data.get('channel'))
 
         # send in task
-        send_broadcast_task.delay(broadcast.id)
+        on_transaction_commit(lambda: send_broadcast_task.delay(broadcast.id))
+
         return broadcast
 
 
@@ -1591,7 +1592,7 @@ class MsgCreateSerializer(WriteSerializer):
             # check for UUIDs that didn't resolve to a valid contact
             validate_bulk_fetch(contacts, value)
             return contacts
-        return []
+        return []  # pragma: needs cover
 
     def validate_urn(self, value):
         urns = []
@@ -1602,10 +1603,10 @@ class MsgCreateSerializer(WriteSerializer):
             for urn in value:
                 try:
                     normalized = URN.normalize(urn, country)
-                except ValueError, e:
+                except ValueError, e:  # pragma: needs cover
                     raise serializers.ValidationError(e.message)
 
-                if not URN.validate(normalized, country):
+                if not URN.validate(normalized, country):  # pragma: needs cover
                     raise serializers.ValidationError("Invalid URN: '%s'" % urn)
                 urns.append(normalized)
 
@@ -1617,7 +1618,7 @@ class MsgCreateSerializer(WriteSerializer):
         contacts = data.get('contact', [])
         channel = data.get('channel')
 
-        if (not urns and not phones and not contacts) or (urns and phones):
+        if (not urns and not phones and not contacts) or (urns and phones):  # pragma: needs cover
             raise serializers.ValidationError("Must provide either urns or phone or contact and not both")
 
         if not channel:
@@ -1627,7 +1628,7 @@ class MsgCreateSerializer(WriteSerializer):
             data['channel'] = channel
 
         if phones:
-            if self.org.is_anon:
+            if self.org.is_anon:  # pragma: needs cover
                 raise serializers.ValidationError("Cannot create messages for anonymous organizations")
 
             # check our numbers for validity
@@ -1636,7 +1637,7 @@ class MsgCreateSerializer(WriteSerializer):
                 try:
                     tel, phone = URN.to_parts(urn)
                     normalized = phonenumbers.parse(phone, country.code)
-                    if not phonenumbers.is_possible_number(normalized):
+                    if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
                         raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
                 except:
                     raise serializers.ValidationError("Invalid phone number: '%s'" % phone)
@@ -1695,13 +1696,13 @@ class ChannelEventSerializer(ReadSerializer):
     def get_relayer_phone(self, obj):
         if obj.channel and obj.channel.address:
             return obj.channel.address
-        else:
+        else:  # pragma: needs cover
             return None
 
     def get_relayer(self, obj):
         if obj.channel:
             return obj.channel.pk
-        else:
+        else:  # pragma: needs cover
             return None
 
     def get_contact_uuid(self, obj):
