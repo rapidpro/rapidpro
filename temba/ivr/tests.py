@@ -251,6 +251,12 @@ class IVRTests(FlowFileTest):
         self.assertContains(response, '"action": "input"')
         self.assertContains(response, '"eventUrl": ["https://%s%s?save_media=1"]' % (settings.TEMBA_HOST, callback_url))
 
+        # any request with has_event params return empty content response
+        response = self.client.get("%s?has_event=1" % callback_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, "")
+
         with patch('temba.temba_nexmo.NexmoClient.download_recording') as mock_download_recording:
             mock_download_recording.return_value = MockResponse(200, "SOUND_BITS",
                                                                 headers={"Content-Type": "audio/x-wav"})

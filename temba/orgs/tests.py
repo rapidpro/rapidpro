@@ -1459,6 +1459,18 @@ class OrgTest(TembaTest):
                 self.org.refresh_from_db()
                 self.assertEquals(self.org.name, "Temba")
 
+                # should change nexmo config
+                with patch('nexmo.Client.get_balance') as mock_get_balance:
+                    mock_get_balance.return_value = 120
+                    self.client.post(nexmo_account_url, dict(api_key='other_key',
+                                                             api_secret='secret-too',
+                                                             disconnect='false'), follow=True)
+
+                    self.org.refresh_from_db()
+                    config = self.org.config_json()
+                    self.assertEquals('other_key', config[NEXMO_KEY])
+                    self.assertEquals('secret-too', config[NEXMO_SECRET])
+
                 self.assertTrue(self.org.is_connected_to_nexmo())
                 self.client.post(nexmo_account_url, dict(disconnect='true'), follow=True)
 

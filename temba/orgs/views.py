@@ -681,8 +681,8 @@ class OrgCRUDL(SmartCRUDL):
 
                     try:
                         from nexmo import Client as NexmoClient
-                        client = NexmoClient(api_key, api_secret)
-                        client.get_numbers()
+                        client = NexmoClient(key=api_key, secret=api_secret)
+                        client.get_balance()
                     except Exception:  # pragma: needs cover
                         raise ValidationError(_("Your Nexmo API key and secret seem invalid. Please check them again and retry."))
 

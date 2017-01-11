@@ -163,8 +163,4 @@ class CallHandler(View):
             # raise an exception that things weren't properly signed
             raise ValidationError(error_message)
 
-        response = dict(message="Unhandled")
-        ChannelLog.log_ivr_interaction(call, "Unhandled", request.body, json.dumps(response),
-                                       request_path, request_method, is_error=True)
-
-        return build_json_response(response)  # pragma: no cover
+        return build_json_response(dict(message="Unhandled"))  # pragma: no cover

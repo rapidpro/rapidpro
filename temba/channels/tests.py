@@ -1651,6 +1651,12 @@ class ChannelTest(TembaTest):
                 self.assertContains(response, reverse('handlers.nexmo_handler', args=['status', channel.org.nexmo_uuid()]))
                 self.assertContains(response, reverse('handlers.nexmo_call_handler', args=['answer', channel.uuid]))
 
+                call_handler_event_url = reverse('handlers.nexmo_call_handler', args=['event', channel.uuid])
+                response = self.client.get(call_handler_event_url)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.content, "")
+
     def test_claim_plivo(self):
         self.login(self.admin)
 
