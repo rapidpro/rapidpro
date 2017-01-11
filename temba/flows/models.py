@@ -3100,6 +3100,10 @@ class FlowStep(models.Model):
             # and make sure the db is up to date
             FlowRun.objects.filter(id=self.run.id, responded=False).update(responded=True)
 
+        # record in recent messages list for this path segment
+        if not msg.contact.is_test:
+            FlowPathActivity.record_message(self, msg)
+
     def get_step(self):
         """
         Returns either the RuleSet or ActionSet associated with this FlowStep
@@ -3736,13 +3740,45 @@ class FlowPathCount(models.Model):
 
             squash_count += 1
 
-        print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
+        print("Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start))
 
     def __unicode__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
 
     class Meta:
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
+
+
+class FlowPathRecentMessage(models.Model):
+    """
+    Maintains recent messages for a flow path segment
+    """
+    RECENT_MESSAGES = 5
+
+    flow = models.ForeignKey(Flow, related_name='messages', help_text=_("The flow associated with the messages"))
+    from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
+    to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
+    message = models.ForeignKey(Msg, related_name='recent_path')
+
+    @classmethod
+    def record_message(cls, step, msg):
+        from_uuid = step.rule_uuid or step.step_uuid
+        to_uuid = step.next_uuid
+
+        cls.objects.create(flow=step.run.flow_id, from_uuid=from_uuid, to_uuid=to_uuid, message=msg)
+
+    @classmethod
+    def get_for_segment(cls, from_uuid, to_uuid):
+        return cls.objects.filter(from_uuid, to_uuid).order_by('-message__created_on')[:cls.RECENT_MESSAGES]
+
+    # @classmethod
+    # def prune(cls):
+    #    """
+    #    Removes old records leaving only most recent
+    #    """
+
+    class Meta:
+        unique_together = ('from_uuid', 'to_uuid', 'message')
 
 
 class FlowRunCount(models.Model):
