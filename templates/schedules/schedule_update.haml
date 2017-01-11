@@ -111,10 +111,10 @@
 -block form-buttons
   #form-buttons
     %br
-    -if object.status = 'U'
+    -if object.status == 'U'
       %input.btn.start-button{type:'submit',value:'Done'}
 
-    -elif object.status = 'S'
+    -elif object.status == 'S'
       %input.btn.btn-primary.start-button{type:'submit',value:'Schedule'}
 
     -else

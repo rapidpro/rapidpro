@@ -5206,6 +5206,48 @@ class DartMediaTest(TembaTest):
         self.assertEquals(self.channel, msg.channel)
         self.assertEquals("Hello Jakarta", msg.text)
 
+        # short code do not have + in address
+        self.channel.address = '12345'
+        self.channel.save()
+
+        # missing parameters
+        data = {
+            'userid': 'testusr',
+            'password': 'test',
+            'original': '62811999375',
+            'message': 'Hello Indonesia'
+        }
+
+        encoded_message = urlencode(data)
+        callback_url = reverse('handlers.dartmedia_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(401, response.status_code)
+        self.assertEquals(response.content, "Parameters message, original and sendto should not be null.")
+
+        # all needed params
+        data = {
+            'userid': 'testusr',
+            'password': 'test',
+            'original': '62811999375',
+            'sendto': '12345',
+            'message': 'Hello Indonesia'
+        }
+
+        encoded_message = urlencode(data)
+        callback_url = reverse('handlers.dartmedia_handler', args=['received', self.channel.uuid]) + "?" + encoded_message
+        response = self.client.get(callback_url)
+
+        self.assertEquals(200, response.status_code)
+
+        # load our message
+        msg = Msg.objects.all().order_by('-pk').first()
+        self.assertEquals('+62811999375', msg.contact.raw_tel())
+        self.assertEquals(INCOMING, msg.direction)
+        self.assertEquals(self.org, msg.org)
+        self.assertEquals(self.channel, msg.channel)
+        self.assertEquals("Hello Indonesia", msg.text)
+
     def test_send(self):
         joe = self.create_contact("Joe", "+250788383383")
         msg = joe.send("Test message", self.admin, trigger_send=False)

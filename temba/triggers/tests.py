@@ -373,7 +373,6 @@ class TriggerTest(TembaTest):
         self.assertEquals(trigger.contacts.all()[0].pk, stromae.pk)
 
     def test_join_group_trigger(self):
-
         self.login(self.admin)
         group = self.create_group(name='Chat', contacts=[])
 
@@ -785,7 +784,6 @@ class TriggerTest(TembaTest):
         self.assertFalse(group_catch_all.is_active)
 
     def test_update(self):
-
         self.login(self.admin)
         group = self.create_group(name='Chat', contacts=[])
 

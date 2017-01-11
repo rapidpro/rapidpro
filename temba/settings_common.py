@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import djcelery
 import iptools
 import os
 import sys
@@ -130,12 +129,12 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.contrib.auth.context_processors.auth',
-                'django.core.context_processors.debug',
-                'django.core.context_processors.i18n',
-                'django.core.context_processors.media',
-                'django.core.context_processors.static',
+                'django.template.context_processors.debug',
+                'django.template.context_processors.i18n',
+                'django.template.context_processors.media',
+                'django.template.context_processors.static',
                 'django.contrib.messages.context_processors.messages',
-                'django.core.context_processors.request',
+                'django.template.context_processors.request',
                 'temba.context_processors.branding',
                 'temba.orgs.context_processors.user_group_perms_processor',
                 'temba.orgs.context_processors.unread_count_processor',
@@ -217,9 +216,6 @@ INSTALLED_APPS = (
     # smartmin users
     'smartmin.users',
     'modeltranslation',
-
-    # async tasks,
-    'djcelery',
 
     # django-timezone-field
     'timezone_field',
@@ -1061,10 +1057,8 @@ CELERY_TASK_MAP = {
 }
 
 # -----------------------------------------------------------------------------------
-# Async tasks with django-celery
+# Async tasks with celery
 # -----------------------------------------------------------------------------------
-djcelery.setup_loader()
-
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 
@@ -1076,7 +1070,9 @@ BROKER_URL = 'redis://%s:%d/%d' % (REDIS_HOST, REDIS_PORT, REDIS_DB)
 # by default, celery doesn't have any timeout on our redis connections, this fixes that
 BROKER_TRANSPORT_OPTIONS = {'socket_timeout': 5}
 
-CELERY_RESULT_BACKEND = BROKER_URL
+CELERY_RESULT_BACKEND = None
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
 
 IS_PROD = False
 HOSTNAME = "localhost"

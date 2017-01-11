@@ -1032,8 +1032,8 @@ class OrgCRUDL(SmartCRUDL):
 
             return initial
 
-        def get_form(self, form_class):
-            form = super(OrgCRUDL.ManageAccounts, self).get_form(form_class)
+        def get_form(self):
+            form = super(OrgCRUDL.ManageAccounts, self).get_form()
 
             self.org_users = self.get_object().get_org_users()
             self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
@@ -1733,8 +1733,8 @@ class OrgCRUDL(SmartCRUDL):
         form_class = ResthookForm
         success_message = ''
 
-        def get_form(self, form_class):
-            form = super(OrgCRUDL.Resthooks, self).get_form(form_class)
+        def get_form(self):
+            form = super(OrgCRUDL.Resthooks, self).get_form()
             self.current_resthooks = form.add_resthook_fields()
             return form
 
