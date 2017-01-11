@@ -5,13 +5,12 @@ import json
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 from django.db.models import Q
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from smartmin.views import SmartCRUDL, SmartReadView, SmartUpdateView
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.orgs.views import OrgPermsMixin
-from temba.utils import build_json_response
 
 
 class BoundaryCRUDL(SmartCRUDL):
@@ -98,7 +97,7 @@ class BoundaryCRUDL(SmartCRUDL):
             try:
                 json_list = json.loads(json_string)
             except Exception as e:
-                return build_json_response(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
+                return JsonResponse(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
 
             # this can definitely be optimized
             for state in json_list:
@@ -113,7 +112,7 @@ class BoundaryCRUDL(SmartCRUDL):
                                 for ward in district['children']:
                                     update_boundary_aliases(ward)
 
-            return build_json_response(json_list)
+            return JsonResponse(json_list, safe=False)
 
         def get(self, request, *args, **kwargs):
             tops = list(AdminBoundary.objects.filter(
@@ -155,4 +154,4 @@ class BoundaryCRUDL(SmartCRUDL):
                 current_top['children'] = children
                 current_top['match'] = '%s %s' % (current_top['match'], child['match'])
 
-            return build_json_response(boundaries)
+            return JsonResponse(boundaries, safe=False)

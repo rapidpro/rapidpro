@@ -3,12 +3,11 @@ from __future__ import unicode_literals
 import json
 
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
 from temba.ivr.models import IVRCall
-from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
 
 
@@ -68,10 +67,10 @@ class CallHandler(View):
                     run = FlowRun.objects.filter(session=call).first()
                     if run:
                         run.set_completed()
-                return build_json_response(dict(message="Updated call status"))
+                return JsonResponse(dict(message="Updated call status"))
 
         else:  # pragma: no cover
             # raise an exception that things weren't properly signed
             raise ValidationError("Invalid request signature")
 
-        return build_json_response(dict(message="Unhandled"))  # pragma: no cover
+        return JsonResponse(dict(message="Unhandled"))  # pragma: no cover
