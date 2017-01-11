@@ -45,9 +45,6 @@ from xml.sax.saxutils import quoteattr, escape
 
 TEMBA_HEADERS = {'User-agent': 'RapidPro'}
 
-# Some providers need a static ip to whitelist, route them through our proxy
-OUTGOING_PROXIES = settings.OUTGOING_PROXIES
-
 # Hub9 is an aggregator in Indonesia, set this to the endpoint for your service
 # and make sure you send from a whitelisted IP Address
 HUB9_ENDPOINT = 'http://175.103.48.29:28078/testing/smsmt.php'
@@ -2122,7 +2119,7 @@ class Channel(TembaModel):
         start = time.time()
 
         try:
-            response = requests.get(send_url, proxies=OUTGOING_PROXIES, headers=TEMBA_HEADERS, timeout=15)
+            response = requests.get(send_url, headers=TEMBA_HEADERS, timeout=15)
             if not response:  # pragma: no cover
                 raise SendException("Unable to send message",
                                     url=masked_url,
