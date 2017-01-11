@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from djcelery_transactions import task
+from celery.task import task
 from temba.contacts.models import ContactURN
 from temba.triggers.models import Trigger
 from temba.utils.mage import mage_handle_new_contact
