@@ -112,7 +112,7 @@ class BoundaryCRUDL(SmartCRUDL):
                                 for ward in district['children']:
                                     update_boundary_aliases(ward)
 
-            return JsonResponse(json_list, safe=True)
+            return JsonResponse(json_list, safe=False)
 
         def get(self, request, *args, **kwargs):
             tops = list(AdminBoundary.objects.filter(
@@ -154,4 +154,4 @@ class BoundaryCRUDL(SmartCRUDL):
                 current_top['children'] = children
                 current_top['match'] = '%s %s' % (current_top['match'], child['match'])
 
-            return JsonResponse(boundaries, safe=True)
+            return JsonResponse(boundaries, safe=False)

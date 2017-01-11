@@ -359,7 +359,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # noop if we are missing needed parameters
             if not step_uuid or not next_uuid:
-                return JsonResponse(recent_messages, safe=True)
+                return JsonResponse(recent_messages, safe=False)
 
             if rule_uuid:
                 rule_uuids = rule_uuid.split(',')
@@ -384,7 +384,7 @@ class FlowCRUDL(SmartCRUDL):
                             recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone),
                                                         text=msg.text))
 
-            return JsonResponse(recent_messages[:5], safe=True)
+            return JsonResponse(recent_messages[:5], safe=False)
 
     class Revisions(OrgObjPermsMixin, SmartReadView):
 
@@ -413,7 +413,7 @@ class FlowCRUDL(SmartCRUDL):
                         logger.exception("Error validating flow revision: %s [%d]" % (flow.uuid, revision.id))
                         pass
 
-                return JsonResponse(revisions, safe=True)
+                return JsonResponse(revisions, safe=False)
 
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):
