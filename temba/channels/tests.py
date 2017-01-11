@@ -1590,6 +1590,22 @@ class ChannelTest(TembaTest):
                 self.assertRedirects(response, reverse('public.public_welcome') + "?success")
                 Channel.objects.all().delete()
 
+        # try failing to buy a number not on the account
+        with patch('requests.get') as nexmo_get:
+            with patch('requests.post') as nexmo_post:
+                nexmo_get.side_effect = [
+                    MockResponse(200, '{"count":0,"numbers":[] }'),
+                    MockResponse(200, '{"count":0,"numbers":[] }'),
+                ]
+                nexmo_post.side_effect = Exception('Error')
+                response = self.client.post(claim_nexmo, dict(country='US', phone_number='+12065551212'))
+                self.assertTrue(response.context['form'].errors)
+                self.assertContains(response, "There was a problem claiming that number, "
+                                              "please check the balance on your account. "
+                                              "Note that you can only claim numbers after "
+                                              "adding credit to your Nexmo account.")
+                Channel.objects.all().delete()
+
         # let's add a number already connected to the account
         with patch('requests.get') as nexmo_get:
             with patch('requests.post') as nexmo_post:

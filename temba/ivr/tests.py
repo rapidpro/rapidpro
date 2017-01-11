@@ -1,6 +1,10 @@
 from __future__ import unicode_literals
 
 import json
+
+from datetime import timedelta
+
+import nexmo
 import os
 import re
 
@@ -9,10 +13,12 @@ from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.files import File
 from django.core.urlresolvers import reverse
+from django.utils import timezone
 from mock import patch
 from temba.channels.models import Channel, ChannelLog
 from temba.contacts.models import Contact
 from temba.flows.models import Flow, FlowRun, ActionLog, FlowStep
+from temba.ivr.clients import IVRException
 from temba.msgs.models import Msg, IVR
 from temba.tests import FlowFileTest, MockTwilioClient, MockRequestValidator, MockResponse
 from temba.ivr.models import IVRCall
@@ -326,6 +332,12 @@ class IVRTests(FlowFileTest):
         # each message should have exactly one step
         for msg in messages:
             self.assertEquals(1, msg.steps.all().count(), msg="Message '%s' is not attached to exactly one step" % msg.text)
+
+        mock_create_call.side_effect = nexmo.Error('Error')
+
+        nexmo_client = self.org.get_nexmo_client()
+        with self.assertRaises(IVRException):
+            nexmo_client.start_call(call, '+13603621737', self.channel.address, None)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)
@@ -823,6 +835,15 @@ class IVRTests(FlowFileTest):
         call.save()
         call.refresh_from_db()
         self.assertIsNotNone(call.get_duration())
+        self.assertEqual(call.get_duration(), 30)
+
+        # even if no duration is set with started_on
+        call.duration = None
+        call.started_on = timezone.now() - timedelta(seconds=23)
+        call.save()
+        call.refresh_from_db()
+        self.assertIsNotNone(call.get_duration())
+        self.assertEqual(call.get_duration(), 23)
 
     @patch('temba.orgs.models.TwilioRestClient', MockTwilioClient)
     @patch('temba.ivr.clients.TwilioClient', MockTwilioClient)

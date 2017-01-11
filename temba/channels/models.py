@@ -799,7 +799,6 @@ class Channel(TembaModel):
             return twiml.Response()
         if self.channel_type in Channel.NCCO_CHANNELS:
             return ncco.Response()
-        return None
 
     def get_ivr_client(self):
         if self.channel_type == Channel.TYPE_TWILIO:
@@ -810,8 +809,6 @@ class Channel(TembaModel):
             return self.org.get_verboice_client()
         elif self.channel_type == Channel.TYPE_NEXMO:
             return self.org.get_nexmo_client()
-
-        return None
 
     def get_twiml_client(self):
         from temba.ivr.clients import TwilioClient
