@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import json
 
 from datetime import timedelta
+from platform import python_version
 
 import nexmo
 import os
@@ -1208,3 +1209,28 @@ class IVRTests(FlowFileTest):
             for i in range(len(mock_save_media.call_args_list)):
                 self.assertIsInstance(mock_save_media.call_args_list[i][0][0], File)
                 self.assertEqual(mock_save_media.call_args_list[i][0][1], 'wav')
+
+    @patch('jwt.encode')
+    @patch('nexmo.Client.create_application')
+    def test_temba_nexmo_methods(self, mock_create_application, mock_jwt_encode):
+        mock_create_application.return_value = dict(id='app-id', keys=dict(private_key='private-key'))
+        mock_jwt_encode.return_value = 'TOKEN'
+
+        self.org.connect_nexmo('123', '456', self.admin)
+        self.org.save()
+
+        self.channel.channel_type = Channel.TYPE_NEXMO
+        self.channel.save()
+
+        nexmo_client = self.org.get_nexmo_client()
+
+        user_agent = 'nexmo-python/{0}/{1}'.format(nexmo.__version__, python_version())
+
+        self.assertEqual(nexmo_client.gen_headers(), {"User-Agent": user_agent, "Authorization": b'Bearer TOKEN'})
+
+        with patch('requests.get') as mock_get:
+            mock_get.return_value = MockResponse(200, "DONE")
+            nexmo_client.download_media('http://example.com/file.txt')
+
+            mock_get.assert_called_once_with('http://example.com/file.txt', params=None,
+                                             headers={"User-Agent": user_agent, "Authorization": b'Bearer TOKEN'})
