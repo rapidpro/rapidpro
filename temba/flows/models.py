@@ -3123,9 +3123,6 @@ class FlowStep(models.Model):
     def __unicode__(self):
         return "%s - %s:%s" % (self.run.contact, self.step_type, self.step_uuid)
 
-    class Meta:
-        index_together = ['step_uuid', 'next_uuid', 'rule_uuid', 'left_on']
-
 
 class RuleSet(models.Model):
     TYPE_WAIT_MESSAGE = 'wait_message'
