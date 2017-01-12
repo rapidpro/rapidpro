@@ -656,9 +656,7 @@ class Flow(TembaModel):
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
             arrived_on = timezone.now()
-            step.left_on = arrived_on
-            step.next_uuid = destination.uuid
-            step.save(update_fields=['left_on', 'next_uuid'])
+            step.leave(destination.uuid, arrived_on, msgs)
 
             step = run.flow.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
         else:
@@ -739,9 +737,8 @@ class Flow(TembaModel):
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
             arrived_on = timezone.now()
-            step.left_on = arrived_on
-            step.next_uuid = rule.destination
-            step.save(update_fields=['left_on', 'next_uuid'])
+            step.leave(rule.destination, arrived_on, [msg] if msg.id > 0 else [])
+
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
 
         return dict(handled=True, destination=destination, step=step)
@@ -2939,13 +2936,6 @@ class FlowStep(models.Model):
         node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
-        # find and update the previous step
-        prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
-        if prev_step:
-            prev_step.left_on = arrived_on
-            prev_step.next_uuid = node.uuid
-            prev_step.save(update_fields=('left_on', 'next_uuid'))
-
         # generate the messages for this step
         msgs = []
         if node.is_ruleset():
@@ -2980,6 +2970,11 @@ class FlowStep(models.Model):
 
             for action in actions:
                 msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)
+
+        # find and update the previous step
+        prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
+        if prev_step:
+            prev_step.leave(node.uuid, arrived_on, msgs)
 
         step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
@@ -3076,6 +3071,19 @@ class FlowStep(models.Model):
 
         return None
 
+    def leave(self, destination_uuid, left_on, messages):
+        """
+        Record on this step that we're leaving its node for another node in the flow
+        """
+        self.left_on = left_on
+        self.next_uuid = destination_uuid
+        self.save(update_fields=('left_on', 'next_uuid'))
+
+        # record in recent messages list for this path segment
+        for msg in messages:
+            if not msg.contact.is_test:
+                FlowPathRecentMessage.record_message(self, msg)
+
     def add_message(self, msg):
         # no-op for no msg or mock msgs
         if not msg or not msg.id:
@@ -3099,10 +3107,6 @@ class FlowStep(models.Model):
 
             # and make sure the db is up to date
             FlowRun.objects.filter(id=self.run.id, responded=False).update(responded=True)
-
-        # record in recent messages list for this path segment
-        if not msg.contact.is_test:
-            FlowPathRecentMessage.record_message(self, msg)
 
     def get_step(self):
         """
@@ -3758,18 +3762,24 @@ class FlowPathRecentMessage(models.Model):
     flow = models.ForeignKey(Flow, related_name='messages', help_text=_("The flow associated with the messages"))
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
-    message = models.ForeignKey(Msg, related_name='recent_path')
+    message = models.ForeignKey(Msg, related_name='recent_segments')
 
     @classmethod
     def record_message(cls, step, msg):
         from_uuid = step.rule_uuid or step.step_uuid
         to_uuid = step.next_uuid
 
-        cls.objects.get_or_create(flow=step.run.flow_id, from_uuid=from_uuid, to_uuid=to_uuid, message=msg)
+        cls.objects.get_or_create(flow=Flow(id=step.run.flow_id), from_uuid=from_uuid, to_uuid=to_uuid, message=msg)
 
     @classmethod
-    def get_for_segment(cls, from_uuid, to_uuid):
-        return cls.objects.filter(from_uuid, to_uuid).order_by('-message__created_on')[:cls.RECENT_MESSAGES]
+    def get_segment_recent(cls, from_uuid, to_uuid):
+        """
+        Gets the recent messages for the given flow segment
+        """
+        recent = cls.objects.filter(from_uuid=from_uuid, to_uuid=to_uuid)
+        recent = recent.prefetch_related('message').order_by('-message__created_on')[:cls.RECENT_MESSAGES]
+
+        return [r.message for r in recent]
 
     @classmethod
     def prune(cls):

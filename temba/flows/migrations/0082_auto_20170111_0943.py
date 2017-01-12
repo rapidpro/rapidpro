@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                 ('from_uuid', models.UUIDField(help_text='Which flow node they came from')),
                 ('to_uuid', models.UUIDField(null=True, help_text='Which flow node they went to')),
                 ('flow', models.ForeignKey(help_text='The flow associated with the messages', on_delete=django.db.models.deletion.CASCADE, related_name='messages', to='flows.Flow')),
-                ('message', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='recent_path', to='msgs.Msg')),
+                ('message', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='recent_segments', to='msgs.Msg')),
             ],
         ),
         migrations.AlterUniqueTogether(

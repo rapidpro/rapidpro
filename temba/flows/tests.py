@@ -37,7 +37,7 @@ from .flow_migrations import migrate_to_version_5, migrate_to_version_6, migrate
 from .flow_migrations import migrate_to_version_8, migrate_to_version_9, migrate_export_to_version_9
 from .models import Flow, FlowStep, FlowRun, FlowLabel, FlowStart, FlowRevision, FlowException, ExportFlowResultsTask
 from .models import ActionSet, RuleSet, Action, Rule, FlowRunCount, FlowPathCount, InterruptTest, get_flow_user
-from .models import Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
+from .models import FlowPathRecentMessage, Test, TrueTest, FalseTest, AndTest, OrTest, PhoneTest, NumberTest
 from .models import EqTest, LtTest, LteTest, GtTest, GteTest, BetweenTest
 from .models import DateEqualTest, DateAfterTest, DateBeforeTest, HasDateTest
 from .models import StartsWithTest, ContainsTest, ContainsAnyTest, RegexTest, NotEmptyTest
@@ -4259,6 +4259,11 @@ class FlowsTest(FlowFileTest):
         (active, visited) = flow.get_activity()
         self.assertEquals(1, len(active))
         self.assertEquals(1, active[beer.uuid])
+
+        # check recent messages
+        blue_recent = FlowPathRecentMessage.get_segment_recent(color_blue_uuid, beer_question.uuid)
+        self.assertEqual(len(blue_recent), 1)
+        self.assertEqual(blue_recent[0].text, 'blue')
 
         # a new participant, showing distinct active counts and incremented path
         ryan = self.create_contact('Ryan Lewis', '+12065550725')
