@@ -17,5 +17,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        InstallSQL('current_indexes')
+        InstallSQL('reset_indexes')
     ]
