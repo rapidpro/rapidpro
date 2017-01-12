@@ -1061,6 +1061,10 @@ class VoiceXMLTest(TembaTest):
         self.assertEqual(unicode(response),
                          '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form></form></vxml>')
 
+        response.document += '</form></vxml>'
+        self.assertEqual(unicode(response),
+                         '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form></form></vxml>')
+
     def test_join(self):
         response1 = voicexml.Response()
         response2 = voicexml.Response()
