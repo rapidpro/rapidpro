@@ -3102,7 +3102,7 @@ class FlowStep(models.Model):
 
         # record in recent messages list for this path segment
         if not msg.contact.is_test:
-            FlowPathActivity.record_message(self, msg)
+            FlowPathRecentMessage.record_message(self, msg)
 
     def get_step(self):
         """
@@ -3765,7 +3765,7 @@ class FlowPathRecentMessage(models.Model):
         from_uuid = step.rule_uuid or step.step_uuid
         to_uuid = step.next_uuid
 
-        cls.objects.create(flow=step.run.flow_id, from_uuid=from_uuid, to_uuid=to_uuid, message=msg)
+        cls.objects.get_or_create(flow=step.run.flow_id, from_uuid=from_uuid, to_uuid=to_uuid, message=msg)
 
     @classmethod
     def get_for_segment(cls, from_uuid, to_uuid):

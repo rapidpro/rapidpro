@@ -37,7 +37,7 @@ def old_recent_messages_lookup(FlowStep, step_uuid, rule_uuid, next_uuid):
         elif flow_id != step.run.flow_id:
             raise ValueError("Flow steps with same node UUIDs for different flows!")
 
-    return flow_id, recent_messages[:5]
+    return flow_id, set(recent_messages[:5])
 
 
 def do_populate(FlowStep, FlowPathRecentMessage):
@@ -48,6 +48,7 @@ def do_populate(FlowStep, FlowPathRecentMessage):
 
     print("Fetched %d unique flow path segments" % len(segments))
     num_segments = 0
+    num_messages = 0
 
     for segment in segments:
         step_uuid, rule_uuid, next_uuid = segment
@@ -63,9 +64,10 @@ def do_populate(FlowStep, FlowPathRecentMessage):
         FlowPathRecentMessage.objects.bulk_create(recent)
 
         num_segments += 1
+        num_messages += len(messages)
 
         if num_segments % 500 == 0:
-            print(" > Created recent message records for %d of %d segments" % (num_segments, len(segments)))
+            print(" > Created %d recent message records for %d of %d segments" % (num_messages, num_segments, len(segments)))
 
 
 def apply_as_migration(apps, schema_editor):
