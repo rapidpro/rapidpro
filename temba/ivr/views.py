@@ -137,7 +137,7 @@ class CallHandler(View):
 
                         ChannelLog.log_ivr_interaction(call, "Returned response", request.body, unicode(response),
                                                        request_path, request_method)
-                        return JsonResponse(json.loads(unicode(response)))
+                        return JsonResponse(json.loads(unicode(response)), safe=False)
 
                     ChannelLog.log_ivr_interaction(call, "Returned response", request.body, unicode(response),
                                                    request_path, request_method)
