@@ -1186,7 +1186,7 @@ class FlowCRUDL(SmartCRUDL):
                 modified_on = datetime.fromtimestamp(int(modified_on), flow.org.timezone)
                 runs = runs.filter(modified_on__lt=modified_on).exclude(modified_on=modified_on, id__lt=id)
 
-            runs = list(runs.order_by('-modified_on'))[:self.paginate_by]
+            runs = list(runs.order_by('-modified_on')[:self.paginate_by])
 
             # populate ruleset values
             for run in runs:
