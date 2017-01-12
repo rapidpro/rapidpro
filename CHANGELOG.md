@@ -1,3 +1,7 @@
+v3.0.5
+----------
+ * fix styling on loader ball animation
+
 v3.0.4
 ----------
  * Fix issue causing flow run table on flow dashboard to be very slow if a flow contained many responses
