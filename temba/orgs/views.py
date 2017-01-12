@@ -20,7 +20,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError
 from django.db.models import Sum, Q, F, ExpressionWrapper, IntegerField
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
@@ -34,7 +34,7 @@ from temba.api.models import APIToken
 from temba.assets.models import AssetType
 from temba.channels.models import Channel
 from temba.formax import FormaxMixin
-from temba.utils import analytics, build_json_response, languages
+from temba.utils import analytics, languages
 from temba.utils.middleware import disable_middleware
 from temba.utils.timezones import TimeZoneFormField
 from twilio.rest import TwilioRestClient
@@ -2234,7 +2234,7 @@ class OrgCRUDL(SmartCRUDL):
                 if len(matches) == 0:
                     search = self.request.GET.get('search', '').strip().lower()
                     matches += languages.search_language_names(search)
-                return build_json_response(dict(results=matches))
+                return JsonResponse(dict(results=matches))
 
             return super(OrgCRUDL.Languages, self).get(request, *args, **kwargs)
 

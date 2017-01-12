@@ -16,7 +16,6 @@ from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.timezone import is_aware
-from django.http import HttpResponse
 from django_countries import countries
 from itertools import islice
 
@@ -179,13 +178,6 @@ def str_to_bool(text):
     Parses a boolean value from the given text
     """
     return text and text.lower() in ['true', 'y', 'yes', '1']
-
-
-def build_json_response(json_dict, status=200):
-    """
-    Helper function to build JSON responses form dictionaries.
-    """
-    return HttpResponse(json.dumps(json_dict), status=status, content_type='application/json')
 
 
 def percentage(numerator, denominator):

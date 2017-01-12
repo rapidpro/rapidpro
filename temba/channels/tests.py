@@ -2581,6 +2581,7 @@ class ChannelClaimTest(TembaTest):
 
         self.assertContains(response, reverse('handlers.hcnx_handler', args=['receive', channel.uuid]))
 
+    @override_settings(IP_ADDRESSES=('10.10.10.10', '172.16.20.30'))
     def test_claim_dart_media(self):
         Channel.objects.all().delete()
 
@@ -2615,6 +2616,10 @@ class ChannelClaimTest(TembaTest):
         self.assertEquals(200, response.status_code)
 
         self.assertContains(response, reverse('handlers.dartmedia_handler', args=['received', channel.uuid]))
+
+        # check we show the IP to whitelist
+        self.assertContains(response, "10.10.10.10")
+        self.assertContains(response, "172.16.20.30")
 
     def test_shaqodoon(self):
         Channel.objects.all().delete()

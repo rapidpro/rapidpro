@@ -15,7 +15,7 @@ from django.core.files.storage import default_storage
 from django.core.urlresolvers import reverse
 from django.db.models import Count, Min, Max, Sum
 from django import forms
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.utils import timezone
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
@@ -35,7 +35,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Msg, INCOMING, OUTGOING, PENDING
 from temba.triggers.models import Trigger
-from temba.utils import analytics, build_json_response, percentage, datetime_to_str, on_transaction_commit
+from temba.utils import analytics, percentage, datetime_to_str, on_transaction_commit
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
@@ -359,7 +359,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # noop if we are missing needed parameters
             if not step_uuid or not next_uuid:
-                return build_json_response(recent_messages)
+                return JsonResponse(recent_messages, safe=False)
 
             if rule_uuid:
                 rule_uuids = rule_uuid.split(',')
@@ -384,7 +384,7 @@ class FlowCRUDL(SmartCRUDL):
                             recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone),
                                                         text=msg.text))
 
-            return build_json_response(recent_messages[:5])
+            return JsonResponse(recent_messages[:5], safe=False)
 
     class Revisions(OrgObjPermsMixin, SmartReadView):
 
@@ -395,7 +395,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                return build_json_response(revision.get_definition_json())
+                return JsonResponse(revision.get_definition_json())
             else:
                 revisions = []
                 for revision in flow.revisions.all().order_by('-created_on')[:25]:
@@ -413,7 +413,7 @@ class FlowCRUDL(SmartCRUDL):
                         logger.exception("Error validating flow revision: %s [%d]" % (flow.uuid, revision.id))
                         pass
 
-                return build_json_response(revisions)
+                return JsonResponse(revisions, safe=False)
 
     class OrgQuerysetMixin(object):
         def derive_queryset(self, *args, **kwargs):
@@ -637,7 +637,7 @@ class FlowCRUDL(SmartCRUDL):
     class UploadActionRecording(OrgPermsMixin, SmartUpdateView):
         def post(self, request, *args, **kwargs):  # pragma: needs cover
             path = self.save_recording_upload(self.request.FILES['file'], self.request.POST.get('actionset'), self.request.POST.get('action'))
-            return build_json_response(dict(path=path))
+            return JsonResponse(dict(path=path))
 
         def save_recording_upload(self, file, actionset_id, action_uuid):  # pragma: needs cover
             flow = self.get_object()
@@ -840,8 +840,8 @@ class FlowCRUDL(SmartCRUDL):
                     flow_variables.append(dict(name='flow.%s.time' % key, display='%s Time' % rule_set.label))
 
             function_completions = get_function_listing()
-            return build_json_response(dict(message_completions=contact_variables + date_variables + flow_variables,
-                                            function_completions=function_completions))
+            return JsonResponse(dict(message_completions=contact_variables + date_variables + flow_variables,
+                                     function_completions=function_completions))
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = 'uuid'
@@ -1186,7 +1186,7 @@ class FlowCRUDL(SmartCRUDL):
                 modified_on = datetime.fromtimestamp(int(modified_on), flow.org.timezone)
                 runs = runs.filter(modified_on__lt=modified_on).exclude(modified_on=modified_on, id__lt=id)
 
-            runs = list(runs.order_by('-modified_on'))[:self.paginate_by]
+            runs = list(runs.order_by('-modified_on')[:self.paginate_by])
 
             # populate ruleset values
             for run in runs:
@@ -1248,10 +1248,8 @@ class FlowCRUDL(SmartCRUDL):
 
             (active, visited) = flow.get_activity()
 
-            return build_json_response(dict(messages=messages,
-                                            activity=active,
-                                            visited=visited,
-                                            flow=flow_json, pending=pending))
+            return JsonResponse(dict(messages=messages, activity=active, visited=visited,
+                                     flow=flow_json, pending=pending))
 
     class Simulate(OrgObjPermsMixin, SmartReadView):
 
@@ -1264,7 +1262,7 @@ class FlowCRUDL(SmartCRUDL):
             try:
                 json_dict = json.loads(request.body)
             except Exception as e:  # pragma: needs cover
-                return build_json_response(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
+                return JsonResponse(dict(status="error", description="Error parsing JSON: %s" % str(e)), status=400)
 
             Contact.set_simulation(True)
             user = self.request.user
@@ -1274,7 +1272,7 @@ class FlowCRUDL(SmartCRUDL):
             if json_dict and json_dict.get('hangup', False):  # pragma: needs cover
                 # hangup any test calls if we have them
                 IVRCall.hangup_test_call(self.get_object())
-                return build_json_response(dict(status="success", message="Test call hung up"))
+                return JsonResponse(dict(status="success", message="Test call hung up"))
 
             if json_dict and json_dict.get('has_refresh', False):
 
@@ -1353,7 +1351,8 @@ class FlowCRUDL(SmartCRUDL):
                 except Exception as e:  # pragma: needs cover
 
                     traceback.print_exc(e)
-                    return build_json_response(dict(status="error", description="Error creating message: %s" % str(e)), status=400)
+                    return JsonResponse(dict(status="error", description="Error creating message: %s" % str(e)),
+                                        status=400)
 
             messages = Msg.objects.filter(contact=test_contact).order_by('pk', 'created_on')
             action_logs = ActionLog.objects.filter(run__contact=test_contact).order_by('pk', 'created_on')
@@ -1376,7 +1375,7 @@ class FlowCRUDL(SmartCRUDL):
                 if ruleset:
                     response['ruleset'] = ruleset.as_json()
 
-            return build_json_response(dict(status="success", description="Message sent to Flow", **response))
+            return JsonResponse(dict(status="success", description="Message sent to Flow", **response))
 
     class Json(OrgObjPermsMixin, SmartUpdateView):
         success_message = ''
@@ -1398,8 +1397,8 @@ class FlowCRUDL(SmartCRUDL):
 
             # all the channels available for our org
             channels = [dict(uuid=chan.uuid, name=u"%s: %s" % (chan.get_channel_type_display(), chan.get_address_display())) for chan in flow.org.channels.filter(is_active=True)]
-            return build_json_response(dict(flow=flow.as_json(expand_contacts=True), languages=languages,
-                                            channel_countries=channel_countries, channels=channels))
+            return JsonResponse(dict(flow=flow.as_json(expand_contacts=True), languages=languages,
+                                     channel_countries=channel_countries, channels=channels))
 
         def post(self, request, *args, **kwargs):
 
@@ -1420,10 +1419,10 @@ class FlowCRUDL(SmartCRUDL):
 
             try:
                 response_data = self.get_object(self.get_queryset()).update(json_dict, user=self.request.user)
-                return build_json_response(response_data, status=200)
+                return JsonResponse(response_data, status=200)
             except Exception as e:
                 # give the editor a formatted error response
-                return build_json_response(dict(status="failure", description=str(e)), status=400)
+                return JsonResponse(dict(status="failure", description=str(e)), status=400)
 
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class BroadcastForm(forms.ModelForm):

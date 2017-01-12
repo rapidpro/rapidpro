@@ -4,12 +4,11 @@ import json
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 from temba.channels.models import Channel, ChannelLog
 from temba.ivr.models import IVRCall
-from temba.utils import build_json_response
 from temba.flows.models import Flow, FlowRun
 
 
@@ -138,7 +137,7 @@ class CallHandler(View):
 
                         ChannelLog.log_ivr_interaction(call, "Returned response", request.body, unicode(response),
                                                        request_path, request_method)
-                        return build_json_response(json.loads(unicode(response)))
+                        return JsonResponse(json.loads(unicode(response)))
 
                     ChannelLog.log_ivr_interaction(call, "Returned response", request.body, unicode(response),
                                                    request_path, request_method)
@@ -153,7 +152,7 @@ class CallHandler(View):
                 response = dict(message="Updated call status")
                 ChannelLog.log_ivr_interaction(call, "Updated call status: %s" % call.get_status_display(),
                                                request.body, json.dumps(response), request_path, request_method)
-                return build_json_response(response)
+                return JsonResponse(response)
 
         else:  # pragma: no cover
 
@@ -163,4 +162,4 @@ class CallHandler(View):
             # raise an exception that things weren't properly signed
             raise ValidationError(error_message)
 
-        return build_json_response(dict(message="Unhandled"))  # pragma: no cover
+        return JsonResponse(dict(message="Unhandled"))  # pragma: no cover
