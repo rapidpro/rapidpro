@@ -1050,6 +1050,11 @@ class CurrencyTest(TembaTest):
 
 class VoiceXMLTest(TembaTest):
 
+    def test_context_managers(self):
+        response = voicexml.Response()
+        self.assertEqual(response, response.__enter__())
+        self.assertFalse(response.__exit__(None, None, None))
+
     def test_response(self):
         response = voicexml.Response()
         self.assertEqual(response.document, '<?xml version="1.0" encoding="UTF-8"?><vxml version = "2.1"><form>')
@@ -1179,6 +1184,11 @@ class VoiceXMLTest(TembaTest):
 
 
 class NCCOTest(TembaTest):
+
+    def test_context_managers(self):
+        response = ncco.Response()
+        self.assertEqual(response, response.__enter__())
+        self.assertFalse(response.__exit__(None, None, None))
 
     def test_response(self):
         response = ncco.Response()
