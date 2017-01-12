@@ -47,7 +47,7 @@ from .models import EmailAction, StartFlowAction, TriggerFlowAction, DeleteFromG
 from .models import VariableContactAction, UssdAction
 from .views import FlowCRUDL
 from .flow_migrations import map_actions
-from .tasks import update_run_expirations_task
+from .tasks import update_run_expirations_task, prune_flowpathrecentmessages
 
 
 class FlowTest(TembaTest):
@@ -4361,6 +4361,9 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
 
+        # messages to/from deleted contacts shouldn't appear in the recent messages
+        self.assertEqual(FlowPathRecentMessage.objects.filter(message__contact=self.contact).count(), 0)
+
         # test contacts should not affect the counts
         hammer = Contact.get_test_contact(self.admin)
 
@@ -4379,6 +4382,9 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, flow.get_total_runs())
         self.assertEquals(1, flow.get_completed_runs())
         self.assertEquals(100, flow.get_completed_percentage())
+
+        # and no recent message entries for this test contact
+        self.assertEqual(FlowPathRecentMessage.objects.filter(message__contact=hammer).count(), 0)
 
         # try the same thing after squashing
         FlowPathCount.squash_counts()
@@ -4470,8 +4476,36 @@ class FlowsTest(FlowFileTest):
         self.assertEqual(counts, len(flow.get_visit_counts()))
 
         # ensure no negative counts
-        for k, v in flow.get_visit_counts().iteritems():
+        for k, v in flow.get_visit_counts().items():
             self.assertTrue(v >= 0)
+
+    def test_prune_recentmessages(self):
+        flow = self.get_flow('favorites')
+
+        other_action = ActionSet.objects.get(y=8, flow=flow)
+        color_ruleset = RuleSet.objects.get(label='Color', flow=flow)
+        other_rule = color_ruleset.get_rules()[-1]
+
+        # keep sending invalid colors so that there are lots of recent messages
+        for m in range(10):
+            self.send_message(flow, 'pink%d' % m)
+
+        # all 10 color messages are stored for the other segment
+        other_recent = FlowPathRecentMessage.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
+        self.assertEqual(len(other_recent), 10)
+
+        # tho only 5 newest are returned by get_segment_recent
+        other_recent = FlowPathRecentMessage.get_segment_recent(other_rule.uuid, other_action.uuid)
+        self.assertEqual([m.text for m in other_recent], ["pink9", "pink8", "pink7", "pink6", "pink5"])
+
+        prune_flowpathrecentmessages()
+
+        # now only 5 newest are stored
+        other_recent = FlowPathRecentMessage.objects.filter(from_uuid=other_rule.uuid, to_uuid=other_action.uuid)
+        self.assertEqual(len(other_recent), 5)
+
+        other_recent = FlowPathRecentMessage.get_segment_recent(other_rule.uuid, other_action.uuid)
+        self.assertEqual([m.text for m in other_recent], ["pink9", "pink8", "pink7", "pink6", "pink5"])
 
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
