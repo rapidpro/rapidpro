@@ -1780,6 +1780,9 @@ class Flow(TembaModel):
                                                 entry_actions.destination,
                                                 entry_actions.destination_type)
 
+                    arrived_on = timezone.now()
+                    step.leave(destination.uuid, arrived_on, run_msgs)
+
                     next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
 
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)

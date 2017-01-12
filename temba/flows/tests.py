@@ -4217,6 +4217,7 @@ class FlowsTest(FlowFileTest):
         # clear our previous redis activity
         self.clear_activity(flow)
 
+        color_question = ActionSet.objects.get(y=0, flow=flow)
         other_action = ActionSet.objects.get(y=8, flow=flow)
         beer_question = ActionSet.objects.get(y=237, flow=flow)
         beer = RuleSet.objects.get(label='Beer', flow=flow)
@@ -4261,9 +4262,17 @@ class FlowsTest(FlowFileTest):
         self.assertEquals(1, active[beer.uuid])
 
         # check recent messages
-        blue_recent = FlowPathRecentMessage.get_segment_recent(color_blue_uuid, beer_question.uuid)
-        self.assertEqual(len(blue_recent), 1)
-        self.assertEqual(blue_recent[0].text, 'blue')
+        recent = FlowPathRecentMessage.get_segment_recent(color_question.uuid, color.uuid)
+        self.assertEqual([m.text for m in recent], ["What is your favorite color?"])
+
+        recent = FlowPathRecentMessage.get_segment_recent(color_other_uuid, other_action.uuid)
+        self.assertEqual([m.text for m in recent], ["mauve", "chartreuse"])
+
+        recent = FlowPathRecentMessage.get_segment_recent(other_action.uuid, color.uuid)
+        self.assertEqual([m.text for m in recent], ["I don't know that color. Try again.", "I don't know that color. Try again."])
+
+        recent = FlowPathRecentMessage.get_segment_recent(color_blue_uuid, beer_question.uuid)
+        self.assertEqual([m.text for m in recent], ["blue"])
 
         # a new participant, showing distinct active counts and incremented path
         ryan = self.create_contact('Ryan Lewis', '+12065550725')
