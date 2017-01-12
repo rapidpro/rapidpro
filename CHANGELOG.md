@@ -1,3 +1,7 @@
+v3.0.4
+----------
+ * Fix issue causing flow run table on flow dashboard to be very slow if a flow contained many responses
+
 v3.0.3
 ----------
  * Refactor JSON responses to use native Django JSONResponse
