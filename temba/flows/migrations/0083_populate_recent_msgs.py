@@ -12,17 +12,14 @@ def old_recent_messages_lookup(FlowStep, step_uuid, rule_uuid, next_uuid):
     recent_messages = []
 
     if rule_uuid:
-        rule_uuids = rule_uuid.split(',')
-        recent_steps = FlowStep.objects.filter(step_uuid=step_uuid, next_uuid=next_uuid,
-                                               rule_uuid__in=rule_uuids).order_by('-left_on')[:20]
+        recent_steps = FlowStep.objects.filter(step_uuid=step_uuid, rule_uuid=rule_uuid, next_uuid=next_uuid)
         msg_direction_filter = 'I'
 
     else:
-        recent_steps = FlowStep.objects.filter(step_uuid=step_uuid, next_uuid=next_uuid,
-                                               rule_uuid=None).order_by('-left_on')[:20]
+        recent_steps = FlowStep.objects.filter(step_uuid=step_uuid, rule_uuid=None, next_uuid=next_uuid)
         msg_direction_filter = 'O'
 
-    recent_steps = recent_steps.prefetch_related('messages', 'contact', 'run')
+    recent_steps = recent_steps.prefetch_related('messages', 'contact', 'run').order_by('-left_on')[:20]
 
     flow_id = None
 
@@ -57,11 +54,9 @@ def do_populate(FlowStep, FlowPathRecentMessage):
         from_uuid = rule_uuid or step_uuid
         to_uuid = next_uuid
 
-        recent = []
         for msg in messages:
-            recent.append(FlowPathRecentMessage(flow_id=flow_id, from_uuid=from_uuid, to_uuid=to_uuid, message=msg))
-
-        FlowPathRecentMessage.objects.bulk_create(recent)
+            # some might already have been created by new model code
+            FlowPathRecentMessage.objects.get_or_create(flow_id=flow_id, from_uuid=from_uuid, to_uuid=to_uuid, message=msg)
 
         num_segments += 1
         num_messages += len(messages)

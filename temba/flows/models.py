@@ -3771,11 +3771,26 @@ class FlowPathRecentMessage(models.Model):
     def get_for_segment(cls, from_uuid, to_uuid):
         return cls.objects.filter(from_uuid, to_uuid).order_by('-message__created_on')[:cls.RECENT_MESSAGES]
 
-    # @classmethod
-    # def prune(cls):
-    #    """
-    #    Removes old records leaving only most recent
-    #    """
+    @classmethod
+    def prune(cls):
+        """
+        Removes old records leaving only 5 most recent for each segment
+        """
+        sql = """
+        DELETE FROM %(table)s WHERE id IN (
+          SELECT id FROM (
+              SELECT
+                r.id,
+                dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY m.created_on DESC) AS pos
+              FROM %(table)s r
+              INNER JOIN msgs_msg m ON m.id = r.message_id
+          ) s WHERE s.pos > %(limit)d
+        )""" % {'table': cls._meta.db_table, 'limit': cls.RECENT_MESSAGES}
+
+        cursor = connection.cursor()
+        cursor.execute(sql)
+
+        return cursor.rowcount  # number of deleted entries
 
     class Meta:
         unique_together = ('from_uuid', 'to_uuid', 'message')

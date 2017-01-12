@@ -24,4 +24,8 @@ class Migration(migrations.Migration):
                 ('message', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='recent_path', to='msgs.Msg')),
             ],
         ),
+        migrations.AlterUniqueTogether(
+            name='flowpathrecentmessage',
+            unique_together=set([('from_uuid', 'to_uuid', 'message')]),
+        ),
     ]
