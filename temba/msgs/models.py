@@ -1504,9 +1504,6 @@ class Msg(models.Model):
         # remove labels
         self.labels.clear()
 
-        # or usages as a recent message on a flow segment
-        self.recent_segments.all().delete()
-
     @classmethod
     def apply_action_label(cls, user, msgs, label, add):
         return label.toggle_label(msgs, add)

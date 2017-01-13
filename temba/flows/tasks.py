@@ -10,7 +10,7 @@ from temba.msgs.models import Broadcast, Msg, TIMEOUT_EVENT, HANDLER_QUEUE, HAND
 from temba.utils.email import send_simple_email
 from temba.utils.queues import start_task, complete_task
 from temba.utils.queues import push_task, nonoverlapping_task
-from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount, FlowPathCount, FlowPathRecentMessage
+from .models import ExportFlowResultsTask, Flow, FlowStart, FlowRun, FlowStep, FlowRunCount, FlowPathCount, FlowPathRecentStep
 
 
 @task(track_started=True, name='send_email_action_task')
@@ -145,9 +145,9 @@ def squash_flowpathcounts():  # pragma: needs cover
     FlowPathCount.squash_counts()
 
 
-@nonoverlapping_task(track_started=True, name="prune_flowpathrecentmessages")
-def prune_flowpathrecentmessages():
-    FlowPathRecentMessage.prune()
+@nonoverlapping_task(track_started=True, name="prune_flowpathrecentsteps")
+def prune_flowpathrecentsteps():
+    FlowPathRecentStep.prune()
 
 
 @nonoverlapping_task(track_started=True, name="squash_flowruncounts", lock_key='squash_flowruncounts')
