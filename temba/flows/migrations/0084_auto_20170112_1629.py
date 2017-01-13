@@ -7,8 +7,13 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
+    DROP_SQL = """
+    DROP INDEX IF EXISTS flows_flowstep_step_next_left_null_rule;
+    DROP INDEX IF EXISTS flows_flowstep_step_next_rule_left;
+    """
+
     dependencies = [
-        ('flows', '0083_populate_recent_msgs'),
+        ('flows', '0083_populate_recent_steps'),
     ]
 
     operations = [
@@ -16,4 +21,5 @@ class Migration(migrations.Migration):
             name='flowstep',
             index_together=set([]),
         ),
+        migrations.RunSQL(DROP_SQL)
     ]

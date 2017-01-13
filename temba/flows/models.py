@@ -3777,7 +3777,7 @@ class FlowPathRecentStep(models.Model):
         return recent.prefetch_related('step').order_by('-step__left_on')
 
     @classmethod
-    def get_recent_messages(cls, from_uuid, to_uuid):
+    def get_recent_messages(cls, from_uuid, to_uuid, limit=None):
         """
         Gets the recent messages for the given flow segment
         """
@@ -3788,6 +3788,9 @@ class FlowPathRecentStep(models.Model):
             for msg in r.step.messages.all():
                 if msg.visibility == Msg.VISIBILITY_VISIBLE:
                     messages.append(msg)
+
+                    if limit is not None and len(messages) >= limit:
+                        return messages
 
         return messages
 

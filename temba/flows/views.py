@@ -39,7 +39,7 @@ from temba.utils import analytics, percentage, datetime_to_str, on_transaction_c
 from temba.utils.expressions import get_function_listing
 from temba.utils.views import BaseActionForm
 from temba.values.models import Value
-from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentMessage
+from .models import FlowStep, RuleSet, ActionLog, ExportFlowResultsTask, FlowLabel, FlowStart, FlowPathRecentStep
 
 logger = logging.getLogger(__name__)
 
@@ -358,7 +358,7 @@ class FlowCRUDL(SmartCRUDL):
             recent_messages = []
 
             if (step_uuid or rule_uuid) and next_uuid:
-                recent = FlowPathRecentMessage.get_segment_recent(rule_uuid or step_uuid, next_uuid)
+                recent = FlowPathRecentStep.get_recent_messages(rule_uuid or step_uuid, next_uuid, limit=5)
 
                 for msg in recent:
                     recent_messages.append(dict(sent=datetime_to_str(msg.created_on, tz=org.timezone), text=msg.text))
