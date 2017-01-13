@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     INDEX_SQL = """
 CREATE INDEX flows_flowrun_expires_on ON flows_flowrun(expires_on) WHERE is_active = TRUE;
 
-CREATE INDEX flows_flowrun_null_expired_on ON flows_flowrun (expired_on) WHERE expired_on IS NULL;
+CREATE INDEX flows_flowrun_null_expired_on ON flows_flowrun (exited_on) WHERE exited_on IS NULL;
 
 CREATE INDEX flows_flowrun_org_modified_id ON flows_flowrun (org_id, modified_on DESC, id DESC);
 
