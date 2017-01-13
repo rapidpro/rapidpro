@@ -3082,7 +3082,7 @@ class FlowStep(models.Model):
         self.next_uuid = destination_uuid
         self.save(update_fields=('left_on', 'next_uuid'))
 
-        if not self.run.contact.is_test:
+        if not self.contact.is_test:
             FlowPathRecentStep.record_step(self)
 
     def add_message(self, msg):
