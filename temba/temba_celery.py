@@ -11,23 +11,14 @@ from raven.contrib.celery import register_signal, register_logger_signal
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'temba.settings')
 
+app = celery.Celery('temba')
 
-# Custom Celery so that we can hook in raven
-class Celery(celery.Celery):
-
-    def on_configure(self):
-        client = raven.Client(settings.RAVEN_CONFIG['dsn'])
-
-        # register raven for error tracking
-        register_logger_signal(client)
-        register_signal(client)
-
-app = Celery('temba')
-
-# Using a string here means the worker will not have to
-# pickle the object when using Windows.
 app.config_from_object('django.conf:settings')
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
+
+client = raven.Client(settings.RAVEN_CONFIG['dsn'])
+register_logger_signal(client)
+register_signal(client)
 
 
 @app.task(bind=True)
