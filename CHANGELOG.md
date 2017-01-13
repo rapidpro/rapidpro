@@ -1,3 +1,8 @@
+v3.0.6
+----------
+ * Replace unicode non breaking spaces with a normal space for GSM7 encoding (Kannel only)
+ * Add migrations for custom indexes (existing installs before v3 should fake these)
+
 v3.0.5
 ----------
  * fix styling on loader ball animation
