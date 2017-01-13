@@ -656,7 +656,7 @@ class Flow(TembaModel):
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
             arrived_on = timezone.now()
-            step.leave(destination.uuid, arrived_on, msgs)
+            step.leave(destination.uuid, arrived_on)
 
             step = run.flow.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
         else:
@@ -737,7 +737,7 @@ class Flow(TembaModel):
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
             arrived_on = timezone.now()
-            step.leave(rule.destination, arrived_on, [msg] if msg.id > 0 else [])
+            step.leave(rule.destination, arrived_on)
 
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
 
@@ -1781,9 +1781,9 @@ class Flow(TembaModel):
                                                 entry_actions.destination_type)
 
                     arrived_on = timezone.now()
-                    step.leave(destination.uuid, arrived_on, run_msgs)
+                    step.leave(destination.uuid, arrived_on)
 
-                    next_step = self.add_step(run, destination, previous_step=step, arrived_on=timezone.now())
+                    next_step = self.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
 
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                     handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
@@ -2939,6 +2939,11 @@ class FlowStep(models.Model):
         node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
+        # find and update the previous step
+        prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
+        if prev_step:
+            prev_step.leave(node.uuid, arrived_on)
+
         # generate the messages for this step
         msgs = []
         if node.is_ruleset():
@@ -2973,11 +2978,6 @@ class FlowStep(models.Model):
 
             for action in actions:
                 msgs += action.execute(run, node.uuid, msg=last_incoming, offline_on=arrived_on)
-
-        # find and update the previous step
-        prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
-        if prev_step:
-            prev_step.leave(node.uuid, arrived_on, msgs)
 
         step = flow.add_step(run, node, msgs=msgs, previous_step=prev_step, arrived_on=arrived_on, rule=previous_rule)
 
@@ -3074,7 +3074,7 @@ class FlowStep(models.Model):
 
         return None
 
-    def leave(self, destination_uuid, left_on, messages):
+    def leave(self, destination_uuid, left_on):
         """
         Record on this step that we're leaving its node for another node in the flow
         """
@@ -3082,10 +3082,8 @@ class FlowStep(models.Model):
         self.next_uuid = destination_uuid
         self.save(update_fields=('left_on', 'next_uuid'))
 
-        # record in recent messages list for this path segment
-        for msg in messages:
-            if not msg.contact.is_test:
-                FlowPathRecentMessage.record_message(self, msg)
+        if not self.run.contact.is_test:
+            FlowPathRecentStep.record_step(self)
 
     def add_message(self, msg):
         # no-op for no msg or mock msgs
@@ -3756,49 +3754,61 @@ class FlowPathCount(models.Model):
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
 
 
-class FlowPathRecentMessage(models.Model):
+class FlowPathRecentStep(models.Model):
     """
     Maintains recent messages for a flow path segment
     """
-    RECENT_MESSAGES = 5
+    PRUNE_TO = 10
 
-    flow = models.ForeignKey(Flow, related_name='messages', help_text=_("The flow associated with the messages"))
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
-    message = models.ForeignKey(Msg, related_name='recent_segments')
+    step = models.ForeignKey(FlowStep, related_name='recent_segments')
 
     @classmethod
-    def record_message(cls, step, msg):
+    def record_step(cls, step):
         from_uuid = step.rule_uuid or step.step_uuid
         to_uuid = step.next_uuid
 
-        cls.objects.get_or_create(flow=Flow(id=step.run.flow_id), from_uuid=from_uuid, to_uuid=to_uuid, message=msg)
+        cls.objects.get_or_create(step=step, from_uuid=from_uuid, to_uuid=to_uuid)
 
     @classmethod
-    def get_segment_recent(cls, from_uuid, to_uuid):
+    def get_recent(cls, from_uuid, to_uuid):
+        """
+        Gets the recent step records for the given flow segment
+        """
+        recent = cls.objects.filter(from_uuid=from_uuid, to_uuid=to_uuid)
+        return recent.prefetch_related('step').order_by('-step__left_on')
+
+    @classmethod
+    def get_recent_messages(cls, from_uuid, to_uuid):
         """
         Gets the recent messages for the given flow segment
         """
-        recent = cls.objects.filter(from_uuid=from_uuid, to_uuid=to_uuid)
-        recent = recent.prefetch_related('message').order_by('-message__created_on')[:cls.RECENT_MESSAGES]
+        recent = cls.get_recent(from_uuid, to_uuid).prefetch_related('step__messages')
 
-        return [r.message for r in recent]
+        messages = []
+        for r in recent:
+            for msg in r.step.messages.all():
+                if msg.visibility == Msg.VISIBILITY_VISIBLE:
+                    messages.append(msg)
+
+        return messages
 
     @classmethod
     def prune(cls):
         """
-        Removes old records leaving only 5 most recent for each segment
+        Removes old steps leaving only PRUNE_TO most recent for each segment
         """
         sql = """
         DELETE FROM %(table)s WHERE id IN (
           SELECT id FROM (
               SELECT
                 r.id,
-                dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY m.created_on DESC) AS pos
+                dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY s.left_on DESC) AS pos
               FROM %(table)s r
-              INNER JOIN msgs_msg m ON m.id = r.message_id
-          ) s WHERE s.pos > %(limit)d
-        )""" % {'table': cls._meta.db_table, 'limit': cls.RECENT_MESSAGES}
+              INNER JOIN %(step-table)s s ON s.id = r.step_id
+          ) t WHERE t.pos > %(limit)d
+        )""" % {'table': cls._meta.db_table, 'step-table': FlowStep._meta.db_table, 'limit': cls.PRUNE_TO}
 
         cursor = connection.cursor()
         cursor.execute(sql)
@@ -3806,7 +3816,7 @@ class FlowPathRecentMessage(models.Model):
         return cursor.rowcount  # number of deleted entries
 
     class Meta:
-        unique_together = ('from_uuid', 'to_uuid', 'message')
+        unique_together = ('from_uuid', 'to_uuid', 'step')
 
 
 class FlowRunCount(models.Model):
