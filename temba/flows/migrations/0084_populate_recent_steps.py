@@ -64,7 +64,7 @@ def apply_manual():
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0082_auto_20170113_0800'),
+        ('flows', '0083_auto_20170113_0800'),
     ]
 
     operations = [
