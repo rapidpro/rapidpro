@@ -16,9 +16,12 @@ app = celery.Celery('temba')
 app.config_from_object('django.conf:settings')
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
-client = raven.Client(settings.RAVEN_CONFIG['dsn'])
-register_logger_signal(client)
-register_signal(client)
+# register raven if configured
+raven_config = getattr(settings, 'RAVEN_CONFIG', None)
+if raven_config:
+    client = raven.Client(settings.RAVEN_CONFIG['dsn'])
+    register_logger_signal(client)
+    register_signal(client)
 
 
 @app.task(bind=True)
