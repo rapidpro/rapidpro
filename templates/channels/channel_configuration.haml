@@ -600,7 +600,7 @@
           keyword = default
           allowed-receiver-prefix = {{channel.address}}
           max-messages = 0
-          post-url = "https://{{domain}}{% url 'handlers.kannel_handler' 'receive' object.uuid %}/?backend=%i&sender=%p&message=%b&ts=%T&id=%I"
+          post-url = "https://{{domain}}{% url 'handlers.kannel_handler' 'receive' object.uuid %}/?backend=%i&sender=%p&message=%b&ts=%T&id=%I&to=%P"
           concatenation = true
           assume-plain-text = true
           accept-x-kannel-headers = true
