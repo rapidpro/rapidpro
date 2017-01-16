@@ -14,6 +14,7 @@ from collections import OrderedDict, defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
+from django.core.cache import cache
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
@@ -3759,6 +3760,7 @@ class FlowPathRecentStep(models.Model):
     Maintains recent messages for a flow path segment
     """
     PRUNE_TO = 10
+    LAST_PRUNED_KEY = 'last_flowpathrecentstep_pruned'
 
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
@@ -3800,6 +3802,11 @@ class FlowPathRecentStep(models.Model):
         """
         Removes old steps leaving only PRUNE_TO most recent for each segment
         """
+        last_id = cache.get(cls.LAST_PRUNED_KEY, -1)
+
+        newest = cls.objects.order_by('-id').values('id').first()
+        newest_id = newest['id'] if newest else -1
+
         sql = """
         DELETE FROM %(table)s WHERE id IN (
           SELECT id FROM (
@@ -3807,11 +3814,17 @@ class FlowPathRecentStep(models.Model):
                 r.id,
                 dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY left_on DESC) AS pos
               FROM %(table)s r
+              WHERE (from_uuid, to_uuid) IN (
+                -- get the unique segments added to since last prune
+                SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
+              )
           ) s WHERE s.pos > %(limit)d
-        )""" % {'table': cls._meta.db_table, 'limit': cls.PRUNE_TO}
+        )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
 
         cursor = connection.cursor()
         cursor.execute(sql)
+
+        cache.set(cls.LAST_PRUNED_KEY, newest_id)
 
         return cursor.rowcount  # number of deleted entries
 
