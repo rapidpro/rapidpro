@@ -22,7 +22,7 @@ def old_recent_steps_lookup(FlowStep, step_uuid, rule_uuid, next_uuid):
 
 def do_populate(FlowStep, FlowPathRecentStep):
     # fetch all of the node->node path segments
-    segments = list(FlowStep.objects.values_list('step_uuid', 'rule_uuid', 'next_uuid').distinct())
+    segments = list(FlowStep.objects.exclude(next_uuid=None).values_list('step_uuid', 'rule_uuid', 'next_uuid').distinct())
     if not segments:
         return
 
@@ -39,7 +39,8 @@ def do_populate(FlowStep, FlowPathRecentStep):
 
         for step in steps:
             # some might already have been created by new model code
-            FlowPathRecentStep.objects.get_or_create(from_uuid=from_uuid, to_uuid=to_uuid, step=step)
+            FlowPathRecentStep.objects.get_or_create(from_uuid=from_uuid, to_uuid=to_uuid, step=step,
+                                                     defaults={'left_on': step.left_on})
 
         num_segments += 1
         num_steps += len(steps)
@@ -64,7 +65,7 @@ def apply_manual():
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('flows', '0082_auto_20170113_0800'),
+        ('flows', '0083_auto_20170116_0750'),
     ]
 
     operations = [

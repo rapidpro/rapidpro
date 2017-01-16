@@ -3758,15 +3758,16 @@ class FlowPathRecentStep(models.Model):
     PRUNE_TO = 10
 
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
-    to_uuid = models.UUIDField(null=True, help_text=_("Which flow node they went to"))
+    to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
     step = models.ForeignKey(FlowStep, related_name='recent_segments')
+    left_on = models.DateTimeField(help_text=_("When they left the first node"))
 
     @classmethod
     def record_step(cls, step):
         from_uuid = step.rule_uuid or step.step_uuid
         to_uuid = step.next_uuid
 
-        cls.objects.get_or_create(step=step, from_uuid=from_uuid, to_uuid=to_uuid)
+        cls.objects.get_or_create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
 
     @classmethod
     def get_recent(cls, from_uuid, to_uuid):
@@ -3774,7 +3775,7 @@ class FlowPathRecentStep(models.Model):
         Gets the recent step records for the given flow segment
         """
         recent = cls.objects.filter(from_uuid=from_uuid, to_uuid=to_uuid)
-        return recent.prefetch_related('step').order_by('-step__left_on')
+        return recent.order_by('-left_on').prefetch_related('step')
 
     @classmethod
     def get_recent_messages(cls, from_uuid, to_uuid, limit=None):
@@ -3804,11 +3805,10 @@ class FlowPathRecentStep(models.Model):
           SELECT id FROM (
               SELECT
                 r.id,
-                dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY s.left_on DESC) AS pos
+                dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY left_on DESC) AS pos
               FROM %(table)s r
-              INNER JOIN %(step-table)s s ON s.id = r.step_id
-          ) t WHERE t.pos > %(limit)d
-        )""" % {'table': cls._meta.db_table, 'step-table': FlowStep._meta.db_table, 'limit': cls.PRUNE_TO}
+          ) s WHERE s.pos > %(limit)d
+        )""" % {'table': cls._meta.db_table, 'limit': cls.PRUNE_TO}
 
         cursor = connection.cursor()
         cursor.execute(sql)
