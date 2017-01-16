@@ -40,8 +40,6 @@
               {{item|activity_icon}}
 
       %td.details.wrapped
-        -if recent
-          {% now "U"%}
         -if item.event_type
           -with item as call
             -if call.event_type == 'mt_miss'
@@ -170,7 +168,7 @@
           {{item.created_on}}
 
 -if has_older and not recent
-  %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?rs={{ recent_start }}&before={{ start_time }}", 
+  %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
        ic-trigger-on:"scrolled-into-view", 
        ic-target:"table.activity tbody.previous", 
        ic-indicator:"#indicator" }
