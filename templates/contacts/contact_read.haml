@@ -133,9 +133,9 @@
               -elif evt.repeat_period == 'W'
                 -trans 'repeats weekly'
 
-  -trans "Message History"
-
-  %table.activity.history
+  %h5
+    -trans "Message History"
+  %table.activity.history{style:'padding:0;margin:0'}
     // poll for our most recent messages
     %tr.poll{ ic-src:"/contact/history/{{contact.uuid}}/?after={{recent_start}}",
               ic-poll:"5s",
@@ -504,8 +504,6 @@
   :javascript
 
     var startTime = null;
-    var refreshSeconds = 30;
-    var scheduledRefresh = null;
 
     $(document).ready(function() {
 
@@ -521,26 +519,6 @@
         $(this).children('.short').show();
         $(this).children('.long').hide();
       });
-      // fetch our first chunk of history
-      //$.get('/contact/history/{{contact.uuid}}/?rs={{recent_start}}', function(data){
-      //  $('.history tr:last').remove();
-      //  $('.history').append(data);
-
-      //  startTime = parseInt($('.history #start_time').text());
-      //});
-
-      // when they click to load more, fetch more history
-      //$('.load-more').live('click', function() {
-      //  $(this).css('visibility', 'hidden');
-      //  $('.since .loading').text('One moment...');
-
-      //  $.get('/contact/history/{{contact.uuid}}/?rs={{recent_start}}&before=' + startTime, function(data){
-      //    $('.history tr:last').remove();
-      //    $('.history').append(data);
-
-      //    startTime = parseInt($('.history #start_time').text());
-      //  });
-      // });
 
       // configure the number of contact fields to show
       var featuredMax = 4;
@@ -563,27 +541,10 @@
           $('.normal').css('display', 'inline-block').show();
         }
       })
-
-      // update messages every 30s
-      // scheduledRefresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
     });
 
-    function fetchRecentMessages(){
-
+    function refreshRecents(){
       Intercooler.triggerRequest($('tr.poll'));
-
-      if (true) {
-        return;
-      }
-      
-      clearTimeout(scheduledRefresh);
-      $.get('/contact/history/{{contact.uuid}}/?r=true&rs={{recent_start}}', function(data){
-          $('.history tr.recent').remove();
-          if (data.strip().length > 0) {
-            $('.history').prepend(data);
-          }
-          scheduledRefresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
-      });
     }
 
     // plays the audio recording for a message
@@ -672,7 +633,7 @@
     $(".contact-send-button").on('click', function() {
       {% if has_sendable_urn %}
       $(".gear-menu").removeClass("open");
-      showComposeInitialized("c={{object.uuid}}", null, fetchRecentMessages);
+      showComposeInitialized("c={{object.uuid}}", null, refreshRecents);
       {% else %}
       modal = new Modal('{% trans "Error" %}', '{% trans "This contact does not have any number which you can send to. Please edit the contact first or add a new phone." %}');
       modal.addClass('alert');
