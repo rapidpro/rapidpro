@@ -133,13 +133,28 @@
               -elif evt.repeat_period == 'W'
                 -trans 'repeats weekly'
 
-  .header
-    -trans "Message History"
+  -trans "Message History"
+
   %table.activity.history
-    %tr.since
-      %td{colspan:3}
-        %span.loading
-          -trans "One moment..."
+    // poll for our most recent messages
+    %tr.poll{ ic-src:"/contact/history/{{contact.uuid}}/?rs={{recent_start}}&r=True",
+              ic-poll:"5s",
+              ic-trigger-on:"scrolled-into-view",
+              ic-target:"table .recent",
+              ic-poll-repeats:"30" }
+
+    %tbody.recent
+
+    // trigger the first batch of previous messages
+    %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?rs={{recent_start}}", 
+         ic-trigger-on:"scrolled-into-view", 
+         ic-target:"table .previous", 
+         ic-indicator:"#indicator" }
+
+    %tbody.previous
+
+  #indicator{style:"display:none"}
+    .loader
 
 
 -block post-content
@@ -171,7 +186,6 @@
 
     {% lessblock %}
       :plain
-
         .header {
           padding: 8px;
           font-size:14px;
@@ -508,25 +522,25 @@
         $(this).children('.long').hide();
       });
       // fetch our first chunk of history
-      $.get('/contact/history/{{contact.uuid}}/?rs={{recent_start}}', function(data){
-        $('.history tr:last').remove();
-        $('.history').append(data);
+      //$.get('/contact/history/{{contact.uuid}}/?rs={{recent_start}}', function(data){
+      //  $('.history tr:last').remove();
+      //  $('.history').append(data);
 
-        startTime = parseInt($('.history #start_time').text());
-      });
+      //  startTime = parseInt($('.history #start_time').text());
+      //});
 
       // when they click to load more, fetch more history
-      $('.load-more').live('click', function() {
-        $(this).css('visibility', 'hidden');
-        $('.since .loading').text('One moment...');
+      //$('.load-more').live('click', function() {
+      //  $(this).css('visibility', 'hidden');
+      //  $('.since .loading').text('One moment...');
 
-        $.get('/contact/history/{{contact.uuid}}/?rs={{recent_start}}&before=' + startTime, function(data){
-          $('.history tr:last').remove();
-          $('.history').append(data);
+      //  $.get('/contact/history/{{contact.uuid}}/?rs={{recent_start}}&before=' + startTime, function(data){
+      //    $('.history tr:last').remove();
+      //    $('.history').append(data);
 
-          startTime = parseInt($('.history #start_time').text());
-        });
-      });
+      //    startTime = parseInt($('.history #start_time').text());
+      //  });
+      // });
 
       // configure the number of contact fields to show
       var featuredMax = 4;
@@ -551,10 +565,17 @@
       })
 
       // update messages every 30s
-      scheduledRefresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
+      // scheduledRefresh = setTimeout(fetchRecentMessages, refreshSeconds * 1000)
     });
 
     function fetchRecentMessages(){
+
+      Intercooler.triggerRequest($('tr.poll'));
+
+      if (true) {
+        return;
+      }
+      
       clearTimeout(scheduledRefresh);
       $.get('/contact/history/{{contact.uuid}}/?r=true&rs={{recent_start}}', function(data){
           $('.history tr.recent').remove();
