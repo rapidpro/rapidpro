@@ -1836,9 +1836,9 @@ class Flow(TembaModel):
             arrived_on = timezone.now()
 
         if previous_step:
-            self.left_on = arrived_on
-            self.next_uuid = node.uuid
-            self.save(update_fields=('left_on', 'next_uuid'))
+            previous_step.left_on = arrived_on
+            previous_step.next_uuid = node.uuid
+            previous_step.save(update_fields=('left_on', 'next_uuid'))
 
             if not previous_step.contact.is_test:
                 FlowPathRecentStep.record_step(previous_step)
