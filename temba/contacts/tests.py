@@ -1217,14 +1217,13 @@ class ContactTest(TembaTest):
 
         self.create_campaign()
 
+        # add one that is a video
+        self.create_msg(direction='I', contact=self.joe, media="video:http://blah/file.mp4", text="Video caption", created_on=timezone.now())
+
         # create some messages
         for i in range(99):
             self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
                             created_on=timezone.now() - timedelta(days=(100 - i)))
-
-        # add one that is a video
-        self.create_msg(direction='I', contact=self.joe, media="video:http://blah/file.mp4",
-                        created_on=timezone.now())
 
         # because messages are stored with timestamps from external systems, possible to have initial message
         # which is little bit older than the contact itself
@@ -1318,7 +1317,7 @@ class ContactTest(TembaTest):
         # with our recent flag on, should not see the older messages
         activity = response.context['activity']
         self.assertEqual(len(activity), 6)
-        self.assertContains(response, 'video')
+        self.assertContains(response, 'file.mp4')
 
         # can't view history of contact in another org
         self.create_secondary_org()
