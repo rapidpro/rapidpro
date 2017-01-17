@@ -4511,6 +4511,13 @@ class FlowsTest(FlowFileTest):
         other_recent = FlowPathRecentStep.get_recent_messages(other_rule.uuid, other_action.uuid)
         self.assertEqual([m.text for m in other_recent], ["12", "11", "10", "9", "8", "7", "6", "5", "4", "3"])
 
+        # send another message and prune again
+        self.send_message(flow, "13", contact=bob)
+        prune_flowpathrecentsteps()
+
+        other_recent = FlowPathRecentStep.get_recent_messages(other_rule.uuid, other_action.uuid)
+        self.assertEqual([m.text for m in other_recent], ["13", "12", "11", "10", "9", "8", "7", "6", "5", "4"])
+
     def test_destination_type(self):
         flow = self.get_flow('pick_a_number')
 

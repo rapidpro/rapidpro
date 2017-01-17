@@ -14,6 +14,7 @@ from collections import OrderedDict, defaultdict
 from datetime import timedelta
 from decimal import Decimal
 from django.conf import settings
+from django.core.cache import cache
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.files.temp import NamedTemporaryFile
@@ -656,8 +657,6 @@ class Flow(TembaModel):
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
             arrived_on = timezone.now()
-            step.leave(destination.uuid, arrived_on)
-
             step = run.flow.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
         else:
             run.set_completed(final_step=step)
@@ -736,9 +735,6 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            arrived_on = timezone.now()
-            step.leave(rule.destination, arrived_on)
-
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
 
         return dict(handled=True, destination=destination, step=step)
@@ -1781,8 +1777,6 @@ class Flow(TembaModel):
                                                 entry_actions.destination_type)
 
                     arrived_on = timezone.now()
-                    step.leave(destination.uuid, arrived_on)
-
                     next_step = self.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
 
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
@@ -1840,6 +1834,14 @@ class Flow(TembaModel):
 
         if not arrived_on:
             arrived_on = timezone.now()
+
+        if previous_step:
+            self.left_on = arrived_on
+            self.next_uuid = node.uuid
+            self.save(update_fields=('left_on', 'next_uuid'))
+
+            if not previous_step.contact.is_test:
+                FlowPathRecentStep.record_step(previous_step)
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2939,10 +2941,8 @@ class FlowStep(models.Model):
         node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
-        # find and update the previous step
+        # find the previous step
         prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
-        if prev_step:
-            prev_step.leave(node.uuid, arrived_on)
 
         # generate the messages for this step
         msgs = []
@@ -3073,17 +3073,6 @@ class FlowStep(models.Model):
             return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
 
         return None
-
-    def leave(self, destination_uuid, left_on):
-        """
-        Record on this step that we're leaving its node for another node in the flow
-        """
-        self.left_on = left_on
-        self.next_uuid = destination_uuid
-        self.save(update_fields=('left_on', 'next_uuid'))
-
-        if not self.contact.is_test:
-            FlowPathRecentStep.record_step(self)
 
     def add_message(self, msg):
         # no-op for no msg or mock msgs
@@ -3759,6 +3748,7 @@ class FlowPathRecentStep(models.Model):
     Maintains recent messages for a flow path segment
     """
     PRUNE_TO = 10
+    LAST_PRUNED_KEY = 'last_flowpathrecentstep_pruned'
 
     from_uuid = models.UUIDField(help_text=_("Which flow node they came from"))
     to_uuid = models.UUIDField(help_text=_("Which flow node they went to"))
@@ -3770,7 +3760,7 @@ class FlowPathRecentStep(models.Model):
         from_uuid = step.rule_uuid or step.step_uuid
         to_uuid = step.next_uuid
 
-        cls.objects.get_or_create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
+        cls.objects.create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
 
     @classmethod
     def get_recent(cls, from_uuid, to_uuid):
@@ -3800,6 +3790,11 @@ class FlowPathRecentStep(models.Model):
         """
         Removes old steps leaving only PRUNE_TO most recent for each segment
         """
+        last_id = cache.get(cls.LAST_PRUNED_KEY, -1)
+
+        newest = cls.objects.order_by('-id').values('id').first()
+        newest_id = newest['id'] if newest else -1
+
         sql = """
         DELETE FROM %(table)s WHERE id IN (
           SELECT id FROM (
@@ -3807,16 +3802,19 @@ class FlowPathRecentStep(models.Model):
                 r.id,
                 dense_rank() OVER (PARTITION BY from_uuid, to_uuid ORDER BY left_on DESC) AS pos
               FROM %(table)s r
+              WHERE (from_uuid, to_uuid) IN (
+                -- get the unique segments added to since last prune
+                SELECT DISTINCT from_uuid, to_uuid FROM %(table)s WHERE id > %(last_id)d
+              )
           ) s WHERE s.pos > %(limit)d
-        )""" % {'table': cls._meta.db_table, 'limit': cls.PRUNE_TO}
+        )""" % {'table': cls._meta.db_table, 'last_id': last_id, 'limit': cls.PRUNE_TO}
 
         cursor = connection.cursor()
         cursor.execute(sql)
 
-        return cursor.rowcount  # number of deleted entries
+        cache.set(cls.LAST_PRUNED_KEY, newest_id)
 
-    class Meta:
-        unique_together = ('from_uuid', 'to_uuid', 'step')
+        return cursor.rowcount  # number of deleted entries
 
 
 class FlowRunCount(models.Model):
