@@ -25,7 +25,6 @@ phonenumbers
 django-countries
 djangorestframework
 djangorestframework-xml
--e git+https://github.com/caktus/django-ttag.git@40c97c01325d436f5d04529526fa7468ff778137#egg=django-ttag-dev
 iptools
 requests
 mock
