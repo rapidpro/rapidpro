@@ -1,12 +1,8 @@
 from __future__ import unicode_literals
 
-import ttag
-
 from django import template
 from django.utils.safestring import mark_safe
 from temba.channels.models import ChannelEvent
-from ttag.helpers import AsTag
-
 
 register = template.Library()
 
@@ -55,7 +51,8 @@ def as_icon(contact_event):
     return mark_safe('<span class="glyph %s"></span>' % icon)
 
 
-class Render(AsTag):
+@register.tag(name='render')
+def render(parser, token):
     """
     A block tag that renders its contents to a context variable.
 
@@ -79,22 +76,23 @@ class Render(AsTag):
             <h1>{{ title }}</h1>
             {% block body %}{% endblock %}
         </body>
-
-    By default, the tag strips the output of leading and trailing white space.
-    To avoid this, use the ``no_strip`` argument::
-
-        {% render no_strip as target %} ... {% endrender %}
     """
-    no_strip = ttag.BooleanArg()
 
-    class Meta:
-        block = True
+    class RenderNode(template.Node):
+        def __init__(self, nodelist, as_var):
+            self.nodelist = nodelist
+            self.as_var = as_var
 
-    def as_value(self, data, context):
-        output = self.nodelist.render(context)
-        if 'no_strip' not in data:
-            output = output.strip()
-        return mark_safe(output)
+        def render(self, context):
+            output = self.nodelist.render(context)
+            context[self.as_var] = mark_safe(output.strip())
+            return ''
 
+    bits = token.split_contents()
+    if len(bits) != 3 or bits[1] != 'as':
+        raise ValueError("render tag should be followed by keyword as and the name of a context variable")
+    as_var = bits[2]
 
-register.tag(Render)
+    nodes = parser.parse(('endrender',))
+    parser.delete_first_token()
+    return RenderNode(nodes, as_var)
