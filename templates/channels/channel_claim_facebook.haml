@@ -14,6 +14,7 @@
         In order to connect your Facebook page to {{ name }} you will need to
         <a href="https://developer.facebook.com/">create a new Facebook application</a> that
         has messaging permissions.
+
     %p
       -blocktrans
         On the Messenger section of your application, you can create a Page Access Token for the page you wish
@@ -24,6 +25,11 @@
         -blocktrans
           Until your Facebook application is approved by Facebook you will only be able to send and receive messages
           with administrators of your application.
+
+      %p
+        -blocktrans
+          When submitting your application for approval, make sure to include the <code>pages_messaging</code>
+          and <code>pages_messaging_subscriptions</code> permissions so that you are able to initiate conversations with your contacts.
 
 -block extra-style
   {{ block.super }}
