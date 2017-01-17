@@ -657,8 +657,6 @@ class Flow(TembaModel):
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
             arrived_on = timezone.now()
-            step.leave(destination.uuid, arrived_on)
-
             step = run.flow.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
         else:
             run.set_completed(final_step=step)
@@ -737,9 +735,6 @@ class Flow(TembaModel):
         # Create the step for our destination
         destination = Flow.get_node(flow, rule.destination, rule.destination_type)
         if destination:
-            arrived_on = timezone.now()
-            step.leave(rule.destination, arrived_on)
-
             step = flow.add_step(run, destination, rule=rule.uuid, category=rule.category, previous_step=step)
 
         return dict(handled=True, destination=destination, step=step)
@@ -1782,8 +1777,6 @@ class Flow(TembaModel):
                                                 entry_actions.destination_type)
 
                     arrived_on = timezone.now()
-                    step.leave(destination.uuid, arrived_on)
-
                     next_step = self.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
 
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
@@ -1841,6 +1834,14 @@ class Flow(TembaModel):
 
         if not arrived_on:
             arrived_on = timezone.now()
+
+        if previous_step:
+            self.left_on = arrived_on
+            self.next_uuid = node.uuid
+            self.save(update_fields=('left_on', 'next_uuid'))
+
+            if not previous_step.contact.is_test:
+                FlowPathRecentStep.record_step(previous_step)
 
         # update our timeouts
         timeout = node.get_timeout() if isinstance(node, RuleSet) else None
@@ -2940,10 +2941,8 @@ class FlowStep(models.Model):
         node = json_obj['node']
         arrived_on = json_date_to_datetime(json_obj['arrived_on'])
 
-        # find and update the previous step
+        # find the previous step
         prev_step = FlowStep.objects.filter(run=run).order_by('-left_on').first()
-        if prev_step:
-            prev_step.leave(node.uuid, arrived_on)
 
         # generate the messages for this step
         msgs = []
@@ -3074,17 +3073,6 @@ class FlowStep(models.Model):
             return broadcasts[0].get_translated_text(run.contact, base_language=run.flow.base_language, org=run.org)
 
         return None
-
-    def leave(self, destination_uuid, left_on):
-        """
-        Record on this step that we're leaving its node for another node in the flow
-        """
-        self.left_on = left_on
-        self.next_uuid = destination_uuid
-        self.save(update_fields=('left_on', 'next_uuid'))
-
-        if not self.contact.is_test:
-            FlowPathRecentStep.record_step(self)
 
     def add_message(self, msg):
         # no-op for no msg or mock msgs
