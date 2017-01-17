@@ -3772,7 +3772,7 @@ class FlowPathRecentStep(models.Model):
         from_uuid = step.rule_uuid or step.step_uuid
         to_uuid = step.next_uuid
 
-        cls.objects.get_or_create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, defaults={'left_on': step.left_on})
+        cls.objects.create(from_uuid=from_uuid, to_uuid=to_uuid, step=step, left_on=step.left_on)
 
     @classmethod
     def get_recent(cls, from_uuid, to_uuid):
@@ -3827,9 +3827,6 @@ class FlowPathRecentStep(models.Model):
         cache.set(cls.LAST_PRUNED_KEY, newest_id)
 
         return cursor.rowcount  # number of deleted entries
-
-    class Meta:
-        unique_together = ('from_uuid', 'to_uuid', 'step')
 
 
 class FlowRunCount(models.Model):
