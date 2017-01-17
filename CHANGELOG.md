@@ -1,3 +1,8 @@
+v3.0.10
+----------
+ * Log any exceptions encountered in Celery tasks to Raven
+ * Tell user to get pages_messaging_subscriptions permission for their FB app
+
 v3.0.6
 ----------
  * Replace unicode non breaking spaces with a normal space for GSM7 encoding (Kannel only)
