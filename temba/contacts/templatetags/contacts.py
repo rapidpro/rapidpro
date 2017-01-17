@@ -164,6 +164,21 @@ def activity_icon(item):
 
 
 @register.filter
+def history_class(item):
+    css = ''
+    from temba.msgs.models import Msg
+    if isinstance(item, Msg):
+        if item.media and item.media[:6] == 'video:':
+            css = '%s %s' % (css, 'video')
+        if item.direction or item.recipient_count:
+            css = '%s %s' % (css, 'msg')
+    else:
+        css = '%s %s' % (css, 'non-msg')
+
+    return css
+
+
+@register.filter
 def event_time(event):
 
     unit = event.unit
