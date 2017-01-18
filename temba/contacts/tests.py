@@ -1217,8 +1217,11 @@ class ContactTest(TembaTest):
 
         self.create_campaign()
 
+        # add one that is a video
+        self.create_msg(direction='I', contact=self.joe, media="video:http://blah/file.mp4", text="Video caption", created_on=timezone.now())
+
         # create some messages
-        for i in range(100):
+        for i in range(99):
             self.create_msg(direction='I', contact=self.joe, text="Inbound message %d" % i,
                             created_on=timezone.now() - timedelta(days=(100 - i)))
 
@@ -1244,10 +1247,8 @@ class ContactTest(TembaTest):
                                contact_urn=self.joe.urns.all().first())
 
         # fetch our contact history
-        with self.assertNumQueries(70):
+        with self.assertNumQueries(63):
             response = self.fetch_protected(url, self.admin)
-
-        self.assertTrue(response.context['has_older'])
 
         # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
         activity = response.context['activity']
@@ -1258,12 +1259,14 @@ class ContactTest(TembaTest):
         self.assertEqual(activity[2].direction, 'O')
         self.assertIsInstance(activity[3], FlowRun)
         self.assertIsInstance(activity[4], Msg)
-        self.assertEqual(activity[4].text, "Inbound message 99")
+        self.assertEqual(activity[4].media, "video:http://blah/file.mp4")
+        self.assertIsInstance(activity[5], Msg)
+        self.assertEqual(activity[5].text, "Inbound message 98")
         self.assertIsInstance(activity[8], EventFire)
         self.assertEqual(activity[-1].text, "Inbound message 11")
 
         # fetch next page
-        before = response.context['start_time']
+        before = datetime_to_ms(timezone.now() - timedelta(days=90))
         response = self.fetch_protected(url + '?before=%d' % before, self.admin)
         self.assertFalse(response.context['has_older'])
 
@@ -1309,11 +1312,12 @@ class ContactTest(TembaTest):
         self.assertIsInstance(activity[1], IVRCall)
 
         recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
-        response = self.fetch_protected(url + "?r=true&rs=%s" % recent_start, self.admin)
+        response = self.fetch_protected(url + "?after=%s" % recent_start, self.admin)
 
         # with our recent flag on, should not see the older messages
         activity = response.context['activity']
-        self.assertEqual(len(activity), 5)
+        self.assertEqual(len(activity), 6)
+        self.assertContains(response, 'file.mp4')
 
         # can't view history of contact in another org
         self.create_secondary_org()

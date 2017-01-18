@@ -656,8 +656,7 @@ class Flow(TembaModel):
         # and onto the destination
         destination = Flow.get_node(actionset.flow, actionset.destination, actionset.destination_type)
         if destination:
-            arrived_on = timezone.now()
-            step = run.flow.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
+            step = run.flow.add_step(run, destination, previous_step=step)
         else:
             run.set_completed(final_step=step)
             step = None
@@ -1776,8 +1775,7 @@ class Flow(TembaModel):
                                                 entry_actions.destination,
                                                 entry_actions.destination_type)
 
-                    arrived_on = timezone.now()
-                    next_step = self.add_step(run, destination, previous_step=step, arrived_on=arrived_on)
+                    next_step = self.add_step(run, destination, previous_step=step)
 
                     msg = Msg(org=self.org, contact_id=contact_id, text='', id=0)
                     handled, step_msgs = Flow.handle_destination(destination, next_step, run, msg, started_flows_by_contact,
@@ -3734,7 +3732,7 @@ class FlowPathCount(models.Model):
 
             squash_count += 1
 
-        print("Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start))
+        print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
 
     def __unicode__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
