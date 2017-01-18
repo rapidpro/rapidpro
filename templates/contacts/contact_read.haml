@@ -80,27 +80,39 @@
   <![endif]-->
 
   -if contact_fields
-    .contact-fields{class:'{% if fields %}clickable{%endif%}'}
-      -for field in contact_fields
-        --if field.value
-          .contact-field{class:'{% if field.featured %}featured{%else%}normal{%endif%}'}
-            .contact-field-label
-              {{field.label|title}}
-            .contact-field-value
-              {{field.value}}
+    .contact-fields
+      .featured
+        -for field in contact_fields
+          -if field.value and field.featured
+            .contact-field
+              .contact-field-label
+                {{field.label|title}}
+              .contact-field-value
+                {{field.value}}
+
+      .normal.hide
+        -for field in contact_fields
+          -if field.value and not field.featured
+            .contact-field
+              .contact-field-label
+                {{field.label|title}}
+              .contact-field-value
+                {{field.value}}
+
+
+  %a.pull-right.show-all.fields
+      .icon-arrow-down
 
   -if upcoming_events
-    .header
+    %h5
       -trans "Upcoming"
-
-      -if upcoming_events|length > 3
-        %a.pull-right.btn.btn-tiny.show-all
-          Show All
 
     %table.activity.pending
       -for evt in upcoming_events
+        -if forloop.counter0 == 3
+          %tbody.hidden-upcoming
 
-        %tr.item{class:"{% if evt.event_type == 'M' %}msg{%else%}non-msg{%endif%} {%if forloop.counter <= upcoming_events|length|add:-3%}hide hidden-upcoming{%endif%}"}
+        %tr.item{class:"{% if evt.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
           %td.icon
             -if evt.event_type == 'M'
               %span.glyph.icon-bubble-right
@@ -132,6 +144,10 @@
                 -trans 'repeats daily'
               -elif evt.repeat_period == 'W'
                 -trans 'repeats weekly'
+
+    -if upcoming_events|length > 3
+      %a.pull-right.show-all.upcoming
+        .icon-arrow-down
 
   %h5
     -trans "Message History"
@@ -186,18 +202,30 @@
 
     {% lessblock %}
       :plain
-        .header {
-          padding: 8px;
-          font-size:14px;
-          border-bottom: 1px solid #d9d9d9;
-          margin-top: 10px;
-          .show-all {
-            margin-top:-8px;
-            margin-right:-8px;
+        .show-all {
+          margin-top:-10px;
+          margin-right:18px;
+          color: #d1d1d1;
+
+          &.expanded {
+            .icon-arrow-down {
+              .rotate(2);
+            }
+          }
+          .icon-arrow-down {
+            margin-top:2px;
+            margin-right: 3px;
+
+          }
+
+          &:hover {
+            color: #c1c1c1;
+            cursor: pointer;
           }
         }
 
         table.activity {
+
 
           tr.since {
             border-bottom: none;
@@ -231,12 +259,15 @@
 
           &.pending {
 
+            tbody:nth-child(3) {
+              display: none;
+            }
+
             color: #ccc;
 
             tr.non-msg {
               background: inherit;
             }
-
 
             .icon {
               .glyph.icon-bubble-right, .glyph.icon-tree-2 {
@@ -449,17 +480,12 @@
 
 
         .contact-fields {
-          // background: #f1f1f1;
+          background: #f9f9f9;
 
           font-size: 12px;
           color: @color-font-grey;
           border: 1px solid #f1f1f1;
           margin-bottom:15px;
-
-          &.clickable:hover {
-            background: #f1f1f1;
-            cursor:pointer;
-          }
 
           .show-more {
             padding: 10px;
@@ -467,13 +493,9 @@
           }
 
           .contact-field {
-            padding: 2px 10px;
-            width: 260px;
             display:inline-block;
-
-            &.normal {
-              display:none;
-            }
+            width: 260px;
+            padding: 2px 10px;
 
             .contact-field-label {
               font-weight: normal;
@@ -482,7 +504,6 @@
               margin-right:2px;
               padding-top:5px;
               font-size:95%;
-
             }
 
             .contact-field-value {
@@ -507,9 +528,26 @@
 
     $(document).ready(function() {
 
-      $('.show-all').live('click', function() {
-        $(this).hide();
-        $('.hidden-upcoming').slideDown()
+      $('.show-all.upcoming').live('click', function() {
+        if ($(this).hasClass('expanded')) {
+          $(this).removeClass('expanded');
+          $('table.activity.pending tbody:nth-child(3)').slideUp();
+        } else {
+          $(this).addClass('expanded');
+          $('table.activity.pending tbody:nth-child(3)').slideDown();
+        }
+      });
+
+      $('.show-all.fields').live('click', function() {
+        if ($(this).hasClass('expanded')) {
+          $(this).removeClass('expanded');
+          $('.contact-fields').removeClass('expanded');
+          $('.normal').slideUp();
+        } else {
+          $(this).addClass('expanded');
+          $('.contact-fields').addClass('expanded');
+          $('.normal').slideDown();
+        }
       });
 
       $('.time').live('mouseover', function() {
@@ -522,25 +560,10 @@
 
       // configure the number of contact fields to show
       var featuredMax = 4;
-      var featuredCount = $('.featured').size()
+      var featuredCount = $('.featured .contact-field').size()
       if (featuredCount < featuredMax) {
-        $('.normal').slice(0, featuredMax-featuredCount).removeClass('normal').addClass('featured')
+        $('.normal .contact-field').slice(0, featuredMax-featuredCount).detach().appendTo('.featured')
       }
-
-      if ($('.normal').size() == 0) {
-        $('.contact-fields').removeClass('clickable')
-      }
-
-      // wire up expanding the contact field list
-      $('.contact-fields').live('click', function() {
-        if ($(this).hasClass('expanded')) {
-          $('.normal').hide();
-          $(this).removeClass('expanded');
-        } else {
-          $(this).addClass('expanded');
-          $('.normal').css('display', 'inline-block').show();
-        }
-      })
     });
 
     function refreshRecents(){
