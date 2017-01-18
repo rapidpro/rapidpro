@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import json
 import random
+import six
 
 from django.core.urlresolvers import reverse
 from django.utils import timezone
@@ -63,7 +64,7 @@ class PerformanceTest(TembaTest):  # pragma: no cover
     def tearDownClass(cls):
         print "\n------------------ Segment Profiles ------------------"
         for segment in cls.segments:
-            print unicode(segment)
+            print six.text_type(segment)
 
     def _create_contacts(self, count, base_names):
         """

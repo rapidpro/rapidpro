@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 
 import json
 import pytz
+import six
 
 from context_processors import GroupPermWrapper
 from datetime import timedelta
@@ -184,7 +185,7 @@ class OrgTest(TembaTest):
 
         # assert it has changed
         org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Rwanda", unicode(org.country))
+        self.assertEqual("Rwanda", six.text_type(org.country))
         self.assertEqual("RW", org.get_country_code())
 
         # set our admin boundary name to something invalid

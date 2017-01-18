@@ -1,5 +1,6 @@
-from django.utils.translation import ugettext_lazy as _
+from __future__ import unicode_literals
 
+from django.utils.translation import ugettext_lazy as _
 from smartmin.views import SmartListView, SmartReadView, SmartCRUDL
 from temba.airtime.models import AirtimeTransfer
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin

@@ -1191,7 +1191,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             group = self.get_object()
             triggers = group.trigger_set.filter(is_archived=False)
             if triggers.count() > 0:
-                trigger_list = ', '.join([trigger.__unicode__() for trigger in triggers])
+                trigger_list = ', '.join([six.text_type(trigger) for trigger in triggers])
                 messages.error(self.request, _("You cannot remove this group while it has active triggers (%s)" % trigger_list))
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
             return super(ContactGroupCRUDL.Delete, self).pre_process(request, *args, **kwargs)
@@ -1251,7 +1251,7 @@ class ContactFieldCRUDL(SmartCRUDL):
             sorted_results.insert(0, dict(key='groups', label='Groups'))
 
             for config in reversed(URN_SCHEME_CONFIG):
-                sorted_results.insert(0, dict(key=config[3], label=unicode(config[1])))
+                sorted_results.insert(0, dict(key=config[3], label=six.text_type(config[1])))
 
             sorted_results.insert(0, dict(key='name', label='Full name'))
 

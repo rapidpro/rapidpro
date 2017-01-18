@@ -9,6 +9,7 @@ import regex
 import time
 import urllib2
 import re
+import six
 
 from collections import OrderedDict, defaultdict
 from datetime import timedelta
@@ -133,6 +134,7 @@ def edit_distance(s1, s2):  # pragma: no cover
     return d[lenstr1 - 1, lenstr2 - 1]
 
 
+@six.python_2_unicode_compatible
 class Flow(TembaModel):
     UUID = 'uuid'
     ENTRY = 'entry'
@@ -243,7 +245,7 @@ class Flow(TembaModel):
         """
         Creates a special 'single message' flow
         """
-        name = 'Single Message (%s)' % unicode(uuid4())
+        name = 'Single Message (%s)' % six.text_type(uuid4())
 
         base_language = 'base'
         if org.primary_language:  # pragma: needs cover
@@ -267,7 +269,7 @@ class Flow(TembaModel):
         name = Flow.get_unique_name(org, 'Join %s' % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
 
-        uuid = unicode(uuid4())
+        uuid = six.text_type(uuid4())
         actions = [dict(type='add_group', group=dict(uuid=group.uuid, name=group.name)),
                    dict(type='save', field='name', label='Contact Name', value='@(PROPER(REMOVE_FIRST_WORD(step.value)))')]
 
@@ -799,8 +801,8 @@ class Flow(TembaModel):
             values = dict(text=value['text'],
                           time=datetime_to_str(value['time'], format=date_format, tz=tz),
                           category=flow.get_localized_text(value['category'], contact),
-                          value=unicode(value['rule_value']))
-            values['__default__'] = unicode(value['rule_value'])
+                          value=six.text_type(value['rule_value']))
+            values['__default__'] = six.text_type(value['rule_value'])
             return values
 
         flow_context = {}
@@ -1969,7 +1971,7 @@ class Flow(TembaModel):
                     flows.add(action.flow)
                 if hasattr(action, 'groups'):
                     for group in action.groups:
-                        if not isinstance(group, unicode):
+                        if not isinstance(group, six.string_types):
                             groups.add(group)
 
         for ruleset in self.rule_sets.all():
@@ -2493,12 +2495,12 @@ class Flow(TembaModel):
             # note that badness happened
             import logging
             logger = logging.getLogger(__name__)
-            logger.exception(unicode(e))
+            logger.exception(six.text_type(e))
             import traceback
             traceback.print_exc(e)
             raise e
 
-    def __unicode__(self):
+    def __str__(self):
         return self.name
 
     class Meta:
@@ -2586,7 +2588,7 @@ class FlowRun(models.Model):
         """
         Turns an arbitrary dictionary into a dictionary containing only string keys and values
         """
-        if isinstance(fields, (str, unicode)):
+        if isinstance(fields, six.string_types):
             return fields[:640], count + 1
 
         elif isinstance(fields, numbers.Number):
@@ -2615,7 +2617,7 @@ class FlowRun(models.Model):
             return list_dict, count
 
         else:
-            return unicode(fields), count + 1
+            return six.text_type(fields), count + 1
 
     @classmethod
     def bulk_exit(cls, runs, exit_type):
@@ -2889,6 +2891,7 @@ class FlowRun(models.Model):
         return msg
 
 
+@six.python_2_unicode_compatible
 class FlowStep(models.Model):
     """
     A contact's visit to a node in a flow (rule set or action set)
@@ -3051,7 +3054,7 @@ class FlowStep(models.Model):
 
         if value is None:
             value = ''
-        self.rule_value = unicode(value)[:640]
+        self.rule_value = six.text_type(value)[:640]
 
         if isinstance(value, Decimal):
             self.rule_decimal_value = value
@@ -3109,13 +3112,14 @@ class FlowStep(models.Model):
         else:  # pragma: needs cover
             return ActionSet.objects.filter(uuid=self.step_uuid).first()
 
-    def __unicode__(self):
+    def __str__(self):
         return "%s - %s:%s" % (self.run.contact, self.step_type, self.step_uuid)
 
     class Meta:
         index_together = ['step_uuid', 'next_uuid', 'rule_uuid', 'left_on']
 
 
+@six.python_2_unicode_compatible
 class RuleSet(models.Model):
     TYPE_WAIT_MESSAGE = 'wait_message'
 
@@ -3243,7 +3247,7 @@ class RuleSet(models.Model):
         unique_categories = set()
 
         for rule in self.get_rules():
-            label = rule.get_category_name(flow_language) if rule.category else unicode(_("Valid"))
+            label = rule.get_category_name(flow_language) if rule.category else six.text_type(_("Valid"))
 
             # ignore "Other" labels
             if label == "Other":
@@ -3454,7 +3458,7 @@ class RuleSet(models.Model):
         return None, None
 
     def save_run_value(self, run, rule, value):
-        value = unicode(value)[:640]
+        value = six.text_type(value)[:640]
         location_value = None
         dec_value = None
         dt_value = None
@@ -3516,13 +3520,14 @@ class RuleSet(models.Model):
 
         return ruleset_def
 
-    def __unicode__(self):
+    def __str__(self):
         if self.label:
             return "RuleSet: %s - %s" % (self.uuid, self.label)
         else:
             return "RuleSet: %s" % (self.uuid, )
 
 
+@six.python_2_unicode_compatible
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
     flow = models.ForeignKey(Flow, related_name='action_sets')
@@ -3589,7 +3594,7 @@ class ActionSet(models.Model):
     def as_json(self):
         return dict(uuid=self.uuid, x=self.x, y=self.y, destination=self.destination, actions=self.get_actions_dict())
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return "ActionSet: %s" % (self.uuid, )
 
 
@@ -3697,6 +3702,7 @@ class FlowRevision(SmartModel):
                     revision=self.revision)
 
 
+@six.python_2_unicode_compatible
 class FlowPathCount(models.Model):
     """
     Maintains hourly counts of flow paths
@@ -3738,13 +3744,14 @@ class FlowPathCount(models.Model):
 
         print "Squashed flowpathcounts for %d combinations in %0.3fs" % (squash_count, time.time() - start)
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return "FlowPathCount(%d) %s:%s %s count: %d" % (self.flow_id, self.from_uuid, self.to_uuid, self.period, self.count)
 
     class Meta:
         index_together = ['flow', 'from_uuid', 'to_uuid', 'period']
 
 
+@six.python_2_unicode_compatible
 class FlowRunCount(models.Model):
     """
     Maintains counts of different states of exit types of flow runs on a flow. These are calculated
@@ -3810,7 +3817,7 @@ class FlowRunCount(models.Model):
             if count['count'] > 0:
                 FlowRunCount.objects.create(flow=flow, exit_type=count['exit_type'], count=count['count'])
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
 
     class Meta:
@@ -4028,13 +4035,13 @@ class ExportFlowResultsTask(SmartModel):
 
             for col in range(len(columns)):
                 ruleset = columns[col]
-                cell = WriteOnlyCell(sheet, value="%s (Category) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                cell = WriteOnlyCell(sheet, value="%s (Category) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
                 sheet.column_dimensions[get_column_letter(index)].width = small_width
                 sheet_row.append(cell)
-                cell = WriteOnlyCell(sheet, value="%s (Value) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                cell = WriteOnlyCell(sheet, value="%s (Value) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
                 sheet.column_dimensions[get_column_letter(index)].width = small_width
                 sheet_row.append(cell)
-                cell = WriteOnlyCell(sheet, value="%s (Text) - %s" % (unicode(ruleset.label), unicode(ruleset.flow.name)))
+                cell = WriteOnlyCell(sheet, value="%s (Text) - %s" % (six.text_type(ruleset.label), six.text_type(ruleset.flow.name)))
                 sheet.column_dimensions[get_column_letter(index)].width = small_width
                 sheet_row.append(cell)
 
@@ -4196,7 +4203,7 @@ class ExportFlowResultsTask(SmartModel):
                         if field_value is None:
                             field_value = ''
 
-                        field_value = unicode(field_value)
+                        field_value = six.text_type(field_value)
 
                         cell = WriteOnlyCell(merged_runs, value=field_value)
                         merged_sheet_row[padding + 4 + cf_padding] = cell
@@ -4362,6 +4369,7 @@ class ExportFlowResultsTask(SmartModel):
         send_template_email(self.created_by.username, subject, template, dict(flows=flows, link=download_url), branding)
 
 
+@six.python_2_unicode_compatible
 class ActionLog(models.Model):
     """
     Log of an event that occurred whilst executing a flow in the simulator
@@ -4414,10 +4422,11 @@ class ActionLog(models.Model):
     def simulator_json(self):
         return self.as_json()
 
-    def __unicode__(self):  # pragma: needs cover
+    def __str__(self):  # pragma: needs cover
         return self.text
 
 
+@six.python_2_unicode_compatible
 class FlowStart(SmartModel):
     STATUS_PENDING = 'P'
     STATUS_STARTING = 'S'
@@ -4498,10 +4507,11 @@ class FlowStart(SmartModel):
             self.status = FlowStart.STATUS_COMPLETE
             self.save(update_fields=['status'])
 
-    def __unicode__(self):  # pragma: no cover
+    def __str__(self):  # pragma: no cover
         return "FlowStart %d (Flow %d)" % (self.id, self.flow_id)
 
 
+@six.python_2_unicode_compatible
 class FlowLabel(models.Model):
     org = models.ForeignKey(Org)
 
@@ -4561,7 +4571,7 @@ class FlowLabel(models.Model):
 
         return changed
 
-    def __unicode__(self):
+    def __str__(self):
         if self.parent:
             return "%s > %s" % (self.parent, self.name)
         return self.name
@@ -5474,7 +5484,7 @@ class SaveToContactAction(Action):
         elif field == 'tel_e164':
             label = 'Phone Number'
         elif field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
-            label = unicode(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
+            label = six.text_type(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
         else:
             contact_field = ContactField.objects.filter(org=org, key=field).first()
             if contact_field:
@@ -5760,7 +5770,7 @@ class Rule(object):
             if isinstance(category, dict):
                 # prune all of our translations to 36
                 for k, v in category.items():
-                    if isinstance(v, unicode):
+                    if isinstance(v, six.string_types):
                         category[k] = v[:36]
             elif category:
                 category = category[:36]
