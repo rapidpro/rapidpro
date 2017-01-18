@@ -84,7 +84,7 @@
       .featured
         -for field in contact_fields
           -if field.value and field.featured
-            .contact-field
+            .contact-field{data-id:'{{field.id}}'}
               .contact-field-label
                 {{field.label|title}}
               .contact-field-value
@@ -153,9 +153,10 @@
     -trans "Message History"
   %table.activity.history{style:'padding:0;margin:0'}
     // poll for our most recent messages
+
     %tr.poll{ ic-src:"/contact/history/{{contact.uuid}}/?after={{recent_start}}",
-              ic-poll:"5s",
               ic-trigger-on:"scrolled-into-view",
+              ic-poll:"5s",
               ic-target:"table .recent",
               ic-poll-repeats:"30" }
 
@@ -497,6 +498,7 @@
             width: 260px;
             padding: 2px 10px;
 
+
             .contact-field-label {
               font-weight: normal;
               color: @color-font-black;
@@ -504,14 +506,19 @@
               margin-right:2px;
               padding-top:5px;
               font-size:95%;
+              display:block;
             }
 
             .contact-field-value {
               font-weight: bold;
               color: @color-font-grey;
-              border: 0px solid green;
               padding-top:-5px;
+              cursor: pointer;
+              display:inline-block;
 
+              &:hover {
+                text-decoration: underline;
+              }
             }
 
           }
@@ -608,7 +615,18 @@
       modal.setRedirectOnSuccess(true);
       modal.show();
     });
+
+    $('.contact-field-value').live('click', function(evt) {
+      var field_id = $(this).parent().data('id');
+      var modal = new Modax('{% trans "Custom Fields" %}','{% url "contacts.contact_update_fields" object.pk %}?field=' + field_id);
+      modal.setIcon('icon-user');
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
+
     {% endif %}
+
+
 
     {% if org_perms.msgs.broadcast_send %}
     $('#send').submit(function(){
